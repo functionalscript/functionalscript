@@ -9,13 +9,13 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { run as mockRun, runAll } from '../mock/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { u8ArrayMsb } from '../../types/bit_vec/module.f.js'
-import { toCodePointList, utf8ToString } from '../../text/utf8/module.f.mjs'
+import { toCodePointList, utf8ToString } from '../../text/utf8/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
-} from './module.f.mjs'
+} from './module.f.js'
 import { pureError, pureOk } from '../module.f.js'
 
 /**

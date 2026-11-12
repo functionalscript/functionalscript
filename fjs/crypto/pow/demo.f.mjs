@@ -15,7 +15,7 @@
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.js'
-import { tryUtf8 } from '../../text/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.js'
 import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'

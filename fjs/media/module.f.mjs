@@ -57,7 +57,7 @@
  * @import { DialectEntry, JsonDialect } from './types.ts'
  */
 
-import { fromVec } from '../text/utf8/module.f.mjs'
+import { fromVec } from '../text/utf8/module.f.js'
 import { detectVec } from './type/module.f.mjs'
 import { parse, stringifySorted } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.js'

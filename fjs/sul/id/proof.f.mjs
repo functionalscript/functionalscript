@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { mask } from '../../types/bigint/module.f.js'
 import { vec } from '../../types/bit_vec/module.f.js'
-import { compress, hashId, isHash, isHashLength, isRaw, level3Id, rawId } from './module.f.mjs'
+import { compress, hashId, isHash, isHashLength, isRaw, level3Id, rawId } from './module.f.js'
 import { asBase } from '../../types/nominal/module.f.js'
 
 // literal3ToVec bit patterns for symbols used below:

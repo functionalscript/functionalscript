@@ -14,7 +14,7 @@ import { noRuntime, transpile } from './transpiler/module.f.mjs'
 import { virtualAt, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 /** @import { Dir } from '../effects/node/virtual/types.ts' */
 
-import { utf8 } from '../text/module.f.mjs'
+import { utf8 } from '../text/module.f.js'
 import { isObject } from '../types/object/module.f.js'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'

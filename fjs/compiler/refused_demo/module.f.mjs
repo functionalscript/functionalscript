@@ -49,7 +49,7 @@
 import { fetchText } from '../../effects/browser/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { error, unwrap } from '../../types/result/module.f.js'
 import { caption } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'

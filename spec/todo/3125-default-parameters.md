@@ -108,7 +108,7 @@ sentence that says so:
   default ends the count too, `(({ a } = {}) => 0).length` being `0`,
   while a default *inside* a pattern does not, `(({ a = 1 }) => 0).length`
   being `1`, the pattern one fixed parameter whatever its elements default
-  to ([destructuring](./2450-destructuring.md)). So the EDAG function's
+  to ([destructuring](../bindings/destructuring/README.md)). So the EDAG function's
   `length` is that count, and every parameter from the first default on is
   read from the one per-call `['rest']` array
   ([named and rest parameters](./3120-parameters.md)): the `k`-th such
@@ -276,7 +276,7 @@ default reads — each a refusal rather than another value.
 - [Named and rest parameters](./3120-parameters.md) — the parameter list
   this extends, and the `length` / `arg` / `rest` contract the lowering
   reads through.
-- [Destructuring](./2450-destructuring.md) — the patterns whose defaults
+- [Destructuring](../bindings/destructuring/README.md) — the patterns whose defaults
   this designs with the parameters', as it asks.
 - [Forward references](./3140-forward-references.md) and
   [body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)

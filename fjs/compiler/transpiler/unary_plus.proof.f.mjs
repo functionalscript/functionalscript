@@ -1,7 +1,7 @@
 /** Represented interpretation never bypasses deferred AST-to-FAST lowering. */
 
 import { assertEq, assertError } from '../../asserts/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { interpret, noRuntime } from './module.f.mjs'
 

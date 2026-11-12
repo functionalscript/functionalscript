@@ -17,7 +17,7 @@ import { definedEntries, isObject } from '../../types/object/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { codeUnitToString, stringToList } from '../../text/utf16/module.f.js'
 import { findMap, includes } from '../../types/array/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import {
     quotationMark, ampersand, lessThanSign, greaterThanSign, hyphenMinus, lowLine, fullStop, colon,
     asciiLowercase, isDigit, isLatinLetter,

@@ -80,7 +80,7 @@ export type Base = {
  *
  * ```js
  * import { vec } from '../../types/bit_vec/module.f.js'
- * import { utf8 } from '../../text/module.f.mjs'
+ * import { utf8 } from '../../text/module.f.js'
  * import { computeSync, sha224 } from './module.f.js'
  *
  * const s = utf8('The quick brown fox jumps over the lazy dog.')

@@ -135,9 +135,8 @@ describes:
 | `decl.generator` | `function* g() {}` | open |
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open |
 | `decl.method` | `{ f() { return 1 } }` | open |
-| `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
-| `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
-| `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
+| `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([object rest destructuring](./object-rest-destructuring.md)) |
+| `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([computed binding keys](./computed-binding-keys.md)) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md); page: [More Than 16 Fixed Parameters Are Refused](../functions/parameters/limit/README.md)) |
 
 ### Module structure

@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.js'
-import { percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.mjs'
+import { percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 
 export const proof = {

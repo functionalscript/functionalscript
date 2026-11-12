@@ -17,7 +17,7 @@ import { asyncPartialRun } from '../../effects/module.mjs'
 import { access, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { within } from '../../effects/node/testlib.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { _runPlan, _saveBatch } from './module.f.mjs'
 

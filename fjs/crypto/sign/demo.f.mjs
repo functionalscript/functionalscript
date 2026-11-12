@@ -39,7 +39,7 @@ import {
     signVerifierMarker,
 } from '../../website/style/module.f.js'
 import { codePoints, hexDigitsValue } from '../../text/ascii/module.f.js'
-import { tryUtf8 } from '../../text/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.js'
 import { encode, encodeRaw, constructedSequence, integer, objectIdentifier } from '../../asn.1/module.f.mjs'
 import { encode as base64 } from '../../basen/base64/module.f.js'
 import { msb, vec, vec8 } from '../../types/bit_vec/module.f.js'

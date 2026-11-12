@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
-import { compress, level3Id } from './id/module.f.mjs'
+import { compress, level3Id } from './id/module.f.js'
 import { encode } from './module.f.mjs'
 import { demo, examples, maxBits, rowWords, stripes, units } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'

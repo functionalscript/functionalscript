@@ -17,7 +17,7 @@
  *
  * **A hash level's symbol is raw or a hash.** It holds the bits it covers
  * inline while they fit in 253, and is a hash once they do not
- * ([`id/module.f.mjs`](./id/module.f.mjs)'s `isHashLength`); a hash stripe is
+ * ([`id/module.f.js`](./id/module.f.js)'s `isHashLength`); a hash stripe is
  * hatched, so a reader sees where hashing starts. The root is written out.
  *
  * **The bits are padded as `end` pads them**: a `1`, then `0`s, until a
@@ -53,7 +53,7 @@
 import { withInputs } from '../website/demo/sharing/module.f.mjs'
 import { encode } from './module.f.mjs'
 import { levels } from './level/literal/module.f.js'
-import { isHash, isHashLength, isRaw } from './id/module.f.mjs'
+import { isHash, isHashLength, isRaw } from './id/module.f.js'
 import { byteChars } from '../website/demo/bits/module.f.mjs'
 import { caption, fieldUpdate, inputField, radios, refusal } from '../website/demo/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.js'

@@ -41,7 +41,7 @@
  * @import { CodePoint } from '../../../text/code_point/types.ts'
  */
 
-import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
+import { fromCodePointList } from '../../../text/utf8/module.f.js'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/module.f.js'
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.js'

@@ -33,6 +33,33 @@ const fn = source => {
 }
 
 export const proof = {
+    arrayRestPreservesIterationBindingsAndIdentity: () => {
+        const cases = /** @type {const} */ ([
+            ['const [a,,...tail]=[1,2,3,4];export default [a,tail];', [1, [3, 4]]],
+            ['const [a,...[b,...tail]]=[1,2,3,4];export default [a,b,tail];', [1, 2, [3, 4]]],
+            ['const [a,...{length:n}]=[1,2,3];export default [a,n];', [1, 2]],
+            ['const [a,...tail]="😀a\\ud800b";export default [a,tail];', ['😀', ['a', '\ud800', 'b']]],
+            ['const [,,...tail]="😀ab";export default tail;', ['b']],
+            ['const pair=()=>{const item={};return [item,item];};const [a,...tail]=pair();export default a===tail[0];', true],
+            ['const source=[{}];const [...a]=source;const [...b]=source;const same=a;export default [a!==source,a!==b,a===same,a[0]===source[0]];', [true, true, true, true]],
+            ['const tail=([a,...rest])=>rest;const x=tail([]);const y=tail([1]);export default [x,y,x!==y];', [[], [], true]],
+            ['const f=([a=5,...tail])=>()=>[a,tail];const x=f([]);const y=f([2,3]);export default [f.length,x(),y()];', [1, [5, []], [2, [3]]]],
+            ['let source=[undefined,1];const [a=(()=>{source=[2,3];return source;})(),...tail]=source;export default [a,tail,source];', [[2, 3], [1], [2, 3]]],
+            ['let [a,...tail]=[1,2,3];tail=[a,...tail];export default tail;', [1, 2, 3]],
+            ['let saved=()=>[];for(const [a,...tail] of [[1,2],[3,4,5]]){saved=()=>tail;}export default saved();', [4, 5]],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    arrayRestRetainsRequiredFailures: () => {
+        for (const source of [
+            'const [...unused]=null;export default 0;',
+            'const [...unused]=undefined;export default 0;',
+            'const [...unused]={length:0};export default 0;',
+            'const [a=null.x,...unused]=[];export default 0;',
+            'const [...[{x}]]=[];export default 0;',
+            'export default (([...unused])=>0)(17);',
+        ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
     numericNamespaceMember: () => {
         assertStructurallySame(result('const {MAX_SAFE_INTEGER: max}=Number;export default max;'), { default: Number.MAX_SAFE_INTEGER })
         assertStructurallySame(result('export default (()=>{let {MAX_SAFE_INTEGER: max}=Number;max-=1;return max;})();'), { default: Number.MAX_SAFE_INTEGER - 1 })

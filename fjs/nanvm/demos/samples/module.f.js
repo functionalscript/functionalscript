@@ -41,8 +41,8 @@ export const samples = [
         [-2, ['returned', '[2,1]']],
     ] },
     { name: 'destructuring', directory: 'spec/bindings/destructuring', calls: [
-        [1, ['returned', '[1,2,[3,4]]']],
-        [5, ['returned', '[5,10,[3,4]]']],
+        [1, ['returned', '[1,2,[3],[3,4]]']],
+        [5, ['returned', '[5,10,[15],[3,4]]']],
     ] },
     { name: 'member_functions', directory: 'spec/built-ins/member-functions', calls: [
         [0, ['returned', '"10-20-30-40"']],

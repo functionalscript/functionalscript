@@ -22,7 +22,7 @@ const base = init => {
 `fromV8` for `digest` and `bitLength` for a quantity derived from
 `chunkLength`, plus an `update` and `end` nothing outside the proof reads.
 The one consumer at `d7bead6`, `hashMerge` in
-[`fjs/sul/id`](../../../sul/id/module.f.mjs), uses `compress` and `fromV8`,
+[`fjs/sul/id`](../../../sul/id/module.f.js), uses `compress` and `fromV8`,
 both fields of the init. The module's own [`proof.f.mjs`](../proof.f.mjs)
 then rebuilds the `FramingInit` out of `base32` to feed `framed`:
 

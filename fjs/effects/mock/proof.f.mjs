@@ -7,7 +7,7 @@
 
 import { do_, pureOk, step } from '../module.f.js'
 import { partialRun, run, runAll } from './module.f.js'
-import { all } from '../common/module.f.mjs'
+import { all } from '../common/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 

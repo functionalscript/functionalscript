@@ -14,8 +14,8 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.js'
 import { compose } from '../function/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'

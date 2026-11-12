@@ -11,7 +11,7 @@ import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/modul
 import { partialRun } from '../../effects/mock/module.f.js'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 const source = { id: 'main.f.js', path: 'main.f.js', json: false }

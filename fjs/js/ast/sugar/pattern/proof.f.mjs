@@ -87,6 +87,34 @@ export const proof = {
         ])
         assertEq(object.ids.length, 3)
     },
+    restSlicesAfterElisionsAndSupportsNestedTargets: () => {
+        const opening = token('opening')
+        const a = token('a')
+        const tail = token('tail')
+        const rest = token('rest')
+        const array = assertOk(plan(['array', opening, [
+            ['name', a], ['elision', token('comma')], ['...', rest, ['name', tail]],
+        ]], null))
+        assertStructurallySame(array.reads, [
+            { source: null, spread: true }, { source: [0, 0], spread: false },
+            { source: ['slice', 0, 2], spread: false },
+        ])
+        assertStructurallySame(array.names, [[a, 1], [tail, 2]])
+        const nested = assertOk(plan(['array', opening, [
+            ['...', rest, ['array', opening, [['name', a], ['...', rest, ['name', tail]]]]],
+        ]], null))
+        assertStructurallySame(nested.reads, [
+            { source: null, spread: true }, { source: ['slice', 0, 0], spread: true },
+            { source: [1, 0], spread: false }, { source: ['slice', 1, 1], spread: false },
+        ])
+        const object = assertOk(plan(['array', opening, [
+            ['...', rest, ['object', opening, [{ key: token('length'), target: ['name', a] }]]],
+        ]], null))
+        assertStructurallySame(object.reads, [
+            { source: null, spread: true }, { source: ['slice', 0, 0], spread: false },
+            { source: [1, 'length'], spread: false },
+        ])
+    },
     emptyPatternsAndNamespaces: () => {
         const opening = token('opening')
         assertStructurallySame(assertOk(plan(['array', opening, []], null)).reads, [{ source: null, spread: true }])
@@ -109,7 +137,8 @@ export const proof = {
         assertStructurallySame(assertError(plan(['invalid', invalid], null)), { message: 'invalid', metadata: invalid.metadata })
         const rest = token('rest')
         const name = /** @type {const} */ (['name', first])
-        assertStructurallySame(assertError(plan(['array', opening, [['...', rest, name]]], null)), { message: 'rest', metadata: rest.metadata })
+        const comma = token('comma', 10)
+        assertStructurallySame(assertError(plan(['array', opening, [['...', rest, name, comma]]], null)), { message: 'restComma', metadata: comma.metadata })
         assertStructurallySame(assertError(plan(['object', opening, [['...', rest, name]]], null)), { message: 'rest', metadata: rest.metadata })
         const computed = token('computed')
         assertStructurallySame(assertError(plan(['object', opening, [{ key: ['[]', ['primitive', 1], computed], target: name }]], null)), { message: 'computed', metadata: computed.metadata })

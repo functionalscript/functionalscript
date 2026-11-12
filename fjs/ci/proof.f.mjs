@@ -7,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js
 import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.mjs'
 import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.js'
-import { utf8ToString } from '../text/utf8/module.f.mjs'
+import { utf8ToString } from '../text/utf8/module.f.js'
 import { error, unwrap } from '../types/result/module.f.js'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { install, test, parseGitHubAction, uses } from './common/module.f.mjs'

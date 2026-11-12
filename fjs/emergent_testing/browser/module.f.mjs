@@ -28,7 +28,7 @@
  * @import { Element } from '../../media/html/types.ts'
  */
 
-import { catch_, import_ } from '../../effects/common/module.f.mjs'
+import { catch_, import_ } from '../../effects/common/module.f.js'
 import {
     addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
 } from '../module.f.mjs'

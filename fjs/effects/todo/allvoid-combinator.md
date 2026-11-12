@@ -25,7 +25,7 @@ missing, so every call site re-spells the whole fan-out-then-discard dance.
 ### Proposal
 
 Add the void sibling next to `all` / `All` / `both` / `allOk`, in
-`fjs/effects/common/module.f.mjs`, where
+`fjs/effects/common/module.f.js`, where
 [node-module-layering](./node-module-layering.md) moved them. It cannot live
 next to `forEachStep` in the core `fjs/effects/module.f.js`: `all`/`All` are
 defined in a module that already imports the core one, so placing `allVoid` in
@@ -96,13 +96,13 @@ recorded as superseded there.)
       `All`/`all`/`both` **and `allOk`** to `fjs/effects/all/module.f.mjs`.
       `allVoid` is built on `allOk`, so moving one without the other inverts
       the layering. **Done** — all four moved together, to
-      `fjs/effects/common/module.f.mjs` rather than the `effects/all` this task
+      `fjs/effects/common/module.f.js` rather than the `effects/all` this task
       guessed at.
 - [ ] Wait for [all-argument-limit](./all-argument-limit.md)'s list-shaped
       `allOk`, and hand it the list: `allVoid` is an arbitrary-length
       fan-out, so a spread in its body would rebuild the argument ceiling it
       is called at (the note under the proposal).
-- [ ] Add `allVoid` to `fjs/effects/common/module.f.mjs` (next to
+- [ ] Add `allVoid` to `fjs/effects/common/module.f.js` (next to
       `all`/`both`/`allOk`) with proof coverage.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
       `fjs/emergent_testing/module.f.mjs`.

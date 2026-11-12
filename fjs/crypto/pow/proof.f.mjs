@@ -1,7 +1,7 @@
 /** @import { DemoEvent } from '../../website/demo/types.ts' */
 
 import { powResultMarker, stylesheet } from '../../website/style/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.js'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.js'

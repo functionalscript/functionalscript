@@ -4,7 +4,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { step } from '../../effects/module.f.js'
 import { emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { parseFromTokens } from '../../compiler/parser/module.f.mjs'
 import { tokenize } from '../../compiler/tokenizer/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.js'

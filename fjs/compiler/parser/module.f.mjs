@@ -112,12 +112,15 @@ const malformedParameters = foldError('malformed parameter list')
 const invalidTarget = foldError('invalid destructuring target')
 
 /**
- * A rest element or property in a binding pattern, `[a, ...r]` or
- * `{ a, ...r }`, at its `...`: JavaScript's, and not read yet
- * ([destructuring](../../../spec/todo/2450-destructuring.md)), so refused
+ * A rest property in an object binding pattern, `{ a, ...r }`, at its
+ * `...`: JavaScript's, and not read yet
+ * ([object rest](../../../spec/todo/object-rest-destructuring.md)), so refused
  * by name rather than read in part.
  */
 const restTarget = foldError('rest element not supported')
+
+/** A comma after an array rest target, including a trailing comma. */
+const restComma = foldError('comma after rest element')
 
 /**
  * A hole in an array value, `[1, , 2]` or `[,]`, at the comma that makes
@@ -137,7 +140,7 @@ const arrayHole = foldError('array hole')
  * yet, the conversion `Number(i)` an access admits included — a body's
  * statement is resolved as one value, and the key would be a second value
  * to resolve inside the statement
- * ([destructuring](../../../spec/todo/2450-destructuring.md)).
+ * ([computed binding keys](../../../spec/todo/computed-binding-keys.md)).
  */
 const computedPatternKey = foldError('computed key in a binding pattern not supported')
 
@@ -468,7 +471,7 @@ const planned = check => planPattern({
 })
 
 /** The source admission owner supplies each refused spelling's diagnostic. */
-const patternRefusals = { invalid: invalidTarget, rest: restTarget, computed: computedPatternKey, duplicate: duplicateId }
+const patternRefusals = { invalid: invalidTarget, rest: restTarget, restComma, computed: computedPatternKey, duplicate: duplicateId }
 
 /** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
 const namespaceMember = (namespace, key) => {
