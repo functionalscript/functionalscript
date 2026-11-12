@@ -186,7 +186,7 @@ export const proof = {
         for (const source of [
             'export default Math;',
             'export default Math.log;',
-            'export default Math.sqrt(4);',
+            'export default Math.cbrt(8);',
             'export default Math?.log2;',
             'export default Math?.["log2"];',
             'export default Math[Number(0)];',
@@ -239,6 +239,26 @@ export const proof = {
         for (const source of ['Math?.abs', 'Math?.["abs"](1)', 'Number.abs', 'Object.abs']) {
             expectRefused(`export default ${source};`, 'reserved word', 16)
         }
+    },
+    mathSqrtCeilImul: () => {
+        for (const [name, args] of [['sqrt', '4'], ['ceil', '0.75'], ['imul', '7,3']]) {
+            for (const source of [`Math.${name}`, `Math["${name}"]`, `(Math.${name})`]) {
+                expectModule(`export default ${source};`, exported(`["Math.${name}"]`))
+            }
+            expectModule(`export default Math.${name}(${args});`, exported(`["()",["Math.${name}"],[${args}]]`))
+            expectModule(`export default Math["${name}"]?.(${args});`, exported(`["?.()",["Math.${name}"],[${args}]]`))
+            expectModule(`const { ${name}: f, "${name}": g, ${name}: { length } } = Math; export default [f, g, length];`,
+                exported(`["[]",[["Math.${name}"],["Math.${name}"],[".",["Math.${name}"],"length"]]]`))
+            for (const source of [`Math?.${name}`, `Math?.["${name}"](1)`, `Number.${name}`, `Object.${name}`]) {
+                expectRefused(`export default ${source};`, 'reserved word', 16)
+            }
+        }
+        expectModule('export default x => Math.sqrt(x);',
+            exported('["=>",1,[],["()",["Math.sqrt"],[["arg",0]]]]'))
+        expectModule('export default x => Math.ceil(x);',
+            exported('["=>",1,[],["()",["Math.ceil"],[["arg",0]]]]'))
+        expectModule('export default (x, y) => Math.imul(x, y);',
+            exported('["=>",2,[],["()",["Math.imul"],[["arg",0],["arg",1]]]]'))
     },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.

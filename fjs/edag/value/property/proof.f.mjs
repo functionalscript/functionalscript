@@ -137,7 +137,7 @@ export const proof = {
         assertEq(some('ab', '1'), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], ['Math.trunc'], ['Math.floor'], ['Math.abs'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], ['Math.trunc'], ['Math.floor'], ['Math.abs'], ['Math.sqrt'], ['Math.ceil'], ['Math.imul'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
@@ -163,10 +163,16 @@ export const proof = {
         expectValue(['Math.trunc'], 'length', 1)
         expectValue(['Math.floor'], 'length', 1)
         expectValue(['Math.abs'], 'length', 1)
+        expectValue(['Math.sqrt'], 'length', 1)
+        expectValue(['Math.ceil'], 'length', 1)
+        expectValue(['Math.imul'], 'length', 2)
         missing(['String.fromCharCode'], 'name')
         missing(['Math.trunc'], 'name')
         missing(['Math.floor'], 'name')
         missing(['Math.abs'], 'name')
+        missing(['Math.sqrt'], 'name')
+        missing(['Math.ceil'], 'name')
+        missing(['Math.imul'], 'name')
         missing(['Object.entries'], 'name')
         /** @type {import('../types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]

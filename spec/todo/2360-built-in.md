@@ -308,7 +308,8 @@ body, represented interpreters and generated NaNVM code to JavaScript.
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [x] `Math` — a reserved namespace admitting the static functions
-      `Math.log2`, `Math.trunc`, `Math.floor` and `Math.abs`; other members remain separate admissions
+      `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
+      `Math.ceil` and `Math.imul`; other members remain separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
 - [ ] `Date`
@@ -501,6 +502,61 @@ from other `Math` functions.
 
 **Language-design approval.** **sergey-shandar** explicitly requested
 implementation of `Math.abs` in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.sqrt, Math.ceil and Math.imul proposal and approval
+
+**Problem.** The compiler refused these three statics, blocking the
+`website/demo/secp`, `zlib/inflate` and `zlib/testlib` dependency leaves.
+
+**Proposal.** Admit the native static values `Math.sqrt`, `Math.ceil` and
+`Math.imul`, represented by nodes of those names. Preserve ordinary quoted and
+destructured reads, detached and optional calls, stable identity and native
+function text. `sqrt` and `ceil` have `length` one; `imul` has `length` two.
+Other `Math` members remain separate admissions.
+
+`sqrt` converts its first argument once with `ToNumber` and returns its
+non-negative square root. Preserve both zeros and positive infinity; negative
+numbers, including negative infinity, and `NaN` produce `NaN`.
+
+`ceil` converts its first argument once with `ToNumber` and rounds toward
+positive infinity. Preserve both zeros, infinities and `NaN`; a negative
+fraction between `-1` and zero produces `-0`.
+
+`imul` applies `ToUint32` to the first argument, then to the second, and returns
+the low 32 bits of their product interpreted as a signed 32-bit integer.
+Conversion truncates finite fractions toward zero and reduces integers modulo
+`2^32`; zeros, infinities and `NaN` convert to zero. The first conversion must
+finish before the second begins. An omitted argument converts through
+`undefined`, so `imul()` and `imul(x)` produce positive zero for a valid `x`.
+
+For all three, primitive or converted bigints and failed primitive conversion
+throw. Missing unary arguments produce `NaN`. All argument expressions are
+evaluated before invocation; extra arguments are not numerically converted.
+
+**Backend choice.** Both targets provide compatible numerical operations:
+[Rust `f64::sqrt`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.sqrt)
+and [core WASM `f64.sqrt`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fsqrt),
+[Rust `f64::ceil`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.ceil)
+and [core WASM `f64.ceil`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fceil),
+and [Rust `i32::wrapping_mul`](https://doc.rust-lang.org/stable/std/primitive.i32.html#method.wrapping_mul)
+and [core WASM `i32.mul`](https://webassembly.github.io/spec/core/exec/numerics.html#op-imul).
+Use native bindings under the approved target rule. The runtime table holds
+JavaScript's built-ins; represented execution and Rust use their existing
+conversions before the native operation. For `imul`, interpreting each operand's
+32 bits as signed before wrapping multiplication preserves the product bits.
+A future WASM backend can use these core instructions after the same
+conversions. No common numerical body or third-party dependency is needed.
+
+**Benefits.** Familiar JavaScript names and compatible native operations on
+both targets, without another numerical implementation or dependency.
+
+**Drawbacks.** Three more static bindings and their conversion contracts in
+each executor. `imul` must preserve operand-conversion order and wrapping
+semantics, and the unary bindings must preserve signed zero and special values.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+"Implement `Math.sqrt`, `Math.ceil` and `Math.imul` in a new PR" in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing

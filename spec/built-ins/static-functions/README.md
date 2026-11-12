@@ -28,9 +28,10 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Object.is`,
-`Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
-four `Number` predicates. `Object.is` is JavaScript's
+The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`,
+`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Object.is`, `Object.entries`,
+`Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the four `Number`
+predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -66,6 +67,28 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`.
+
+`Math.sqrt(x)` converts its first argument with `ToNumber`, then returns its
+non-negative square root: `Math.sqrt("9")` is `3`. Both zeros are preserved,
+including `Math.sqrt(-0)` returning `-0`; positive infinity remains unchanged.
+Negative numbers, negative infinity and `NaN` return `NaN`.
+
+`Math.ceil(x)` converts its first argument with `ToNumber`, then rounds toward
+positive infinity: `Math.ceil("1.1")` is `2`, and `Math.ceil(-0.5)` is `-0`.
+Both zeros, infinities and `NaN` remain unchanged. For both unary functions,
+missing arguments produce `NaN`; primitive or converted bigints and failed
+conversion throw. Extra arguments are evaluated but not converted.
+
+`Math.imul(a, b)` converts `a` and then `b` with `ToUint32`, and returns the
+low 32 product bits as a signed 32-bit integer: `Math.imul(0xffff_ffff, 5)` is
+`-5`. Finite fractions truncate toward zero; integers reduce modulo `2^32`;
+zeros, infinities and `NaN` become zero. Missing operands become zero through
+`undefined`, so `Math.imul()` and `Math.imul(3)` return positive zero. Primitive
+or converted bigints and failed conversion throw, with the first conversion
+completed before the second begins. Extra arguments are evaluated but not
+converted. `imul` has `length` 2; `sqrt` and `ceil` have `length` 1. All three
+use compatible native operations in Rust and core WASM, without dependencies
+([admission](../../todo/2360-built-in.md#mathsqrt-mathceil-and-mathimul-proposal-and-approval)).
 
 `Math.abs(x)` converts its first argument with `ToNumber`, then returns its
 absolute value: `Math.abs("-1.9")` is `1.9`, `Math.abs(-0)` is positive zero,
@@ -145,7 +168,8 @@ conversion already, is a namespace the same way, beside the call
 `Number(x)` ([number conversion](../../conversions/number/README.md)). Each later member is
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
-`Math` is reserved in the same way and admits only `log2`.
+`Math` is reserved in the same way and admits `log2`, `trunc`, `floor`, `abs`,
+`sqrt`, `ceil` and `imul`.
 `Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
 function, with `length` 1 and text `function log2() { [native code] }`.
 The word alone, namespace guards, computed keys and other `Math` members
@@ -160,9 +184,10 @@ a module calls the built-in — and checked there against the host's own
 for exact semantic cases, with separate numerical accuracy cases for
 `Math.log2`;
 every executor answers the node from it, and an executor with no binding
-for it fails, naming it, rather than answer. `Object.entries` and
-`String.fromCharCode` are native primitives; the others,
-`Object.keys`, `Object.fromEntries` and `Math.log2` among them, have bodies. The native
+for it fails, naming it, rather than answer. `Object.entries`,
+`String.fromCharCode` and the admitted `Math` functions other than `log2` are
+native primitives; the others, `Object.keys`, `Object.fromEntries` and
+`Math.log2` among them, have bodies. The native
 primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render

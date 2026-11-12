@@ -362,6 +362,9 @@ export const statics = {
     'Math.trunc': Math.trunc,
     'Math.floor': Math.floor,
     'Math.abs': Math.abs,
+    'Math.sqrt': Math.sqrt,
+    'Math.ceil': Math.ceil,
+    'Math.imul': Math.imul,
 }
 
 /** The runtime: table lookup and the `in` and `Boolean` operator bodies. */
