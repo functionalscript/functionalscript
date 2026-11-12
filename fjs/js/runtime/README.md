@@ -4,7 +4,7 @@ The built-in functions, defined once. [`module.f.js`](./module.f.js)
 holds two tables and exports `runtime`, four functions an executor asks:
 two over the tables, and the bodies of the `in` and `Boolean` operators.
 The `member` table holds, by name, the member
-functions whose **body** is written, `startsWith`, `codePointAt` and `map`: each a
+functions whose **body** is written, `startsWith`, `codePointAt`, `map` and `concat`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
 for a receiver the name is no member of, or the function of the arguments
 as the call passed them, `undefined` past the end — the body dispatches on
@@ -48,6 +48,17 @@ the entries function once and calls both functions directly, without a member
 lookup or a new native keys operation. Enumeration order and undefined-valued
 entries come from the existing primitive. The array mapper copies its immutable
 accumulator, so this reference body costs O(n²).
+
+`concat` dispatches to the typed array and string bodies in
+[`../members`](../members/module.f.js). An array call copies its receiver,
+spreads array arguments one level and appends every other argument whole;
+the result is fresh and retains element identities. A string call appends
+each argument's explicit `String` conversion in order. Both accept any
+number of arguments, preserving the difference between no argument and an
+explicit `undefined`. The bodies use primitive operations and plain helper
+calls, so they can run while the runtime is being initialized. Both
+executors require these shared bodies; their former native implementations
+are removed. Own properties still shadow the built-in through `runtime.dot`.
 
 ## Inside the admitted set
 

@@ -157,6 +157,22 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(at(at(edag, 'runtime'), 'Boolean'),
             ['=>', 1, [], ['!', ['!', ['arg', 0]]]])
     },
+    concat: () => {
+        const onArray = assertNotNullish(member.concat([1]))
+        assertStructurallySame(onArray(), [1])
+        assertStructurallySame(onArray(undefined, [2, [3]], 4), [1, undefined, 2, [3], 4])
+        const onString = assertNotNullish(member.concat('a'))
+        assertEq(onString(), 'a')
+        assertEq(onString('b', 1n, null, undefined), 'ab1nullundefined')
+        for (const self of samples.filter(value => !(value instanceof Array) && typeof value !== 'string')) {
+            assertEq(member.concat(self), undefined, self)
+        }
+        const own = () => 7
+        assertEq(runtime.dot({ concat: own }, 'concat'), own)
+        assertEq(runtime.dot({ concat: undefined }, 'concat'), undefined)
+        assertEq(typeof runtime.dot([], 'concat'), 'function')
+        assertEq(typeof runtime.dot('', 'concat'), 'function')
+    },
     map: () => {
         const input = /** @type {const} */ ([1, undefined, 3])
         /** @type {(value: unknown, index: number, receiver: readonly unknown[]) => readonly unknown[]} */

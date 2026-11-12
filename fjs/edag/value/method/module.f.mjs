@@ -66,7 +66,7 @@ export const callee = (runtime, key, receiver, invoke) => {
  *
  * @type {readonly string[]}
  */
-export const _runtimeOnly = ['startsWith', 'codePointAt', 'map']
+export const _runtimeOnly = ['startsWith', 'codePointAt', 'map', 'concat']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish
@@ -163,16 +163,6 @@ const stringMethod = (receiver, key, args, invoke) => {
         // Unicode version, which NaNVM asserts at compile time.
         case 'toLowerCase': { return ok(receiver.toLowerCase()) }
         case 'toUpperCase': { return ok(receiver.toUpperCase()) }
-        case 'concat': {
-            let text = receiver
-            for (const value of args) {
-                const result = toString(value, invoke)
-                const [kind, part] = result
-                if (kind === 'error') { return result }
-                text += part
-            }
-            return ok(text)
-        }
         case 'replace': case 'replaceAll': {
             const result = toString(first, invoke)
             const [kind, search] = result

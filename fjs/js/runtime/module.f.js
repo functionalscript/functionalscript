@@ -6,7 +6,7 @@
  * ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
  *
  * `member` holds, by name, the member functions whose body is written,
- * `startsWith`, `codePointAt` and `map`: each a FunctionalScript function of the
+ * `startsWith`, `codePointAt`, `map` and `concat`: each a FunctionalScript function of the
  * receiver alone, answering `undefined` for a receiver the name is no
  * member of, or the function of the arguments as the call passed them,
  * `undefined` past the end — so the body dispatches on its receiver's type
@@ -52,6 +52,8 @@ import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { charCodeAt, slice } from '../intrinsic/module.f.js'
 import { map as arrayMap } from '../members/array/map/module.f.js'
+import { concat as arrayConcat } from '../members/array/concat/module.f.js'
+import { concat as stringConcat } from '../members/string/concat/module.f.js'
 
 /** The native enumerator, shared by its own static entry and the keys body. */
 const ownEntries = Object.entries
@@ -287,6 +289,15 @@ const found = (self, s, start) => {
 
 /** The member table: a name, then the body of the receiver. */
 export const member = {
+    /**
+     * `concat` over arrays and strings, sharing the typed inventory bodies.
+     * Rest arguments preserve the difference between no item and one
+     * `undefined` item. Type dispatch does not coerce the receiver.
+     *
+     * @type {(self: unknown) => undefined | ((...items: readonly unknown[]) => readonly unknown[] | string)}
+     */
+    concat: self => self instanceof Array ? (...items) => arrayConcat(self, ...items)
+        : typeof self === 'string' ? (...items) => stringConcat(self, ...items) : undefined,
     /**
      * `Array.prototype.map`, for an array and no other receiver type. The
      * typed body is shared with the member inventory and calls the callback
