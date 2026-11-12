@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertOk, assertError, assertNotNullish } from '../../../asserts/module.f.js'
 import { eq, curve } from '../../../crypto/secp/module.f.js'
-import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.mjs'
+import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.js'
 
 export const proof = {
     finite: () => {

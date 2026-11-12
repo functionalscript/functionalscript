@@ -123,14 +123,14 @@ const item = ({ literals, distances }, input, pos, window) => {
     if (value === 256) { return { window, pos: next, end: true } }
     // 286 and 287 have codes in the fixed block and mean nothing
     if (value > 285) { return null }
-    const [base, width] = lengthCodes[value - 257]
+    const [base, width] = lengthCodes[Number(value - 257)]
     const extra = read(input, next, width)
     if (extra === more) { return more }
     const far = decode(distances, input, next + width)
     if (far === more || far === null) { return far }
     // 30 and 31 have codes in the fixed block and mean nothing
     if (far[0] > 29) { return null }
-    const [distanceBase, distanceWidth] = distanceCodes[far[0]]
+    const [distanceBase, distanceWidth] = distanceCodes[Number(far[0])]
     const distanceExtra = read(input, next + width + far[1], distanceWidth)
     if (distanceExtra === more) { return more }
     const distance = distanceBase + distanceExtra
