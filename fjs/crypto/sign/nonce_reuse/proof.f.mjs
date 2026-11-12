@@ -1,6 +1,6 @@
 /** @import { Vec } from '../../../types/bit_vec/types.ts' */
 
-import { reuse } from './module.f.mjs'
+import { reuse } from './module.f.js'
 import { assert, assertEq, assertNotNullish, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { curve, secp256r1 } from '../../secp/module.f.js'
 import { verify, computeK, all } from '../module.f.js'
