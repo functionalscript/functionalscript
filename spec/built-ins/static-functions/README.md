@@ -28,7 +28,7 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The admitted static functions include `Math.log2`, `Math.trunc`, `Object.is`,
+The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`, `Object.is`,
 `Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
 four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
@@ -66,6 +66,14 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`.
+
+`Math.floor(x)` converts its first argument with `ToNumber`, then rounds
+toward negative infinity: `Math.floor("1.9")` is `1`, and
+`Math.floor(-0.5)` is `-1`. Both zeros and infinities remain unchanged,
+and `NaN` stays `NaN`. Missing arguments, bigint rejection, conversion
+failures and extra arguments follow the same rules as `Math.trunc` below.
+The numeric operation is native in Rust and core WASM
+([admission](../../todo/2360-built-in.md#mathfloor-proposal-and-approval)).
 
 `Math.trunc(x)` converts its first argument with `ToNumber`, then rounds
 toward zero: `Math.trunc("-1.9")` is `-1`, and `Math.trunc(-0.5)` is `-0`.

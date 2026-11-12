@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`stored`](../stored/module.f.mjs) cuts a byte list into `0xffff`-byte
+[`stored`](../stored/module.f.js) cuts a byte list into `0xffff`-byte
 blocks through `fjs/types/bit_vec`'s `u8ListToVecChunksMsb` and closes the
 stream with the Adler-32 of those blocks:
 

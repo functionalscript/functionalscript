@@ -308,7 +308,7 @@ body, represented interpreters and generated NaNVM code to JavaScript.
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [x] `Math` — a reserved namespace admitting the static functions
-      `Math.log2` and `Math.trunc`; other members remain separate admissions
+      `Math.log2`, `Math.trunc` and `Math.floor`; other members remain separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
 - [ ] `Date`
@@ -429,6 +429,42 @@ failures and special values. This admission does not admit other `Math` members.
 **Language-design approval.** **sergey-shandar** explicitly requested
 implementation of `Math.trunc` in a new PR, using native operations when both
 Rust and WASM provide them, in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.floor proposal and approval
+
+**Problem.** The compiler refused `Math.floor`, blocking the Rust-number
+serializer and Adler-32 dependency leaves.
+
+**Proposal.** Admit the native static value `Math.floor`, EDAG node
+`['Math.floor']`, with the existing static-function contract: quoted and
+destructured reads, detached and optional calls, stable identity, native text
+and `length` of one. Other `Math` members remain separate admissions.
+
+Convert the first argument once with JavaScript `ToNumber`, then round
+toward negative infinity: `Math.floor(-0.5)` and the smallest negative
+subnormal produce `-1`. Preserve both zeros, infinities and `NaN`.
+An omitted argument produces `NaN`; primitive or converted bigints and
+failed primitive conversion throw. Extra arguments are evaluated but are
+not converted.
+
+**Backend choice.** Both targets provide the numeric operation:
+[Rust `f64::floor`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.floor)
+and [core WASM `f64.floor`](https://webassembly.github.io/spec/core/exec/numerics.html#op-ffloor).
+Use native bindings under the approved target rule. The JavaScript runtime
+holds `Math.floor` itself; represented execution and Rust perform their
+existing `ToNumber` conversion before the native operation. A future WASM
+backend can use `f64.floor` after conversion, with no third-party dependency.
+
+**Benefits.** Familiar JavaScript spelling and exact native floor on both
+targets without another numerical implementation or dependency.
+
+**Drawbacks.** Each executor needs a binding that preserves conversion errors
+and special values. Rounding negative fractions must remain distinct from
+truncation toward zero.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.floor` in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing

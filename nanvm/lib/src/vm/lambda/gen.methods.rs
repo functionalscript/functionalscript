@@ -749,4 +749,5 @@ pub const STATICS: &[&[&str]] = &[
     &["Number", "isFinite"],
     &["Math", "log2"],
     &["Math", "trunc"],
+    &["Math", "floor"],
 ];

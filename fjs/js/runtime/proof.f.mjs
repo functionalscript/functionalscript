@@ -110,6 +110,32 @@ const samples = [
 ]
 
 export const proof = /** @type {const} */ ({
+    floor: {
+        numbers: () => {
+            const floor = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.floor'])
+            assertEq(floor, Math.floor)
+            assertEq(runtime.static('Math.floor'), floor)
+            assertEq(floor.length, 1)
+            assert(Object.is(floor(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 0], [-0.5, -1],
+                [1.9, 1], [-1.9, -2], [5e-324, 0], [-5e-324, -1],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, -1.7976931348623157e308],
+            ]) { assert(Object.is(floor(value), expected), value) }
+        },
+        conversion: () => {
+            const floor = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.floor'])
+            for (const value of ['', ' -0 ', ' -0.5 ', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(floor(value), Math.floor(/** @type {number} */ (value))), value)
+            }
+            assertEq(floor({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 2)
+            assertEq(floor({ valueOf: () => ({}), toString: () => '-3.9' }), -4)
+            assertEq(floor(4.9, { valueOf: () => { throw 'unused' } }), 4)
+        },
+    },
     trunc: {
         numbers: () => {
             const trunc = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.trunc'])
@@ -512,6 +538,10 @@ export const proof = /** @type {const} */ ({
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        floorBigint: () => { table['Math.floor'](1n, undefined) },
+        floorBigintPrimitive: () => { table['Math.floor']({ valueOf: () => 1n }, undefined) },
+        floorConversion: () => { table['Math.floor']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        floorNoPrimitive: () => { table['Math.floor']({ valueOf: () => ({}), toString: () => [] }, undefined) },
         truncBigint: () => { table['Math.trunc'](1n, undefined) },
         truncBigintPrimitive: () => { table['Math.trunc']({ valueOf: () => 1n }, undefined) },
         truncConversion: () => { table['Math.trunc']({ valueOf: () => { throw 'conversion' } }, undefined) },

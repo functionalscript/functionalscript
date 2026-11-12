@@ -76,6 +76,14 @@ marker in place of a body would only duplicate the parser's list.
 
 ## Math functions
 
+`Math.floor` is native: Rust provides `f64::floor` and core WASM provides
+`f64.floor`, rounding toward negative infinity. Both zeros, infinities and
+`NaN` are preserved; negative fractions, including negative subnormals, round
+to the next lower integer. As for `Math.trunc`, the runtime table holds the
+JavaScript built-in, and represented execution and Rust convert once with
+`ToNumber` before the numeric operation. No dependency is added. See the
+[admission record](../../../spec/todo/2360-built-in.md#mathfloor-proposal-and-approval).
+
 `Math.trunc` is native: Rust supplies `f64::trunc` and core WASM supplies
 `f64.trunc`, both rounding toward zero while preserving signed zero and
 infinities. The runtime table holds the JavaScript built-in itself. Represented
@@ -150,7 +158,7 @@ The VMs bind these natively:
   compiler recognizes whole as a node every executor answers natively, so
   no body of this module makes a member call;
 - the **compatible native math operations** available in both Rust and core
-  WASM, currently `Math.trunc`, under the target rule above;
+  WASM, currently `Math.trunc` and `Math.floor`, under the target rule above;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on

@@ -30,7 +30,7 @@ import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../..
 import { reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
-import { appendBytes as adler } from '../adler32/module.f.mjs'
+import { appendBytes as adler } from '../adler32/module.f.js'
 import { more, read } from '../bits/module.f.js'
 import { decode, dynamic, fixed } from '../huffman/module.f.js'
 import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.js'

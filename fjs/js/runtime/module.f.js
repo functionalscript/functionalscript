@@ -360,6 +360,7 @@ export const statics = {
     'Number.isFinite': isFinite_,
     'Math.log2': log2,
     'Math.trunc': Math.trunc,
+    'Math.floor': Math.floor,
 }
 
 /** The runtime: table lookup and the `in` and `Boolean` operator bodies. */

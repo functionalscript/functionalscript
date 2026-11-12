@@ -142,6 +142,15 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Native floor
+
+#3794 (`0a4270f0a`) admits `Math.floor` natively via Rust's `f64::floor`
+and core WASM's `f64.floor`. `zlib/adler32` and `zlib/stored` now use `.f.js`.
+The graph has **275 `.f.js` files**, **368 `.f.mjs` files** and **15 blocked
+leaves**; the final pass accepts none. `1c9375a5a` places `bitsOf` before
+`f64Bits`; `media/rust` next stops at `Math.abs` (`155:15`). New leaves are `zlib/inflate`, using
+`Math.ceil` (`60:45`), and `zlib/testlib`, using `Math.imul` (`26:22`).
+
 #### Native truncation
 
 #3792 (`c6b59ebc0`) admits `Math.trunc` natively: Rust's `f64::trunc` and
@@ -795,23 +804,9 @@ compiler reported it. Locations are `line:column`; paths are relative to
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ebnf/token_symbol', 'text/ascii', 'types/function/compare', 'types/list',
-  'types/map', 'zlib/bits',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `265b4a7` (historical)
 

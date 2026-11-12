@@ -2,6 +2,7 @@ mod add;
 mod binary64;
 mod debug;
 mod div;
+mod floor;
 mod format;
 mod from;
 mod int32_coercion;

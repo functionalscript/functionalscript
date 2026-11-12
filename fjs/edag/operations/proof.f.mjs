@@ -102,6 +102,42 @@ export const proof = /** @type {const} */ ({
         eq(['()', ['String.fromCharCode'], [true, null, ['undefined'], '66', ['[]', [67]]]], '\u0001\u0000\u0000BC')
         failure(['()', ['String.fromCharCode'], [65, 1n]])
     },
+    mathFloor: {
+        numbers: () => {
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 0], [-0.5, -1],
+                [1.9, 1], [-1.9, -2], [5e-324, 0], [-5e-324, -1],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, -1.7976931348623157e308],
+            ]) { eq(['()', ['Math.floor'], [value]], expected) }
+            eq(['()', ['Math.floor'], []], NaN)
+        },
+        conversion: () => {
+            for (const [value, expected] of /** @type {readonly (readonly [Exp, number])[]} */ ([
+                ['', 0], [' -0 ', -0], [' -0.5 ', -1], [' 0x10 ', 16], ['Infinity', Infinity], ['bad', NaN],
+                [true, 1], [false, 0], [null, 0], [['undefined'], NaN],
+                [['[]', []], 0], [['[]', [8.9]], 8], [['[]', [8n]], 8], [['{}', []], NaN],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], 2.9]], [':', 'toString', ['=>', 0, [], ['throw', 'unreached']]]]], 2],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], '-3.9']]]], -4],
+            ])) { eq(['()', ['Math.floor'], [value]], expected) }
+            eq(['()', ['Math.floor'], [4.9, throws]], 4)
+            failure(['()', ['Math.floor'], [4.9, ['throw', 'argument']]], 'argument')
+            failure(['()', ['Math.floor'], [1n]])
+            failure(['()', ['Math.floor'], [['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]]]])
+            failure(['()', ['Math.floor'], [throws]], 'conversion')
+            failure(['()', ['Math.floor'], [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.floor'], ['Math.floor'])
+            eq(['.', ['Math.floor'], 'length'], 1)
+            eq(['String', ['Math.floor']], 'function floor() { [native code] }')
+            eq(['===', ['Math.floor'], ['Math.floor']], true)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.floor'], [-1.9]]), ['ok', -2])
+        },
+    },
     mathTrunc: {
         numbers: () => {
             for (const [value, expected] of [
