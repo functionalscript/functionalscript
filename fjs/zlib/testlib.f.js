@@ -134,6 +134,8 @@ export const written = text => {
 export const bytes = bits => generate(Math.ceil(bits.length / 8), i =>
     bits.slice(8 * i, 8 * i + 8).reduce((byte, bit, j) => byte | bit << j, 0))
 
+const codeLengths = generate(15, i => i + 1)
+
 /**
  * The code each symbol gets from its length, RFC 1951 section 3.2.2, written
  * out here on its own so that it checks `code` and does not repeat it.
@@ -143,7 +145,7 @@ export const bytes = bits => generate(Math.ceil(bits.length / 8), i =>
 export const assign = lengths => {
     /** @type {{ readonly next: number, readonly codes: readonly string[] }} */
     const initial = { next: 0, codes: lengths.map(() => '') }
-    const result = generate(15, i => i + 1).reduce((state, length) => {
+    const result = codeLengths.reduce((state, length) => {
         const assigned = lengths.reduce((current, x, symbol) => x === length ? {
             next: current.next + 1,
             codes: current.codes.map((c, s) => s === symbol
