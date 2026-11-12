@@ -11,7 +11,7 @@
  */
 
 import { log2 } from '../../../types/bigint/module.f.js'
-import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { msb, vec } from '../../../types/bit_vec/module.f.js'
 import { cascade } from '../../../types/function/operator/module.f.js'
 import { map, sameItems } from '../../../types/list/module.f.js'
 import { join } from '../../../types/string/module.f.js'

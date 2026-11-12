@@ -59,7 +59,7 @@ expected element counts call for it.
 
 ### Related
 
-- `fjs/basen/module.f.mjs` `vecToString` / `unpackToString` — the fixed
+- `fjs/basen/module.f.js` `vecToString` / `unpackToString` — the fixed
   sibling bug, PR #1202.
 - `fjs/crypto/sha2/module.f.mjs` — the hot sibling bug (`append`), since fixed:
   the per-chunk fold is hoisted out of the per-`append` path.

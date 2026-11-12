@@ -38,7 +38,7 @@ import { concat, normalize } from '../../path/module.f.js'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { tryShellQuote } from '../../text/shell/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { maxVecBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxVecBytes } from '../../types/bit_vec/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 

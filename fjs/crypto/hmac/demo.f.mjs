@@ -10,7 +10,7 @@
  * @import { HashDemoAlgorithm } from '../../website/demo/hash/types.ts'
  */
 
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { hmac } from './module.f.mjs'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'

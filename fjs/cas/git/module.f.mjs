@@ -87,7 +87,7 @@ import { compare, tryRead as readTree, validate, write as writeTree } from '../.
 import { join, parent, under } from '../../path/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
-import { u8ListMsb, u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { concat, flat, map, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toOption } from '../../types/nullable/module.f.js'

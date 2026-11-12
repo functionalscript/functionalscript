@@ -3,7 +3,7 @@
  * @import { SupportedRecord, ObjectIdentifier } from './types.ts'
  */
 
-import { empty, isVec, length, msb, unpack, vec, vec8 } from '../types/bit_vec/module.f.mjs'
+import { empty, isVec, length, msb, unpack, vec, vec8 } from '../types/bit_vec/module.f.js'
 import { asBase } from '../types/nominal/module.f.js'
 
 import {
@@ -25,7 +25,7 @@ import {
 
 import { assert, assertEq } from '../asserts/module.f.js'
 
-const { concat, popFront: pop, listToVec } = msb
+const { concatVec: concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)
 
 /**

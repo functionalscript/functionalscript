@@ -46,7 +46,7 @@ import {
     responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
-import { maxVecBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxVecBytes } from '../../types/bit_vec/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'

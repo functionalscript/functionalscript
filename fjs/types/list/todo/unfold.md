@@ -10,7 +10,7 @@ first, tail: next(state) }`, is written wherever a module builds one:
 `countdown` and `fromArrayLike` in [`module.f.js`](../module.f.js),
 `stringToList` in [`fjs/text/utf16`](../../../text/utf16/module.f.js),
 `chunks` inside `u8ListToVecChunksMsb` in
-[`fjs/types/bit_vec`](../../bit_vec/module.f.mjs), and `decodeList` in
+[`fjs/types/bit_vec`](../../bit_vec/module.f.js), and `decodeList` in
 [`fjs/asn.1`](../../../asn.1/module.f.mjs), which its doc describes as
 "lazily drains a bit vector by repeatedly applying a step", which is an
 unfold. This module has every fold and no unfold.

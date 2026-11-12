@@ -23,7 +23,7 @@ import { foldStep, ioError, mapStep, pure, pureError, pureOk, resultStep, step }
 import { isNotFound, readWhole, readdir } from '../../../effects/node/module.f.mjs'
 import { normalize, parent, under } from '../../../path/module.f.js'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
-import { u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
+import { u8ListMsb } from '../../../types/bit_vec/module.f.js'
 import { equal, flatMap, sameItems } from '../../../types/list/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { cmp } from '../../../types/string/module.f.js'

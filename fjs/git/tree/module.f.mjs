@@ -31,7 +31,7 @@ import {
     digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
     solidus as slash, space as sp,
 } from '../../text/ascii/module.f.js'
-import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.js'
 import { flat } from '../../types/list/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { cmp } from '../bytes/module.f.js'

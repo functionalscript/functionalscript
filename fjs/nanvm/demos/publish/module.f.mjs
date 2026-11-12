@@ -48,7 +48,7 @@ import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
 import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.mjs'
 import { toTagged } from '../../../text/marked/module.f.mjs'
-import { u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 /**

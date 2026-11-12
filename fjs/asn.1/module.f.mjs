@@ -24,13 +24,13 @@ import {
     vec,
     vec8,
     wholeBytes,
-} from '../types/bit_vec/module.f.mjs'
+} from '../types/bit_vec/module.f.js'
 import { assert } from '../asserts/module.f.js'
 import { identity } from '../types/function/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
 import { entry } from '../types/object/entry/module.f.js'
 import { max } from '../types/function/compare/module.f.js'
-import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
+import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.js'
 
 //
 

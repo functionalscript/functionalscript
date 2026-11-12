@@ -2,7 +2,7 @@
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  */
 
-import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { map, stateScan } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
@@ -17,7 +17,7 @@ import {
     symbolToString,
     wordEqual,
     wordToString
-} from './module.f.mjs'
+} from './module.f.js'
 
 const tests = (/** @type {bigint} */ n) => {
     const { sum, decode, encode: push } = level(n)

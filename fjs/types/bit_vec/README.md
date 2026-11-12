@@ -22,3 +22,11 @@ This guarantees a unique representation for every combination of length and data
 | `vec(4n)(0xDn)` | `0b1101n`               | 4        | `0b1101n`              |
 | `vec(8n)(0xFn)` | `-0b1000_1111n`         | 8        | `0b0000_1111n`         |
 | `empty`         | `0n`                    | 0        | (none)                 |
+
+## Concatenation
+
+`lsb.concatVec(a)(b)` and `msb.concatVec(a)(b)` concatenate vectors in their
+respective bit orders. The member is named `concatVec` so it can also be
+read as a function value: `repeat` passes `lsb.concatVec` directly to the
+monoid helper. FunctionalScript reserves the built-in `concat` name for
+member calls.

@@ -16,7 +16,7 @@
  * @import { BaseN } from './types.ts'
  */
 
-import { msb, lsb, vec, tailPaddedUintChunkList } from '../types/bit_vec/module.f.mjs'
+import { msb, lsb, vec, tailPaddedUintChunkList } from '../types/bit_vec/module.f.js'
 import { fold } from '../types/list/module.f.js'
 import { compose } from '../types/function/module.f.js'
 

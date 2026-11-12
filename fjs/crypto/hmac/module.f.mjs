@@ -9,7 +9,7 @@
  * @example
  *
  * ```ts
- * import { vec } from '../../types/bit_vec/module.f.mjs'
+ * import { vec } from '../../types/bit_vec/module.f.js'
  * import { utf8 } from '../../text/module.f.mjs'
  * import { sha256 } from '../sha2/module.f.mjs'
  *
@@ -22,10 +22,10 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.js'
 import { computeSync } from '../sha2/module.f.mjs'
 
-const { concat, xor } = msb
+const { concatVec: concat, xor } = msb
 
 /**
  * Outer padding.

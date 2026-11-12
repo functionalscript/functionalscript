@@ -31,7 +31,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
-import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { error as resultError, ok } from '../../types/result/module.f.js'
 import {
@@ -97,7 +97,7 @@ export const random256 =
         pureOk([0, 1, 2, 3, 4, 5, 6, 7]),
         emptyVec,
         () => (/** @type {Vec} */ acc) =>
-            ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
+            ioMapStep(randomInt(), r => msb.concatVec(acc)(vec(32n)(BigInt(r)))))
 export const read = commonRead
 export const readLine = commonReadLine
 export const sandbox = commonSandbox

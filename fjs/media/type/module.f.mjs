@@ -52,7 +52,7 @@
  * @import { StringMap } from '../../types/object/types.ts'
  */
 
-import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
+import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.js'
 import { next, run } from '../../types/list/module.f.js'
 import { run as runStream } from '../../effects/list/module.f.mjs'
 import { fromStateFold } from '../../types/function/operator/module.f.js'

@@ -22,7 +22,7 @@ import { fromList } from '../../../effects/list/module.f.mjs'
 import { execFile } from '../../../effects/node/module.f.mjs'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { stringToU8List } from '../../../text/utf8/module.f.mjs'
-import { u8ListToMaxVecChunksMsb } from '../../../types/bit_vec/module.f.mjs'
+import { u8ListToMaxVecChunksMsb } from '../../../types/bit_vec/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 
 const branch = /** @type {const} */ ('refs/heads/build-cache')

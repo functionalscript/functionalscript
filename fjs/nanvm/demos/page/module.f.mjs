@@ -44,7 +44,7 @@ import { sandbox } from '../../../effects/common/module.f.mjs'
 import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.mjs'
 import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
-import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
+import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.js'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
@@ -135,7 +135,7 @@ export const decode = bytes => {
  */
 export const jsPerform = program => {
     /** @type {MemOperationMap<Write, Vec>} */
-    const map = { write: (stream, data) => state => [stream === 'stdout' ? msb.concat(state)(data) : state, ok(undefined)] }
+    const map = { write: (stream, data) => state => [stream === 'stdout' ? msb.concatVec(state)(data) : state, ok(undefined)] }
     return mockRun(map)(empty)(program())
 }
 

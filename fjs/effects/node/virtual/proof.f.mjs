@@ -13,11 +13,11 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { assertIoMessage } from '../../testlib.f.js'
 import { catch_, now, randomInt, read, sandbox } from '../module.f.mjs'
 import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
-import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.js'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js'
-import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { utf8 } from '../../../text/module.f.mjs'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.mjs'
@@ -87,7 +87,7 @@ const answered = (listener, body) => {
  *
  * @type {(r: RecordedResponse) => string}
  */
-const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)(chunk), empty))
+const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concatVec(v)(chunk), empty))
 
 /**
  * The chunks given, as a body already in hand: every cell is pure, so the whole

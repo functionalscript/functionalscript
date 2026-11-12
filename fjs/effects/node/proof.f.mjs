@@ -8,7 +8,7 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { byteLength, empty, isVec, length, maxLengthBytes, msb, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, length, maxLengthBytes, msb, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.js"
 import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
 import { asNominal } from "../../types/nominal/module.f.js"
@@ -899,7 +899,7 @@ export const proof = {
     // virtual host's counter, `0` to `7`.
     random256: () => {
         const [, r] = virtual(emptyState)(random256)
-        const expected = [0, 1, 2, 3, 4, 5, 6, 7].reduce((acc, i) => msb.concat(acc)(vec32(BigInt(i))), empty)
+        const expected = [0, 1, 2, 3, 4, 5, 6, 7].reduce((acc, i) => msb.concatVec(acc)(vec32(BigInt(i))), empty)
         assertEq(msb.cmp(assertOk(r))(expected), 0)
         assertEq(length(assertOk(r)), 256n)
     },

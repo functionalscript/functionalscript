@@ -7,8 +7,8 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { msb, padLastBlockMsb, unpadMsb } from '../../types/bit_vec/module.f.mjs'
-import { baseN } from '../module.f.mjs'
+import { msb, padLastBlockMsb, unpadMsb } from '../../types/bit_vec/module.f.js'
+import { baseN } from '../module.f.js'
 
 //                         0123456789abcdef
 const m = '0123456789abcdefghjkmnpqrstvwxyz'

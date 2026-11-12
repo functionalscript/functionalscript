@@ -10,7 +10,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { pureOk } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.js'
-import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
