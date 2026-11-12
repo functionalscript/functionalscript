@@ -58,6 +58,14 @@ export const proof = {
         assertStructurallySame(execute(compile('const { floor } = Math; const read = () => Math.floor; export default [floor(3.75), Math["floor"](-0.75), Math.floor?.(0.75), floor(-0), floor === read(), read() === read(), floor === Math.trunc, floor.length, typeof floor];').edag),
             [3, -1, 0, -0, true, true, false, 1, 'function'])
     },
+    mathAbs: () => {
+        expectEdag(compile('export default Math.abs(3.75);').edag, ['()', ['Math.abs'], [3.75]])
+        expectEdag(compile('const { abs } = Math; export default [abs, Math["abs"], abs.length];').edag,
+            ['[]', [['Math.abs'], ['Math.abs'], ['.', ['Math.abs'], 'length']]])
+        assertStructurallySame(execute(compile('const { abs } = Math; const read = () => Math.abs; export default [abs(-3.75), Math["abs"](-Infinity), Math.abs?.(-0.75), abs === read(), read() === read(), abs === Math.floor, abs === Math.trunc, abs.length, typeof abs, String(abs)];').edag),
+            [3.75, Infinity, 0.75, true, true, false, false, 1, 'function', 'function abs() { [native code] }'])
+        assert(Object.is(execute(compile('export default Math.abs(-0);').edag), 0))
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`

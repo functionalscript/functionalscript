@@ -361,6 +361,7 @@ export const statics = {
     'Math.log2': log2,
     'Math.trunc': Math.trunc,
     'Math.floor': Math.floor,
+    'Math.abs': Math.abs,
 }
 
 /** The runtime: table lookup and the `in` and `Boolean` operator bodies. */

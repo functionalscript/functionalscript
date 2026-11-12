@@ -29,6 +29,11 @@ pub mod intrinsic;
 pub mod intrinsic_throws;
 pub mod lazy;
 pub mod length;
+pub mod math_abs;
+pub mod math_abs_bigint_throws;
+pub mod math_abs_coercion_throws;
+pub mod math_abs_converted_bigint_throws;
+pub mod math_abs_extra_argument_throws;
 pub mod math_floor;
 pub mod math_floor_bigint_throws;
 pub mod math_floor_coercion_throws;
@@ -124,6 +129,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "intrinsic_throws", fixture: crate::fixtures::intrinsic_throws::module::<Naive>, expected: intrinsic_throws::module::<Naive>, json: intrinsic_throws::JSON, throws: intrinsic_throws::THROWS },
     crate::Case { name: "lazy", fixture: crate::fixtures::lazy::module::<Naive>, expected: lazy::module::<Naive>, json: lazy::JSON, throws: lazy::THROWS },
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
+    crate::Case { name: "math_abs", fixture: crate::fixtures::math_abs::module::<Naive>, expected: math_abs::module::<Naive>, json: math_abs::JSON, throws: math_abs::THROWS },
+    crate::Case { name: "math_abs_bigint_throws", fixture: crate::fixtures::math_abs_bigint_throws::module::<Naive>, expected: math_abs_bigint_throws::module::<Naive>, json: math_abs_bigint_throws::JSON, throws: math_abs_bigint_throws::THROWS },
+    crate::Case { name: "math_abs_coercion_throws", fixture: crate::fixtures::math_abs_coercion_throws::module::<Naive>, expected: math_abs_coercion_throws::module::<Naive>, json: math_abs_coercion_throws::JSON, throws: math_abs_coercion_throws::THROWS },
+    crate::Case { name: "math_abs_converted_bigint_throws", fixture: crate::fixtures::math_abs_converted_bigint_throws::module::<Naive>, expected: math_abs_converted_bigint_throws::module::<Naive>, json: math_abs_converted_bigint_throws::JSON, throws: math_abs_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_abs_extra_argument_throws", fixture: crate::fixtures::math_abs_extra_argument_throws::module::<Naive>, expected: math_abs_extra_argument_throws::module::<Naive>, json: math_abs_extra_argument_throws::JSON, throws: math_abs_extra_argument_throws::THROWS },
     crate::Case { name: "math_floor", fixture: crate::fixtures::math_floor::module::<Naive>, expected: math_floor::module::<Naive>, json: math_floor::JSON, throws: math_floor::THROWS },
     crate::Case { name: "math_floor_bigint_throws", fixture: crate::fixtures::math_floor_bigint_throws::module::<Naive>, expected: math_floor_bigint_throws::module::<Naive>, json: math_floor_bigint_throws::JSON, throws: math_floor_bigint_throws::THROWS },
     crate::Case { name: "math_floor_coercion_throws", fixture: crate::fixtures::math_floor_coercion_throws::module::<Naive>, expected: math_floor_coercion_throws::module::<Naive>, json: math_floor_coercion_throws::JSON, throws: math_floor_coercion_throws::THROWS },

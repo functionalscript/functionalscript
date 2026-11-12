@@ -226,6 +226,20 @@ export const proof = {
             expectRefused(`export default ${source};`, 'reserved word', 16)
         }
     },
+    mathAbs: () => {
+        for (const source of ['Math.abs', 'Math["abs"]', '(Math.abs)']) {
+            expectModule(`export default ${source};`, exported('["Math.abs"]'))
+        }
+        expectModule('export default Math.abs(3.75);', exported('["()",["Math.abs"],[3.75]]'))
+        expectModule('export default Math["abs"]?.(0.75);', exported('["?.()",["Math.abs"],[0.75]]'))
+        expectModule('const { abs: f, "abs": g, abs: { length } } = Math; export default [f, g, length];',
+            exported('["[]",[["Math.abs"],["Math.abs"],[".",["Math.abs"],"length"]]]'))
+        expectModule('export default x => Math.abs(x);',
+            exported('["=>",1,[],["()",["Math.abs"],[["arg",0]]]]'))
+        for (const source of ['Math?.abs', 'Math?.["abs"](1)', 'Number.abs', 'Object.abs']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+    },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.
     namespaces: () => {

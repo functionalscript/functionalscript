@@ -110,6 +110,33 @@ const samples = [
 ]
 
 export const proof = /** @type {const} */ ({
+    abs: {
+        numbers: () => {
+            const abs = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.abs'])
+            assertEq(abs, Math.abs)
+            assertEq(runtime.static('Math.abs'), abs)
+            assertEq(abs.length, 1)
+            assert(Object.is(abs(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, Infinity],
+                [0, 0], [-0, 0], [0.5, 0.5], [-0.5, 0.5],
+                [1.9, 1.9], [-1.9, 1.9], [5e-324, 5e-324], [-5e-324, 5e-324],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [-0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, 1.7976931348623157e308],
+            ]) { assert(Object.is(abs(value), expected), value) }
+        },
+        conversion: () => {
+            const abs = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.abs'])
+            for (const value of ['', ' -0 ', ' -0.5 ', ' 0x10 ', '-Infinity', 'bad', true, false, null, undefined, [], [-8.9], [-8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(abs(value), Math.abs(/** @type {number} */ (value))), value)
+            }
+            assertEq(abs({ valueOf: () => -2.9, toString: () => { throw 'unreached' } }), 2.9)
+            assertEq(abs({ valueOf: () => ({}), toString: () => '-3.9' }), 3.9)
+            assertEq(abs(-4.9, { valueOf: () => { throw 'unused' } }), 4.9)
+        },
+    },
     floor: {
         numbers: () => {
             const floor = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.floor'])
@@ -538,6 +565,10 @@ export const proof = /** @type {const} */ ({
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        absBigint: () => { table['Math.abs'](1n, undefined) },
+        absBigintPrimitive: () => { table['Math.abs']({ valueOf: () => 1n }, undefined) },
+        absConversion: () => { table['Math.abs']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        absNoPrimitive: () => { table['Math.abs']({ valueOf: () => ({}), toString: () => [] }, undefined) },
         floorBigint: () => { table['Math.floor'](1n, undefined) },
         floorBigintPrimitive: () => { table['Math.floor']({ valueOf: () => 1n }, undefined) },
         floorConversion: () => { table['Math.floor']({ valueOf: () => { throw 'conversion' } }, undefined) },
