@@ -142,6 +142,15 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Native maximum and generators
+
+#3797 (`4b9560e0a`) adds native `Math.max` and replaces seven `Array.from`
+calls in `zlib/testlib` with `generate`. Next refusals: `website/demo/secp`
+reads reserved `c.name` (`160:43`); `zlib/testlib` captures reassigned `seed`
+(`54:9`). Inflate's numeric-index refusal is unchanged.
+Counts remain **276 `.f.js`**, **367 `.f.mjs`**, **14 blocked leaves**;
+none accepted.
+
 #### Native square root, ceiling and multiplication
 
 #3797 (`a108b03b4`) admits `Math.sqrt`, `Math.ceil` and `Math.imul`
@@ -993,20 +1002,9 @@ corrected below.
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal. This cell first claimed `const { entries } = Object` was refused too, copied from the `3e1d1a09` row without being measured again; `Object.entries` has been admitted in both spellings since the `0c9ddf8` table ([CONVERTING.md rule 6](../doc/CONVERTING.md#6-objectis-and-objectentries)), and the module converted once its `Map` was replaced |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `3e1d1a09` (historical)
 
