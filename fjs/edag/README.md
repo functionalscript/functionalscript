@@ -39,7 +39,7 @@ they differ, a shared object's identity, can be seen.
 
 ## Values and evaluation
 
-[`value`](value/module.f.mjs) defines the evaluated-value subset's type and
+[`value`](value/module.f.js) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
 representation; [EDAG values](values.md) records its construction, identity,
@@ -277,7 +277,7 @@ operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. `analysis` merges two equal nodes of one
 scope into one entry; `identityAnalysis` keeps every node its own, its
-shared entries the ones [`sharing`](sharing/module.f.mjs) counts by node
+shared entries the ones [`sharing`](sharing/module.f.js) counts by node
 identity, which is the table the FunctionalScript writer writes from and
 the compiler evaluates by. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a

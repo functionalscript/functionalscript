@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
+import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.js'
 
 /** @type {Exp} */
 const c = ['[]', []]
