@@ -14,7 +14,7 @@ literal in `compress`:
 
 ```js
 // sha1
-const words = u => Array.from({ length: 16 }, (_, i) => u >> BigInt(15 - i) * wordLength & m)
+const words = u => generate(16, i => u >> BigInt(15 - i) * wordLength & m)
 // sha2, inside framingInit
 const at = u => i => (u >> (i << logBitLen)) & m
 const compress = i => u => {

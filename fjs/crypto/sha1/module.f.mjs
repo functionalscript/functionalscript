@@ -26,6 +26,7 @@
  */
 
 import { mask } from '../../types/bigint/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { ch, framed, fromWords, maj } from '../sha2/module.f.js'
 
 const wordLength = /** @type {const} */ (32n)
@@ -107,7 +108,7 @@ const nextW = (w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF) =
  *
  * @type {(u: bigint) => readonly bigint[]}
  */
-const words = u => Array.from({ length: 16 }, (_, i) => u >> BigInt(15 - i) * wordLength & m)
+const words = u => generate(16, i => u >> BigInt(15 - i) * wordLength & m)
 
 /**
  * One block folded into the state: RFC 3174 section 6.1, steps b to e.

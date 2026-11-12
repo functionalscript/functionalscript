@@ -142,6 +142,17 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### SHA-1 block word generation
+
+The migration in #3781 replaces `crypto/sha1`'s sixteen-word `Array.from`
+construction with the shared `generate` helper. The fixed length and
+index-only callback preserve the word order and masking.
+
+At `3cf0d2262`, the compiler passes that refusal and stops at the computed
+key in `stages[Math.trunc((t + j) / roundsPerStage)]` (`128:35`,
+`computed key is not Number(...)`). The module retains `.f.mjs`; the graph
+remains at **265 `.f.js` files**, **378 `.f.mjs` files** and **17 blocked leaves**.
+
 #### Explicit numeric indexes
 
 The migration in #3780 starts from `70c4234a9` and wraps the already-numeric
