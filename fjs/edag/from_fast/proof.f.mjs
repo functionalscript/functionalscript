@@ -2,6 +2,7 @@
  * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../js/ast/types.ts'
  * @import { Exp } from '../types.ts'
  * @import { Environment, Transfer } from './types.ts'
+ * @import { Runtime } from '../value/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
@@ -184,6 +185,19 @@ export const _collectingMemo = collectingMemo
 export const _collectedMemo = collectedMemo
 
 export const proof = {
+    unusedBooleanRetainsItsRuntimeCall: () => {
+        const converted = id(0)
+        const later = id(1)
+        const runtime = /** @type {Runtime} */ (['{}', [[':', 'Boolean', ['=>', 1, [], ['throw', 'Boolean runtime']]]]])
+        const ignored = fromFast(result(3, [['define', converted, ['Boolean', false], 'required']]))
+        assertEq(assertError(memo(assertOk(identityAnalysis(ignored)))({ args: [], runtime })), 'Boolean runtime')
+        assertEq(assertError(memo(assertOk(identityAnalysis(ignored)))({ args: [] })), 'no binding for the Boolean operator')
+        const beforeFailure = fromFast(result(3, [
+            ['define', converted, ['Boolean', false], 'required'],
+            ['define', later, ['block', { statements: [], exit: ['throw', 'later'] }], 'required'],
+        ]))
+        assertEq(assertError(memo(assertOk(identityAnalysis(beforeFailure)))({ args: [], runtime })), 'Boolean runtime')
+    },
     distinctThrownValuesRetainInitializationOrder: () => {
         const first = id(0), second = id(0)
         const initial = /** @type {Value} */ (['block', { statements: [], exit: ['throw', 1] }])

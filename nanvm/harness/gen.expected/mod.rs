@@ -9,6 +9,10 @@ pub mod bigint;
 pub mod bigint_mixed;
 pub mod bigint_operators;
 pub mod boolean;
+pub mod boolean_conversion;
+pub mod boolean_evaluation;
+pub mod boolean_no_coercion;
+pub mod boolean_operand_throws;
 pub mod call;
 pub mod callbacks;
 pub mod calls;
@@ -83,6 +87,10 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "bigint_mixed", fixture: crate::fixtures::bigint_mixed::module::<Naive>, expected: bigint_mixed::module::<Naive>, json: bigint_mixed::JSON, throws: bigint_mixed::THROWS },
     crate::Case { name: "bigint_operators", fixture: crate::fixtures::bigint_operators::module::<Naive>, expected: bigint_operators::module::<Naive>, json: bigint_operators::JSON, throws: bigint_operators::THROWS },
     crate::Case { name: "boolean", fixture: crate::fixtures::boolean::module::<Naive>, expected: boolean::module::<Naive>, json: boolean::JSON, throws: boolean::THROWS },
+    crate::Case { name: "boolean_conversion", fixture: crate::fixtures::boolean_conversion::module::<Naive>, expected: boolean_conversion::module::<Naive>, json: boolean_conversion::JSON, throws: boolean_conversion::THROWS },
+    crate::Case { name: "boolean_evaluation", fixture: crate::fixtures::boolean_evaluation::module::<Naive>, expected: boolean_evaluation::module::<Naive>, json: boolean_evaluation::JSON, throws: boolean_evaluation::THROWS },
+    crate::Case { name: "boolean_no_coercion", fixture: crate::fixtures::boolean_no_coercion::module::<Naive>, expected: boolean_no_coercion::module::<Naive>, json: boolean_no_coercion::JSON, throws: boolean_no_coercion::THROWS },
+    crate::Case { name: "boolean_operand_throws", fixture: crate::fixtures::boolean_operand_throws::module::<Naive>, expected: boolean_operand_throws::module::<Naive>, json: boolean_operand_throws::JSON, throws: boolean_operand_throws::THROWS },
     crate::Case { name: "call", fixture: crate::fixtures::call::module::<Naive>, expected: call::module::<Naive>, json: call::JSON, throws: call::THROWS },
     crate::Case { name: "callbacks", fixture: crate::fixtures::callbacks::module::<Naive>, expected: callbacks::module::<Naive>, json: callbacks::JSON, throws: callbacks::THROWS },
     crate::Case { name: "calls", fixture: crate::fixtures::calls::module::<Naive>, expected: calls::module::<Naive>, json: calls::JSON, throws: calls::THROWS },

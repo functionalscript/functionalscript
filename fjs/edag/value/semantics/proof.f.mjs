@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary, instanceOf } from './module.f.mjs'
+import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary, instanceOf } from './module.f.js'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [

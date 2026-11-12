@@ -155,7 +155,7 @@ const captureShadowed = foldError('capture shadowed')
 
 /**
  * A keyword where JavaScript wants an identifier, at the word — or a
- * reserved global, `Number`, `String`, or `BigInt`, bound or read anywhere but as the
+ * reserved global, `Boolean`, `Number`, `String`, or `BigInt`, bound or read anywhere but as the
  * callee of the conversion, {@link conversion}, or `Object` or `Number`
  * anywhere but as the namespace of an admitted static member,
  * {@link staticRead}: never a module's to bind, under
@@ -166,16 +166,17 @@ const captureShadowed = foldError('capture shadowed')
 const reservedWord = foldError('reserved word')
 
 /**
- * The call of `Number`, `String`, or `BigInt` with more than one argument, or a spread,
+ * The call of `Boolean`, `Number`, `String`, or `BigInt` with more than one argument, or a spread,
  * at the word: `Number(a, b)` and `Number(...a)`, refused by design. A
  * conversion is an operator, whose fixed set of operands the compiler
  * checks, and an extra or spread argument says more than the conversion
  * does — `Number(s, 16)` reads as a radix JavaScript ignores
  * ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
  * `Number()` is `0`, and is read as the literal, {@link conversion}, as
- * `String()` is the empty string. `BigInt` requires one operand.
+ * `String()` is the empty string. `Boolean()` converts `undefined` through
+ * the runtime body. `BigInt` requires one operand.
  *
- * @type {(name: 'Number' | 'String' | 'BigInt') => (token: ModuleTokenWithMetadata) => ParseError}
+ * @type {(name: 'Boolean' | 'Number' | 'String' | 'BigInt') => (token: ModuleTokenWithMetadata) => ParseError}
  */
 const conversionArity = name => foldError(`${name} takes one argument`)
 
@@ -1228,7 +1229,7 @@ const enter = (stack, scope, node) => {
 const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
 
 /**
- * The conversion `Number(x)`, `String(x)`, or `BigInt(x)` entered, or `null` where the call
+ * The conversion `Boolean(x)`, `Number(x)`, `String(x)`, or `BigInt(x)` entered, or `null` where the call
  * is no conversion: a call whose callee is one of those words — which no scope
  * binds, since each word is refused at every binding, {@link identifierOf},
  * so the word alone decides — its one plain argument entered under a frame
@@ -1246,14 +1247,15 @@ const conversion = (stack, scope, [, callee, args]) => {
     if (callee[0] !== 'ref') { return null }
     const name = nameOf(callee[1])
     if (!isConversionWord(name)) { return null }
+    if (args.length === 0 && name === 'Boolean') { return [stack, scope, ok(['Boolean', undefined])] }
     if (args.length === 0 && name !== 'BigInt') { return [stack, scope, ok(name === 'Number' ? 0 : '')] }
     const operand = args.length === 1 ? args[0] : null
     if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(name)(callee[1]))] }
     return [{ top: { unary: name }, rest: stack }, scope, ['enter', operand]]
 }
 
-/** Whether a word is a conversion's, `Number`, `String`, or `BigInt`, which the word alone decides, no scope binding it. @type {(name: string) => name is 'Number' | 'String' | 'BigInt'} */
-const isConversionWord = name => name === 'Number' || name === 'String' || name === 'BigInt'
+/** Whether a word names a conversion, decided without a scope binding. @type {(name: string) => name is 'Boolean' | 'Number' | 'String' | 'BigInt'} */
+const isConversionWord = name => name === 'Boolean' || name === 'Number' || name === 'String' || name === 'BigInt'
 
 /**
  * Whether an access's key is the constant `name`, in either spelling: a

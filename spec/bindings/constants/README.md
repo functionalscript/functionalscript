@@ -54,11 +54,12 @@ written.
   since any broken JavaScript program is a broken FunctionalScript program.
   `undefined`, `NaN` and `Infinity` are refused as well, although a
   JavaScript module may bind them, so that each denotes its value wherever a
-  value stands ([numbers](../../values/numbers/README.md)). `Array`, `Number`, `Object` and `String`
+  value stands ([numbers](../../values/numbers/README.md)). `Array`, `Boolean`, `Number`, `Object` and `String`
   are also reserved under [global names](../../todo/2365-global-names.md), with no
   standalone values: `Array` stands in [instance checks](../../operators/instanceof/README.md), `Number`
   and `String` stand as [number](../../conversions/number/README.md) and
-  [string](../../conversions/string/README.md) conversions, and `Object` and `Number` as the
+  [string](../../conversions/string/README.md) conversions, `Boolean` as the
+  [boolean conversion](../../conversions/boolean/README.md), and `Object` and `Number` as the
   namespaces of the [static functions](../../built-ins/static-functions/README.md). A word
   that is a keyword only in some
   position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,

@@ -2,6 +2,7 @@
 
 pub mod arrays;
 pub mod bigints;
+pub mod boolean_conversion;
 pub mod call_statements;
 pub mod calls;
 pub mod captures;
@@ -51,6 +52,12 @@ pub extern "C" fn arrays() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn bigints() -> i32 {
     crate::export(bigints::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `boolean_conversion` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn boolean_conversion() -> i32 {
+    crate::export(boolean_conversion::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `call_statements` sample.
@@ -299,6 +306,13 @@ mod tests {
         crate::assert_call(&entry, 0.0, Ok("[0n,\"bigint\"]"));
         crate::assert_call(&entry, 1.0, Ok("[68n,\"bigint\"]"));
         crate::assert_call(&entry, 2.0, Ok("[-68n,\"bigint\"]"));
+    }
+
+    #[test]
+    fn boolean_conversion() {
+        let entry = crate::load(super::boolean_conversion::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[false,false,true,true,true]"));
+        crate::assert_call(&entry, 1.0, Ok("[true,false,true,true,true]"));
     }
 
     #[test]

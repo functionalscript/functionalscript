@@ -58,7 +58,7 @@ const intrinsicIdSchema = or(...intrinsicNames)
 
 const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicIdSchema, staticIdSchema)
 
-const op1IdSchema = or('String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw')
+const op1IdSchema = or('String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw')
 
 const op2IdSchema = or(
     '===', '!==', '>', '>=', '<', '<=',
@@ -914,7 +914,7 @@ export const op0 = schemas.op0
 // Unary Operations
 
 /**
- * `String`/`Number`/`BigInt` are conversion operators, `!` is logical and `~` bitwise not, and
+ * `String`/`Number`/`BigInt`/`Boolean` are conversion operators, `!` is logical and `~` bitwise not, and
  * `typeof` is the type tag of its operand — always a fresh string, never the
  * operand itself, so it is the one unary operation with no identity concern.
  * `typeof` is pure, so the EDAG admits it, as it admits unary `+` (see
@@ -922,6 +922,8 @@ export const op0 = schemas.op0
  * `typeof`, not unary `+` — is decided in `../../spec/operators/README.md`,
  * not here. Negation is not here
  * either: it is `-` at unary arity, an `op12`.
+ * `Boolean` applies the common runtime's `Boolean` body to its operand;
+ * the reference body is double logical negation, `value => !!value`.
  *
  * `throw` is the one operation that never has a value: it establishes its
  * operand and fails, with that value as the failure's — the language's

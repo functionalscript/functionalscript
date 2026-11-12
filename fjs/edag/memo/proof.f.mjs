@@ -12,7 +12,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
-import { noIn } from '../operations/module.f.mjs'
+import { noBoolean, noIn } from '../operations/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.data.js'
 import { read } from '../value/property/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
@@ -249,6 +249,25 @@ export const proof = {
         assertEq(run(['===', ['args'], ['args']]), true)
         // Lists beginning with '#' are ordinary data, never table references.
         assertStructurallySame(assertOk(toData(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
+    },
+    booleanRuntime: () => {
+        const runtime = commonRuntime()
+        const options = /** @type {const} */ ({ ...context, runtime })
+        /** @type {readonly (readonly [Exp, boolean])[]} */
+        const cases = [
+            [['Boolean', ['undefined']], false],
+            [['Boolean', 0n], false],
+            [['Boolean', ['{}', []]], true],
+            [['Boolean', ['=>', 0, [], 0]], true],
+            [['()', ['=>', 1, [], ['Boolean', ['arg', 0]]], [0]], false],
+            [['()', ['=>', 1, [], ['Boolean', ['arg', 0]]], [1]], true],
+        ]
+        for (const [expression, expected] of cases) {
+            assertEq(assertOk(memo(assertOk(analysis(expression)))(options)), expected)
+            assertEq(assertOk(vm(options)(expression)), expected)
+        }
+        assertEq(assertError(result(['Boolean', 0])), noBoolean)
+        assertEq(assertError(result(['Boolean', ['throw', 'operand']])), 'operand')
     },
     chains: () => {
         /** @type {Exp} */

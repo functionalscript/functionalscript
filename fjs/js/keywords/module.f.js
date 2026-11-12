@@ -76,8 +76,10 @@ export const literalWords = /** @type {const} */ ([
  * [`../static`](../static/module.f.js) admits, and `Object` as the `entry` helper's
  * `Object.getOwnPropertyDescriptor`
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
- * and `String` as the callee of the conversion `String(exp)`
- * ([spec: string conversion](../../../spec/conversions/string/README.md)).
+ * `String` as the callee of the conversion `String(exp)`
+ * ([spec: string conversion](../../../spec/conversions/string/README.md)), and
+ * `Boolean` as the callee of `Boolean(exp)`
+ * ([spec: boolean conversion](../../../spec/conversions/boolean/README.md)).
  * The first names under
  * [global-names](../../../spec/todo/2365-global-names.md)' rule.
  *
@@ -86,7 +88,7 @@ export const literalWords = /** @type {const} */ ([
  * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
  * name is bound or referenced.
  */
-export const reservedGlobals = /** @type {const} */ (['Array', 'BigInt', 'Number', 'Object', 'String'])
+export const reservedGlobals = /** @type {const} */ (['Array', 'BigInt', 'Boolean', 'Number', 'Object', 'String'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]

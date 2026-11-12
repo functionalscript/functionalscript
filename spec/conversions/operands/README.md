@@ -5,7 +5,14 @@
 **`Number(1, 2)` is not FunctionalScript.** `Number(x, y)` is valid JavaScript, and
 `fjs compile` refuses it by design: the demo below shows what it prints.
 
-`Number(x)` and `String(x)` are conversions, operators with one operand, not calls of a function value. JavaScript ignores a second argument and converts `undefined` when there is none, and a spread hides how many there are; FunctionalScript refuses each shape but the one operand, so a conversion always says what it converts.
+`Boolean(x)`, `Number(x)`, `String(x)` and `BigInt(x)` are conversion
+operators, not calls of a function value. Multiple arguments and spreads are
+refused: JavaScript ignores an extra argument, while a spread hides the number
+of operands. Each conversion therefore names one plain operand.
+
+The zero-argument forms follow their individual contracts: `Number()` is `0`,
+`String()` is the empty string, and `Boolean()` supplies `undefined` to its
+common runtime body and returns `false`. `BigInt()` is refused.
 
 The row `op.conversion-call-shape` of [refused constructs](../../todo/refused-constructs.md)
 registers the refusal, and [operators and functions](../../principles/README.md#operators-and-functions) gives its reason.

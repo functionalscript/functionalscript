@@ -1512,6 +1512,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'instanceof': 'ooooo',
                 'in': 'ooooo',
                 'Number conversion': 'ooooo',
+                'Boolean conversion': 'ooooo',
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',
                 'Laziness: ?:': 'xxooo',

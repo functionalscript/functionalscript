@@ -291,6 +291,7 @@ const handlers = {
     String: o1,
     Number: o1,
     BigInt: o1,
+    Boolean: o1,
     typeof: o1,
     throw: o1,
     '+': o12,
