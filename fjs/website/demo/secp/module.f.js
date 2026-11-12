@@ -13,6 +13,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { isDigits } from '../../../text/ascii/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** The example from the secp README: all 28 finite points have order 29.
  * @type {Curve}
@@ -157,7 +158,7 @@ export const namedCurves = [
  * @type {(name: string, text: string) => Result<string, string>}
  */
 export const publicKey = (name, text) => {
-    const named = namedCurves.find(c => c.name === name)
+    const named = namedCurves.find(c => entry(c, 'name') === name)
     if (named === undefined) { return error('Select a supported curve.') }
     const c = named.curve
     const parsed = scalar(text, c.nf.p - 1n)
