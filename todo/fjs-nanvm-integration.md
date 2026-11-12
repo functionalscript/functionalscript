@@ -148,10 +148,9 @@ contract and migration strategy.
 WASM's `f64.abs`, preserving conversion and returning positive zero for `-0`.
 `e7b33782f` places `u64WordItems` before its caller; `f6507d12b` places
 `words` before `u64WordItems`; `4cc48d007` places `isLower` before its caller.
-`media/rust` next stops at the computed index `part[i - 2]` (`246:49`), which
-requires `Number(...)`.
-The graph remains **275 `.f.js` files**, **368 `.f.mjs` files** and
-**15 blocked leaves**; the final pass accepts none.
+`cc3c9814d` makes both string indexes explicit and promotes `media/rust` to
+`.f.js`. The graph has **276 `.f.js` files**, **367 `.f.mjs` files** and
+**14 blocked leaves**; the final pass accepts none and exposes no new leaves.
 
 #### Native floor
 
