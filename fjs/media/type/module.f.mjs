@@ -49,6 +49,7 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  * @import { Transducer } from '../../types/function/operator/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
@@ -294,7 +295,7 @@ export const detectStream = stream => runStream(detector)(stream)
  * `fjs/website` are built from, plus the image formats {@link detect} already
  * recognizes.
  *
- * @type {Readonly<Record<string, string>>}
+ * @type {StringMap<string>}
  */
 const byExtension = {
     html: 'text/html',
