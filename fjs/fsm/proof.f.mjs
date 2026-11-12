@@ -3,7 +3,7 @@
  * @import { ByteSet } from '../types/byte_set/types.ts'
  */
 
-import { dfa, run, toRange } from './module.f.mjs'
+import { dfa, run, toRange } from './module.f.js'
 import { one, union, empty, range as byteSetRange } from '../types/byte_set/module.f.js'
 import { toKey } from '../types/sorted_set/module.f.js'
 import { fold } from '../types/list/module.f.js'

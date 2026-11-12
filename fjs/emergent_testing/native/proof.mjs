@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 
 const runtime = process.versions.deno ? 'deno' : process.versions.bun ? 'bun' : 'node'
 const flags = runtime === 'node' ? ['--test'] : runtime === 'deno' ? ['test', '-A', '--config', fileURLToPath(new URL('../../../deno.json', import.meta.url))] : ['test']

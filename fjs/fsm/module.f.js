@@ -18,7 +18,7 @@ import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.
 import { merge, get as rangeMapGet, mapValue, values } from '../types/range_map/module.f.js'
 import { range as asciiRange } from '../text/ascii/module.f.js'
 import { compose } from '../types/function/module.f.js'
-import { at } from '../types/object/module.f.mjs'
+import { entry } from '../types/object/entry/module.f.js'
 import { cmp } from '../types/string/module.f.js'
 
 
@@ -76,7 +76,7 @@ const keyEntries = map(mapValue(toKey))
 /** @type {(grammar: Grammar) => Fold<SortedSet<string>, _Dfa>} */
 const addEntry = grammar => set => dfa => {
     const s = toKey(set)
-    if (at(s)(dfa) !== null) { return dfa }
+    if (entry(dfa, s) !== undefined) { return dfa }
     const setMap = transitions(grammar)(set)
     const newDfa = { ...dfa, [s]: toArray(keyEntries(setMap)) }
     return fold(addEntry(grammar))(newDfa)(values(setMap))
@@ -97,7 +97,7 @@ export const dfa = grammar => addEntry(grammar)(initialState)({})
 const get = rangeMapGet(emptyStateKey)
 
 /** @type {(dfa: _Dfa) => Fold<number, string>} */
-const runOp = dfa => input => s => get(at(s)(dfa) ?? [])(input)
+const runOp = dfa => input => s => get(entry(dfa, s) ?? [])(input)
 
 /** @type {(dfa: _Dfa) => (input: List<number>) => List<string>} */
 export const run = dfa => input =>

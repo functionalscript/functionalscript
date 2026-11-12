@@ -85,13 +85,14 @@
  * @import { List } from '../types/list/types.ts'
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { CommandSet, Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
+ * @import { CommandSet, Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, Param, PartialOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.js'
 import { concat, next } from '../types/list/module.f.js'
 import { error, mapOk, ok } from '../types/result/module.f.js'
-import { at } from '../types/object/module.f.mjs'
+import { entry } from '../types/object/entry/module.f.js'
+import { fromUndefined } from '../types/nullable/module.f.js'
 
 /**
  * What a thrown value that cannot be read is called: one whose own code — a
@@ -233,7 +234,7 @@ export const runPure = e =>
  * here is `Result<T, E>` rather than the `ok` half. Separating the channels is
  * the composition layer's job, one level up.
  *
- * **The handler is looked up with `at`, never with `map[command]`.**
+ * **The handler is looked up with `entry`, never with `map[command]`.**
  * `OperationMap<O, R>` pins `command` to `O[0]` at the type level, but a `Do`
  * node's `command` is runtime data — it can reach an interpreter from a decoded
  * payload or a deserialized continuation, where no type ever constrained it.
@@ -242,8 +243,8 @@ export const runPure = e =>
  * member instead of `undefined`, and the line below would then call it with the
  * node's payload: a value the type system promised was `(...payload) => R` turns
  * out to be an arbitrary inherited function, chosen by the same input that
- * supplies its arguments. `at` reads through `getOwnPropertyDescriptor`, which
- * only ever sees own properties, so such a command yields `null` and never a
+ * supplies its arguments. `entry` reads only enumerable own properties, and
+ * `fromUndefined` normalizes a miss to `null`, so such a command never yields a
  * callable.
  *
  * **A `null` handler means one of two different things**, and this is the only
@@ -318,7 +319,8 @@ const _matchWith = onMissing =>
         e => {
             if (typeof e === 'function') { return ['done', e()] }
             const { command, payload, continuation } = e
-            const handler = at(command)(map)
+            // The node's command selects the handler for that same node's payload.
+            const handler = fromUndefined(/** @type {undefined | ((...payload: Param<O1>) => R)} */ (entry(map, command)))
             return [
                 'cont',
                 handler === null ? onMissing(command) : handler(...payload),

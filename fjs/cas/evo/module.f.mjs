@@ -71,7 +71,8 @@ import { fromVec } from '../../text/utf8/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
-import { at, definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash, mapHashes } from '../../media/revision/module.f.mjs'
@@ -183,7 +184,7 @@ const subjectListed = archived => state => {
  * revision carries `archived: true`. Order independent (see the module doc) —
  * used both for a full-store scan and for a single incremental `add`.
  *
- * Looks `revision.subject` up via {@link at} (own-property only), not plain
+ * Looks `revision.subject` up via {@link entry} (own-property only), not plain
  * bracket indexing: a subject is an arbitrary caller-supplied string
  * (`RevisionData.subject`, or the MCP `evo_add`/`evo_head` argument), so it
  * can collide with an inherited `Object.prototype` name (`toString`,
@@ -193,7 +194,7 @@ const subjectListed = archived => state => {
  * @type {(hash: Hash, revision: Revision) => (cache: Cache) => Cache}
  */
 const addRevisionToCache = (hash, revision) => cache => {
-    const existing = at(revision.subject)(cache.bySubject) ?? emptySubjectState
+    const existing = entry(cache.bySubject, revision.subject) ?? emptySubjectState
     /** @type {SubjectState} */
     const state = {
         hashes: union(existing.hashes)([hash]),
@@ -623,8 +624,8 @@ export const evo = cas => cacheKey => ({
                 .flatMap(([subject, state]) => listed(state) ? [subject] : []))
     },
     head: subject => ioMapStep(read(cacheKey), cache => {
-        const state = at(subject)(cache.bySubject)
-        return state === null ? [] : headsOf(state)
+        const state = entry(cache.bySubject, subject)
+        return state === undefined ? [] : headsOf(state)
     }),
     add: input => addRevision(cas)(cacheKey)(input),
     revision: readRevision(cas),

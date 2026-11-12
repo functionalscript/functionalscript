@@ -25,7 +25,9 @@
 
 import { next } from '../../types/list/module.f.js'
 import { parse as parseWith } from './parser/module.f.mjs'
-import { at, sort } from '../../types/object/module.f.mjs'
+import { sort } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { codec, leafSerialize, numberSerialize } from './serializer/module.f.mjs'
 
@@ -39,9 +41,10 @@ export const setProperty = value => {
     const f = path => src =>{
         const result = next(path)
         if (result === null) { return value }
+        /** @type {{ readonly [key: string]: Unknown | undefined }} */
         const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
-        return { ...srcObject, [first]: f(tail)(at(first)(srcObject)) }
+        return { ...srcObject, [first]: f(tail)(fromUndefined(entry(srcObject, first))) }
     }
     return f
 }

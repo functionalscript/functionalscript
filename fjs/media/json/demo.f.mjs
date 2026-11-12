@@ -29,7 +29,7 @@
 
 import { marked, parse } from './module.f.mjs'
 import { mapOk } from '../../types/result/module.f.js'
-import { sort } from '../../types/object/module.f.mjs'
+import { sort } from '../../types/object/module.f.js'
 import { textDemo } from '../../website/demo/module.f.mjs'
 import { codeOutput, highlight } from '../../website/demo/highlight/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'

@@ -10,7 +10,7 @@
  */
 
 import { array, or, string } from '../../rtti/module.f.js'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 import { stepSchema, uses } from '../common/module.f.mjs'
 import { miseDevelop } from '../mise/module.f.mjs'
 

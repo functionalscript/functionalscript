@@ -15,7 +15,7 @@ import { asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
 import { unreadableThrownValue } from '../../../effects/module.f.mjs'
 import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
-import { isObject } from '../../../types/object/module.f.mjs'
+import { isObject } from '../../../types/object/module.f.js'
 import { compileCommands, toUnknown } from './module.f.mjs'
 import { javascriptOperationMap } from './module.mjs'
 

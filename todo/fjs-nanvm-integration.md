@@ -142,6 +142,27 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Entry-reader migration
+
+The migration stacked on #3773 replaces `types/object.at` with the existing
+`entry(object, key)` reader. Callers normalize missing values only where
+their public APIs promise `null`. Removing the detached descriptor lookup
+makes `types/object` compile, and its consumers `fsm` and `ebnf/utf16`
+compile too. All three implementations now use `.f.js`.
+
+After these promotions, the runtime graph has **643 authored non-proof
+sources**: **254 `.f.js` files** and **389 `.f.mjs` files**. The thirteen
+remaining leaves are refused. The newly exposed blocked leaves are:
+
+| Leaf | First refusal | Location | Additional leaves exposed by conversion |
+| --- | --- | --- | --- |
+| `ebnf/data` | Reserved `Object` destructuring of `getPrototypeOf` and `prototype` | `31:99` | 3: `ebnf`, `ebnf/ll1`, `ebnf/railroad` |
+| `effects` | Forward reference to `_matchWith` (`const not found`) | `269:5` | 5: `git/testlib`, `effects/mock`, `effects/memory`, `effects/list`, `effects/browser` |
+| `rtti/common` | Bare `Number` in `Object.keys(value).map(Number)` | `216:53` | 3: `rtti/validate`, `rtti/parse`, `rtti/data` |
+
+The ten other leaves retain their earlier blockers. These measurements
+follow the source migration in #3774; earlier tables remain pinned below.
+
 #### Accepted leaves after shared `Math.log2`
 
 **Status:** completed in #3771, stacked on #3765.
