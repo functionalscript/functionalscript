@@ -27,9 +27,8 @@
 import { assert } from '../../asserts/module.f.js'
 import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 import { do_ } from '../module.f.js'
-
-const { hasOwn } = Object
 
 /** @type {(n: Nominal<'MemKey', _MemKeyHash, string>) => string} */
 export const asBase = nominalAsBase
@@ -82,7 +81,7 @@ export const slotId = has => key => {
  * @type {(values: MemoryState['values']) => (key: Key<unknown>) => string}
  */
 const slot = values => key => {
-    const r = slotId(id => hasOwn(values, id))(key)
+    const r = slotId(id => hasEntry(values, id))(key)
     assert(r[0] === 'ok', r[1])
     return r[1]
 }

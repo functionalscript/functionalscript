@@ -45,7 +45,7 @@ import { toVec } from '../../types/uint8array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
-import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
+import { tagLoose, tagPayload } from '../../git/testlib.f.js'
 import {
     availableParallelism, awaitIfPromise, both, capture, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,

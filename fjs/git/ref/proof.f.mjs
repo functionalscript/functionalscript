@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toHex } from '../oid/module.f.mjs'
-import { latin1 } from '../testlib.f.mjs'
+import { latin1 } from '../testlib.f.js'
 import { tryLoose, tryPacked, tryPackedWithout, tryRef, writeLoose } from './module.f.mjs'
 
 const loose = tryLoose(20)

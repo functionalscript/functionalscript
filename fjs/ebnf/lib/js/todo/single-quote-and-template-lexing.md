@@ -234,7 +234,7 @@ them to FunctionalScript.
 Single quotes, including the bounded `\xHH` and `\v` increment, and templates
 still leave real modules failing, because quoted strings use the rest of the
 JS escape surface too. An example from the original measurement was
-[`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `rootTree`, which
+[`git/testlib.f.mjs`](../../../../git/testlib.f.js)'s `rootTree`, which
 used ordinary data, not a test of escapes:
 
 ```js
@@ -365,7 +365,7 @@ the source view rests on.
       change.
 - [ ] Fixtures for that rule, all failing when this was written; the first
       reads since 2460, whose `\'` it needs and nothing more:
-      [`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `mergePayload`
+      [`git/testlib.f.mjs`](../../../../git/testlib.f.js)'s `mergePayload`
       (`'Merge tag \'vt\''`), its `rootTree` (`\0` and `\xNN` in ordinary
       data),
       [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s

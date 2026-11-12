@@ -9,7 +9,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
-import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
+import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.js'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.mjs'
 
 /** An id's 40 hex digits, as a `parent` header spells it. */
