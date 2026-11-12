@@ -222,6 +222,9 @@ export const snakeCase = v => [...v].map(c => {
     return c === lower ? c : `_${lower}`
 }).join('')
 
+/** Whether `c` is a lowercase letter: a digit or a mark is neither case. @type {(c: string) => boolean} */
+const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
+
 /**
  * The Rust identifier of a built-in's name — `object_is` for `Object.is`,
  * `string_prototype_starts_with` for `String.prototype.startsWith` — the
@@ -244,6 +247,3 @@ export const builtInIdentifier = name => name.split('.').map(part => [...part].m
     const starts = c !== lower && i > 0 && isLower(part[i - 1]) && !nan
     return starts ? `_${lower}` : lower
 }).join('')).join('_')
-
-/** Whether `c` is a lowercase letter: a digit or a mark is neither case. @type {(c: string) => boolean} */
-const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
