@@ -189,6 +189,9 @@ const i64Max = 2n ** 63n - 1n
  */
 export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toString())
 
+/** @type {(a: bigint) => readonly bigint[]} */
+const words = a => a === 0n ? [] : [a & 0xffff_ffff_ffff_ffffn, ...words(a >> 64n)]
+
 /**
  * The `u64` words of `v`'s magnitude, least significant first, each as the
  * hex literal `u64Words` lists: its items, for a printer that marks each one.
@@ -205,9 +208,6 @@ export const u64WordItems = v => words(v < 0n ? -v : v).map(u64Hex)
  * @type {(v: bigint) => string}
  */
 export const u64Words = v => sliceLiteral(u64WordItems(v))
-
-/** @type {(a: bigint) => readonly bigint[]} */
-const words = a => a === 0n ? [] : [a & 0xffff_ffff_ffff_ffffn, ...words(a >> 64n)]
 
 /**
  * A `snake_case` Rust identifier from a `camelCase` name.
