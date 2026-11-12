@@ -222,6 +222,36 @@ export const runPure = e =>
     typeof e === 'function' ? [e()] : []
 
 /**
+ * The shared body of {@link match} and {@link partialMatch}: decode the node,
+ * look the handler up by own property, and hand a miss to `onMissing`.
+ *
+ * @template {Operation} O
+ * @template R
+ * @param {(command: O[0]) => R} onMissing
+ */
+const _matchWith = onMissing =>
+    /** @param {PartialOperationMap<O, R>} map */
+    map =>
+        /**
+         * @template {O} O1
+         * @template T
+         * @template E
+         * @param {Effect<O1, T, E>} e
+         * @returns {MatchResult<O1, T, E, R>}
+         */
+        e => {
+            if (typeof e === 'function') { return ['done', e()] }
+            const { command, payload, continuation } = e
+            // The node's command selects the handler for that same node's payload.
+            const handler = fromUndefined(/** @type {undefined | ((...payload: Param<O1>) => R)} */ (entry(map, command)))
+            return [
+                'cont',
+                handler === null ? onMissing(command) : handler(...payload),
+                continuation,
+            ]
+        }
+
+/**
  * Decodes an effect's next step and dispatches its command to `map`,
  * returning either the final result or the operation's output `R` paired
  * with the continuation. The one world-specific step — `await` for async
@@ -297,36 +327,6 @@ export const partialMatch = (commands, onMissing) =>
         assert(commands.includes(command), command)
         return onMissing(command)
     })
-
-/**
- * The shared body of {@link match} and {@link partialMatch}: decode the node,
- * look the handler up by own property, and hand a miss to `onMissing`.
- *
- * @template {Operation} O
- * @template R
- * @param {(command: O[0]) => R} onMissing
- */
-const _matchWith = onMissing =>
-    /** @param {PartialOperationMap<O, R>} map */
-    map =>
-        /**
-         * @template {O} O1
-         * @template T
-         * @template E
-         * @param {Effect<O1, T, E>} e
-         * @returns {MatchResult<O1, T, E, R>}
-         */
-        e => {
-            if (typeof e === 'function') { return ['done', e()] }
-            const { command, payload, continuation } = e
-            // The node's command selects the handler for that same node's payload.
-            const handler = fromUndefined(/** @type {undefined | ((...payload: Param<O1>) => R)} */ (entry(map, command)))
-            return [
-                'cont',
-                handler === null ? onMissing(command) : handler(...payload),
-                continuation,
-            ]
-        }
 
 /**
  * The commands of a {@link CommandSet}, in the form {@link partialMatch} tests
