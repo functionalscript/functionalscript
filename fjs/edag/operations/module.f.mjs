@@ -36,7 +36,7 @@ import { toPrimitive, toString, toNumber } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { staticBody } from '../value/property/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.js'
-import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
+import { isIntrinsic, isStatic, noStatic } from '../module.f.js'
 
 /**
  * The failure of an `in` node under an executor whose runtime has no

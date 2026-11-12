@@ -16,7 +16,7 @@ impl<A: IVm> Object<A> {
     /// uses this.
     ///
     /// Searches from the *last* entry backward: an object's property list
-    /// is never deduplicated on construction (`fjs/edag/module.f.mjs`'s own
+    /// is never deduplicated on construction (`fjs/edag/module.f.js`'s own
     /// comment on `'{}'`: "duplicate keys are allowed with the later entry
     /// winning"), so the last-written entry for a repeated key is the one
     /// a lookup must answer with, not the first.

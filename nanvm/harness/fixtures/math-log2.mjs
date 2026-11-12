@@ -4,11 +4,11 @@
 const { log2: detached } = Math;
 const log2 = /** @type {(value: unknown) => number} */ (detached);
 const read = () => Math.log2;
-const powers = [5e-324, 2 ** -1022, 2 ** -512, 0.5, 1, 2, 8, 2 ** 512, 2 ** 1023];
-const coercions = [undefined, null, true, false, '8', '0.5', 'bad', '', [], [8], [8n], {}, () => 1,
+const powers = /** @type {const} */ ([5e-324, 2 ** -1022, 2 ** -512, 0.5, 1, 2, 8, 2 ** 512, 2 ** 1023]);
+const coercions = /** @type {const} */ ([undefined, null, true, false, '8', '0.5', 'bad', '', [], [8], [8n], {}, () => 1,
     { valueOf: () => 8 },
     { valueOf: () => ({}), toString: () => '4' },
-    { valueOf: () => 2, toString: () => { throw 'must not convert'; } }];
+    { valueOf: () => 2, toString: () => { throw 'must not convert'; } }]);
 /** @type {(actual: number, expected: number) => boolean} */
 const close = (actual, expected) => actual - expected < 1e-12 && expected - actual < 1e-12;
 /** @type {(input: number, expected: number, ulp: number) => boolean} */

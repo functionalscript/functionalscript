@@ -50,7 +50,7 @@ import { useLinesTagged } from '../../../rust/serializer/module.f.mjs'
 import { generatedHeader } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative } from '../../../js/static/module.f.js'
-import { isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f.mjs'
+import { isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f.js'
 import { itemTagged } from '../module.f.mjs'
 
 /** Inspect a sequence's value without forgetting the required work before it. @type {(root: Exp) => _Sequenced} */

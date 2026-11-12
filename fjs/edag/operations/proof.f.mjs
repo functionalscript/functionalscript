@@ -15,7 +15,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { invokerWith, noIn, operation, staticCall } from './module.f.mjs'
 import { read } from '../value/property/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
-import { noStatic, staticIds, staticPath } from '../module.f.mjs'
+import { noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
 import { settle } from '../value/call/module.f.mjs'

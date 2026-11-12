@@ -75,7 +75,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.js'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.mjs'
+import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.js'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */

@@ -959,7 +959,7 @@
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C153.6.0\"",
+          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C153.7.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },

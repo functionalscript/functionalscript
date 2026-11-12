@@ -29,7 +29,7 @@ export type { phantomKey }
  * wrong `T`) and one against the phantom-wrapped export (catches the export
  * and the raw thunk drifting apart), using `Check` from
  * `fjs/rtti/ts/types.ts` — or `Check3`, which pairs the two into one
- * assert. See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for the pattern:
+ * assert. See `fjs/edag/module.f.js` (`_exp`/`exp`) for the pattern:
  *
  * ```ts
  * const rawThunk = () => [...] as const

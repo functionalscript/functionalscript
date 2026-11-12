@@ -4,7 +4,7 @@ import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../.
 import { _moduleExports } from '../../compiler/edag/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
-import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
+import { isStatic as isStaticNode } from '../../edag/module.f.js'
 import { member, runtime, statics } from './module.f.js'
 import edag from './gen.edag.js'
 
@@ -25,6 +25,7 @@ const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unkn
 /**
  * Statics with their own oracle proofs: structural results, entry-shaped
  * arguments, and a numerical approximation needing an accuracy bound.
+ * @type {readonly string[]}
  */
 const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Math.log2']
 
@@ -125,7 +126,7 @@ export const proof = /** @type {const} */ ({
             for (const value of ['', '8', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8], [8n], [[8]], {}, () => 1]) {
                 assert(Object.is(body(value), Math.log2(/** @type {number} */ (value))), value)
             }
-            const value = { valueOf: () => 8, toString: () => { throw 'toString must not be reached' } }
+            const value = /** @type {const} */ ({ valueOf: () => 8, toString: () => { throw 'toString must not be reached' } })
             assertEq(body(value), 3)
             assertEq(body({ valueOf: () => ({}), toString: () => '16' }), 4)
             // Extra arguments do not undergo numerical conversion.

@@ -352,7 +352,7 @@ export const proof = {
         assertEq(concat(unwrap(tryJsonSerialize(value))), '[1,{"a":2}]')
     },
     unknownModule: () => {
-        const shared = [1]
+        const shared = /** @type {const} */ ([1])
         const document = unwrap(_tryUnknownStringify([shared, shared]))
         assertEq(document, 'const $0=[1];\n/** @type {unknown} */\nconst $1=[$0,$0];export default $1;')
         // The annotation is an ordinary-JavaScript boundary. It does not

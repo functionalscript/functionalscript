@@ -32,7 +32,10 @@ import { generateRustTests, main } from './module.f.mjs'
 /** A stand-in for `fjs/js/runtime` at its path, for the compiles the writer ends with. @type {Dir} */
 const root = { 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } } } }
 
-/** The numerical source notice must survive both generated runtime representations. */
+/**
+ * The numerical source notice must survive both generated runtime representations.
+ * @type {string}
+ */
 const numericalNotice = `/*
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  * Developed at SunSoft, a Sun Microsystems, Inc. business.

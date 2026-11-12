@@ -729,7 +729,7 @@ An annotation-only import is exactly that shape. So, stated honestly:
 - **across a module boundary, anchoring does not make it free** — it makes it
   *legal*. `,` "establishes all of its operands and takes the value of the last
   one; the earlier operands exist for their throw-potential only"
-  ([`fjs/edag`](../fjs/edag/module.f.mjs)), so an anchored import root is
+  ([`fjs/edag`](../fjs/edag/module.f.js)), so an anchored import root is
   retained and evaluated, precisely so its failure is not deleted. An
   annotation-only import from a module with expensive or throwing top-level
   work is therefore still shipped and still runs. Dropping it needs effect and
@@ -750,7 +750,7 @@ it says nothing about `.mjs`, which is ordinary JavaScript held to ordinary
 bundler rules.
 
 There is a pleasing closure here: `fjs/edag/` defines the EDAG as an RTTI schema
-([`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs)), so the graph that decides
+([`fjs/edag/module.f.js`](../fjs/edag/module.f.js)), so the graph that decides
 what ships is itself described by the type system whose cost it decides.
 
 ### Editor support is part of the work, not an extra
@@ -1781,7 +1781,7 @@ splits around inference, so the runnable order is 668's representation half
 - [new-pl.md § Type System](./new-pl.md#type-system) — the same idea one level
   out: type checking as an opt-in library rather than a language feature.
 - [`fjs/edag`](../fjs/edag/README.md) — already specifies the EDAG with RTTI
-  ([`module.f.mjs`](../fjs/edag/module.f.mjs) is the schema of record), and a
+  ([`module.f.js`](../fjs/edag/module.f.js) is the schema of record), and a
   Rust generator from that schema is
   [rust-schema-codegen](../fjs/edag/todo/rust-schema-codegen.md), on hold
   with the rest of the optional Rust EDAG work; the same schemas would feed

@@ -47,7 +47,10 @@ export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
  */
 export const edagPath = 'fjs/js/runtime/gen.edag.js'
 
-/** The numerical kernel's notice must survive compilation into distributed Rust source. */
+/**
+ * The numerical kernel's notice must survive compilation into distributed Rust source.
+ * @type {string}
+ */
 const numericalNotice = `/*
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  * Developed at SunSoft, a Sun Microsystems, Inc. business.

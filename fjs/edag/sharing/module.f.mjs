@@ -13,7 +13,7 @@
  * @import { Exp, StepOver } from '../types.ts'
  */
 
-import { isHelper, stepOperands } from '../module.f.mjs'
+import { isHelper, stepOperands } from '../module.f.js'
 
 /**
  * The conditional establishes its condition, then the selected arm. Source

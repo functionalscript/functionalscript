@@ -61,7 +61,7 @@ export const hash = string
  * schema needs twice over: a `const` cannot reference itself in its own
  * initializer at all, and naming the recursive position is also what keeps
  * declaration emit from inlining the structure and giving up at depth (see
- * `fjs/AGENTS.md` §3.2 and `../json/rtti/module.f.mjs`).
+ * `fjs/AGENTS.md` §3.2 and `../json/rtti/module.f.js`).
  *
  * Like `hash`, this is `string` at the structural level; cbase32 decodability
  * of every direct value, at every depth, is enforced by

@@ -70,7 +70,7 @@ rollout below records existing work; it does not authorize retaining that defect
 ### Stage 1: property access and unresolved modules
 
 **Where it stands.** The EDAG side is there — `['.', object, property]` is in
-[`fjs/edag`](../../edag/module.f.mjs)'s schema, `dot`, with the index
+[`fjs/edag`](../../edag/module.f.js)'s schema, `dot`, with the index
 restriction below — and so are the unresolved module and its resolution:
 [`fjs/compiler/edag`](../edag/module.f.mjs) compiles a parsed module to
 `Unresolved { imports, edag }`, anchoring required computations the export does
@@ -552,7 +552,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Introduce `['.', object, property]` into EDAG and its validation/type schema,
       enforcing the canonical property-operand restriction: permitted string constants,
       number constants, and only later the `Number` numeric-conversion node once it
-      exists. Done in [`fjs/edag`](../../edag/module.f.mjs): `dot` over `index`,
+      exists. Done in [`fjs/edag`](../../edag/module.f.js): `dot` over `index`,
       which is a string, a number, or a `Number` cast.
 - [x] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,

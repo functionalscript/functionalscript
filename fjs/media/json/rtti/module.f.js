@@ -2,13 +2,16 @@
  * rtti schemas describing the JSON data model: `primitive`, `unknown`,
  * `object`, and `array`.
  *
- * The three composite schemas are mutually recursive — `unknown` names
- * `object` and `array`, both of which are built from `unknown` — so `unknown`
- * carries an explicit `@type` that cross-references its neighbours through
- * `typeof`. That spelling is deliberate: `@type {const}` also type-checks here,
- * but leaves declaration emit no name for the recursive positions, so it
- * inlines the structure, gives up at depth, and degrades the emitted `.d.mts`
- * to `any`. See `fjs/AGENTS.md` §3.2.
+ * `unknown` closes its recursion through its own name, building record and
+ * array branches when its thunk is expanded. Those branch functions are
+ * fresh on each expansion; `object` and `array` are stable exported schemas
+ * over the same `unknown`, rather than the functions returned by it.
+ *
+ * `unknown` carries an explicit `@type` that cross-references the named
+ * schemas through `typeof`. That spelling is deliberate: `@type {const}`
+ * also type-checks here, but leaves declaration emit no name for the recursive
+ * positions, so it inlines the structure, gives up at depth, and degrades the
+ * emitted `.d.ts` to `any`. See `fjs/AGENTS.md` §3.2.
  *
  * The TypeScript counterparts live in the sibling
  * [`../types.ts`](../types.ts), which pins them against these schemas with
@@ -40,7 +43,7 @@ export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
  *
  * @type {() => readonly['or', typeof primitive, typeof object, typeof array]}
  */
-export const unknown = () => ['or', primitive, object, array]
+export const unknown = () => ['or', primitive, record(unknown), rttiArray(unknown)]
 
 /**
  * rtti schema matching a JSON object: `{ readonly [k: string]?: Unknown }`.

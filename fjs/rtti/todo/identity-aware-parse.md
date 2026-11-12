@@ -128,7 +128,7 @@ generic engine or as an edag-specific layer on top — isn't decided yet.
 
 ### Related
 
-- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — the schema this matters
+- [`../../edag/module.f.js`](../../edag/module.f.js) — the schema this matters
   for; references this TODO.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — "The core invariant" and subject 1 (sharing is semantic), subject 4 (the contrasting

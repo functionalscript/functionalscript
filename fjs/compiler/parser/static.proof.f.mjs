@@ -15,7 +15,7 @@
 import { expectModule, expectRefused } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { isReservedGlobal } from '../../js/keywords/module.f.js'
-import { staticIds, staticPath } from '../../edag/module.f.mjs'
+import { staticIds, staticPath } from '../../edag/module.f.js'
 
 /** The module whose default export is `value`, as the proofs pin it. @type {(value: string) => string} */
 const exported = value => `["{}",[[":","default",${value}]]]`

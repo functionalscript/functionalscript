@@ -1103,13 +1103,15 @@ reason reaches the host. Everything else is decided once, in the IR.
   without getting stuck. That tests the checker itself.
 - **The NaN box is the layout's proof.** The derived tests must agree
   with the README's `typeof_` and `is_*` functions on every pattern, and
-  the derived `dup` test must be its `is_dyn_ref`. A prototype outside
-  the repository already ran the check on 23 patterns: the README's
-  scalar table, the short bigint above, and `heap` and `lit` references
-  for five kinds. It found no overlap, among them or with `f64c`. Random
-  values of each pattern matched that variant alone, the README's
-  `typeof_` agreed, and the minimized test for a counted reference had
-  `is_dyn_ref`'s two constants.
+  the derived `dup` test must be its `is_dyn_ref`. A prototype,
+  [nan-box-patterns.md](./nan-box-patterns.md), already ran the check on
+  23 patterns: the README's scalar table, the short bigint above, and
+  `heap` and `lit` references for five kinds. It found no overlap, among
+  them or with `f64c`. Random values of each pattern matched that variant
+  alone, the README's `typeof_` agreed, and the minimized test for a
+  counted reference had `is_dyn_ref`'s two constants.
+  [nan-box-in-ir.md](./nan-box-in-ir.md) then wrote the whole box and
+  nineteen functions in the eDSL, as a check of this note.
 - **Golden tests in IR text.** The printer's output for each pass is held
   as text next to the proof, so a change in a pass shows in a review as a
   diff of IR.

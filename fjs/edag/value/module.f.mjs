@@ -19,7 +19,7 @@
  * @import { Phantom } from '../../types/phantom/types.ts'
  */
 
-import { exp, intrinsicId, primitive, staticId } from '../module.f.mjs'
+import { exp, intrinsicId, primitive, staticId } from '../module.f.js'
 import { array as rttiArray, number, string } from '../../rtti/module.f.js'
 
 /**
