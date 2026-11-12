@@ -21,6 +21,11 @@ became `fjs/ebnf/README.md`.
 - `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
 
+Grammar record carriers are plain objects built by FunctionalScript or a
+DataJS decoder. Their shape is checked with `isObject`, which rejects null,
+arrays and primitives. Prototype inspection and admission of foreign host
+objects belong at a separately defined host boundary.
+
 ## Why not the classical form
 
 The classical IR in `fjs/bnf/data`, since deleted with that module, was

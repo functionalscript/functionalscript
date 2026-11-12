@@ -28,18 +28,7 @@ import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
-const { entries, fromEntries, keys, getPrototypeOf, is: sameValue, prototype: objectPrototype } = Object
-
-/**
- * A plain record — an object literal's shape — and nothing else that is an
- * object: a `Map` has no own string-keyed entries, so read as a variant it
- * would be an empty one. One realm, one prototype chain, so the prototype
- * is a reliable test. Not a type predicate: both call sites hold a value the
- * type system has already narrowed, and only ask whether to refuse it.
- *
- * @type {(v: unknown) => boolean}
- */
-const isRecord = v => isObject(v) && getPrototypeOf(v) === objectPrototype
+const { entries, fromEntries, keys, is: sameValue } = Object
 
 /**
  * The one discriminator over the data {@link Rule}: each handler receives the
@@ -69,7 +58,7 @@ export const matchRule = v => rule => {
         }
         case 'variant': {
             const [, branches] = rule
-            assert(rule.length === 2 && isRecord(branches), ['not a variant', rule])
+            assert(rule.length === 2 && isObject(branches), ['not a variant', rule])
             return v.variant(branches)
         }
         case 'repeat': {
@@ -237,7 +226,7 @@ const validateRule = (ruleSet, empty) => name =>
 export const validate = (ruleSet, entry) => {
     // The set is data too: an array would answer `entry(array, '0')` with its first
     // element and walk under `entries`, so the carrier is checked first.
-    assert(isRecord(ruleSet), ['not a rule set', ruleSet])
+    assert(isObject(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
     entries(ruleSet).forEach(([name, r]) => rule(name)(r))
@@ -341,7 +330,7 @@ const lowerBody = (state, name, dr) => {
         case 'object': {
             if (dr === null) { return [state, eof] }
             if (dr instanceof Array) { return lowerSequence(state, name, dr) }
-            assert(isRecord(dr), ['not a rule', dr])
+            assert(isObject(dr), ['not a rule', dr])
             return lowerVariant(state, name, dr)
         }
         default: { throw ['not a rule', dr] }
