@@ -2,7 +2,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../assert
 import { bytesOf, inflateAll } from '../../git/inflater/module.f.mjs'
 import { u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { noise, storedBytes, text } from '../testlib.f.mjs'
+import { noise, storedBytes, text } from '../testlib.f.js'
 import { stored } from './module.f.js'
 
 /**

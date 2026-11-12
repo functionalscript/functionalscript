@@ -1,6 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.js'
-import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
+import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.js'
 import { inflate } from './module.f.js'
 
 /**
