@@ -1,7 +1,18 @@
 ## Add an object identity `id` pattern
 
-**Priority:** P3
+**Priority:** P4
 **Status:** open — proposal; admission and semantics need a design decision
+
+### Release scope
+
+Keep v1 as simple as possible. The `id` feature is a **tentative v2 candidate**,
+not a v1 requirement or a committed v2 feature. This TODO records the design
+for later consideration; it does not authorize implementation. This planning
+direction comes from the [working session](https://chatgpt.com/local/6af607d6-7994-8191-b9a8-1309ba7a700d).
+
+The plain counter below is the minimal reference design. A separate
+[follow-up TODO](./object-identity-id-obfuscation.md) records the proposed
+nonce and reversible uint32 permutation, also tentatively for v2.
 
 ### Problem
 
@@ -133,3 +144,5 @@ or explicitly encode primitives; do not silently box them into fresh objects.
 - [Entry helpers](../property-access/entries/README.md) — complete function
   patterns already recognized by the compiler.
 - [I/O effects](../design/io-effects.md) — runner-owned state and operations.
+- [Reversible ID obfuscation](./object-identity-id-obfuscation.md) — a
+  tentative v2 follow-up; not a dependency of v1.

@@ -10,7 +10,9 @@ Currently, FJS has no way to store references (objects/functions) in a container
 - expose reference IDs as strings through the proposed
   [`id` helper](../spec/todo/object-identity-id.md), backed in JavaScript by a
   shared `WeakMap` and counter. Its admission as a function pattern versus a
-  runner effect remains a language-design decision.
+  runner effect remains a language-design decision. The feature and its
+  [reversible obfuscation follow-up](../spec/todo/object-identity-id-obfuscation.md)
+  are tentative v2 candidates, not v1 requirements.
 
 ### Related
 

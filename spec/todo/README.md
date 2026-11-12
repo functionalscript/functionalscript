@@ -205,9 +205,6 @@ information — see [serialization](../design/serialization.md) and
 6. [ ] [arity and complete arguments](./arity-complete-arguments.md) — an
    alternative for arbitrary length/full-argument construction; not a
    prerequisite for named and rest parameters.
-7. [ ] [object identity `id` pattern](./object-identity-id.md) — string IDs
-   for reference-keyed collections, using a shared JavaScript registry;
-   purity and pattern-versus-effect admission remain undecided.
 
 ### 3.4. Syntactic Sugar
 
@@ -233,6 +230,11 @@ information — see [serialization](../design/serialization.md) and
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
+3. [ ] [object identity `id` pattern](./object-identity-id.md) — string IDs
+   for reference-keyed collections; tentative v2 candidate, not a v1
+   requirement. Admission and semantics remain undecided.
+4. [ ] [reversible ID obfuscation](./object-identity-id-obfuscation.md) —
+   nonce-based uint32 permutation; follow-up tentatively for v2, keeping v1 simple.
 
 ## 4. ECMAScript Proposals
 
