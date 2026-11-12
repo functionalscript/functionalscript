@@ -144,16 +144,27 @@ contract and migration strategy.
 
 #### Accepted leaves after shared `Math.log2`
 
-**Status:** wip, stacked on #3765.
+**Status:** completed in #3771, stacked on #3765.
 
 The shared `Math.log2` admission makes `types/bigint` compiler-supported.
 At `4a0a09cb8`, its newly exposed `types/bigfloat` and `types/bit_set`
-dependents are accepted by `resolve` with their full imports. Rename those
-two implementations without changing their bodies, update their references,
-and retain them as permanent compiler regression inputs.
+dependents are accepted by `resolve` with their full imports. Both
+implementations now use `.f.js`, with unchanged bodies and updated
+references, as permanent compiler regression inputs.
 
-- [ ] Rename `types/bigfloat/module.f.mjs` to `.f.js` and update references.
-- [ ] Rename `types/bit_set/module.f.mjs` to `.f.js` and update references.
+Renaming `bit_set` exposes `types/byte_set` and `types/nibble_set`; both
+are accepted too and belong in the same conversion. The only runtime
+consumer of `byte_set`, `fsm`, still depends on `types/object`, so these
+four renames expose no further accepted leaf. The graph remains **641
+authored non-proof sources**: **249 authored `.f.js` files** and **392
+authored non-proof `.f.mjs` files**. The eleven remaining leaves are the
+historical set below with `types/bit_vec` replacing `types/bigint`;
+`bit_vec` is refused at `607:17` for `reassigned variable captured`.
+
+- [x] Promote `types/bigfloat` to `module.f.js` and update references.
+- [x] Promote `types/bit_set` to `module.f.js` and update references.
+- [x] Promote `types/byte_set` to `module.f.js` and update references.
+- [x] Promote `types/nibble_set` to `module.f.js` and update references.
 
 #### Leaf migration fixed point before shared `Math.log2`
 

@@ -2,8 +2,8 @@
  * Nibble-set operations for compact 4-bit membership tracking.
  *
  * A set of nibbles (values `0..15`) stored as a 16-bit mask in a plain
- * `number`. It is the {@link ../bit_set/module.f.mjs | `bit_set`} algebra
- * over `number`, as {@link ../byte_set/module.f.mjs | `byte_set`} is the same
+ * `number`. It is the {@link ../bit_set/module.f.js | `bit_set`} algebra
+ * over `number`, as {@link ../byte_set/module.f.js | `byte_set`} is the same
  * algebra over a `bigint` tracking all 256 byte values.
  *
  * **Prefer `byte_set`.** Its 256-value universe covers the common cases and
@@ -17,7 +17,7 @@
  * @import { Nibble, NibbleSet } from './types.ts'
  */
 
-import { bitSet, numberOps } from '../bit_set/module.f.mjs'
+import { bitSet, numberOps } from '../bit_set/module.f.js'
 
 const nibbleSet = bitSet(numberOps)(16)
 

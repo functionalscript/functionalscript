@@ -404,20 +404,13 @@ The existing numeric-only helper
 remains available for callers that deliberately reject non-number inputs.
 It is no longer needed to make a `BigInt(exp)` conversion compile.
 
-Source admission alone does not make an importing module compilable. The
-bodies of `fjs/types/bit_set/module.f.mjs` and
-`fjs/media/json/extended/module.f.mjs` now parse, but both remain `.f.mjs`
-because the compiler also links their imports. `bit_set` imports
-`types/bigint`, whose `bits` function still references the later `bitLength`
-binding, outside the module forward-reference contract. Its `for…of` syntax
-is now admitted.
-The extended JSON codec imports the JSON parser, whose `tagged` helper still
-reads the dynamic string key `member[key]`, outside the numeric computed-key
-contract. Compile either module explicitly to observe its dependency's refusal:
+Source admission alone does not make an importing module compilable: the
+compiler also links its imports. `types/bit_set` previously waited on
+`types/bigint`; with the shared `Math.log2` body admitted, both compile and
+use `.f.js`. Check a module together with its imports:
 
 ```sh
-npm start compile fjs/types/bit_set/module.f.mjs /tmp/bit-set.js
-npm start compile fjs/media/json/extended/module.f.mjs /tmp/extended-json.js
+npm start compile fjs/types/bit_set/module.f.js /tmp/bit-set.js
 ```
 
 Rename each module and update its importers when it compiles with its imports,
