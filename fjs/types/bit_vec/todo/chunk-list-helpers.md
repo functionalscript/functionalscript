@@ -28,7 +28,7 @@ in [`fjs/effects/node`](../../../effects/node/module.f.mjs),
 [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs).
 `inflater` re-derives this module's own `byteLength` as
 `Number(bytesIn(length(v)))`, twice, and
-[`fjs/zlib/inflate`](../../../zlib/inflate/module.f.mjs) spells it the same
+[`fjs/zlib/inflate`](../../../zlib/inflate/module.f.js) spells it the same
 way. The array form of the forward direction,
 `toArray(u8ListToMaxVecChunksMsb(bytes))`, is a private `chunked` in
 [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.mjs) and

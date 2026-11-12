@@ -110,6 +110,139 @@ const samples = [
 ]
 
 export const proof = /** @type {const} */ ({
+    min: {
+        numbers: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            assertEq(min, Math.min)
+            assertEq(runtime.static('Math.min'), min)
+            assertEq(min.length, 2)
+            for (const [args, expected] of /** @type {const} */ ([
+                [[], Infinity], [[-Infinity], -Infinity], [[Infinity], Infinity],
+                [[0], 0], [[-0], -0], [[0, 0, 0], 0],
+                [[-0, 0], -0], [[0, -0], -0], [[0, 0, -0], -0],
+                [[-3, -2, -1], -3], [[5, 2, 4, 3], 2],
+                [[5e-324, -5e-324, 0], -5e-324],
+                [[-1.7976931348623157e308, Infinity], -1.7976931348623157e308],
+                [[NaN], NaN], [[NaN, -Infinity, 1], NaN], [[-Infinity, 1, NaN], NaN],
+            ])) { assert(Object.is(min(...args), expected), args) }
+        },
+        conversion: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', '-Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(min(value, -3, 2), Math.min(/** @type {number} */ (value), -3, 2)), value)
+                assert(Object.is(min(-3, 2, value), Math.min(-3, 2, /** @type {number} */ (value))), value)
+            }
+            assertEq(min({ valueOf: () => -9, toString: () => { throw 'unreached' } }, 3, 5), -9)
+            assertEq(min(-1, 0, { valueOf: () => ({}), toString: () => '-16' }), -16)
+        },
+    },
+    max: {
+        numbers: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            assertEq(max, Math.max)
+            assertEq(runtime.static('Math.max'), max)
+            assertEq(max.length, 2)
+            for (const [args, expected] of /** @type {const} */ ([
+                [[], -Infinity], [[-Infinity], -Infinity], [[Infinity], Infinity],
+                [[0], 0], [[-0], -0], [[-0, -0, -0], -0],
+                [[-0, 0], 0], [[0, -0], 0], [[-0, -0, 0], 0],
+                [[-3, -2, -1], -1], [[5, 2, 4, 3], 5],
+                [[5e-324, -5e-324, 0], 5e-324],
+                [[1.7976931348623157e308, -Infinity], 1.7976931348623157e308],
+                [[NaN], NaN], [[NaN, Infinity, 1], NaN], [[Infinity, 1, NaN], NaN],
+            ])) { assert(Object.is(max(...args), expected), args) }
+        },
+        conversion: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(max(value, -3, 2), Math.max(/** @type {number} */ (value), -3, 2)), value)
+                assert(Object.is(max(-3, 2, value), Math.max(-3, 2, /** @type {number} */ (value))), value)
+            }
+            assertEq(max({ valueOf: () => 9, toString: () => { throw 'unreached' } }, 3, 5), 9)
+            assertEq(max(-1, 0, { valueOf: () => ({}), toString: () => '16' }), 16)
+        },
+    },
+    sqrt: {
+        numbers: () => {
+            const sqrt = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.sqrt'])
+            assertEq(sqrt, Math.sqrt)
+            assertEq(runtime.static('Math.sqrt'), sqrt)
+            assertEq(sqrt.length, 1)
+            assert(Object.is(sqrt(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, NaN],
+                [0, 0], [-0, -0], [-1, NaN], [-5e-324, NaN],
+                [1, 1], [4, 2], [0.25, 0.5], [2, 1.4142135623730951],
+                [5e-324, 2.2227587494850775e-162],
+                [1.7976931348623157e308, 1.3407807929942596e154],
+            ]) { assert(Object.is(sqrt(value), expected), value) }
+        },
+        conversion: () => {
+            const sqrt = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.sqrt'])
+            for (const value of ['', ' -0 ', ' 0.25 ', ' 0x10 ', '-Infinity', 'bad', true, false, null, undefined, [], [9], [9n], [[4]], {}, () => 1]) {
+                assert(Object.is(sqrt(value), Math.sqrt(/** @type {number} */ (value))), value)
+            }
+            assertEq(sqrt({ valueOf: () => 9, toString: () => { throw 'unreached' } }), 3)
+            assertEq(sqrt({ valueOf: () => ({}), toString: () => '16' }), 4)
+            assertEq(sqrt(25, { valueOf: () => { throw 'unused' } }), 5)
+        },
+    },
+    ceil: {
+        numbers: () => {
+            const ceil = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.ceil'])
+            assertEq(ceil, Math.ceil)
+            assertEq(runtime.static('Math.ceil'), ceil)
+            assertEq(ceil.length, 1)
+            assert(Object.is(ceil(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 1], [-0.5, -0],
+                [1.9, 2], [-1.9, -1], [5e-324, 1], [-5e-324, -0],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, -1.7976931348623157e308],
+            ]) { assert(Object.is(ceil(value), expected), value) }
+        },
+        conversion: () => {
+            const ceil = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.ceil'])
+            for (const value of ['', ' -0 ', ' -0.5 ', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(ceil(value), Math.ceil(/** @type {number} */ (value))), value)
+            }
+            assertEq(ceil({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 3)
+            assertEq(ceil({ valueOf: () => ({}), toString: () => '-3.9' }), -3)
+            assertEq(ceil(4.9, { valueOf: () => { throw 'unused' } }), 5)
+        },
+    },
+    imul: {
+        numbers: () => {
+            const imul = /** @type {(a?: unknown, b?: unknown, unused?: unknown) => number} */ (statics['Math.imul'])
+            assertEq(imul, Math.imul)
+            assertEq(runtime.static('Math.imul'), imul)
+            assertEq(imul.length, 2)
+            assert(Object.is(imul(), 0))
+            assert(Object.is(imul(1), 0))
+            for (const [a, b, expected] of [
+                [NaN, 1, 0], [Infinity, 1, 0], [-Infinity, 1, 0],
+                [0, -1, 0], [-0, 1, 0], [-0.5, 1, 0],
+                [1.9, -2.9, -2], [-3, 5, -15],
+                [0xffff_ffff, 5, -5], [0x8000_0000, 1, -0x8000_0000],
+                [0x8000_0000, 2, 0], [0xffff_ffff, 0xffff_ffff, 1],
+                [0x1_0000_0001, 5, 5], [-0x1_0000_0001, 5, -5],
+                [0x1f_ffff_ffff_ffff, 2, -2],
+                [1.7976931348623157e308, 1, 0], [5e-324, 1, 0],
+            ]) { assert(Object.is(imul(a, b), expected), [a, b]) }
+        },
+        conversion: () => {
+            const imul = /** @type {(a?: unknown, b?: unknown, unused?: unknown) => number} */ (statics['Math.imul'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(imul(value, 5), Math.imul(/** @type {number} */ (value), 5)), value)
+                assert(Object.is(imul(5, value), Math.imul(5, /** @type {number} */ (value))), value)
+            }
+            assertEq(imul({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }, 3), 6)
+            assertEq(imul(3, { valueOf: () => ({}), toString: () => '-3.9' }), -9)
+            assertEq(imul(4, 5, { valueOf: () => { throw 'unused' } }), 20)
+        },
+    },
     abs: {
         numbers: () => {
             const abs = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.abs'])
@@ -296,7 +429,7 @@ export const proof = /** @type {const} */ ({
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.values', 'Math.max', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.cbrt', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -565,6 +698,53 @@ export const proof = /** @type {const} */ ({
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        minBigint: () => { table['Math.min'](1n, 0) },
+        minBigintAfterNaN: () => { table['Math.min'](NaN, 1n) },
+        minBigintAfterInfinity: () => { table['Math.min'](-Infinity, 1n) },
+        minBigintLast: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            min(0, 0, 1n)
+        },
+        minBigintPrimitive: () => { table['Math.min']({ valueOf: () => 1n }, 0) },
+        minBigintPrimitiveAfterNaN: () => { table['Math.min'](NaN, { valueOf: () => 1n }) },
+        minBigintPrimitiveLast: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            min(NaN, -Infinity, { valueOf: () => 1n })
+        },
+        minConversionAfterNaN: () => { table['Math.min'](NaN, { valueOf: () => { throw 'conversion' } }) },
+        minConversionAfterInfinity: () => { table['Math.min'](-Infinity, { valueOf: () => { throw 'conversion' } }) },
+        minNoPrimitive: () => { table['Math.min'](0, { valueOf: () => ({}), toString: () => [] }) },
+        maxBigint: () => { table['Math.max'](1n, 0) },
+        maxBigintAfterNaN: () => { table['Math.max'](NaN, 1n) },
+        maxBigintAfterInfinity: () => { table['Math.max'](Infinity, 1n) },
+        maxBigintLast: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            max(0, 0, 1n)
+        },
+        maxBigintPrimitive: () => { table['Math.max']({ valueOf: () => 1n }, 0) },
+        maxBigintPrimitiveAfterNaN: () => { table['Math.max'](NaN, { valueOf: () => 1n }) },
+        maxBigintPrimitiveLast: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            max(NaN, Infinity, { valueOf: () => 1n })
+        },
+        maxConversionAfterNaN: () => { table['Math.max'](NaN, { valueOf: () => { throw 'conversion' } }) },
+        maxConversionAfterInfinity: () => { table['Math.max'](Infinity, { valueOf: () => { throw 'conversion' } }) },
+        maxNoPrimitive: () => { table['Math.max'](0, { valueOf: () => ({}), toString: () => [] }) },
+        sqrtBigint: () => { table['Math.sqrt'](1n, undefined) },
+        sqrtBigintPrimitive: () => { table['Math.sqrt']({ valueOf: () => 1n }, undefined) },
+        sqrtConversion: () => { table['Math.sqrt']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        sqrtNoPrimitive: () => { table['Math.sqrt']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        ceilBigint: () => { table['Math.ceil'](1n, undefined) },
+        ceilBigintPrimitive: () => { table['Math.ceil']({ valueOf: () => 1n }, undefined) },
+        ceilConversion: () => { table['Math.ceil']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        ceilNoPrimitive: () => { table['Math.ceil']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        imulBigintLeft: () => { table['Math.imul'](1n, 1) },
+        imulBigintRight: () => { table['Math.imul'](1, 1n) },
+        imulBigintPrimitiveLeft: () => { table['Math.imul']({ valueOf: () => 1n }, 1) },
+        imulBigintPrimitiveRight: () => { table['Math.imul'](1, { valueOf: () => 1n }) },
+        imulConversionLeft: () => { table['Math.imul']({ valueOf: () => { throw 'conversion' } }, 0) },
+        imulConversionRight: () => { table['Math.imul'](0, { valueOf: () => { throw 'conversion' } }) },
+        imulNoPrimitive: () => { table['Math.imul']({ valueOf: () => ({}), toString: () => [] }, 0) },
         absBigint: () => { table['Math.abs'](1n, undefined) },
         absBigintPrimitive: () => { table['Math.abs']({ valueOf: () => 1n }, undefined) },
         absConversion: () => { table['Math.abs']({ valueOf: () => { throw 'conversion' } }, undefined) },

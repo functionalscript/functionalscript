@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`fjs/zlib/inflate`](../inflate/module.f.mjs) reads a zlib stream as a push-style
+[`fjs/zlib/inflate`](../inflate/module.f.js) reads a zlib stream as a push-style
 machine using the shared `init`, `update(state, chunk)`, `end` protocol. The
 chunks are `Vec`s, so a chunk is at most what a `Vec` holds (128 KiB); the
 output is emitted in arrays of `Vec` chunks, each at most one decoding step's

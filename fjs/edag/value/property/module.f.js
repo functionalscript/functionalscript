@@ -99,14 +99,16 @@ export const staticBody = (runtime, fn, invoke) => {
  * The `length` of a static function, a property every function owns: the
  * length of the body the runtime's `static` answers for its id, `2` for
  * `Object.is`; `1` for `Object.entries`, `String.fromCharCode`, `Math.trunc`,
- * `Math.floor` and `Math.abs`, which every executor answers natively; and, with no runtime
+ * `Math.floor`, `Math.abs`, `Math.sqrt` and `Math.ceil`; `2` for `Math.imul`, `Math.max` and `Math.min`,
+ * which every executor answers natively; and, with no runtime
  * or no body for the id,
  * the failure naming the static, as its call would fail.
  *
  * @type {(fn: Static, runtime: Runtime | undefined, invoke: Invoke | undefined) => ValueResult}
  */
 const staticLength = (fn, runtime, invoke) => {
-    if (fn[0] === 'Object.entries' || fn[0] === 'String.fromCharCode' || fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs') { return ok(1) }
+    if (fn[0] === 'Math.imul' || fn[0] === 'Math.max' || fn[0] === 'Math.min') { return ok(2) }
+    if (fn[0] === 'Object.entries' || fn[0] === 'String.fromCharCode' || fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil') { return ok(1) }
     const body = invoke === undefined ? ok(undefined) : staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
     return body[1] === undefined ? error(noStatic(fn[0])) : ok(body[1][1])

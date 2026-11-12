@@ -367,7 +367,7 @@ export const proof = {
         for (const value of values) { assert(text(value).includes('Any::')) }
     },
     helpers: () => {
-        for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger', 'Math.trunc', 'Math.floor', 'Math.abs'])) { assert(text([tag]).length > 0) }
+        for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])) { assert(text([tag]).length > 0) }
         const native = unwrap(valueTagged(['Object.entries'], { ...options, runtime: null }))
         assert(untagged(native[0]).includes('Any::entries'))
         const chars = unwrap(valueTagged(['String.fromCharCode'], { ...options, runtime: null }))
@@ -378,6 +378,16 @@ export const proof = {
         assertEq(untagged(floor[0]), 'A::static_function(|_self, _args| _args.argument(0).to_number().map(|v| v.floor().to_any()), 1, Array::default(), Some("function floor() { [native code] }")).to_any()')
         const abs = unwrap(valueTagged(['Math.abs'], { ...options, runtime: null }))
         assertEq(untagged(abs[0]), 'A::static_function(|_self, _args| _args.argument(0).to_number().map(|v| v.abs().to_any()), 1, Array::default(), Some("function abs() { [native code] }")).to_any()')
+        const sqrt = unwrap(valueTagged(['Math.sqrt'], { ...options, runtime: null }))
+        assertEq(untagged(sqrt[0]), 'A::static_function(|_self, _args| _args.argument(0).to_number().map(|v| v.sqrt().to_any()), 1, Array::default(), Some("function sqrt() { [native code] }")).to_any()')
+        const ceil = unwrap(valueTagged(['Math.ceil'], { ...options, runtime: null }))
+        assertEq(untagged(ceil[0]), 'A::static_function(|_self, _args| _args.argument(0).to_number().map(|v| v.ceil().to_any()), 1, Array::default(), Some("function ceil() { [native code] }")).to_any()')
+        const imul = unwrap(valueTagged(['Math.imul'], { ...options, runtime: null }))
+        assertEq(untagged(imul[0]), 'A::static_function(|_self, _args| _args.argument(0).to_number().and_then(|a| _args.argument(1).to_number().map(|b| a.imul(b).to_any())), 2, Array::default(), Some("function imul() { [native code] }")).to_any()')
+        const max = unwrap(valueTagged(['Math.max'], { ...options, runtime: null }))
+        assertEq(untagged(max[0]), 'A::static_function(|_self, _args| _args.into_iter().try_fold(Number::from(f64::NEG_INFINITY), |current, value| value.to_number().map(|value| current.max(value))).map(|value| value.to_any()), 2, Array::default(), Some("function max() { [native code] }")).to_any()')
+        const min = unwrap(valueTagged(['Math.min'], { ...options, runtime: null }))
+        assertEq(untagged(min[0]), 'A::static_function(|_self, _args| _args.into_iter().try_fold(Number::from(f64::INFINITY), |current, value| value.to_number().map(|value| current.min(value))).map(|value| value.to_any()), 2, Array::default(), Some("function min() { [native code] }")).to_any()')
     },
     layout: () => {
         assertEq(braced(['Ok(v)']), '{ Ok(v) }')

@@ -34,16 +34,48 @@ pub mod math_abs_bigint_throws;
 pub mod math_abs_coercion_throws;
 pub mod math_abs_converted_bigint_throws;
 pub mod math_abs_extra_argument_throws;
+pub mod math_ceil;
+pub mod math_ceil_bigint_throws;
+pub mod math_ceil_coercion_throws;
+pub mod math_ceil_converted_bigint_throws;
+pub mod math_ceil_extra_argument_throws;
 pub mod math_floor;
 pub mod math_floor_bigint_throws;
 pub mod math_floor_coercion_throws;
 pub mod math_floor_converted_bigint_throws;
 pub mod math_floor_extra_argument_throws;
+pub mod math_imul;
+pub mod math_imul_bigint_throws;
+pub mod math_imul_coercion_throws;
+pub mod math_imul_converted_bigint_throws;
+pub mod math_imul_extra_argument_throws;
+pub mod math_imul_second_bigint_throws;
+pub mod math_imul_second_coercion_throws;
+pub mod math_imul_second_converted_bigint_throws;
 pub mod math_log2;
 pub mod math_log2_bigint_boundaries;
 pub mod math_log2_bigint_throws;
 pub mod math_log2_coercion_throws;
 pub mod math_log2_converted_bigint_throws;
+pub mod math_max;
+pub mod math_max_argument_throws;
+pub mod math_max_bigint_throws;
+pub mod math_max_coercion_throws;
+pub mod math_max_converted_bigint_throws;
+pub mod math_max_infinity_coercion_throws;
+pub mod math_max_nan_coercion_throws;
+pub mod math_min;
+pub mod math_min_argument_throws;
+pub mod math_min_bigint_throws;
+pub mod math_min_coercion_throws;
+pub mod math_min_converted_bigint_throws;
+pub mod math_min_infinity_coercion_throws;
+pub mod math_min_nan_coercion_throws;
+pub mod math_sqrt;
+pub mod math_sqrt_bigint_throws;
+pub mod math_sqrt_coercion_throws;
+pub mod math_sqrt_converted_bigint_throws;
+pub mod math_sqrt_extra_argument_throws;
 pub mod math_trunc;
 pub mod math_trunc_bigint_throws;
 pub mod math_trunc_coercion_throws;
@@ -134,16 +166,48 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "math_abs_coercion_throws", fixture: crate::fixtures::math_abs_coercion_throws::module::<Naive>, expected: math_abs_coercion_throws::module::<Naive>, json: math_abs_coercion_throws::JSON, throws: math_abs_coercion_throws::THROWS },
     crate::Case { name: "math_abs_converted_bigint_throws", fixture: crate::fixtures::math_abs_converted_bigint_throws::module::<Naive>, expected: math_abs_converted_bigint_throws::module::<Naive>, json: math_abs_converted_bigint_throws::JSON, throws: math_abs_converted_bigint_throws::THROWS },
     crate::Case { name: "math_abs_extra_argument_throws", fixture: crate::fixtures::math_abs_extra_argument_throws::module::<Naive>, expected: math_abs_extra_argument_throws::module::<Naive>, json: math_abs_extra_argument_throws::JSON, throws: math_abs_extra_argument_throws::THROWS },
+    crate::Case { name: "math_ceil", fixture: crate::fixtures::math_ceil::module::<Naive>, expected: math_ceil::module::<Naive>, json: math_ceil::JSON, throws: math_ceil::THROWS },
+    crate::Case { name: "math_ceil_bigint_throws", fixture: crate::fixtures::math_ceil_bigint_throws::module::<Naive>, expected: math_ceil_bigint_throws::module::<Naive>, json: math_ceil_bigint_throws::JSON, throws: math_ceil_bigint_throws::THROWS },
+    crate::Case { name: "math_ceil_coercion_throws", fixture: crate::fixtures::math_ceil_coercion_throws::module::<Naive>, expected: math_ceil_coercion_throws::module::<Naive>, json: math_ceil_coercion_throws::JSON, throws: math_ceil_coercion_throws::THROWS },
+    crate::Case { name: "math_ceil_converted_bigint_throws", fixture: crate::fixtures::math_ceil_converted_bigint_throws::module::<Naive>, expected: math_ceil_converted_bigint_throws::module::<Naive>, json: math_ceil_converted_bigint_throws::JSON, throws: math_ceil_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_ceil_extra_argument_throws", fixture: crate::fixtures::math_ceil_extra_argument_throws::module::<Naive>, expected: math_ceil_extra_argument_throws::module::<Naive>, json: math_ceil_extra_argument_throws::JSON, throws: math_ceil_extra_argument_throws::THROWS },
     crate::Case { name: "math_floor", fixture: crate::fixtures::math_floor::module::<Naive>, expected: math_floor::module::<Naive>, json: math_floor::JSON, throws: math_floor::THROWS },
     crate::Case { name: "math_floor_bigint_throws", fixture: crate::fixtures::math_floor_bigint_throws::module::<Naive>, expected: math_floor_bigint_throws::module::<Naive>, json: math_floor_bigint_throws::JSON, throws: math_floor_bigint_throws::THROWS },
     crate::Case { name: "math_floor_coercion_throws", fixture: crate::fixtures::math_floor_coercion_throws::module::<Naive>, expected: math_floor_coercion_throws::module::<Naive>, json: math_floor_coercion_throws::JSON, throws: math_floor_coercion_throws::THROWS },
     crate::Case { name: "math_floor_converted_bigint_throws", fixture: crate::fixtures::math_floor_converted_bigint_throws::module::<Naive>, expected: math_floor_converted_bigint_throws::module::<Naive>, json: math_floor_converted_bigint_throws::JSON, throws: math_floor_converted_bigint_throws::THROWS },
     crate::Case { name: "math_floor_extra_argument_throws", fixture: crate::fixtures::math_floor_extra_argument_throws::module::<Naive>, expected: math_floor_extra_argument_throws::module::<Naive>, json: math_floor_extra_argument_throws::JSON, throws: math_floor_extra_argument_throws::THROWS },
+    crate::Case { name: "math_imul", fixture: crate::fixtures::math_imul::module::<Naive>, expected: math_imul::module::<Naive>, json: math_imul::JSON, throws: math_imul::THROWS },
+    crate::Case { name: "math_imul_bigint_throws", fixture: crate::fixtures::math_imul_bigint_throws::module::<Naive>, expected: math_imul_bigint_throws::module::<Naive>, json: math_imul_bigint_throws::JSON, throws: math_imul_bigint_throws::THROWS },
+    crate::Case { name: "math_imul_coercion_throws", fixture: crate::fixtures::math_imul_coercion_throws::module::<Naive>, expected: math_imul_coercion_throws::module::<Naive>, json: math_imul_coercion_throws::JSON, throws: math_imul_coercion_throws::THROWS },
+    crate::Case { name: "math_imul_converted_bigint_throws", fixture: crate::fixtures::math_imul_converted_bigint_throws::module::<Naive>, expected: math_imul_converted_bigint_throws::module::<Naive>, json: math_imul_converted_bigint_throws::JSON, throws: math_imul_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_imul_extra_argument_throws", fixture: crate::fixtures::math_imul_extra_argument_throws::module::<Naive>, expected: math_imul_extra_argument_throws::module::<Naive>, json: math_imul_extra_argument_throws::JSON, throws: math_imul_extra_argument_throws::THROWS },
+    crate::Case { name: "math_imul_second_bigint_throws", fixture: crate::fixtures::math_imul_second_bigint_throws::module::<Naive>, expected: math_imul_second_bigint_throws::module::<Naive>, json: math_imul_second_bigint_throws::JSON, throws: math_imul_second_bigint_throws::THROWS },
+    crate::Case { name: "math_imul_second_coercion_throws", fixture: crate::fixtures::math_imul_second_coercion_throws::module::<Naive>, expected: math_imul_second_coercion_throws::module::<Naive>, json: math_imul_second_coercion_throws::JSON, throws: math_imul_second_coercion_throws::THROWS },
+    crate::Case { name: "math_imul_second_converted_bigint_throws", fixture: crate::fixtures::math_imul_second_converted_bigint_throws::module::<Naive>, expected: math_imul_second_converted_bigint_throws::module::<Naive>, json: math_imul_second_converted_bigint_throws::JSON, throws: math_imul_second_converted_bigint_throws::THROWS },
     crate::Case { name: "math_log2", fixture: crate::fixtures::math_log2::module::<Naive>, expected: math_log2::module::<Naive>, json: math_log2::JSON, throws: math_log2::THROWS },
     crate::Case { name: "math_log2_bigint_boundaries", fixture: crate::fixtures::math_log2_bigint_boundaries::module::<Naive>, expected: math_log2_bigint_boundaries::module::<Naive>, json: math_log2_bigint_boundaries::JSON, throws: math_log2_bigint_boundaries::THROWS },
     crate::Case { name: "math_log2_bigint_throws", fixture: crate::fixtures::math_log2_bigint_throws::module::<Naive>, expected: math_log2_bigint_throws::module::<Naive>, json: math_log2_bigint_throws::JSON, throws: math_log2_bigint_throws::THROWS },
     crate::Case { name: "math_log2_coercion_throws", fixture: crate::fixtures::math_log2_coercion_throws::module::<Naive>, expected: math_log2_coercion_throws::module::<Naive>, json: math_log2_coercion_throws::JSON, throws: math_log2_coercion_throws::THROWS },
     crate::Case { name: "math_log2_converted_bigint_throws", fixture: crate::fixtures::math_log2_converted_bigint_throws::module::<Naive>, expected: math_log2_converted_bigint_throws::module::<Naive>, json: math_log2_converted_bigint_throws::JSON, throws: math_log2_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_max", fixture: crate::fixtures::math_max::module::<Naive>, expected: math_max::module::<Naive>, json: math_max::JSON, throws: math_max::THROWS },
+    crate::Case { name: "math_max_argument_throws", fixture: crate::fixtures::math_max_argument_throws::module::<Naive>, expected: math_max_argument_throws::module::<Naive>, json: math_max_argument_throws::JSON, throws: math_max_argument_throws::THROWS },
+    crate::Case { name: "math_max_bigint_throws", fixture: crate::fixtures::math_max_bigint_throws::module::<Naive>, expected: math_max_bigint_throws::module::<Naive>, json: math_max_bigint_throws::JSON, throws: math_max_bigint_throws::THROWS },
+    crate::Case { name: "math_max_coercion_throws", fixture: crate::fixtures::math_max_coercion_throws::module::<Naive>, expected: math_max_coercion_throws::module::<Naive>, json: math_max_coercion_throws::JSON, throws: math_max_coercion_throws::THROWS },
+    crate::Case { name: "math_max_converted_bigint_throws", fixture: crate::fixtures::math_max_converted_bigint_throws::module::<Naive>, expected: math_max_converted_bigint_throws::module::<Naive>, json: math_max_converted_bigint_throws::JSON, throws: math_max_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_max_infinity_coercion_throws", fixture: crate::fixtures::math_max_infinity_coercion_throws::module::<Naive>, expected: math_max_infinity_coercion_throws::module::<Naive>, json: math_max_infinity_coercion_throws::JSON, throws: math_max_infinity_coercion_throws::THROWS },
+    crate::Case { name: "math_max_nan_coercion_throws", fixture: crate::fixtures::math_max_nan_coercion_throws::module::<Naive>, expected: math_max_nan_coercion_throws::module::<Naive>, json: math_max_nan_coercion_throws::JSON, throws: math_max_nan_coercion_throws::THROWS },
+    crate::Case { name: "math_min", fixture: crate::fixtures::math_min::module::<Naive>, expected: math_min::module::<Naive>, json: math_min::JSON, throws: math_min::THROWS },
+    crate::Case { name: "math_min_argument_throws", fixture: crate::fixtures::math_min_argument_throws::module::<Naive>, expected: math_min_argument_throws::module::<Naive>, json: math_min_argument_throws::JSON, throws: math_min_argument_throws::THROWS },
+    crate::Case { name: "math_min_bigint_throws", fixture: crate::fixtures::math_min_bigint_throws::module::<Naive>, expected: math_min_bigint_throws::module::<Naive>, json: math_min_bigint_throws::JSON, throws: math_min_bigint_throws::THROWS },
+    crate::Case { name: "math_min_coercion_throws", fixture: crate::fixtures::math_min_coercion_throws::module::<Naive>, expected: math_min_coercion_throws::module::<Naive>, json: math_min_coercion_throws::JSON, throws: math_min_coercion_throws::THROWS },
+    crate::Case { name: "math_min_converted_bigint_throws", fixture: crate::fixtures::math_min_converted_bigint_throws::module::<Naive>, expected: math_min_converted_bigint_throws::module::<Naive>, json: math_min_converted_bigint_throws::JSON, throws: math_min_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_min_infinity_coercion_throws", fixture: crate::fixtures::math_min_infinity_coercion_throws::module::<Naive>, expected: math_min_infinity_coercion_throws::module::<Naive>, json: math_min_infinity_coercion_throws::JSON, throws: math_min_infinity_coercion_throws::THROWS },
+    crate::Case { name: "math_min_nan_coercion_throws", fixture: crate::fixtures::math_min_nan_coercion_throws::module::<Naive>, expected: math_min_nan_coercion_throws::module::<Naive>, json: math_min_nan_coercion_throws::JSON, throws: math_min_nan_coercion_throws::THROWS },
+    crate::Case { name: "math_sqrt", fixture: crate::fixtures::math_sqrt::module::<Naive>, expected: math_sqrt::module::<Naive>, json: math_sqrt::JSON, throws: math_sqrt::THROWS },
+    crate::Case { name: "math_sqrt_bigint_throws", fixture: crate::fixtures::math_sqrt_bigint_throws::module::<Naive>, expected: math_sqrt_bigint_throws::module::<Naive>, json: math_sqrt_bigint_throws::JSON, throws: math_sqrt_bigint_throws::THROWS },
+    crate::Case { name: "math_sqrt_coercion_throws", fixture: crate::fixtures::math_sqrt_coercion_throws::module::<Naive>, expected: math_sqrt_coercion_throws::module::<Naive>, json: math_sqrt_coercion_throws::JSON, throws: math_sqrt_coercion_throws::THROWS },
+    crate::Case { name: "math_sqrt_converted_bigint_throws", fixture: crate::fixtures::math_sqrt_converted_bigint_throws::module::<Naive>, expected: math_sqrt_converted_bigint_throws::module::<Naive>, json: math_sqrt_converted_bigint_throws::JSON, throws: math_sqrt_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_sqrt_extra_argument_throws", fixture: crate::fixtures::math_sqrt_extra_argument_throws::module::<Naive>, expected: math_sqrt_extra_argument_throws::module::<Naive>, json: math_sqrt_extra_argument_throws::JSON, throws: math_sqrt_extra_argument_throws::THROWS },
     crate::Case { name: "math_trunc", fixture: crate::fixtures::math_trunc::module::<Naive>, expected: math_trunc::module::<Naive>, json: math_trunc::JSON, throws: math_trunc::THROWS },
     crate::Case { name: "math_trunc_bigint_throws", fixture: crate::fixtures::math_trunc_bigint_throws::module::<Naive>, expected: math_trunc_bigint_throws::module::<Naive>, json: math_trunc_bigint_throws::JSON, throws: math_trunc_bigint_throws::THROWS },
     crate::Case { name: "math_trunc_coercion_throws", fixture: crate::fixtures::math_trunc_coercion_throws::module::<Naive>, expected: math_trunc_coercion_throws::module::<Naive>, json: math_trunc_coercion_throws::JSON, throws: math_trunc_coercion_throws::THROWS },

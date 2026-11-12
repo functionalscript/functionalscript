@@ -1,5 +1,5 @@
 /**
- * A zlib stream read for Git: [`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs)
+ * A zlib stream read for Git: [`fjs/zlib/inflate`](../../zlib/inflate/module.f.js)
  * fed the chunks a read gives, and what comes of it as the refusals the host's
  * `inflate` effect gave, so a caller that tells them apart by code is not told
  * anything new. The inflater is pure; this is the seam between it and the
@@ -27,7 +27,7 @@ import { flat, map, reverse, run } from '../../types/list/module.f.js'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { inflate } from '../../zlib/inflate/module.f.mjs'
+import { inflate } from '../../zlib/inflate/module.f.js'
 
 const { init: [, , initialState], update: updateInflate, end: endInflate } = inflate
 

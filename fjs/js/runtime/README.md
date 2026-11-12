@@ -76,6 +76,30 @@ marker in place of a body would only duplicate the parser's list.
 
 ## Math functions
 
+`Math.max` and `Math.min` use Rust's `f64::max` and `f64::min` and core WASM's
+`f64.max` and `f64.min` after converting every argument in order with
+`ToNumber`. The executor handles the JavaScript boundary cases around those
+native comparisons: no arguments return negative infinity for `max` and
+positive infinity for `min`; any `NaN` makes the result `NaN`; positive zero
+wins for `max` and negative zero for `min`. Conversion continues after `NaN`
+or either infinity, so a later conversion failure still throws. Their runtime
+entries are the JavaScript built-ins, and WASM needs no third-party dependency.
+
+`Math.sqrt` and `Math.ceil` are native: Rust provides `f64::sqrt` and
+`f64::ceil`, and core WASM provides `f64.sqrt` and `f64.ceil`. Square root
+preserves negative zero and returns `NaN` for negative nonzero inputs.
+Ceiling rounds toward positive infinity, preserving negative zero for inputs
+between `-1` and zero. Both convert once with `ToNumber` before the numeric
+operation and preserve `NaN`, signed zero and positive infinity.
+
+`Math.imul` is native through Rust's `i32::wrapping_mul` and core WASM's
+`i32.mul`. Each argument is converted in order with `ToNumber`, then to a
+32-bit integer; the low 32 bits of the product are returned as a signed
+integer. Missing, nonfinite and zero arguments convert to zero. All three
+runtime entries hold the JavaScript built-in itself, reject bigint inputs
+including bigint results from conversion, and need no third-party WASM
+dependency.
+
 `Math.abs` is native: Rust provides `f64::abs` and core WASM provides
 `f64.abs`. It returns positive magnitudes, including positive zero for `-0`
 and positive infinity for negative infinity, while preserving `NaN`. The
@@ -166,7 +190,8 @@ The VMs bind these natively:
   compiler recognizes whole as a node every executor answers natively, so
   no body of this module makes a member call;
 - the **compatible native math operations** available in both Rust and core
-  WASM, currently `Math.trunc`, `Math.floor` and `Math.abs`, under the target rule above;
+  WASM, currently `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
+  `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`, under the target rule above;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on

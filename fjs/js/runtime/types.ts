@@ -85,3 +85,13 @@ type _NativeTrunc = Assert<Equal<Statics['Math.trunc'], typeof Math.trunc>>
 type _NativeFloor = Assert<Equal<Statics['Math.floor'], typeof Math.floor>>
 
 type _NativeAbs = Assert<Equal<Statics['Math.abs'], typeof Math.abs>>
+
+type _NativeSqrt = Assert<Equal<Statics['Math.sqrt'], typeof Math.sqrt>>
+
+type _NativeCeil = Assert<Equal<Statics['Math.ceil'], typeof Math.ceil>>
+
+type _NativeImul = Assert<Equal<Statics['Math.imul'], typeof Math.imul>>
+
+type _NativeMax = Assert<Equal<Statics['Math.max'], typeof Math.max>>
+
+type _NativeMin = Assert<Equal<Statics['Math.min'], typeof Math.min>>

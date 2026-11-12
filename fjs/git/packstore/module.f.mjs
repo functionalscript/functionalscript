@@ -32,7 +32,7 @@
  * of the file the zlib stream after it takes. The host's `inflate` refused bytes
  * after the end of a stream, so the window handed to it had to end exactly there
  * and the index closed it; the inflater here
- * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs)) knows where a stream
+ * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.js)) knows where a stream
  * ends, so the window is only an upper bound, and it is read in pieces of a
  * `Vec` each, however long the entry is. See `after` in
  * [`fjs/git/packidx`](../packidx/module.f.mjs); the last entry in a pack ends at

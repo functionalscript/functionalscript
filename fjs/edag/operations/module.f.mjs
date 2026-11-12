@@ -129,11 +129,31 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
         }
         return ok(text)
     }
-    if (fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs') {
+    if (fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil') {
         const converted = toNumber(values.length === 0 ? ['undefined'] : values[0], invoke)
         if (converted[0] === 'error') { return converted }
         if (fn[0] === 'Math.trunc') { return ok(Math.trunc(converted[1])) }
-        return ok(fn[0] === 'Math.floor' ? Math.floor(converted[1]) : Math.abs(converted[1]))
+        if (fn[0] === 'Math.floor') { return ok(Math.floor(converted[1])) }
+        if (fn[0] === 'Math.abs') { return ok(Math.abs(converted[1])) }
+        return ok(fn[0] === 'Math.sqrt' ? Math.sqrt(converted[1]) : Math.ceil(converted[1]))
+    }
+    if (fn[0] === 'Math.max' || fn[0] === 'Math.min') {
+        const maximum = fn[0] === 'Math.max'
+        const select = maximum ? Math.max : Math.min
+        let result = maximum ? -Infinity : Infinity
+        for (const value of values) {
+            const converted = toNumber(value, invoke)
+            if (converted[0] === 'error') { return converted }
+            result = select(result, converted[1])
+        }
+        return ok(result)
+    }
+    if (fn[0] === 'Math.imul') {
+        const left = toNumber(values.length === 0 ? ['undefined'] : values[0], invoke)
+        if (left[0] === 'error') { return left }
+        const right = toNumber(values.length < 2 ? ['undefined'] : values[1], invoke)
+        if (right[0] === 'error') { return right }
+        return ok(Math.imul(left[1], right[1]))
     }
     const body = staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
@@ -325,8 +345,8 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': {
-                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
+            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': case 'Math.sqrt': case 'Math.ceil': case 'Math.imul': case 'Math.max': case 'Math.min': {
+                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs' || node[0] === 'Math.sqrt' || node[0] === 'Math.ceil' || node[0] === 'Math.imul' || node[0] === 'Math.max' || node[0] === 'Math.min') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
             }

@@ -66,6 +66,41 @@ export const proof = {
             [3.75, Infinity, 0.75, true, true, false, false, 1, 'function', 'function abs() { [native code] }'])
         assert(Object.is(execute(compile('export default Math.abs(-0);').edag), 0))
     },
+    mathSqrt: () => {
+        expectEdag(compile('export default Math.sqrt(4);').edag, ['()', ['Math.sqrt'], [4]])
+        expectEdag(compile('const { sqrt } = Math; export default [sqrt, Math["sqrt"], sqrt.length];').edag,
+            ['[]', [['Math.sqrt'], ['Math.sqrt'], ['.', ['Math.sqrt'], 'length']]])
+        assertStructurallySame(execute(compile('const { sqrt } = Math; const read = () => Math.sqrt; export default [sqrt(4), Math["sqrt"](-1), Math.sqrt?.(-0), sqrt(Infinity), sqrt === read(), read() === read(), sqrt === Math.ceil, sqrt === Math.imul, sqrt.length, typeof sqrt, String(sqrt)];').edag),
+            [2, NaN, -0, Infinity, true, true, false, false, 1, 'function', 'function sqrt() { [native code] }'])
+    },
+    mathCeil: () => {
+        expectEdag(compile('export default Math.ceil(0.75);').edag, ['()', ['Math.ceil'], [0.75]])
+        expectEdag(compile('const { ceil } = Math; export default [ceil, Math["ceil"], ceil.length];').edag,
+            ['[]', [['Math.ceil'], ['Math.ceil'], ['.', ['Math.ceil'], 'length']]])
+        assertStructurallySame(execute(compile('const { ceil } = Math; const read = () => Math.ceil; export default [ceil(0.75), Math["ceil"](-0.75), Math.ceil?.(-1.75), ceil(-0), ceil === read(), read() === read(), ceil === Math.floor, ceil === Math.sqrt, ceil.length, typeof ceil, String(ceil)];').edag),
+            [1, -0, -1, -0, true, true, false, false, 1, 'function', 'function ceil() { [native code] }'])
+    },
+    mathImul: () => {
+        expectEdag(compile('export default Math.imul(7, 3);').edag, ['()', ['Math.imul'], [7, 3]])
+        expectEdag(compile('const { imul } = Math; export default [imul, Math["imul"], imul.length];').edag,
+            ['[]', [['Math.imul'], ['Math.imul'], ['.', ['Math.imul'], 'length']]])
+        assertStructurallySame(execute(compile('const { imul } = Math; const read = () => Math.imul; export default [imul(0xffff_ffff, 5), Math["imul"](0x8000_0000, 2), Math.imul?.(0x7fff_ffff, 2), imul(), imul(2), imul === read(), read() === read(), imul === Math.sqrt, imul === Math.ceil, imul.length, typeof imul, String(imul)];').edag),
+            [-5, 0, -2, 0, 0, true, true, false, false, 2, 'function', 'function imul() { [native code] }'])
+    },
+    mathMax: () => {
+        expectEdag(compile('export default Math.max(1, 2, 3);').edag, ['()', ['Math.max'], [1, 2, 3]])
+        expectEdag(compile('const { max } = Math; export default [max, Math["max"], max.length];').edag,
+            ['[]', [['Math.max'], ['Math.max'], ['.', ['Math.max'], 'length']]])
+        assertStructurallySame(execute(compile('const { max } = Math; const read = () => Math.max; export default [max(), max(-0), max(-0, 0), max(0, -0), max(-0, -0), max(1, 9, 3), Math["max"](-4, -3), Math.max?.(-Infinity, -2), max(NaN, 4), max === read(), read() === read(), max === Math.imul, max.length, typeof max, String(max)];').edag),
+            [-Infinity, -0, 0, 0, -0, 9, -3, -2, NaN, true, true, false, 2, 'function', 'function max() { [native code] }'])
+    },
+    mathMin: () => {
+        expectEdag(compile('export default Math.min(1, 2, 3);').edag, ['()', ['Math.min'], [1, 2, 3]])
+        expectEdag(compile('const { min } = Math; export default [min, Math["min"], min.length];').edag,
+            ['[]', [['Math.min'], ['Math.min'], ['.', ['Math.min'], 'length']]])
+        assertStructurallySame(execute(compile('const { min } = Math; const read = () => Math.min; export default [min(), min(0), min(-0), min(0, -0), min(-0, 0), min(0, 0), min(4, -9, 3), Math["min"](4, 3), Math.min?.(Infinity, 2), min(NaN, 4), min === read(), read() === read(), min === Math.max, min.length, typeof min, String(min)];').edag),
+            [Infinity, 0, -0, -0, -0, 0, -9, 3, 2, NaN, true, true, false, 2, 'function', 'function min() { [native code] }'])
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`
