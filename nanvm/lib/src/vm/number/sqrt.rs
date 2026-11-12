@@ -16,6 +16,30 @@ mod tests {
         f64::from(Number::from(value).sqrt()).to_bits()
     }
 
+    // Keep the Number return across a call boundary: an inlined observer of
+    // integer bits can hide optimized NaN canonicalization failures.
+    #[inline(never)]
+    fn returned_sqrt(value: Number) -> Number {
+        value.sqrt()
+    }
+
+    #[test]
+    fn runtime_roots_return_canonical_nan() {
+        for value in [
+            f64::NEG_INFINITY,
+            -1.0,
+            -f64::from_bits(1),
+            -f64::MAX,
+            f64::NAN,
+            -f64::NAN,
+        ] {
+            let root = returned_sqrt(Number::from(std::hint::black_box(value)));
+            assert_eq!(f64::from(root).to_bits(), f64::from(Number::NAN).to_bits());
+        }
+        let root = returned_sqrt(Number::from(std::hint::black_box(-0.0)));
+        assert_eq!(f64::from(root).to_bits(), (-0.0f64).to_bits());
+    }
+
     #[test]
     fn finite_roots_round_to_binary64() {
         for (value, expected) in [
