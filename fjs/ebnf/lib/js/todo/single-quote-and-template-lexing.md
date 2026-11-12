@@ -166,7 +166,7 @@ position, not in the grammar.
 Two fixtures the tree scan cannot see, because a wrong split there is not an
 error but a template that swallows the rest of the file as text: a
 substitution holding a block body — `map(c => { switch (c) { … } })`, as
-[`media/rust/module.f.mjs`](../../../../media/rust/module.f.mjs) once had —
+[`media/rust/module.f.js`](../../../../media/rust/module.f.js) once had —
 so its first `}` must stay an operator, and `` `${{ x: 1 }.x}` ``, an object
 literal as the whole substitution.
 

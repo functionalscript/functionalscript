@@ -40,7 +40,7 @@ import { allowedCalls, prohibitedCalls, prototypeNames, prototypes } from '../..
 import { entry } from '../../types/object/entry/module.f.js'
 import { statics } from '../../js/static/module.f.js'
 import { _runtimeOnly } from '../../edag/value/method/module.f.mjs'
-import { stringLiteral } from '../../media/rust/module.f.mjs'
+import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { mapOk, okList, unwrap } from '../../types/result/module.f.js'
 

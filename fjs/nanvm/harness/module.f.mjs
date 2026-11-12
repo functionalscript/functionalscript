@@ -34,7 +34,7 @@ import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk,
 import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
-import { stringLiteral } from '../../media/rust/module.f.mjs'
+import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { corpus, fixturesDirectory as corpusFixturesDirectory } from '../corpus/module.f.js'
 import { expectation } from '../expected/module.f.mjs'

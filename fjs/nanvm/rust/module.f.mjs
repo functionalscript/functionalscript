@@ -55,7 +55,7 @@ import {
     sharedExp,
     valueExp,
 } from '../module.f.mjs'
-import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
+import { snakeCase, stringLiteral } from '../../media/rust/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { bindingLine, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'

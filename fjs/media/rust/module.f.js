@@ -26,7 +26,7 @@
  * @example
  *
  * ```js
- * import { f64Bits, i64Literal, stringLiteral } from './module.f.mjs'
+ * import { f64Bits, i64Literal, stringLiteral } from './module.f.js'
  *
  * stringLiteral('a"b') // ok('"a\\"b"')
  * f64Bits(2.3)         // '0x4002666666666666'
@@ -243,7 +243,7 @@ const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
 export const builtInIdentifier = name => name.split('.').map(part => [...part].map((c, i) => {
     const lower = c.toLowerCase()
     const last = i === part.length - 1
-    const nan = last && i >= 2 && !isLower(part[i - 2])
-    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && !nan
+    const nan = last && i >= 2 && !isLower(part[Number(i - 2)])
+    const starts = c !== lower && i > 0 && isLower(part[Number(i - 1)]) && !nan
     return starts ? `_${lower}` : lower
 }).join('')).join('_')

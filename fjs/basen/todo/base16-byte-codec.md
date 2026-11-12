@@ -60,7 +60,7 @@ which reading the whole run as one `bigint` would not.
 The writing side has a sibling, a scalar spelled in fixed-width hex, and
 the codec covers it as `encodeScalar(width)(value)`: lowercase, padded to
 `width` and never cut to it. `hexLiteral` in
-[`fjs/media/rust`](../../media/rust/module.f.mjs), `byteLiteral` in
+[`fjs/media/rust`](../../media/rust/module.f.js), `byteLiteral` in
 `fjs/nanvm/expected`, `unicodeEscape` in `fjs/js/string_escape`,
 `pathByte` in `fjs/text/percent` (in capitals, over it), the `vdf`,
 `sign`, `hash` and `secp` demos, and `fjs/text/utf8`'s demo, one byte at
