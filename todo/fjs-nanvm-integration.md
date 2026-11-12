@@ -142,6 +142,13 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Shared effect matcher
+
+#3785 moves `_matchWith` before `match` and `partialMatch`, preserving
+public export order. At `0aab1558b`, `effects` next stops at `step`'s
+forward reference to `resultStep` (`455:12`, `const not found`) and retains
+`.f.mjs`.
+
 #### RTTI numeric-key callback
 
 The migration in #3784 replaces `rtti/common`'s bare `.map(Number)` callback
