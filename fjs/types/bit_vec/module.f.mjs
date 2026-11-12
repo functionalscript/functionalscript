@@ -683,7 +683,7 @@ export const tailPaddedUintChunkList = bo => {
 }
 
 /** @type {(list: List<bigint>) => Thunk<number>} */
-const numberList = map(Number)
+const numberList = map(v => Number(v))
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
