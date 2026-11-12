@@ -1,4 +1,4 @@
-import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.mjs'
+import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.js'
 import { every, countdown, map } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'

@@ -1,6 +1,6 @@
 /**
  * Compact byte-set operations and predicates: the
- * {@link ../bit_set/module.f.mjs | `bit_set`} algebra over a 256-bit `bigint`.
+ * {@link ../bit_set/module.f.js | `bit_set`} algebra over a 256-bit `bigint`.
  * See `./types.ts` for the `ByteSet` type.
  *
  * @module
@@ -9,7 +9,7 @@
  * @import { ByteSet, _Byte } from './types.ts'
  */
 
-import { bitSet, bigintOps } from '../bit_set/module.f.mjs'
+import { bitSet, bigintOps } from '../bit_set/module.f.js'
 import { reverse, countdown, flat, map } from '../list/module.f.js'
 
 const byteSet = bitSet(bigintOps)(256)

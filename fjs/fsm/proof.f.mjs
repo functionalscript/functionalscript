@@ -4,7 +4,7 @@
  */
 
 import { dfa, run, toRange } from './module.f.mjs'
-import { one, union, empty, range as byteSetRange } from '../types/byte_set/module.f.mjs'
+import { one, union, empty, range as byteSetRange } from '../types/byte_set/module.f.js'
 import { toKey } from '../types/sorted_set/module.f.js'
 import { fold } from '../types/list/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
