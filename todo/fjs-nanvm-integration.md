@@ -146,7 +146,8 @@ contract and migration strategy.
 
 #3796 (`a2a1ad24f`) admits `Math.abs` natively via Rust's `f64::abs` and core
 WASM's `f64.abs`, preserving conversion and returning positive zero for `-0`.
-`media/rust` next stops at its forward reference to `u64WordItems` (`199:43`).
+`e7b33782f` places `u64WordItems` before its caller; `media/rust` next stops
+at its forward reference to `words` (`198:34`).
 The graph remains **275 `.f.js` files**, **368 `.f.mjs` files** and
 **15 blocked leaves**; the final pass accepts none.
 
