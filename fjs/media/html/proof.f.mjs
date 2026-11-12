@@ -4,7 +4,7 @@
 
 import { foldElement, htmlToString, htmlUtf8, isRawText, isVoidTag, mapElement, pageRefusal, parseElement, rawTextContent, scriptRefusal, textContent } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 
 export const proof = {
     // What a page could not read as written, or would run, is refused with

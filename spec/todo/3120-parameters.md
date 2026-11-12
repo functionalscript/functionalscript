@@ -435,7 +435,9 @@ source rest binding in that future case or silently admit initializers now.
   — canonical positive-zero arity and index metadata.
 - [Statement-aware compilation](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
-- [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
+- [Destructuring](../bindings/destructuring/README.md) — binding patterns in
+  fixed parameters; [rest parameter patterns](./rest-parameter-patterns.md)
+  remain separate work.
 - [Function frame](../design/3111-function-frame.md) — capture semantics.
 - [ECMAScript arrow functions](https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#sec-arrow-function-definitions)
   — parameter syntax, early errors and function creation.

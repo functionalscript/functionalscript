@@ -8,7 +8,7 @@
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
  * `readLine` — together with `sandbox`, `catch_`, `import_` and the
  * `all`/`allOk`/`both` fan-out are re-exported from
- * [`../common`](../common/module.f.mjs) rather than declared here: an operation
+ * [`../common`](../common/module.f.js) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and none of these is Node's by
  * nature. A browser page dispatches `sandbox`, `catch` and `import`.
  *
@@ -25,9 +25,9 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { tryUtf8, utf8 } from '../../text/module.f.mjs'
+import { tryUtf8, utf8 } from '../../text/module.f.js'
 import { asciiLowercase, isDigits } from '../../text/ascii/module.f.js'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
@@ -43,7 +43,7 @@ import {
     all as commonAll, allOk as commonAllOk, both as commonBoth, catch_ as commonCatch_, error as commonError,
     errorExit as commonErrorExit, import_ as commonImport_, log as commonLog, randomInt as commonRandomInt,
     read as commonRead, readLine as commonReadLine, sandbox as commonSandbox, write as commonWrite,
-} from '../common/module.f.mjs'
+} from '../common/module.f.js'
 import {
     compensateStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.js'

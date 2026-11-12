@@ -5,7 +5,7 @@
  * @import { Step } from '../../types/function/operator/types.ts'
  */
 
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.js'
 import { flip } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'

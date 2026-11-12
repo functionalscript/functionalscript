@@ -24,7 +24,7 @@ import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.js'
 import { errorMessage, isNotFound, readWholeBytes, resolveFileModule } from '../../effects/node/module.f.mjs'
-import { fromU8List } from '../../text/utf8/module.f.mjs'
+import { fromU8List } from '../../text/utf8/module.f.js'
 import { drop, includes } from '../../types/list/module.f.js'
 import { setReplace, at } from '../../types/ordered_map/module.f.js'
 

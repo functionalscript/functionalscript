@@ -17,7 +17,7 @@
  * @import { BlockType, Bytes, Custom, Data, Element, Export, Expr, FuncType, Global, GlobalType, Import, IndirectNameMap, Instruction, Limits, Module, NameMap, NameSubsection, RefType, SectionName, TableType, ValType } from '../../types.ts'
  */
 
-import { stringToU8List } from '../../../../text/utf8/module.f.mjs'
+import { stringToU8List } from '../../../../text/utf8/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { encoding } from '../../instruction/module.f.js'
 

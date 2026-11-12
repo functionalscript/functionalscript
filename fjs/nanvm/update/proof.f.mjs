@@ -26,7 +26,7 @@ import { generate as generateImmutableJoins, path as immutableJoinsPath } from '
 import { generate as generateIndependentTailRecipes, path as independentTailRecipesPath } from '../fast/independent_tail_recipes/module.f.mjs'
 import { generate as generateMixedSelfUses, path as mixedSelfUsesPath } from '../fast/mixed_self_uses/module.f.mjs'
 import { edagPath, rustPath } from '../runtime/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { generateRustTests, main } from './module.f.mjs'
 
 /** A stand-in for `fjs/js/runtime` at its path, for the compiles the writer ends with. @type {Dir} */

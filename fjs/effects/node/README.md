@@ -8,7 +8,7 @@ own APIs.
 
 ```js
 import { exitStep, readUtf8File } from './module.f.mjs'
-import { log } from '../common/module.f.mjs'
+import { log } from '../common/module.f.js'
 import { mapStep, step } from '../module.f.js'
 
 /** Prints how many lines a file has, counting line breaks as `wc -l` does. @type {import('./types.ts').NodeProgram} */

@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`../utf8/module.f.mjs`](../utf8/module.f.mjs)'s `utf8ToString` is the slow half of
+[`../utf8/module.f.js`](../utf8/module.f.js)'s `utf8ToString` is the slow half of
 reading text through the effect system, by more than an order of magnitude over
 the read itself. Measured in
 [#1827](https://github.com/functionalscript/functionalscript/pull/1827), at its

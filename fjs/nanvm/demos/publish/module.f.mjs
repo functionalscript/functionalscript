@@ -40,7 +40,7 @@
  * @import { _Checked } from './private.ts'
  */
 
-import { errorExit } from '../../../effects/common/module.f.mjs'
+import { errorExit } from '../../../effects/common/module.f.js'
 import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
 import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'

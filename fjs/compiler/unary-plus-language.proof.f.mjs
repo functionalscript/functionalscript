@@ -1,7 +1,7 @@
 /** Compiler consumers report deferred unary-plus lowering as an ordinary file error. */
 
 import { assertEq, assertError } from '../asserts/module.f.js'
-import { utf8 } from '../text/module.f.mjs'
+import { utf8 } from '../text/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { interpret, noRuntime } from './transpiler/module.f.mjs'

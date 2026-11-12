@@ -9,8 +9,8 @@
  */
 
 import { byteLength, empty, isVec, length, maxLengthBytes, msb, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.js"
-import { utf8 } from "../../text/module.f.mjs"
-import { utf8ToString } from "../../text/utf8/module.f.mjs"
+import { utf8 } from "../../text/module.f.js"
+import { utf8ToString } from "../../text/utf8/module.f.js"
 import { asNominal } from "../../types/nominal/module.f.js"
 import { match } from "../module.f.js"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.js"

@@ -18,5 +18,5 @@ export type Policy = {
     readonly bindingName: (token: ModuleTokenWithMetadata) => Result<string, ParseError>
     readonly key: (token: ModuleTokenWithMetadata) => Result<string | number, ParseError>
     readonly namespaceMember: (namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<readonly [StaticId] | number, ParseError>
-    readonly refused: (reason: 'invalid' | 'rest' | 'computed' | 'duplicate', token: ModuleTokenWithMetadata) => ParseError
+    readonly refused: (reason: 'invalid' | 'rest' | 'restComma' | 'computed' | 'duplicate', token: ModuleTokenWithMetadata) => ParseError
 }

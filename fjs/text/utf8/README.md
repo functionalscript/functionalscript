@@ -10,7 +10,7 @@ which function to call.
 Most callers hold a string or a list of bytes and want the other one.
 
 ```js
-import { stringToU8List, fromU8List, u8ListToString } from './module.f.mjs'
+import { stringToU8List, fromU8List, u8ListToString } from './module.f.js'
 
 stringToU8List('hé€😀')          // 68 c3 a9 e2 82 ac f0 9f 98 80 (as a List)
 fromU8List([0x68, 0xc3, 0xa9])    // 'hé'
@@ -46,7 +46,7 @@ by the machine and by the MIME detector's UTF-8 factor.
 
 The shared code-point predicates and the `CodePoint` type live in
 [`code_point`](../code_point/README.md). Encoding a whole string as a bit
-vector is `utf8` in [`text/module.f.mjs`](../module.f.mjs).
+vector is `utf8` in [`text/module.f.js`](../module.f.js).
 
 ## See also
 

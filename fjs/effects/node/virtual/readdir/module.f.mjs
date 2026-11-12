@@ -5,7 +5,7 @@
  */
 
 import { stringToCodePointList } from '../../../../text/utf16/module.f.js'
-import { fromCodePointList } from '../../../../text/utf8/module.f.mjs'
+import { fromCodePointList } from '../../../../text/utf8/module.f.js'
 import { isValidCodePoint } from '../../../../text/code_point/module.f.js'
 import { map, next } from '../../../../types/list/module.f.js'
 

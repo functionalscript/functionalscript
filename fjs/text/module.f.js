@@ -9,7 +9,7 @@
  */
 
 import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.js'
-import { stringToU8List } from './utf8/module.f.mjs'
+import { stringToU8List } from './utf8/module.f.js'
 import { mapUnwrap } from '../types/nullable/module.f.js'
 
 /**

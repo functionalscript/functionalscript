@@ -96,11 +96,10 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    whether a reserved word that denotes a value, `NaN`, may stand as one is
    [literal-words-as-references](./2445-literal-words-as-references.md),
    at P5,
-2. [ ] [destructuring](./2450-destructuring.md) — binding patterns in
-   `const` and parameters, lowered to property reads and the spread; the
-   design is approved and both halves implemented
-   ([destructuring](../bindings/destructuring/README.md)), the elision
-   included; the rest element is open,
+2. [x] [destructuring](../bindings/destructuring/README.md) — binding patterns
+   in `const`, `let`, fixed parameters and declaration `for…of` headers,
+   including elisions, defaults and array rest, lowered to reads, spread and
+   the existing `slice` intrinsic,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] remaining number spellings beyond JSON's — `.5`, `1.`
    ([numbers](../values/numbers/README.md)); hexadecimal, binary and numeric separators are implemented;
@@ -127,6 +126,12 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 10. [ ] [array holes](./2480-array-holes.md) — the elision `[1, , 3]` is
     refused by design, and valid code builds no sparse array; whether to
     support one someday, which would change the VM, at P5.
+11. [ ] [object rest destructuring](./object-rest-destructuring.md) —
+    `{ a, ...r }` remains unsupported.
+12. [ ] [computed binding keys](./computed-binding-keys.md) — expressions
+    beyond standalone string and number literals remain unsupported.
+13. [ ] [rest parameter patterns](./rest-parameter-patterns.md) — a rest
+    parameter still takes a plain name, not `(...[a])` or `(...{ length })`.
 
 ## 3. Functions
 

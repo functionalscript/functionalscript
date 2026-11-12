@@ -4,6 +4,13 @@ pub mod arguments;
 pub mod arity;
 pub mod array;
 pub mod array_methods;
+pub mod array_rest;
+pub mod array_rest_default_throws;
+pub mod array_rest_nested_throws;
+pub mod array_rest_noniterable_throws;
+pub mod array_rest_null_throws;
+pub mod array_rest_scopes;
+pub mod array_rest_undefined_throws;
 pub mod at;
 pub mod bigint;
 pub mod bigint_mixed;
@@ -136,6 +143,13 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "arity", fixture: crate::fixtures::arity::module::<Naive>, expected: arity::module::<Naive>, json: arity::JSON, throws: arity::THROWS },
     crate::Case { name: "array", fixture: crate::fixtures::array::module::<Naive>, expected: array::module::<Naive>, json: array::JSON, throws: array::THROWS },
     crate::Case { name: "array_methods", fixture: crate::fixtures::array_methods::module::<Naive>, expected: array_methods::module::<Naive>, json: array_methods::JSON, throws: array_methods::THROWS },
+    crate::Case { name: "array_rest", fixture: crate::fixtures::array_rest::module::<Naive>, expected: array_rest::module::<Naive>, json: array_rest::JSON, throws: array_rest::THROWS },
+    crate::Case { name: "array_rest_default_throws", fixture: crate::fixtures::array_rest_default_throws::module::<Naive>, expected: array_rest_default_throws::module::<Naive>, json: array_rest_default_throws::JSON, throws: array_rest_default_throws::THROWS },
+    crate::Case { name: "array_rest_nested_throws", fixture: crate::fixtures::array_rest_nested_throws::module::<Naive>, expected: array_rest_nested_throws::module::<Naive>, json: array_rest_nested_throws::JSON, throws: array_rest_nested_throws::THROWS },
+    crate::Case { name: "array_rest_noniterable_throws", fixture: crate::fixtures::array_rest_noniterable_throws::module::<Naive>, expected: array_rest_noniterable_throws::module::<Naive>, json: array_rest_noniterable_throws::JSON, throws: array_rest_noniterable_throws::THROWS },
+    crate::Case { name: "array_rest_null_throws", fixture: crate::fixtures::array_rest_null_throws::module::<Naive>, expected: array_rest_null_throws::module::<Naive>, json: array_rest_null_throws::JSON, throws: array_rest_null_throws::THROWS },
+    crate::Case { name: "array_rest_scopes", fixture: crate::fixtures::array_rest_scopes::module::<Naive>, expected: array_rest_scopes::module::<Naive>, json: array_rest_scopes::JSON, throws: array_rest_scopes::THROWS },
+    crate::Case { name: "array_rest_undefined_throws", fixture: crate::fixtures::array_rest_undefined_throws::module::<Naive>, expected: array_rest_undefined_throws::module::<Naive>, json: array_rest_undefined_throws::JSON, throws: array_rest_undefined_throws::THROWS },
     crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },
     crate::Case { name: "bigint", fixture: crate::fixtures::bigint::module::<Naive>, expected: bigint::module::<Naive>, json: bigint::JSON, throws: bigint::THROWS },
     crate::Case { name: "bigint_mixed", fixture: crate::fixtures::bigint_mixed::module::<Naive>, expected: bigint_mixed::module::<Naive>, json: bigint_mixed::JSON, throws: bigint_mixed::THROWS },

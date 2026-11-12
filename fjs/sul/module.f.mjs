@@ -15,8 +15,8 @@
  */
 
 import { emptyPipelineState, levels } from './level/literal/module.f.js'
-import { encode as hashEncode } from './level/hash/module.f.mjs'
-import { level3Id } from './id/module.f.mjs'
+import { encode as hashEncode } from './level/hash/module.f.js'
+import { level3Id } from './id/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
 import { doneStep, nextStep } from '../types/function/operator/module.f.js'
 

@@ -28,7 +28,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { ok, error, unwrap as unwrapResult } from '../../types/result/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
-import { tryUtf8 } from '../../text/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.js'
 import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
 import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision, evoError, evoSummary,

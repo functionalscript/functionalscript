@@ -3,8 +3,8 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { productionOrigin } from '../origin/module.f.js'
 import { cargoDocHref, cargoDocPage, crateHref, crateOf, pageUrlMarker, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader, withPageUrl } from './module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 
 /** A page's chunks as the text they hold together. @type {(chunks: readonly Vec[]) => string} */

@@ -44,7 +44,7 @@ import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.js'
 import { isWellFormed } from '../../text/utf16/module.f.js'
-import { fromVec } from '../../text/utf8/module.f.mjs'
+import { fromVec } from '../../text/utf8/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { cString } from '../bytes/module.f.js'
 

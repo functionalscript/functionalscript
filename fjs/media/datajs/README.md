@@ -89,7 +89,7 @@ the specification's §Encoding cannot be reached from a string at all — a
 document **is UTF-8**, and it **has no BOM** — since by the time input is a
 JavaScript string every byte sequence is some sequence of code units and a
 leading BOM is one ordinary character among them. `tryParseBytes` decodes with
-[`fjs/text/utf8`](../../text/utf8/module.f.mjs), refuses what is not correct
+[`fjs/text/utf8`](../../text/utf8/module.f.js), refuses what is not correct
 UTF-8, **refuses** a leading `EF BB BF` — a BOM makes the bytes invalid, it is
 not something to strip on the way in, and stripping is exactly the defect the
 corpus's vector catches — and then re-encodes to the code units the grammar

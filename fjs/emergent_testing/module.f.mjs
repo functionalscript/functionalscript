@@ -25,7 +25,7 @@
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, ioError, test } from '../effects/node/module.f.mjs'
-import { catch_, sandbox } from '../effects/common/module.f.mjs'
+import { catch_, sandbox } from '../effects/common/module.f.js'
 import {
     attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultStep, step,

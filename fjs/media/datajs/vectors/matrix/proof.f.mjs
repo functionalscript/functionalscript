@@ -15,7 +15,7 @@ import {
     emptyState,
     virtual,
 } from '../../../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../../../text/module.f.mjs'
+import { utf8 } from '../../../../text/module.f.js'
 import { toVec } from '../../../../types/uint8array/module.f.mjs'
 import { unwrap } from '../../../../types/result/module.f.js'
 import { tryStringify } from '../../serializer/module.f.mjs'

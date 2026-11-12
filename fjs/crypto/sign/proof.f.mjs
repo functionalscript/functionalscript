@@ -7,7 +7,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.js'
 import { hmac } from '../hmac/module.f.js'
 import { sqrt } from '../../types/prime_field/module.f.js'

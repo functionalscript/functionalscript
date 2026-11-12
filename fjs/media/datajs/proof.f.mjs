@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { fromCodePointList } from '../../text/utf8/module.f.mjs'
+import { fromCodePointList } from '../../text/utf8/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { concat, occurrences } from '../../types/string/module.f.js'

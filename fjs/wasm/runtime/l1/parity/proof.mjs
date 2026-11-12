@@ -20,7 +20,7 @@ import { vm } from '../../../../edag/amnesia/module.f.mjs'
 import { read } from '../../../../edag/value/property/module.f.js'
 import { virtualAt } from '../../../../effects/node/virtual/module.f.mjs'
 import runtimeEdag from '../../../../js/runtime/gen.edag.js'
-import { utf8 } from '../../../../text/module.f.mjs'
+import { utf8 } from '../../../../text/module.f.js'
 import {
     add, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
     strictEquals, subtract, toBoolean, toNumber, toString, typeOf,

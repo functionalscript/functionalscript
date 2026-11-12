@@ -11,7 +11,7 @@
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.js'
 import { parse } from '../../../media/json/module.f.mjs'
-import { percentDecode, percentEncodeComponent } from '../../../text/percent/module.f.mjs'
+import { percentDecode, percentEncodeComponent } from '../../../text/percent/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 /** Maximum encoded query characters plus the canonical #demo target. @type {number} */

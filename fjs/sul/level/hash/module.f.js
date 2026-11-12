@@ -11,7 +11,7 @@
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { patriciaTrie } from '../../../types/patricia_trie/module.f.js'
-import { compress } from '../../id/module.f.mjs'
+import { compress } from '../../id/module.f.js'
 import { asBase } from '../../../types/nominal/module.f.js'
 
 /**

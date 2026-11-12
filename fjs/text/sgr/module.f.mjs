@@ -10,8 +10,8 @@
  * @import { CsiConsole } from './types.ts'
  */
 
-import { write } from '../../effects/common/module.f.mjs'
-import { utf8 } from "../module.f.mjs"
+import { write } from '../../effects/common/module.f.js'
+import { utf8 } from "../module.f.js"
 import { isDigit, latinSmallLetterM, leftSquareBracket, semicolon } from '../ascii/module.f.js'
 
 /** @type {string} */

@@ -113,7 +113,7 @@ the lowering. `parse` handled every depth tried. So the 128 KiB cap below does
 not prevent it. A plain `.f.mjs` function cannot turn a throw into a result,
 and an uncaught throw would end the server, not just the call. So the whole
 proposed text-to-JSON function runs as one thunk under `catch_` from
-[`fjs/effects/common`](../../effects/common/module.f.mjs), not `memo` alone.
+[`fjs/effects/common`](../../effects/common/module.f.js), not `memo` alone.
 That is the host boundary `fjs/emergent_testing` already uses for user code.
 It returns `ok(value)` or `error(thrown)`, and the error becomes an
 `errorResult`. Parse/import refusals, represented initialization failures,

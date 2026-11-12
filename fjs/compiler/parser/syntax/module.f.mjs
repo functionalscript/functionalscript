@@ -379,8 +379,22 @@ const valuesOf = listOf(itemAt, valuesAt)
 /** The elements of an array's list from an item on, its tail already mapped. @type {(node: _ListNode) => List<Element>} */
 const elementsOf = listOf(itemAt, elementsAt)
 
-/** The targets of an array's list from an item on, beside its elements. */
-const elementTargetsOf = listOf(itemTargetAt, elementTargetsAt)
+/**
+ * Array targets retain a comma after a rest element, which only a binding
+ * refuses. The value items keep the same spread and trailing-comma syntax.
+ *
+ * @type {(node: _ListNode) => List<BindingElement>}
+ */
+const elementTargetsOf = ([item, more]) => {
+    const target = itemTargetAt(item)
+    const rounds = unmapped(more)
+    if (rounds.length === 0) { return { first: target, tail: null } }
+    const [comma, following] = unmapped(rounds[0])
+    return {
+        first: target[0] === '...' ? ['...', target[1], target[2], tokenAt(comma)] : target,
+        tail: elementTargets(following),
+    }
+}
 
 /** The targets of a list of entries, beside its entries. */
 const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)

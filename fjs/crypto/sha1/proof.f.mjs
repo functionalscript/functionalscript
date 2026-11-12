@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { maxLengthBytes, repeat, uint, vec } from '../../types/bit_vec/module.f.js'
 import { flip } from '../../types/function/module.f.js'
 import { map } from '../../types/list/module.f.js'

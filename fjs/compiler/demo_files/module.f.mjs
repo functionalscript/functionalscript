@@ -39,7 +39,7 @@ import { escapes, normalize, root } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.mjs'
 import { parse as parseJson, stringifySorted } from '../../media/json/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 
 /** The main module's file name: what `fjs compile` reads as its input. */
 export const main = 'input.f.js'

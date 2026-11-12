@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, utf8Decoder, stringToU8List, u8ListToString, utf8ToString } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, utf8Decoder, stringToU8List, u8ListToString, utf8ToString } from './module.f.js'
 import { next } from '../../types/list/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'

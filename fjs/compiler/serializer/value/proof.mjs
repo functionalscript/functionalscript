@@ -15,7 +15,7 @@ import { Buffer } from 'node:buffer'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { interpret, noRuntime } from '../../transpiler/module.f.mjs'
 import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../../text/module.f.mjs'
+import { utf8 } from '../../../text/module.f.js'
 import { factoryStringify, stringify } from './module.f.mjs'
 import { tryStringify } from '../module.f.mjs'
 

@@ -14,7 +14,7 @@
 import { toArray } from '../../types/list/alt/module.f.js'
 import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.js'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { secp256r1 } from '../../crypto/secp/module.f.js'
 import { base32 } from '../../crypto/sha2/module.f.js'
 import { literal3ToVec } from '../level/literal/module.f.js'

@@ -32,7 +32,7 @@ import {
     latinCapitalLetterAFRange, latinSmallLetterA, lowerHexDigitValue,
 } from '../../text/ascii/module.f.js'
 import { contains } from '../../types/range/module.f.js'
-import { fromU8List } from '../../text/utf8/module.f.mjs'
+import { fromU8List } from '../../text/utf8/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
 

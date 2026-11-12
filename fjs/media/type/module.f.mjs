@@ -57,7 +57,7 @@ import { next, run } from '../../types/list/module.f.js'
 import { run as runStream } from '../../effects/list/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
-import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
+import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { extension } from '../../path/module.f.js'
 
