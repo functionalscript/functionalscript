@@ -222,6 +222,8 @@ const withConstants = (constants, functions = {}) =>
 const beginArray = call('Containers', 'begin_array')
 const push = call('Containers', 'push')
 const seal = call('Containers', 'seal')
+/** A function that says it gives back its parameter, and gives the result another type. */
+const Echo = iface('Echo', { abi: 'fjs:l0', functions: { echo: sig({ x: own(int(0n, 10n)) }, int(0n, 0n), { returns: 0 }) } })
 
 /** Each is `[what is wrong, the module, who refuses it]`. */
 export const mistakes = [
@@ -234,9 +236,16 @@ export const mistakes = [
     ['a match that leaves kinds open', withFunction(fn({ v: any }, index, ({ v }) => match(v, [[['string'], 's', lengthOf(get('s'))]]))), 'checker'],
     ['an arm for a kind the operand cannot have', withFunction(fn({ s: string }, index, ({ s }) =>
         match(s, [[['number'], null, n(0n)], [null, null, n(1n)]]))), 'checker'],
+    ['an arm for no kind at all', withFunction(fn({ v: any }, index, ({ v }) =>
+        match(v, [[[], null, n(0n)], [null, null, n(1n)]]))), 'checker'],
     ['a transfer with a value of the wrong type', withFunction(fn({ v: any }, index, ({ v }) => br('return', v))), 'checker'],
     ['a kind tag compared with a float', withFunction(fn({ v: any }, bool, ({ v }) => eq(kind(v), lit(f64c, 3)))), 'checker'],
     ['an operator with an operand too many', withFunction(fn({}, f64c, () => float(n(1n), n(2n)))), 'checker'],
+    // the call would have the type 0, and the import would answer the 7 that it was given
+    ['a parameter given back with another type', {
+        ...withFunction(fn({}, index, () => call('Echo', 'echo')(n(7n)))),
+        imports: { ...sample.imports, Echo },
+    }, 'checker'],
     // `init` evaluates the constants in their order, so `early` would read a global that is not set yet
     ['a constant that reads a later one', withConstants({ early: [index, constant('self', 'late')], late: [index, n(1n)] }), 'checker'],
     ['a constant that calls a function that reads a later one', withConstants(

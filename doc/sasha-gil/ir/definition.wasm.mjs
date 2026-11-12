@@ -177,7 +177,8 @@ export const emit = (checked, exports) => {
                 case 'match': {
                     const result = type(t)
                     const operand = type(t[1])
-                    if (isNot(t)) { return [[...as(t[1], operand), ['i32.eqz']], result] }
+                    // a sealed sum may name its variants `true` and `false` as well, and it is no `bool`
+                    if (isBool(operand) && isNot(t)) { return [[...as(t[1], operand), ['i32.eqz']], result] }
                     if (isBool(operand)) {
                         const arm = v => t[2].find(([variants]) => variants === null || variants.includes(v))[2]
                         return [never([...as(t[1], operand), ['if', blockType(result)],

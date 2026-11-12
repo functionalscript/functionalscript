@@ -305,7 +305,16 @@ export const check = module => {
     const signature = (m, name) => m === 'self'
         ? (module.functions[name] ?? refuse(`no function ${name}`))
         : (ifaces[m]?.functions[name] ?? refuse(`no function ${m}.${name}`))
-    const sigOf = (m, name) => { const s = signature(m, name); return { ...s, params: s.params.map(([k, mode, t]) => [k, mode, normal(t)]), result: normal(s.result) } }
+    const sigOf = (m, name) => {
+        const s = signature(m, name)
+        const params = s.params.map(([k, mode, t]) => [k, mode, normal(t)])
+        const result = normal(s.result)
+        // with `returns: k` the result is parameter `k` itself, so that one is owned and has the result's type
+        const back = params[s.returns]
+        s.returns === undefined || (Number.isInteger(s.returns) && back?.[1] === 'own' && same(back[2], result))
+            || refuse(`${callee(m, name)}: \`returns\` has to name an owned parameter that has the type of the result`)
+        return { ...s, params, result }
+    }
     const failing = new Map(Object.keys(module.functions).map(k => [k, false]))
     /** The constants of the module that a function may read, itself or through a function it names. */
     const reading = new Map(Object.keys(module.functions).map(k => [k, new Set()]))
@@ -475,6 +484,7 @@ export const check = module => {
                 let left = all
                 const arms = t[2].map(([variants, binder, body]) => {
                     const mine = variants ?? left
+                    variants?.length === 0 && refuse('match: an arm names no variant')
                     variants?.forEach(v => left.includes(v) || refuse(`match: ${v} is not a variant of the operand that is still open`))
                     left = left.filter(v => !mine.includes(v))
                     const refined = isBool(type) ? type : normal(['sealed', type[1], type[2], all.filter(v => mine.includes(v))])

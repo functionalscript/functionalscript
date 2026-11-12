@@ -45,7 +45,7 @@ WASM module that runs under Node ([Running it](#running-it)).
   Prepared FAST adds mutable slots, which the IR does not have.
 - **Checked on real code.** In the prototype, 312 calls of emitted WASM
   agree with the FunctionalScript originals, a host that counts every value
-  finds none left over, and 14 deliberate mistakes are refused. Ten points
+  finds none left over, and 16 deliberate mistakes are refused. Ten points
   that the notes do not state came out of it
   ([What the check found](#what-the-check-found)).
 - **What needs the owner.** Whether this note becomes the reference, the
@@ -187,8 +187,9 @@ differs. The emitter then follows six rules:
 2. A result of type `unit` is no result. After a call whose result is
    `never`, the emitter writes `unreachable`.
 3. An `own` parameter that the function gives back is passed once and not
-   returned. `push(own b, own v) -> builder` is L0's `push(builder, v)`,
-   and the emitter reads `b` again after the call.
+   returned, and the result has that parameter's type.
+   `push(own b, own v) -> builder` is L0's `push(builder, v)`, and the
+   emitter reads `b` again after the call.
 4. Several functions may bind to one import when their WASM types agree.
    `String.length`, `BigInt.length` and `Containers.length` are all
    `fjs:l0`'s `length` today, and one import each with a modular L0.
@@ -630,7 +631,7 @@ WASM emitter for import form. The module then runs under Node on a host that imp
 
 - **312 calls** of the emitted WASM agree with the FunctionalScript
   originals, and after each one the host has no value left over.
-- **14 mistakes** are refused: 12 by the checker, such as a string
+- **16 mistakes** are refused: 14 by the checker, such as a string
   function on a value of unknown kind, a counter incremented without a
   comparison, or a constant that reads a later one, and 2 by the lifetime
   pass, a builder used after `seal` and a builder never sealed.
@@ -804,6 +805,6 @@ node definition.fast.mjs stringEquals       # the normalized FAST it was lowered
 | [`definition.lifetime.mjs`](./definition.lifetime.mjs) | the lifetime pass |
 | [`definition.wasm.mjs`](./definition.wasm.mjs) | the WASM emitter for import form, to [`fjs/media/wasm`](../../../fjs/media/wasm/README.md)'s AST |
 | [`definition.host.mjs`](./definition.host.mjs) | the counting host for `fjs:l0` |
-| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, the 14 mistakes, and the 7 modules that are refused besides |
+| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, the 16 mistakes, and the 7 modules that are refused besides |
 | [`definition.check.mjs`](./definition.check.mjs) | the check; it ends with a summary, and exits with 1 on a difference |
 | [`definition.fast.mjs`](./definition.fast.mjs) | the normalized FAST of a module, from the compiler |
