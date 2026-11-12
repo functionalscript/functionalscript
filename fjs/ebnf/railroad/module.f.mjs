@@ -39,6 +39,7 @@
  * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { Encoding } from '../token_symbol/types.ts'
  * @import { Alphabet } from './types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import { matchRule } from '../data/module.f.mjs'
@@ -88,7 +89,7 @@ const copies = (n, d) => Array.from({ length: n }, () => d)
 /**
  * The symbols a reader cannot see spelled by name; the rest of the control
  * and non-ASCII symbols as code points.
- * @type {Readonly<Record<string, string>>}
+ * @type {StringMap<string>}
  */
 const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
 

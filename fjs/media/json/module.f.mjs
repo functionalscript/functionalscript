@@ -21,6 +21,7 @@
  * @import { Codec } from './serializer/types.ts'
  * @import { NumberPolicy } from './parser/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import { next } from '../../types/list/module.f.js'
@@ -41,7 +42,7 @@ export const setProperty = value => {
     const f = path => src =>{
         const result = next(path)
         if (result === null) { return value }
-        /** @type {{ readonly [key: string]: Unknown | undefined }} */
+        /** @type {StringMap<Unknown>} */
         const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
         return { ...srcObject, [first]: f(tail)(fromUndefined(entry(srcObject, first))) }

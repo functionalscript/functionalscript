@@ -8,6 +8,7 @@
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
  * @import { _ClassPc, _Codecs, _ParsedTag, _Records } from './private.ts'
  * @import { Thunk } from '../types/list/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  */
 
 import { bitLength } from '../types/bigint/module.f.js'
@@ -374,7 +375,7 @@ export const encode = record =>
 /** @type {(raw: Raw) => Record} */
 const rawToRecord = raw => {
     const [tag, value] = raw
-    const c = entry(/** @type {{ readonly [tag: string]: _Codecs[keyof _Codecs] }} */ (codecs), key(tag))
+    const c = entry(/** @type {StringMap<_Codecs[keyof _Codecs]>} */ (codecs), key(tag))
     return c === undefined ? encodeRaw(raw) : c.decode(value)
 }
 
