@@ -19,7 +19,7 @@ import { maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
-import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
+import { hex, storedBytes, streams } from '../../zlib/testlib.f.js'
 import { hexBytes, latin1, noFile, packMixed, packMixedIdx } from '../testlib.f.js'
 import { maxDeltaBytes } from '../pack/module.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'

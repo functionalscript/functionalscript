@@ -3,7 +3,7 @@ import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { run } from '../../types/list/module.f.js'
-import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
+import { hex, storedBytes, streams } from '../../zlib/testlib.f.js'
 import { bytesOf, feedWithin, inflater, inflateAll, inflateWithin, malformed, sizeOf } from './module.f.mjs'
 
 const { init: [, , initialProgress], update: updateInflate, end: endInflate } = inflater

@@ -141,19 +141,18 @@ export const bytes = bits => generate(Math.ceil(bits.length / 8), i =>
  * @type {(lengths: readonly number[]) => readonly string[]}
  */
 export const assign = lengths => {
-    let next = 0
-    /** @type {readonly string[]} */
-    let codes = lengths.map(() => '')
-    for (let length = 1; length < 16; length += 1) {
-        lengths.forEach((x, symbol) => {
-            if (x === length) {
-                codes = codes.map((c, s) => s === symbol ? next.toString(2).padStart(length, '0') : c)
-                next += 1
-            }
-        })
-        next *= 2
-    }
-    return codes
+    /** @type {{ readonly next: number, readonly codes: readonly string[] }} */
+    const initial = { next: 0, codes: lengths.map(() => '') }
+    const result = generate(15, i => i + 1).reduce((state, length) => {
+        const assigned = lengths.reduce((current, x, symbol) => x === length ? {
+            next: current.next + 1,
+            codes: current.codes.map((c, s) => s === symbol
+                ? current.next.toString(2).padStart(length, '0')
+                : c),
+        } : current, state)
+        return { next: assigned.next * 2, codes: assigned.codes }
+    }, initial)
+    return result.codes
 }
 
 /** Streams of Node's zlib, each for the bytes and the options in its comment. */
