@@ -11,7 +11,7 @@
 
 import {
     add, block, bool, br, call, cast, code, codeOf, constant, eq, exact, f64, f64c, float, fn, get, iface, if_, int, let_, lit,
-    loop, lt, make, match, n, ne, never, only, own, return_, sealed, sig, trap, u, unit,
+    loop, lt, make, match, n, ne, never, only, own, product, return_, sealed, sig, trap, u, unit,
 } from './definition.ir.mjs'
 
 // ── The interfaces ───────────────────────────────────────────────────────
@@ -245,4 +245,25 @@ export const mistakes = [
     ['a builder used after it was sealed', withFunction(fn({ v: any }, array, ({ v }) =>
         let_('b', beginArray(n(1n)), b => let_('first', seal(push(b, v)), () => seal(b))))), 'lifetime pass'],
     ['a builder that is never sealed', withFunction(fn({}, any, () => let_('b', beginArray(n(0n)), () => undefined_))), 'lifetime pass'],
+]
+
+// ── What the prototype refuses besides ───────────────────────────────────
+
+/** A second interface for an import that String has already, with another result. */
+const Twin = iface('Twin', { abi: 'fjs:l0', functions: { length: sig({ s: string }, u(40)) } })
+
+/**
+ * Modules that break no rule of typing or of ownership and are refused all
+ * the same: a limit of the emitter, or a name that is taken. Each is
+ * `[what it is, the module]`.
+ */
+export const refusals = [
+    ['a constant of two fields', withConstants({ pair: [product({ x: index, y: index }), make({ x: n(1n), y: n(2n) })] })],
+    ['a constant named as a literal is spelled', withConstants({ "'object'": [string, lit(string, 'other')] })],
+    ['a function named init', withConstants({}, { init: fn({}, unit, () => make({})) })],
+    ['an import named self', { ...sample, imports: { ...sample.imports, self: L1 } }],
+    ['two interfaces that give one import two types', {
+        ...withConstants({}, { twin: fn({ s: string }, u(40), ({ s }) => call('Twin', 'length')(s)) }),
+        imports: { ...sample.imports, Twin },
+    }],
 ]

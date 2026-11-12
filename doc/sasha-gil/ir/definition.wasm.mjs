@@ -55,28 +55,29 @@ export const emit = (checked, exports) => {
     /** A constant is one global here, so its type is one word. */
     const word = (t, what) => { const f = flat(t); return f.length === 1 ? f[0] : refuse(`${what} is ${show(t)}, and this prototype holds a constant in one global`) }
     const constantWords = new Map(Object.entries(module.constants).map(([name, [x]]) => [name, word(x, `constant ${name}`)]))
+    Object.hasOwn(module.functions, 'init') && refuse('`init` is the function that evaluates the constants, so no function has that name')
 
     // what the module imports and holds, found while its code is emitted
     const fnImports = new Map()
     const globalImports = new Map()
     const literals = new Map()
     const codes = []
+    /** An import is declared once, so every use of it has one type. It answers the import's key. */
+    const declare = (imports, entry) => {
+        const key = JSON.stringify([entry.module, entry.name])
+        const known = imports.get(key)
+        known === undefined || JSON.stringify(known.type) === JSON.stringify(entry.type) || refuse(`${entry.module} ${entry.name} is imported with two types`)
+        imports.set(key, entry)
+        return key
+    }
     const importFn = (m, name) => {
         const s = sigOf(m, name)
-        const key = `${ifaces[m].abi} ${s.abi ?? name}`
-        const wasmType = {
+        return { fn: declare(fnImports, { module: ifaces[m].abi, name: s.abi ?? name, type: {
             params: s.params.flatMap(([, , x]) => flat(x)),
             results: s.returns === undefined ? flat(s.result) : [],
-        }
-        const known = fnImports.get(key)
-        known === undefined || JSON.stringify(known.type) === JSON.stringify(wasmType) || refuse(`${key} is imported with two types`)
-        fnImports.set(key, { module: ifaces[m].abi, name: s.abi ?? name, type: wasmType })
-        return { fn: key }
+        } }) }
     }
-    const importRaw = (abi, name, params, results) => {
-        fnImports.set(`${abi} ${name}`, { module: abi, name, type: { params, results } })
-        return { fn: `${abi} ${name}` }
-    }
+    const importRaw = (abi, name, params, results) => ({ fn: declare(fnImports, { module: abi, name, type: { params, results } }) })
 
     const emitFunction = (name, params, result, build) => {
         const paramTypes = params.flatMap(([, , x]) => flat(x))
@@ -160,8 +161,7 @@ export const emit = (checked, exports) => {
                 case 'constant': {
                     if (t[1] === 'self') { return [[['global.get', { constant: t[2] }]], type(t)] }
                     // a constant of an interface is an imported global
-                    const key = `${ifaces[t[1]].abi} ${t[2]}`
-                    globalImports.set(key, { module: ifaces[t[1]].abi, name: t[2], type: word(type(t), `constant ${t[1]}.${t[2]}`) })
+                    const key = declare(globalImports, { module: ifaces[t[1]].abi, name: t[2], type: word(type(t), `constant ${t[1]}.${t[2]}`) })
                     return [[['global.get', { global: key }]], type(t)]
                 }
                 case 'code': { if (!codes.includes(t[1])) { codes.push(t[1]) } return [[['i32.const', { code: t[1] }]], type(t)] }
@@ -219,8 +219,9 @@ export const emit = (checked, exports) => {
                     return [never([...first, ['loop', blockType(result)], ...framed({ label: t[1], params }, () => as(t[3], result, inner)), ['end']]), result]
                 }
                 case 'br': {
-                    if (t[1] === 'return') { return [[...as(t[2], result), ['return']], type(t)] }
                     const frame = frames.findLast(f => f.label === t[1])
+                    // a label that no region here has is `return`, the label of the function's body
+                    if (frame === undefined) { return [[...as(t[2], result), ['return']], type(t)] }
                     if (frame.params === undefined) { return [[...as(t[2], frame.type), ['br', depth(t[1])]], type(t)] }
                     // every next value, then all the parameters at once
                     const values = Object.values(t[2][1]).flatMap((x, k) => as(x, frame.params[k].type))
@@ -250,14 +251,17 @@ export const emit = (checked, exports) => {
         const at = types.findIndex(x => JSON.stringify(x) === key)
         return at >= 0 ? at : types.push(t) - 1
     }
-    const fnIndex = new Map([...[...fnImports.keys()].map((key, k) => [key, k]), ...defined.map((f, k) => [`self ${f.name}`, fnImports.size + k])])
-    const globalIndex = new Map([...[...globalImports.keys()].map((key, k) => [key, k]), ...Object.keys(module.constants).map((name, k) => [`self ${name}`, globalImports.size + k])])
+    // imports come first, and what the module defines has names of its own
+    const fnIndex = new Map([...fnImports.keys()].map((key, k) => [key, k]))
+    const definedIndex = new Map(defined.map((f, k) => [f.name, fnImports.size + k]))
+    const globalIndex = new Map([...globalImports.keys()].map((key, k) => [key, k]))
+    const constantIndex = new Map(Object.keys(module.constants).map((name, k) => [name, globalImports.size + k]))
     let dataEnd = 0
     for (const value of literals.keys()) { literals.set(value, dataEnd); dataEnd += 2 * value.length }
     const resolve = instruction => instruction.map(x => typeof x !== 'object' || x === null ? x
         : x.fn !== undefined ? fnIndex.get(x.fn)
-        : x.self !== undefined ? fnIndex.get(`self ${x.self}`)
-        : x.constant !== undefined ? globalIndex.get(`self ${x.constant}`)
+        : x.self !== undefined ? definedIndex.get(x.self)
+        : x.constant !== undefined ? constantIndex.get(x.constant)
         : x.global !== undefined ? globalIndex.get(x.global)
         : x.code !== undefined ? codes.indexOf(x.code)
         : x.ptr !== undefined ? literals.get(x.ptr)
@@ -279,13 +283,13 @@ export const emit = (checked, exports) => {
         memories: [{ min: Math.max(1, Math.ceil(dataEnd / 0x1_0000)), max: null }],
         globals: [...constantWords.values()].map(vt => ({ type: { type: vt, mutable: true }, init: zero(vt) })),
         exports: [
-            ...exports.map(name => ({ name, kind: 'func', index: fnIndex.get(`self ${name}`) })),
-            { name: 'init', kind: 'func', index: fnIndex.get('self init') },
+            ...exports.map(name => ({ name, kind: 'func', index: definedIndex.get(name) ?? refuse(`no function ${name} to export`) })),
+            { name: 'init', kind: 'func', index: definedIndex.get('init') },
             { name: 'memory', kind: 'memory', index: 0 },
             { name: 'table', kind: 'table', index: 0 },
         ],
         start: null,
-        elements: codes.length === 0 ? [] : [{ mode: ['active', 0, [['i32.const', 0]]], init: ['func', codes.map(name => fnIndex.get(`self ${name}`))] }],
+        elements: codes.length === 0 ? [] : [{ mode: ['active', 0, [['i32.const', 0]]], init: ['func', codes.map(name => definedIndex.get(name))] }],
         dataCount: null,
         data: dataEnd === 0 ? [] : [{
             mode: ['active', 0, [['i32.const', 0]]],

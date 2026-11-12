@@ -15,7 +15,7 @@ import { check, print, Refused } from './definition.ir.mjs'
 import { lifetime } from './definition.lifetime.mjs'
 import { emit } from './definition.wasm.mjs'
 import { host, Trap } from './definition.host.mjs'
-import { exported, mistakes, sample } from './definition.samples.mjs'
+import { exported, mistakes, refusals, sample } from './definition.samples.mjs'
 import { write } from '../../../fjs/media/wasm/binary/write/module.f.mjs'
 import { functions as watFunctions } from '../../../fjs/media/wasm/wat/module.f.mjs'
 import * as l1 from '../../../fjs/wasm/runtime/l1/module.f.js'
@@ -131,6 +131,13 @@ const refusedBy = module => {
 }
 mistakes.forEach(([what, module, who]) => expect(`${what}: refused by ${refusedBy(module)}, not by the ${who}`, refusedBy(module) === who))
 
+// what the emitter cannot take, and a name that is taken, are refused as well
+const taken = module => {
+    try { emit(check(lifetime(module)), exported) } catch (e) { if (e instanceof Refused) { return false } throw e }
+    return true
+}
+refusals.forEach(([what, module]) => expect(`${what}: taken, where it has to be refused`, !taken(module)))
+
 // the counting host has teeth: the plain stage, with no `dup` and no `drop`, does not get through
 const withoutPass = () => {
     const plain = run(sample)
@@ -152,6 +159,7 @@ expect('the plain stage ran on the counting host without a complaint', caught !=
 const failing = Object.entries(check(sample).module.functions).filter(([, fun]) => fun.fails).map(([name]) => name)
 console.log(`${cases} calls agree with the FunctionalScript originals, and no value is left over after any of them`)
 console.log(`${mistakes.length} mistakes are refused, ${mistakes.filter(([, , who]) => who === 'checker').length} by the checker and ${mistakes.filter(([, , who]) => who !== 'checker').length} by the lifetime pass`)
+console.log(`${refusals.length} modules that the prototype does not take are refused`)
 console.log(`without the lifetime pass the host reports ${caught}`)
 console.log(`may fail: ${failing.join(', ')}`)
 console.log(`the module: ${ast.imports.length} imports, ${ast.functions.length} functions, ${write(ast).length} bytes`)

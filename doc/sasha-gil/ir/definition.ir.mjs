@@ -2,6 +2,9 @@
 // A prototype of the core of the code IR, as doc/sasha-gil/ir/definition.md
 // shapes it: types and terms as data, interfaces, the checker and a printer.
 //
+// A module is built with the constructors below. The checker checks what
+// they can build, and data of another shape is not its input.
+//
 // It is not the IR. It covers the part that program code and the L1 bodies
 // need, which is the part with no memory in it: integer ranges of one
 // word, floats, `bool`, products, sealed types of imported interfaces and
@@ -258,6 +261,7 @@ export const fn = (params, result, body) => {
  */
 export const check = module => {
     const ifaces = module.imports
+    Object.hasOwn(ifaces, 'self') && refuse('`self` is the module itself, so no import has that name')
     const types = new Map()
     const decl = t => ifaces[t[1]]?.types[t[2]] ?? refuse(`no sealed type ${t[1]}.${t[2]}`)
     /** The variants that a value of a sealed sum may have. */
@@ -563,6 +567,8 @@ export const check = module => {
             default: return 'copy'
         }
     }
+    // a literal is a constant under its spelling, so no other constant has that name
+    literals.forEach((_, name) => Object.hasOwn(constants, name) && refuse(`a constant is named ${name}, which is the spelling of a literal`))
     return {
         // a literal comes first: a constant after it may read it, or call a function that does
         module: { ...module, constants: { ...Object.fromEntries(literals), ...constants }, functions },

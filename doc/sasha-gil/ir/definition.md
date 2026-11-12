@@ -765,6 +765,10 @@ Each has a recommendation.
   blocks have one result, so a product crosses a label only as a loop's
   parameters. A constant is one global, so a constant of a product is
   refused, and a literal is made from the units of a string only.
+- **Not a validator of data.** Its input is what its constructors build.
+  It refuses what it cannot emit, and a name that is taken: an import
+  named `self`, a function named `init`, or a constant named as a literal
+  is spelled.
 - **Not a check of the owned stage.** The counting host stands in for it.
 - **Not a runtime.** The host keeps every value in a JavaScript map behind
   a handle, numbers too, so that a misplaced `dup` or `drop` shows.
