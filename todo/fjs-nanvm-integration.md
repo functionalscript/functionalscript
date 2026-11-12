@@ -142,7 +142,20 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
-#### Current leaf migration fixed point
+#### Accepted leaves after shared `Math.log2`
+
+**Status:** wip, stacked on #3765.
+
+The shared `Math.log2` admission makes `types/bigint` compiler-supported.
+At `4a0a09cb8`, its newly exposed `types/bigfloat` and `types/bit_set`
+dependents are accepted by `resolve` with their full imports. Rename those
+two implementations without changing their bodies, update their references,
+and retain them as permanent compiler regression inputs.
+
+- [ ] Rename `types/bigfloat/module.f.mjs` to `.f.js` and update references.
+- [ ] Rename `types/bit_set/module.f.mjs` to `.f.js` and update references.
+
+#### Leaf migration fixed point before shared `Math.log2`
 
 Measured from base revision `6ff068a3f`, with shared JSON string quoting in
 [#3763](https://github.com/functionalscript/functionalscript/pull/3763).
