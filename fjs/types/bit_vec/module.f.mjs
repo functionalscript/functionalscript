@@ -595,8 +595,9 @@ const unpackChunkList = ({ unpackSplit }) => n => {
         if (u.length === 0n) { return () => null }
         /** @typedef {readonly[Unpacked, Stack | undefined]} Stack */
         const f = (/** @type {Stack} */stack) => () => {
+            let s = stack
             while (true) {
-                const [first, rest] = stack
+                const [first, rest] = s
                 const { length } = first
                 if (length <= n) {
                     return { first, tail: rest !== undefined ? f(rest) : null }
@@ -604,7 +605,7 @@ const unpackChunkList = ({ unpackSplit }) => n => {
                 const aLength = divUpN2(length) * n
                 const bLength = length - aLength
                 const [a, b] = unpackSplit(aLength)(first)
-                stack = [
+                s = [
                     { length: aLength, uint: a & mask(aLength) },
                     [{ length: bLength, uint: b & mask(bLength) }, rest],
                 ]
@@ -682,7 +683,7 @@ export const tailPaddedUintChunkList = bo => {
 }
 
 /** @type {(list: List<bigint>) => Thunk<number>} */
-const numberList = map(Number)
+const numberList = map(v => Number(v))
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
