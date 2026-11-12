@@ -91,3 +91,5 @@ type _NativeSqrt = Assert<Equal<Statics['Math.sqrt'], typeof Math.sqrt>>
 type _NativeCeil = Assert<Equal<Statics['Math.ceil'], typeof Math.ceil>>
 
 type _NativeImul = Assert<Equal<Statics['Math.imul'], typeof Math.imul>>
+
+type _NativeMax = Assert<Equal<Statics['Math.max'], typeof Math.max>>

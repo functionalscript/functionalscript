@@ -102,6 +102,57 @@ export const proof = /** @type {const} */ ({
         eq(['()', ['String.fromCharCode'], [true, null, ['undefined'], '66', ['[]', [67]]]], '\u0001\u0000\u0000BC')
         failure(['()', ['String.fromCharCode'], [65, 1n]])
     },
+    mathMax: {
+        numbers: () => {
+            for (const [args, expected] of /** @type {readonly (readonly [readonly Exp[], number])[]} */ ([
+                [[], -Infinity], [[1], 1], [[-Infinity], -Infinity],
+                [[1, 4, 2, 3], 4], [[-4, -2, -3], -2],
+                [[-Infinity, 1, Infinity, 2], Infinity], [[NaN], NaN],
+                [[NaN, 1, Infinity], NaN], [[1, NaN, 2], NaN], [[Infinity, NaN], NaN],
+                [[-0], -0], [[-0, -0], -0], [[0, -0], 0], [[-0, 0], 0],
+                [[-5e-324, -0], -0], [[-5e-324, 5e-324], 5e-324],
+                [[0x1f_ffff_ffff_ffff, 0x20_0000_0000_0000], 0x20_0000_0000_0000],
+                [[-1.7976931348623157e308, 1.7976931348623157e308], 1.7976931348623157e308],
+            ])) { eq(['()', ['Math.max'], args], expected) }
+        },
+        conversion: () => {
+            eq(['()', ['Math.max'], [' -0 ', false, null, true, ' 0x10 ', ['[]', [9]], ['[]', [25n]]]], 25)
+            eq(['()', ['Math.max'], [['undefined']]], NaN)
+            eq(['()', ['Math.max'], [['{}', []]]], NaN)
+            eq(['()', ['Math.max'], [['[]', []]]], 0)
+            const fallback = /** @type {const} */ (['{}', [
+                [':', 'valueOf', ['=>', 0, [], ['{}', []]]],
+                [':', 'toString', ['=>', 0, [], '12']],
+            ]])
+            eq(['()', ['Math.max'], [3, fallback, 4]], 12)
+            const first = /** @type {const} */ (['{}', [
+                [':', 'valueOf', ['=>', 0, [], 8]],
+                [':', 'toString', ['=>', 0, [], ['throw', 'unreached']]],
+            ]])
+            eq(['()', ['Math.max'], [first, 2, 3]], 8)
+            const right = /** @type {const} */ (['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'right']]]]])
+            const bigintObject = /** @type {const} */ (['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]])
+            failure(['()', ['Math.max'], [1n, right]])
+            failure(['()', ['Math.max'], [throws, right]], 'conversion')
+            failure(['()', ['Math.max'], [1, 2, right]], 'right')
+            failure(['()', ['Math.max'], [NaN, right]], 'right')
+            failure(['()', ['Math.max'], [Infinity, right]], 'right')
+            failure(['()', ['Math.max'], [NaN, 1n]])
+            failure(['()', ['Math.max'], [Infinity, bigintObject]])
+            failure(['()', ['Math.max'], [bigintObject, right]])
+            failure(['()', ['Math.max'], [throws, ['throw', 'argument']]], 'argument')
+            failure(['()', ['Math.max'], [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.max'], ['Math.max'])
+            eq(['.', ['Math.max'], 'length'], 2)
+            eq(['String', ['Math.max']], 'function max() { [native code] }')
+            eq(['===', ['Math.max'], ['Math.max']], true)
+            eq(['===', ['Math.max'], ['Math.imul']], false)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.max'], [1, 3, 2]]), ['ok', 3])
+        },
+    },
     mathSqrt: {
         numbers: () => {
             for (const [value, expected] of [

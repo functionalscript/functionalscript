@@ -754,4 +754,5 @@ pub const STATICS: &[&[&str]] = &[
     &["Math", "sqrt"],
     &["Math", "ceil"],
     &["Math", "imul"],
+    &["Math", "max"],
 ];

@@ -65,7 +65,7 @@ export const proof = {
         assertEq(stringify(['Math.trunc']), 'export default Math.trunc;')
         assertEq(stringify(['Math.floor']), 'export default Math.floor;')
         assertEq(stringify(['Math.abs']), 'export default Math.abs;')
-        for (const id of /** @type {const} */ (['Math.sqrt', 'Math.ceil', 'Math.imul'])) {
+        for (const id of /** @type {const} */ (['Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max'])) {
             assertEq(stringify([id]), `export default ${id};`)
             assertEq(stringify(['[]', [[id], [id]]]), `export default [${id},${id}];`)
         }

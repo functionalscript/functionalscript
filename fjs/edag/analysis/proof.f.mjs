@@ -192,7 +192,7 @@ export const proof = {
     },
     // A Math static is a shared value, not a fresh closure at each read.
     mathStatics: () => {
-        for (const id of /** @type {const} */ (['Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul'])) {
+        for (const id of /** @type {const} */ (['Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max'])) {
             const fn = /** @type {const} */ ([id])
             assertOk(checked(an(['=>', 0, [fn], ['.', ['frame', 0], 'length']])))
             const twice = an(['[]', [fn, [id]]])

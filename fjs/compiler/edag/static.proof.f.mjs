@@ -87,6 +87,13 @@ export const proof = {
         assertStructurallySame(execute(compile('const { imul } = Math; const read = () => Math.imul; export default [imul(0xffff_ffff, 5), Math["imul"](0x8000_0000, 2), Math.imul?.(0x7fff_ffff, 2), imul(), imul(2), imul === read(), read() === read(), imul === Math.sqrt, imul === Math.ceil, imul.length, typeof imul, String(imul)];').edag),
             [-5, 0, -2, 0, 0, true, true, false, false, 2, 'function', 'function imul() { [native code] }'])
     },
+    mathMax: () => {
+        expectEdag(compile('export default Math.max(1, 2, 3);').edag, ['()', ['Math.max'], [1, 2, 3]])
+        expectEdag(compile('const { max } = Math; export default [max, Math["max"], max.length];').edag,
+            ['[]', [['Math.max'], ['Math.max'], ['.', ['Math.max'], 'length']]])
+        assertStructurallySame(execute(compile('const { max } = Math; const read = () => Math.max; export default [max(), max(-0), max(-0, 0), max(0, -0), max(-0, -0), max(1, 9, 3), Math["max"](-4, -3), Math.max?.(-Infinity, -2), max(NaN, 4), max === read(), read() === read(), max === Math.imul, max.length, typeof max, String(max)];').edag),
+            [-Infinity, -0, 0, 0, -0, 9, -3, -2, NaN, true, true, false, 2, 'function', 'function max() { [native code] }'])
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`

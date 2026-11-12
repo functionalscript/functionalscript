@@ -260,6 +260,20 @@ export const proof = {
         expectModule('export default (x, y) => Math.imul(x, y);',
             exported('["=>",2,[],["()",["Math.imul"],[["arg",0],["arg",1]]]]'))
     },
+    mathMax: () => {
+        for (const source of ['Math.max', 'Math["max"]', '(Math.max)']) {
+            expectModule(`export default ${source};`, exported('["Math.max"]'))
+        }
+        expectModule('export default Math.max(1, 2, 3);', exported('["()",["Math.max"],[1,2,3]]'))
+        expectModule('export default Math["max"]?.();', exported('["?.()",["Math.max"],[]]'))
+        expectModule('const { max: f, "max": g, max: { length } } = Math; export default [f, g, length];',
+            exported('["[]",[["Math.max"],["Math.max"],[".",["Math.max"],"length"]]]'))
+        expectModule('export default (x, y, z) => Math.max(x, y, z);',
+            exported('["=>",3,[],["()",["Math.max"],[["arg",0],["arg",1],["arg",2]]]]'))
+        for (const source of ['Math?.max', 'Math?.["max"](1)', 'Number.max', 'Object.max', 'Math.min(1, 2)']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+    },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.
     namespaces: () => {

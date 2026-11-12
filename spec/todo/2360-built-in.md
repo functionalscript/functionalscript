@@ -309,7 +309,7 @@ body, represented interpreters and generated NaNVM code to JavaScript.
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [x] `Math` — a reserved namespace admitting the static functions
       `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-      `Math.ceil` and `Math.imul`; other members remain separate admissions
+      `Math.ceil`, `Math.imul` and `Math.max`; other members remain separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
 - [ ] `Date`
@@ -557,6 +557,46 @@ semantics, and the unary bindings must preserve signed zero and special values.
 
 **Language-design approval.** **sergey-shandar** explicitly requested
 "Implement `Math.sqrt`, `Math.ceil` and `Math.imul` in a new PR" in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.max proposal and approval
+
+**Problem.** The compiler refused `Math.max`, the secp demo's next blocker
+after the square-root admission.
+
+**Proposal.** Admit the variadic native static value `Math.max`, represented
+by `['Math.max']`. Preserve quoted and destructured reads, detached and optional
+calls, stable identity, `length` two and `function max() { [native code] }`
+as its text. Other `Math` members remain separate admissions.
+
+Convert every argument once with `ToNumber`, from left to right, including
+arguments after `NaN` or positive infinity. Primitive or converted bigints and
+failed primitive conversion throw. All argument expressions are evaluated
+before invocation. No arguments return negative infinity; any converted `NaN`
+makes the result `NaN` after the remaining conversions succeed. Otherwise,
+return the greatest value. Positive zero wins a tie with negative zero in
+either order, while an input consisting only of negative zeros returns `-0`.
+
+**Backend choice.** Use
+[Rust `f64::max`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.max)
+with explicit `NaN` propagation and zero-tie correction, and
+[core WASM `f64.max`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fmax),
+under the approved target rule. Rust's stable `max` ignores a lone `NaN` and
+does not guarantee the required zero tie; `f64::maximum` is unstable on the
+pinned toolchain. The Rust binding corrects those cases around native `max`
+and folds from negative infinity, preserving conversion after a `NaN`.
+The runtime table holds JavaScript's built-in. A future WASM backend can
+fold core `f64.max` after the same argument conversions. No common numerical
+body or third-party dependency is needed.
+
+**Benefits.** Familiar JavaScript spelling, compatible native operations in
+both targets and progress on the secp demo's migration.
+
+**Drawbacks.** Another static binding and variadic conversion contract. Rust
+needs explicit special-value corrections to match JavaScript and core WASM.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.max` in the same PR in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing

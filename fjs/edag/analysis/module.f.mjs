@@ -291,6 +291,7 @@ const handlers = {
     'Math.sqrt': o0,
     'Math.ceil': o0,
     'Math.imul': o0,
+    'Math.max': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
