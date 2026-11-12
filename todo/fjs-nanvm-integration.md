@@ -142,6 +142,12 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Mock interpreter order
+
+#3790 (`267f63128`) moves `_loop` before `run` and `partialRun`.
+`effects/mock` next stops at `runAll`'s capture of `runner` in its own
+initializer (`71:71`, `const not found`) and stays `.f.mjs`.
+
 #### Effect walker order
 
 #3789 (`3d3b85103`) places `walkStep` before `foldStep`. `effects`,
