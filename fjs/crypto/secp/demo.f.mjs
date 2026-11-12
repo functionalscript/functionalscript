@@ -12,7 +12,7 @@
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'

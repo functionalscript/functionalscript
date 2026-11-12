@@ -19,7 +19,7 @@ export const isDirectory = ([tag, payload]) => tag === 'ioError' && payload.code
 and `madeHere` in [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)
 writes a fifth inline, `orElse(e => e[0] === 'ioError' && e[1].code ===
 'EEXIST', false)`. The vocabulary, `ioError` and `IoChannel`, is this
-directory's [`module.f.mjs`](../module.f.mjs), not `node`'s, so the
+directory's [`module.f.js`](../module.f.js), not `node`'s, so the
 predicate's maker belongs here.
 
 Two callers also re-derive `orElse` itself, which exists so that a caller

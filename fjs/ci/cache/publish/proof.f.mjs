@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
-import { ioError } from '../../../effects/module.f.mjs'
+import { ioError } from '../../../effects/module.f.js'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
 import { exitCode, exitStep, nodeCommands } from '../../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../../effects/node/virtual/module.f.mjs'

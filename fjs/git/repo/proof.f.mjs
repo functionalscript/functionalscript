@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
+import { ioError } from '../../effects/module.f.js'
 import { run } from '../../effects/mock/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'

@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { helpReference } from '../../cli/module.f.mjs'
 import { commands } from '../../module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
 import { anchor, catalogue, cliPage, commandSection } from './module.f.mjs'

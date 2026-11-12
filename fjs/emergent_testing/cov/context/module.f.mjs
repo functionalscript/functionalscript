@@ -8,7 +8,7 @@
  * @import { Entry } from '../cache/types.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { error, errorMessage, execFile } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/json/module.f.mjs'
 import { join } from '../../../path/module.f.js'

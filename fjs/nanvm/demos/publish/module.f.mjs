@@ -41,7 +41,7 @@
  */
 
 import { errorExit } from '../../../effects/common/module.f.mjs'
-import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.mjs'
+import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
 import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
 import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'

@@ -1246,7 +1246,7 @@ than a single access.
 **There is one effect type, in one module.** `Effect<O, T, E>`
 (`fjs/effects/types.ts`) is a `Pure` thunk yielding `Result<T, E>` or a `Do`
 node — the error channel is part of the representation, not a wrapper over it.
-`E` defaults to `NotImplemented`. `fjs/effects/module.f.mjs` holds all of it:
+`E` defaults to `NotImplemented`. `fjs/effects/module.f.js` holds all of it:
 the representation, the interpreters `match` / `partialMatch` / `runPure`, and
 the combinators.
 

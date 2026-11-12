@@ -11,7 +11,7 @@ command and threading a state through, with no host at all.
  * @import { MemOperationMap } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
-import { do_, history, historyStep } from '../module.f.mjs'
+import { do_, history, historyStep } from '../module.f.js'
 import { run } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 

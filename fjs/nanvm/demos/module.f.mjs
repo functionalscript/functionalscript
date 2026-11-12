@@ -38,7 +38,7 @@
 
 import { rust } from '../../ci/config/module.f.js'
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
-import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
+import { forEachStep, pureOk, step } from '../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'

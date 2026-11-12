@@ -29,7 +29,7 @@
 
 import { codeMarker } from '../website/style/module.f.js'
 import { textDemo, caption } from '../website/demo/module.f.mjs'
-import { do_, foldStep, mapStep, pureOk } from './module.f.mjs'
+import { do_, foldStep, mapStep, pureOk } from './module.f.js'
 import { run } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 

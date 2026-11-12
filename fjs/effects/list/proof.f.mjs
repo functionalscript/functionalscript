@@ -6,9 +6,9 @@
  * @import { MemOperationMap } from '../mock/types.ts'
  */
 
-import { do_, pureError, pureOk, runPure, step } from '../module.f.mjs'
+import { do_, pureError, pureOk, runPure, step } from '../module.f.js'
 import { run as mockRun } from '../mock/module.f.mjs'
-import { empty, fromList, nonEmpty, run, transduce } from './module.f.mjs'
+import { empty, fromList, nonEmpty, run, transduce } from './module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { doneStep, fromStateFold, nextStep } from '../../types/function/operator/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'

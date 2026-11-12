@@ -36,7 +36,7 @@
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { tryUtf8, utf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { computeSync, sha512 } from '../sha2/module.f.js'

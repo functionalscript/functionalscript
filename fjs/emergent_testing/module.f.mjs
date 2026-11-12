@@ -30,7 +30,7 @@ import {
     attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultStep, step,
     unreadableThrownValue, walkStep,
-} from '../effects/module.f.mjs'
+} from '../effects/module.f.js'
 import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'
@@ -344,7 +344,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // nested walk. Recursing instead left one continuation pending per
         // ancestor, so a leaf returning a deep enough chain of children died
         // with `RangeError` where the fan-out this replaced had not; see
-        // `../effects/module.f.mjs`'s `walkStep`.
+        // `../effects/module.f.js`'s `walkStep`.
         // A failure ends the run, but as a *value*: the walk carries it to the
         // summary, which describes what the run had already collected before
         // the channel gave out. Propagating it instead discarded exactly the

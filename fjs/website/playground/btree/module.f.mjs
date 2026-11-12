@@ -59,7 +59,7 @@ import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.mjs'
 import { graphSvg } from '../../demo/graph/module.f.mjs'
 import { button, option, selectField, refusal } from '../../demo/module.f.mjs'
-import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.mjs'
+import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.js'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 

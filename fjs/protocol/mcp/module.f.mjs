@@ -24,7 +24,7 @@
  */
 
 import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.js'
-import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.mjs'
+import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
@@ -220,7 +220,7 @@ export const errorResult = text =>
  *
  * **Both renderers are required, and `errorText` is the load-bearing one** —
  * for the reason `unwrapStep` gives for its own `summary`
- * (`fjs/effects/module.f.mjs`): a renderer written for a particular error
+ * (`fjs/effects/module.f.js`): a renderer written for a particular error
  * channel cannot accept a wider one, so a fallible call added upstream turns
  * into a compile error at the tool that has to say what the new failure reads
  * like, instead of silently reaching the client as whatever `String` made of

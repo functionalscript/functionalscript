@@ -13,7 +13,7 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { write as writeLoose } from '../../git/loose/module.f.mjs'
-import { history, historyStep, ioError, runPure } from '../../effects/module.f.mjs'
+import { history, historyStep, ioError, runPure } from '../../effects/module.f.js'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { nodeCommands, readUtf8File, writeFiles } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'

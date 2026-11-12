@@ -29,7 +29,7 @@ import {
     resultMapStep,
     resultStep,
     step as ioStep,
-} from '../effects/module.f.mjs'
+} from '../effects/module.f.js'
 import {
     createExclusive,
     exists,
@@ -48,7 +48,7 @@ import {
 import { toOption } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { splitAt } from '../types/string/module.f.js'
-import { run as runStream } from '../effects/list/module.f.mjs'
+import { run as runStream } from '../effects/list/module.f.js'
 import { doneStep } from '../types/function/operator/module.f.js'
 
 const split2 = splitAt(2)

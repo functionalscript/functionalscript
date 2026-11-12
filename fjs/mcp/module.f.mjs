@@ -35,7 +35,7 @@
  * @import { Key } from '../effects/memory/types.ts'
  */
 
-import { step, history, historyStep } from '../effects/module.f.mjs'
+import { step, history, historyStep } from '../effects/module.f.js'
 import { create } from '../effects/memory/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {

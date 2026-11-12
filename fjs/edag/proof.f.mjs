@@ -43,7 +43,7 @@ import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
 import { demo, run as runDemo } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
-import { runPure } from '../effects/module.f.mjs'
+import { runPure } from '../effects/module.f.js'
 import {
     exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
     helperIds, helperLength, helpers, intrinsicIds, intrinsics, isFunctionNode, isHelper, isIntrinsic,

@@ -15,7 +15,7 @@ import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyT
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import runtimeEdag from '../js/runtime/gen.edag.js'
-import { pureOk } from '../effects/module.f.mjs'
+import { pureOk } from '../effects/module.f.js'
 import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
 import { memo } from '../edag/memo/module.f.mjs'

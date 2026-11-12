@@ -11,7 +11,7 @@ import { sha256, sha384, sha512 } from '../sha2/module.f.js'
 import { hmac } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 export const proof = {

@@ -18,7 +18,7 @@ import { errorExit, errorMessage, exitStep, import_ } from './effects/node/modul
 import { dispatch, isMain } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
 import { main as webMain } from './web/module.f.mjs'
-import { resultStep } from './effects/module.f.mjs'
+import { resultStep } from './effects/module.f.js'
 
 /** @type {DocumentedCommands<NodeOp>} */
 export const commands = [

@@ -20,7 +20,7 @@
  * @import { Runtime } from '../../edag/value/types.ts'
  */
 
-import { ioError, pureError, pureOk, resultStep } from '../../effects/module.f.mjs'
+import { ioError, pureError, pureOk, resultStep } from '../../effects/module.f.js'
 import { writeFiles } from '../../effects/node/module.f.mjs'
 import { runtimeSource } from '../../compiler/module.f.mjs'
 import { runtimeAt } from '../../compiler/transpiler/module.f.mjs'

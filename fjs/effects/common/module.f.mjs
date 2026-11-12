@@ -11,7 +11,7 @@
  * @import { All, Catch, Import, RandomInt, Sandbox, SandboxResult } from './types.ts'
  */
 
-import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
+import { do_, pure, pureOk, resultMapStep, step } from '../module.f.js'
 import { okList } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { lf } from '../../text/ascii/module.f.js'
@@ -78,7 +78,7 @@ export const all =
  * **Every effect still runs.** The short-circuit is in the *result*, not in the
  * execution: `all` performs them concurrently and this reads the answers once
  * they are all in, so a failure does not cancel its siblings the way it stops
- * the sequential `forEachStep` in `../module.f.mjs`. The error channel
+ * the sequential `forEachStep` in `../module.f.js`. The error channel
  * unions the runner's
  * `NotImplemented` with the effects' own `E` for the same reason every other
  * step does — either can be what went wrong.

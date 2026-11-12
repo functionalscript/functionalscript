@@ -13,7 +13,7 @@
  */
 
 import { assert, assertEq } from '../asserts/module.f.js'
-import { pureOk, step } from '../effects/module.f.mjs'
+import { pureOk, step } from '../effects/module.f.js'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
@@ -24,7 +24,7 @@ import { utf8 } from '../text/module.f.mjs'
 import { fileCas } from '../cas/module.f.mjs'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.js'
 import { emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { _casMcpSession, casMcpServer } from './module.f.mjs'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'

@@ -4,7 +4,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { queryLimit, defaultsOf, validateInputs, decodeQuery, restoreInputs, encodeQuery, textSharing, recordSharing, withInputs, sharingStatus, earlyInputCapture } from './module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
-import { pureOk } from '../../../effects/module.f.mjs'
+import { pureOk } from '../../../effects/module.f.js'
 
 /** @type {Fields} */
 const fields = { text: { default: 'hello' }, choice: { default: 'one', choices: ['one', 'two'] }, checked: { default: true }, empty: { default: '' }, amount: { default: 3 } }

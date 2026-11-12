@@ -11,7 +11,7 @@
 
 import { assert } from '../asserts/module.f.js'
 import { decode } from '../basen/base16/module.f.js'
-import { ioError } from '../effects/module.f.mjs'
+import { ioError } from '../effects/module.f.js'
 
 /**
  * The bytes a Latin-1 string spells, one per code unit: how a fixture is

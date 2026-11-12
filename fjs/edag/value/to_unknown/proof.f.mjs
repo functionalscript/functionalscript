@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
-import { notImplemented, runPure } from '../../../effects/module.f.mjs'
+import { notImplemented, runPure } from '../../../effects/module.f.js'
 import { partialRun, run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'

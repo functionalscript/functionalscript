@@ -45,8 +45,8 @@
  * @import { Refusal, Resolve, Resolved, Respond, WebOp } from './types.ts'
  */
 
-import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
-import { empty, nonEmpty } from '../effects/list/module.f.mjs'
+import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.js'
+import { empty, nonEmpty } from '../effects/list/module.f.js'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
     isDirectory, isNotFound, listen, log, maxPort, open, plainTextResponse, readChunks, releaseHandle, stat,

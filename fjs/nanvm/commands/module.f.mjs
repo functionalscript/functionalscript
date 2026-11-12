@@ -3,7 +3,7 @@
  *
  * A native host answers `notImplemented` to a command of the declared set it
  * has no operation for, and refuses a command outside it, as `partialMatch`
- * does (`fjs/effects/module.f.mjs`). The set is
+ * does (`fjs/effects/module.f.js`). The set is
  * [`nodeCommands`](../../effects/node/module.f.mjs), so it is printed from
  * there rather than written twice.
  *

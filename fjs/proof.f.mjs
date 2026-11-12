@@ -6,7 +6,7 @@
 
 import { exitCode } from './effects/node/module.f.mjs'
 import { assert, assertEq } from './asserts/module.f.js'
-import { pureError, pureOk } from './effects/module.f.mjs'
+import { pureError, pureOk } from './effects/module.f.js'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
 import { vec8 } from './types/bit_vec/module.f.js'

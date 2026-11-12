@@ -5,7 +5,7 @@
  * @import { All } from '../common/types.ts'
  */
 
-import { do_, pureOk, step } from '../module.f.mjs'
+import { do_, pureOk, step } from '../module.f.js'
 import { partialRun, run, runAll } from './module.f.mjs'
 import { all } from '../common/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'

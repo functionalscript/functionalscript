@@ -31,7 +31,7 @@
 
 import { textSharing } from './sharing/module.f.mjs'
 import { entry } from '../../types/object/entry/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { examplePicker, name as exampleName } from './examples/module.f.js'
 import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.js'
 import { max } from '../../types/number/max/module.f.js'

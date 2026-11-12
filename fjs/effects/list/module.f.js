@@ -12,7 +12,7 @@
  * @import { Step, Transducer } from "../../types/function/operator/types.ts"
  */
 
-import { pure, pureOk, runPure, step } from "../module.f.mjs"
+import { pure, pureOk, runPure, step } from "../module.f.js"
 import { next } from "../../types/list/module.f.js"
 import { ok } from "../../types/result/module.f.js"
 import { doneStep, nextStep } from "../../types/function/operator/module.f.js"

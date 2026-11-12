@@ -11,7 +11,7 @@ import { htmlToString } from '../html/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../js/marked/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 
 const { is } = Object

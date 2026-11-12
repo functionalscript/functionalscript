@@ -79,7 +79,7 @@ import { examplePicker, name as exampleName } from '../website/demo/examples/mod
 import { _outputMarked, compileFile } from './module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.js'
-import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.js'
 import { catch_ } from '../effects/common/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'

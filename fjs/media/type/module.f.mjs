@@ -54,7 +54,7 @@
 
 import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.js'
 import { next, run } from '../../types/list/module.f.js'
-import { run as runStream } from '../../effects/list/module.f.mjs'
+import { run as runStream } from '../../effects/list/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'

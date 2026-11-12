@@ -172,7 +172,7 @@ export const errorMessage = ([tag, payload]) =>
  * It takes the `Result` rather than a bare value because that is what a `Pure`
  * holds: the two channels are the representation's, so a constructor that took
  * only a success would be `pureOk`, which is exactly what
- * [`./module.f.mjs`](./module.f.mjs) exports alongside `pureError`. Reach
+ * [`./module.f.js`](./module.f.js) exports alongside `pureError`. Reach
  * for those; this one is for the `Result` you already have in your hand — a
  * branch passing an incoming error through unchanged, or a runner's answer.
  *
@@ -751,46 +751,6 @@ export const historyStep = (e, f) => {
 }
 
 /**
- * Threads a state through one effect per item, short-circuiting on the first
- * `error`.
- *
- * **`items` is an `Effect` like everything else here.** Its payload was once
- * unwrapped, on the argument that a held list has no error channel and
- * requiring one would mean lifting at every call site. Lifting is one `pureOk`
- * call, and that version made the *fallible* producer pay instead:
- * `fjs/cas/cli` wrapped the whole fold in a `step` whose only job was to unwrap
- * `list()` so `pure` could wrap it again. A producer that can fail now feeds
- * the fold directly, and one that cannot is unaffected when it later can.
- *
- * **The argument order is deliberately not `fold`'s** from `fjs/types/list`, and
- * the difference is what the two combinators are *for*. `fold` is a data
- * pipeline: it is curried `f`-first because the list is the thing being threaded
- * through, and nothing about it happens in time. A step variant is a sequencing
- * construct — this module's `do` notation — and reading one top-to-bottom is
- * reading the order the program executes in. The effect therefore has to come
- * first, because it is what happens first. Currying `f` ahead of `items` would
- * put the *body* of the loop above the thing it loops over, which is exactly the
- * inversion `do` exists to remove.
- *
- * That is also why the whole family — {@link step}, {@link historyStep},
- * `foldStep`, {@link forEachStep} — takes its effect first and breaks one
- * argument per line when it wraps: every such call is a statement list, and each
- * line is one statement in execution order.
- *
- * @template {Operation} O
- * @template T
- * @template {Operation} Q
- * @template S
- * @template E
- * @param {Effect<O, List<T>, E>} items
- * @param {S} init
- * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
- * @returns {Effect<O | Q, S, E>}
- */
-export const foldStep = (items, init, f) =>
-    walkStep(items, init, item => state => mapStep(f(item)(state), s => [s, null]))
-
-/**
  * {@link foldStep} for a list the body can extend: `f` answers the next state
  * *and* further items, which are walked **before** the ones that remain. That
  * makes it a depth-first walk of a tree discovered as it is walked, and the
@@ -883,6 +843,46 @@ export const walkStep = (items, init, f) => {
     }
     return step(items, list => loop(list, init))
 }
+
+/**
+ * Threads a state through one effect per item, short-circuiting on the first
+ * `error`.
+ *
+ * **`items` is an `Effect` like everything else here.** Its payload was once
+ * unwrapped, on the argument that a held list has no error channel and
+ * requiring one would mean lifting at every call site. Lifting is one `pureOk`
+ * call, and that version made the *fallible* producer pay instead:
+ * `fjs/cas/cli` wrapped the whole fold in a `step` whose only job was to unwrap
+ * `list()` so `pure` could wrap it again. A producer that can fail now feeds
+ * the fold directly, and one that cannot is unaffected when it later can.
+ *
+ * **The argument order is deliberately not `fold`'s** from `fjs/types/list`, and
+ * the difference is what the two combinators are *for*. `fold` is a data
+ * pipeline: it is curried `f`-first because the list is the thing being threaded
+ * through, and nothing about it happens in time. A step variant is a sequencing
+ * construct — this module's `do` notation — and reading one top-to-bottom is
+ * reading the order the program executes in. The effect therefore has to come
+ * first, because it is what happens first. Currying `f` ahead of `items` would
+ * put the *body* of the loop above the thing it loops over, which is exactly the
+ * inversion `do` exists to remove.
+ *
+ * That is also why the whole family — {@link step}, {@link historyStep},
+ * `foldStep`, {@link forEachStep} — takes its effect first and breaks one
+ * argument per line when it wraps: every such call is a statement list, and each
+ * line is one statement in execution order.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template {Operation} Q
+ * @template S
+ * @template E
+ * @param {Effect<O, List<T>, E>} items
+ * @param {S} init
+ * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
+ * @returns {Effect<O | Q, S, E>}
+ */
+export const foldStep = (items, init, f) =>
+    walkStep(items, init, item => state => mapStep(f(item)(state), s => [s, null]))
 
 /**
  * Runs `f(item)` for each item in order, stopping at the first failure and
