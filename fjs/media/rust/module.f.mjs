@@ -148,6 +148,20 @@ const exponentOf = a => {
 /** The one `NaN` this writer spells: the quiet `NaN` with an empty payload. @type {bigint} */
 const canonicalNan = 0x7ff8_0000_0000_0000n
 
+/** @type {(v: number) => bigint} */
+const bitsOf = v => {
+    if (Number.isNaN(v)) { return canonicalNan }
+    const sign = v < 0 || isNegativeZero(v) ? 1n << 63n : 0n
+    const a = Math.abs(v)
+    if (a === Infinity) { return sign | 0x7ff0_0000_0000_0000n }
+    if (a === 0) { return sign }
+    // scaled in two exact steps: `2 ** 1074` itself is past the largest double
+    if (a < 2 ** -1_022) { return sign | bigint(a * 2 ** 1_023 * 2 ** 51) }
+    const exponent = exponentOf(a)
+    const fraction = bigint((a / 2 ** exponent - 1) * 2 ** 52)
+    return sign | bigint(exponent + 1_023) << 52n | fraction
+}
+
 /**
  * The IEEE 754 binary64 bits of a number as a Rust `u64` literal in sixteen
  * hex digits — `f64::from_bits` reads it back as the same number, `-0`, the
@@ -163,20 +177,6 @@ const canonicalNan = 0x7ff8_0000_0000_0000n
  * @type {(v: number) => string}
  */
 export const f64Bits = v => u64Hex(bitsOf(v))
-
-/** @type {(v: number) => bigint} */
-const bitsOf = v => {
-    if (Number.isNaN(v)) { return canonicalNan }
-    const sign = v < 0 || isNegativeZero(v) ? 1n << 63n : 0n
-    const a = Math.abs(v)
-    if (a === Infinity) { return sign | 0x7ff0_0000_0000_0000n }
-    if (a === 0) { return sign }
-    // scaled in two exact steps: `2 ** 1074` itself is past the largest double
-    if (a < 2 ** -1_022) { return sign | bigint(a * 2 ** 1_023 * 2 ** 51) }
-    const exponent = exponentOf(a)
-    const fraction = bigint((a / 2 ** exponent - 1) * 2 ** 52)
-    return sign | bigint(exponent + 1_023) << 52n | fraction
-}
 
 const i64Min = -(2n ** 63n)
 const i64Max = 2n ** 63n - 1n
