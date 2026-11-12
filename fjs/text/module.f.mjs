@@ -8,7 +8,7 @@
  * @import { Utf8 } from './types.ts'
  */
 
-import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
+import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.js'
 import { stringToU8List } from './utf8/module.f.mjs'
 import { mapUnwrap } from '../types/nullable/module.f.js'
 

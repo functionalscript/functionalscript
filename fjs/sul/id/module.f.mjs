@@ -12,12 +12,12 @@
  */
 
 import { toArray } from '../../types/list/alt/module.f.js'
-import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.js'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { secp256r1 } from '../../crypto/secp/module.f.js'
 import { base32 } from '../../crypto/sha2/module.f.mjs'
-import { literal3ToVec } from '../level/literal/module.f.mjs'
+import { literal3ToVec } from '../level/literal/module.f.js'
 import { log2 } from '../../types/bigint/module.f.js'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
 
@@ -126,7 +126,7 @@ export const hashId = hash =>
 
 const hash2 = base32.compress(iv)
 
-const { concat } = msb
+const { concatVec: concat } = msb
 
 /** @type {(a: Id, b: Id) => Id} */
 const hashMerge = (a, b) =>

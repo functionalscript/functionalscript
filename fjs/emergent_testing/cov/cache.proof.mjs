@@ -14,7 +14,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { toPath } from '../../cas/module.f.mjs'
-import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 
 const cli = fileURLToPath(new URL('../../module.mjs', import.meta.url))
 

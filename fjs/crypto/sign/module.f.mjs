@@ -13,7 +13,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { bitLength } from '../../types/bigint/module.f.js'
-import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
+import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.js'
 import { hmac } from '../hmac/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
 import { isPublicKey } from '../secp/module.f.js'
@@ -58,7 +58,7 @@ export const fromCurve = ({ nf, mul, g }) => ({ rfc6979: all(nf.p), nf, mul, g }
 const x01 = vec8(0x01n)
 const x00 = vec8(0x00n)
 
-const { concat, listToVec } = msb
+const { concatVec: concat, listToVec } = msb
 
 /**
  * RFC6979 §3.2 from step b on: the nonce `k` for the digest `h1 = H(m)`.

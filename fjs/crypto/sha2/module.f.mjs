@@ -20,11 +20,11 @@ import {
     msb,
     chunkList,
     uint,
-} from '../../types/bit_vec/module.f.mjs'
+} from '../../types/bit_vec/module.f.js'
 import { fold, run } from '../../types/list/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 
-const { concat, front, removeFront } = msb
+const { concatVec: concat, front, removeFront } = msb
 
 // `chunkList(msb)` depends on neither `chunkLength` nor `v`/`state` — shared
 // across every `base(...)` config (32-bit and 64-bit SHA-2 variants).

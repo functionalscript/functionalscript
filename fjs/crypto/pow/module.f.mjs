@@ -11,7 +11,7 @@
  */
 
 import { mask } from '../../types/bigint/module.f.js'
-import { uint } from '../../types/bit_vec/module.f.mjs'
+import { uint } from '../../types/bit_vec/module.f.js'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 
 const nBitsMantissa = mask(24n)

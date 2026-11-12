@@ -9,7 +9,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { normalize } from '../../path/module.f.js'
-import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.mjs'

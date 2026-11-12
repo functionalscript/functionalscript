@@ -11,7 +11,7 @@ import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { concat as stringConcat, occurrences } from '../../types/string/module.f.js'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 

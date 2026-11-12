@@ -14,7 +14,7 @@
  * @import { EncodeState as LiteralEncodeState, PipelineState } from './level/literal/types.ts'
  */
 
-import { emptyPipelineState, levels } from './level/literal/module.f.mjs'
+import { emptyPipelineState, levels } from './level/literal/module.f.js'
 import { encode as hashEncode } from './level/hash/module.f.mjs'
 import { level3Id } from './id/module.f.mjs'
 import { toArray } from '../types/list/alt/module.f.js'

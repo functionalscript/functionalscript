@@ -12,7 +12,7 @@ import { nodeProgramOptions, virtual, virtualAt } from '../../../effects/node/vi
 import { hexText } from '../../../git/oid/module.f.mjs'
 import { tryResolve } from '../../../git/refstore/module.f.mjs'
 import { initConfig, latin1 } from '../../../git/testlib.f.mjs'
-import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { commands as casCommands } from '../../cli/module.f.mjs'
 import { branchRef } from '../module.f.mjs'
 

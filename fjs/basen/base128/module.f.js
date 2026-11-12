@@ -7,9 +7,9 @@
  */
 
 import { mask } from '../../types/bigint/module.f.js'
-import { vec8, msb, empty } from '../../types/bit_vec/module.f.mjs'
+import { vec8, msb, empty } from '../../types/bit_vec/module.f.js'
 
-const { concat, popFront } = msb
+const { concatVec: concat, popFront } = msb
 
 const pop8 = popFront(8n)
 

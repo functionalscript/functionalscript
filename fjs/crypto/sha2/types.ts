@@ -79,7 +79,7 @@ export type Base = {
  * @example
  *
  * ```js
- * import { vec } from '../../types/bit_vec/module.f.mjs'
+ * import { vec } from '../../types/bit_vec/module.f.js'
  * import { utf8 } from '../../text/module.f.mjs'
  * import { computeSync, sha224 } from './module.f.mjs'
  *

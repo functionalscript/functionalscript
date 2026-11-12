@@ -22,7 +22,7 @@ import { textField, inputField, caption, refusal } from '../../website/demo/modu
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { hexOf } from '../../website/demo/hash/module.f.mjs'
 import { sha256 } from '../sha2/module.f.mjs'
-import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.js'
 
 const formatHex = hexOf(sha256)
 const hashBits = vec(sha256.hashLength)

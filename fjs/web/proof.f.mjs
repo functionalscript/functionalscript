@@ -15,7 +15,7 @@ import { step } from '../effects/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { empty as elEmpty } from '../effects/list/module.f.mjs'
-import { length, u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.mjs'
+import { length, u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { main, resolve, respond } from './module.f.mjs'
 

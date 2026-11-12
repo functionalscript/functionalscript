@@ -1,7 +1,7 @@
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { commands } from './module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.js'
 import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'

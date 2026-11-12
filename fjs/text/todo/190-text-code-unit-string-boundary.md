@@ -52,7 +52,7 @@ single code unit in a `.f.mjs` module; proofs that build fixtures with
 
 ### Related
 
-- [i167](../../types/bit_vec/module.f.mjs) — re-binding a shared helper under
+- [i167](../../types/bit_vec/module.f.js) — re-binding a shared helper under
   per-module names; shipped, the per-module `listToVec(msb)` binds dropped for
   the shared `msb.listToVec`.
 - [i168](../code_point/README.md#the-streaming-decoder-skeleton) — the

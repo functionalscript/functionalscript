@@ -142,6 +142,37 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Bit-vector member migration
+
+The migration in #3778 starts from `cbf629e98` and renames the custom
+`BitOrder.concat` member to `concatVec` on both `lsb` and `msb`. `repeat`
+passes `lsb.concatVec` directly to the monoid helper, preserving the function
+value without a wrapper or a dynamic lookup.
+
+This clears `types/bit_vec`'s last refusal. It and the newly accepted
+`basen`, `basen/base128`, `basen/base64url` and `sul/level/literal` modules now
+use `.f.js`, with their runtime, type, proof and documentation references
+updated. Measured at `063b0b456`, the runtime graph remains **643 authored
+non-proof sources**: **259 `.f.js` files** and **384 `.f.mjs` files**.
+Rediscovering and compiling every remaining leaf accepts none;
+**18 blocked leaves** remain.
+
+Compared with the entry-reader migration below, `types/bit_vec` leaves the
+blocked set and these candidates become leaves. Locations are at `063b0b456`:
+
+| Leaf | First refusal | Location |
+| --- | --- | --- |
+| `asn.1` | Rest binding in `[first, second, ...rest]` | `241:27` |
+| `basen/base64` | Computed string index `input[i]` without `Number(...)` | `38:52` |
+| `basen/cbase32` | Computed string index `s[i]` without `Number(...)` | `67:39` |
+| `crypto/sha2` | Computed array index `k[i]` without `Number(...)` | `251:26` |
+| `text/utf8` | Rest binding in `([lead, ...conts])` | `133:33` |
+| `zlib/adler32` | Global `Math.floor(...)` | `45:13` |
+
+The other leaves retain their blockers, except that #3776 replaces
+`ebnf/data`'s prototype reflection with `isObject`; its first refusal is now
+the rest binding in `const [, ...s] = rule` at `52:22`.
+
 #### Entry-reader migration
 
 The migration stacked on #3773 replaces `types/object.at` with the existing

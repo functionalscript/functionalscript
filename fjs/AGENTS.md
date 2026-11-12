@@ -1201,7 +1201,7 @@ makes the computation's dependency structure visible: the scope a binding lives
 in tells the reader which arguments it needs without tracing the whole call
 chain.
 
-Example (`fjs/basen/module.f.mjs`): `tailPaddedUintChunkList(msb)` depends on
+Example (`fjs/basen/module.f.js`): `tailPaddedUintChunkList(msb)` depends on
 neither `bits` nor `v`, so it's bound once at module scope (`uintChunkListMsb`),
 shared by every `baseN(...)` codec; `uintChunkListMsb(bits)` depends on `bits`
 but not `v`, so it's applied once inside `baseN`'s body, not once per

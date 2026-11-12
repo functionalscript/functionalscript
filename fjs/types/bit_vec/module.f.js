@@ -412,14 +412,14 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
         }
     }
     /** @type {Reduce} */
-    const concat = lift2(a => b => pack(unpackConcat(a)(b)))
+    const concatVec = lift2(a => b => pack(unpackConcat(a)(b)))
     /** @type {(a: Vec) => (b: Vec) => Nullable<Vec>} */
     const tryConcat = lift2(a => b => a.length + b.length > maxLength ? null : pack(unpackConcat(a)(b)))
     const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,
         removeFront,
-        concat,
+        concatVec,
         tryConcat,
         tryListToVec,
         listToVec: mapUnwrap(tryListToVec),
@@ -743,7 +743,7 @@ export const padLastBlockMsb = block => {
         const wholeLen = len - len % block
         const [whole, rest] = msb.popFront(wholeLen)(v)
         const fill = block - (len - wholeLen)
-        return [vec(wholeLen)(whole), msb.concat(rest)(vec(fill)(1n << (fill - 1n)))]
+        return [vec(wholeLen)(whole), msb.concatVec(rest)(vec(fill)(1n << (fill - 1n)))]
     }
 }
 
@@ -781,7 +781,7 @@ export const unpadMsb = v => {
  * @type {Fold<bigint, Vec>}
  */
 export const repeat =
-    mRepeat({ identity: empty, operation: lsb.concat })
+    mRepeat({ identity: empty, operation: lsb.concatVec })
 
 export const isVec =
     /**

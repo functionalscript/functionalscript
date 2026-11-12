@@ -48,7 +48,7 @@ import { catchStep, compensateStep, finallyStep, foldStep, history, historyStep,
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { ancestors, parent, under } from '../../../path/module.f.js'
-import { length, u8ListToMaxVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { length, u8ListToMaxVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { solidus as slash } from '../../../text/ascii/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'

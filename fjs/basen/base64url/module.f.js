@@ -14,8 +14,8 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { isWholeBytes } from '../../types/bit_vec/module.f.mjs'
-import { baseN } from '../module.f.mjs'
+import { isWholeBytes } from '../../types/bit_vec/module.f.js'
+import { baseN } from '../module.f.js'
 
 const { vecToString } = baseN(6n, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_')
 

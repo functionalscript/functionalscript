@@ -2,7 +2,7 @@
 
 import { powResultMarker, stylesheet } from '../../website/style/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
+import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
