@@ -142,6 +142,12 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Result continuation order
+
+#3787 places `resultStep` before `step` and `catchStep`. At `847713442`,
+`effects` next stops at `mapStep`'s forward reference to `resultMapStep`
+(`578:34`, `const not found`).
+
 #### Shared effect matcher
 
 #3785 moves `_matchWith` before `match` and `partialMatch`, preserving
