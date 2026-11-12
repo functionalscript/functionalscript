@@ -245,6 +245,10 @@ of; and rest elements remain refused, with a follow-up here.
       a value (`array hole`).
 - [x] Pattern defaults, sharing the `undefined` test and binding-order
       contract in [default parameters](./3125-default-parameters.md).
+- [x] Array-rest implementation approved by `sergey-shandar` in the
+      [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a):
+      "implement rest destructing by lowering and use `slice`". This
+      increment covers array rest in existing binding-pattern positions.
 - [ ] Array rest, `[a, ...r]`, as a slice of the spread array; file the
       object rest as a follow-up of its own.
 
