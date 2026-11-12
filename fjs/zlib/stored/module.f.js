@@ -12,7 +12,7 @@
  * the Adler-32 of the data, most significant byte first. No bytes is one
  * empty final block, since a stream has at least one block.
  *
- * The inverse is [`fjs/zlib/inflate`](../inflate/module.f.mjs), which reads
+ * The inverse is [`fjs/zlib/inflate`](../inflate/module.f.js), which reads
  * this as it reads a stream a deflater made.
  *
  * @module

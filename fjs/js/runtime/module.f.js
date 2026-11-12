@@ -366,6 +366,7 @@ export const statics = {
     'Math.ceil': Math.ceil,
     'Math.imul': Math.imul,
     'Math.max': Math.max,
+    'Math.min': Math.min,
 }
 
 /** The runtime: table lookup and the `in` and `Boolean` operator bodies. */

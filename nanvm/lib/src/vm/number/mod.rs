@@ -10,6 +10,7 @@ mod from;
 mod imul;
 mod int32_coercion;
 mod max;
+mod min;
 mod mul;
 mod neg;
 mod pow;

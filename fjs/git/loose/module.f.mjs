@@ -2,7 +2,7 @@
  * A loose object as it sits on disk, `.git/objects/xx/yyyy…`: one zlib
  * stream holding the envelope and the payload. The file is read whole, in the
  * chunks one open takes, and inflated by
- * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs), a pure inflater; the
+ * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.js), a pure inflater; the
  * inflated bytes are read by the pure envelope reader. This module is the
  * boundary between the three, and the writer of the same file:
  * {@link write} stores the envelope as one zlib stream through

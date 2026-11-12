@@ -110,6 +110,32 @@ const samples = [
 ]
 
 export const proof = /** @type {const} */ ({
+    min: {
+        numbers: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            assertEq(min, Math.min)
+            assertEq(runtime.static('Math.min'), min)
+            assertEq(min.length, 2)
+            for (const [args, expected] of /** @type {const} */ ([
+                [[], Infinity], [[-Infinity], -Infinity], [[Infinity], Infinity],
+                [[0], 0], [[-0], -0], [[0, 0, 0], 0],
+                [[-0, 0], -0], [[0, -0], -0], [[0, 0, -0], -0],
+                [[-3, -2, -1], -3], [[5, 2, 4, 3], 2],
+                [[5e-324, -5e-324, 0], -5e-324],
+                [[-1.7976931348623157e308, Infinity], -1.7976931348623157e308],
+                [[NaN], NaN], [[NaN, -Infinity, 1], NaN], [[-Infinity, 1, NaN], NaN],
+            ])) { assert(Object.is(min(...args), expected), args) }
+        },
+        conversion: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', '-Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(min(value, -3, 2), Math.min(/** @type {number} */ (value), -3, 2)), value)
+                assert(Object.is(min(-3, 2, value), Math.min(-3, 2, /** @type {number} */ (value))), value)
+            }
+            assertEq(min({ valueOf: () => -9, toString: () => { throw 'unreached' } }, 3, 5), -9)
+            assertEq(min(-1, 0, { valueOf: () => ({}), toString: () => '-16' }), -16)
+        },
+    },
     max: {
         numbers: () => {
             const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
@@ -403,7 +429,7 @@ export const proof = /** @type {const} */ ({
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.values', 'Math.min', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.cbrt', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -672,6 +698,22 @@ export const proof = /** @type {const} */ ({
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        minBigint: () => { table['Math.min'](1n, 0) },
+        minBigintAfterNaN: () => { table['Math.min'](NaN, 1n) },
+        minBigintAfterInfinity: () => { table['Math.min'](-Infinity, 1n) },
+        minBigintLast: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            min(0, 0, 1n)
+        },
+        minBigintPrimitive: () => { table['Math.min']({ valueOf: () => 1n }, 0) },
+        minBigintPrimitiveAfterNaN: () => { table['Math.min'](NaN, { valueOf: () => 1n }) },
+        minBigintPrimitiveLast: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            min(NaN, -Infinity, { valueOf: () => 1n })
+        },
+        minConversionAfterNaN: () => { table['Math.min'](NaN, { valueOf: () => { throw 'conversion' } }) },
+        minConversionAfterInfinity: () => { table['Math.min'](-Infinity, { valueOf: () => { throw 'conversion' } }) },
+        minNoPrimitive: () => { table['Math.min'](0, { valueOf: () => ({}), toString: () => [] }) },
         maxBigint: () => { table['Math.max'](1n, 0) },
         maxBigintAfterNaN: () => { table['Math.max'](NaN, 1n) },
         maxBigintAfterInfinity: () => { table['Math.max'](Infinity, 1n) },

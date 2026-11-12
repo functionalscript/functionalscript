@@ -102,6 +102,57 @@ export const proof = /** @type {const} */ ({
         eq(['()', ['String.fromCharCode'], [true, null, ['undefined'], '66', ['[]', [67]]]], '\u0001\u0000\u0000BC')
         failure(['()', ['String.fromCharCode'], [65, 1n]])
     },
+    mathMin: {
+        numbers: () => {
+            for (const [args, expected] of /** @type {readonly (readonly [readonly Exp[], number])[]} */ ([
+                [[], Infinity], [[1], 1], [[Infinity], Infinity],
+                [[4, 1, 2, 3], 1], [[-2, -4, -3], -4],
+                [[Infinity, 1, -Infinity, 2], -Infinity], [[NaN], NaN],
+                [[NaN, 1, -Infinity], NaN], [[1, NaN, 2], NaN], [[-Infinity, NaN], NaN],
+                [[0], 0], [[0, 0], 0], [[-0], -0], [[0, -0], -0], [[-0, 0], -0],
+                [[-5e-324, 0], -5e-324], [[-5e-324, 5e-324], -5e-324],
+                [[0x1f_ffff_ffff_ffff, 0x20_0000_0000_0000], 0x1f_ffff_ffff_ffff],
+                [[1.7976931348623157e308, -1.7976931348623157e308], -1.7976931348623157e308],
+            ])) { eq(['()', ['Math.min'], args], expected) }
+        },
+        conversion: () => {
+            eq(['()', ['Math.min'], [' -0 ', false, null, true, ' 0x10 ', ['[]', [9]], ['[]', [25n]]]], -0)
+            eq(['()', ['Math.min'], [['undefined']]], NaN)
+            eq(['()', ['Math.min'], [['{}', []]]], NaN)
+            eq(['()', ['Math.min'], [['[]', []]]], 0)
+            const fallback = /** @type {const} */ (['{}', [
+                [':', 'valueOf', ['=>', 0, [], ['{}', []]]],
+                [':', 'toString', ['=>', 0, [], '-12']],
+            ]])
+            eq(['()', ['Math.min'], [3, fallback, 4]], -12)
+            const first = /** @type {const} */ (['{}', [
+                [':', 'valueOf', ['=>', 0, [], -8]],
+                [':', 'toString', ['=>', 0, [], ['throw', 'unreached']]],
+            ]])
+            eq(['()', ['Math.min'], [first, 2, 3]], -8)
+            const right = /** @type {const} */ (['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'right']]]]])
+            const bigintObject = /** @type {const} */ (['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]])
+            failure(['()', ['Math.min'], [1n, right]])
+            failure(['()', ['Math.min'], [throws, right]], 'conversion')
+            failure(['()', ['Math.min'], [1, 2, right]], 'right')
+            failure(['()', ['Math.min'], [NaN, right]], 'right')
+            failure(['()', ['Math.min'], [-Infinity, right]], 'right')
+            failure(['()', ['Math.min'], [NaN, 1n]])
+            failure(['()', ['Math.min'], [-Infinity, bigintObject]])
+            failure(['()', ['Math.min'], [bigintObject, right]])
+            failure(['()', ['Math.min'], [throws, ['throw', 'argument']]], 'argument')
+            failure(['()', ['Math.min'], [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.min'], ['Math.min'])
+            eq(['.', ['Math.min'], 'length'], 2)
+            eq(['String', ['Math.min']], 'function min() { [native code] }')
+            eq(['===', ['Math.min'], ['Math.min']], true)
+            eq(['===', ['Math.min'], ['Math.max']], false)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.min'], [2, 1, 3]]), ['ok', 1])
+        },
+    },
     mathMax: {
         numbers: () => {
             for (const [args, expected] of /** @type {readonly (readonly [readonly Exp[], number])[]} */ ([

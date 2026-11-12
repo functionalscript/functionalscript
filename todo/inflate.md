@@ -132,11 +132,11 @@ fast path.
 - [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.js): the checksum that
       closes a stream, in the shape of a hash, with its proof against the
       trailer of Node's `zlib.deflateSync`.
-- [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing
+- [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.js): the zlib framing
       and the stored blocks, fed chunks (`init`, `update`, `end`); a malformed
       stream completes with `null`.
 - [x] Fixed and dynamic Huffman blocks with the 32 KiB window
-      ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs), over
+      ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.js), over
       [`bits`](../fjs/zlib/bits/module.f.js),
       [`huffman`](../fjs/zlib/huffman/module.f.js) and
       [`window`](../fjs/zlib/window/module.f.js)): proven against Node's `zlib`
