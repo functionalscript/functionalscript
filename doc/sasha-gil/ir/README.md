@@ -16,11 +16,11 @@ has its own table.
 | Note | Holds |
 | --- | --- |
 | [ir-design.md](./ir-design.md) | The first, independent design: types, op tables, effects, control flow, the lifetime pass, emitters, and the unpacked `str` |
-| [type-system.md](./type-system.md) | Proposed, not decided: the IR as both the code generator's IR and a safe typed language for writing the runtime by hand, with exact integer ranges, sums with declared bit layouts, derived ownership, and a low level under the high one; revised after a second review and the comparison |
+| [type-system.md](./type-system.md) | Proposed, not decided: the IR as both the code generator's IR and a safe typed language for writing the runtime by hand, with exact integer ranges, sums with declared bit layouts, derived ownership, and a low level under the high one; revised after a second review, the comparison and the NaN box check |
 | [comparison.md](./comparison.md) | The comparison round: the plan set against Binaryen's IR, CLIF, MIR, MLIR, Lean's IR, Perceus and Habit's bitdata, and where each finding went |
 | [pointer-width.md](./pointer-width.md) | Decided: how a heap reference fits the NaN box on Rust, where pointers may be wider than 48 bits. Rust's heap is one buffer read in safe code, and a reference is an offset into it, as on WASM |
 | [nan-box-patterns.md](./nan-box-patterns.md) | The 23 bit patterns of the NaN box that type-system.md's layout proof checks, with what each holds, and the check that ran on them |
-| [nan-box-in-ir.md](./nan-box-in-ir.md) | A check of type-system.md: the whole NaN box and nineteen functions over it, written in its eDSL and run by a prototype. Two points need the owner, and thirteen smaller rules are proposed |
+| [nan-box-in-ir.md](./nan-box-in-ir.md) | A check of type-system.md: the whole NaN box and nineteen functions over it, written in its eDSL and run by a prototype. Its two main points and thirteen smaller rules are now in type-system.md, still proposed |
 
 A note's companion files are named after it: `nan-box-in-ir.check.mjs`
 and the other `nan-box-in-ir.*` files belong to
