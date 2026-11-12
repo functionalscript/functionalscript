@@ -25,7 +25,7 @@
  */
 
 import { ok, error } from '../../../types/result/module.f.js'
-import { primitiveToBigInt, primitiveToString, primitiveToNumber, primitiveToNumeric } from '../coercion/module.f.mjs'
+import { primitiveToBigInt, primitiveToString, primitiveToNumber, primitiveToNumeric } from '../coercion/module.f.js'
 
 /** @type {Readonly<Record<'+' | '-' | '~' | 'Number' | 'BigInt', (value: Primitive) => Result<number | bigint, EdagValue>>>} */
 export const unary = {

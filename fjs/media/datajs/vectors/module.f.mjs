@@ -41,6 +41,7 @@
  */
 
 import { decodeLower } from '../../../basen/base16/module.f.js'
+import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
 
 const { keys } = Object
@@ -94,7 +95,7 @@ const at = (path, what) => `at ${path}: ${what}`
 const show = value =>
     Object.is(value, -0) ? '-0' :
     typeof value === 'bigint' ? `${value}n` :
-    typeof value === 'string' ? JSON.stringify(value) :
+    typeof value === 'string' ? stringLiteral(value) :
     isArray(value) ? 'an array' :
     typeof value === 'object' && value !== null ? 'an object' :
     String(value)
@@ -134,10 +135,10 @@ const children = (stack, path, expected, actual) => {
     // first member that is out of place; then the members, last pushed first
     for (let i = 0; i < expectedKeys.length; i += 1) {
         if (expectedKeys[i] !== actualKeys[i]) {
-            return at(path, `expected member ${i} to be ${JSON.stringify(expectedKeys[i])}, got ${JSON.stringify(actualKeys[i])}`)
+            return at(path, `expected member ${i} to be ${stringLiteral(expectedKeys[i])}, got ${stringLiteral(actualKeys[i])}`)
         }
     }
-    return pushAll(expectedKeys.map(key => /** @type {const} */ ([`${path}[${JSON.stringify(key)}]`, expected[key], actual[key]])), stack)
+    return pushAll(expectedKeys.map(key => /** @type {const} */ ([`${path}[${stringLiteral(key)}]`, expected[key], actual[key]])), stack)
 }
 
 /**

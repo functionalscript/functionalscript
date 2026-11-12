@@ -11,7 +11,7 @@ import { assert, assertEq, assertOk, assertError, assertStructurallySame } from 
 import { ok, error } from '../../../types/result/module.f.js'
 import { invoke, invokeWith, vm } from '../../amnesia/module.f.mjs'
 import runtimeEdag from '../../../js/runtime/gen.edag.js'
-import { read } from '../property/module.f.mjs'
+import { read } from '../property/module.f.js'
 import { toData } from '../to_unknown/module.f.mjs'
 import { admits, hasMethod, method } from './module.f.mjs'
 

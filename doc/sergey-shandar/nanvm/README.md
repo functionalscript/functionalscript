@@ -35,21 +35,21 @@ vvvv_vvvv_vvvv_vvvv
 
 `s111_1111_1111...vvvv_vv00`
 
-|               |Cap.|            |States|
-|---------------|----|------------|------|
-|`....0000_0000`|`44`|non-finite  |`3`   |
-|`....0001_0000`|`44`|boolean     |`2`   |
-|`0...0010_0000`|`44`|undefined   |`1`   |
-|`0...0011_0000`|`44`|null        |`1`   |
-|`0...0000_1000`|`44`|empty string|`1`   |
-|`0...0001_1000`|`44`|`1x16`      |`2^16`|
-|`0...0010_1000`|`44`|`2x16`      |`2^32`|
-|`0...0100_1000`|`44`|`4x7`       |`2^28`|
-|`0...0101_1000`|`44`|`5x7`       |`2^35`|
-|`0...0110_1000`|`44`|`6x7`       |`2^42`|
-|`0........0100`|`48`|`3x16`      |`2^48`|
-|`0........1100`|`48`|`8x6`       |`2^48`|
-|`1.........100`|`49`|`7x7`       |`2^49`|
+|         |               |Cap.|            |States|
+|---------|---------------|----|------------|------|
+|number   |`....0000_0000`|`44`|            |`3`   |
+|boolean  |`....0001_0000`|`44`|            |`2`   |
+|undefined|`0...0010_0000`|`44`|            |`1`   |
+|null     |`0...0011_0000`|`44`|            |`1`   |
+|string   |`0...0000_1000`|`44`|empty string|`1`   |
+|         |`0...0001_1000`|`44`|`1x16`      |`2^16`|
+|         |`0...0010_1000`|`44`|`2x16`      |`2^32`|
+|         |`0...0100_1000`|`44`|`4x7`       |`2^28`|
+|         |`0...0101_1000`|`44`|`5x7`       |`2^35`|
+|         |`0...0110_1000`|`44`|`6x7`       |`2^42`|
+|         |`0........0100`|`48`|`3x16`      |`2^48`|
+|         |`0........1100`|`48`|`8x6`       |`2^48`|
+|         |`1.........100`|`49`|`7x7`       |`2^49`|
 
 ## Reference
 
@@ -62,15 +62,34 @@ vvvv_vvvv_vvvv_vvvv
 
 ```rust
 #[repr(transparent)]
-pub struct Any(u64);
+pub struct Type(u8)
 
-const NUMBER_TYPE    : u32 = 0x0;
-const BOOLEAN_TYPE   : u32 = 0x1;
-const UNDEFINED_TYPE : u32 = 0x2;
-const OBJECT_TYPE    : u32 = 0x3;
-const STRING_TYPE    : u32 = 0x4;
-const BIGINT_TYPE    : u32 = 0x5;
-const FUNCTION_TYPE  : u32 = 0x6;
+const NUMBER_TYPE    : u8 = 0x0;
+const BOOLEAN_TYPE   : u8 = 0x1;
+const UNDEFINED_TYPE : u8 = 0x2;
+const OBJECT_TYPE    : u8 = 0x3;
+const STRING_TYPE    : u8 = 0x4;
+const BIGINT_TYPE    : u8 = 0x5;
+const FUNCTION_TYPE  : u8 = 0x6;
+
+impl Type {
+    const NUMBER: Self    = Self(NUMBER_TYPE);
+    const BOOLEAN: Self   = Self(BOOLEAN_TYPE);
+    const UNDEFINED: Self = Self(UNDEFINED_TYPE);
+    const OBJECT: Self    = Self(OBJECT_TYPE);
+    const STRING: Self    = Self(STRING_TYPE);
+    const BIGINT: Self    = Self(BIGINT_TYPE);
+    const FUNCTION: Self  = Self(FUNCTION_TYPE);
+
+    const fn new(v: u8) -> Self {
+        Self(v & 0xF)
+    }
+}
+
+//
+
+#[repr(transparent)]
+pub struct Any(u64);
 
 //
 
@@ -150,14 +169,14 @@ impl Any {
         self.0 & SHORT_BIGINT == SHORT_BIGINT
     }
 
-    pub fn typeof_(&self) -> u32 {
-        if self.is_finite() { return NUMBER_TYPE; }
-        if self.0 & 1 == 1 { return BIGINT_TYPE; }
+    pub fn typeof_(&self) -> Type {
+        if self.is_finite() { return Type::NUMBER; }
+        if self.0 & 1 == 1 { return Type::BIGINT; }
         // reference
-        if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF; }
+        if self.0 & 2 == 2 { return Type::new(self.0 >> 48); }
         // scalar
-        if self.0 & 0xC != 0 { return STRING_TYPE; }
-        (self.0 >> 4) & 0xF
+        if self.0 & 0xC != 0 { return Type::STRING; }
+        Type::new(self.0 >> 4)
     }
 }
 
