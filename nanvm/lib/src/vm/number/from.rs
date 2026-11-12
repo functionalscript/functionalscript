@@ -4,7 +4,13 @@ use super::Number;
 /// keeps its bits.
 impl From<f64> for Number {
     fn from(v: f64) -> Self {
-        if v.is_nan() { Self::NAN } else { Number(v) }
+        // An optimized float NaN select around sqrt may keep Intel's negative
+        // NaN. An integer predicate preserves the canonical bits on return.
+        if v.to_bits() & 0x7fff_ffff_ffff_ffff > 0x7ff0_0000_0000_0000 {
+            Self::NAN
+        } else {
+            Number(v)
+        }
     }
 }
 
