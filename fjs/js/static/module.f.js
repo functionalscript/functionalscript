@@ -41,8 +41,8 @@
  * `String.fromCharCode` for native UTF-16 construction,
  * the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
- * the common-runtime logarithm `Math.log2` and native rounding functions
- * `Math.trunc` and `Math.floor`.
+ * the common-runtime logarithm `Math.log2` and native numeric functions
+ * `Math.trunc`, `Math.floor` and `Math.abs`.
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
@@ -57,6 +57,7 @@ export const statics = /** @type {const} */ ([
     ['Math', 'log2'],
     ['Math', 'trunc'],
     ['Math', 'floor'],
+    ['Math', 'abs'],
 ])
 
 /**
@@ -67,8 +68,8 @@ export const statics = /** @type {const} */ ([
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
  * `String.fromCharCode` is native too: it constructs UTF-16 strings from
  * code units without a large lookup table.
- * `Math.trunc` and `Math.floor` use compatible native rounding in Rust and
- * core WASM.
+ * `Math.trunc`, `Math.floor` and `Math.abs` have compatible native numeric
+ * operations in Rust and core WASM.
  * Every other path of {@link statics} has its body in the runtime.
  */
 export const natives = /** @type {const} */ ([
@@ -76,6 +77,7 @@ export const natives = /** @type {const} */ ([
     ['String', 'fromCharCode'],
     ['Math', 'trunc'],
     ['Math', 'floor'],
+    ['Math', 'abs'],
 ])
 
 /** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */

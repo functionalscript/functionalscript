@@ -28,7 +28,7 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`, `Object.is`,
+The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Object.is`,
 `Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
 four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
@@ -66,6 +66,14 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`.
+
+`Math.abs(x)` converts its first argument with `ToNumber`, then returns its
+absolute value: `Math.abs("-1.9")` is `1.9`, `Math.abs(-0)` is positive zero,
+and `Math.abs(-Infinity)` is positive infinity. `NaN` remains `NaN`.
+Missing arguments produce `NaN`; primitive or converted bigints and failed
+conversion throw. Extra arguments are evaluated but not converted.
+The numeric operation is native in Rust and core WASM
+([admission](../../todo/2360-built-in.md#mathabs-proposal-and-approval)).
 
 `Math.floor(x)` converts its first argument with `ToNumber`, then rounds
 toward negative infinity: `Math.floor("1.9")` is `1`, and

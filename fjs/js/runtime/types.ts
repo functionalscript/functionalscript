@@ -83,3 +83,5 @@ type _NativeFromCharCode = Assert<Equal<Statics['String.fromCharCode'], typeof S
 type _NativeTrunc = Assert<Equal<Statics['Math.trunc'], typeof Math.trunc>>
 
 type _NativeFloor = Assert<Equal<Statics['Math.floor'], typeof Math.floor>>
+
+type _NativeAbs = Assert<Equal<Statics['Math.abs'], typeof Math.abs>>

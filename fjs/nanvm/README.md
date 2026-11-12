@@ -39,7 +39,7 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in
-[`fjs/media/rust`](../media/rust/module.f.mjs). Rust *names* for the operations
+[`fjs/media/rust`](../media/rust/module.f.js). Rust *names* for the operations
 are the printer's own explicit map, never `snakeCase` over a canonical id. A
 method group's name is the exception that proves it: a method name is already
 an identifier, so its function is `method_` and the name in snake case.

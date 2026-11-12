@@ -76,6 +76,14 @@ marker in place of a body would only duplicate the parser's list.
 
 ## Math functions
 
+`Math.abs` is native: Rust provides `f64::abs` and core WASM provides
+`f64.abs`. It returns positive magnitudes, including positive zero for `-0`
+and positive infinity for negative infinity, while preserving `NaN`. The
+runtime table holds the JavaScript built-in itself; represented execution
+and Rust convert once with `ToNumber` before the numeric operation. No
+dependency is added. See the
+[admission record](../../../spec/todo/2360-built-in.md#mathabs-proposal-and-approval).
+
 `Math.floor` is native: Rust provides `f64::floor` and core WASM provides
 `f64.floor`, rounding toward negative infinity. Both zeros, infinities and
 `NaN` are preserved; negative fractions, including negative subnormals, round
@@ -158,7 +166,7 @@ The VMs bind these natively:
   compiler recognizes whole as a node every executor answers natively, so
   no body of this module makes a member call;
 - the **compatible native math operations** available in both Rust and core
-  WASM, currently `Math.trunc` and `Math.floor`, under the target rule above;
+  WASM, currently `Math.trunc`, `Math.floor` and `Math.abs`, under the target rule above;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on

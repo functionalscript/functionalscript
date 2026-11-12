@@ -26,7 +26,7 @@
  * @example
  *
  * ```js
- * import { f64Bits, i64Literal, stringLiteral } from './module.f.mjs'
+ * import { f64Bits, i64Literal, stringLiteral } from './module.f.js'
  *
  * stringLiteral('a"b') // ok('"a\\"b"')
  * f64Bits(2.3)         // '0x4002666666666666'
@@ -189,14 +189,8 @@ const i64Max = 2n ** 63n - 1n
  */
 export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toString())
 
-/**
- * The magnitude of `v` as a Rust `&[u64]` literal, least significant word
- * first, each word in hexadecimal — the spelling of a bigint outside `i64`,
- * which {@link i64Literal} refuses. Zero is `&[]`.
- *
- * @type {(v: bigint) => string}
- */
-export const u64Words = v => sliceLiteral(u64WordItems(v))
+/** @type {(a: bigint) => readonly bigint[]} */
+const words = a => a === 0n ? [] : [a & 0xffff_ffff_ffff_ffffn, ...words(a >> 64n)]
 
 /**
  * The `u64` words of `v`'s magnitude, least significant first, each as the
@@ -206,8 +200,14 @@ export const u64Words = v => sliceLiteral(u64WordItems(v))
  */
 export const u64WordItems = v => words(v < 0n ? -v : v).map(u64Hex)
 
-/** @type {(a: bigint) => readonly bigint[]} */
-const words = a => a === 0n ? [] : [a & 0xffff_ffff_ffff_ffffn, ...words(a >> 64n)]
+/**
+ * The magnitude of `v` as a Rust `&[u64]` literal, least significant word
+ * first, each word in hexadecimal — the spelling of a bigint outside `i64`,
+ * which {@link i64Literal} refuses. Zero is `&[]`.
+ *
+ * @type {(v: bigint) => string}
+ */
+export const u64Words = v => sliceLiteral(u64WordItems(v))
 
 /**
  * A `snake_case` Rust identifier from a `camelCase` name.
@@ -221,6 +221,9 @@ export const snakeCase = v => [...v].map(c => {
     const lower = c.toLowerCase()
     return c === lower ? c : `_${lower}`
 }).join('')
+
+/** Whether `c` is a lowercase letter: a digit or a mark is neither case. @type {(c: string) => boolean} */
+const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()
 
 /**
  * The Rust identifier of a built-in's name — `object_is` for `Object.is`,
@@ -240,10 +243,7 @@ export const snakeCase = v => [...v].map(c => {
 export const builtInIdentifier = name => name.split('.').map(part => [...part].map((c, i) => {
     const lower = c.toLowerCase()
     const last = i === part.length - 1
-    const nan = last && i >= 2 && !isLower(part[i - 2])
-    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && !nan
+    const nan = last && i >= 2 && !isLower(part[Number(i - 2)])
+    const starts = c !== lower && i > 0 && isLower(part[Number(i - 1)]) && !nan
     return starts ? `_${lower}` : lower
 }).join('')).join('_')
-
-/** Whether `c` is a lowercase letter: a digit or a mark is neither case. @type {(c: string) => boolean} */
-const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()

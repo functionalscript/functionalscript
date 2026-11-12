@@ -308,7 +308,7 @@ body, represented interpreters and generated NaNVM code to JavaScript.
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [x] `Math` — a reserved namespace admitting the static functions
-      `Math.log2`, `Math.trunc` and `Math.floor`; other members remain separate admissions
+      `Math.log2`, `Math.trunc`, `Math.floor` and `Math.abs`; other members remain separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
 - [ ] `Date`
@@ -465,6 +465,42 @@ truncation toward zero.
 
 **Language-design approval.** **sergey-shandar** explicitly requested
 implementation of `Math.floor` in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.abs proposal and approval
+
+**Problem.** The compiler refused `Math.abs`, blocking the Rust-number
+serializer after its helper-order correction.
+
+**Proposal.** Admit the native static value `Math.abs`, EDAG node
+`['Math.abs']`, with ordinary quoted and destructured reads, detached and
+optional calls, stable identity, native function text and `length` of one.
+Other `Math` members remain separate admissions.
+
+Convert the first argument once with JavaScript `ToNumber`, then take its
+absolute value. Both zeros produce positive zero; negative infinity becomes
+positive infinity; finite magnitudes, including subnormals, are exact; `NaN`
+remains `NaN`. Missing arguments produce `NaN`. Primitive or converted
+bigints and failed primitive conversion throw. Extra arguments are evaluated
+but are not numerically converted.
+
+**Backend choice.** Both targets provide the numeric operation:
+[Rust `f64::abs`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.abs)
+and [core WASM `f64.abs`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fabs).
+Use native bindings under the approved target rule. The runtime table holds
+JavaScript's built-in itself; represented execution and Rust apply their
+existing `ToNumber` conversion before native absolute value. A future WASM
+backend can use `f64.abs` after conversion, without third-party dependencies.
+
+**Benefits.** Familiar JavaScript spelling and exact native absolute value
+on both targets, without another numerical implementation or dependency.
+
+**Drawbacks.** Each executor needs a binding that preserves conversion
+failures and returns positive zero for `-0`. This is a separate admission
+from other `Math` functions.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.abs` in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing

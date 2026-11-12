@@ -74,7 +74,7 @@ a different result and no invalid program was accepted; every difference
 was a refusal. The one output defect found was a wrong kind of failure,
 not a wrong value — a string the `.rs` writer could not spell was thrown
 past the compiler or written as a file `rustc` refused — and
-[`fjs/media/rust`](../fjs/media/rust/module.f.mjs) now spells or refuses
+[`fjs/media/rust`](../fjs/media/rust/module.f.js) now spells or refuses
 each such literal.
 
 #### Module resolution — current implementation, rule 2

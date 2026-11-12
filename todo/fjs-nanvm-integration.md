@@ -142,6 +142,16 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Native absolute value
+
+#3796 (`a2a1ad24f`) admits `Math.abs` natively via Rust's `f64::abs` and core
+WASM's `f64.abs`, preserving conversion and returning positive zero for `-0`.
+`e7b33782f` places `u64WordItems` before its caller; `f6507d12b` places
+`words` before `u64WordItems`; `4cc48d007` places `isLower` before its caller.
+`cc3c9814d` makes both string indexes explicit and promotes `media/rust` to
+`.f.js`. The graph has **276 `.f.js` files**, **367 `.f.mjs` files** and
+**14 blocked leaves**; the final pass accepts none and exposes no new leaves.
+
 #### Native floor
 
 #3794 (`0a4270f0a`) admits `Math.floor` natively via Rust's `f64::floor`
@@ -864,23 +874,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/nullable/module.f.mjs` | 61:5 | `assert(…)` as a statement in `unwrap` | Nothing: the one refusal, which rule 10 rewrites |
 | `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ebnf/ast', 'text/ascii', 'types/function/compare', 'types/list',
-  'types/map', 'types/nullable', 'zlib/bits',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `122820b` (historical)
 

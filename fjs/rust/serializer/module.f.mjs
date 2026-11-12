@@ -13,7 +13,7 @@
  * @import { Stack } from '../../types/stack_walk/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
@@ -480,12 +480,12 @@ const operation = (s, n, result) => {
     const tag = n[0]
     if (isStatic([tag])) {
         if (s.runtime !== null) { return map1(fallible(result))(ok(cat([unstable('static_read'), `(&${s.runtime}, ${str(unwrap(stringLiteral(tag)))})`]))) }
-        if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
+        if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
         if (tag === 'String.fromCharCode') {
             return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
         }
-        if (tag === 'Math.trunc' || tag === 'Math.floor') {
-            const method = tag === 'Math.floor' ? 'floor' : 'trunc'
+        if (tag === 'Math.trunc' || tag === 'Math.floor' || tag === 'Math.abs') {
+            const method = tag === 'Math.abs' ? 'abs' : tag === 'Math.floor' ? 'floor' : 'trunc'
             return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', argRead(0), `.to_number().map(|v| v.${method}().to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
         }
         return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
