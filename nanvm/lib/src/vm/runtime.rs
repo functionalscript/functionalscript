@@ -189,7 +189,7 @@ mod tests {
             .unwrap();
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
-        for id in ["Object.values", "Math.max", "Object", "is", "toString", ""] {
+        for id in ["Object.values", "Math.min", "Object", "is", "toString", ""] {
             assert!(static_at(&rt, id).is_nullish(), "{id}");
         }
         let dot = at(&rt, "dot");
@@ -232,7 +232,7 @@ mod tests {
             static_read(&rt, "Object.keys").unwrap(),
             static_at(&rt, "Object.keys")
         );
-        for path in ["Object.values", "Math.max", "Object", "Math"] {
+        for path in ["Object.values", "Math.min", "Object", "Math"] {
             assert_eq!(static_read(&rt, path), Err(error::no_static_function(path)));
         }
     }

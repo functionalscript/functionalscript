@@ -57,6 +57,13 @@ pub mod math_log2_bigint_boundaries;
 pub mod math_log2_bigint_throws;
 pub mod math_log2_coercion_throws;
 pub mod math_log2_converted_bigint_throws;
+pub mod math_max;
+pub mod math_max_argument_throws;
+pub mod math_max_bigint_throws;
+pub mod math_max_coercion_throws;
+pub mod math_max_converted_bigint_throws;
+pub mod math_max_infinity_coercion_throws;
+pub mod math_max_nan_coercion_throws;
 pub mod math_sqrt;
 pub mod math_sqrt_bigint_throws;
 pub mod math_sqrt_coercion_throws;
@@ -175,6 +182,13 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "math_log2_bigint_throws", fixture: crate::fixtures::math_log2_bigint_throws::module::<Naive>, expected: math_log2_bigint_throws::module::<Naive>, json: math_log2_bigint_throws::JSON, throws: math_log2_bigint_throws::THROWS },
     crate::Case { name: "math_log2_coercion_throws", fixture: crate::fixtures::math_log2_coercion_throws::module::<Naive>, expected: math_log2_coercion_throws::module::<Naive>, json: math_log2_coercion_throws::JSON, throws: math_log2_coercion_throws::THROWS },
     crate::Case { name: "math_log2_converted_bigint_throws", fixture: crate::fixtures::math_log2_converted_bigint_throws::module::<Naive>, expected: math_log2_converted_bigint_throws::module::<Naive>, json: math_log2_converted_bigint_throws::JSON, throws: math_log2_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_max", fixture: crate::fixtures::math_max::module::<Naive>, expected: math_max::module::<Naive>, json: math_max::JSON, throws: math_max::THROWS },
+    crate::Case { name: "math_max_argument_throws", fixture: crate::fixtures::math_max_argument_throws::module::<Naive>, expected: math_max_argument_throws::module::<Naive>, json: math_max_argument_throws::JSON, throws: math_max_argument_throws::THROWS },
+    crate::Case { name: "math_max_bigint_throws", fixture: crate::fixtures::math_max_bigint_throws::module::<Naive>, expected: math_max_bigint_throws::module::<Naive>, json: math_max_bigint_throws::JSON, throws: math_max_bigint_throws::THROWS },
+    crate::Case { name: "math_max_coercion_throws", fixture: crate::fixtures::math_max_coercion_throws::module::<Naive>, expected: math_max_coercion_throws::module::<Naive>, json: math_max_coercion_throws::JSON, throws: math_max_coercion_throws::THROWS },
+    crate::Case { name: "math_max_converted_bigint_throws", fixture: crate::fixtures::math_max_converted_bigint_throws::module::<Naive>, expected: math_max_converted_bigint_throws::module::<Naive>, json: math_max_converted_bigint_throws::JSON, throws: math_max_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_max_infinity_coercion_throws", fixture: crate::fixtures::math_max_infinity_coercion_throws::module::<Naive>, expected: math_max_infinity_coercion_throws::module::<Naive>, json: math_max_infinity_coercion_throws::JSON, throws: math_max_infinity_coercion_throws::THROWS },
+    crate::Case { name: "math_max_nan_coercion_throws", fixture: crate::fixtures::math_max_nan_coercion_throws::module::<Naive>, expected: math_max_nan_coercion_throws::module::<Naive>, json: math_max_nan_coercion_throws::JSON, throws: math_max_nan_coercion_throws::THROWS },
     crate::Case { name: "math_sqrt", fixture: crate::fixtures::math_sqrt::module::<Naive>, expected: math_sqrt::module::<Naive>, json: math_sqrt::JSON, throws: math_sqrt::THROWS },
     crate::Case { name: "math_sqrt_bigint_throws", fixture: crate::fixtures::math_sqrt_bigint_throws::module::<Naive>, expected: math_sqrt_bigint_throws::module::<Naive>, json: math_sqrt_bigint_throws::JSON, throws: math_sqrt_bigint_throws::THROWS },
     crate::Case { name: "math_sqrt_coercion_throws", fixture: crate::fixtures::math_sqrt_coercion_throws::module::<Naive>, expected: math_sqrt_coercion_throws::module::<Naive>, json: math_sqrt_coercion_throws::JSON, throws: math_sqrt_coercion_throws::THROWS },

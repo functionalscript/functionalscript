@@ -110,6 +110,32 @@ const samples = [
 ]
 
 export const proof = /** @type {const} */ ({
+    max: {
+        numbers: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            assertEq(max, Math.max)
+            assertEq(runtime.static('Math.max'), max)
+            assertEq(max.length, 2)
+            for (const [args, expected] of /** @type {const} */ ([
+                [[], -Infinity], [[-Infinity], -Infinity], [[Infinity], Infinity],
+                [[0], 0], [[-0], -0], [[-0, -0, -0], -0],
+                [[-0, 0], 0], [[0, -0], 0], [[-0, -0, 0], 0],
+                [[-3, -2, -1], -1], [[5, 2, 4, 3], 5],
+                [[5e-324, -5e-324, 0], 5e-324],
+                [[1.7976931348623157e308, -Infinity], 1.7976931348623157e308],
+                [[NaN], NaN], [[NaN, Infinity, 1], NaN], [[Infinity, 1, NaN], NaN],
+            ])) { assert(Object.is(max(...args), expected), args) }
+        },
+        conversion: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(max(value, -3, 2), Math.max(/** @type {number} */ (value), -3, 2)), value)
+                assert(Object.is(max(-3, 2, value), Math.max(-3, 2, /** @type {number} */ (value))), value)
+            }
+            assertEq(max({ valueOf: () => 9, toString: () => { throw 'unreached' } }, 3, 5), 9)
+            assertEq(max(-1, 0, { valueOf: () => ({}), toString: () => '16' }), 16)
+        },
+    },
     sqrt: {
         numbers: () => {
             const sqrt = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.sqrt'])
@@ -377,7 +403,7 @@ export const proof = /** @type {const} */ ({
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.values', 'Math.max', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.min', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -646,6 +672,22 @@ export const proof = /** @type {const} */ ({
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        maxBigint: () => { table['Math.max'](1n, 0) },
+        maxBigintAfterNaN: () => { table['Math.max'](NaN, 1n) },
+        maxBigintAfterInfinity: () => { table['Math.max'](Infinity, 1n) },
+        maxBigintLast: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            max(0, 0, 1n)
+        },
+        maxBigintPrimitive: () => { table['Math.max']({ valueOf: () => 1n }, 0) },
+        maxBigintPrimitiveAfterNaN: () => { table['Math.max'](NaN, { valueOf: () => 1n }) },
+        maxBigintPrimitiveLast: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            max(NaN, Infinity, { valueOf: () => 1n })
+        },
+        maxConversionAfterNaN: () => { table['Math.max'](NaN, { valueOf: () => { throw 'conversion' } }) },
+        maxConversionAfterInfinity: () => { table['Math.max'](Infinity, { valueOf: () => { throw 'conversion' } }) },
+        maxNoPrimitive: () => { table['Math.max'](0, { valueOf: () => ({}), toString: () => [] }) },
         sqrtBigint: () => { table['Math.sqrt'](1n, undefined) },
         sqrtBigintPrimitive: () => { table['Math.sqrt']({ valueOf: () => 1n }, undefined) },
         sqrtConversion: () => { table['Math.sqrt']({ valueOf: () => { throw 'conversion' } }, undefined) },

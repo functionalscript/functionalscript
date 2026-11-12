@@ -137,6 +137,15 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
         if (fn[0] === 'Math.abs') { return ok(Math.abs(converted[1])) }
         return ok(fn[0] === 'Math.sqrt' ? Math.sqrt(converted[1]) : Math.ceil(converted[1]))
     }
+    if (fn[0] === 'Math.max') {
+        let maximum = -Infinity
+        for (const value of values) {
+            const converted = toNumber(value, invoke)
+            if (converted[0] === 'error') { return converted }
+            maximum = Math.max(maximum, converted[1])
+        }
+        return ok(maximum)
+    }
     if (fn[0] === 'Math.imul') {
         const left = toNumber(values.length === 0 ? ['undefined'] : values[0], invoke)
         if (left[0] === 'error') { return left }
@@ -334,8 +343,8 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': case 'Math.sqrt': case 'Math.ceil': case 'Math.imul': {
-                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs' || node[0] === 'Math.sqrt' || node[0] === 'Math.ceil' || node[0] === 'Math.imul') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
+            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': case 'Math.sqrt': case 'Math.ceil': case 'Math.imul': case 'Math.max': {
+                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs' || node[0] === 'Math.sqrt' || node[0] === 'Math.ceil' || node[0] === 'Math.imul' || node[0] === 'Math.max') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
             }

@@ -29,9 +29,9 @@ export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.
 ```
 
 The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`,
-`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Object.is`, `Object.entries`,
-`Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the four `Number`
-predicates. `Object.is` is JavaScript's
+`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Object.is`,
+`Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode`
+and the four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -67,6 +67,18 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`.
+
+`Math.max(...values)` converts every argument with `ToNumber`, from left to
+right, then returns the greatest value. No arguments produce negative infinity.
+Any converted `NaN` produces `NaN`, but all remaining arguments are still
+converted, so `Math.max(NaN, 1n)` throws. Conversion also continues after
+positive infinity. Primitive or converted bigints and failed primitive
+conversion throw; argument expressions are evaluated before invocation.
+Positive zero beats negative zero in either order; negative zero alone is
+preserved. The function has `length` 2 and native function text, and is native
+in Rust and core WASM. Rust corrects its native `max`'s `NaN` and zero-tie
+behavior before folding it over the arguments
+([admission](../../todo/2360-built-in.md#mathmax-proposal-and-approval)).
 
 `Math.sqrt(x)` converts its first argument with `ToNumber`, then returns its
 non-negative square root: `Math.sqrt("9")` is `3`. Both zeros are preserved,
@@ -169,7 +181,7 @@ conversion already, is a namespace the same way, beside the call
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
 `Math` is reserved in the same way and admits `log2`, `trunc`, `floor`, `abs`,
-`sqrt`, `ceil` and `imul`.
+`sqrt`, `ceil`, `imul` and `max`.
 `Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
 function, with `length` 1 and text `function log2() { [native code] }`.
 The word alone, namespace guards, computed keys and other `Math` members

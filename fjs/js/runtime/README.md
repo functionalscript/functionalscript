@@ -76,6 +76,14 @@ marker in place of a body would only duplicate the parser's list.
 
 ## Math functions
 
+`Math.max` uses Rust's `f64::max` and core WASM's `f64.max` after converting
+every argument in order with `ToNumber`. The executor handles the JavaScript
+boundary cases around that native comparison: no arguments return negative
+infinity, any `NaN` makes the result `NaN`, and positive zero wins over negative
+zero. Conversion continues after `NaN` or positive infinity, so a later
+conversion failure still throws. Its runtime entry is the JavaScript built-in,
+and WASM needs no third-party dependency.
+
 `Math.sqrt` and `Math.ceil` are native: Rust provides `f64::sqrt` and
 `f64::ceil`, and core WASM provides `f64.sqrt` and `f64.ceil`. Square root
 preserves negative zero and returns `NaN` for negative nonzero inputs.
@@ -182,7 +190,7 @@ The VMs bind these natively:
   no body of this module makes a member call;
 - the **compatible native math operations** available in both Rust and core
   WASM, currently `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-  `Math.ceil` and `Math.imul`, under the target rule above;
+  `Math.ceil`, `Math.imul` and `Math.max`, under the target rule above;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on

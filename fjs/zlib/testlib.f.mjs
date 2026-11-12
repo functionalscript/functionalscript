@@ -18,6 +18,7 @@ import { decode } from '../basen/base16/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.js'
 import { run } from '../types/list/module.f.js'
 import { adler32 } from './adler32/module.f.js'
+import { generate } from '../types/array/generate/module.f.js'
 
 /** The words a text is made of. */
 const words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'function', 'const', 'return', 'let', 'if', 'else', 'import', ' ', '\n', '(', ')', '{', '}', '=>']
@@ -36,7 +37,8 @@ export const text = n => {
     let bytes = []
     while (bytes.length < n) {
         seed = next(seed)
-        bytes = [...bytes, ...Array.from(words[seed % words.length], c => c.charCodeAt(0))]
+        const characters = [...words[Number(seed % words.length)]]
+        bytes = [...bytes, ...generate(characters.length, i => characters[Number(i)].charCodeAt(0))]
     }
     return bytes.slice(0, n)
 }
@@ -48,7 +50,7 @@ export const text = n => {
  */
 export const noise = n => {
     let seed = 11
-    return Array.from({ length: n }, () => {
+    return generate(n, () => {
         seed = next(seed)
         return seed >> 16 & 0xff
     })
@@ -74,7 +76,7 @@ export const hex = text => {
  */
 export const closing = data => u8ArrayMsb(run(adler32)(
     // a `Vec` holds 128 KiB, and the bytes may be more
-    Array.from({ length: Math.ceil(data.length / 0xffff) }, (_, i) => u8ListToVecMsb(data.slice(i * 0xffff, (i + 1) * 0xffff)))))
+    generate(Math.ceil(data.length / 0xffff), i => u8ListToVecMsb(data.slice(i * 0xffff, (i + 1) * 0xffff)))))
 
 /**
  * A zlib stream of stored blocks holding `blocks`, one block each, the last
@@ -100,28 +102,31 @@ export const stored = blocks => [
 export const storedBytes = bytes => stored(
     bytes.length === 0
         ? [[]]
-        : Array.from({ length: Math.ceil(bytes.length / 0xffff) }, (_, i) => bytes.slice(i * 0xffff, (i + 1) * 0xffff)))
+        : generate(Math.ceil(bytes.length / 0xffff), i => bytes.slice(i * 0xffff, (i + 1) * 0xffff)))
 
 /**
  * The `n` low bits of `value`, the lowest first.
  *
  * @type {(value: number, n: number) => readonly number[]}
  */
-export const field = (value, n) => Array.from({ length: n }, (_, i) => value >> i & 1)
+export const field = (value, n) => generate(n, i => value >> i & 1)
 
 /**
  * A code as it is written, its first bit first.
  *
  * @type {(text: string) => readonly number[]}
  */
-export const written = text => Array.from(text, Number)
+export const written = text => {
+    const characters = [...text]
+    return generate(characters.length, i => Number(characters[Number(i)]))
+}
 
 /**
  * Bits as bytes, the first bit the lowest of the first byte.
  *
  * @type {(bits: readonly number[]) => readonly number[]}
  */
-export const bytes = bits => Array.from({ length: Math.ceil(bits.length / 8) }, (_, i) =>
+export const bytes = bits => generate(Math.ceil(bits.length / 8), i =>
     bits.slice(8 * i, 8 * i + 8).reduce((byte, bit, j) => byte | bit << j, 0))
 
 /**
