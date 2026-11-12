@@ -10,6 +10,9 @@ not a v1 requirement or a committed v2 feature. This TODO records the design
 for later consideration; it does not authorize implementation. This planning
 direction comes from the [working session](https://chatgpt.com/local/6af607d6-7994-8191-b9a8-1309ba7a700d).
 
+The API returns `bigint` from its first version, independently of the language
+release in which it ships. Obfuscation is an optional follow-up.
+
 The plain counter below is the minimal reference design. A separate
 [follow-up TODO](./object-identity-id-obfuscation.md) records the proposed
 nonce and reversible uint32 permutation, also tentatively for v2.
@@ -22,33 +25,36 @@ index arbitrary references efficiently using equality alone. `Map` and `Set`
 are not language types; adding them would require new VM representations and
 interface support.
 
-Provide a string identity that existing persistent string-keyed collections
-can use, without first adding a collection type to the language.
+Provide a bigint identity that persistent collections can compare or index
+without first adding a collection type to the language. The generic B-tree
+can use a bigint comparator; the current string-keyed `OrderedMap` needs
+adaptation or a specialization to retain bigint keys without text conversion.
 
 ### Proposal
 
 Recognize an `id` helper as a complete function pattern, like
 [`entry`](../property-access/entries/README.md). Its proposed type-level API is
-`(o: unknown) => string`; executable FJS source remains JavaScript, with types
+`(o: unknown) => bigint`; executable FJS source remains JavaScript, with types
 in JSDoc or companion declarations. Behavior for primitive inputs is still
 undecided.
 
 One possible JavaScript implementation shares a registry through a namespaced
-string key on `globalThis`. A `WeakMap` associates references with strings; a
+string key on `globalThis`. A `WeakMap` associates references with bigints; a
 monotonically increasing `bigint` counter allocates new IDs. No symbol key is
 needed. The following is a **proposal sketch for object and function inputs**,
 not currently accepted FJS or a settled recognition grammar:
 
 ```js
 const id = o => {
-    const registry = globalThis['functionalscript.object-id.v1'] ??= {
+    const registry = globalThis['functionalscript.object-id.bigint.v1'] ??= {
         ids: new WeakMap(),
         next: 0n,
     };
     const existing = registry.ids.get(o);
     if (existing !== undefined) return existing;
-    const result = String(registry.next++);
+    const result = registry.next;
     registry.ids.set(o, result);
+    registry.next += 1n;
     return result;
 };
 ```
@@ -56,16 +62,18 @@ const id = o => {
 ### Result contract
 
 The [proposed spec contract](../design/object-identity.md#proposed-id-result-contract)
-allows non-sequential, nonnumeric strings and different implementations in
+allows non-sequential bigint values and different implementations in
 different VMs. The counter above is one implementation candidate; concrete
 labels and results derived from them need not match across VMs or runs.
-Ordinary string equality and ordering remain usable within an execution.
+Ordinary bigint equality and ordering remain usable within an execution.
+The contract does not prescribe a sign or fixed integer width; the counter
+sketch happens to produce nonnegative values.
 
 Within one identity scope:
 
-- Repeated requests for the same reference return the same string.
+- Repeated requests for the same reference return the same bigint.
 - Distinct references under the applicable identity semantics receive distinct
-  strings, even with identical contents in the JavaScript-compatible profile.
+  bigint values, even with identical contents in the JavaScript-compatible profile.
 - Objects, arrays and functions participate; IDs are never reused, including
   after their objects are collected.
 - Separate helper definitions and modules share the registry. Weak keys do
@@ -85,12 +93,13 @@ VM interfaces: reconstructing a fresh wrapper on each request is insufficient.
 **Benefits.** Supplies the missing key for identity-based collections while
 returning an existing VM value type. Collection layout and persistent updates
 remain library work. The JavaScript spelling runs directly without rewriting
-the source.
+the source. Returning bigint avoids decimal encoding and decoding and lets
+VMs use their compact bigint representation where available.
 
 **Drawbacks.** Introduces shared mutable allocation state, a recognized
 pattern and native support. Each reference lookup has a registry cost; in the
-counter implementation, exact strings depend on first-use order. Returning a
-string avoids a new value type but does not eliminate VM/interface work.
+counter implementation, exact values depend on first-use order. Returning a
+bigint avoids a new value type but does not eliminate VM/interface work.
 
 ### Admission and open decisions
 
@@ -105,14 +114,14 @@ const result = id(b);
 
 For distinct, previously unseen objects in this counter implementation,
 removing the unused call changes `result`. Reordering first requests also
-changes returned strings. The proposed result contract deliberately permits
+changes returned bigint values. The proposed result contract deliberately permits
 implementation-dependent labels and consequences of observing them; it needs
 an explicit exception to the current principles. Pattern recognition alone
 does not make the operation pure.
 
 Decide how the feature fits those principles before implementation. The
 alternative discussed is an ordinary [runner effect](../design/io-effects.md)
-whose handler owns the registry and returns the string through a continuation.
+whose handler owns the registry and returns the bigint through a continuation.
 That uses the existing effect model; a synchronous `id` pattern needs a
 separate admission decision covering the proposed exception and its optimizer
 rules. Recording the future result contract does not admit the feature today.
@@ -141,7 +150,8 @@ Reject or explicitly encode primitives; do not silently box them into fresh obje
   object identity, weak retention and no ID reuse. Carry ordering/state through
   the approved execution model; do not treat observable allocation as pure.
 - [ ] Add focused proofs for aliases, equal-content distinct objects,
-  arrays/functions, registry sharing, the primitive policy and identity
+  arrays/functions, bigint results including cached `0n`, registry sharing,
+  the primitive policy and identity
   guarantees across executors; do not require identical labels from different
   implementations. Cover the unused-call example, later exported calls
   and, for a pattern, refusal of bodies that depart from its approved shape.
@@ -152,6 +162,9 @@ Reject or explicitly encode primitives; do not silently box them into fresh obje
 
 - [References in containers](../../todo/037-language-design-map.md) — the
   broader capability gap and collection alternatives.
+- [Generic B-tree](../../fjs/types/btree/README.md) and
+  [string-keyed ordered map](../../fjs/types/ordered_map/types.ts) — collection
+  integration for bigint keys.
 - [Object identity](../design/object-identity.md) — the existing design sketch.
 - [Entry helpers](../property-access/entries/README.md) — complete function
   patterns already recognized by the compiler.

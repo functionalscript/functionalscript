@@ -14,16 +14,18 @@ the [working session](https://chatgpt.com/local/6af607d6-7994-8191-b9a8-1309ba7a
 
 For supported reference values within one identity scope:
 
-- A successful `id` call returns a string that remains stable for that reference.
+- A successful `id` call returns a `bigint` that remains stable for that
+  reference. This is the return type from the first version of the API.
 - Two references have equal IDs if and only if they are equal under the VM's
   applicable reference-identity semantics. IDs are not reused within the scope.
-- Results **need not be sequential or numeric**. Their string ordering carries
+- Results **need not be sequential**. Their numeric ordering carries
   no guarantee about object creation order or first ID request order.
 - **Different VMs may provide different implementations** and return different
-  concrete strings. No particular counter, nonce or permutation is required by
-  this contract, and labels need not agree across VMs or independent executions.
+  concrete bigint values. No particular counter, nonce, permutation, sign or
+  fixed integer width is required by this contract, and labels need not agree
+  across VMs or independent executions.
 
-Ordinary string equality and ordering still work within an execution, allowing
+Ordinary bigint equality and ordering still work within an execution, allowing
 IDs to key ordered containers. Results derived from the concrete labels, such
 as sorting them or comparing one with a literal, may also differ across VMs or
 runs. This is a proposed feature-specific exception to successful-result

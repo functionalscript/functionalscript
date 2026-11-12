@@ -23,12 +23,13 @@ Unpredictability is an intended weaker guarantee, not a claim of purity.
 
 Initialize one random uint32 nonce per registry. Map each uint32 counter
 through the bijective `lowbias32` mixer, XORing the nonce before and after
-mixing, then return the unsigned result as a decimal string. This is a
+mixing, then convert the unsigned result to `bigint`. This is a
 permutation of the uint32 space for each fixed nonce, not a digest with
 collisions. This is one implementation candidate; the
 [proposed spec contract](../design/object-identity.md#proposed-id-result-contract)
 allows each VM to choose a different implementation and does not require this
-mixer, nonce or numeric string format.
+mixer, nonce or fixed integer width. The base API already returns bigint;
+obfuscation does not change its return type.
 
 This **JavaScript reference sketch** inlines the mixer so the proposed
 function pattern is self-contained. It accepts objects, arrays and functions;
@@ -45,7 +46,7 @@ const id = o => {
     }
 
     const registry =
-        globalThis['functionalscript.object-id.u32.v1'] ??= {
+        globalThis['functionalscript.object-id.bigint.u32.v1'] ??= {
             ids: new WeakMap(),
             next: 0,
             nonce: crypto.getRandomValues(new Uint32Array(1))[0],
@@ -61,7 +62,7 @@ const id = o => {
     let x = registry.next ^ registry.nonce;
     x = Math.imul(x ^ (x >>> 16), 0x7feb352d);
     x = Math.imul(x ^ (x >>> 15), 0x846ca68b);
-    const result = String(
+    const result = BigInt(
         (x ^ (x >>> 16) ^ registry.nonce) >>> 0,
     );
 
@@ -71,8 +72,9 @@ const id = o => {
 };
 ```
 
-The string key identifies this registry layout separately from the earlier
-BigInt-counter sketch. Its `v1` suffix versions the layout, not the language
+The string key identifies this registry layout separately from the plain
+bigint-counter sketch and the earlier string-returning examples. Its `v1`
+suffix versions the layout, not the language
 release. `??=` generates the nonce only on initialization, and every copy of
 this helper in the same realm shares that nonce and registry.
 
@@ -81,6 +83,8 @@ Coercing the stored counter with `| 0` or `>>> 0` would wrap and reuse IDs.
 The exhaustion check rejects new objects after the uint32 space is used;
 cached objects remain accessible because their lookup comes first. Collection
 of an object does not recycle its ID or reset the nonce.
+Returning bigint does not widen this implementation's uint32 allocation space;
+other implementations may choose wider IDs.
 
 ### Reversibility and limits
 
@@ -88,11 +92,12 @@ The mixer and its inverse are published in
 [`hash-prospector`](https://github.com/skeeto/hash-prospector#discovered-hash-functions).
 The nonce wrapper is this proposal's addition. XOR-right-shifts are invertible,
 and the odd multipliers have inverses modulo `2**32`, so every step is
-bijective. For a numeric key and the same nonce, the inverse is:
+bijective. For a bigint ID produced by this uint32 implementation and the same
+nonce, the inverse returns the original Number counter:
 
 ```js
 const recover = (key, nonce) => {
-    let x = key ^ nonce;
+    let x = Number(key) ^ nonce;
     x = Math.imul(x ^ (x >>> 16), 0x43021123);
     x = Math.imul(
         x ^ (x >>> 15) ^ (x >>> 30),
@@ -103,7 +108,9 @@ const recover = (key, nonce) => {
 ```
 
 This inverse documents the construction; it need not become a public FJS
-API. `Math.imul` preserves the low product bits exactly, and the final
+API. `Number(key)` is exact for this implementation's IDs, which are bounded
+by `0xffff_ffffn`; this conversion is not a general inverse for arbitrary
+bigint IDs. `Math.imul` preserves the low product bits exactly, and the final
 `>>> 0` interprets them as an unsigned Number. Obfuscation has no cryptographic
 security guarantee; a uint32 nonce is exhaustively searchable.
 
@@ -118,8 +125,8 @@ identity and the approved observation rules.
 ### Observable contract
 
 The intended contract preserves reference identity within one scope: equal
-references receive equal strings, and distinct references receive distinct
-strings under the applicable identity semantics. Labels need not be sequential;
+references receive equal bigints, and distinct references receive distinct
+bigints under the applicable identity semantics. Labels need not be sequential;
 their values, ordering and results derived from them may differ across runs or
 VMs, which may provide different implementations.
 Randomness and permutation do not make the operation pure. Adopt this weaker
@@ -128,7 +135,7 @@ contract explicitly, including its exception to the current
 direct `id(o)` function pattern.
 
 Specify what remains reproducible for a fixed nonce, registry state and request
-order, and which changes in string-dependent results are permitted when an
+order, and which changes in ID-dependent results are permitted when an
 executor reorders or removes requests. A hard-to-invert label alone grants no
 optimizer permission. The base TODO owns the shared parser, VM-interface and
 identity-scope work; this follow-up does not require general random APIs or
@@ -147,7 +154,7 @@ global mutation to become FJS features.
   particular permutation for fixed inputs and nonce. For VMs choosing a different
   ID algorithm, verify the shared identity contract rather than identical labels.
   Cover aliases, distinct equal-content objects, arrays/functions, shared nonce initialization,
-  the valid string ID `"0"`, and the last allocation followed by cached/new
+  the valid bigint ID `0n`, and the last allocation followed by cached/new
   lookups at exhaustion. Test primitive behavior under the approved policy.
 - [ ] Document the final contract and registry lifetime without promising
   deterministic labels across independent executions or cryptographic secrecy.
