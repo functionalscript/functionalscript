@@ -142,6 +142,17 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### RTTI numeric-key callback
+
+The migration in #3784 replaces `rtti/common`'s bare `.map(Number)` callback
+with `.map(v => Number(v))`. Conversion results and the own-key order remain
+unchanged.
+
+At `65cefc61c`, the compiler passes that refusal and stops at
+`new Set(declared)` in `declaredTest` (`301:19`, `new is not admitted`). The
+module retains `.f.mjs`; the graph remains at **266 `.f.js` files**,
+**377 `.f.mjs` files** and **16 blocked leaves**.
+
 #### Prime-field subtraction rename
 
 The migration in #3783 renames `PrimeField.sub` to `subtract`, updating its
