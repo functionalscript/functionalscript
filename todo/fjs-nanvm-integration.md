@@ -144,6 +144,8 @@ contract and migration strategy.
 
 #### Result continuation order
 
+#3788 (`db9dcc811`): next `effects` refusal is `foldStep` -> `walkStep` (`791:5`).
+
 #3787 places `resultStep` before `step` and `catchStep`. At `847713442`,
 `effects` next stops at `mapStep`'s forward reference to `resultMapStep`
 (`578:34`, `const not found`).
