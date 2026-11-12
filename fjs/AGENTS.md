@@ -1018,7 +1018,7 @@ consumer paid a guard or a cast. A lookup by a key that arrived at runtime
 belongs in a `StringMap<T>`.
 
 When iterating all defined entries of a `StringMap<T>`, use `definedEntries`
-from `fjs/types/object/module.f.mjs` instead of `Object.entries`; use
+from `fjs/types/object/module.f.js` instead of `Object.entries`; use
 `definedValues` instead of `Object.values`.
 
 #### `flatMap` over a filtering type predicate

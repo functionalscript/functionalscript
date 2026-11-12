@@ -21,7 +21,7 @@ import { returnedBlock, hasRetainedReturn } from '../../js/ast/sugar/completion/
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { sort } from '../../types/object/module.f.mjs'
+import { sort } from '../../types/object/module.f.js'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
 import { assert, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { analyzeBindings } from '../../js/ast/module.f.mjs'

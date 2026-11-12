@@ -14,7 +14,7 @@ import { install, test, parseGitHubAction, uses } from './common/module.f.mjs'
 import { images, jobTimeout, node, typescript } from './config/module.f.js'
 import { rustPlatformCommands, wasmTargets } from './rust/module.f.mjs'
 import { empty } from '../types/bit_vec/module.f.mjs'
-import { definedEntries } from '../types/object/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.js'
 import { coverageSyncFlag, packageJobId } from './node/module.f.mjs'
 /** @type {(root: Dir, names: readonly string[]) => Dir} */
 const directory = (root, names) => names.reduce((dir, name) => {

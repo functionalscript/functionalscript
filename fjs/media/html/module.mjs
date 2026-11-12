@@ -44,7 +44,7 @@
  */
 
 import { asciiLowercase } from '../../text/ascii/module.f.js'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 import { isRawText, isVoidTag, parseElement, rawTextContent, scriptRefusal } from './module.f.mjs'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'

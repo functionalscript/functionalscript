@@ -50,7 +50,7 @@ import { fileHref, pageHref } from '../page/module.f.mjs'
 import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
 import { flowchartSvg } from '../mermaid/module.f.mjs'
 import { codeBlock } from '../demo/code/module.f.js'
-import { at } from '../../types/object/module.f.mjs'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const { length: reservedIdCount } = reservedIds
 
@@ -231,8 +231,8 @@ const highlighters = {
  * @type {(language: string) => (text: string) => readonly Node[]}
  */
 const fenceNodes = language => text => {
-    const colour = at(language.toLowerCase())(highlighters)
-    return colour === null ? [text] : colour(text)
+    const colour = entry(highlighters, language.toLowerCase())
+    return colour === undefined ? [text] : colour(text)
 }
 
 /** A label's span as a node: code, or its text. @type {(label: Label) => Node} */

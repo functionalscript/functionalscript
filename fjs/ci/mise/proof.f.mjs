@@ -1,6 +1,6 @@
 /** @import { Job, Jobs } from '../common/types.ts' */
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 import { jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall, miseJobs, miseSteps, miseVersionStep, spiderMonkeyDevelop, spiderMonkeyInstall } from './module.f.mjs'
 

@@ -2,7 +2,7 @@
  * @import { StringMap } from './types.ts'
  */
 
-import { at, definedEntries, definedValues, fromMap, isObject, sort } from './module.f.mjs'
+import { definedEntries, definedValues, fromMap, isObject, sort } from './module.f.js'
 import { empty, setReplace } from '../ordered_map/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
@@ -26,16 +26,6 @@ export const proof = {
         assertEq(Object.keys(object).join(), 'a,b')
         assertEq(object.a, 2)
         assertEq(object.b, 1)
-    },
-    ctor: () => {
-        const a = {}
-        const value = at('constructor')(a)
-        assertEq(value, null)
-    },
-    property: () => {
-        const a = { constructor: 42 }
-        const value = at('constructor')(a)
-        assertEq(value, 42)
     },
     // a member holding `undefined` is dropped; the others keep their order
     defined: () => {

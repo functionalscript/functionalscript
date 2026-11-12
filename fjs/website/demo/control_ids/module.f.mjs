@@ -7,7 +7,7 @@
  */
 
 import { foldElement, mapElement } from '../../../media/html/module.f.mjs'
-import { definedEntries } from '../../../types/object/module.f.mjs'
+import { definedEntries } from '../../../types/object/module.f.js'
 
 /** @type {string} */
 export const scopeMarker = 'data-demo-scope'

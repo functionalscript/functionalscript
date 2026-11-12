@@ -2,7 +2,7 @@
  * @import { Job, Jobs, MetaStep, Step } from '../common/types.ts'
  */
 
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 import { node, rust as rustVersion } from '../config/module.f.js'
 import { test, uses } from '../common/module.f.mjs'
 import { commandPrefix } from '../environment/module.f.mjs'

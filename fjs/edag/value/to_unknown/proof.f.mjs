@@ -14,7 +14,7 @@ import { partialRun, run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
 import { compileCommands, toData, toUnknown } from './module.f.mjs'
-import { isObject } from '../../../types/object/module.f.mjs'
+import { isObject } from '../../../types/object/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 
 /** @type {(value: unknown) => readonly unknown[]} */
