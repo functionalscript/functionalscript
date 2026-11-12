@@ -142,6 +142,17 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Prime-field subtraction rename
+
+The migration in #3783 renames `PrimeField.sub` to `subtract`, updating its
+type and all consumers. The curve implementation binds `subtract` directly
+instead of reading `sub` with `entry`. This clears the last refusal in
+`crypto/sign/nonce_reuse`, which now uses `.f.js` with its references updated.
+
+At `19d3b90ed`, the graph has **266 `.f.js` files**, **377 `.f.mjs` files**
+and **16 blocked leaves**. No additional leaf is exposed by this promotion;
+the remaining blockers are unchanged.
+
 #### SHA-1 numeric indexes
 
 The migration in #3782 makes both computed keys in `crypto/sha1` explicit:
@@ -1379,25 +1390,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'types/ts', 'website/browser-source',
-  'website/cli/search', 'website/demo/code', 'website/prs/load',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+using the leaf paths above.
 
 #### Leaf migration fixed point at `6e392d4f2` (historical)
 
@@ -1471,24 +1466,9 @@ widens the website's `authored` selector to `.f.js`, so the browser suite
 keeps it. The authored `.f.js` population is 30. The eleven implementation
 leaves above are untouched by it, so the loop still stops there.
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
-  'types/map', 'types/object/structurally_same', 'types/ts',
-  'website/browser-source', 'website/demo/code', 'website/prs/load',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+using the leaf paths above.
 
 #### Leaf migration fixed point at `5dcd94b` (historical)
 

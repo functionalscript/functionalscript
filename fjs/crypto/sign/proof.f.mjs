@@ -691,7 +691,7 @@ export const proof = {
         const [a, b] = hg
         const t = assertNotNullish(sqrt(pf)(pf.add(1n)(pf.add(a)(2n))), 'no t')
         /** @type {Point} */
-        const forged = [2n, pf.sub(b)(pf.mul(t)(pf.sub(a)(2n)))]
+        const forged = [2n, pf.subtract(b)(pf.mul(t)(pf.subtract(a)(2n)))]
         assertEq(assertNotNullish(c.add(hg)(forged), 'X === null')[0], 1n)
         assertEq(v(forged)(sample)([1n, 1n]), false)
         // a key on the curve with `n·u = O`, but outside the subgroup of `g`:

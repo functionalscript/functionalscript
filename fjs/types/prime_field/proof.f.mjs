@@ -15,9 +15,9 @@ export const proof = /** @type {const} */ ({
                 assertEq(f.neg(0n), 0n)
                 assertEq(f.neg(1n), p - 1n)
             },
-            sub: () => {
-                assertEq(f.sub(10n)(4n), 6n)
-                assertEq(f.sub(11n)(14n), p - 3n)
+            subtract: () => {
+                assertEq(f.subtract(10n)(4n), 6n)
+                assertEq(f.subtract(11n)(14n), p - 3n)
             },
             add: () => {
                 assertEq(f.add(13n)(24n), 37n)
@@ -45,7 +45,7 @@ export const proof = /** @type {const} */ ({
                     // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
                     // a^(p-1) % p = 1
                     assertEq(f.abs(f.pow(f.middle)(a)), 1n)
-                    assertEq(f.pow(f.sub(f.max)(1n))(a), f.reciprocal(a))
+                    assertEq(f.pow(f.subtract(f.max)(1n))(a), f.reciprocal(a))
                     assertEq(f.pow(f.max)(a), 1n)
                 }
                 // 0
