@@ -27,7 +27,7 @@ import { assertIoMessage } from '../testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
-import { run as mockRun } from '../mock/module.f.mjs'
+import { run as mockRun } from '../mock/module.f.js'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key

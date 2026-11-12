@@ -16,7 +16,7 @@ import { fromVec } from '../../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.js'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { stdioTransport } from './module.f.mjs'
-import { run as mockRun } from '../../../effects/mock/module.f.mjs'
+import { run as mockRun } from '../../../effects/mock/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 // Extracts the request `id` (a request has one; a notification does not).

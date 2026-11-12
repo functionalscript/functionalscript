@@ -5,7 +5,7 @@
  */
 
 import { fgRed, reset, bold, sgr, csiWrite, stripSgr } from './module.f.mjs'
-import { run as mockRun } from '../../effects/mock/module.f.mjs'
+import { run as mockRun } from '../../effects/mock/module.f.js'
 import { utf8ToString } from '../utf8/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'

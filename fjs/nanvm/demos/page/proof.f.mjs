@@ -16,7 +16,7 @@
 import { tagged } from '../../../text/marked/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.js'
-import { run } from '../../../effects/mock/module.f.mjs'
+import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'

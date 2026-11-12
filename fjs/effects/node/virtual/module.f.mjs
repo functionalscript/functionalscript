@@ -27,7 +27,7 @@ import {
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
-import { partialRun } from '../../mock/module.f.mjs'
+import { partialRun } from '../../mock/module.f.js'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
 import { asBase, asNominal } from '../../../types/nominal/module.f.js'
 import { _compareNames } from './readdir/module.f.mjs'

@@ -9,7 +9,7 @@ import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStruct
 import { encodeScalar } from '../../../basen/base16/module.f.js'
 import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { ioError, runPure } from '../../../effects/module.f.js'
-import { partialRun } from '../../../effects/mock/module.f.mjs'
+import { partialRun } from '../../../effects/mock/module.f.js'
 import { nodeCommands } from '../../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtualOperationMap } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'

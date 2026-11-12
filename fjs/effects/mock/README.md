@@ -2,7 +2,7 @@
 
 Synchronous runners for proofs: they perform an effect by calling a handler per
 command and threading a state through, with no host at all.
-[`module.f.mjs`](./module.f.mjs) holds them, and [`types.ts`](./types.ts) the
+[`module.f.js`](./module.f.js) holds them, and [`types.ts`](./types.ts) the
 `MemOperationMap` handler shape.
 
 ```js
@@ -12,7 +12,7 @@ command and threading a state through, with no host at all.
  * @import { Result } from '../../types/result/types.ts'
  */
 import { do_, history, historyStep } from '../module.f.js'
-import { run } from './module.f.mjs'
+import { run } from './module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 /** @type {() => Effect<readonly ['count', () => Result<number, never>], number, never>} */

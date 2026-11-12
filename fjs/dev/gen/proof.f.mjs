@@ -12,7 +12,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.js'
-import { partialRun } from '../../effects/mock/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.js'
 import { errorExit, exitCode, exitStep, log, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
 import { main as clean } from '../clean/module.f.mjs'

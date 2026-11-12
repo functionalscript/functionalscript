@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.js'

@@ -11,7 +11,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.js'
-import { run as mockRun } from '../../effects/mock/module.f.mjs'
+import { run as mockRun } from '../../effects/mock/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.js'

@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'

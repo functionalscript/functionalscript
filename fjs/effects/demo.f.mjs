@@ -5,7 +5,7 @@
  *
  * **The program is data until something runs it.** `ask(word)` does not ask
  * anything: it is a `Do` node naming the command `ask` and its payload. The
- * runner here is [`mock`](./mock/module.f.mjs)'s `run`, which answers each
+ * runner here is [`mock`](./mock/module.f.js)'s `run`, which answers each
  * command from a handler and threads a state through, and the state it keeps
  * is the trace this demo prints.
  *
@@ -30,7 +30,7 @@
 import { codeMarker } from '../website/style/module.f.js'
 import { textDemo, caption } from '../website/demo/module.f.mjs'
 import { do_, foldStep, mapStep, pureOk } from './module.f.js'
-import { run } from './mock/module.f.mjs'
+import { run } from './mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 
 /** @type {(word: string) => Effect<Ask, string, string>} */

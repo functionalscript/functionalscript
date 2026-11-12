@@ -66,7 +66,7 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
 import { catch_, import_, log } from '../effects/common/module.f.mjs'
-import { run as runInMemory } from '../effects/mock/module.f.mjs'
+import { run as runInMemory } from '../effects/mock/module.f.js'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse, tryParseBlocks } from '../media/markdown/module.f.mjs'
 import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
