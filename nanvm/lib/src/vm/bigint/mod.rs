@@ -32,7 +32,7 @@ use crate::{
 
 /// The largest word count a `<<` or a `*` may grow a `BigInt` to — `2^14`
 /// words (`2^20` bits, 128 KiB) — matching
-/// [`fjs/types/bigint/module.f.mjs`](../../../../../fjs/types/bigint/module.f.mjs)'s
+/// [`fjs/types/bigint/module.f.js`](../../../../../fjs/types/bigint/module.f.js)'s
 /// own `maxLength` (`0x10_0000n` bits) exactly, divided down from bits to
 /// 64-bit words. `maxLength` is itself the *smallest* `BigInt` size limit
 /// across the engines FunctionalScript targets — V8's own limit is `2^30`

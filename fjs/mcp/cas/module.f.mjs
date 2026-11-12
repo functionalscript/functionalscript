@@ -121,18 +121,18 @@
  * @import { Key } from '../../effects/memory/types.ts'
  */
 
-import { string, option, or, boolean } from '../../rtti/module.f.mjs'
+import { string, option, or, boolean } from '../../rtti/module.f.js'
 import { stringify } from '../../media/json/module.f.mjs'
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
+import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { detectStream } from '../../media/type/module.f.mjs'
 import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.mjs'
 import { lockDialect } from '../../media/lock/module.f.mjs'
 import { noteDialect } from '../../media/note/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
 } from '../../protocol/mcp/module.f.mjs'

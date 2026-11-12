@@ -3,8 +3,8 @@
 **Status:** implemented
 
 The compiler's intermediate form is declared as a schema:
-[`edag`](../../../../edag/module.f.mjs) is its grammar, and
-[`edag/value`](../../../../edag/value/module.f.mjs) its evaluated values. The
+[`edag`](../../../../edag/module.f.js) is its grammar, and
+[`edag/value`](../../../../edag/value/module.f.js) its evaluated values. The
 compiler's output is checked against the grammar, and
 [`nanvm`](../../../../nanvm/module.f.mjs) checks its operator cases against
 `edag`'s `op1Id` and `op3Id` with `validate`.

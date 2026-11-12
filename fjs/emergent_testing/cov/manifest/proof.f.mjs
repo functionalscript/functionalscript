@@ -1,14 +1,14 @@
 /** @import { Dir } from '../../../effects/node/virtual/types.ts' */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
-import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
+import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
+import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
 import { ioError, nodeCommands } from '../../../effects/node/module.f.mjs'
 import { emptyState, virtualAt, virtualOperationMap } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { stringToU8List } from '../../../text/utf8/module.f.mjs'
-import { u8ListToMaxVecChunksMsb, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { u8ListToMaxVecChunksMsb, vec8 } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { buildGraph, graphManifest, manifest, validateGraph } from './module.f.mjs'
 

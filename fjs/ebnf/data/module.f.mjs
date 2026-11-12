@@ -21,23 +21,14 @@
 import { assert } from '../../asserts/module.f.js'
 import { codePoints } from '../../text/utf16/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
-import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
+import { definedEntries, isObject, structurallySame } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
-const { entries, fromEntries, keys, getPrototypeOf, is: sameValue, prototype: objectPrototype } = Object
-
-/**
- * A plain record — an object literal's shape — and nothing else that is an
- * object: a `Map` has no own string-keyed entries, so read as a variant it
- * would be an empty one. One realm, one prototype chain, so the prototype
- * is a reliable test. Not a type predicate: both call sites hold a value the
- * type system has already narrowed, and only ask whether to refuse it.
- *
- * @type {(v: unknown) => boolean}
- */
-const isRecord = v => isObject(v) && getPrototypeOf(v) === objectPrototype
+const { entries, fromEntries, keys, is: sameValue } = Object
 
 /**
  * The one discriminator over the data {@link Rule}: each handler receives the
@@ -67,7 +58,7 @@ export const matchRule = v => rule => {
         }
         case 'variant': {
             const [, branches] = rule
-            assert(rule.length === 2 && isRecord(branches), ['not a variant', rule])
+            assert(rule.length === 2 && isObject(branches), ['not a variant', rule])
             return v.variant(branches)
         }
         case 'repeat': {
@@ -87,7 +78,7 @@ export const matchRule = v => rule => {
  *
  * @type {(map: EmptyTagMap) => (item: string) => boolean}
  */
-export const _nullable = map => item => at(item)(map) !== null
+export const _nullable = map => item => entry(map, item) !== undefined
 
 /**
  * The nullability of one rule, given that of the rules it names.
@@ -123,7 +114,7 @@ const emptyTagStep = ruleSet => map => {
  *
  * @type {(names: readonly string[]) => (a: EmptyTagMap, b: EmptyTagMap) => boolean}
  */
-const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)(b))
+const sameTags = names => (a, b) => names.every(name => entry(a, name) === entry(b, name))
 
 /**
  * Computes, for every rule in the set, whether it can match empty input, by
@@ -190,7 +181,7 @@ export const isRepeatBounds = (min, max) =>
  * @type {(ruleSet: RuleSet) => (name: string) => (item: unknown) => void}
  */
 const defined = ruleSet => name => item =>
-    assert(typeof item === 'string' && at(item)(ruleSet) !== null, ['unknown rule', name, item])
+    assert(typeof item === 'string' && fromUndefined(entry(ruleSet, item)) !== null, ['unknown rule', name, item])
 
 /**
  * The checks on one rule, given the name it has, the reference check of its
@@ -233,9 +224,9 @@ const validateRule = (ruleSet, empty) => name =>
  * @type {(ruleSet: RuleSet, entry: string) => void}
  */
 export const validate = (ruleSet, entry) => {
-    // The set is data too: an array would answer `at('0')` with its first
+    // The set is data too: an array would answer `entry(array, '0')` with its first
     // element and walk under `entries`, so the carrier is checked first.
-    assert(isRecord(ruleSet), ['not a rule set', ruleSet])
+    assert(isObject(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
     entries(ruleSet).forEach(([name, r]) => rule(name)(r))
@@ -339,7 +330,7 @@ const lowerBody = (state, name, dr) => {
         case 'object': {
             if (dr === null) { return [state, eof] }
             if (dr instanceof Array) { return lowerSequence(state, name, dr) }
-            assert(isRecord(dr), ['not a rule', dr])
+            assert(isObject(dr), ['not a rule', dr])
             return lowerVariant(state, name, dr)
         }
         default: { throw ['not a rule', dr] }

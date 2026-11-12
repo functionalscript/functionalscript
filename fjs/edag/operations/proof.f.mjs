@@ -6,18 +6,19 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { Closure, EdagValue, Runtime } from '../value/types.ts'
  * @import { Outcome } from '../value/call/types.ts'
+ * @import { ValueResult } from '../value/control/types.ts'
  * @import { Context, Evaluator } from './types.ts'
  */
 
 import { conditional } from '../testlib.f.js'
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { invokerWith, noIn, operation, staticCall } from './module.f.mjs'
-import { read } from '../value/property/module.f.mjs'
-import runtimeEdag from '../../js/runtime/gen.edag.data.js'
-import { noStatic, staticIds, staticPath } from '../module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { invokerWith, noBoolean, noIn, operation, staticCall } from './module.f.mjs'
+import { read } from '../value/property/module.f.js'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
+import { noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
-import { settle } from '../value/call/module.f.mjs'
+import { settle } from '../value/call/module.f.js'
 
 /** @type {Context} */
 const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
@@ -47,12 +48,49 @@ const identity = ['=>', 1, [], ['arg', 0]]
 /** A runtime whose `in` is a function of two parameters with the body given. @type {(body: Exp) => Runtime} */
 const inRuntime = body => ['{}', [[':', 'in', ['=>', 2, [], body]]]]
 
+/** A runtime whose Boolean conversion has the supplied body. @type {(body: Exp) => Runtime} */
+const booleanRuntime = body => ['{}', [[':', 'Boolean', ['=>', 1, [], body]]]]
+
 /** A node evaluated under the executor's context with the runtime given, or none. @type {(runtime: Runtime | undefined, node: Exp) => unknown} */
 const under = (runtime, node) => vm({ ...context, runtime })(node)
 /** @type {import('../types.ts').Object} */
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
+    booleanConversion: () => {
+        const echo = booleanRuntime(['arg', 0])
+        assertStructurallySame(under(echo, ['Boolean', 7]), ['ok', 7])
+        assertStructurallySame(under(booleanRuntime(false), ['Boolean', 7]), ['ok', false])
+        assertStructurallySame(under(booleanRuntime(['throw', 'runtime body']), ['Boolean', 7]), ['error', 'runtime body'])
+        assertStructurallySame(under(booleanRuntime(['throw', 'runtime body']), ['Boolean', ['throw', 'operand']]), ['error', 'operand'])
+        failure(['Boolean', 7], noBoolean)
+        failure(['Boolean', ['throw', 'operand']], 'operand')
+        for (const missing of [/** @type {Runtime} */ (['{}', []]), /** @type {Runtime} */ (['{}', [[':', 'Boolean', 0]]])]) {
+            assertStructurallySame(under(missing, ['Boolean', 7]), ['error', noBoolean])
+        }
+
+        const evaluate = operation({ ...evaluator, context: { ...context, runtime: echo }, invoke: invokeWith(echo) })
+        const operand = /** @type {const} */ (['+', 2, 3])
+        const [next, outcome] = evaluate(['Boolean', operand], [])
+        assertStructurallySame(next, [operand])
+        assertStructurallySame(settle(invokeWith(echo))(outcome), ['ok', 5])
+
+        const real = /** @type {Runtime} */ (assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime')))
+        for (const [source, expected] of /** @type {readonly (readonly [Exp, boolean])[]} */ ([
+            [null, false], [['undefined'], false], [false, false], [0, false], [-0, false],
+            [NaN, false], [0n, false], ['', false],
+            [true, true], [1, true], [-1, true], [Infinity, true], [1n, true], ['0', true],
+            [['[]', []], true], [['{}', []], true], [['=>', 0, [], ['throw', 'not called']], true],
+            [['Object.entries'], true],
+        ])) {
+            assertStructurallySame(under(real, ['Boolean', source]), ['ok', expected])
+        }
+        const conversionHooks = /** @type {const} */ (['{}', [
+            [':', 'valueOf', ['=>', 0, [], ['throw', 'valueOf must not run']]],
+            [':', 'toString', ['=>', 0, [], ['throw', 'toString must not run']]],
+        ]])
+        assertStructurallySame(under(real, ['Boolean', conversionHooks]), ['ok', true])
+    },
     fromCharCode: () => {
         eq(['String.fromCharCode'], ['String.fromCharCode'])
         eq(['.', ['String.fromCharCode'], 'length'], 1)
@@ -337,6 +375,22 @@ export const proof = {
         // runtime, is the same failure
         assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['error', noStatic('Object.is')])
     },
+    // A logarithm static runs the body supplied by the runtime, including
+    // its argument binding and metadata. This synthetic body returns its
+    // arguments so the dispatch contract is independent of numerical tests.
+    mathLog2: () => {
+        /** @type {Runtime} */
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Math.log2', ['=>', 1, [], ['[]', [['arg', 0], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
+        assertStructurallySame(under(runtime, ['Math.log2']), ['ok', ['Math.log2']])
+        assertStructurallySame(under(runtime, ['()', ['Math.log2'], [8, 9]]), ['ok', ['[]', [8, ['Math.log2'], ['[]', [9]]]]])
+        assertStructurallySame(under(runtime, ['()', ['Math.log2'], []]), ['ok', ['[]', [['undefined'], ['Math.log2'], ['[]', []]]]])
+        assertStructurallySame(under(runtime, ['.', ['Math.log2'], 'length']), ['ok', 1])
+        assertStructurallySame(under(runtime, ['String', ['Math.log2']]), ['ok', 'function log2() { [native code] }'])
+        assertStructurallySame(under(runtime, ['===', ['Math.log2'], ['Math.log2']]), ['ok', true])
+        failure(['Math.log2'], noStatic('Math.log2'))
+        failure(['()', ['Math.log2'], [8]], noStatic('Math.log2'))
+        assertStructurallySame(under(['{}', []], ['Math.log2']), ['error', noStatic('Math.log2')])
+    },
     // `Object.entries` is the dispatcher's own, with no runtime: a static
     // like every other, called natively on its first argument.
     objectEntries: () => {
@@ -347,6 +401,29 @@ export const proof = {
         eq(['String', ['Object.entries']], 'function entries() { [native code] }')
         failure(['()', ['Object.entries'], [null]])
         failure(['()', ['Object.entries'], []])
+    },
+    // Keys are a runtime body over native entries and the shared array map,
+    // with static identity, arity and text supplied by the existing protocol.
+    objectKeys: () => {
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        /** @type {(node: Exp) => ValueResult} */
+        const evaluate = node => vm({ ...context, runtime })(node)
+        const keys = /** @type {const} */ (['Object.keys'])
+        assertStructurallySame(evaluate(['()', keys, [['{}', [
+            [':', '10', 1], [':', '2', 2], [':', 'present', ['undefined']], [':', '__proto__', 3],
+        ]]]]), ['ok', ['[]', ['2', '10', 'present', '__proto__']]])
+        assertStructurallySame(evaluate(['()', keys, ['😀a']]), ['ok', ['[]', ['0', '1', '2']]])
+        assertStructurallySame(evaluate(['[]', [
+            ['===', keys, ['Object.keys']], ['typeof', keys], ['.', keys, 'length'], ['String', keys],
+        ]]), ['ok', ['[]', [true, 'function', 1, 'function keys() { [native code] }']]])
+        /** @type {readonly Exp[]} */
+        const emptyInputs = [0, true, 1n, ['[]', []], ['{}', []], ['=>', 0, [], 1]]
+        for (const input of emptyInputs) { assertStructurallySame(evaluate(['()', keys, [input]]), ['ok', ['[]', []]]) }
+        assertError(evaluate(['()', keys, [null]]))
+        assertError(evaluate(['()', keys, [['undefined']]]))
+        assertError(evaluate(['()', keys, []]))
+        failure(keys, noStatic('Object.keys'))
     },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])
@@ -377,7 +454,9 @@ export const proof = {
         const child = /** @type {const} */ (['[]', []])
         const body = /** @type {const} */ (['===', child, child])
         eq(['()', ['=>', 0, [], body], []], false)
-        eq(['.', ['[]', [1]], 'map', ['|()', [['=>', 0, [], body]]]], ['[]', [false]])
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        assertStructurallySame(under(runtime, ['.', ['[]', [1]], 'map', ['|()', [['=>', 0, [], body]]]]), ['ok', ['[]', [false]]])
     },
     failures: () => {
         failure(['throw', 1], 1)
@@ -425,4 +504,4 @@ export const proof = {
         assertStructurallySame(run(['{}', [[':', 'a', 1], [':', 'b', stop]]], [])[0], ['a', 1, 'b', stop])
         assertStructurallySame(run(['?.', null, 'a', ['|!()', [2]]], [])[0], [null, 2])
     },
-}
+})

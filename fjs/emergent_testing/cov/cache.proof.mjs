@@ -4,16 +4,17 @@
  */
 
 import { strict as assert } from 'node:assert'
-import { spawnSync } from 'node:child_process'
+import { execFile, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { availableParallelism, tmpdir } from 'node:os'
+import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { toPath } from '../../cas/module.f.mjs'
-import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 
 const cli = fileURLToPath(new URL('../../module.mjs', import.meta.url))
 
@@ -52,11 +53,11 @@ const git = (cwd, args) => {
     return result.stdout.trimEnd()
 }
 
-/** @type {(run: (root: string) => void) => void} */
-const withFixture = run => {
+/** @type {(run: (root: string) => void | Promise<void>) => Promise<void>} */
+const withFixture = async run => {
     const root = mkdtempSync(join(tmpdir(), 'fjs-cov-cache-'))
     try {
-        run(root)
+        await run(root)
     } finally {
         rmSync(root, { recursive: true, force: true })
     }
@@ -82,7 +83,7 @@ const initialize = (root, directories, markers = false) => {
     git(root, ['init', '--quiet', '--initial-branch=main'])
     identify(root)
     write(root, 'package.json', '{"type":"module"}\n')
-    // Fixed completion markers count children without adding runtime inputs.
+    // Child markers exercise output suppression without adding runtime inputs.
     const proofSource = markers
         ? 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED fixture"); return undefined; } };\n'
         : 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); return undefined; } };\n'
@@ -104,15 +105,23 @@ const coverage = (cwd, synchronize = false, status = 0, extraEnv = {}) => {
     return result.output
 }
 
-/** Executed children retain their native test and coverage output. @type {(output: string) => void} */
-const nativeOutput = output => {
-    assert(output.includes('ℹ tests'), output)
-    assert(output.includes('start of coverage report'), output)
+/** Successful children report progress without a native transcript. @type {(output: string) => void} */
+const executedOutput = output => {
+    assert(output.includes(': ok,'), output)
+    assert(!output.includes('ℹ tests'), output)
+    assert(!output.includes('start of coverage report'), output)
+    assert(!output.includes('CACHE_CHILD_FINISHED '), output)
     assert(!output.includes('command:'), output)
 }
 
-/** Cached targets launch no child and therefore emit no native transcript. @type {(output: string) => void} */
-const cachedOutput = output => {
+/** Cached targets emit no per-file output; synchronization may report Git diagnostics. @type {(output: string, total?: number) => void} */
+const cachedOutput = (output, total = 1) => {
+    assert(output.includes(`Coverage: ${total} passed, 0 failed, ${total} total (${total} cached)\n`), output)
+    assert(output.includes('Test real time: 0.0000 ms\n'), output)
+    assert(output.includes('Processor time: 0.0000 ms\n'), output)
+    const concurrency = Math.min(availableParallelism(), total)
+    assert(output.includes(`Concurrency: up to ${concurrency} child process${concurrency === 1 ? '' : 'es'}\n`), output)
+    assert(!output.includes('module.f.js'), output)
     assert(!output.includes('ℹ tests'), output)
     assert(!output.includes('start of coverage report'), output)
     assert(!output.includes('command:'), output)
@@ -133,7 +142,8 @@ const _commands = path => readFileSync(path, 'utf8').trim().split('\n').map(line
     .filter(event => event.event === 'start' && Array.isArray(event.argv))
 
 /** @type {(output: string) => number} */
-const _finished = output => output.split('\n').filter(line => line.includes('CACHE_CHILD_FINISHED ')).length
+const _results = output => output.split('\n').filter(line =>
+    line.includes('/module.f.js: ok,') || line.includes('/module.f.js: error,')).length
 
 /** Seed canonical SHA-256 CAS entries through one native import, then pack Git's
  * objects. Payload construction reuses the production shard/encoding helpers.
@@ -155,20 +165,111 @@ const _seedPacked = (root, count) => {
 }
 
 export const proof = process.versions.bun || process.versions.deno ? {} : {
+    realChildrenOverlapAndWarmHitsStayQuiet: () => withFixture(async root => {
+        if (availableParallelism() < 2) return
+        const repo = join(root, 'source')
+        initialize(repo, ['a', 'b'])
+        /** @type {readonly import('node:net').Socket[]} */
+        let waiting = []
+        /** @type {readonly string[]} */
+        let connected = []
+        const server = createServer(socket => {
+            waiting = [...waiting, socket]
+            socket.once('data', data => {
+                connected = [...connected, data.toString()]
+                // Neither proof may finish until its sibling is actually running.
+                if (connected.length === 2) {
+                    for (const child of waiting) child.end('continue')
+                } else if (connected.length > 2) {
+                    socket.end('unexpected warm child')
+                }
+            })
+        })
+        await new Promise((resolve, reject) => {
+            server.once('error', reject)
+            server.listen(0, '127.0.0.1', () => resolve(undefined))
+        })
+        try {
+            const address = server.address()
+            assert(address !== null && typeof address !== 'string')
+            for (const directory of ['a', 'b']) {
+                write(repo, `${directory}/proof.f.mjs`, `import { value } from "./module.f.js";
+export const proof = { overlaps: () => new Promise((resolve, reject) => {
+    value();
+    const net = process.getBuiltinModule('node:net');
+    const socket = net.connect(${address.port}, '127.0.0.1', () => socket.write('${directory}'));
+    socket.once('error', reject);
+    socket.once('data', () => { socket.end(); resolve(undefined); });
+}) };
+`)
+            }
+            const before = sourceState(repo)
+            /** @type {() => Promise<string>} */
+            const runCoverage = () => new Promise((resolve, reject) => {
+                execFile(process.execPath, [cli, 'cov', 'node'], {
+                    cwd: repo,
+                    env: { ...env, GIT_CONFIG_GLOBAL: join(repo, '.coverage-global-config'), RUNNER_TEMP: join(repo, '.coverage-tmp') },
+                    encoding: 'utf8', timeout: 30_000,
+                }, (problem, stdout, stderr) => problem === null ? resolve(stdout + stderr) : reject(problem))
+            })
+            const cold = await runCoverage()
+            assert.deepEqual(connected.toSorted(), ['a', 'b'])
+            assert(cold.includes('a/module.f.js: running\n'), cold)
+            assert(cold.includes('b/module.f.js: running\n'), cold)
+            assert(cold.includes('Coverage: 2 passed, 0 failed, 2 total (0 cached)'), cold)
+            assert.equal(entries(repo).length, 2)
+            const warm = await runCoverage()
+            cachedOutput(warm, 2)
+            assert.equal(warm.split('\n').length, 5)
+            assert.equal(connected.length, 2, 'Warm cache hits must not launch coverage children')
+            assert.deepEqual(sourceState(repo), before)
+        } finally {
+            for (const socket of waiting) socket.destroy()
+            await new Promise((resolve, reject) => server.close(problem => problem === undefined ? resolve(undefined) : reject(problem)))
+        }
+    }),
+    failedAdmissionCannotPassThroughNativeCoverage: () => withFixture(root => {
+        const repo = join(root, 'source')
+        initialize(repo, ['bad', 'good'])
+        write(repo, 'bad/proof.f.mjs', 'import * as unit from "./module.f.js"; export const proof = { covers: () => unit.value() };\n')
+        const before = sourceState(repo)
+
+        // Node accepts this proof and reaches complete native coverage, while
+        // dependency analysis refuses the unsupported namespace import.
+        const native = execute(join(repo, 'bad'), process.execPath, [
+            '--test', '--experimental-test-coverage', '--test-coverage-include=module.f.js',
+            '--test-coverage-lines=100', '--test-coverage-branches=100', '--test-coverage-functions=100',
+            fileURLToPath(new URL('../one.mjs', import.meta.url)),
+        ])
+        assert.equal(native.status, 0, native.output)
+
+        for (const cached of [0, 1]) {
+            const result = execute(repo, process.execPath, [cli, 'cov', 'node'])
+            assert.equal(result.status, 1, result.output)
+            assert(result.output.includes('CACHE ADMISSION '), result.output)
+            assert(result.output.includes('bad/proof.f.mjs: unexpected token'), result.output)
+            assert(result.output.includes('bad/module.f.js: ok,'), result.output)
+            assert.equal(result.output.includes('good/module.f.js'), cached === 0, result.output)
+            assert(!result.output.includes('...Cached'), result.output)
+            assert(result.output.includes(`Coverage: 1 passed, 1 failed, 2 total (${cached} cached)`), result.output)
+            assert.equal(entries(repo).length, 1)
+        }
+        assert.deepEqual(sourceState(repo), before)
+    }),
     destructuredMathRemainsCacheable: () => withFixture(root => {
         const repo = join(root, 'source')
         initialize(repo, ['unit'])
         write(repo, 'unit/module.f.js', 'const { log2 } = Math; export const value = () => log2(2);\n')
         const before = sourceState(repo)
         const cold = coverage(join(repo, 'unit'))
-        assert(cold.includes('unit/module.f.js...Ok'), cold)
-        nativeOutput(cold)
+        assert(cold.includes('unit/module.f.js: ok,'), cold)
+        executedOutput(cold)
         assert.equal(entries(repo).length, 1)
         const saved = git(repo, ['rev-parse', 'build-cache'])
 
         const warm = coverage(join(repo, 'unit'))
-        assert(warm.includes('unit/module.f.js...Cached'), warm)
         cachedOutput(warm)
+        assert.equal(warm.split('\n').length, 5)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), saved)
         assert.equal(entries(repo).length, 1)
         assert.deepEqual(sourceState(repo), before)
@@ -181,15 +282,13 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const modulePath = join(repo, 'unit/module.f.js')
         const moduleBefore = readFileSync(modulePath)
         const cold = coverage(join(repo, 'unit'))
-        assert(cold.includes('unit/module.f.js...Ok'), cold)
-        nativeOutput(cold)
-        assert(cold.indexOf('start of coverage report') < cold.indexOf('unit/module.f.js...Ok'), cold)
+        assert(cold.includes('unit/module.f.js: ok,'), cold)
+        executedOutput(cold)
         assert(cold.includes('0 cached'), cold)
         assert.equal(entries(repo).length, 1)
         const first = git(repo, ['rev-parse', 'build-cache'])
 
         const warm = coverage(join(repo, 'unit'))
-        assert(warm.includes('unit/module.f.js...Cached'), warm)
         assert(warm.includes('1 cached'), warm)
         cachedOutput(warm)
         assert(!warm.includes('command:'), warm)
@@ -200,30 +299,29 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         for (const scope of ['package.json', 'unit/package.json']) {
             write(repo, scope, '{"type":"commonjs"}\n')
             const incompatible = coverage(join(repo, 'unit'), false, 1)
-            assert(incompatible.includes('unit/module.f.js...Failed'), incompatible)
+            assert(incompatible.includes('unit/module.f.js: error,'), incompatible)
             assert(incompatible.includes('command:'), incompatible)
-            assert(!incompatible.includes('...Cached'), incompatible)
+            assert(incompatible.includes('(0 cached)'), incompatible)
             assert.equal(git(repo, ['rev-parse', 'build-cache']), first)
             if (scope === 'package.json') write(repo, scope, '{"type":"module"}\n')
             else rmSync(join(repo, scope))
             const restored = coverage(join(repo, 'unit'))
-            assert(restored.includes('unit/module.f.js...Cached'), restored)
             cachedOutput(restored)
             assert(!restored.includes('command:'), restored)
         }
 
         write(repo, 'unit/helper.f.js', 'export const helper = () => 2;\n')
         const changed = coverage(join(repo, 'unit'))
-        assert(changed.includes('unit/module.f.js...Ok'), changed)
-        nativeOutput(changed)
-        assert(!changed.includes('...Cached'), changed)
+        assert(changed.includes('unit/module.f.js: ok,'), changed)
+        executedOutput(changed)
+        assert(changed.includes('(0 cached)'), changed)
         assert.equal(entries(repo).length, 2)
         const successful = git(repo, ['rev-parse', 'build-cache'])
         assert.notEqual(successful, first)
 
         write(repo, 'unit/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); throw "fixture failure"; } };\n')
         const failed = coverage(join(repo, 'unit'), false, 1)
-        assert(failed.includes('unit/module.f.js...Failed'), failed)
+        assert(failed.includes('unit/module.f.js: error,'), failed)
         assert(failed.includes('fixture failure'), failed)
         assert(failed.includes('ℹ tests'), failed)
         assert(failed.includes('command:'), failed)
@@ -251,31 +349,29 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const bBefore = sourceState(b)
 
         const first = coverage(join(a, 'a'), true)
-        assert(first.includes('a/module.f.js...Ok'), first)
-        nativeOutput(first)
+        assert(first.includes('a/module.f.js: ok,'), first)
+        executedOutput(first)
         const firstTip = git(origin, ['rev-parse', 'build-cache'])
         const shared = coverage(join(b, 'a'), true)
-        assert(shared.includes('a/module.f.js...Cached'), shared)
         cachedOutput(shared)
         assert(!shared.includes('command:'), shared)
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
 
         const pending = coverage(join(a, 'b'))
-        assert(pending.includes('b/module.f.js...Ok'), pending)
-        nativeOutput(pending)
+        assert(pending.includes('b/module.f.js: ok,'), pending)
+        executedOutput(pending)
         const aEntries = entries(a)
         assert.equal(aEntries.length, 2)
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
         const advancing = coverage(join(b, 'c'), true)
-        assert(advancing.includes('c/module.f.js...Ok'), advancing)
-        nativeOutput(advancing)
+        assert(advancing.includes('c/module.f.js: ok,'), advancing)
+        executedOutput(advancing)
         const bEntries = entries(b)
         assert.equal(bEntries.length, 2)
         const advancedTip = git(origin, ['rev-parse', 'build-cache'])
         assert.notEqual(advancedTip, firstTip)
 
         const replayed = coverage(join(a, 'b'), true)
-        assert(replayed.includes('b/module.f.js...Cached'), replayed)
         cachedOutput(replayed)
         assert(!replayed.includes('command:'), replayed)
         const union = [...new Set([...aEntries, ...bEntries])].sort()
@@ -288,7 +384,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             assert(line.split(' ').length <= 2, line)
         }
         const imported = coverage(join(a, 'c'))
-        assert(imported.includes('c/module.f.js...Cached'), imported)
         cachedOutput(imported)
         assert(!imported.includes('command:'), imported)
         assert.deepEqual(sourceState(a), aBefore)
@@ -308,15 +403,13 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const before = sourceState(repo)
 
         const output = coverage(repo, true, 1, { GIT_TRACE2_EVENT: trace })
-        assert(output.includes('a/module.f.js...Ok'), output)
-        assert(output.includes('b/module.f.js...Failed'), output)
-        assert(output.includes('c/module.f.js...Ok'), output)
+        assert(output.includes('a/module.f.js: ok,'), output)
+        assert(output.includes('b/module.f.js: error,'), output)
+        assert(output.includes('c/module.f.js: ok,'), output)
         assert(output.includes('batch fixture failure'), output)
         assert(output.includes('ℹ tests'), output)
         assert(output.includes('command:'), output)
         assert(output.includes('Coverage: 2 passed, 1 failed, 3 total (0 cached)'), output)
-        assert(output.indexOf('a/module.f.js...Ok') < output.indexOf('b/module.f.js...Failed'), output)
-        assert(output.indexOf('b/module.f.js...Failed') < output.indexOf('c/module.f.js...Ok'), output)
 
         // Native Git trace events distinguish one end-of-command publication
         // from a push after each successful module. All targets are processed
@@ -326,7 +419,9 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.equal(imports.length, 1, JSON.stringify(imports))
         const pushes = events.filter(event => event.argv.includes('push'))
         assert.equal(pushes.length, 1, JSON.stringify(pushes))
-        assert.equal(_finished(output), 3, output)
+        assert.equal(_results(output), 3, output)
+        assert(output.includes('CACHE_CHILD_FINISHED b'), output)
+        assert(!output.includes('CACHE_CHILD_FINISHED fixture'), output)
         const inventories = events.filter(event => event.argv.includes('for-each-ref')
             && event.argv.includes('--format=%(refname)%00%(objectname)'))
         assert.equal(inventories.length, 2, JSON.stringify(inventories))
@@ -369,13 +464,12 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
                 assert.equal(events.filter(event => event.argv.includes(name)).length, 0, JSON.stringify(events))
             }
             if (phase === 'warm') {
-                assert(output.includes('unit/module.f.js...Cached'), output)
                 cachedOutput(output)
-                assert.equal(_finished(output), 0, output)
+                assert.equal(_results(output), 0, output)
             } else {
-                assert(output.includes('unit/module.f.js...Ok'), output)
-                nativeOutput(output)
-                assert.equal(_finished(output), 1, output)
+                assert(output.includes('unit/module.f.js: ok,'), output)
+                executedOutput(output)
+                assert.equal(_results(output), 1, output)
                 assert(Date.parse(imports[0].time) >= Date.parse(inventories[1].time), JSON.stringify(imports))
             }
             const expected = seeded + (phase === 'changed' ? 2 : 1)
@@ -389,12 +483,15 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
     }),
     earlierChildCannotReuseLaterTargetsOldSnapshot: () => withFixture(root => {
         const repo = join(root, 'source')
-        initialize(repo, ['a', 'b'])
-        const original = coverage(join(repo, 'b'))
-        assert(original.includes('b/module.f.js...Ok'), original)
+        const capacity = availableParallelism()
+        const fillers = Array.from({ length: capacity - 1 }, (_, index) => `aa${String(index).padStart(5, '0')}`)
+        initialize(repo, ['a', ...fillers, 'b'])
+        const original = coverage(repo)
+        assert(original.includes('b/module.f.js: ok,'), original)
         const before = git(repo, ['rev-parse', 'build-cache'])
-        // This host-dependent proof runs uncached. The graph for b has already
-        // been captured when a changes b's input, before b's old cache hit.
+        // Put b in the next CPU-bounded batch. Even when a overlaps cached
+        // fillers, its mutation completes before b revalidates the old snapshot.
+        // This host-dependent proof fails admission but still runs.
         write(repo, 'a/proof.f.mjs', `
 import { writeFileSync } from 'node:fs';
 import { value } from './module.f.js';
@@ -404,15 +501,16 @@ export const proof = { changesLaterInput: () => {
 } };
 `)
         const changed = execute(repo, process.execPath, [cli, 'cov', 'node'])
-        assert.equal(changed.status, 0, changed.output)
-        assert(changed.output.includes('b/module.f.js...Ok'), changed.output)
-        assert(!changed.output.includes('...Cached'), changed.output)
+        assert.equal(changed.status, 1, changed.output)
+        assert(changed.output.includes('CACHE ADMISSION '), changed.output)
+        assert(changed.output.includes('b/module.f.js: ok,'), changed.output)
+        assert(changed.output.includes(`(${fillers.length} cached)`), changed.output)
         assert(changed.output.includes('coverage inputs changed since the cache snapshot'), changed.output)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), before)
         const fresh = coverage(join(repo, 'b'))
-        assert(fresh.includes('b/module.f.js...Ok'), fresh)
-        assert.equal(entries(repo).length, 2)
-        assert(coverage(join(repo, 'b')).includes('b/module.f.js...Cached'))
+        assert(fresh.includes('b/module.f.js: ok,'), fresh)
+        assert.equal(entries(repo).length, capacity + 2)
+        cachedOutput(coverage(join(repo, 'b')))
     }),
 
 }

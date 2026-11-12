@@ -32,7 +32,7 @@ import { items } from '../../ebnf/ast/module.f.js'
 import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.mjs'
 import { eof } from '../../ebnf/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { lexeme, units } from '../../ebnf/utf16/module.f.mjs'
+import { lexeme, units } from '../../ebnf/utf16/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 

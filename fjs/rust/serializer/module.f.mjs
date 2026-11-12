@@ -16,7 +16,7 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.mjs'
+import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
 import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
@@ -320,7 +320,7 @@ const binding = (s, id) => /** @type {string} */ (/** @type {_Names} */ (s.names
 const loopLabel = (s, target) => /** @type {string} */ (/** @type {_Names} */ (s.names).loops.get(target))
 
 /** A Rust block from target statement lines. @type {(parts: readonly string[]) => string} */
-export const braced = parts => parts.length === 1 ? `{ ${parts[0]} }` : `{
+export const braced = parts => parts.length === 0 ? '{}' : parts.length === 1 ? `{ ${parts[0]} }` : `{
 ${parts.flatMap(p => p.split('\n')).map(p => `${indent}${p}`).join('\n')}
 }`
 
@@ -517,6 +517,14 @@ const operation = (s, n, result) => {
         case 'in': {
             if (s.runtime === null) { return error(['an in operator with no runtime in scope; the core may not use what it defines', n]) }
             return map1(fallible(result))(flat(map1(v => cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('in'), ').end())?, [', stringCall('string_any')(n[1]), `, ${v}]`, toArray, toAny, ')']))(expression(s, n[2], false))))
+        }
+        // Boolean is the shared `!!value` body. The tuple evaluates its
+        // operand before lookup, with both outside the new bindings' scope.
+        case 'Boolean': {
+            if (s.runtime === null) { return error(['a Boolean operator with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(flat(map1(v => cat(['{ ', kw('let'), ' (boolean_value, boolean_body) = (', v,
+                `, (Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('Boolean'), ').end())?); ',
+                'Any::call(boolean_body, [boolean_value]', toArray, toAny, ') }']))(expression(s, n[1], false))))
         }
         case ',': {
             const values = n[1]

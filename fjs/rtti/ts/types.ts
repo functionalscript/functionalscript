@@ -437,7 +437,7 @@ export type StructTs<T extends Struct> =
  * type _CheckRaw = Assert<CheckRaw<AbsentOr<MyType>, typeof myThunk>>
  * ```
  *
- * See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for this in practice. Note also
+ * See `fjs/edag/module.f.js` (`_exp`/`exp`) for this in practice. Note also
  * that the phantom branch below does `Exclude<O, undefined>`, so a `MyType`
  * that includes bare `undefined` at its top level will never satisfy
  * `_Check1`. That is a constraint on the wrapped type, not on how wide it

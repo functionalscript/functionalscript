@@ -50,7 +50,7 @@
  * ```
  */
 
-import { fromValue, op1Id, op3Id } from '../edag/module.f.mjs'
+import { fromValue, op1Id, op3Id } from '../edag/module.f.js'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     callback as constructorsCallback, functionText, functionValue as constructorsFunctionValue, ref as constructorsRef,

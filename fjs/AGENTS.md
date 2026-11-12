@@ -525,8 +525,8 @@ that: a claim about a *local* inference stays in the proof, with a statement
 after it.
 
 Recursive RTTI whose annotation needs a named public type may stay in
-`module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`), and declarative
-compile-time/runtime constants shared between TypeScript and
+`module.f.js` or `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.js`), and
+declarative compile-time/runtime constants shared between TypeScript and
 runtime code may be split into a normal subordinate metaprogramming module such
 as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
 and covered like any other `module.f.mjs`, never a requirement.
@@ -926,9 +926,9 @@ Forward references are fine: `unknown` is annotated in terms of `object` and
 `@type {const}` is wrong here even though it compiles. It pins the tuple, so
 `tsc` and `fjs t` both pass — but it gives declaration emit no *name* for
 the recursive positions, so the emitter inlines the structure, gives up at
-depth, and writes `/*elided*/ any`. On `fjs/media/json/rtti/module.f.mjs` the
+depth, and writes `/*elided*/ any`. On `fjs/media/json/rtti/module.f.js` the
 const cast emitted 4 `any` and 2 `/*elided*/`; the `typeof` form emitted
-neither. Only a consumer type-checking against the published `.d.mts` sees the
+neither. Only a consumer type-checking against the published `.d.ts` sees the
 difference, which is why this needs to be a rule rather than something review
 catches. Omitting the annotation entirely is a third, louder failure: the array
 literal widens to `(string | …)[]` and fails `TS2345` outright (see "Pin literal
@@ -954,7 +954,7 @@ type-checking against the published declaration does. Same failure as the
 When a generic function composes other independently-generic functions in its
 body, annotate each arrow with its own `@template` / `@param` / `@returns`
 instead of writing one `@type {<T, S>(...) => ...}` over the whole chain.
-[`fjs/types/array`](./types/array/module.f.mjs)'s `isFixedArray` is the worked
+[`fjs/types/array`](./types/array/module.f.js)'s `isFixedArray` is the worked
 example; `types/sorted_list` and `types/range_map` use the same shape. A
 single top-level signature has to restate every type variable of every stage,
 which is where the inference it replaced goes wrong again.
@@ -1018,7 +1018,7 @@ consumer paid a guard or a cast. A lookup by a key that arrived at runtime
 belongs in a `StringMap<T>`.
 
 When iterating all defined entries of a `StringMap<T>`, use `definedEntries`
-from `fjs/types/object/module.f.mjs` instead of `Object.entries`; use
+from `fjs/types/object/module.f.js` instead of `Object.entries`; use
 `definedValues` instead of `Object.values`.
 
 #### `flatMap` over a filtering type predicate
@@ -1201,7 +1201,7 @@ makes the computation's dependency structure visible: the scope a binding lives
 in tells the reader which arguments it needs without tracing the whole call
 chain.
 
-Example (`fjs/basen/module.f.mjs`): `tailPaddedUintChunkList(msb)` depends on
+Example (`fjs/basen/module.f.js`): `tailPaddedUintChunkList(msb)` depends on
 neither `bits` nor `v`, so it's bound once at module scope (`uintChunkListMsb`),
 shared by every `baseN(...)` codec; `uintChunkListMsb(bits)` depends on `bits`
 but not `v`, so it's applied once inside `baseN`'s body, not once per
@@ -1366,7 +1366,7 @@ repository-owned dependencies follow these source rules:
   TypeScript-only type declaration;
 - a module is renamed `.f.mjs` -> `.f.js` once the compiler of the same
   revision accepts it whole, its imports included; the packed-package check
-  closing the `node` CI job imports a published `.f.js` from a clean
+  in the `package` CI job imports a published `.f.js` from a clean
   consumer of the packed package, runs it and type-checks a use of its
   declaration with a negative control
   ([`ci/package/module.f.mjs`](./ci/package/module.f.mjs)).

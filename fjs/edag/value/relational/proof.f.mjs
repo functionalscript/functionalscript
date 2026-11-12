@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
-import { binary } from './module.f.mjs'
+import { binary } from './module.f.js'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 

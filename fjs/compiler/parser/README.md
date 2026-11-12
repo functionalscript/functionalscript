@@ -403,17 +403,20 @@ the fold's:
   binding takes the wider `identifierName`, so `const typeof = 1;` still
   reaches the fold, and `{ typeof: 1 }`, `{ new: 1 }`, `a.typeof` and `a.new`
   stay members;
-- a reserved conversion global, `Number` or `String`, bound or referenced
-  anywhere but as the callee of `Number(x)` or `String(x)`
+- a reserved conversion global, `Boolean`, `Number`, `String` or `BigInt`, bound or referenced
+  anywhere but as the callee of its conversion
   ([spec: number conversion](../../../spec/conversions/number/README.md),
-  [string conversion](../../../spec/conversions/string/README.md)) —
+  [string conversion](../../../spec/conversions/string/README.md),
+  [boolean conversion](../../../spec/conversions/boolean/README.md),
+  [bigint conversion](../../../spec/conversions/bigint/README.md)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope
   ever binding it. `Number()` is the literal `0`, and `String()` is the
-  empty-string literal. Multiple arguments and spreads are refused at the
-  callee with `Number takes one argument` or `String takes one argument`,
+  empty-string literal. `Boolean()` converts `undefined` through its common
+  runtime body; `BigInt()` is refused. Multiple arguments and spreads are refused at the
+  callee with the conversion name and `takes one argument`,
   by design: a conversion is an operator, with a fixed set of operands
   ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
   Guarded calls, by design too, standalone references, and namespace
@@ -500,7 +503,7 @@ the fold's:
   bare, distinct names as the intrinsic's `length` whose expression body
   is the one member call of the intrinsic's name on the first with the
   rest, `(s, a, b) => s.slice(a, b)` — the AST's `['slice']`, by the
-  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs)
+  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.js)
   and the helpers [`fjs/js/intrinsic`](../../js/intrinsic/module.f.js). A
   step from the shape is an ordinary function with an ordinary member call.
 

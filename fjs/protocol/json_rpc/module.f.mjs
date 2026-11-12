@@ -18,10 +18,10 @@
  * @import { Id, RpcError, Handlers, Response, SuccessResponse, ErrorResponse } from './types.ts'
  */
 
-import { at } from '../../types/object/module.f.mjs'
-import { number, open, string, or, option } from '../../rtti/module.f.mjs'
+import { entry } from '../../types/object/entry/module.f.js'
+import { number, open, string, or, option } from '../../rtti/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { unknown } from '../../media/json/rtti/module.f.mjs'
+import { unknown } from '../../media/json/rtti/module.f.js'
 
 export const jsonrpc = /** @type {const} */ ('2.0')
 
@@ -137,11 +137,11 @@ export const dispatch = handlers => value => {
     if (id === undefined) {
         return null
     }
-    // `at`, not `handlers[method]`: `method` is untrusted wire data, and a
+    // `entry` reads only own properties: `method` is untrusted wire data, and a
     // bracket lookup on a plain object resolves inherited `Object.prototype`
     // names (`constructor`, `toString`, …) to callables.
-    const handler = at(method)(handlers)
-    if (handler === null) {
+    const handler = entry(handlers, method)
+    if (handler === undefined) {
         return errorResponseOf(id)(methodNotFound)
     }
     const [t2, result] = handler(params)

@@ -10,7 +10,7 @@ import { assert, assertEq } from '../../asserts/module.f.js'
 import { run as mockRun, runAll } from '../mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { toCodePointList, utf8ToString } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import {

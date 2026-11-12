@@ -2,18 +2,30 @@
 
 `fjs ci` writes `.github/workflows/gen.ci.yml` and
 `.github/workflows/gen.npm-publish.yml`. Jobs use the checkout's committed
-mise manifest and lock; callers must provide those files. This replaces the
+mise manifest and lock for source checks; callers must provide those files. The
+package consumer uses direct Node and TypeScript installation. This replaces the
 previous generated environment API. `Setup.environment` is removed because
 this branch has one environment manager.
 
-The eleven test jobs cover Linux, macOS and Windows on x64 and ARM64, canonical
-Node, Deno, Bun and SpiderMonkey checks, and dedicated Node coverage. Native Rust debug/release
+The twelve test jobs cover Linux, macOS and Windows on x64 and ARM64, canonical
+Node, Deno, Bun and SpiderMonkey checks, dedicated Node coverage and the npm
+package consumer. Native Rust debug/release
 tests and Clippy, i686 Linux/Windows checks, Linux ARM formatting and four WASM
 targets, SpiderMonkey compilation/tests, TypeScript, compilation, coverage and
 packed-package checks remain separate steps. Host compiler/SDK prerequisites
 still apply.
 
-The six platform jobs run Node's JS-only entry
+`node` always builds the tarball with `npm pack` and uploads the
+`package-tarball` artifact. The `package` job waits for `node`, downloads that
+artifact into `runner.temp/consumer`, installs pinned Node with `setup-node`
+and pinned TypeScript through npm, then runs the declaration, runtime-import
+and negative type checks. It has no checkout or mise setup. The producer and
+consumer run without whole-check caching: a cached success cannot supply a
+tarball, and a successful pack alone cannot certify consumer validation.
+`node` also keeps `npm ci` and the compiler version check uncached because
+`npm pack` invokes the declaration-producing `prepack` hook.
+
+The three ARM platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
 test because parser stress proofs can exceed its default five seconds. `node`
@@ -36,7 +48,8 @@ coverage is incomplete, this step temporarily uses `continue-on-error: true`: it
 reports parsing failures without failing the job. It runs uncached even when
 other checks hit build-cache. Restore failure gating once all authored files parse
 ([dependency graph follow-up](../todo/module-dependency-graph-command.md)).
-Host-JS proofs run without suite-wide coverage across all six platforms; Deno
+Intel platform jobs retain native Rust checks but do not run fjs tests.
+Host-JS proofs run without suite-wide coverage across all three ARM platforms; Deno
 and Bun host-JS runs remain part of the later six-job allocation.
 
 Suite cache keys retain the conservative `js` input rung. The selected command
@@ -53,19 +66,20 @@ these whole-check gates. Unsupported dependency analysis remains uncached.
 - `environment/module.f.mjs`: manager-independent command assembly.
 - `mise/module.f.mjs`: locked setup and command execution, including supplements.
 - `rust`, `node`, `bun`, `deno`, `spidermonkey`: check builders.
-- `package`: isolated packed-package declaration and runtime consumer.
+- `package`: isolated declaration and runtime consumer steps.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-The test workflow runs eleven jobs on pull requests and merge-group entries.
-The other jobs retain their successful-check caching.
+The test workflow runs twelve jobs on pull requests and merge-group entries.
+Source checks retain their successful-check caching.
 The `cov` command always starts, then checks its own per-target manifests.
 The new job supplies cache-publication identity and contents-write permission;
 its `--sync` flag is restricted to permitted runs. Existing job permissions
 remain unchanged.
 There are no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
 
-Add `cov` to GitHub's required status checks when it is ready to gate merging.
+Add `cov` and `package` to GitHub's required status checks when they are ready
+to gate merging.
 The workflow does not update the repository's branch rules.
 
 The separate generated `gen.website.yml` workflow contains the `website` job.
@@ -107,7 +121,7 @@ it again, so retired generated assets become deletions.
 `ci(setup)` accepts `nodeExtra(os, architecture)`, optional `packageConsumer`,
 `smart`, and `mergeQueueOnly`. Injected shell scripts pass unchanged through
 `FJS_CI_RUN` to `bash -e -c` inside the selected environment. The packed consumer
-runs outside that environment, under `runner.temp`, with its own `setup-node`.
+runs in its own job, under `runner.temp`, with its own `setup-node`.
 
 Successful-check caching (`smart: true`) is supported only for FunctionalScript's
 own repository. `fjs ci init` selects `GITHUB_JOB` from the configuration in

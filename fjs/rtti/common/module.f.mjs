@@ -50,8 +50,8 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
-import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
+import { isArray as commonIsArray } from '../../types/array/module.f.js'
+import { isObject as commonIsObject } from '../../types/object/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /** Builds an error result with empty path and the given message. */

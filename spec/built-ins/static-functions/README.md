@@ -28,7 +28,9 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The language admits eight static functions. `Object.is` is JavaScript's
+The admitted static functions include `Math.log2`, `Object.is`,
+`Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
+four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -39,7 +41,19 @@ UTF-16 code units under their index strings, nothing for a number, a
 boolean, a `bigint` or a function, and a failure on `null` and
 `undefined`. An entry holding `undefined` is listed, as JavaScript lists
 it ([undefined-valued properties](../../todo/1010-undefined-property.md)).
-`Object.fromEntries` is its inverse, JavaScript's over an array of entries:
+`Object.keys` returns a fresh array of those keys alone, in the same order:
+`Object.keys({ b: 1, "0": 2 })` is `["0", "b"]`. It includes a key whose
+value is `undefined` and treats `__proto__` as an ordinary own data key.
+Arrays and strings contribute their enumerable index strings; strings use
+UTF-16 indices, so `Object.keys("😀")` is `["0", "1"]`. Numbers, booleans,
+bigints and functions yield an empty array. Null and undefined fail, including
+a call with no argument. The function has `length` 1, ignores additional
+arguments after they are evaluated, and works detached as
+`const { keys } = Object`. Its common-runtime body projects native entries
+through the shared array `map` implementation; no native keys operation is
+added. FunctionalScript values have no getters or proxies, so reading entry
+values while enumerating introduces no additional observation.
+`Object.fromEntries` constructs an object from an array of entries, as in JavaScript:
 a fresh object with each element's `[0]` as a key, converted to a string,
 and its `[1]` as the value, in order, so a key written twice keeps its first
 position and its last value, and `__proto__` is an own key like any other.
@@ -51,7 +65,18 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isSafeInteger` — an integer within `2^53 - 1` of `0` —
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
-`true`. Each is a value, as in JavaScript — passed,
+`true`.
+
+`Math.log2(x)` returns the base-2 logarithm after JavaScript's `ToNumber`
+conversion: `Math.log2("8")` is `3`, while a BigInt argument throws.
+`NaN` and negative numbers return `NaN`, either zero returns `-Infinity`,
+1 returns positive zero, and positive infinity returns itself. Omitting
+the argument returns `NaN`; extra arguments are ignored. Ordinary positive
+results are implementation-approximated, as ECMAScript specifies. The
+common runtime supplies the numerical body for the interpreter and Rust;
+WASM can compile that same body without an external math library.
+
+Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
 read, so `Object.is === Object.is`. A value is a function, not an operator,
 so a call of it takes any number of arguments, as in JavaScript —
@@ -86,7 +111,7 @@ builds with `this` as its constructor — `Promise.resolve`,
 reserved together with the member it admits. A module cannot bind it as a
 `const`, parameter or import, and it is no value: the word alone,
 `const o = Object;`, an array pattern over it, a member the namespace does
-not admit — `Object.keys(o)` — and a computed key, `Object[k]`, are
+not admit — `Object.values(o)` — and a computed key, `Object[k]`, are
 compilation errors (`reserved word`), a namespace being closed at compile
 time. It stands in one other place, the
 [`entry` helper](../../property-access/entries/README.md)'s
@@ -96,17 +121,25 @@ conversion already, is a namespace the same way, beside the call
 `Number(x)` ([number conversion](../../conversions/number/README.md)). Each later member is
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
+`Math` is reserved in the same way and admits only `log2`.
+`Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
+function, with `length` 1 and text `function log2() { [native code] }`.
+The word alone, namespace guards, computed keys and other `Math` members
+remain refused.
+
 Each read reaches the graph as the node of its name, `['Object.is']` or
 `['Number.isInteger']`, and a call of it as the ordinary call,
 `['()', ['Object.is'], [a, b]]` ([`fjs/edag`](../../../fjs/edag/README.md)). Each
 body is written once, in the `statics` table of
 [`fjs/js/runtime`](../../../fjs/js/runtime/README.md), a VM's and no module's —
-a module calls the built-in — and checked there against the host's own;
+a module calls the built-in — and checked there against the host's own
+for exact semantic cases, with separate numerical accuracy cases for
+`Math.log2`;
 every executor answers the node from it, and an executor with no binding
-for it fails, naming it, rather than answer. `Object.entries` alone has no
-body, since enumerating keys is what no body can do otherwise; the
-others, `Object.fromEntries` among them, have one: every
-executor binds it natively, and its text, `String(Object.entries)`, is
+for it fails, naming it, rather than answer. `Object.entries` and
+`String.fromCharCode` are native primitives; the others,
+`Object.keys`, `Object.fromEntries` and `Math.log2` among them, have bodies. The native
+primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
 ([function source](../../principles/README.md#function-source-representation-exception)).
@@ -136,7 +169,7 @@ export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0
 
 ## Reference
 
-- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
+- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.keys](https://tc39.es/ecma262/#sec-object.keys), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries>
 
 `String.fromCharCode(...codes)` is a native static that constructs a string

@@ -26,7 +26,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'

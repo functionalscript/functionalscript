@@ -11,7 +11,7 @@ call starts fresh, per the per-invocation memo scope in
 [interpret-edag.md](../compiler/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
-decide semantic equivalence. The schema in [module.f.mjs](module.f.mjs) owns
+decide semantic equivalence. The schema in [module.f.js](module.f.js) owns
 node kinds and operand shapes independently of its producers and executors.
 The [FunctionalScript](../compiler/) compiler lowers parsed modules to EDAG
 ([compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md));
@@ -22,7 +22,7 @@ the compiler serializer's function-text renderer.
 
 |Module                                |Holds                                                                    |
 |--------------------------------------|-------------------------------------------------------------------------|
-|[`.`](module.f.mjs)                   |the schema: every node kind and its operands                              |
+|[`.`](module.f.js)                   |the schema: every node kind and its operands                              |
 |[`value`](value/README.md)            |what a graph evaluates to, and every operation on it                     |
 |[`analysis`](analysis/README.md)      |one table of a graph's nodes, scopes and shared entries                  |
 |[`sharing`](sharing/README.md)        |which nodes are reached from more than one place                         |
@@ -39,7 +39,7 @@ they differ, a shared object's identity, can be seen.
 
 ## Values and evaluation
 
-[`value`](value/module.f.mjs) defines the evaluated-value subset's type and
+[`value`](value/module.f.js) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
 representation; [EDAG values](values.md) records its construction, identity,
@@ -66,7 +66,7 @@ proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
 methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
 cover direct and imported module initialization.
 
-[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`
+[`value/semantics`](value/semantics/module.f.js) provides truthiness, `typeof`
 and strict equality for represented values. Distinct
 `['undefined']` tuples denote the same primitive; arrays, objects and functions
 compare by their value-node identity. These infallible helpers are shared
@@ -75,7 +75,7 @@ and `typeof`; its `binary` table supplies `===` and `!==`. Both tables
 accept evaluated values and return `Result` successes. Callers own operand
 evaluation and failure propagation.
 
-[`value/control`](value/control/module.f.mjs) adds Result-based `throw` and
+[`value/control`](value/control/module.f.js) adds Result-based `throw` and
 `?:`, taking an evaluated first operand and deferring conditional arms
 with thunks. Its `sequence` helper runs deferred operands in order and returns
 the first failure or last success unchanged; an empty sequence yields tagged
@@ -83,19 +83,19 @@ undefined. Earlier values may be discarded, but their failures still stop the
 sequence. The helpers provide stateless control flow; executor state belongs
 to the invocation/cache layer.
 
-[`value/array`](value/array/module.f.mjs) constructs evaluated arrays from
+[`value/array`](value/array/module.f.js) constructs evaluated arrays from
 deferred items, resolving array and string spreads in order. Construction
 stops at the first failure, preserves element identity and creates a fresh
 array value. A non-iterable spread returns `error(['undefined'])`.
 
-[`value/object`](value/object/module.f.mjs) constructs evaluated objects from
+[`value/object`](value/object/module.f.js) constructs evaluated objects from
 deferred string-key properties and object, array and string spreads. It
 preserves property value identity, stops at the first failure and creates a
 fresh object with unique keys in JavaScript enumeration order. Property
 thunks perform key resolution before value evaluation; key coercion belongs
 to the operation/invocation layer.
 
-[`value/function`](value/function/module.f.mjs) constructs function values
+[`value/function`](value/function/module.f.js) constructs function values
 from deferred captures and valid body templates. Captures evaluate in order,
 retaining their identities and propagating the first failure unchanged.
 Each function gets a fresh copy of its body graph, including nested function
@@ -103,7 +103,7 @@ templates, while sharing within that graph is preserved. Body code stays
 unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
 the retained body with a fresh invocation cache.
 
-[`value/call`](value/call/module.f.mjs) prepares bare calls over represented
+[`value/call`](value/call/module.f.js) prepares bare calls over represented
 values. It resolves deferred arguments and spreads, pads missing fixed
 arguments with tagged undefined and creates a fresh rest array per call.
 Callee and argument failures propagate unchanged; arguments resolve before
@@ -115,7 +115,7 @@ which makes it in the invocation's place
 callback, the loop over the calls a body leaves, from a body evaluator.
 The memo interpreter threads its immutable cache around these stateless helpers.
 
-[`value/property`](value/property/module.f.mjs) reads resolved string keys
+[`value/property`](value/property/module.f.js) reads resolved string keys
 from represented values, preserving stored field and element identities.
 Arrays, strings and functions expose their lengths; string indices read
 UTF-16 code units. Missing properties return tagged undefined and nullish
@@ -145,7 +145,7 @@ evaluator is retired; both FJS EDAG VMs and compiler initialization use this
 representation. [Runtime compilation](values.md#runtime-compilation) converts
 these values, including evaluated closures, through the target backend.
 
-[`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
+[`value/coercion`](value/coercion/module.f.js) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
 shadow stock behavior, including noncallable values. Represented functions
 run through the call helper; their first primitive result or failure returns
@@ -155,7 +155,7 @@ semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
 [`value/convert`](value/convert/module.f.mjs) composes these helpers with array
 and function conversion; memo owns operation dispatch.
 
-[`value/numeric`](value/numeric/module.f.mjs) supplies a `unary` operation
+[`value/numeric`](value/numeric/module.f.js) supplies a `unary` operation
 table over evaluated primitives. Unary `+` fails on bigint, `-` and `~`
 preserve bigint, and explicit `Number` converts it. Its `binary` table supplies
 `+`, `-`, `*`, `/`, `%`, `**`, `&`, `|`, `^`, `<<`, `>>` and `>>>`.
@@ -169,7 +169,7 @@ negative bigint exponents fail with tagged undefined. Both tables return
 For ordinary objects, pass `'number'` to `objectToPrimitive` for all these
 operations, including addition's default conversion.
 
-[`value/relational`](value/relational/module.f.mjs) supplies a `binary` table
+[`value/relational`](value/relational/module.f.js) supplies a `binary` table
 for `<`, `<=`, `>` and `>=` over evaluated primitives. Two strings compare
 by UTF-16 code unit; mixed number/bigint comparisons preserve numeric value,
 and bigint/string comparisons parse the string as an integer. NaN, tagged
@@ -177,19 +177,19 @@ undefined and invalid bigint/string comparisons succeed with false. Every
 result uses `Result`; operand evaluation and conversion of containers or
 functions remain with the caller, using the number hint for ordinary objects.
 
-The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
+The [`value/array`](value/array/module.f.js) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;
 other elements use the supplied string converter in order, preserving the
 first failure unchanged. The converter also owns nested-array and function
 text. Separator conversion/defaulting and full value conversion remain with
 operation dispatch.
 
-[`value/at`](value/at/module.f.mjs) supplies relative indexing for evaluated
+[`value/at`](value/at/module.f.js) supplies relative indexing for evaluated
 arrays and strings: it truncates fractions toward zero and counts negative
 indices from the end. Array elements retain their identities; strings yield
 UTF-16 code units. Out-of-range reads answer tagged undefined.
 
-[`value/slice`](value/slice/module.f.mjs) slices evaluated arrays and strings;
+[`value/slice`](value/slice/module.f.js) slices evaluated arrays and strings;
 an `undefined` end means the receiver's length. Array results are fresh values
 sharing the selected elements; strings retain UTF-16 substring semantics.
 
@@ -249,7 +249,7 @@ uniqueness is structural — the wrong shapes are unspellable rather than
 rejected by a validation pass a producer has to remember to run.
 
 The shape is defined once, as an [RTTI](../rtti/) schema in
-[module.f.mjs](module.f.mjs) — the specification of record, checkable at
+[module.f.js](module.f.js) — the specification of record, checkable at
 runtime with `validate(exp)` (shape only — see Caveats). [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
 two cannot drift. Every tuple in the schema is closed — none of them says
@@ -277,7 +277,7 @@ operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. `analysis` merges two equal nodes of one
 scope into one entry; `identityAnalysis` keeps every node its own, its
-shared entries the ones [`sharing`](sharing/module.f.mjs) counts by node
+shared entries the ones [`sharing`](sharing/module.f.js) counts by node
 identity, which is the table the FunctionalScript writer writes from and
 the compiler evaluates by. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
@@ -302,7 +302,7 @@ are compared in [execution-models.md](execution-models.md).
 
 ## Literal descriptions
 
-`fromValue(other)(value)` in [module.f.mjs](module.f.mjs) encodes a typed
+`fromValue(other)(value)` in [module.f.js](module.f.js) encodes a typed
 `Plain<F>` description as an EDAG expression. Primitive leaves stay primitive;
 `undefined`, arrays and objects become literal nodes. Object members follow
 enumeration order and retain explicitly present `undefined` values. Every
@@ -325,7 +325,7 @@ first two counts (`+`, `-`)
 are their own kinds, because what distinguishes them is the hidden control
 flow they own rather than how many operands they take; see
 [Chains](#chains). This table is an overview; the contract of
-record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
+record for each node is the JSDoc in [module.f.js](module.f.js) — on the
 node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`/`op12Id`/`op3Id`
 vocabularies.
 
@@ -343,7 +343,7 @@ vocabularies.
 | `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a`: its value, or `undefined` where there is none |
 | `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: entry](../../spec/property-access/entries/README.md)) |
 | `['slice']`, `['charCodeAt']` | an intrinsic, as a value: the helper calling a member function no body defines, `(s, a, b) => s.slice(a, b)` recognized whole, a function of its helper's `length`, `3` for `slice`, capturing nothing, fresh where it is established as `entry` is, whose call `['()', ['slice'], [s, a, b]]` is the member call `s.slice(a, b)` as an executor answers it with no runtime — the receiver's own property, else the native, else the `TypeError` — so the runtime's bodies reach a native without naming what the runtime defines (`intrinsics`; [`fjs/js/intrinsic`](../js/intrinsic/module.f.js)) |
-| `['Object.is']`, `['Object.entries']`, `['Object.fromEntries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.mjs)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
+| `['Object.is']`, `['Object.entries']`, `['Object.keys']`, `['Object.fromEntries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.js)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
@@ -353,7 +353,7 @@ vocabularies.
 | `['?.()', exp, items[]]`, `['?.()', exp, items[], optionLambda]` | optional call `exp?.(…)`, likewise |
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
-| `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
+| `[id, exp]` | unary operation, `id` one of `String` `Number` `Boolean` `BigInt` `!` `~` `typeof` `throw`. `Boolean` establishes its operand and invokes the [common runtime](../js/runtime/README.md)'s `Boolean` body, `value => !!value`. `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
 | `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |

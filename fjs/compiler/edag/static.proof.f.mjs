@@ -10,16 +10,38 @@
  *
  * No `@module`: a proof's documentation reaches no reader of the published
  * API, which is the case that rule names outright.
+ *
+ * @import { Exp } from '../../edag/types.ts'
+ * @import { Runtime } from '../../edag/value/types.ts'
  */
 
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { apply, compile, execute, expectEdag, value } from './proof.f.mjs'
 
+/** The authored common runtime, evaluated without requiring a runtime. @type {() => Runtime} */
+const commonRuntime = () => {
+    const runtime = assertOk(read(['ok', value(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag)))], 'runtime'))
+    assert(runtime instanceof Array && runtime[0] === '{}')
+    return runtime
+}
+
+/** A graph whose member calls need the common runtime. @type {(graph: Exp) => unknown} */
+const executeWithRuntime = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [], runtime: commonRuntime() }))))
+
 export const proof = {
+    mathLog2: () => {
+        expectEdag(compile('export default Math.log2(8);').edag, ['()', ['Math.log2'], [8]])
+        expectEdag(compile('const { log2 } = Math; export default [log2, Math["log2"], log2.length];').edag,
+            ['[]', [['Math.log2'], ['Math.log2'], ['.', ['Math.log2'], 'length']]])
+        const run = memo(assertOk(analysis(compile('export default Math.log2;').edag)))
+        assertEq(assertError(run({ args: [] })), 'no binding for the static Math.log2')
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`
@@ -52,7 +74,7 @@ export const proof = {
             [1, 8, undefined, 'a', undefined, 2, 'function', 9, undefined])
         // the helper passed as a value, and called from where it was passed
         assertStructurallySame(execute(compile(`${helper} const call = (f, o) => f(o, "x"); export default call(entry, { x: 3 });`).edag), 3)
-        assertStructurallySame(execute(compile(`${helper} export default [10, 20].map(entry);`).edag), [undefined, undefined])
+        assertStructurallySame(executeWithRuntime(compile(`${helper} export default [10, 20].map(entry);`).edag), [undefined, undefined])
         const fn = value(compile(`${helper} export default entry;`).edag)
         assertStructurallySame(assertOk(toData(apply(fn, [['{}', [[':', 'y', 4]]], 'y']))), 4)
         assertStructurallySame(assertOk(toData(apply(fn, [['[]', [5]], 0]))), 5)
@@ -71,7 +93,9 @@ export const proof = {
         /** @type {import('../../edag/value/types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         const run = memo(assertOk(analysis(compile('const { is } = Object; const f = () => Object.is; export default [is(1, 1), Object.is(1, 2), is === f(), [1].map(x => f()(x, 1))];').edag)))
-        assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime })))), [true, false, true, [true]])
+        assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime: ['{}', [
+            ...runtime[1], [':', 'dot', assertOk(read(['ok', commonRuntime()], 'dot'))],
+        ]] })))), [true, false, true, [true]])
         assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
         // a `Number` predicate the same way, read at its own path
         expectEdag(compile('const { isInteger } = Number; export default [isInteger, Number["isFinite"]];').edag, ['[]', [['Number.isInteger'], ['Number.isFinite']]])

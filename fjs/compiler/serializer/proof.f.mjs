@@ -23,8 +23,8 @@ import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
-import { call } from '../../edag/value/call/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.js'
+import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis, identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
@@ -33,8 +33,8 @@ import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.js'
-import { staticIds } from '../../edag/module.f.mjs'
-import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
+import { staticIds } from '../../edag/module.f.js'
+import { operandsOf, visit } from '../../edag/sharing/module.f.js'
 import { disagreement } from '../../js/marked/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
@@ -1545,7 +1545,7 @@ export const proof = {
         // each conversion is the call it is in JavaScript: its
         // operand an argument, which groups nothing, and the call binding
         // tighter than every operator, as a call does
-        for (const tag of /** @type {const} */ (['Number', 'String'])) {
+        for (const tag of /** @type {const} */ (['Number', 'String', 'Boolean'])) {
             writes([tag, 1], `export default ${tag}(1);`)
             writes([tag, ['|', 1, 2]], `export default ${tag}(1|2);`)
             writes([tag, ['=>', 0, [], 1]], `export default ${tag}(()=>1);`)

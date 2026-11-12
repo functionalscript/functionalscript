@@ -25,6 +25,7 @@
 
 import http from 'node:http'
 import net from 'node:net'
+import { availableParallelism as hostAvailableParallelism } from 'node:os'
 import { once } from 'node:events'
 import { constants as fsConstants } from 'node:fs'
 import process from 'node:process'
@@ -36,7 +37,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
-import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
@@ -46,7 +47,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
-    awaitIfPromise, both, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
+    availableParallelism, awaitIfPromise, both, capture, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
@@ -521,6 +522,13 @@ const startedChild = async args => {
 }
 
 export const proof = {
+    availableParallelism: async () => {
+        await hostCheck(availableParallelism(), result => {
+            const count = unwrap(result)
+            assert(Number.isInteger(count) && count > 0)
+            assertEq(count, hostAvailableParallelism())
+        })
+    },
     inlineRegistrationNames: {
         ordinary: async () => {
             let called = false
@@ -1869,6 +1877,78 @@ export const proof = {
     // for an exit, a signal and a missing executable — which no in-memory runner
     // has. `node` is named rather than `process.execPath`: under Deno and Bun that
     // path is their own binary, and only Node takes `-e`.
+    capture: {
+        argumentsDirectoryAndInputEof: () => withTemporary('fjs-capture-cwd-', async directory => {
+            /** @type {readonly string[]} */
+            const args = ["space and 'quote'", '$(echo wrong)', '& %PATH%']
+            await writeFile(join(directory, 'marker'), 'selected working directory')
+            await within('capture input EOF', 10_000, hostCheck(capture('node', ['-e',
+                'setTimeout(() => process.exit(99), 5000).unref(); process.stdin.resume(); process.stdin.on("end", () => { process.stdout.write(JSON.stringify({ args: process.argv.slice(1), marker: require("node:fs").readFileSync("marker", "utf8") })); process.stderr.write("stderr"); });',
+                ...args], { cwd: directory }), result => {
+                const { status, stdout, stderr } = unwrap(result)
+                assertStructurallySame(status, ['exited', 0])
+                assertStructurallySame(JSON.parse(stdout), { args, marker: 'selected working directory' })
+                assertEq(stderr, 'stderr')
+            }))
+        }),
+        nonzeroRetainsBothStreams: async () => {
+            await within('capture nonzero exit', 10_000, hostCheck(capture('node', ['-e',
+                'process.stdout.write("stdout before failure"); process.stderr.write("stderr before failure"); process.exitCode = 3;']), result => {
+                assertStructurallySame(unwrap(result), {
+                    status: ['exited', 3], stdout: 'stdout before failure', stderr: 'stderr before failure',
+                })
+            }))
+        },
+        largeUtf8Streams: async () => {
+            /** @type {number} */
+            const copies = 270_000
+            const emoji = String.fromCodePoint(0x1_f642)
+            await within('capture drains both large pipes', 10_000, hostCheck(capture('node', ['-e',
+                'setTimeout(() => process.exit(99), 5000).unref(); const text = String.fromCodePoint(0x1f642).repeat(Number(process.argv[1])); process.stdout.write("x" + text); process.stderr.write("y" + text);',
+                String(copies)]), result => {
+                const { status, stdout, stderr } = unwrap(result)
+                assertStructurallySame(status, ['exited', 0])
+                assertEq(stdout, 'x' + emoji.repeat(copies))
+                assertEq(stderr, 'y' + emoji.repeat(copies))
+            }))
+        },
+        splitUtf8Sequences: async () => {
+            await within('capture UTF-8 across data events', 10_000, hostCheck(capture('node', ['-e',
+                'process.stdout.write(Buffer.from([0xf0, 0x9f])); process.stderr.write(Buffer.from([0xc3])); setTimeout(() => { process.stdout.write(Buffer.from([0x99, 0x82])); process.stderr.write(Buffer.from([0xa9])); }, 20);']), result => {
+                assertStructurallySame(unwrap(result), {
+                    status: ['exited', 0], stdout: '\u{1f642}', stderr: '\u00e9',
+                })
+            }))
+        },
+        trailingOutputAfterExit: async () => {
+            // Windows kills non-detached descendants when their parent exits.
+            // This child must survive its parent to finish the inherited pipes.
+            /** @type {string} */
+            const descendant = 'setTimeout(() => { process.stdout.write("late stdout"); process.stderr.write("late stderr"); }, 50)'
+            const source = `require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}], { stdio: ["ignore", 1, 2], detached: true }).unref();`
+            await within('capture waits for both pipes to close', 10_000, hostCheck(capture('node', ['-e', source]), result => {
+                assertStructurallySame(unwrap(result), {
+                    status: ['exited', 0], stdout: 'late stdout', stderr: 'late stderr',
+                })
+            }))
+        },
+        signaledRetainsOutput: async () => {
+            // Windows cannot portably deliver a signal from a child to itself.
+            if (process.platform === 'win32') { return }
+            await within('capture signal exit', 10_000, hostCheck(capture('node', ['-e',
+                'process.stdout.write("stdout", () => process.stderr.write("stderr", () => process.kill(process.pid, "SIGTERM")));']), result => {
+                assertStructurallySame(unwrap(result), {
+                    status: ['signaled', 'SIGTERM'], stdout: 'stdout', stderr: 'stderr',
+                })
+            }))
+        },
+        missing: async () => {
+            await within('capture missing executable', 10_000, hostCheck(capture('fjs-no-such-command-29e41680', []), result => {
+                assert(result[0] === 'error', result)
+                assertEq(result[1][0], 'ioError')
+            }))
+        },
+    },
     execFile: {
         utf8InputAndLiteralArguments: async () => {
             const args = ['space and quote\'', '$(echo wrong)', '& %PATH%']

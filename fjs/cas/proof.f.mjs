@@ -9,9 +9,9 @@
  * @import { Transducer } from '../types/function/operator/types.ts'
  */
 
-import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
-import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
+import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.js'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.js'
+import { computeSync, sha256 } from '../crypto/sha2/module.f.js'
 import { fileCas, casAddFile, collectRead, contentKey, wholeByteMachine } from './module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { run } from '../effects/mock/module.f.mjs'
@@ -228,7 +228,7 @@ export const proof = {
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
         const [, readResult] = virtual(state1)(collectRead(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
-        const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const expected = msb.concatVec(msb.concatVec(chunks[0])(chunks[1]))(chunks[2])
         assertEq(msb.cmp(readResult[1])(expected), 0, 'multi-chunk read content mismatch')
     },
     casListMissingStoreIsEmpty: () => {
@@ -460,7 +460,7 @@ export const proof = {
         assertEq(msb.cmp(key)(computeSync(sha256)(chunks)), 0, 'contentKey is not the SHA-256 of the bytes')
         // The same bytes in one chunk: the chunking is the stream's business and
         // not the key's.
-        const whole = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const whole = msb.concatVec(msb.concatVec(chunks[0])(chunks[1]))(chunks[2])
         const o1 = runPure(contentKey(sha256)(payload([whole])))
         assert(o1.length === 1)
         assertEq(msb.cmp(key)(unwrapResult(o1[0])), 0, 'rechunked contentKey disagrees')

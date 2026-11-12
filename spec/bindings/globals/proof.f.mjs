@@ -4,7 +4,8 @@ import alternative from './alternative.f.js'
 import { demo, sample, suggestion } from './demo.f.mjs'
 
 export const proof = {
-    // `name.unbound` (spec/todo/refused-constructs.md): the message and the position.
+    // `globalThis` stays unbound even though Math now admits log2. Pin
+    // `name.unbound` (spec/todo/refused-constructs.md), not namespace admission.
     refused: () => {
         const r = report(sample)
         assert(r[0] === 'error', 'name.unbound is accepted')

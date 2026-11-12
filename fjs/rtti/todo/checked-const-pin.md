@@ -49,7 +49,7 @@ arguments to declarations.
   invent a runtime value solely to represent a TypeScript-only declaration; this
   is not quite that — the checking is real and there is a value to return — but
   it is close enough to need an explicit decision rather than a drive-by.
-- **Cyclic schemas may not survive it.** `../../edag/module.f.mjs` spells its
+- **Cyclic schemas may not survive it.** `../../edag/module.f.js` spells its
   node types out longhand with a comment explaining why: a const assertion
   applied to the returned array cannot resolve the cycle back through
   `array`/`object`/`op0` to `exp`, and declaration emit elides it to `any`.
@@ -67,7 +67,7 @@ arguments to declarations.
 - [ ] If it is: measure it against the `edag` cycle first — convert one node
       there and diff the emitted `.d.mts` for `any`.
 - [ ] Pick the name (`type` collides with the `type:` member in several
-      schemas; `schema` may read better) and site it in `../module.f.mjs`.
+      schemas; `schema` may read better) and site it in `../module.f.js`.
 - [ ] Convert in batches, diffing declaration emit per batch, per the method in
       [`../../../todo/inline-type-casts.md`](../../../todo/inline-type-casts.md).
 
@@ -75,5 +75,5 @@ arguments to declarations.
 
 - [`../../../todo/inline-type-casts.md`](../../../todo/inline-type-casts.md)
   — the audit of inline casts, which excluded `@type {const}` wholesale.
-- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — the cyclic
+- [`../../edag/module.f.js`](../../edag/module.f.js) — the cyclic
   declarations that constrain the design.

@@ -169,13 +169,36 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Native children inherit stdout and stderr, so their reporter output appears
-live. After a child finishes, each target prints its repository-relative path
-followed by `...Ok` or `...Failed`; failures also identify the working directory
-and complete command. Exact successful dependency manifests in the local
-`build-cache` branch skip the native child and print only `...Cached` for each
-target. Manifests include working-tree hashes of all sibling authored
-files and their transitive dependencies, plus the runner/runtime contract.
+The runner prepares every manifest and completes one cache lookup before
+executing jobs in batches bounded by Node's `os.availableParallelism()`. Children
+in a batch run concurrently; the next batch starts after the current one
+settles. Scheduling capacity is not part of the cache key.
+
+Before each child starts, the runner prints a complete `module.f.js: running`
+line for each measured file by repository-relative path. Files in one directory
+share a child and duration, but each gets its own complete result line when the
+child finishes, using emergent testing's shared result formatter, for example
+`module.f.js: ok, 360.0000 ms`. Successful child output stays hidden. A failed
+result and its working directory, complete command, exit status or signal, and
+captured stdout/stderr are written together, so concurrent children cannot splice
+their diagnostics into that block. The two streams are grouped, so their original
+ordering relative to each other is not preserved. Launch/capture errors are
+reported directly. Exact successful dependency manifests in the local
+`build-cache` branch skip the native child without printing per-file results.
+The final summary includes the cached module count and two test timings.
+`Test real time: 1.2000 s` measures the span from the first child's start to the
+last child's finish, including gaps between jobs and batches. Dependency
+planning, cache lookup and final cache saving/synchronization fall outside this
+span. `Processor time: 2.1000 s` sums child wall-clock durations once per child,
+even when its directory has multiple measured files, including failed runs.
+Cache hits contribute zero; both timings are zero when no child runs. Parallel
+child durations can sum to more than test real time.
+`Concurrency: up to 4 child processes` reports the smaller of available CPU
+capacity and the number of directory jobs. Cache hits can reduce the actual
+number of children that run.
+Manifests include
+working-tree hashes of all sibling authored files and their transitive
+dependencies, plus the runner/runtime contract.
 After validating unchanged inputs, the command collects successful manifests
 and saves them in one batch when all modules finish. Another module's failure
 does not discard those successes; failed coverage contributes no manifest.
@@ -185,8 +208,11 @@ The `--` forwards the synchronization flag through npm. The command fetches the
 remote baseline at startup and publishes one batch at the end, retrying
 concurrent updates and pending local successes. Modules and warm hits do not
 publish individually. Without `--sync`, recording is still batched locally and
-no remote access is needed. Unsupported dependency analysis or unavailable
-caching is reported and coverage runs uncached.
+no remote access is needed. A dependency-analysis or manifest-admission failure
+is reported as `CACHE ADMISSION` and makes the command fail, even if native
+proofs pass. The affected proofs and remaining modules still run; independent
+successful manifests are retained. A normal cache miss runs coverage and
+records its success. Unavailable cache storage is reported and runs uncached.
 
 To test only one directory without coverage or discovery below it, use the
 explicit native entry:
@@ -207,14 +233,13 @@ Node's `npm start cov node` and Deno's `cov` and `cov-html` reports measure
 already includes imported demos without a filename filter; CI uses Node's
 100% line, branch and function thresholds as the coverage gate.
 
-The isolated coverage runner reports live through
-[`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs),
-which checks the expected targets before delegating to
+The isolated coverage child uses
+[`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs)
+to check the expected targets before delegating to
 [`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs).
-This is Node's `spec` reporter with the passed tests and the fully covered files
-filtered out, so a green run prints its summary — the test counts and the
-`all files` coverage row — and a red one prints each failure and each file
-under a threshold. The runner then prints module results and failure diagnostics.
+The parent runner displays progress using emergent testing's shared result formatter.
+Successful native reports are hidden; failed reports are replayed after the
+module's result and command, including test failures and uncovered locations.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

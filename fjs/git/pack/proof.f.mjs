@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import {
     latin1, packDelta, packDeltaBase, packEntryObject, packEntryOfsDelta, packHeader,

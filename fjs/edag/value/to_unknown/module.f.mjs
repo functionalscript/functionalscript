@@ -23,11 +23,11 @@
  * @import { _Copies, _Converted } from './private.ts'
  */
 
-import { assoc, isArray } from '../../../types/array/module.f.mjs'
+import { assoc, isArray } from '../../../types/array/module.f.js'
 import { error, mapOk, ok } from '../../../types/result/module.f.js'
 import { commandsOf, do_, pureOk } from '../../../effects/module.f.mjs'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
-import { isFunction, untagUndefined } from '../semantics/module.f.mjs'
+import { isFunction, untagUndefined } from '../semantics/module.f.js'
 
 /** Decode data while retaining all completed container identities. @type {(copies: _Copies, input: EdagValue) => _Converted} */
 const convert = (copies, input) => {

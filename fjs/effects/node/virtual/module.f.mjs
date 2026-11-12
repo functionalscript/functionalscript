@@ -19,8 +19,8 @@ import { assert, todo } from '../../../asserts/module.f.js'
 import { isProperPrefix, join, parse } from '../../../path/module.f.js'
 import { asciiLowercase } from '../../../text/ascii/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
-import { divUp8 } from '../../../types/bigint/module.f.mjs'
-import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { divUp8 } from '../../../types/bigint/module.f.js'
+import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.js'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import {
     badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, lexicalFileModule, nodeCommands,
@@ -764,7 +764,7 @@ const window_ = (chunks, offset, size) => {
         const availableBits = chunkBits - skipInChunk
         const takeBits = availableBits <= toRead ? availableBits : toRead
         const taken = vec(takeBits)(msb.front(takeBits)(msb.removeFront(skipInChunk)(chunk)))
-        result = msb.concat(result)(taken)
+        result = msb.concatVec(result)(taken)
         toSkip = 0n
         toRead -= takeBits
     }
@@ -1500,7 +1500,7 @@ export const virtualOperationMap = {
 /**
  * The virtual runner.
  *
- * **It implements part of `NodeOp`, and says so.** `exec`, `spawn`, `childWait`,
+ * **It implements part of `NodeOp`, and says so.** `exec`, `capture`, `spawn`, `childWait`,
  * `forever` and `test` have no meaning against an in-memory filesystem, and
  * `inflate` needs a decoder this runner does not carry until
  * [`todo/inflate.md`](../../../../todo/inflate.md) is done. `exec`, `forever`

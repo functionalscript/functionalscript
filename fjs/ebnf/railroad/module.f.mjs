@@ -39,10 +39,12 @@
  * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { Encoding } from '../token_symbol/types.ts'
  * @import { Alphabet } from './types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import { matchRule } from '../data/module.f.mjs'
-import { at, definedValues } from '../../types/object/module.f.mjs'
+import { definedValues } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { codePointToString } from '../../text/utf16/module.f.js'
 import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.js'
@@ -87,6 +89,7 @@ const copies = (n, d) => Array.from({ length: n }, () => d)
 /**
  * The symbols a reader cannot see spelled by name; the rest of the control
  * and non-ASCII symbols as code points.
+ * @type {StringMap<string>}
  */
 const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
 
@@ -100,7 +103,7 @@ const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
  */
 const symbolText = c => {
     assert(c <= maxCodePoint, ['not a code point', c])
-    return at(String(c))(named)
+    return entry(named, String(c))
         ?? (c < 0x20 || c > 0x7e ? unicodeNotation(c) : codePointToString(c))
 }
 
@@ -285,5 +288,5 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
 export const branch = ruleSet => (name, tag) => {
     const [kind, branches] = ruleSet[name]
     assert(kind === 'variant', ['not a variant', name])
-    return assertNotNullish(at(tag)(branches), ['no such branch', name, tag])
+    return assertNotNullish(entry(branches, tag), ['no such branch', name, tag])
 }

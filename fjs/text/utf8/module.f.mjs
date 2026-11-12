@@ -22,7 +22,7 @@ import {
     isValidCodePoint,
     restart,
 } from '../code_point/module.f.js'
-import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.js'
 import { contains } from '../../types/range/module.f.js'
 import { isByte } from '../../types/number/module.f.js'
 import { codePointListToString, stringToCodePointList } from '../utf16/module.f.js'

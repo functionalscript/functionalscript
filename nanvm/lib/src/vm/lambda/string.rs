@@ -2,19 +2,18 @@
 //! `method` consults for a string receiver, and one adapter per built-in
 //! reading the call's arguments into the typed method it calls, under
 //! `vm/string/`. The contracts are `vm/string/README.md`'s. A name the
-//! runtime defines — `startsWith`, `codePointAt` — has no entry here: the
+//! runtime defines — `startsWith`, `codePointAt`, `concat` — has no entry here: the
 //! call step finds its body through the runtime value (`vm/runtime.rs`).
 
 use super::method::{Method, ToAnyResult, index_or_minus_one};
 use crate::vm::{Any, Array, IVm, String, ToAny};
 
 /// `String.prototype`'s.
-pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 23] {
+pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 22] {
     [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
-        ("concat", concat),
         ("endsWith", ends_with),
         ("includes", includes),
         ("indexOf", index_of),
@@ -101,11 +100,6 @@ fn substring<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
         .substring(args.argument(0), args.argument(1))
         .to_any_result()
-}
-
-/// Every argument a part.
-fn concat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    String::try_from(s)?.concat(args.rest(0)).to_any_result()
 }
 
 fn repeat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {

@@ -20,7 +20,7 @@
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { byteLength, u8ArrayMsb, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, u8ArrayMsb, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { flat, run } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { adler32 } from '../adler32/module.f.mjs'

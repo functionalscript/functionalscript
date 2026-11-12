@@ -34,7 +34,7 @@ So this module gives a byte grammar terminals of its own — `byte`, the
 universe; `not`, its complement; `bytes(...)`, one of the bytes given, the
 spelling for a byte above `0x7F` — and one reading of the input, `symbols`,
 one `Meta<Byte>` per byte with one shared metadata record, in the shape of
-[`../utf16`](../utf16/module.f.mjs).
+[`../utf16`](../utf16/module.f.js).
 
 ## What `byteParser` refuses, and what it cannot
 

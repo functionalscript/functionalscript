@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { patriciaTrie } from './module.f.mjs'
+import { patriciaTrie } from './module.f.js'
 import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../object/entry/module.f.js'

@@ -18,16 +18,16 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, prototypes } from '../../../js/prototype/module.f.js'
-import { call } from '../call/module.f.mjs'
-import { functionAt } from '../property/module.f.mjs'
-import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.mjs'
+import { call } from '../call/module.f.js'
+import { functionAt } from '../property/module.f.js'
+import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.js'
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
-import { at } from '../at/module.f.mjs'
-import { slice } from '../slice/module.f.mjs'
+import { at } from '../at/module.f.js'
+import { slice } from '../slice/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 
 /** A non-nullish receiver's type, by its global's name, as `fjs/js/runtime` keys it. @type {(receiver: EdagValue) => keyof typeof prototypes} */
@@ -66,7 +66,7 @@ export const callee = (runtime, key, receiver, invoke) => {
  *
  * @type {readonly string[]}
  */
-export const _runtimeOnly = ['startsWith', 'codePointAt']
+export const _runtimeOnly = ['startsWith', 'codePointAt', 'map', 'concat']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish
@@ -163,16 +163,6 @@ const stringMethod = (receiver, key, args, invoke) => {
         // Unicode version, which NaNVM asserts at compile time.
         case 'toLowerCase': { return ok(receiver.toLowerCase()) }
         case 'toUpperCase': { return ok(receiver.toUpperCase()) }
-        case 'concat': {
-            let text = receiver
-            for (const value of args) {
-                const result = toString(value, invoke)
-                const [kind, part] = result
-                if (kind === 'error') { return result }
-                text += part
-            }
-            return ok(text)
-        }
         case 'replace': case 'replaceAll': {
             const result = toString(first, invoke)
             const [kind, search] = result

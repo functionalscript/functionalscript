@@ -131,7 +131,7 @@ link to. Use one of two forms — the identifier as a link label where a documen
 survives, or the word **`retired`** beside it with the target named:
 
 ```md
-- [i167](../fjs/types/bit_vec/module.f.mjs) — the `bit_vec` re-binding.
+- [i167](../fjs/types/bit_vec/module.f.js) — the `bit_vec` re-binding.
 - i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs)) — …
 ```
 
@@ -143,7 +143,7 @@ which is what it should mean.
 Those two targets are written as they would appear **from this file**, in
 `todo/`. Re-base them against the file you are editing rather than copying them
 across — a file in `fjs/types/todo/` reaches the same module as
-`../bit_vec/module.f.mjs`. Relative paths surviving a move without being
+`../bit_vec/module.f.js`. Relative paths surviving a move without being
 re-based is what once put over a hundred broken links in this tree.
 
 ## Blocked by third parties

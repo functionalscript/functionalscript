@@ -4,25 +4,22 @@
  * represented route `fjs compile` takes for a data output.
  */
 
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import runtimeEdag from '../../js/runtime/gen.edag.data.js'
+import { runNodeEffect } from '../../effects/node/module.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
+import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.js'
 
 const names = readdirSync(fixturesDirectory, { withFileTypes: true })
     .filter(entry => entry.isFile())
     .map(entry => entry.name)
-
-const root = Object.fromEntries(names
-    .filter(name => name.endsWith('.mjs'))
-    .map(name => [name, [utf8(readFileSync(`${fixturesDirectory}/${name}`, 'utf8'))]]))
 
 /** What Node makes of a fixture: its default export, or that it throws. @type {(name: string) => Promise<readonly [string, unknown?]>} */
 const reference = async name => {
@@ -50,10 +47,12 @@ const runtime = /** @type {import('../../edag/value/types.ts').Runtime} */ (asse
  * or loader error carries no `thrown` and stays a failure, so a fixture the
  * interpreter never ran cannot pass as one that throws.
  *
- * @type {(name: string) => readonly [string, unknown?]}
+ * Read through the Node effect runner so fixture imports can reach ordinary
+ * repository modules as well as sibling fixture helpers.
+ * @type {(name: string) => Promise<readonly [string, unknown?]>}
  */
-const interpreted = name => {
-    const [, result] = virtualAt(root)(_transpileDefault(pureOk(runtime))(name))
+const interpreted = async name => {
+    const result = await runNodeEffect(_transpileDefault(pureOk(runtime))(`${fixturesDirectory}/${name}`))
     if (result[0] === 'error') {
         return 'thrown' in result[1] ? ['throws'] : ['failed', result[1]]
     }
@@ -92,6 +91,6 @@ export const proof = {
     },
     /** The interpreter answers what Node answers, or both throw. */
     compared: Object.fromEntries(corpus(names).map(name => [name, async () => {
-        assertStructurallySame(aliased(interpreted(name)), aliased(await reference(name)))
+        assertStructurallySame(aliased(await interpreted(name)), aliased(await reference(name)))
     }])),
 }

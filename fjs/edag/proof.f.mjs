@@ -31,7 +31,7 @@
  *  properties,
  *  property,
  *  spread,
- * } from './module.f.mjs'
+ * } from './module.f.js'
  * @import {
  *  Array,
  *  Exp,
@@ -48,7 +48,7 @@ import {
     exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
     helperIds, helperLength, helpers, intrinsicIds, intrinsics, isFunctionNode, isHelper, isIntrinsic,
     noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /**
  * `exp` is a top-level `or` trying every node kind in turn, so when a value
@@ -101,10 +101,10 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
-const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw'])
+const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
@@ -228,7 +228,8 @@ export const proof = {
         assertOk(v(['()', ['Object.is'], [1, 2]]))
         assertOk(v(['[]', [['Object.is'], ['Object.is']]]))
         assertNoMatch(v(['Object.is', 1]))
-        assertNoMatch(v(['Object.keys']))
+        assertOk(v(['Object.keys']))
+        assertNoMatch(v(['Object.values']))
         assertNoMatch(v(['Number.MAX_VALUE']))
         assertNoMatch(v(['static', ['Object', 'is']]))
     },
@@ -261,8 +262,8 @@ export const proof = {
         for (const node of [['Object.is'], ['slice', 1], ['[]', []], 'entry', [], null]) { assert(!isFunctionNode(node), node) }
     },
     staticIds: () => {
-        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
-        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function fromCharCode() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])
+        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2']])
+        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function keys() { [native code] }', 'function fromCharCode() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }', 'function log2() { [native code] }'])
         assertEq(noStatic('Object.is'), 'no binding for the static Object.is')
         for (const id of staticIds) { assert(isStatic([id]), id) }
         for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {
@@ -449,6 +450,18 @@ export const proof = {
             assertOk(vOptionPropertyLambda(['|.', 'c', ['|?.()', [1]]]))
             assertOk(vOptionPropertyLambda(['|.', 'c', ['|.', 'd']]))
         },
+        recursiveAlternation: () => {
+            const continuation = /** @type {const} */ (['|()',
+                [['[]', [['=>', 1, [], ['arg', 0]]]]],
+                ['|.', 'next', ['|?.()', [], ['|()', [], ['|.', 'finish', ['|!()', []]]]]],
+            ])
+            assertOk(vOptionLambda(continuation))
+            assertOk(vOptionPropertyLambda(continuation))
+            assertOk(v(['?.()', ['=>', 0, [], 0], [], continuation]))
+            assertNoMatch(vOptionLambda(['|.', 'next',
+                ['|?.()', [], ['|.', 'finish', ['|!()', [], ['|.', 'tooFar']]]],
+            ]))
+        },
         // `|.` takes an `index` and the call steps take an item list, the
         // same operand schemas the nodes use — so a general `exp` in a naming
         // position is rejected, and so is one where the list goes.
@@ -581,7 +594,7 @@ export const proof = {
     },
     // One entry per JS spelling whose grouping or hidden control flow the
     // grammar exists to distinguish — the shape only, since what each
-    // denotes is the JSDoc on the nodes in `./module.f.mjs` and the executor
+    // denotes is the JSDoc on the nodes in `./module.f.js` and the executor
     // proofs in `./amnesia/proof.f.mjs`, and lowering these spellings is
     // `../compiler/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.
@@ -698,22 +711,27 @@ export const proof = {
     op1: {
         ok: () => {
             // Every id `op1` accepts, pinned individually: deleting any one
-            // of these six from `op1Id` reddens exactly this loop, not
+            // of these ids from `op1Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op1Ids) {
                 assertOk(v([id, 1]))
             }
             assertOk(v(['!', ['!', 1]])) // an exp nested inside the operand
+            assertOk(v(['Boolean', ['undefined']]))
             // Composes through `exp`'s recursion like any other node.
             assertOk(v(['[]', [['Number', 1]]]))
             assertOk(v(['()', ['Number', 1], [2]]))
         },
         // A missing operand reads as `undefined`, no longer a valid bare
         // `exp` — see `op0`.
-        missingTailIsError: () => assertNoMatch(v(['!'])),
+        missingTailIsError: () => {
+            assertNoMatch(v(['!']))
+            assertNoMatch(v(['Boolean']))
+            assertNoMatch(v(['Boolean', 0, 1]))
+        },
         error: () => assertNoMatch(v(['negz', 1])),
         // `op1Id` is a real constraint, not a stand-in for `string`: an id
-        // outside its six members is rejected, both directly and as part
+        // outside its declared members is rejected, both directly and as part
         // of a full `exp` value.
         unknownIdIsRejected: () => {
             assertNoMatch(vOp1Id('xyz'))

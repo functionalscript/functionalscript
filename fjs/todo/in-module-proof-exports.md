@@ -19,7 +19,7 @@ still does:
 - [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.mjs) —
   `mapDjsUnresolvedImport`, a guard its comment calls "unreachable through
   `transpile`'s public API".
-- [`fjs/types/bigfloat`](../types/bigfloat/module.f.mjs) —
+- [`fjs/types/bigfloat`](../types/bigfloat/module.f.js) —
   `normalizeMantissaZero`, a path "unreachable through decToBin".
 - [`fjs/types/btree/remove`](../types/btree/remove/module.f.js) — two
   `…DefaultBranch` cases for `default` arms that "can't be hit through the

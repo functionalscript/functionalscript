@@ -51,7 +51,7 @@ The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exist
 
 ## Content encoding
 
-Content crosses the MCP wire as **text** or **base64** (MCP-idiomatic for binary data), through the codec in `fjs/basen/base64/module.f.mjs` wired into `fjs/mcp/cas/module.f.mjs`; hashes stay as **cBase32**. This is Layer 2 of the [roadmap](./roadmap.md), done.
+Content crosses the MCP wire as **text** or **base64** (MCP-idiomatic for binary data), through the codec in `fjs/basen/base64/module.f.js` wired into `fjs/mcp/cas/module.f.mjs`; hashes stay as **cBase32**. This is Layer 2 of the [roadmap](./roadmap.md), done.
 
 ## Addressing
 

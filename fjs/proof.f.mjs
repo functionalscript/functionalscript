@@ -9,7 +9,7 @@ import { assert, assertEq } from './asserts/module.f.js'
 import { pureError, pureOk } from './effects/module.f.mjs'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
-import { vec8 } from './types/bit_vec/module.f.mjs'
+import { vec8 } from './types/bit_vec/module.f.js'
 import { utf8 } from './text/module.f.mjs'
 
 const run = (/** @type {Dir} */ root) => (/** @type {readonly string[]} */ args) =>

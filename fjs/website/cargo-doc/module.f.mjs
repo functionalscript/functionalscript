@@ -26,7 +26,7 @@
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
 import { footer, header, pageTitle, shell, siteDescription, siteMeta, urlMeta } from '../page/module.f.mjs'
-import { byteLength, msb, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, msb, uint, vec } from '../../types/bit_vec/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { origin } from '../origin/module.f.js'
 import { faviconLinks } from '../style/module.f.js'

@@ -34,8 +34,6 @@ export const proof = {
         assert(reversed instanceof Array && reversed[0] === '[]')
         assert(reversed !== receiver)
         assertEq(reversed[1][2], child)
-        data([1], 'concat', [['[]', [2]], 'ab', ['{}', []], undefinedValue], [1,2,'ab',{},undefined])
-        data([], 'concat', [], [])
         data(receiver[1], 'slice', [], [{},2,3])
         data([1,2,3], 'slice', [-2, -1], [2])
         data([1,2,3], 'with', [-1, child], [1,2,{}])
@@ -122,13 +120,6 @@ export const proof = {
         assertEq(run([1,2,0], 'findLastIndex', [positive]), 1)
         for (const key of ['find', 'findLast']) { assertStructurallySame(run([0], key, [positive]), undefinedValue) }
         for (const key of ['findIndex', 'findLastIndex']) { assertEq(run([0], key, [positive]), -1) }
-        const callback = fn(3, ['[]', [['arg', 0], ['arg', 1], ['arg', 2]]])
-        data([4,5], 'map', [callback], [[4,0,[4,5]],[5,1,[4,5]]])
-        const receiver = /** @type {const} */ (['[]', [4,5]])
-        const results = assertOk(arrayMethod(receiver, 'map', [fn(3, ['arg', 2])], invoke))
-        assert(results instanceof Array && results[0] === '[]')
-        assertEq(results[1][0], receiver)
-        assertEq(results[1][1], receiver)
     },
     reductions: () => {
         assertEq(run([1,2,3], 'reduce', [sum]), 6)
@@ -143,16 +134,18 @@ export const proof = {
         data([8], 'reduce', [callback, 2], [2,8,0,[8]])
     },
     callbackFailures: () => {
-        for (const key of ['every','filter','find','findIndex','findLast','findLastIndex','flatMap','map','some','reduce','reduceRight']) {
+        for (const key of ['every','filter','find','findIndex','findLast','findLastIndex','flatMap','some','reduce','reduceRight']) {
             assertStructurallySame(assertError(arrayMethod(['[]', []], key, [null], invoke)), undefinedValue)
             assertStructurallySame(assertError(arrayMethod(['[]', []], key, [['{}', []]], invoke)), undefinedValue)
             assertEq(assertError(arrayMethod(['[]', [1,2]], key, [fail], invoke)), 'callback failed')
         }
         const failure = error(/** @type {const} */ (['{}', []]))
-        assertEq(arrayMethod(['[]', [1]], 'map', [identity], () => failure), failure)
+        assertEq(arrayMethod(['[]', [1]], 'flatMap', [identity], () => failure), failure)
         assertEq(arrayMethod(['[]', [1]], 'reduce', [sum, 0], () => failure), failure)
         assertEq(arrayMethod(['[]', [2,1]], 'toSorted', [difference], () => failure), failure)
         assertStructurallySame(assertError(arrayMethod(['[]', []], 'missing', [], invoke)), undefinedValue)
+        assertStructurallySame(assertError(arrayMethod(['[]', []], 'map', [identity], invoke)), undefinedValue)
+        assertStructurallySame(assertError(arrayMethod(['[]', []], 'concat', [], invoke)), undefinedValue)
     },
     sorted: () => {
         data([2,10,1], 'toSorted', [], [1,10,2])

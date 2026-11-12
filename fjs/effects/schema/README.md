@@ -2,7 +2,7 @@
 
 [RTTI](../../rtti/README.md) schemas for the data-shaped operations: for each,
 the schema of its parameters and of the value its `Result` carries on success.
-[`module.f.mjs`](./module.f.mjs) holds them, and [`types.ts`](./types.ts) pins
+[`module.f.js`](./module.f.js) holds them, and [`types.ts`](./types.ts) pins
 the declarations in [`../node/types.ts`](../node/types.ts) to them, so the two
 cannot drift.
 

@@ -212,6 +212,7 @@ export type Child =
  * so what it writes reaches the reader as it is written and its two streams
  * keep their order — what the `exec` capture cannot give.
  *
+ * `stdio: 'ignore'` discards child input and output for quiet runners.
  * It is required rather than optional for now: a piped child has no reader
  * until the rest of the family in
  * [`todo/spawn-effect.md`](./todo/spawn-effect.md) lands, and a child whose
@@ -220,7 +221,7 @@ export type Child =
  * process's directory.
  */
 export type SpawnOptions = {
-    readonly stdio: 'inherit'
+    readonly stdio: 'inherit' | 'ignore'
     readonly cwd?: string
 }
 
@@ -240,11 +241,30 @@ export type Spawn = readonly['spawn', (command: string, args: readonly string[],
  */
 export type ExitStatus = readonly['exited', number] | readonly['signaled', string]
 
+/** Working directory for an executable whose two output streams are captured. */
+export type CaptureOptions = {
+    readonly cwd?: string
+}
+
+/** Complete UTF-8 output and termination status of an executable. */
+export type CapturedProcess = {
+    readonly status: ExitStatus
+    readonly stdout: string
+    readonly stderr: string
+}
+
+/**
+ * Run an executable with literal argv and closed input, draining both output
+ * streams until they close. Nonzero exits and signals retain their output in
+ * the successful result; launch or stream failures use the I/O channel.
+ */
+export type Capture = readonly['capture', (command: string, args: readonly string[], options?: CaptureOptions) => IoResult<CapturedProcess>]
+
 /** Waits for `child` to end and answers how; a child already gone answers at once. */
 export type ChildWait = readonly['childWait', (child: Child) => IoResult<ExitStatus>]
 
-/** The subprocess family, so far: start a child and wait for it. */
-export type Subprocess = Spawn | ChildWait
+/** Start and wait for a child, or capture an executable's complete output. */
+export type Subprocess = Spawn | ChildWait | Capture
 
 // access
 
@@ -906,6 +926,9 @@ export type Forever = ['forever', () => OpResult<never>]
 
 export type Now = readonly['now', () => OpResult<number>]
 
+/** The host's estimate of how many tasks this process can run in parallel. */
+export type AvailableParallelism = readonly['availableParallelism', () => IoResult<number>]
+
 // sandbox
 
 /**
@@ -956,6 +979,7 @@ export type Test =
 export type NodeOp =
     | Access
     | All
+    | AvailableParallelism
     | Await
     | Catch
     | Fetch

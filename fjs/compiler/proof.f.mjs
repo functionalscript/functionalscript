@@ -7,16 +7,19 @@
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Commands } from '../effects/types.ts'
  * @import { CompileValue } from '../edag/value/to_unknown/types.ts'
+ * @import { Exp } from '../edag/types.ts'
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
+import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
+import runtimeEdag from '../js/runtime/gen.edag.js'
+import { pureOk } from '../effects/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
 import { memo } from '../edag/memo/module.f.mjs'
-import { read } from '../edag/value/property/module.f.mjs'
+import { read } from '../edag/value/property/module.f.js'
 import { toData, compileCommands } from '../edag/value/to_unknown/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
@@ -25,7 +28,7 @@ import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { fromVec, utf8ToString } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
-import { fromEntries, isObject } from '../types/object/module.f.mjs'
+import { fromEntries, isObject } from '../types/object/module.f.js'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { codePoints } from '../text/ascii/module.f.js'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
@@ -35,7 +38,7 @@ import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { encodeQuery } from '../website/demo/sharing/module.f.mjs'
-import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../types/bit_vec/module.f.js'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 import { dirOf, encode } from './demo_files/module.f.mjs'
@@ -602,7 +605,14 @@ export const proof = {
         assertEq(compileSource(source)('output.data.js'), 'export default 7;')
         assertEq(compileSource('const f = x => x + 2; export default f(3);')('output.json'), '5')
         assertEq(compileSource('const f = x => y => x + y; export default f(2)(3);')('output.data.js'), 'export default 5;')
-        assertEq(compileSource('export default [1, 2].map(x => x + 1);')('output.json'), '[2,3]')
+        // Supply the authored common runtime for map rather than extending
+        // the stand-in with a second implementation of its body.
+        const common = unwrap(read(memo(unwrap(analysis(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag)))))({ args: [] }), 'runtime'))
+        assert(common instanceof Array && common[0] === '{}')
+        const root = /** @type {const} */ ({ 'input.f.js': [utf8('export default [1, 2].map(x => x + 1);')] })
+        const [state, result] = virtualAt(root)(compileFile(pureOk(common))('input.f.js', 'output.json'))
+        unwrap(result)
+        assertEq(readOutput(state.root, 'output.json'), '[2,3]')
         assertEq(jsonRefused('export const unused = null.x; export default 7;'), 'input.f.js - error: module initialization failed')
     },
     outputRoute: {
@@ -1502,6 +1512,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'instanceof': 'ooooo',
                 'in': 'ooooo',
                 'Number conversion': 'ooooo',
+                'Boolean conversion': 'ooooo',
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',
                 'Laziness: ?:': 'xxooo',
@@ -1537,6 +1548,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Methods and properties': 'ooooo',
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',
+                'Object.keys': 'ooooo',
                 'Optional chaining': 'xoooo',
                 'Optional chaining: a long chain': 'xxooo',
                 'The entry helper': 'xoooo',

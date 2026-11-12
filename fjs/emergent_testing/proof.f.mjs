@@ -12,15 +12,16 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.js'
+import { fgGreen, fgRed, reset } from '../text/sgr/module.f.mjs'
 import {
-    testAll, runEntries, zeroState, fmtPath, fmtImport, ghEscape,
+    testAll, runEntries, zeroState, fmtPath, fmtImport, fmtResult, ghEscape,
     registerModule, parseTestSet,
     addResult, defaultReporter, defaultTest, formatDuration, main, register, registerOne, testResult, text, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun, runAll } from '../effects/mock/module.f.mjs'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
-import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
+import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { pureError, pureOk, step, unreadableThrownValue } from '../effects/module.f.mjs'
@@ -282,6 +283,27 @@ export const namedExports = () => {
     assertEq(passEvents[0][2], '.a')
     assertEq(passEvents[1][2], '.b')
 }
+
+const resultId = /** @type {const} */ ({ module: 'a.f.mjs', path: '.proof', name: 'a.f.mjs.proof()' })
+
+const fmtResultProofs = /** @type {const} */ ({
+    passed: () => assertEq(
+        fmtResult({ ...resultId, status: 'passed', duration: 1.25 }, false),
+        `a.f.mjs.proof(): ${fgGreen}ok${reset}, 1.2500 ms`,
+    ),
+    failed: () => assertEq(
+        fmtResult({ ...resultId, status: 'failed', duration: 1_250 }, false),
+        `a.f.mjs.proof(): ${fgRed}error${reset}, 1.2500 s`,
+    ),
+    expectedThrow: () => assertEq(
+        fmtResult({ ...resultId, status: 'passed', duration: 0 }, true),
+        `a.f.mjs.proof(): ${fgGreen}ok${reset}, 0.0000 ms # EXPECTED TO THROW`,
+    ),
+    failedExpectedThrow: () => assertEq(
+        fmtResult({ ...resultId, status: 'failed', duration: 2 }, true),
+        `a.f.mjs.proof(): ${fgRed}error${reset}, 2.0000 ms`,
+    ),
+})
 
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
 export const defaultReporterOutput = () => {
@@ -1143,6 +1165,7 @@ export const proof = {
     testResult: testResultProofs,
     runTotals: runTotalsProofs,
     formatDuration: formatDurationProofs,
+    fmtResult: fmtResultProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
         registeredLoadFailureThrows,

@@ -157,8 +157,11 @@ The runner separates planning, execution and recording:
    keys once, and check them against one native Git inventory of `build-cache`.
    Matching entries' blob contents are verified together against the exact
    prepared manifests before they count as hits.
-2. Run the planned misses sequentially and remember stable successful entries.
-   A directory whose targets all hit needs no coverage child.
+2. Run planned jobs in batches bounded by Node's `os.availableParallelism()` and
+   remember stable successful entries. Children in each batch run concurrently;
+   the next batch starts after every job in the current batch settles. A
+   directory whose targets all hit needs no coverage child. Scheduling capacity
+   is not part of the cache key.
 3. Record the new successful entries in one local Git `fast-import` commit,
    then synchronize when requested. An empty batch creates no commit.
 
@@ -193,19 +196,39 @@ the same.
 Caching requires and hashes the repository root's `package.json`. It also hashes
 every present ancestor `package.json` of loaded files inside that repository,
 so adding a nested package scope invalidates affected manifests. Without the
-root package metadata, coverage runs uncached instead of relying on an
-unrepresented package scope outside the repository. Runtime references and
-namespace bindings do not impose an additional cache-admission restriction.
-The manifest follows static imports without executing the source.
+root package metadata, the source cannot be admitted instead of relying on an
+unrepresented package scope outside the repository. Runtime references do not
+impose an additional cache-admission restriction. Dependency analysis uses the
+compiler's syntax parser and follows static imports without executing source.
 
 A directory is cached only when every measured target has an exact success.
-Native children inherit stdout and stderr, so their reporter output appears
-live. The existing quiet Node reporter filters passed tests and fully covered
-files. After a child finishes, each target prints a complete repository-relative
-result line: `module.f.js...Ok` or `module.f.js...Failed`. Failures also identify
-the working directory and reproducible command. Cache hits launch no child and
-print only `module.f.js...Cached` for each target. The runner continues after
-failures and exits nonzero if any module failed.
+Before each child starts, the runner prints a complete `module.f.js: running`
+line for each measured file by repository-relative path. Files in one directory
+share a child and duration, but each gets its own complete result line when the
+child finishes, using the shared emergent-testing result formatter:
+`module.f.js: ok, 360.0000 ms` or `module.f.js: error, 360.0000 ms`. Successful
+child output stays hidden. A failed result and its working directory,
+reproducible command, exit status or signal, and captured stdout/stderr are
+written together, so other concurrent children cannot splice their output into
+that block.
+Each stream keeps its contents; their original ordering relative to each other
+is not preserved. Launch/capture errors are reported directly. Cache hits launch
+no child and print no per-file result. The final summary includes the cached
+module count and two test timings. `Test real time: 1.2000 s` spans the first
+child's start through the last child's finish, including gaps between jobs and
+batches. It excludes dependency planning, cache lookup and final cache
+saving/synchronization, as well as validation before the first or after the last
+child. `Processor time: 2.1000 s` is the sum of child wall-clock durations once
+per directory, including failed runs. A directory with multiple measured files
+still contributes only once. Cache hits contribute zero; both timings are zero
+when no child runs. Overlapping child durations can sum to more than test real
+time.
+The summary also reports the concurrency limit, for example
+`Concurrency: up to 4 child processes`. It is the smaller of available CPU
+capacity and the number of directory jobs; cache hits can reduce the actual
+number of children that run.
+Child failures do not stop other jobs or later batches; the runner
+exits nonzero if any module failed.
 
 Before using a planned result and after a successful child, the runner verifies the
 snapshot's relevant bytes, authored sibling inventory, package scopes and module
@@ -218,9 +241,12 @@ checks, keeping dependency planning and cache machinery out of each child's
 startup. Stable successes are recorded after all modules finish, even when
 another module failed.
 Failed coverage contributes no manifest. An interrupted run cannot certify its
-unfinished coverage. Incomplete dependency parsing/resolution, unsupported
-preload settings, and cache errors are reported explicitly and leave the run
-uncached.
+unfinished coverage. A dependency parsing/resolution or manifest-admission
+failure reports `CACHE ADMISSION` and makes the overall command fail, even if
+that directory's native proofs pass. The proofs still run, other directories
+continue, and their stable successes are retained. A normal cold-cache miss
+runs coverage and records its success. Unsupported preload settings and cache
+storage errors are reported explicitly and leave the run uncached.
 
 `npm start -- cov node --sync` also fetches `origin/build-cache` at startup and
 publishes one batch after module processing and local recording finish. No

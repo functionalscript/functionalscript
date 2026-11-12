@@ -25,9 +25,9 @@ entry point and `fjs/dev/gen/module.f.mjs`, including `ci/self/module.f.mjs`,
 to avoid depending on the package bin
 before the package is installed, which that README says outright. So
 `npm run gen` and its drift check are an extension point, not a private
-gate. Since the packed-package check moved into `node`, the job also ends
-with it: a project whose tarball ships no declarations gets a red `node`
-(`TS18003`). The README documents this under "Two consequences", and
+gate. The separate `package` job consumes a tarball built and uploaded by
+`node`: a project whose tarball ships no declarations gets a red `package`
+(`TS18003`).
 [package-check-unsupported-package-shapes](./package-check-unsupported-package-shapes.md)
 (2) prices the alternatives.
 

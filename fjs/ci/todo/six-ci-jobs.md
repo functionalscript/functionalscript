@@ -23,6 +23,11 @@ corrections only.
 Use the existing platform job names and the exact tool and image pins in
 [`../config/module.f.js`](../config/module.f.js).
 
+This allocation concerns the source and platform checks. The dedicated
+`package` consumer remains an additional job: it downloads the tarball built
+by `node`. If consolidation removes `node`, assign that production step to its
+replacement and update `package.needs` with it.
+
 | Job | Rust targets | Pure FJS | JS effects and host adapters | TypeScript |
 | --- | --- | --- | --- | --- |
 | `macos-intel` | Native x86-64 | — | — | — |
@@ -74,24 +79,23 @@ This deliberately covers native Rust on every listed OS/CPU pair and JS effects
 on every listed OS/runtime pair. It does not claim every JS runtime on both
 CPU architectures. Verify that the ARM jobs install native ARM64 runtimes.
 
-#### Retiring installation checks
+#### Package consumer and installed CLI checks
 
-Remove the installed `fjs` check and the npm package-consumer check from this
-CI layout until a better solution is selected. This defers installation and
-distribution testing; it does not remove the in-repository runner used for
-the Bun and SpiderMonkey FJS suites or the compiler checks.
+Preserve the dedicated `package` job and its tarball producer. It tests the
+revision's npm installation, declarations and a runtime import in an isolated
+consumer with direct Node and TypeScript installation. This supersedes the
+earlier proposal to retire the npm package-consumer check during consolidation.
 
-Track the replacement in
+The former installed-CLI check has already been removed. Broader CLI, registry
+and OS/runtime installation testing remains tracked in
 [installed CLI and npm package checks](./built-package-checks.md), including
-a separate test repository in a different GitHub organization. Its CI can
-test a package built from Git, including `main`, or installed from npm.
-Packing and releasing a package may continue in the source repository;
-testing the installed package is retired from this CI layout.
+the proposed test repository in a different GitHub organization. That
+investigation complements the source repository's package smoke check.
 
 #### Existing checks to preserve
 
-Moving checks into the six jobs must preserve checks other than the installation
-checks explicitly deferred above:
+Moving source checks into the six jobs must preserve the package artifact
+handoff and the remaining checks:
 
 - Native and i686 Rust tests and Clippy, including the existing debug/release
   checks and warnings policy; `cargo fmt -- --check` once.
@@ -149,15 +153,16 @@ duration; it does not require an additional job.
       coverage and the existing WASM checks.
 - [ ] Retain compile validation, formatting and generation/drift checks in the
       six jobs.
-- [ ] Remove installed-CLI and npm package-consumer checks from this CI layout;
-      track the replacement test repository in `built-package-checks.md`.
+- [ ] Preserve the dedicated package consumer and assign its tarball producer
+      and `needs` dependency within the new source layout; keep the broader
+      installation-testing investigation in `built-package-checks.md`.
 - [ ] Update workflow proofs and Smart CI cache classification for the new
       check ownership.
 - [ ] Measure the resulting jobs and adjust timeouts where needed.
 - [ ] Coordinate removal of obsolete required-check names before switching the
       merge-queue workflow.
 - [ ] Update CI documentation and related TODOs to describe the new allocation
-      and the intentional package-testing gap.
+      and the installed-CLI and broader installation-testing gaps.
 
 ### Earlier measurements
 
@@ -171,8 +176,8 @@ well as execution time; they are not predictions for this revised allocation.
 
 ### Related
 
-- [Installed CLI and npm package checks](./built-package-checks.md) — replacement
-  in a test repository in a different organization.
+- [Installed CLI and npm package checks](./built-package-checks.md) — broader
+  coverage in a test repository in a different organization.
 - [Selective runner entries](../../emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner)
   — the test-selection prerequisite for this allocation.
 - [FJS-only coverage](../../emergent_testing/todo/coverage-over-fjs-only.md) —

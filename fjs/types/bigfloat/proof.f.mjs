@@ -1,6 +1,6 @@
-import { binary64, decToBin, tryDecToFormat } from './module.f.mjs'
+import { binary64, decToBin, tryDecToFormat } from './module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { abs, bitLength } from '../bigint/module.f.mjs'
+import { abs, bitLength } from '../bigint/module.f.js'
 
 /**
  * Checks `decToBin`'s postcondition on a non-zero result: the mantissa holds

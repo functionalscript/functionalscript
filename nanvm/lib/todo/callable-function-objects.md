@@ -552,7 +552,7 @@ so `f === f` would disagree by design.
 
 **Measured.** Step 1 below compares every fixture the corpus covers, and each
 agrees: the same value, or both throw. The corpus is whatever
-[`corpus(names)`](../../../fjs/nanvm/corpus/module.f.mjs) selects from the fixture
+[`corpus(names)`](../../../fjs/nanvm/corpus/module.f.js) selects from the fixture
 directory, so no count is kept here. A few fixtures are excepted, none for a
 disagreement of semantics:
 
@@ -572,7 +572,7 @@ structural, on the values themselves. `named-imports` and
 system holding the fixture directory. A fixture whose default is `undefined`
 would compare nothing, so the host proof fails on any such fixture the
 `undefinedDefault` table in
-[`corpus/module.f.mjs`](../../../fjs/nanvm/corpus/module.f.mjs) does not name,
+[`corpus/module.f.js`](../../../fjs/nanvm/corpus/module.f.js) does not name,
 and on any entry that no longer is `undefined`, so the gap is a list and not a
 silence. The table holds `missing` alone, whose `undefined` is the observation.
 The fixtures that once sat in it for testing named exports or imports are
@@ -604,7 +604,7 @@ call contract, and keep their hand-written Rust tests.
 
 **Steps, each one pull request.**
 
-1. **Interpreter against reference. Landed.** [`fjs/nanvm/corpus`](../../../fjs/nanvm/corpus/module.f.mjs)
+1. **Interpreter against reference. Landed.** [`fjs/nanvm/corpus`](../../../fjs/nanvm/corpus/module.f.js)
    names the exceptions and the rule that everything else is compared;
    `proof.mjs`, a host proof, runs each fixture in Node and through
    `_transpileDefault`, the route `fjs compile` takes for a data output, and
@@ -909,7 +909,7 @@ level.
 - [ ] Stage 7: semantic EDAG association for natively compiled functions,
       after resolving embedded data versus lookup; no Rust executor dependency.
 - [x] Stage 8 step 1: the FJS interpreter against the Node reference over the
-      harness fixtures ([`fjs/nanvm/corpus`](../../../fjs/nanvm/corpus/module.f.mjs)).
+      harness fixtures ([`fjs/nanvm/corpus`](../../../fjs/nanvm/corpus/module.f.js)).
 - [x] Stage 8 step 2a: for each corpus fixture, a committed `gen.expected` Rust module holding the interpreter's value as a graph and, when the default has a JSON form, the compiler's JSON text, and a list of them.
 - [x] Stage 8 step 2b: one Rust test checks each compiled fixture against both layers of its expectation (JSON text, then an order- and sharing-aware graph comparison) and replaces the hand-written assertions the JSON layer covers.
 - [ ] Stage 8 step 3: the interpreter compiled to Rust runs the corpus (blocked).

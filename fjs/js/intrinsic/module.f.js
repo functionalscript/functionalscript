@@ -15,7 +15,7 @@
  * holds no member call: `found` calls `slice` as a function, and
  * `codePointAt` calls `charCodeAt`.
  *
- * The list is `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs), each
+ * The list is `intrinsics` in [`fjs/edag`](../../edag/module.f.js), each
  * with its helper's `length`, which the proof pins to the functions here.
  * A name joins it with its first consumer, and only where no body can
  * define it: each costs a recognized body, a node, its serialized text, an

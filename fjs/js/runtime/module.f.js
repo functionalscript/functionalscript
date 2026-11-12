@@ -1,11 +1,12 @@
 /**
  * The built-in functions, defined once: two tables, and the `runtime`
- * export, three functions an executor asks — two over the tables, and the
- * body of the `in` operator — the one place each resolution is written
+ * export, four functions an executor asks — two over the tables, and the
+ * bodies of the `in` and `Boolean` operators — the one place each resolution
+ * is written
  * ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
  *
  * `member` holds, by name, the member functions whose body is written,
- * `startsWith` and `codePointAt`: each a FunctionalScript function of the
+ * `startsWith`, `codePointAt`, `map` and `concat`: each a FunctionalScript function of the
  * receiver alone, answering `undefined` for a receiver the name is no
  * member of, or the function of the arguments as the call passed them,
  * `undefined` past the end — so the body dispatches on its receiver's type
@@ -35,8 +36,9 @@
  * `static` for every static read; neither reads a table itself.
  * `runtime.in` is the body of the operator `"k" in o`, which an executor
  * answers by calling it, or substitutes natively
- * ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)). The two
- * tables are exported for the type pins of [`./types.ts`](./types.ts),
+ * ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)).
+ * `runtime.Boolean` converts by `!!value`, using only primitive negation.
+ * The two tables are exported for the type pins of [`./types.ts`](./types.ts),
  * which keep every key an admitted name, for the proof, and for the Rust
  * printer, which gives each static body the NativeFunction text of its id.
  * Which names a module may call stays
@@ -49,6 +51,25 @@
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { charCodeAt, slice } from '../intrinsic/module.f.js'
+import { map as arrayMap } from '../members/array/map/module.f.js'
+import { concat as arrayConcat } from '../members/array/concat/module.f.js'
+import { concat as stringConcat } from '../members/string/concat/module.f.js'
+
+/** The native enumerator, shared by its own static entry and the keys body. */
+const ownEntries = Object.entries
+
+/** An entry's key. @type {(pair: readonly [string, unknown]) => string} */
+const keyOf = ([key]) => key
+
+/**
+ * `Object.keys`: enumerate once, then project the keys through the shared
+ * array map body. Native entries supplies own enumerable string keys in
+ * JavaScript order and throws for a nullish value. FunctionalScript values
+ * have no accessors or proxies, so reading the values introduces no effect.
+ *
+ * @param {{}} value
+ */
+const keys = value => arrayMap(ownEntries(value), keyOf)
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -149,6 +170,86 @@ const fromEntries = entries => {
  */
 const toNumber = value => /** @type {number} */ (value) - 0
 
+/*
+ * The logarithm polynomial and compensated combination follow OpenLibm's
+ * src/e_log2.c and src/k_log.h (FreeBSD/fdlibm). Exact power-of-two scaling
+ * and an arithmetic high-part split replace their IEEE word operations.
+ * https://github.com/JuliaMath/openlibm/blob/master/src/e_log2.c
+ *
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this software is freely
+ * granted, provided that this notice is preserved.
+ */
+
+/** Exact powers of two and their exponents, largest first. */
+const log2Scales = /** @type {const} */ ([
+    [1.3407807929942597e154, 512],
+    [1.157920892373162e77, 256],
+    [3.402823669209385e38, 128],
+    [1.8446744073709552e19, 64],
+    [0x1_0000_0000, 32],
+    [0x1_0000, 16],
+    [0x100, 8],
+    [16, 4],
+    [4, 2],
+    [2, 1],
+])
+
+/**
+ * The numerical log2 kernel. Reduce exactly to x in [sqrt(.5), sqrt(2)),
+ * approximate log(1+f) with f = x-1, and combine k + log(1+f)/ln(2) with
+ * compensated arithmetic. No native logarithm, bit reinterpretation or
+ * supporting Math function is needed. The proof checks a two-ULP accuracy
+ * target against high-precision reference values and exact powers of two.
+ *
+ * @type {(n: number) => number}
+ */
+const numberLog2 = n => {
+    if (!(n > 0)) { return n === 0 ? -Infinity : NaN }
+    if (n === Infinity) { return n }
+    /** @type {{ readonly x: number, readonly k: number }} */
+    let state = { x: n, k: 0 }
+    // Exact scaling, including the smallest subnormal, before normalization.
+    if (state.x < 1) {
+        state = { x: state.x * 4.49423283715579e307, k: -1022 } // 2^1022
+        if (state.x < 1) {
+            state = { x: state.x * 0x10_0000_0000_0000, k: state.k - 52 } // 2^52
+        }
+    }
+    for (const [scale, exponent] of log2Scales) {
+        if (state.x >= scale) {
+            state = { x: state.x / scale, k: state.k + exponent }
+        }
+    }
+    if (state.x >= 1.4142135623730951) {
+        state = { x: state.x * 0.5, k: state.k + 1 }
+    }
+    const k = state.k
+    const f = state.x - 1
+    const s = f / (2 + f)
+    const z = s * s
+    const w = z * z
+    const t1 = w * (3.999999999940941908e-1 + w * (2.222219843214978396e-1 + w * 1.531383769920937332e-1))
+    const t2 = z * (6.666666666666735130e-1 + w * (2.857142874366239149e-1 + w * (1.818357216161805012e-1 + w * 1.479819860511658591e-1)))
+    const r = t2 + t1
+    const hfsq = 0.5 * f * f
+    const approx = f - hfsq
+    // Dekker splitting with 2^32+1 gives a high part with at most 21 bits;
+    // its product with the 32-bit high part of 1/ln(2) is exact.
+    const split = 0x1_0000_0001 * approx
+    const hi = split - (split - approx)
+    const lo = ((f - hi) - hfsq) + s * (hfsq + r)
+    const valHi = hi * 1.44269504072144627571
+    const valLo = (lo + hi) * 1.67517131648865118353e-10 + lo * 1.44269504072144627571
+    const result = k + valHi
+    const tail = valLo + ((k - result) + valHi)
+    return result + tail
+}
+
+/** Math.log2: ToNumber once, then the shared numerical kernel. @type {(value?: unknown) => number} */
+const log2 = value => numberLog2(toNumber(value))
+
 /**
  * An argument as `ToIntegerOrInfinity` reads one: `ToNumber`, then `NaN`
  * made `0`, an infinity kept, and a finite number truncated toward zero,
@@ -188,6 +289,23 @@ const found = (self, s, start) => {
 
 /** The member table: a name, then the body of the receiver. */
 export const member = {
+    /**
+     * `concat` over arrays and strings, sharing the typed inventory bodies.
+     * Rest arguments preserve the difference between no item and one
+     * `undefined` item. Type dispatch does not coerce the receiver.
+     *
+     * @type {(self: unknown) => undefined | ((...items: readonly unknown[]) => readonly unknown[] | string)}
+     */
+    concat: self => self instanceof Array ? (...items) => arrayConcat(self, ...items)
+        : typeof self === 'string' ? (...items) => stringConcat(self, ...items) : undefined,
+    /**
+     * `Array.prototype.map`, for an array and no other receiver type. The
+     * typed body is shared with the member inventory and calls the callback
+     * as a plain function, with no runtime lookup during bootstrap.
+     *
+     * @type {(self: unknown) => undefined | ((callback: unknown) => readonly unknown[])}
+     */
+    map: self => !(self instanceof Array) ? undefined : callback => arrayMap(self, callback),
     /**
      * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
      * a string's and no other type's: whether `ToString(search)` occurs
@@ -232,17 +350,27 @@ export const member = {
  */
 export const statics = {
     'Object.is': is,
-    'Object.entries': Object.entries,
+    'Object.entries': ownEntries,
+    'Object.keys': keys,
     'String.fromCharCode': String.fromCharCode,
     'Object.fromEntries': fromEntries,
     'Number.isInteger': isInteger,
     'Number.isSafeInteger': isSafeInteger,
     'Number.isNaN': isNaN_,
     'Number.isFinite': isFinite_,
+    'Math.log2': log2,
 }
 
-/** The runtime: the three functions an executor asks, `static`, `dot` and `in`. */
+/** The runtime: table lookup and the `in` and `Boolean` operator bodies. */
 export const runtime = {
+    /**
+     * `Boolean(value)`, defined by logical negation twice. It reads no
+     * conversion hook and calls no runtime function, so this body remains
+     * usable while the runtime itself is being initialized.
+     *
+     * @type {(value: unknown) => boolean}
+     */
+    Boolean: value => !!value,
     /**
      * The static function `id` names, `Object.is`: the entry of
      * {@link statics}, read as the object literal it is so that no

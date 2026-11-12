@@ -1,6 +1,6 @@
 /**
  * The proof of the parser's reading of the static functions the language
- * admits, `Object.is`, `Object.entries`, `Object.fromEntries` and the four
+ * admits, `Object.is`, `Object.entries`, `Object.keys`, `Object.fromEntries` and the four
  * `Number` predicates
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)):
  * each a value, the AST's `['Object.is']`, in either key spelling of the
@@ -15,7 +15,7 @@
 import { expectModule, expectRefused } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { isReservedGlobal } from '../../js/keywords/module.f.js'
-import { staticIds, staticPath } from '../../edag/module.f.mjs'
+import { staticIds, staticPath } from '../../edag/module.f.js'
 
 /** The module whose default export is `value`, as the proofs pin it. @type {(value: string) => string} */
 const exported = value => `["{}",[[":","default",${value}]]]`
@@ -86,7 +86,7 @@ export const proof = {
         expectRefused('const { is, is } = Object; export default is;', 'duplicate id', 13)
         expectRefused('const { is, ...r } = Object; export default r;', 'rest element not supported', 13)
         expectRefused('const { [k]: a } = Object; export default a;', 'computed key in a binding pattern not supported', 10)
-        expectRefused('const { keys } = Object; export default 1;', 'prohibited property name', 9)
+        expectRefused('const { values } = Object; export default 1;', 'prohibited property name', 9)
     },
     // The four `Number` predicates are read as `Object.is` is, in either
     // key spelling and through destructuring, beside the conversion `Number(x)`,
@@ -146,6 +146,22 @@ export const proof = {
         expectRefused('const { entries } = []; export default entries;', 'prohibited property name', 9)
         expectRefused('const { entries } = Number; export default 1;', 'prohibited property name', 9)
     },
+    // Keys use the same static-value and namespace-destructuring path as
+    // entries, including its prototype-name exception over Object alone.
+    keys: () => {
+        for (const source of ['Object.keys', 'Object["keys"]', '(Object.keys)']) {
+            expectModule(`export default ${source};`, exported('["Object.keys"]'))
+        }
+        expectModule('export default Object.keys({ a: 1 });',
+            exported('["()",["Object.keys"],[["{}",[[":","a",1]]]]]'))
+        expectModule('const { keys, "keys": k, keys: { length } } = Object; export default [keys, k, length];',
+            exported('["[]",[["Object.keys"],["Object.keys"],[".",["Object.keys"],"length"]]]'))
+        expectModule('export default Object.keys?.({});',
+            exported('["?.()",["Object.keys"],[["{}",[]]]]'))
+        expectRefused('export default Object?.keys({});', 'reserved word', 16)
+        expectRefused('export default [].keys;', 'prohibited property name', 19)
+        expectRefused('const { keys } = Number; export default 1;', 'prohibited property name', 9)
+    },
     // `Object.fromEntries` is read as `Object.entries` is, in either key
     // spelling and through destructuring; it is no prototype name, so over
     // another namespace it is refused at the word.
@@ -157,6 +173,31 @@ export const proof = {
             exported('["()",["Object.fromEntries"],[["[]",[["[]",["a",1]]]]]]'))
         expectRefused('const { fromEntries } = Number; export default 1;', 'reserved word', 25)
     },
+    // Math is a namespace, with log2 admitted as a value and every other
+    // member still closed. The namespace itself cannot be bound or read.
+    mathLog2: () => {
+        for (const source of ['Math.log2', 'Math["log2"]', '(Math.log2)']) {
+            expectModule(`export default ${source};`, exported('["Math.log2"]'))
+        }
+        expectModule('export default Math.log2(8);', exported('["()",["Math.log2"],[8]]'))
+        expectModule('export default Math.log2?.(8);', exported('["?.()",["Math.log2"],[8]]'))
+        expectModule('const { log2: f } = Math; export default [f, f.length];',
+            exported('["[]",[["Math.log2"],[".",["Math.log2"],"length"]]]'))
+        for (const source of [
+            'export default Math;',
+            'export default Math.log;',
+            'export default Math.sqrt(4);',
+            'export default Math?.log2;',
+            'export default Math?.["log2"];',
+            'export default Math[Number(0)];',
+            'const Math = 1; export default Math;',
+            'export default (Math) => 1;',
+            'import Math from "m"; export default 1;',
+            'const { log } = Math; export default 1;',
+        ]) { expectRefused(source, 'reserved word', source.indexOf('Math') + 1) }
+        expectModule('export default { Math: 1 }.Math;',
+            exported('[".",["{}",[[":","Math",1]]],"Math"]'))
+    },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.
     namespaces: () => {
@@ -167,8 +208,8 @@ export const proof = {
     // key, the word alone, any other pattern over it, and a binding of it.
     refused: () => {
         for (const source of [
-            'export default Object.keys;',
-            'export default Object.keys({});',
+            'export default Object.values;',
+            'export default Object.values({});',
             'export default Object[Number(0)];',
             'export default Object[0];',
             'export default Object;',

@@ -10,7 +10,7 @@
 
 import { parse } from '../rtti/parse/module.f.mjs'
 import { assertNotNullish } from '../asserts/module.f.js'
-import { encode } from '../basen/base64url/module.f.mjs'
+import { encode } from '../basen/base64url/module.f.js'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { authorizeEndpoint, authorizeParams, callbackCode, callbackParams, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, isCallback, loginMessages, pending, pendingSchema, redirectMatches, tokenPath, tokenSchema, userSchema, withStatus } from './github/module.f.mjs'
 

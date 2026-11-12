@@ -7,12 +7,12 @@
  * @import { Result } from '../types/result/types.ts'
  */
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../asserts/module.f.js'
-import { u8ListToVecMsb, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, repeat, vec8 } from '../types/bit_vec/module.f.js'
 import { detect, jsonDialect } from './module.f.mjs'
 import { checkReferences, dialect, revisionDialect, revisionSchema } from './revision/module.f.mjs'
 import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
 import { dialect as noteDialectName, noteDialect } from './note/module.f.mjs'
-import { array, bigint, boolean, number, open, or, record, string, unknown } from '../rtti/module.f.mjs'
+import { array, bigint, boolean, number, open, or, record, string, unknown } from '../rtti/module.f.js'
 import { ok } from '../types/result/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 

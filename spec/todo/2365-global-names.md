@@ -75,6 +75,9 @@ admits ([`instanceof`](../operators/instanceof/README.md)).
 `Object` is the fourth, reserved with `Object.is`, the first member of it
 admitted, `Object.entries` the second
 ([built-in static functions](../built-ins/static-functions/README.md)).
+`Boolean` is reserved with its conversion operator
+([boolean conversion](../conversions/boolean/README.md)); its common runtime
+body is double negation, and the global word has no standalone function value.
 Every other name joins that list before 2360 admits any of it.
 
 ### Open questions
@@ -111,6 +114,8 @@ Every other name joins that list before 2360 admits any of it.
   reserved under this rule, in the same list.
 - [String conversion](../conversions/string/README.md) — `String`, the third
   name reserved under this rule, in the same list.
+- [Boolean conversion](../conversions/boolean/README.md) — `Boolean`, reserved
+  with its conversion operator in the same list.
 - [Built-in static functions](../built-ins/static-functions/README.md) —
   `Object`, the fourth, reserved with `Object.is`, in the same list.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become

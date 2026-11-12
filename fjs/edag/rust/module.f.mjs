@@ -19,8 +19,8 @@ import { identityAnalysis, checked } from '../analysis/module.f.mjs'
 import { fromAnalysis } from '../to_fast/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { functionStringify } from '../../js/ast/serializer/module.f.mjs'
-import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.mjs'
-import { operandsOf, visit } from '../sharing/module.f.mjs'
+import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'
+import { operandsOf, visit } from '../sharing/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
 import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.mjs'
@@ -123,8 +123,8 @@ export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) =>
     const operation = /** @type {ExpOp} */ (node)
     switch (operation[0]) {
         case 'memberPresent': { return true }
-        // the entry check calls the runtime's `in` body
-        case 'in': { return true }
+        // Entry checks and boolean conversion call their shared runtime bodies.
+        case 'in': case 'Boolean': { return true }
         case '.': case '?.': { return memberCall(operation[3], true) }
         case '?.()': { return memberCall(operation[3], false) }
         default: { return false }

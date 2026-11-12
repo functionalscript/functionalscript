@@ -55,13 +55,11 @@
         },
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- npm ci",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- cargo test",
@@ -107,21 +105,6 @@
           "run": "mise exec -- npm start ci report rust",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
-          "env": {
-            "GIT_AUTHOR_NAME": "github-actions[bot]",
-            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
-          },
-          "continue-on-error": true
-        },
-        {
-          "run": "mise exec -- node --test ./fjs/emergent_testing/js-only.mjs",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
-        },
-        {
-          "run": "mise exec -- npm start ci report suite",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
             "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
@@ -416,13 +399,11 @@
         },
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- npm ci",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- cargo test",
@@ -448,21 +429,6 @@
           "run": "mise exec -- npm start ci report rust",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
-          "env": {
-            "GIT_AUTHOR_NAME": "github-actions[bot]",
-            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
-          },
-          "continue-on-error": true
-        },
-        {
-          "run": "mise exec -- node --test ./fjs/emergent_testing/js-only.mjs",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
-        },
-        {
-          "run": "mise exec -- npm start ci report suite",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
             "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
@@ -628,7 +594,7 @@
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
@@ -679,21 +645,6 @@
           "run": "mise exec -- npm start ci report rust",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
-          "env": {
-            "GIT_AUTHOR_NAME": "github-actions[bot]",
-            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
-          },
-          "continue-on-error": true
-        },
-        {
-          "run": "mise exec -- node --test ./fjs/emergent_testing/js-only.mjs",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
-        },
-        {
-          "run": "mise exec -- npm start ci report suite",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
             "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
@@ -1008,7 +959,7 @@
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C153.6.0\"",
+          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C153.7.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
@@ -1096,13 +1047,11 @@
         },
         {
           "run": "test \"$(mise exec -- tsc --version)\" = \"Version 7.0.2\"",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-package != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- npm ci",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-package != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- tsc",
@@ -1156,13 +1105,11 @@
         },
         {
           "run": "mkdir \"$RUNNER_TEMP/consumer\"",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-package != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- npm pack --pack-destination \"$RUNNER_TEMP/consumer\"",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-package != 'true'"
+          "shell": "bash"
         },
         {
           "run": "mise exec -- npm run gen",
@@ -1173,72 +1120,12 @@
           "shell": "bash"
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
+          "uses": "actions/upload-artifact@v7.0.2",
           "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.13.0"
-          },
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "npm init -y > /dev/null",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "npm install \"packed@file:$(echo *.tgz)\"",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "npm install \"typescript@7.0.2\"",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "npx tsc",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "echo 'import { prototypeNames } from \"packed/fjs/js/prototype/module.f.js\";\nimport type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst accepted: PrototypeName = \"map\";\nif (prototypeNames === undefined) { throw new Error(\"prototypeNames did not load\"); }' > good.mts",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "node good.mts",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts",
-          "working-directory": "${{ runner.temp }}/consumer",
-          "if": "steps.init.outputs.hit-package != 'true'"
-        },
-        {
-          "run": "mise exec -- npm start ci report package",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-package != 'true'",
-          "env": {
-            "GIT_AUTHOR_NAME": "github-actions[bot]",
-            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
-          },
-          "continue-on-error": true
+            "name": "package-tarball",
+            "path": "${{ runner.temp }}/consumer/*.tgz",
+            "if-no-files-found": "error"
+          }
         },
         {
           "run": "mise exec -- npm start ci publish",
@@ -1297,6 +1184,69 @@
       "permissions": {
         "contents": "write"
       }
+    },
+    "package": {
+      "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 30,
+      "needs": [
+        "node"
+      ],
+      "steps": [
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.13.0"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v8.0.2",
+          "with": {
+            "name": "package-tarball",
+            "path": "${{ runner.temp }}/consumer"
+          }
+        },
+        {
+          "run": "npm init -y > /dev/null",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "npm install \"packed@file:$(echo *.tgz)\"",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "npm install \"typescript@7.0.2\"",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "npx tsc",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "echo 'import { prototypeNames } from \"packed/fjs/js/prototype/module.f.js\";\nimport type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst accepted: PrototypeName = \"map\";\nif (prototypeNames === undefined) { throw new Error(\"prototypeNames did not load\"); }' > good.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "node good.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
+        },
+        {
+          "run": "! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
+        }
+      ]
     }
   }
 }

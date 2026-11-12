@@ -24,15 +24,28 @@ export type CoverageCache = {
 
 export type Outcome = 'passed' | 'failed' | 'cached'
 
+/** One executed child's result and elapsed wall time in milliseconds. */
+export type ChildResult = {
+    readonly passed: boolean
+    readonly duration: number
+    readonly start: number
+}
+
 /** A directory's admission and hits, captured before any coverage child runs. */
 export type Planned = {
     readonly command: Command
     readonly entries: readonly Entry[] | null
     readonly cached: boolean
+    /** Invalid source inputs fail the module even when its Node proofs pass. */
+    readonly admissionFailed: boolean
 }
 
 /** Successful inputs are returned to the caller for one end-of-run batch. */
 export type RunResult = {
     readonly outcome: Outcome
     readonly entries: readonly Entry[]
+    /** Executed child time in milliseconds; cache hits contribute zero. */
+    readonly duration: number
+    /** Child start on the shared clock; cache hits have no execution window. */
+    readonly start: number | null
 }

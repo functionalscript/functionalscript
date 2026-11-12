@@ -4,7 +4,7 @@
 
 import { marked, parse, serialize, setProperty, stringify, stringifySorted } from './module.f.mjs'
 import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { sort } from '../../types/object/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../html/module.f.mjs'

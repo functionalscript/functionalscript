@@ -21,22 +21,22 @@
  * @import { _ResolvedMember } from './private.ts'
  */
 
-import { isArray } from '../../types/array/module.f.mjs'
+import { isArray } from '../../types/array/module.f.js'
 import { error, ok, okThen } from '../../types/result/module.f.js'
-import { array } from '../value/array/module.f.mjs'
-import { object } from '../value/object/module.f.mjs'
-import { func } from '../value/function/module.f.mjs'
-import { bind, call, invoker, prepare, settle } from '../value/call/module.f.mjs'
-import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
-import { throwValue } from '../value/control/module.f.mjs'
-import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
-import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
-import { binary as relational } from '../value/relational/module.f.mjs'
+import { array } from '../value/array/module.f.js'
+import { object } from '../value/object/module.f.js'
+import { func } from '../value/function/module.f.js'
+import { bind, call, invoker, prepare, settle } from '../value/call/module.f.js'
+import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.js'
+import { throwValue } from '../value/control/module.f.js'
+import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.js'
+import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.js'
+import { binary as relational } from '../value/relational/module.f.js'
 import { toPrimitive, toString, toNumber } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
-import { staticBody } from '../value/property/module.f.mjs'
-import { ownEntries } from '../value/entries/module.f.mjs'
-import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
+import { staticBody } from '../value/property/module.f.js'
+import { ownEntries } from '../value/entries/module.f.js'
+import { isIntrinsic, isStatic, noStatic } from '../module.f.js'
 
 /**
  * The failure of an `in` node under an executor whose runtime has no
@@ -45,6 +45,9 @@ import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
  */
 /** @type {string} */
 export const noIn = 'no binding for the in operator'
+
+/** The named failure for a missing Boolean conversion body. @type {string} */
+export const noBoolean = 'no binding for the Boolean operator'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -316,7 +319,7 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
+            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': {
                 if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
@@ -372,6 +375,14 @@ export const operation = evaluator => {
                 const body = functionAt(runtime, ['in'])
                 return then(operand(node[2], state), (value, next) =>
                     [next, body === undefined ? error(noIn) : call(ok(body), [() => ok(node[1]), () => ok(value)], invoke)])
+            }
+            // Conversion is the common runtime's !! body, invoked on the
+            // evaluated operand; it has no independent native implementation.
+            case 'Boolean': {
+                return then(operand(node[1], state), (value, next) => {
+                    const body = functionAt(runtime, ['Boolean'])
+                    return [next, body === undefined ? error(noBoolean) : call(ok(body), [() => ok(value)], invoke)]
+                })
             }
             case 'String': { return then(operand(node[1], state), (value, next) => [next, toString(value, invoke)]) }
             case '~': case 'Number': case 'BigInt': {

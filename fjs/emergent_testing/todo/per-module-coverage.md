@@ -72,19 +72,38 @@ run; imports do not expand the selected subtree. Coverage data from other
 directories, previous runs or the ordinary full test suite must never
 contribute to this result.
 
-Execute directories sequentially in the initial implementation. Continue
-after a module fails, then exit nonzero if any module failed. Parallel
-scheduling is separate work if measurements justify it.
+Prepare every directory's manifest and complete one cache lookup before any
+coverage child starts. Execute the planned jobs in batches bounded by Node's
+`os.availableParallelism()`: children in a batch run concurrently, then the next
+batch starts after every job in the current batch settles. Scheduling capacity
+is not part of the cache key. Continue after a module fails, retaining stable
+successes for one final save/sync after all batches, then exit nonzero if any
+module failed.
 
 #### Reporting
 
-Native children inherit stdout and stderr for live reporter output. Keep the
-existing quiet Node reporter's filtering of passed tests and fully covered
-files. After a child finishes, print one complete result line per measured
-target, using its repository-relative path followed by `...Ok` or `...Failed`.
-Cache hits launch no child and print only `...Cached` for each target. Failure
-diagnostics also identify the working directory and full, unambiguously quoted
-command. Execute the child with a structured argument vector, without a shell.
+Print a complete `path: running` line for each measured file by
+repository-relative path before starting its child. Files in one directory
+share a child and duration, but each gets its own complete result line using
+emergent testing's shared status and timing formatter. Capture child stdout and stderr, keeping
+successful output hidden. Write a failed result and its working directory,
+complete invocation, exit status or signal, and stdout/stderr together so
+concurrent children cannot splice their output into the block. Replay stdout
+followed by stderr. Grouping the two streams does not preserve their original
+ordering relative to each other.
+Report launch/capture errors directly. Cache hits launch no child and print no
+per-file result. Continue after failures and finish with coverage totals,
+including the cached module count. Report `Test real time` from the first child's
+start through the last child's finish, and `Processor time` as the sum of child
+wall-clock durations. Sum each child once, including failures; cache hits
+contribute zero, and both timings are zero when no child runs. Planning, cache
+lookup/publication and validation before or after all children are excluded from
+test real time; gaps between child runs remain part of that span.
+Use the shared duration formatter for both totals.
+Report the concurrent child-process limit as the smaller of available CPU
+capacity and the number of planned directory jobs, using "up to" because cache
+hits can launch fewer children.
+Execute with a structured argument vector, without a shell.
 
 The command currently accepts `--sync` for end-of-run cache publication.
 `--quiet` and `--verbose` remain future reporting work, not implemented flags.
@@ -105,6 +124,12 @@ timed-out child, missing or malformed coverage, and missing target files all
 fail the module. Validate structured coverage data rather than parsing the
 formatted report. Fix the proofs or implementation the switch exposes instead
 of lowering thresholds or allowing exceptions.
+
+Dependency-analysis or manifest-admission failures also fail the command,
+even when the affected native proofs pass. Report `CACHE ADMISSION`, continue
+running proofs and independent directories, and retain their stable successes.
+Ordinary cold-cache misses run and populate the cache. Cache storage outages
+remain an explicit uncached fallback.
 
 #### CI and scope
 
@@ -130,25 +155,39 @@ when a required metric is unavailable.
 - A rounded `100%` with an uncovered item fails, and complete coverage cannot
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
-- Native child stdout and stderr appear live through the existing reporter.
-  After the child finishes, every measured target prints its repository-relative
-  path and complete result line. Cache hits print only their result without a
-  child. Failures identify the working directory and complete command, with
-  paths and arguments quoted unambiguously.
+- Progress names the measured files in a complete start line before launch,
+  then prints a separate complete result line with status and timing. Successful
+  child output is suppressed; failures name
+  their working directory and full reproducible command, with paths and
+  arguments quoted unambiguously, then print captured stdout and stderr.
+  Cache hits print no per-file result and contribute to the final cached count.
+- The timing summary spans the first child's start through the last child's
+  finish, excluding planning and final cache work. Processor time sums each
+  executed child's wall time once, including failures, and excludes cache hits.
+  Overlapping children can sum to more than test real time; fully cached runs
+  have zero for both timings.
 - Future verbosity controls change presentation only; they must not change
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
+- Concurrent coverage children never exceed the host's available parallelism.
+  All manifests and the one cache lookup precede execution; successful entries
+  are saved once, with synchronization when requested, after all batches finish.
+- Failed source admission cannot become a successful command through passing
+  native proofs, while ordinary cache misses remain successful.
 - The ordinary FJS suite retains proofs outside measured module directories.
 
 ### Tasks
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
-- [x] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation, failure diagnostics and module results.
-- [x] Add per-file results after live native reporting.
-- [ ] Add explicit quiet/verbose controls, retaining live reporting by default and
-      full failure diagnostics; neither flag is currently implemented.
+- [x] Add `fjs cov node` with isolated runs, strict coverage
+      validation, failure diagnostics and shared emergent-testing progress.
+- [x] Name measured files in complete start/result lines while hiding successful
+      child output and grouping failure diagnostics.
+- [x] Run coverage children concurrently in batches bounded by available
+      parallelism, preserving one planning barrier and one final cache batch.
+- [ ] Consider explicit quiet/verbose controls and additional failure diagnostics;
+      neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
 - [x] Fix the exposed gaps in modules' own proofs or implementations.

@@ -235,7 +235,7 @@ Only Any and String change between them.
 
 ## The code IR
 
-The IR's tables ([IR choice 4](./ir-design.md#4-every-operation-comes-from-a-table))
+The IR's tables ([IR choice 4](../ir/ir-design.md#4-every-operation-comes-from-a-table))
 follow the modules. The `l0` table holds the import-form rows of every
 module, each named with its module, so `l0.string.length` and
 `l0.containers.length` are two rows. The `str` table holds String's
@@ -249,7 +249,7 @@ local is the source `any` local itself, `str.unpack` emits nothing,
 call of its `unit`. This is IR choice 13's rule for a module with no
 slots, with calls in place of templates. If BigInt gets a template form too, it follows `str`:
 the module declares a type and its rows, and the IR names them
-([IR, least sure](./ir-design.md#where-this-draft-is-least-sure)).
+([IR, least sure](../ir/ir-design.md#where-this-draft-is-least-sure)).
 
 ## Where this draft is least sure
 

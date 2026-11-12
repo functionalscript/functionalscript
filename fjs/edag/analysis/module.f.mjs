@@ -38,7 +38,7 @@
  * **Or by identity alone.** {@link identityAnalysis} merges nothing: every
  * node is its own entry, two nodes spelled alike are two entries, and the
  * shared entries are the nodes reached from more than one place — what
- * [`../sharing`](../sharing/module.f.mjs) counts for both writers, read here
+ * [`../sharing`](../sharing/module.f.js) counts for both writers, read here
  * through the table. That is the FunctionalScript writer's table, which
  * writes a shared node as one `const` and every other node where it
  * stands, so that the text keeps the sharing the graph has and adds none
@@ -75,8 +75,8 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.js'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.mjs'
-import { sharedNodesOf } from '../sharing/module.f.mjs'
+import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.js'
+import { sharedNodesOf } from '../sharing/module.f.js'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
 const start = merges => ({ visited: new Map(), entries: [], problem: null, merges })
@@ -277,12 +277,14 @@ const handlers = {
     // until it has its row
     'Object.is': o0,
     'Object.entries': o0,
+    'Object.keys': o0,
     'String.fromCharCode': o0,
     'Object.fromEntries': o0,
     'Number.isInteger': o0,
     'Number.isSafeInteger': o0,
     'Number.isNaN': o0,
     'Number.isFinite': o0,
+    'Math.log2': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -290,6 +292,7 @@ const handlers = {
     String: o1,
     Number: o1,
     BigInt: o1,
+    Boolean: o1,
     typeof: o1,
     throw: o1,
     '+': o12,

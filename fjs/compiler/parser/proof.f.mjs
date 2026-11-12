@@ -12,7 +12,7 @@ import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.js'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
@@ -26,7 +26,7 @@ import { disagreement } from '../../js/marked/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
-import { isObject } from '../../types/object/module.f.mjs'
+import { isObject } from '../../types/object/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with

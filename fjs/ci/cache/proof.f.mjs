@@ -11,7 +11,7 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { write as writeLoose } from '../../git/loose/module.f.mjs'
 import { history, historyStep, ioError, runPure } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
@@ -24,7 +24,7 @@ import { write as writeTree } from '../../git/tree/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { u8ListToString } from '../../text/utf8/module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { jobs } from '../self/module.f.mjs'

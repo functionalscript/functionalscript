@@ -7,13 +7,12 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
-import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
-import { array } from '../array/module.f.mjs'
-import { object } from '../object/module.f.mjs'
-import { func } from '../function/module.f.mjs'
-import { call } from '../call/module.f.mjs'
-import { entry, hasEntry, findProperty, functionAt, read } from './module.f.mjs'
+import { array } from '../array/module.f.js'
+import { object } from '../object/module.f.js'
+import { func } from '../function/module.f.js'
+import { call } from '../call/module.f.js'
+import { entry, hasEntry, findProperty, functionAt, read } from './module.f.js'
 import { invokeWith } from '../../amnesia/module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */

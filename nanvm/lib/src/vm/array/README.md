@@ -1,13 +1,15 @@
 # `Array` built-ins
 
-The member functions an array answers, one file each, reached from `array` in
+The native member functions an array answers, one file each, reached from `array` in
 [`../lambda/method.rs`](../lambda/method.rs). Each is ECMAScript 2025's algorithm
 on every input a module can build. Behaviour is pinned by the shared corpus in
 [`fjs/nanvm`](../../../../../fjs/nanvm/README.md), which runs every case on a
 JavaScript engine and on this crate. The completeness table
 [`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.mjs) generates,
 checked by `completeness` in `method.rs`, keeps this set equal to what the
-compiler admits.
+compiler admits. `map` and `concat` are implemented in the shared FunctionalScript
+runtime ([`fjs/js/runtime`](../../../../../fjs/js/runtime/README.md)); their native
+table entries and Rust implementations have been removed.
 
 ## What is out, by design
 

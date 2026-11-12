@@ -23,7 +23,7 @@
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
-import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
+import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.js'
 import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { read, write } from '../../effects/memory/module.f.mjs'
@@ -34,7 +34,7 @@ import {
 } from '../json_rpc/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
-import { unknown } from '../../media/json/rtti/module.f.mjs'
+import { unknown } from '../../media/json/rtti/module.f.js'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 

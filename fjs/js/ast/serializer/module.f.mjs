@@ -21,7 +21,7 @@ import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from './names/module.f.mjs'
 import { _helperChunks } from './intrinsic/module.f.mjs'
 import { _memberPresentChunks } from './member_present/module.f.mjs'
-import { isHelper } from '../../../edag/module.f.mjs'
+import { isHelper } from '../../../edag/module.f.js'
 import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
 import { maxLength } from '../../../types/function/length/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -281,7 +281,7 @@ const operatorText = (context, operator) => {
         }
         case ',': { return `(${operator[1].map(value => expression(context, value)).join(',') || primitive(undefined)})` }
         case '?:': { return `${expression(context, operator[1], 3)}?${expression(context, operator[2])}:${expression(context, operator[3])}` }
-        case 'BigInt': case 'Number': case 'String': { return `${operator[0]}(${expression(context, operator[1])})` }
+        case 'Boolean': case 'BigInt': case 'Number': case 'String': { return `${operator[0]}(${expression(context, operator[1])})` }
         case 'typeof': { return `${keyword('typeof')} ${expression(context, operator[1], 14)}` }
         case '~': case '!': { return `${operator[0]}${expression(context, operator[1], 14)}` }
         case '+': case '-': {

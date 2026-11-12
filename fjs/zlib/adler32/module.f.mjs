@@ -21,7 +21,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { isWholeBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { isWholeBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 
 /** The largest prime below 2^16. */

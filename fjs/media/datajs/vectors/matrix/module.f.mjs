@@ -58,7 +58,7 @@ import { charIs, isDigit, isLatinLetter } from '../../../../text/ascii/module.f.
 import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
-import { occurrences } from '../../../../types/array/module.f.mjs'
+import { occurrences } from '../../../../types/array/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'

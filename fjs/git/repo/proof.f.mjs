@@ -11,7 +11,7 @@ import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { vec } from '../../types/bit_vec/module.f.mjs'
+import { vec } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { tryCommonDir } from './module.f.mjs'
 

@@ -3,7 +3,7 @@
  * names objects by it in the repository format it defaults to, which is
  * nearly every repository in use today — GitHub, GitLab and Radicle among
  * the hosts — and for no other reason; a SHA-256 repository, which Git
- * can make since 2.29, is the exception [`fjs/crypto/sha2`](../sha2/module.f.mjs)
+ * can make since 2.29, is the exception [`fjs/crypto/sha2`](../sha2/module.f.js)
  * covers. SHA-1's collision
  * resistance is broken, by an identical-prefix attack in 2017 (SHAttered)
  * and a chosen-prefix one in 2020, so nothing that vouches for an object
@@ -12,7 +12,7 @@
  * what Git itself does, refusing an input the known attack shaped, is
  * `sha1dc`, a task in [`todo/sha1.md`](../todo/sha1.md).
  *
- * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.mjs): `init`,
+ * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.js): `init`,
  * `update` and `end` over a `State`, so `computeSync` there computes it.
  * The framing is SHA-256's — 512-bit blocks, a `1` bit, zeros, and the
  * message length in 64 bits — and is `sha2`'s, shared through `framed`, over
@@ -25,8 +25,9 @@
  * @import { Sha1, V5 } from './types.ts'
  */
 
-import { mask } from '../../types/bigint/module.f.mjs'
-import { ch, framed, fromWords, maj } from '../sha2/module.f.mjs'
+import { mask } from '../../types/bigint/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
+import { ch, framed, fromWords, maj } from '../sha2/module.f.js'
 
 const wordLength = /** @type {const} */ (32n)
 
@@ -107,7 +108,7 @@ const nextW = (w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF) =
  *
  * @type {(u: bigint) => readonly bigint[]}
  */
-const words = u => Array.from({ length: 16 }, (_, i) => u >> BigInt(15 - i) * wordLength & m)
+const words = u => generate(16, i => u >> BigInt(15 - i) * wordLength & m)
 
 /**
  * One block folded into the state: RFC 3174 section 6.1, steps b to e.
@@ -124,8 +125,8 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
     let t = 0
     while (true) {
         for (let j = 0; j < 16; j += 1) {
-            const [f, k] = stages[Math.trunc((t + j) / roundsPerStage)]
-            const temp = (rotl5(a) + f(b, c, d) + e + k + w[j]) & m
+            const [f, k] = stages[Number(Math.trunc((t + j) / roundsPerStage))]
+            const temp = (rotl5(a) + f(b, c, d) + e + k + w[Number(j)]) & m
             e = d
             d = c
             c = rotl30(b)

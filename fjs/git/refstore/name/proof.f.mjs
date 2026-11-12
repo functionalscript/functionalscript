@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../../../types/bit_vec/module.f.js'
 import { latin1 } from '../../testlib.f.mjs'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey, nameText, refsPrefix } from './module.f.mjs'
 

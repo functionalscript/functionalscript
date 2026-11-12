@@ -47,10 +47,9 @@ fn lookup<A: IVm, const N: usize>(
 }
 
 /// `Array.prototype`'s.
-fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
+fn array<A: IVm>() -> [(&'static str, Method<A>); 21] {
     [
         ("at", array_at),
-        ("concat", array_concat),
         ("every", array_every),
         ("filter", array_filter),
         ("find", array_find),
@@ -63,7 +62,6 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
         ("indexOf", array_index_of),
         ("join", array_join),
         ("lastIndexOf", array_last_index_of),
-        ("map", array_map),
         ("reduce", array_reduce),
         ("reduceRight", array_reduce_right),
         ("slice", array_slice),
@@ -152,11 +150,6 @@ fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
     Ok(index_or_minus_one(found))
 }
 
-/// `Array.prototype.concat`, `vm/array/concat.rs`: every argument an item.
-fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    Array::try_from(receiver)?.concat(args).to_any_result()
-}
-
 /// `Array.prototype.slice`, `vm/array/slice.rs`.
 fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
@@ -229,12 +222,6 @@ fn array_find_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, 
 fn array_find_last_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
     Ok(index_or_minus_one(a.find_last_index(&f)?))
-}
-
-/// `Array.prototype.map`, `vm/array/map.rs`.
-fn array_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let (a, f) = with_callback(receiver, &args)?;
-    a.map(&f).to_any_result()
 }
 
 /// `Array.prototype.filter`, `vm/array/filter.rs`.
@@ -321,10 +308,11 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::test::function::{no_args, returns, rt, throws};
+    use crate::vm::test::function::{identity, no_args, returns, rt, throws};
     use crate::{
+        common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, BigInt, Function, ToAny, ToArray, ToObject, error},
+        vm::{Any, Array, BigInt, Function, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -508,6 +496,99 @@ mod tests {
         assert_eq!(
             arr.dot("at".into()).end_call(&rt(), no_args),
             Ok(1.0.to_any())
+        );
+    }
+
+    /// `map` has no native fallback: the common runtime supplies its body,
+    /// which passes each value, its index and the original receiver to the
+    /// callback, retaining the receiver's identity.
+    #[test]
+    fn array_map_uses_the_common_runtime() {
+        let values: Array<A> = [10.0.to_any(), 20.0.to_any()].to_array();
+        let receiver = values.clone().to_any();
+        let key: Any<A> = "map".into();
+        assert!(super::method::<A>(&receiver, &key).is_none());
+        assert!(
+            receiver
+                .clone()
+                .dot(key.clone())
+                .end_call(&Any::undefined(), || Ok([identity()].to_array().to_any()))
+                .is_err()
+        );
+        let mapped = receiver
+            .clone()
+            .dot(key)
+            .end_call(&rt(), || Ok([identity()].to_array().to_any()))
+            .unwrap();
+        let mapped = Array::try_from(mapped).unwrap();
+        assert_eq!(mapped.length(), 2);
+        for index in 0..2 {
+            let args = Array::try_from(mapped[index].clone()).unwrap();
+            assert_eq!(args.length(), 3);
+            assert_eq!(args[0], values[index]);
+            assert_eq!(args[1], f64::from(index).to_any());
+            assert_eq!(args[2], receiver);
+        }
+    }
+
+    /// Array and string concatenation have no native fallback. The common
+    /// body spreads arrays once, retains their elements and converts string
+    /// arguments through the ordinary String operation.
+    #[test]
+    fn concat_uses_the_common_runtime() {
+        let child: Any<A> = [].to_object().to_any();
+        let values: Array<A> = [child.clone(), 1.0.to_any()].to_array();
+        let receiver = values.clone().to_any();
+        let key: Any<A> = "concat".into();
+        for value in [receiver.clone(), "x".into()] {
+            assert!(super::method::<A>(&value, &key).is_none());
+            assert!(
+                value
+                    .dot(key.clone())
+                    .end_call(&Any::undefined(), no_args)
+                    .is_err()
+            );
+        }
+        let copied = receiver
+            .clone()
+            .dot(key.clone())
+            .end_call(&rt(), no_args)
+            .unwrap();
+        assert_ne!(copied, receiver);
+        assert_eq!(Array::try_from(copied).unwrap()[0], child);
+        let nested = [3.0.to_any()].to_array().to_any();
+        let joined = receiver
+            .dot(key.clone())
+            .end_call(&rt(), || {
+                Ok([
+                    [2.0.to_any(), nested.clone()].to_array().to_any(),
+                    child.clone(),
+                    Any::undefined(),
+                ]
+                .to_array()
+                .to_any())
+            })
+            .unwrap();
+        let joined = Array::try_from(joined).unwrap();
+        assert_eq!(joined.length(), 6);
+        assert_eq!(joined[0], child);
+        assert_eq!(joined[2], 2.0.to_any());
+        assert_eq!(joined[3], nested);
+        assert_eq!(joined[4], child);
+        assert_eq!(joined[5], Any::undefined());
+
+        let text: Any<A> = "x".into();
+        assert_eq!(
+            text.clone().dot(key.clone()).end_call(&rt(), no_args),
+            Ok(text.clone())
+        );
+        assert_eq!(
+            text.dot(key).end_call(&rt(), || {
+                Ok([1.0.to_any(), Nullish::Null.to_any(), Any::undefined()]
+                    .to_array()
+                    .to_any())
+            }),
+            Ok("x1nullundefined".into())
         );
     }
 

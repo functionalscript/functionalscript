@@ -1,28 +1,33 @@
 /**
  * Runs each module directory's own proofs under native Node coverage.
- * Children run sequentially without a shell and inherit stdout and stderr.
+ * Children run quietly in CPU-bounded parallel batches without a shell.
+ * Progress shares emergent-testing's result formatter and prints complete
+ * start and finish records for each measured file.
+ * Test timing spans the first child's start through the last child's finish.
  * The complete plan is prepared before any child runs. Stable successful entries
  * are committed and synchronized after executing the plan.
  *
  * @module
  *
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { NodeOp, NodeProgram, NodeProgramOptions, Write, Subprocess } from '../../effects/node/types.ts'
+ * @import { NodeOp, NodeProgram, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { _Module } from './types.ts'
- * @import { CoverageCache, Command, Outcome, Planned } from './plan/types.ts'
+ * @import { ChildResult, CoverageCache, Command, Outcome, Planned, RunResult } from './plan/types.ts'
  * @import { Entry } from './cache/types.ts'
  */
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
+import { allOk, availableParallelism, capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
+import { fmtResult, formatDuration } from '../module.f.mjs'
+import { csiWrite } from '../../text/sgr/module.f.mjs'
 import { createPlan, runPlanned } from './plan/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
-import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.mjs'
+import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.js'
 
 /** Target selection shared with the lightweight native reporter. */
 export const isCoverageTarget = coverageTarget
@@ -61,21 +66,32 @@ export const _modulePaths = ({ directory, files }, root) => {
     return files.map(file => under(relative, file))
 }
 
-/** Run one child with live output while allowing independent directories to continue after failure. @type {(command: Command, root: string) => Effect<Subprocess | Write, boolean, IoChannel>} */
-const runModule = (command, root) => {
+/** Run one quiet child with shared test progress; independent directories continue after failure.
+ * @type {(options: NodeProgramOptions, command: Command, root: string) => Effect<NodeOp, ChildResult, IoChannel>}
+ */
+const runModule = (options, command, root) => {
     const { directory, args } = command
-    const started = spawn('node', args, { stdio: 'inherit', cwd: directory })
-    const ended = step(started, childWait)
-    const outcome = resultMapStep(ended, ([tag, value]) => {
-        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
-        const [status, code] = value
-        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
+    const paths = _modulePaths(command, root)
+    const out = csiWrite(options.std)('stdout')
+    const announced = forEachStep(pureOk(paths), name => log(`${name}: running`))
+    const timed = step(announced, () => now())
+    const captured = capture('node', args, { cwd: directory })
+    const checked = resultMapStep(captured, ([tag, value]) => {
+        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value), stdout: '', stderr: '' }) }
+        const { status: [status, code], stdout, stderr } = value
+        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}`, stdout, stderr })
     })
-    const targets = historyStep(history(outcome), ({ passed }) =>
-        forEachStep(pureOk(_modulePaths(command, root)), name => log(`${name}...${passed ? 'Ok' : 'Failed'}`)))
-    const diagnostics = historyStep(targets, (_, { passed, detail }) => passed
-        ? pureOk(undefined) : error(`${_commandLine(directory, args)}\n${detail}`))
-    return mapStep(diagnostics, ([, , { passed }]) => passed)
+    const outcome = historyStep(history(timed), () => checked)
+    const stopped = historyStep(outcome, () => now())
+    const measured = mapStep(stopped, ([end, result, start]) => ({ ...result, start, duration: end - start }))
+    // One write keeps a completed job's result and failure logs together.
+    const reported = historyStep(history(measured), ({ passed, duration, detail, stdout, stderr }) => {
+        const lines = paths.map(name => fmtResult({ module: directory, path: '', name, duration,
+            status: passed ? 'passed' : 'failed' }, false))
+        const diagnostics = passed ? [] : [_commandLine(directory, args), detail, stdout, stderr].filter(text => text !== '')
+        return out([...lines, ...diagnostics].join('\n') + '\n')
+    })
+    return mapStep(reported, ([, { passed, start, duration }]) => ({ passed, start, duration }))
 }
 
 /** Commit and publish once after execution; cache errors cannot hide coverage results. @type {(cache: CoverageCache | null, entries: readonly Entry[]) => Effect<NodeOp, void, IoChannel>} */
@@ -84,10 +100,6 @@ export const _saveBatch = (cache, entries) => {
     const saved = catchStep(cache.saveMany(entries), problem => error(`CACHE: saving manifests: ${errorMessage(problem)}`))
     return step(saved, () => catchStep(cache.sync(), problem => error(`CACHE: synchronizing manifests: ${errorMessage(problem)}`)))
 }
-
-/** Cached targets need no native child or test log. @type {(command: _Module, root: string, outcome: Outcome) => Effect<Write, void, IoChannel>} */
-export const _showCached = (command, root, outcome) => outcome === 'cached'
-    ? forEachStep(pureOk(_modulePaths(command, root)), name => log(`${name}...Cached`)) : pureOk(undefined)
 
 /** Prepare shared inputs once; a cache failure costs coverage work, never a skipped check. @type {(options: NodeProgramOptions, synchronize: boolean, commands: readonly Command[]) => Effect<NodeOp, CoverageCache | null, IoChannel>} */
 const coverageCache = (options, synchronize, commands) => resultStep(openCoverageCache(options, synchronize, commands),
@@ -98,22 +110,34 @@ const coverageCache = (options, synchronize, commands) => resultStep(openCoverag
 /** Successful cached checks still contribute to the total passed count. @type {Record<Outcome, { readonly failed: number, readonly cached: number }>} */
 const increments = { passed: { failed: 0, cached: 0 }, failed: { failed: 1, cached: 0 }, cached: { failed: 0, cached: 1 } }
 
-/** Execute only the prepared misses and retain stable successes for one commit.
- * @type {(plan: readonly Planned[], root: string, cache: CoverageCache | null) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly entries: readonly Entry[] }, IoChannel>}
+/** Match the shared terminal reporter's duration precision and units. */
+const durationText = formatDuration(4)
+
+/** Execute CPU-bounded batches and retain stable successes for one commit.
+ * @type {(options: NodeProgramOptions, plan: readonly Planned[], root: string, cache: CoverageCache | null, concurrency: number) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly duration: number, readonly realTime: number, readonly entries: readonly Entry[] }, IoChannel>}
  */
-const runPlan = (plan, root, cache) => foldStep(pureOk(plan), {
-    failed: 0, cached: 0, total: 0, entries: /** @type {readonly Entry[]} */ ([]),
-}, item => totals => {
-    const checked = runPlanned(item, () => runModule(item.command, root), cache)
-    const shown = historyStep(history(checked), ({ outcome }) => _showCached(item.command, root, outcome))
-    return mapStep(shown, ([, { outcome, entries }]) => {
-        const change = increments[outcome]
-        return {
-            failed: totals.failed + change.failed, cached: totals.cached + change.cached,
-            total: totals.total + 1, entries: [...totals.entries, ...entries],
-        }
+export const _runPlan = (options, plan, root, cache, concurrency) => {
+    const batches = Array.from({ length: Math.ceil(plan.length / concurrency) }, (_, index) =>
+        plan.slice(index * concurrency, (index + 1) * concurrency))
+    const completed = foldStep(pureOk(batches), /** @type {readonly RunResult[]} */ ([]), batch => previous => {
+        const work = batch.map(item => runPlanned(item, () => runModule(options, item.command, root), cache))
+        const concurrent = allOk(...work)
+        return mapStep(concurrent, results => [...previous, ...results])
     })
-})
+    return mapStep(completed, results => {
+        const totals = results.reduce((totals, { outcome, duration, entries }) => {
+            const change = increments[outcome]
+            return {
+                failed: totals.failed + change.failed, cached: totals.cached + change.cached,
+                total: totals.total + 1, duration: totals.duration + duration, entries: [...totals.entries, ...entries],
+            }
+        }, { failed: 0, cached: 0, total: 0, duration: 0, entries: /** @type {readonly Entry[]} */ ([]) })
+        const runs = results.flatMap(({ start, duration }) => start === null ? [] : [{ start, end: start + duration }])
+        const realTime = runs.length === 0 ? 0
+            : Math.max(...runs.map(run => run.end)) - Math.min(...runs.map(run => run.start))
+        return { ...totals, realTime }
+    })
+}
 
 /** Run the selected subtree; --sync publishes its successful manifests at end. @type {NodeProgram} */
 export const main = options => {
@@ -134,11 +158,19 @@ export const main = options => {
         }])))
     const context = historyStep(history(commands), commands => coverageCache(options, args.length === 2, commands))
     const planned = historyStep(context, (cache, commands) => createPlan(commands, cache))
-    const executed = historyStep(planned, (plan, cache) => runPlan(plan, cache?.root ?? packageRoot, cache))
-    const committed = historyStep(executed, (results, _plan, cache) => _saveBatch(cache, results.entries))
-    const results = mapStep(committed, ([, totals]) => totals)
-    const reported = historyStep(history(results), ({ failed, cached, total }) =>
-        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)`))
+    const capacity = historyStep(planned, () => availableParallelism())
+    const executed = historyStep(capacity, (concurrency, plan, cache) => _runPlan(options, plan, cache?.root ?? packageRoot, cache, concurrency))
+    const committed = historyStep(executed, (results, _capacity, _plan, cache) => _saveBatch(cache, results.entries))
+    const results = mapStep(committed, ([, totals, concurrency]) => ({
+        ...totals, concurrency: Math.min(concurrency, totals.total),
+    }))
+    const reported = historyStep(history(results), ({ failed, cached, total, duration, realTime, concurrency }) =>
+        log([
+            `Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)`,
+            `Test real time: ${durationText(realTime)}`,
+            `Processor time: ${durationText(duration)}`,
+            `Concurrency: up to ${concurrency} child process${concurrency === 1 ? '' : 'es'}`,
+        ].join('\n')))
     return resultStep(reported, ([tag, value]) => {
         if (tag === 'error') { return errorExit(errorMessage(value)) }
         const [, { failed }] = value

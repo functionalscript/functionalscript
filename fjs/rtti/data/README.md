@@ -2,7 +2,7 @@
 
 A function-free, serializable representation of RTTI schemas, modeled after
 [`fjs/ebnf/data`](../../ebnf/data/README.md). `toData` converts a thunk-form `Type`
-(from [`../module.f.mjs`](../module.f.mjs)) into this form once, lazily, when a
+(from [`../module.f.js`](../module.f.js)) into this form once, lazily, when a
 consumer actually needs it.
 
 ## Two forms, one job each

@@ -1,12 +1,12 @@
 /** @import { Exp } from '../../edag/types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../../asserts/module.f.js'
 import { _moduleExports } from '../../compiler/edag/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
-import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
+import { isStatic as isStaticNode } from '../../edag/module.f.js'
 import { member, runtime, statics } from './module.f.js'
-import edag from './gen.edag.data.js'
+import edag from './gen.edag.js'
 
 const { entries, values } = Object
 
@@ -20,13 +20,56 @@ const members = member
 const table = /** @type {Readonly<Record<string, (a: unknown, b: unknown) => unknown>>} */ (/** @type {unknown} */ (statics))
 
 /** The host's own globals, each static path read from them by its keys. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
-const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number, String }))
+const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number, String, Math }))
 
 /**
- * The statics whose argument is an array of entries, which no pair of
- * {@link samples} is: `host` leaves them to a proof of their own.
+ * Statics with their own oracle proofs: structural results, entry-shaped
+ * arguments, and a numerical approximation needing an accuracy bound.
+ * @type {readonly string[]}
  */
-const entryShaped = ['Object.fromEntries']
+const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Math.log2']
+
+/**
+ * Correctly rounded log2 and the output's ULP, computed from the exact
+ * binary64 input with mpmath at 100 decimal digits. Literal references
+ * make the oracle independent of both this kernel and the host's log2.
+ * Near 1 the output is tiny, so an absolute or input-relative tolerance
+ * would hide large numerical errors. See README.md for the method.
+ * @type {readonly (readonly [number, number, number])[]}
+ */
+const logarithms = [
+    [0.9999999999999999, -1.6017132519074588e-16, 2.465190328815662e-32],
+    [1.0000000000000002, 3.203426503814917e-16, 4.930380657631324e-32],
+    [1.9999999999999998, 0.9999999999999999, 1.1102230246251565e-16],
+    [2.0000000000000004, 1.0000000000000002, 2.220446049250313e-16],
+    [0.1, -3.321928094887362, 4.440892098500626e-16],
+    [0.3, -1.7369655941662063, 2.220446049250313e-16],
+    [0.7, -0.5145731728297583, 1.1102230246251565e-16],
+    [1.1, 0.13750352374993502, 2.7755575615628914e-17],
+    [1.2, 0.2630344058337938, 5.551115123125783e-17],
+    [1.4, 0.48542682717024166, 5.551115123125783e-17],
+    [1.5, 0.5849625007211562, 1.1102230246251565e-16],
+    [1.7, 0.765534746362977, 1.1102230246251565e-16],
+    [2.3, 1.2016338611696504, 2.220446049250313e-16],
+    [3, 1.584962500721156, 2.220446049250313e-16],
+    [7, 2.807354922057604, 4.440892098500626e-16],
+    [10, 3.321928094887362, 4.440892098500626e-16],
+    [1.4142135623730951, 0.5000000000000001, 1.1102230246251565e-16],
+    [1.414213562373095, 0.4999999999999999, 5.551115123125783e-17],
+    [1.4142135623730954, 0.5000000000000003, 1.1102230246251565e-16],
+    [0.7071067811865476, -0.4999999999999999, 5.551115123125783e-17],
+    [1e-300, -996.5784284662087, 1.1368683772161603e-13],
+    [1e-100, -332.19280948873626, 5.684341886080802e-14],
+    [1e100, 332.19280948873626, 5.684341886080802e-14],
+    [1e300, 996.5784284662087, 1.1368683772161603e-13],
+    [5e-324, -1074, 2.2737367544323206e-13],
+    [1e-323, -1073, 2.2737367544323206e-13],
+    [1.5e-323, -1072.415037499279, 2.2737367544323206e-13],
+    [2.2250738585072014e-308, -1022, 1.1368683772161603e-13],
+    [2.225073858507201e-308, -1022, 1.1368683772161603e-13],
+    [1.7976931348623157e308, 1024, 2.2737367544323206e-13],
+    [1.2891833470499138e262, 870.711618318191, 1.1368683772161603e-13],
+]
 
 const array = /** @type {readonly unknown[]} */ ([])
 const object = {}
@@ -66,7 +109,80 @@ const samples = [
     array, [], [1], [NaN], object, {}, f, () => 1,
 ]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
+    log2: {
+        specialCases: () => {
+            const body = statics['Math.log2']
+            assertEq(body.length, Math.log2.length)
+            assertEq(runtime.static('Math.log2'), body)
+            assert(Object.is(body(), NaN))
+            for (const value of [NaN, -1, -Infinity, 0, -0, 1, Infinity]) {
+                assert(Object.is(body(value), Math.log2(value)), value)
+            }
+            assertEq(1 / body(1), Infinity)
+        },
+        conversion: () => {
+            const body = statics['Math.log2']
+            for (const value of ['', '8', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8], [8n], [[8]], {}, () => 1]) {
+                assert(Object.is(body(value), Math.log2(/** @type {number} */ (value))), value)
+            }
+            const value = /** @type {const} */ ({ valueOf: () => 8, toString: () => { throw 'toString must not be reached' } })
+            assertEq(body(value), 3)
+            assertEq(body({ valueOf: () => ({}), toString: () => '16' }), 4)
+            // Extra arguments do not undergo numerical conversion.
+            assertEq(table['Math.log2'](8, { valueOf: () => { throw 'unused' } }), 3)
+        },
+        powersOfTwo: () => {
+            // Every representable positive power, including all subnormals.
+            for (let exponent = -1074; exponent <= 1023; exponent = exponent + 1) {
+                assertEq(statics['Math.log2'](2 ** exponent), exponent, exponent)
+            }
+        },
+        highPrecision: () => {
+            for (const [input, expected, ulp] of logarithms) {
+                const actual = statics['Math.log2'](input)
+                const difference = actual - expected
+                assert(-2 * ulp <= difference && difference <= 2 * ulp, [input, actual, expected, ulp])
+            }
+        },
+    },
+    boolean: () => {
+        assertEq(runtime.Boolean.length, 1)
+        for (const value of samples) { assertEq(runtime.Boolean(value), Boolean(value)) }
+        const conversionHooks = /** @type {const} */ ({
+            valueOf: () => { throw 'valueOf must not run' },
+            toString: () => { throw 'toString must not run' },
+        })
+        assertEq(runtime.Boolean(conversionHooks), true)
+        assertStructurallySame(at(at(edag, 'runtime'), 'Boolean'),
+            ['=>', 1, [], ['!', ['!', ['arg', 0]]]])
+    },
+    concat: () => {
+        const onArray = assertNotNullish(member.concat([1]))
+        assertStructurallySame(onArray(), [1])
+        assertStructurallySame(onArray(undefined, [2, [3]], 4), [1, undefined, 2, [3], 4])
+        const onString = assertNotNullish(member.concat('a'))
+        assertEq(onString(), 'a')
+        assertEq(onString('b', 1n, null, undefined), 'ab1nullundefined')
+        for (const self of samples.filter(value => !(value instanceof Array) && typeof value !== 'string')) {
+            assertEq(member.concat(self), undefined, self)
+        }
+        const own = () => 7
+        assertEq(runtime.dot({ concat: own }, 'concat'), own)
+        assertEq(runtime.dot({ concat: undefined }, 'concat'), undefined)
+        assertEq(typeof runtime.dot([], 'concat'), 'function')
+        assertEq(typeof runtime.dot('', 'concat'), 'function')
+    },
+    map: () => {
+        const input = /** @type {const} */ ([1, undefined, 3])
+        /** @type {(value: unknown, index: number, receiver: readonly unknown[]) => readonly unknown[]} */
+        const callback = (value, index, receiver) => [value, index, receiver]
+        const body = assertNotNullish(member.map(input))
+        assertEq(body.length, 1)
+        assertStructurallySame(body(callback), input.map(callback))
+        assertEq(member.map({}), undefined)
+        assertEq(runtime.dot(input, 'map') === undefined, false)
+    },
     fromCharCode: () => {
         const { fromCharCode } = String
         assertEq(statics['String.fromCharCode'], fromCharCode)
@@ -75,12 +191,12 @@ export const proof = {
         assertEq(fromCharCode(), '')
         assertEq(fromCharCode(0xd800, 0xffff, 0x1_0041, -1), '\ud800\uffffA\uffff')
     },
-    // `static`, `dot` and `in` are the runtime's three functions; every key `member` holds
+    // `Boolean`, `static`, `dot` and `in` are the runtime's four functions; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'dot,in,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)
@@ -102,7 +218,7 @@ export const proof = {
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.keys', 'Math.max', 'toString', 'constructor', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.max', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -115,7 +231,7 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !entryShaped.includes(path.join('.')))) {
+        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !separatelyProved.includes(path.join('.')))) {
             const body = table[`${namespaceName}.${name}`]
             const namespace = host[namespaceName]
             const detached = namespace[name]
@@ -167,6 +283,30 @@ export const proof = {
             assertStructurallySame(expected, entries(fromEntries(c)), c)
         }
         assert(body([]) !== body([]))
+    },
+    // `Object.keys` projects native entries through the shared mapper. Its
+    // fresh arrays compare structurally with the host, detached or called on
+    // the namespace; extra arguments are ignored in both forms.
+    objectKeys: () => {
+        const body = table['Object.keys']
+        const { keys } = Object
+        assertEq(body.length, keys.length)
+        /** @type {readonly {}[]} */
+        const cases = [
+            ...samples.filter(value => value !== null && value !== undefined),
+            { b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4, '01': 5, '': 6 },
+            { ['constructor']: undefined, length: 1 }, [undefined], 'a😀', '\ud800',
+        ]
+        for (const input of cases) {
+            const expected = Object.keys(input)
+            assertStructurallySame(body(input, undefined), expected, input)
+            assertStructurallySame(body(input, 'ignored'), keys(input), input)
+        }
+        assertStructurallySame(body({ b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4 }, undefined), ['2', '10', 'b', 'a', '__proto__'])
+        assertStructurallySame(body('a😀', undefined), ['0', '1', '2'])
+        const input = /** @type {const} */ ({ a: 1 })
+        assert(body(input, undefined) !== body(input, undefined))
+        assertEq(runtime.static('Object.keys'), statics['Object.keys'])
     },
     // The two values `===` reads the other way, which `Object.is` exists
     // for, and none of the four predicates converting its argument, are the
@@ -323,9 +463,10 @@ export const proof = {
     // core: no body and no initializer holds a member call, an optional
     // chain or a static function the runtime defines — a native is reached
     // through an intrinsic, `slice` in `found` and `charCodeAt` in
-    // `codePointAt`, called as a function, and the native static
-    // `Object.entries` is the built-in itself at its own table entry, the
-    // one static node anywhere, so no body reads it — so the module can be
+    // `codePointAt`, called as a function. Native static bindings are read
+    // once: `Object.entries` is shared by its own table entry and the keys
+    // body, which calls that captured native and the shared map function
+    // directly. Neither needs a runtime lookup, so the module can be
     // evaluated with no runtime, and NaNVM can hold it as a value whose
     // bodies never name it (`../runtime/README.md`, "How NaNVM finds
     // it"). The intrinsic is there, as a node, where the member call was.
@@ -336,7 +477,8 @@ export const proof = {
         assertEq(staticNodes([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
         const natives = staticPaths.filter(isNative)
-        // the distinct static nodes: a body reading one writes a node of its own
+        // Only native static nodes are present, one binding per native even
+        // when a body captures the same binding as its static-table entry.
         assertEq([...new Set(staticNodes(edag))].map(node => node[0]).join(), natives.map(path => path.join('.')).join())
         for (const path of natives) {
             assertEq(JSON.stringify(at(at(edag, 'statics'), path.join('.'))), JSON.stringify([path.join('.')]))
@@ -345,6 +487,10 @@ export const proof = {
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        log2Bigint: () => { statics['Math.log2'](1n) },
+        log2BigintPrimitive: () => { statics['Math.log2']({ valueOf: () => 1n }) },
+        log2Conversion: () => { statics['Math.log2']({ valueOf: () => { throw 'conversion' } }) },
+        log2NoPrimitive: () => { statics['Math.log2']({ valueOf: () => ({}), toString: () => [] }) },
         // The detached call `host` makes is a real one: a built-in that
         // builds with `this` as its constructor, which no static may be,
         // throws called so.
@@ -376,5 +522,7 @@ export const proof = {
         // …and so does a value that is not an array, even one the host
         // iterates: the language admits no other iterable as entries.
         fromEntriesNotArray: () => { statics['Object.fromEntries']('') },
+        objectKeysNull: () => { table['Object.keys'](null, undefined) },
+        objectKeysUndefined: () => { table['Object.keys'](undefined, undefined) },
     },
-}
+})

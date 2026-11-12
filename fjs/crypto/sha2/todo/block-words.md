@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) exports `fromWords`, the number a list
+[`module.f.js`](../module.f.js) exports `fromWords`, the number a list
 of words spells most significant first, and
 [`fjs/crypto/sha1`](../../sha1/module.f.mjs) imports it for the digest.
 The inverse, a block as its sixteen words, has no shared owner: `sha1`
@@ -14,7 +14,7 @@ literal in `compress`:
 
 ```js
 // sha1
-const words = u => Array.from({ length: 16 }, (_, i) => u >> BigInt(15 - i) * wordLength & m)
+const words = u => generate(16, i => u >> BigInt(15 - i) * wordLength & m)
 // sha2, inside framingInit
 const at = u => i => (u >> (i << logBitLen)) & m
 const compress = i => u => {

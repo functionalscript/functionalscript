@@ -23,10 +23,12 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
-([numbers](../values/numbers/README.md)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)`, their
+([numbers](../values/numbers/README.md)), `Boolean`, `Number`, `String` and
+`BigInt`, as their conversion operators, their
 words reserved ([number conversion](../conversions/number/README.md),
-[string conversion](../conversions/string/README.md)), and `Array`, as the
+[string conversion](../conversions/string/README.md),
+[bigint conversion](../conversions/bigint/README.md),
+[boolean conversion](../conversions/boolean/README.md)), and `Array`, as the
 right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
@@ -66,9 +68,14 @@ name not yet decided, or, where it says so, never admitted.
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
       its own. `Object.entries` is admitted too, native in every executor,
-      and `Object.fromEntries`, its body in the runtime (the records below)
+      and `Object.fromEntries` and `Object.keys`, their bodies in the runtime
+      (the records below)
 - [ ] `Function`
-- [ ] `Boolean`
+- [x] `Boolean` — the conversion operator `Boolean(value)`, implemented by
+      the common runtime body `value => !!value`. `Boolean()` supplies
+      `undefined`; the word cannot be bound or read as a function value.
+      See [boolean conversion](../conversions/boolean/README.md) and the
+      [approved proposal](https://github.com/functionalscript/functionalscript/blob/cb40112b480cb83ce55bfbb19ba07ddbe390e8c6/spec/todo/boolean-operator.md).
 - [ ] `Symbol`
 
 ##### `Object.entries` proposal and approval
@@ -245,6 +252,43 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       page updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
+##### `Object.keys` proposal and approval
+
+**Status:** approved and implemented.
+
+**Problem.** Modules that need an object's keys use `Object.keys`, which was
+refused even though the language already had native `Object.entries` and a
+shared array `map` body.
+
+**Proposal.** Admit `Object.keys`, `Object["keys"]` and namespace destructuring
+such as `const { keys } = Object`, with the same first-class function behavior
+as the other statics: the EDAG node `['Object.keys']`, `length` 1, stable
+identity and `function keys() { [native code] }` as its function text. Return
+a fresh array of enumerable own string keys in JavaScript's order, including
+keys holding undefined; preserve array/string index enumeration, scalar and
+function inputs, nullish failure and ordinary extra-argument evaluation.
+
+**One body.** Project native entries through the shared array `map` body. The
+runtime captures native `Object.entries` once and calls the map body directly,
+so the implementation needs no member dispatch during bootstrap and adds no
+native primitive. FunctionalScript values have no accessors or proxies, so
+enumerating entry values before discarding them changes no observation.
+
+**Benefits.** Familiar JavaScript syntax and one semantic implementation,
+reusing the array mapper that every executor already shares.
+
+**Drawbacks.** It allocates entries whose values are discarded and uses the
+reference mapper's O(n²) immutable result accumulation. The spelling inside
+the runtime calls the typed map body directly because the current bootstrap
+does not dispatch member calls through its own runtime.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Object.keys` based on `.map`, in a new pull request, in
+[the working session](https://chatgpt.com/local/6af401d2-2f04-8191-9c7c-c4ddba48e03b).
+
+The runtime host proofs and the Object.keys harness fixtures hold the shared
+body, represented interpreters and generated NaNVM code to JavaScript.
+
 #### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
@@ -263,7 +307,10 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
-- [ ] `Math`
+- [x] `Math` — a reserved namespace admitting the static function
+      `Math.log2`; other members remain separate admissions
+      ([built-in static functions](../built-ins/static-functions/README.md),
+      the approval below)
 - [ ] `Date`
 
 ##### Number predicates proposal and approval
@@ -313,6 +360,40 @@ the built-ins were admitted, a helper beside each was a second public
 spelling of one function, so modules call the built-in, and the runtime's
 proof checks each body against the host's. **sergey-shandar** proposed
 the move in the same session, after the admission.
+
+##### Math.log2 proposal and approval
+
+**Problem.** The compiler refused `Math.log2`, which the bigint utilities
+use to finish their integer logarithm. Rust provides `f64::log2`, but core
+WASM has no logarithm instruction.
+
+**Proposal.** Admit `Math.log2` as a static function and reserve `Math` as
+its closed namespace. One authored FunctionalScript body in the common
+runtime supplies conversion, exact special cases and the numerical
+operation for represented execution and Rust, and is available to the
+future WASM backend. Detached calls, destructuring, identity, function
+text and `length` retain the usual static-function contract.
+
+Use compatible native operations only when both Rust and core WASM
+provide them. If either lacks an operation, implement it in the common
+runtime and use that body in Rust too. Any supporting `Math` functions
+follow the same rule. WASM adds no third-party dependencies; later native
+substitutions may optimize the shared implementation.
+
+**Benefits.** Familiar JavaScript spelling and one implementation across
+backends, without an external WASM math library. Existing bigint callers
+retain their rounding corrections and exact integer contract.
+
+**Drawbacks.** Reserving `Math` affects existing bindings. The shared
+numerical kernel requires accuracy validation, and Rust initially uses it
+even though its standard library offers a native logarithm. General
+positive results are implementation-approximated, as ECMAScript specifies;
+the exact special cases and conversions are not approximate.
+
+**Language-design approval.** **sergey-shandar** explicitly requested the
+TODO PR and its stacked implementation, permitting any necessary supporting
+`Math` admissions under the rule above, in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing
 
