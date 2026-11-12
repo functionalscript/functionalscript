@@ -4,7 +4,7 @@
  * PKCE verifier and challenge are spelled in it.
  *
  * Encode only: nothing in the repository reads it back. A decoder would need
- * the trimming rule [`../base64`](../base64/module.f.mjs)'s `decode` applies
+ * the trimming rule [`../base64`](../base64/module.f.js)'s `decode` applies
  * over `baseN` — the byte length the symbol count implies and the padding
  * bits checked zero — and should share it rather than copy it.
  *

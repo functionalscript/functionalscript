@@ -9,8 +9,8 @@
  * @import { ReusedNonce } from './types.ts'
  */
 
-import { all } from '../module.f.mjs'
-import { computeSync } from '../../sha2/module.f.mjs'
+import { all } from '../module.f.js'
+import { computeSync } from '../../sha2/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 

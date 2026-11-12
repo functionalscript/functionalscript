@@ -29,7 +29,7 @@
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
 
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { catchStep, compensateStep, history, historyStep, mapStep, pureOk, refuse, step } from '../../effects/module.f.mjs'
 import { mkdir, random256, readWhole, rename, rm, writeExclusive } from '../../effects/node/module.f.mjs'
 import { join, parent, under } from '../../path/module.f.js'

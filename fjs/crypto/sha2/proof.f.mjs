@@ -10,7 +10,7 @@ import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../.
 import { flip } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { map } from '../../types/list/module.f.js'
-import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
+import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'

@@ -10,8 +10,8 @@
  */
 
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.js'
-import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
-import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.js'
+import { computeSync, sha256 } from '../crypto/sha2/module.f.js'
 import { fileCas, casAddFile, collectRead, contentKey, wholeByteMachine } from './module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { run } from '../effects/mock/module.f.mjs'

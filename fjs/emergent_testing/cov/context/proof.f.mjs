@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { encodeScalar } from '../../../basen/base16/module.f.js'
-import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
+import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { ioError, runPure } from '../../../effects/module.f.mjs'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
 import { nodeCommands } from '../../../effects/node/module.f.mjs'

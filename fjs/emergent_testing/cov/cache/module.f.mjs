@@ -13,10 +13,10 @@
  * @import { Cache, Entry } from './types.ts'
  */
 
-import { vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
 import { contentKey, toPath, unshard } from '../../../cas/module.f.mjs'
 import { configuredAuthor } from '../../../cas/git/module.f.mjs'
-import { sha256 } from '../../../crypto/sha2/module.f.mjs'
+import { sha256 } from '../../../crypto/sha2/module.f.js'
 import { catchStep, history, historyStep, mapStep, pureError, pureOk, refuse, step } from '../../../effects/module.f.mjs'
 import { fromList } from '../../../effects/list/module.f.mjs'
 import { execFile } from '../../../effects/node/module.f.mjs'

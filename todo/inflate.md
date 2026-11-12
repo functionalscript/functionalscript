@@ -86,7 +86,7 @@ blocks, which is a framing and not a compression.
 per byte, where a list of numbers is eight (the measurement above). One `Vec`
 is the bound this issue lifts, but a *list* of them has none, and it is already
 the shape the repository's byte consumers take: a hash is a `Fold<Vec, S>`
-(`computeSync(hash)(list)` in [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs)),
+(`computeSync(hash)(list)` in [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.js)),
 the object reader parses `u8ListMsb(v)`, and `readBytes` hands back a `Vec` a
 window at a time. Rejected: a `List<number>` per byte, for its cost; one `Vec`,
 for its bound.

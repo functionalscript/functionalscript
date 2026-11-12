@@ -12,7 +12,7 @@
 
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
-import { hmac } from './module.f.mjs'
+import { hmac } from './module.f.js'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { selectField, textField, inputField, fieldUpdate, caption, refusal } from '../../website/demo/module.f.mjs'

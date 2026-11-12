@@ -248,9 +248,9 @@ const framingInit = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
         let i = 0
         while (true) {
-            const ki = k[i]
+            const ki = k[Number(i)]
             for (let j = 0; j < 16; j += 1) {
-                const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
+                const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[Number(j)] + w[Number(j)]
                 const t2 = bigSigma0(a) + maj(a, b, c)
                 h = g
                 g = f

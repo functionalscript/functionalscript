@@ -64,7 +64,7 @@ export const cBase32ToVec = s => {
     // preserves accepted non-canonical spellings with trailing zero characters
     // without ever materialising their padded body as one oversized vector.
     for (let i = s.length - 1; i >= 0; i -= 1) {
-        const last = cBase32ToVec5x(s[i])
+        const last = cBase32ToVec5x(s[Number(i)])
         if (last === null) { return null }
         const tail = unpadMsb(last)
         if (tail !== null) {

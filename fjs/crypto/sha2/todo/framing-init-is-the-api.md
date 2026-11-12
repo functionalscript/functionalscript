@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) builds `init32` and `init64`, each a
+[`module.f.js`](../module.f.js) builds `init32` and `init64`, each a
 `FramingInit<V8>`, and then exports neither. It exports `base32` and
 `base64` instead, built by `base`:
 

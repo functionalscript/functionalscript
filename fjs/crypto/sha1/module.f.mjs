@@ -3,7 +3,7 @@
  * names objects by it in the repository format it defaults to, which is
  * nearly every repository in use today — GitHub, GitLab and Radicle among
  * the hosts — and for no other reason; a SHA-256 repository, which Git
- * can make since 2.29, is the exception [`fjs/crypto/sha2`](../sha2/module.f.mjs)
+ * can make since 2.29, is the exception [`fjs/crypto/sha2`](../sha2/module.f.js)
  * covers. SHA-1's collision
  * resistance is broken, by an identical-prefix attack in 2017 (SHAttered)
  * and a chosen-prefix one in 2020, so nothing that vouches for an object
@@ -12,7 +12,7 @@
  * what Git itself does, refusing an input the known attack shaped, is
  * `sha1dc`, a task in [`todo/sha1.md`](../todo/sha1.md).
  *
- * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.mjs): `init`,
+ * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.js): `init`,
  * `update` and `end` over a `State`, so `computeSync` there computes it.
  * The framing is SHA-256's — 512-bit blocks, a `1` bit, zeros, and the
  * message length in 64 bits — and is `sha2`'s, shared through `framed`, over
@@ -26,7 +26,7 @@
  */
 
 import { mask } from '../../types/bigint/module.f.js'
-import { ch, framed, fromWords, maj } from '../sha2/module.f.mjs'
+import { ch, framed, fromWords, maj } from '../sha2/module.f.js'
 
 const wordLength = /** @type {const} */ (32n)
 

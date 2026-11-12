@@ -1,6 +1,6 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { empty, vec, vec8 } from '../../types/bit_vec/module.f.js'
-import { encode as base64 } from '../base64/module.f.mjs'
+import { encode as base64 } from '../base64/module.f.js'
 import { encode } from './module.f.js'
 
 export const proof = {

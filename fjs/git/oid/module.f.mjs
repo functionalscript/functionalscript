@@ -19,7 +19,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { decodeCodePoints, encodeCodePoints } from '../../basen/base16/module.f.js'
 import { sha1 } from '../../crypto/sha1/module.f.mjs'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListToVecChunksMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
