@@ -9,9 +9,9 @@
 
 import { assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { objectToPrimitive } from '../coercion/module.f.mjs'
+import { objectToPrimitive } from '../coercion/module.f.js'
 import { func } from '../function/module.f.js'
-import { binary, unary } from './module.f.mjs'
+import { binary, unary } from './module.f.js'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 

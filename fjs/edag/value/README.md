@@ -34,15 +34,15 @@ written once in [`../values.md`](../values.md), and the root
 |[`object`](./object/module.f.js)          |objects from deferred properties and spreads, keys in enumeration order      |
 |[`function`](./function/module.f.js)      |functions from deferred captures and a body                                  |
 |**Reading**                                |                                                                              |
-|[`property`](./property/module.f.mjs)      |property lookup: object fields, array items and `length`, string code units  |
+|[`property`](./property/module.f.js)      |property lookup: object fields, array items and `length`, string code units  |
 |[`at`](./at/module.f.js)                  |`at` on arrays and strings, counting negative indices from the end           |
 |[`slice`](./slice/module.f.js)            |`slice` on arrays and strings                                                |
 |[`entries`](./entries/module.f.js)        |`Object.entries`, the one static no body can define                          |
 |**Operating**                              |                                                                              |
 |[`semantics`](./semantics/module.f.js)    |truthiness, `typeof`, and strict equality by node identity                   |
-|[`numeric`](./numeric/module.f.mjs)        |unary `+`, `-`, `~` and `Number(x)`                                          |
-|[`relational`](./relational/module.f.mjs)  |`<`, `<=`, `>`, `>=`                                                         |
-|[`coercion`](./coercion/module.f.mjs), [`convert`](./convert/module.f.mjs)|objects to primitives, primitives to strings and numbers|
+|[`numeric`](./numeric/module.f.js)        |unary `+`, `-`, `~` and `Number(x)`                                          |
+|[`relational`](./relational/module.f.js)  |`<`, `<=`, `>`, `>=`                                                         |
+|[`coercion`](./coercion/module.f.js), [`convert`](./convert/module.f.mjs)|objects to primitives, primitives to strings and numbers|
 |[`control`](./control/module.f.js)        |`throw`, `?:` and sequencing, demanding only the operands they select        |
 |**Calling**                                |                                                                              |
 |[`call`](./call/module.f.js)              |calls of represented functions, arguments resolved left to right             |

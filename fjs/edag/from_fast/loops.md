@@ -192,7 +192,7 @@ One shared resolver derived from
 [`operations.property`](../operations/module.f.mjs) serves the existing call
 and the query:
 
-1. Perform [`read`](../value/property/module.f.mjs) first and propagate its
+1. Perform [`read`](../value/property/module.f.js) first and propagate its
    failure, including nullish-receiver and static-function `length` failures.
    The operation spells the already-converted string/number key with `String`.
 2. Retain exact stored-object own-property presence, even for a stored undefined

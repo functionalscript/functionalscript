@@ -13,7 +13,7 @@
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invokerWith, noBoolean, noIn, operation, staticCall } from './module.f.mjs'
-import { read } from '../value/property/module.f.mjs'
+import { read } from '../value/property/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.data.js'
 import { noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'

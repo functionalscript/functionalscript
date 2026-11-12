@@ -125,7 +125,7 @@ analysis must also preserve statement and control-flow boundaries.
   common-runtime implementation; not approval of a future implementation.
 - [Assignments](./3430-assignments.md) — compound assignments are implemented;
   update operators have separate conversion and result rules.
-- [Coercion](../../fjs/edag/value/coercion/module.f.mjs) — existing
+- [Coercion](../../fjs/edag/value/coercion/module.f.js) — existing
   `primitiveToNumeric` and `objectToPrimitive` semantics to reconcile with
   the shared runtime, not another algorithm to duplicate.
 - [DESIGN](../../doc/DESIGN.md) — §§10, 12 and 13: refuse unsupported inputs,

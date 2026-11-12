@@ -12,7 +12,7 @@ import { array } from '../array/module.f.js'
 import { object } from '../object/module.f.js'
 import { func } from '../function/module.f.js'
 import { call } from '../call/module.f.js'
-import { entry, hasEntry, findProperty, functionAt, read } from './module.f.mjs'
+import { entry, hasEntry, findProperty, functionAt, read } from './module.f.js'
 import { invokeWith } from '../../amnesia/module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
