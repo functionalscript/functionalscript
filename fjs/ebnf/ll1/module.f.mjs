@@ -31,7 +31,8 @@ import { assert } from '../../asserts/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
+import { definedEntries, definedValues, structurallySame } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { contains, difference, empty, intersection, union } from '../../types/range_set/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.js'
@@ -56,8 +57,8 @@ const { isSafeInteger } = Number
 const firstOf = (ruleSet, nullable) => {
     /** @type {(current: StringSet) => (map: FirstMap, name: string) => _FirstState} */
     const first = current => (map, name) => {
-        const known = at(name)(map)
-        if (known !== null) { return [map, known] }
+        const known = entry(map, name)
+        if (known !== undefined) { return [map, known] }
         assert(!visiting(name)(current), ['left recursion', name])
         const inner = first(visit(name)(current))
         /** @type {RuleVisitor<_FirstState>} */

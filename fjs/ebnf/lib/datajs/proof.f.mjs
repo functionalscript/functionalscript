@@ -10,7 +10,7 @@ import { diagramPage, force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.mjs'
 import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
-import { isObject } from '../../../types/object/module.f.mjs'
+import { isObject } from '../../../types/object/module.f.js'
 
 const { keys } = Object
 

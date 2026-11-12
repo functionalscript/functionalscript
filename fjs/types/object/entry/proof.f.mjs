@@ -24,10 +24,13 @@ export const proof = {
         some({ a: 7 }, 'a', 7)
         none({ a: 7 }, 'b')
         none({}, 'toString')
+        none({}, 'constructor')
+        some({ constructor: 42 }, 'constructor', 42)
         // A computed __proto__ key is an own data field, not a prototype setter.
         some({ ['__proto__']: 42 }, '__proto__', 42)
         some({ length: 3 }, 'length', 3)
         some({ a: undefined }, 'a', undefined)
+        some({ a: null }, 'a', null)
         none({}, 'a')
     },
     // An array's and a string's elements by their canonical index, and

@@ -57,7 +57,7 @@ import { run as runStream } from '../../effects/list/module.f.mjs'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
-import { at } from '../../types/object/module.f.mjs'
+import { entry } from '../../types/object/entry/module.f.js'
 import { extension } from '../../path/module.f.js'
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
@@ -293,8 +293,10 @@ export const detectStream = stream => runStream(detector)(stream)
  * {@link detectPath} adds. Deliberately small: the types the pages under
  * `fjs/website` are built from, plus the image formats {@link detect} already
  * recognizes.
+ *
+ * @type {Readonly<Record<string, string>>}
  */
-const byExtension = /** @type {const} */ ({
+const byExtension = {
     html: 'text/html',
     css: 'text/css',
     js: 'text/javascript',
@@ -308,7 +310,7 @@ const byExtension = /** @type {const} */ ({
     webp: 'image/webp',
     wasm: 'application/wasm',
     txt: 'text/plain',
-})
+}
 
 /** The answer for a name whose extension is absent or unknown.
  *
@@ -330,7 +332,7 @@ const octetStream = 'application/octet-stream'
  * @type {(path: string) => string}
  */
 export const detectPath = path => {
-    const mime = at(extension(path).toLowerCase())(byExtension)
-    if (mime === null) { return octetStream }
+    const mime = entry(byExtension, extension(path).toLowerCase())
+    if (mime === undefined) { return octetStream }
     return mime.startsWith('text/') ? `${mime}; charset=utf-8` : mime
 }

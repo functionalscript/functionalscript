@@ -15,7 +15,7 @@ import { javascriptOperationMap } from '../../edag/value/to_unknown/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { emptyState, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { isObject } from '../../types/object/module.f.mjs'
+import { isObject } from '../../types/object/module.f.js'
 import { noRuntime, transpile } from './module.f.mjs'
 
 /** @param {Dir} root */

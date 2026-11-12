@@ -7,7 +7,7 @@
 import { _baseOf, _primitiveOf, _toMember, parseSyntax } from './module.f.mjs'
 import { tokenizeString } from '../proof.f.mjs'
 import { _valueKinds } from '../grammar/module.f.mjs'
-import { fromEntries } from '../../../types/object/module.f.mjs'
+import { fromEntries } from '../../../types/object/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'

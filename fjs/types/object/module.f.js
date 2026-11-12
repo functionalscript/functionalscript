@@ -1,6 +1,7 @@
 /**
- * Plain-object helpers: safe property lookup via `at`, structural comparison
- * via `structurallySame`, and conversions between entries and `OrderedMap`.
+ * Plain-object helpers: structural comparison via `structurallySame`,
+ * conversions between entries and `OrderedMap`, and defined entries.
+ * Own-property lookup is provided by `./entry/module.f.js`.
  * See `./types.ts` for the
  * `OptionalMap`/`RequiredMap`/`StringMap`/`Entry`/`OneKey`/`SingleProperty`/
  * `NotUnion` type-level API.
@@ -8,14 +9,12 @@
  * @module
  *
  * @import { List } from '../list/types.ts'
- * @import { Nullable } from '../nullable/types.ts'
  * @import { OrderedMap } from '../ordered_map/types.ts'
  * @import { StringMap, Entry } from './types.ts'
  */
 
 import { isArray } from '../array/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
-import { fromUndefined } from '../nullable/module.f.js'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.js'
 import { structurallySame as importedStructurallySame } from './structurally_same/module.f.js'
 
@@ -26,13 +25,7 @@ import { structurallySame as importedStructurallySame } from './structurally_sam
  */
 export const structurallySame = importedStructurallySame
 
-const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
-
-/** @type {(name: string) => <T>(object: StringMap<T>) => Nullable<Exclude<T, undefined>>} */
-export const at = name => object => {
-    const d = getOwnPropertyDescriptor(object, name)
-    return d === undefined ? null : fromUndefined(d.value)
-}
+const { fromEntries: objectFromEntries } = Object
 
 /** @type {<T>(e: List<Entry<T>>) => List<Entry<T>>} */
 export const sort = e => mapEntries(mapFromEntries(e))

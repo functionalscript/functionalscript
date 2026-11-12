@@ -4,7 +4,7 @@
 
 `structurallySame` is the comparison behind `assertStructurallySame` in
 [`fjs/asserts`](../../../asserts/module.f.js), and it is also an ordinary
-object helper that belongs on [`fjs/types/object`](../module.f.mjs). Those two
+object helper that belongs on [`fjs/types/object`](../module.f.js). Those two
 homes cannot both be the implementation: the object module imports
 `types/nullable`, which imports `fjs/asserts`, so an assertion module importing
 the object module would close the runtime cycle

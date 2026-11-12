@@ -10,7 +10,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../assert
 import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { javascriptOperationMap } from '../../edag/value/to_unknown/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
-import { isObject } from '../../types/object/module.f.mjs'
+import { isObject } from '../../types/object/module.f.js'
 import { value } from './module.f.mjs'
 
 export const proof = {

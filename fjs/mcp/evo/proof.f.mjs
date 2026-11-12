@@ -18,7 +18,7 @@ import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { _freshEvo } from '../../cas/evo/proof.f.mjs'
 import { evoAddArgs, evoToolRegistry } from './module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
-import { at } from '../../types/object/module.f.mjs'
+import { entry } from '../../types/object/entry/module.f.js'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { array, string as rttiString } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
@@ -204,19 +204,19 @@ export const proof = {
     // shape or an infinitely inlined one.
     evoAddInputSchemaPublishesTheLockRecursion: () => {
         const schema = toJsonSchema(evoAddArgs)
-        const lock = at('lock')(schema.properties ?? {})
-        assert(lock !== null, ['expected a lock property', schema])
+        const lock = entry(schema.properties ?? {}, 'lock')
+        assert(lock !== undefined, ['expected a lock property', schema])
         const ref = '#/$defs/lockValue'
         const [sharedRef, inlineMap] = lock.anyOf ?? []
         assertEq(sharedRef?.type, 'string')
         assertEq(inlineMap?.type, 'object')
-        assertEq(at('$ref')(inlineMap?.additionalProperties ?? {}), ref)
-        const rule = at('lockValue')(schema.$defs ?? {})
-        assert(rule !== null, ['expected a lockValue definition', schema])
+        assertEq(entry(inlineMap?.additionalProperties ?? {}, '$ref'), ref)
+        const rule = entry(schema.$defs ?? {}, 'lockValue')
+        assert(rule !== undefined, ['expected a lockValue definition', schema])
         const [directHash, nestedMap] = rule.anyOf ?? []
         assertEq(directHash?.type, 'string')
         assertEq(nestedMap?.type, 'object')
-        assertEq(at('$ref')(nestedMap?.additionalProperties ?? {}), ref)
+        assertEq(entry(nestedMap?.additionalProperties ?? {}, '$ref'), ref)
     },
     // Covers evo_add's error branch: a domain-level failure (Evo.add's
     // Result) is surfaced as isError with the failure message as text.

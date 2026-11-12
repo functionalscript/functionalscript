@@ -20,7 +20,7 @@ import { isRepeatBounds, isSymbol } from "./data/module.f.mjs"
 import { codePointListToString, codePointToString, codePoints } from "../text/utf16/module.f.js"
 import { maxCodePoint } from "../text/code_point/module.f.js"
 import { isFixedArray } from "../types/array/module.f.js"
-import { definedEntries } from "../types/object/module.f.mjs"
+import { definedEntries } from "../types/object/module.f.js"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.js"
 
 const { fromEntries } = Object

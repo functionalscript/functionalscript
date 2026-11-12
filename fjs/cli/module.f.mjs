@@ -10,7 +10,8 @@
  */
 
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
-import { at, fromEntries, isObject } from '../types/object/module.f.mjs'
+import { fromEntries, isObject } from '../types/object/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 import { isArray } from '../types/array/module.f.js'
 import { max } from '../types/number/max/module.f.js'
 
@@ -97,15 +98,15 @@ const dispatchCommands = commands => options => {
     if (helpMeta.names.includes(cmd)) {
         const [target] = rest
         if (target !== undefined) {
-            const targetCmd = at(target)(map)
-            if (targetCmd !== null && typeof targetCmd.handler !== 'function') {
+            const targetCmd = entry(map, target)
+            if (targetCmd !== undefined && typeof targetCmd.handler !== 'function') {
                 return dispatchCommands(targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
         return exitStep(log(renderHelp(commands)))
     }
-    const found = at(cmd)(map)
-    if (found === null) {
+    const found = entry(map, cmd)
+    if (found === undefined) {
         return errorExit(`Error: unknown command "${cmd}".\n${renderHelp(commands)}`)
     }
     return dispatch(found.handler)({ ...options, args: rest })

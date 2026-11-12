@@ -24,7 +24,8 @@
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { at, definedEntries } from '../../../types/object/module.f.mjs'
+import { definedEntries } from '../../../types/object/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.js'
 import {
     admitsAbsence,
@@ -117,7 +118,7 @@ const refEncode = name => {
  * @type {(rules: RuleSet) => (name: string) => Ts<typeof unknown>}
  */
 const refSchema = rules => name => {
-    assert(at(name)(rules) !== null, `missing definition: ${name}`)
+    assert(entry(rules, name) !== undefined, `missing definition: ${name}`)
     return { $ref: `#/$defs/${refEncode(name)}` }
 }
 

@@ -26,7 +26,7 @@ import { assert } from '../../asserts/module.f.js'
 import { listToString, stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isUintUpTo } from '../../types/number/module.f.js'
-import { isObject } from '../../types/object/module.f.mjs'
+import { isObject } from '../../types/object/module.f.js'
 
 /**
  * The metadata of every unit: one frozen record, shared by every leaf, so

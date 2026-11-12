@@ -21,7 +21,9 @@
 import { assert } from '../../asserts/module.f.js'
 import { codePoints } from '../../text/utf16/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
-import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
+import { definedEntries, isObject, structurallySame } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
 
@@ -87,7 +89,7 @@ export const matchRule = v => rule => {
  *
  * @type {(map: EmptyTagMap) => (item: string) => boolean}
  */
-export const _nullable = map => item => at(item)(map) !== null
+export const _nullable = map => item => entry(map, item) !== undefined
 
 /**
  * The nullability of one rule, given that of the rules it names.
@@ -123,7 +125,7 @@ const emptyTagStep = ruleSet => map => {
  *
  * @type {(names: readonly string[]) => (a: EmptyTagMap, b: EmptyTagMap) => boolean}
  */
-const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)(b))
+const sameTags = names => (a, b) => names.every(name => entry(a, name) === entry(b, name))
 
 /**
  * Computes, for every rule in the set, whether it can match empty input, by
@@ -190,7 +192,7 @@ export const isRepeatBounds = (min, max) =>
  * @type {(ruleSet: RuleSet) => (name: string) => (item: unknown) => void}
  */
 const defined = ruleSet => name => item =>
-    assert(typeof item === 'string' && at(item)(ruleSet) !== null, ['unknown rule', name, item])
+    assert(typeof item === 'string' && fromUndefined(entry(ruleSet, item)) !== null, ['unknown rule', name, item])
 
 /**
  * The checks on one rule, given the name it has, the reference check of its
@@ -233,7 +235,7 @@ const validateRule = (ruleSet, empty) => name =>
  * @type {(ruleSet: RuleSet, entry: string) => void}
  */
 export const validate = (ruleSet, entry) => {
-    // The set is data too: an array would answer `at('0')` with its first
+    // The set is data too: an array would answer `entry(array, '0')` with its first
     // element and walk under `entries`, so the carrier is checked first.
     assert(isRecord(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)

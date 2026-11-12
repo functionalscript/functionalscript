@@ -26,7 +26,7 @@ import { disagreement } from '../../js/marked/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
-import { isObject } from '../../types/object/module.f.mjs'
+import { isObject } from '../../types/object/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
