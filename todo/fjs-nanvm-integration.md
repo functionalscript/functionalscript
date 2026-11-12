@@ -142,7 +142,31 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
-#### Current leaf migration fixed point
+#### Accepted leaves after shared `Math.log2`
+
+**Status:** completed in #3771, stacked on #3765.
+
+The shared `Math.log2` admission makes `types/bigint` compiler-supported.
+At `4a0a09cb8`, its newly exposed `types/bigfloat` and `types/bit_set`
+dependents are accepted by `resolve` with their full imports. Both
+implementations now use `.f.js`, with unchanged bodies and updated
+references, as permanent compiler regression inputs.
+
+Renaming `bit_set` exposes `types/byte_set` and `types/nibble_set`; both
+are accepted too and belong in the same conversion. The only runtime
+consumer of `byte_set`, `fsm`, still depends on `types/object`, so these
+four renames expose no further accepted leaf. The graph remains **641
+authored non-proof sources**: **249 authored `.f.js` files** and **392
+authored non-proof `.f.mjs` files**. The eleven remaining leaves are the
+historical set below with `types/bit_vec` replacing `types/bigint`;
+`bit_vec` is refused at `607:17` for `reassigned variable captured`.
+
+- [x] Promote `types/bigfloat` to `module.f.js` and update references.
+- [x] Promote `types/bit_set` to `module.f.js` and update references.
+- [x] Promote `types/byte_set` to `module.f.js` and update references.
+- [x] Promote `types/nibble_set` to `module.f.js` and update references.
+
+#### Leaf migration fixed point before shared `Math.log2`
 
 Measured from base revision `6ff068a3f`, with shared JSON string quoting in
 [#3763](https://github.com/functionalscript/functionalscript/pull/3763).
