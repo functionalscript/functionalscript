@@ -1,7 +1,7 @@
 ## Add an object identity `id` pattern
 
 **Priority:** P4
-**Status:** open — proposal; admission and semantics need a design decision
+**Status:** open — tentative v2; runtime admission and implementation remain open
 
 ### Release scope
 
@@ -33,8 +33,8 @@ Recognize an `id` helper as a complete function pattern, like
 in JSDoc or companion declarations. Behavior for primitive inputs is still
 undecided.
 
-The JavaScript implementation shares a registry through a namespaced string
-key on `globalThis`. A `WeakMap` associates references with strings; a
+One possible JavaScript implementation shares a registry through a namespaced
+string key on `globalThis`. A `WeakMap` associates references with strings; a
 monotonically increasing `bigint` counter allocates new IDs. No symbol key is
 needed. The following is a **proposal sketch for object and function inputs**,
 not currently accepted FJS or a settled recognition grammar:
@@ -53,10 +53,19 @@ const id = o => {
 };
 ```
 
-Within one registry's lifetime:
+### Result contract
+
+The [proposed spec contract](../design/object-identity.md#proposed-id-result-contract)
+allows non-sequential, nonnumeric strings and different implementations in
+different VMs. The counter above is one implementation candidate; concrete
+labels and results derived from them need not match across VMs or runs.
+Ordinary string equality and ordering remain usable within an execution.
+
+Within one identity scope:
 
 - Repeated requests for the same reference return the same string.
-- Distinct references receive distinct strings, even with identical contents.
+- Distinct references under the applicable identity semantics receive distinct
+  strings, even with identical contents in the JavaScript-compatible profile.
 - Objects, arrays and functions participate; IDs are never reused, including
   after their objects are collected.
 - Separate helper definitions and modules share the registry. Weak keys do
@@ -67,9 +76,9 @@ scope follows the particular `globalThis`, not every realm, worker or VM.
 Durable identity across serialization or restarts is outside this proposal.
 
 The compiler would lower the recognized function to a native identity
-operation. The JavaScript helper supplies the executable source meaning;
-backends must reproduce the approved contract using their own identity
-representation. This does not admit general `globalThis` access, `WeakMap`,
+operation. The JavaScript helper is executable source, while native backends
+may choose their own implementation and concrete labels under the proposed
+result contract. This does not admit general `globalThis` access, `WeakMap`,
 symbols or property mutation. Stable reference identity must survive existing
 VM interfaces: reconstructing a fresh wrapper on each request is insufficient.
 
@@ -79,9 +88,9 @@ remain library work. The JavaScript spelling runs directly without rewriting
 the source.
 
 **Drawbacks.** Introduces shared mutable allocation state, a recognized
-pattern and native support. Each reference lookup has a registry cost, and
-the exact strings depend on first-use order. Returning a string avoids a new
-value type but does not eliminate VM/interface work.
+pattern and native support. Each reference lookup has a registry cost; in the
+counter implementation, exact strings depend on first-use order. Returning a
+string avoids a new value type but does not eliminate VM/interface work.
 
 ### Admission and open decisions
 
@@ -94,23 +103,24 @@ const unused = id(a);
 const result = id(b);
 ```
 
-For distinct, previously unseen objects, removing the unused call changes
-`result`. Reordering first requests also changes returned strings. Preserving
-only identity equality is insufficient: callers can return, compare and sort
-the exact strings. Pattern recognition alone does not make this operation
-pure or authorize a semantic exception.
+For distinct, previously unseen objects in this counter implementation,
+removing the unused call changes `result`. Reordering first requests also
+changes returned strings. The proposed result contract deliberately permits
+implementation-dependent labels and consequences of observing them; it needs
+an explicit exception to the current principles. Pattern recognition alone
+does not make the operation pure.
 
 Decide how the feature fits those principles before implementation. The
 alternative discussed is an ordinary [runner effect](../design/io-effects.md)
 whose handler owns the registry and returns the string through a continuation.
 That uses the existing effect model; a synchronous `id` pattern needs a
-separate, explicit language-design decision. This proposal does not approve
-weakening the current guarantees.
+separate admission decision covering the proposed exception and its optimizer
+rules. Recording the future result contract does not admit the feature today.
 
 Also settle the primitive-input policy for `unknown`, registry initialization
-and lifetime, and how native execution matches JavaScript for the same inputs
-and registry environment, including calls through exported functions. Reject
-or explicitly encode primitives; do not silently box them into fresh objects.
+and lifetime, and which observations must agree across JavaScript and native
+execution under the result contract, including calls through exported functions.
+Reject or explicitly encode primitives; do not silently box them into fresh objects.
 
 ### Tasks
 
@@ -118,8 +128,9 @@ or explicitly encode primitives; do not silently box them into fresh objects.
   the language designer's approval and its link before implementing a new
   language feature, as [DESIGN §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
   requires.
-- [ ] Specify the input domain, string format, registry key/scope, lifetime,
-  initialization and observable evaluation behavior. Preserve the current
+- [ ] Specify the input domain, registry key/scope, lifetime, initialization
+  and observable evaluation behavior under the implementation-dependent
+  result contract. Preserve the current
   refusal until a compatible design or explicit semantic change is approved.
 - [ ] If the pattern is approved, define recognition over parsed statements
   and expressions with validated bindings, following
@@ -130,8 +141,9 @@ or explicitly encode primitives; do not silently box them into fresh objects.
   object identity, weak retention and no ID reuse. Carry ordering/state through
   the approved execution model; do not treat observable allocation as pure.
 - [ ] Add focused proofs for aliases, equal-content distinct objects,
-  arrays/functions, registry sharing, the primitive policy and exact observable
-  results across executors. Cover the unused-call example, later exported calls
+  arrays/functions, registry sharing, the primitive policy and identity
+  guarantees across executors; do not require identical labels from different
+  implementations. Cover the unused-call example, later exported calls
   and, for a pattern, refusal of bodies that depart from its approved shape.
 - [ ] Document the approved API and limits, add an identity-keyed collection
   example, and fold the implemented behavior into the specification.

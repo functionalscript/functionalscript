@@ -232,7 +232,8 @@ information — see [serialization](../design/serialization.md) and
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
 3. [ ] [object identity `id` pattern](./object-identity-id.md) — string IDs
    for reference-keyed collections; tentative v2 candidate, not a v1
-   requirement. Admission and semantics remain undecided.
+   requirement. Labels need not be sequential and VM implementations may differ;
+   runtime admission remains open.
 4. [ ] [reversible ID obfuscation](./object-identity-id-obfuscation.md) —
    nonce-based uint32 permutation; follow-up tentatively for v2, keeping v1 simple.
 

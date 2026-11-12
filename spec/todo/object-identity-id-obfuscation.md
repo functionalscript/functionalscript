@@ -25,7 +25,10 @@ Initialize one random uint32 nonce per registry. Map each uint32 counter
 through the bijective `lowbias32` mixer, XORing the nonce before and after
 mixing, then return the unsigned result as a decimal string. This is a
 permutation of the uint32 space for each fixed nonce, not a digest with
-collisions.
+collisions. This is one implementation candidate; the
+[proposed spec contract](../design/object-identity.md#proposed-id-result-contract)
+allows each VM to choose a different implementation and does not require this
+mixer, nonce or numeric string format.
 
 This **JavaScript reference sketch** inlines the mixer so the proposed
 function pattern is self-contained. It accepts objects, arrays and functions;
@@ -116,7 +119,9 @@ identity and the approved observation rules.
 
 The intended contract preserves reference identity within one scope: equal
 references receive equal strings, and distinct references receive distinct
-strings. Concrete labels and their ordering may differ across runs or VMs.
+strings under the applicable identity semantics. Labels need not be sequential;
+their values, ordering and results derived from them may differ across runs or
+VMs, which may provide different implementations.
 Randomness and permutation do not make the operation pure. Adopt this weaker
 contract explicitly, including its exception to the current
 [JavaScript-result agreement](../principles/README.md), before admitting the
@@ -138,8 +143,10 @@ global mutation to become FJS features.
   `id` design. Distinguish direct function calls from runner effect requests.
 - [ ] Implement the approved permutation and nonce initialization, preserving
   identity, weak retention, unsigned arithmetic and the exhaustion policy.
-- [ ] Prove reversibility and backend agreement for fixed inputs; cover aliases,
-  distinct equal-content objects, arrays/functions, shared nonce initialization,
+- [ ] Prove reversibility and exact agreement among implementations of this
+  particular permutation for fixed inputs and nonce. For VMs choosing a different
+  ID algorithm, verify the shared identity contract rather than identical labels.
+  Cover aliases, distinct equal-content objects, arrays/functions, shared nonce initialization,
   the valid string ID `"0"`, and the last allocation followed by cached/new
   lookups at exhaustion. Test primitive behavior under the approved policy.
 - [ ] Document the final contract and registry lifetime without promising
