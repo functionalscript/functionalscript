@@ -213,7 +213,7 @@ export const structSchemaEntries = rtti =>
  *
  * @type {(value: ReadonlyArray<Unknown>) => readonly number[]}
  */
-const readIndices = value => Object.keys(value).map(Number)
+const readIndices = value => Object.keys(value).map(v => Number(v))
 
 /**
  * The members of `value` that `declared` does not admit — every one the
