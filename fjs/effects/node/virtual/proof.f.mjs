@@ -25,7 +25,7 @@ import { do_ } from '../../module.f.js'
 import { catchStep } from '../../module.f.js'
 import { ioError } from '../../module.f.js'
 import { ok, unwrap } from '../../../types/result/module.f.js'
-import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
+import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.js'
 
 /**
  * A listener that reads its whole request body and answers with it.

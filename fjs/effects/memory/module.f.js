@@ -27,7 +27,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { do_ } from '../module.f.js'
 
 /** @type {(n: Nominal<'MemKey', _MemKeyHash, string>) => string} */
@@ -100,7 +100,7 @@ export const memoryOperationMap = {
         const key = asNominal(id)
         return [{ next: next + 1, slots: { ...slots, [id]: value } }, ok(key)]
     },
-    memRead: key => state => [state, ok(state.slots[slot(state.slots)(key)])],
+    memRead: key => state => [state, ok(entry(state.slots, slot(state.slots)(key)))],
     memWrite: (key, value) => ({ next, slots }) =>
         [{ next, slots: { ...slots, [slot(slots)(key)]: value } }, ok(undefined)],
 }

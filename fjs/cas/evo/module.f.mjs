@@ -7,7 +7,7 @@
  * are the current heads of subject X" from that store means walking every
  * stored revision and reversing the parent links — too expensive to redo on
  * every query. This module scans the store once into an in-memory `Cache`
- * ([`fjs/effects/memory`](../../effects/memory/module.f.mjs)) mapping subject →
+ * ([`fjs/effects/memory`](../../effects/memory/module.f.js)) mapping subject →
  * head hashes, then keeps the cache current as new revisions are `add`ed
  * through it — or, for a revision stored some other way (e.g. the generic
  * `cas_add` MCP tool), via {@link syncRevision}.
@@ -64,7 +64,7 @@ import {
     resultMapStep,
     step as ioStep,
 } from '../../effects/module.f.js'
-import { create, read, write } from '../../effects/memory/module.f.mjs'
+import { create, read, write } from '../../effects/memory/module.f.js'
 import { collectRead } from '../module.f.mjs'
 import { canonicalCBase32, cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.mjs'

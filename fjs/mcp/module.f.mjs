@@ -36,7 +36,7 @@
  */
 
 import { step, history, historyStep } from '../effects/module.f.js'
-import { create } from '../effects/memory/module.f.mjs'
+import { create } from '../effects/memory/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,

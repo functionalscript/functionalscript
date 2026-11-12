@@ -9,7 +9,7 @@ import {
     asBase, asNominal,
     create, read, write,
     memoryInitial, memoryOperationMap,
-} from './module.f.mjs'
+} from './module.f.js'
 
 const runMemory = run(memoryOperationMap)(memoryInitial)
 

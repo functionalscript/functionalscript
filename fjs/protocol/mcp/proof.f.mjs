@@ -23,7 +23,7 @@ import { error, unwrap as unwrapResult } from '../../types/result/module.f.js'
 import { run } from '../../effects/mock/module.f.js'
 import { internalError } from '../json_rpc/module.f.mjs'
 import { string } from '../../rtti/module.f.js'
-import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.mjs'
+import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,

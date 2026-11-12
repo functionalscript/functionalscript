@@ -28,7 +28,7 @@ import {
     responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.js'
-import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
+import { memoryInitial, memoryOperationMap } from '../../memory/module.f.js'
 import { asBase, asNominal } from '../../../types/nominal/module.f.js'
 import { _compareNames } from './readdir/module.f.mjs'
 
