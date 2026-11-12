@@ -57,7 +57,7 @@ const returned = node => {
 export const proof = {
     arrayRestRetainsItsFollowingComma: () => {
         for (const suffix of ['', ',', ', next', ',,']) {
-            const source = `const [...rest${suffix}] = input; export default rest;`
+            const source = /** @type {const} */ (`const [...rest${suffix}] = input; export default rest;`)
             const declaration = unwrap(parseSyntax(tokenizeString(source))).statements[0]
             assert(declaration[0] === 'const')
             const target = declaration[1].declaration.target

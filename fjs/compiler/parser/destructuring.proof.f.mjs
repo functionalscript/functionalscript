@@ -29,8 +29,8 @@ export const proof = {
     // (spec/bindings/destructuring/README.md).
     destructuring: {
         arrayRest: () => {
-            const source = '["[]",[["...",["[]",[1,2,3]]]]]'
-            const tail = `[".",${source},"slice",["|()",[1]]]`
+            const source = /** @type {const} */ ('["[]",[["...",["[]",[1,2,3]]]]]')
+            const tail = /** @type {const} */ (`[".",${source},"slice",["|()",[1]]]`)
             expectModule('const [head, ...tail] = [1, 2, 3]; export default [head, tail];',
                 `["{}",[[":","default",["[]",[[".",${source},0],${tail}]]]]]`)
             expectModule('const [, ...tail] = [1, 2, 3]; export default tail;',
@@ -39,32 +39,32 @@ export const proof = {
                 `["{}",[[":","tail",[".",${source},"slice",["|()",[0]]]]]]`)
         },
         arrayRestInBodiesAndParameters: () => {
-            const source = '["[]",[["...",["arg",0]]]]'
-            const value = `["[]",[[".",${source},0],[".",${source},"slice",["|()",[1]]]]]`
-            const expected = `["{}",[[":","default",["=>",1,[],${value}]]]]`
+            const source = /** @type {const} */ ('["[]",[["...",["arg",0]]]]')
+            const value = /** @type {const} */ (`["[]",[[".",${source},0],[".",${source},"slice",["|()",[1]]]]]`)
+            const expected = /** @type {const} */ (`["{}",[[":","default",["=>",1,[],${value}]]]]`)
             expectModule('export default ([head, ...tail]) => [head, tail];', expected)
             expectModule('export default source => { const [head, ...tail] = source; return [head, tail]; };', expected)
             expectModule('export default source => { let [head, ...tail] = source; return [head, tail]; };', expected)
         },
         arrayRestNestedTargets: () => {
-            const source = '["[]",[["...",["[]",[1,2,3]]]]]'
-            const remaining = `["[]",[["...",[".",${source},"slice",["|()",[1]]]]]]`
+            const source = /** @type {const} */ ('["[]",[["...",["[]",[1,2,3]]]]]')
+            const remaining = /** @type {const} */ (`["[]",[["...",[".",${source},"slice",["|()",[1]]]]]]`)
             expectModule('const [head, ...[second, ...tail]] = [1, 2, 3]; export default [head, second, tail];',
                 `["{}",[[":","default",["[]",[[".",${source},0],[".",${remaining},0],[".",${remaining},"slice",["|()",[1]]]]]]]]`)
             expectModule('const [...{ length: size }] = [1, 2, 3]; export default size;',
                 `["{}",[[":","default",[".",[".",${source},"slice",["|()",[0]]],"length"]]]]`)
         },
         arrayRestBindingErrors: () => {
-            const later = 'const [head = tail, ...tail] = []; export default head;'
+            const later = /** @type {const} */ ('const [head = tail, ...tail] = []; export default head;')
             expectRefused(later, 'const not found', later.indexOf('tail') + 1)
             for (const source of [
                 'const [value, ...value] = []; export default 0;',
                 'const [...[value, value]] = []; export default 0;',
                 'export default ([value, ...value]) => 0;',
             ]) { expectRefused(source, 'duplicate id', source.lastIndexOf('value') + 1) }
-            const reserved = 'const [...Number] = []; export default 0;'
+            const reserved = /** @type {const} */ ('const [...Number] = []; export default 0;')
             expectRefused(reserved, 'reserved word', reserved.indexOf('Number') + 1)
-            const invalid = 'const [...[1]] = []; export default 0;'
+            const invalid = /** @type {const} */ ('const [...[1]] = []; export default 0;')
             expectRefused(invalid, 'invalid destructuring target', invalid.indexOf('1') + 1)
             for (const source of [
                 'const [...tail = []] = []; export default 0;',
