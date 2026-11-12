@@ -131,9 +131,11 @@ const refusedBy = module => {
 }
 mistakes.forEach(([what, module, who]) => expect(`${what}: refused by ${refusedBy(module)}, not by the ${who}`, refusedBy(module) === who))
 
-// what the emitter cannot take, and a name that is taken, are refused as well
+// what the prototype cannot take, and a name that is taken, are refused as well
 const taken = module => {
-    try { emit(check(lifetime(module)), exported) } catch (e) { if (e instanceof Refused) { return false } throw e }
+    // only what the module has is exported, so that a missing export is not what refuses it
+    const has = exported.filter(name => Object.hasOwn(module.functions, name))
+    try { emit(check(lifetime(module)), has) } catch (e) { if (e instanceof Refused) { return false } throw e }
     return true
 }
 refusals.forEach(([what, module]) => expect(`${what}: taken, where it has to be refused`, !taken(module)))

@@ -634,6 +634,9 @@ WASM emitter for import form. The module then runs under Node on a host that imp
   function on a value of unknown kind, a counter incremented without a
   comparison, or a constant that reads a later one, and 2 by the lifetime
   pass, a builder used after `seal` and a builder never sealed.
+- **7 modules that break no rule** of typing or of ownership are refused
+  all the same. Each meets a limit of the prototype or uses a name that is
+  taken ([What the prototype is not](#what-the-prototype-is-not)).
 - **Without the lifetime pass** the host reports values left over, so
   the count has teeth.
 
@@ -764,11 +767,19 @@ Each has a recommendation.
   no sum of its own but `bool`, and integers of one word only. Its WASM
   blocks have one result, so a product crosses a label only as a loop's
   parameters. A constant is one global, so a constant of a product is
-  refused, and a literal is made from the units of a string only.
+  refused, and a literal is made from the units of a string only. The
+  lifetime pass copies and releases values of sealed types only: a product
+  that holds an owned value can be made, lent, moved and given back, and a
+  use that would copy it, release it or read an owned field of it is
+  refused.
 - **Not a validator of data.** Its input is what its constructors build.
   It refuses what it cannot emit, and a name that is taken: an import
-  named `self`, a function named `init`, or a constant named as a literal
-  is spelled.
+  named `self`, a function named `init`, a constant named as a literal
+  is spelled, or a local named as a pass names its own. The checker names
+  its locals `$1`, `$2` and so on, and the lifetime pass `t1` and `r1`
+  and so on. Where such a local and the pass's own would be in scope
+  together, the module is refused, because the name is bound twice, and
+  no reference is captured.
 - **Not a check of the owned stage.** The counting host stands in for it.
 - **Not a runtime.** The host keeps every value in a JavaScript map behind
   a handle, numbers too, so that a misplaced `dup` or `drop` shows.
@@ -793,6 +804,6 @@ node definition.fast.mjs stringEquals       # the normalized FAST it was lowered
 | [`definition.lifetime.mjs`](./definition.lifetime.mjs) | the lifetime pass |
 | [`definition.wasm.mjs`](./definition.wasm.mjs) | the WASM emitter for import form, to [`fjs/media/wasm`](../../../fjs/media/wasm/README.md)'s AST |
 | [`definition.host.mjs`](./definition.host.mjs) | the counting host for `fjs:l0` |
-| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, and the 14 mistakes |
+| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, the 14 mistakes, and the 7 modules that are refused besides |
 | [`definition.check.mjs`](./definition.check.mjs) | the check; it ends with a summary, and exits with 1 on a difference |
 | [`definition.fast.mjs`](./definition.fast.mjs) | the normalized FAST of a module, from the compiler |

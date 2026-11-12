@@ -59,10 +59,13 @@ const fits64 = t => (t[1] >= -(1n << 63n) && t[2] < 1n << 63n) || (t[1] >= 0n &&
  * `fails` is the one effect. `abi` renames the import, and `returns: k`
  * says that the result is parameter `k`, an owned value that the function
  * consumes and gives back, which an import passes once and does not return.
+ * The options are read by name: a pattern in the parameter list would go
+ * into the declaration that TypeScript writes for this file, with a type
+ * that has `fails` only.
  */
-export const sig = (params, result, { fails = false, abi, returns } = {}) => ({
+export const sig = (params, result, options = {}) => ({
     params: Object.entries(params).map(([name, t]) => t.own !== undefined ? [name, 'own', t.own] : [name, 'borrow', t]),
-    result, fails, abi, returns,
+    result, fails: options.fails ?? false, abi: options.abi, returns: options.returns,
 })
 
 /**

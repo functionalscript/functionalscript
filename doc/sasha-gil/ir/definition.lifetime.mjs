@@ -7,7 +7,9 @@
 // It handles sealed types of every ownership, which is what program code
 // has. It moves a value at its last use, duplicates it before any other
 // consuming use, and drops what is left where its scope ends. A value
-// that cannot be duplicated, or cannot be dropped, is refused there.
+// that cannot be duplicated, or cannot be dropped, is refused there. A
+// product that holds an owned value is such a value here: the pass moves
+// it, and derives no `dup` and no `drop` for it from its fields.
 // Dropping right after the last use, and the check of the owned stage,
 // are left out: definition.check.mjs runs the result on a host that counts
 // every value instead. It accompanies definition.ir.mjs.
@@ -87,8 +89,11 @@ export const lifetime = plain => {
     const checked = check(nameTemporaries(check(plain)))
     const { module, type, ownership, decl, isNever, sigOf } = checked
     let count = 0
-    const dup = (t, e) => ['call', t[1], decl(t).dup, e]
-    const drop = (t, name) => ['call', t[1], decl(t).drop ?? refuse(`${name}: a ${show(t)} is left over, and it is linear`), ['get', name]]
+    /** `dup` and `drop` are functions of an interface, so only a value of a sealed type is copied or released. */
+    const owner = (t, name) => t[0] === 'sealed' ? decl(t)
+        : refuse(`${name}: a ${show(t)} holds an owned value, and this prototype only moves such a value`)
+    const dup = (t, e) => ['call', t[1], owner(t, e.at(-1)).dup, e]
+    const drop = (t, name) => ['call', t[1], owner(t, name).drop ?? refuse(`${name}: a ${show(t)} is left over, and it is linear`), ['get', name]]
     const chain = terms => terms.reduceRight((rest, x) => ['let', null, x, rest])
     /** `term`, and then the drops, keeping the value of `term`. */
     const after = (term, drops, t) => {
@@ -111,7 +116,7 @@ export const lifetime = plain => {
                 if (kind === 'copy') { return [t, owned] }
                 // the last use of an owned local is a move
                 if (t[0] === 'get' && owned.has(t[1]) && !live.has(t[1])) { return [t, minus(owned, t[1])] }
-                kind === 'counted' || refuse(`${t[1]} is ${kind}: it is consumed once, by the region that owns it, and not used after`)
+                kind === 'counted' || refuse(`${t.at(-1)} is ${kind}: it is consumed once, by the region that owns it, and not used after`)
                 return [dup(type(t), t), owned]
             }
             case 'let': {

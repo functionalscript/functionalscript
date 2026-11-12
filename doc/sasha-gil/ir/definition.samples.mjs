@@ -254,16 +254,24 @@ const Twin = iface('Twin', { abi: 'fjs:l0', functions: { length: sig({ s: string
 
 /**
  * Modules that break no rule of typing or of ownership and are refused all
- * the same: a limit of the emitter, or a name that is taken. Each is
+ * the same: a limit of the prototype, or a name that is taken. Each is
  * `[what it is, the module]`.
  */
 export const refusals = [
     ['a constant of two fields', withConstants({ pair: [product({ x: index, y: index }), make({ x: n(1n), y: n(2n) })] })],
+    // the lifetime pass moves such a product, and has no `drop` for it
+    ['a product that holds a counted value and is left over', withConstants({}, {
+        leftOver: fn({ v: any }, index, ({ v }) => let_('p', make({ a: v }), () => n(0n))),
+    })],
     ['a constant named as a literal is spelled', withConstants({ "'object'": [string, lit(string, 'other')] })],
     ['a function named init', withConstants({}, { init: fn({}, unit, () => make({})) })],
     ['an import named self', { ...sample, imports: { ...sample.imports, self: L1 } }],
     ['two interfaces that give one import two types', {
         ...withConstants({}, { twin: fn({ s: string }, u(40), ({ s }) => call('Twin', 'length')(s)) }),
         imports: { ...sample.imports, Twin },
+    }],
+    // `exact` is written out with locals of the checker, and `$1` is the first of them in a module
+    ['a local named as the checker names its own', {
+        ...sample, constants: {}, functions: { named: fn({ x: f64 }, index, ({ x }) => let_('$1', n(0n), () => exact(index, x))) },
     }],
 ]
