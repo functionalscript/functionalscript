@@ -34,8 +34,6 @@ export const proof = {
         assert(reversed instanceof Array && reversed[0] === '[]')
         assert(reversed !== receiver)
         assertEq(reversed[1][2], child)
-        data([1], 'concat', [['[]', [2]], 'ab', ['{}', []], undefinedValue], [1,2,'ab',{},undefined])
-        data([], 'concat', [], [])
         data(receiver[1], 'slice', [], [{},2,3])
         data([1,2,3], 'slice', [-2, -1], [2])
         data([1,2,3], 'with', [-1, child], [1,2,{}])
@@ -147,6 +145,7 @@ export const proof = {
         assertEq(arrayMethod(['[]', [2,1]], 'toSorted', [difference], () => failure), failure)
         assertStructurallySame(assertError(arrayMethod(['[]', []], 'missing', [], invoke)), undefinedValue)
         assertStructurallySame(assertError(arrayMethod(['[]', []], 'map', [identity], invoke)), undefinedValue)
+        assertStructurallySame(assertError(arrayMethod(['[]', []], 'concat', [], invoke)), undefinedValue)
     },
     sorted: () => {
         data([2,10,1], 'toSorted', [], [1,10,2])

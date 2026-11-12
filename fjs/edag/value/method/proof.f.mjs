@@ -55,7 +55,11 @@ export const proof = {
         }
         assertEq(has(['[]', []], 'map'), false)
         assertEq(has('x', 'map'), false)
+        assertEq(has(['[]', []], 'concat'), false)
+        assertEq(has('x', 'concat'), false)
         refuses(['[]', []], 'map', [fn])
+        refuses(['[]', []], 'concat', [])
+        refuses('x', 'concat', [])
         refuses(null, 'toString', [])
         refuses(1n, 'toFixed', [])
         refuses(1, 'missing', [])
@@ -103,9 +107,6 @@ export const proof = {
         check(' x ', 'trimEnd', [], ' x')
         check('aBß\ud800', 'toLowerCase', [], 'abß\ud800')
         check('aBß\ud800', 'toUpperCase', [], 'ABSS\ud800')
-        check('x', 'concat', [1, null, undefinedValue], 'x1nullundefined')
-        check('x', 'concat', [], 'x')
-        assertEq(method('x', 'concat', [coercible, coercible], () => failure, undefined), failure)
     },
     indexing: () => {
         check('a😀b', 'at', [-1], 'b')
@@ -222,6 +223,46 @@ export const proof = {
         for (const missing of [table([]), table([['dot', 'x']]), dispatching(['=>', 1, [], ['undefined']])]) {
             assertEq(assertOk(hasMethod(receiver, 'map', missing, invoke)), false)
             assertStructurallySame(assertError(method(receiver, 'map', [callback], invoke, missing)), undefinedValue)
+        }
+    },
+    // Both concat variants run the generated common body. Arrays spread
+    // one level while preserving element identities; strings convert each
+    // argument through the interpreter's normal String operation.
+    runtimeConcat: () => {
+        const loaded = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(loaded instanceof Array && loaded[0] === '{}')
+        const invoke = invokeWith(loaded)
+        const child = /** @type {const} */ (['{}', []])
+        const nested = /** @type {const} */ (['[]', [3]])
+        const receiver = /** @type {const} */ (['[]', [child, 1]])
+        const joined = assertOk(method(receiver, 'concat', [['[]', [2, nested]], 'ab', child, undefinedValue], invoke, loaded))
+        assert(joined instanceof Array && joined[0] === '[]')
+        assert(joined !== receiver)
+        assertEq(joined[1][0], child)
+        assertEq(joined[1][3], nested)
+        assertEq(joined[1][5], child)
+        assertStructurallySame(assertOk(toData(joined)), [{}, 1, 2, [3], 'ab', {}, undefined])
+        const copied = assertOk(method(receiver, 'concat', [], invoke, loaded))
+        assert(copied instanceof Array && copied[0] === '[]')
+        assert(copied !== receiver)
+        assertEq(copied[1][0], child)
+        assertStructurallySame(assertOk(method(['[]', []], 'concat', [], invoke, loaded)), ['[]', []])
+
+        assertEq(assertOk(method('x', 'concat', [1, null, undefinedValue], invoke, loaded)), 'x1nullundefined')
+        assertEq(assertOk(method('x', 'concat', [], invoke, loaded)), 'x')
+        assertEq(assertOk(method('x', 'concat', [coercible, coercible], invoke, loaded)), 'x55')
+        assertEq(assertOk(method('x', 'concat', [['[]', [2, 3]]], invoke, loaded)), 'x2,3')
+        const throwing = /** @type {const} */ (['{}', [[':', 'toString', ['=>', 0, [child], ['throw', ['frame', 0]]]]]])
+        const later = /** @type {const} */ (['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'later']]]]])
+        assertEq(assertError(method('x', 'concat', [throwing, later], invoke, loaded)), child)
+        assertEq(assertOk(hasMethod(receiver, 'concat', loaded, invoke)), true)
+        assertEq(assertOk(hasMethod('x', 'concat', loaded, invoke)), true)
+        assertEq(assertOk(hasMethod(1, 'concat', loaded, invoke)), false)
+        for (const missing of [undefined, table([]), table([['dot', 'x']]), dispatching(['=>', 1, [], ['undefined']])]) {
+            assertEq(assertOk(hasMethod(receiver, 'concat', missing, invoke)), false)
+            assertEq(assertOk(hasMethod('x', 'concat', missing, invoke)), false)
+            assertStructurallySame(assertError(method(receiver, 'concat', [], invoke, missing)), undefinedValue)
+            assertStructurallySame(assertError(method('x', 'concat', [], invoke, missing)), undefinedValue)
         }
     },
     splitting: () => {

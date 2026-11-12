@@ -145,7 +145,6 @@ export const arrayMethod = (receiver, key, args, invoke) => {
     const first = tagUndefined(args[0])
     const second = tagUndefined(args[1])
     switch (key) {
-        case 'concat': { return ok(['[]', [...values, ...flatten(args, 1)]]) }
         case 'toReversed': { return ok(['[]', values.toReversed()]) }
         case 'toSorted': { return sorted(values, first, invoke) }
         case 'includes': case 'indexOf': case 'lastIndexOf': { return search(receiver, key, args, invoke) }

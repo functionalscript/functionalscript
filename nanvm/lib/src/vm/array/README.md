@@ -7,9 +7,9 @@ on every input a module can build. Behaviour is pinned by the shared corpus in
 JavaScript engine and on this crate. The completeness table
 [`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.mjs) generates,
 checked by `completeness` in `method.rs`, keeps this set equal to what the
-compiler admits. `map` is implemented in the shared FunctionalScript runtime
-([`fjs/js/runtime`](../../../../../fjs/js/runtime/README.md)); its native table
-entry and Rust implementation have been removed.
+compiler admits. `map` and `concat` are implemented in the shared FunctionalScript
+runtime ([`fjs/js/runtime`](../../../../../fjs/js/runtime/README.md)); their native
+table entries and Rust implementations have been removed.
 
 ## What is out, by design
 

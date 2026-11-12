@@ -8,8 +8,8 @@
  * types every type's keys as exactly the admitted names of its prototype,
  * and every entry as callable with the receiver and the arguments.
  *
- * An entry is a body, or `todo` where none is written yet. The array's
- * `map` is the first typed body here, also used by the `member` section of
+ * An entry is a body, or `todo` where none is written yet. The typed
+ * `map` and both `concat` bodies are also used by the `member` section of
  * [`../runtime`](../runtime/module.f.js), beside its `startsWith` and
  * `codePointAt` bodies. The remaining names are answered natively today,
  * NaNVM in `vm/lambda` and the interpreter in `fjs/edag/value/method`.
@@ -24,6 +24,8 @@
 
 import { todo } from '../../asserts/module.f.js'
 import { map } from './array/map/module.f.js'
+import { concat as arrayConcat } from './array/concat/module.f.js'
+import { concat as stringConcat } from './string/concat/module.f.js'
 
 /** @type {Members} */
 export const members = {
@@ -35,7 +37,7 @@ export const members = {
         charAt: todo,
         charCodeAt: todo,
         codePointAt: todo,
-        concat: todo,
+        concat: stringConcat,
         endsWith: todo,
         includes: todo,
         indexOf: todo,
@@ -72,7 +74,7 @@ export const members = {
     },
     array: {
         at: todo,
-        concat: todo,
+        concat: arrayConcat,
         every: todo,
         filter: todo,
         find: todo,

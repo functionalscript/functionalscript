@@ -2,7 +2,7 @@ use super::{String, create::create};
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, IVm, ToString,
+        Any, IVm, ToString,
         ecma_whitespace::is_ecma_whitespace,
         error,
         position::{clamped, relative_range},
@@ -43,18 +43,6 @@ impl<A: IVm> String<A> {
             .transpose()?
             .map_or(len, |k| clamped(k, len));
         Ok(self.units(start.min(end), start.max(end)))
-    }
-
-    /// `String.prototype.concat(...args)`
-    /// (<https://tc39.es/ecma262/#sec-string.prototype.concat>): the receiver,
-    /// then each argument's `ToString`, in order.
-    pub(crate) fn concat(&self, args: Array<A>) -> Result<String<A>, Any<A>> {
-        let parts: Vec<String<A>> = [Ok(self.clone())]
-            .into_iter()
-            .chain(args.into_iter().map(|v| v.to_string()))
-            .collect::<Result<_, _>>()?;
-        let len = parts.iter().map(|p| u64::from(p.length())).sum();
-        create(len, parts.into_iter().flatten())
     }
 
     /// `String.prototype.repeat(count)`
@@ -138,7 +126,7 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, ToArray, error},
+        vm::{Any, Nullish, String, ToAny, error},
     };
 
     type A = Naive;
@@ -158,12 +146,6 @@ mod tests {
         assert_eq!(s("abcdef").substring(n(4.0), n(1.0)), Ok(s("bcd")));
         assert_eq!(s("abc").substring(n(-1.0), Any::undefined()), Ok(s("abc")));
         assert_eq!(s("abc").substring(n(f64::NAN), n(2.0)), Ok(s("ab")));
-    }
-
-    #[test]
-    fn concat() {
-        let args = [1.0.to_any(), Nullish::Null.to_any()].to_array();
-        assert_eq!(s("a").concat(args), Ok(s("a1null")));
     }
 
     #[test]
