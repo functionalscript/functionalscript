@@ -125,8 +125,8 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
     let t = 0
     while (true) {
         for (let j = 0; j < 16; j += 1) {
-            const [f, k] = stages[Math.trunc((t + j) / roundsPerStage)]
-            const temp = (rotl5(a) + f(b, c, d) + e + k + w[j]) & m
+            const [f, k] = stages[Number(Math.trunc((t + j) / roundsPerStage))]
+            const temp = (rotl5(a) + f(b, c, d) + e + k + w[Number(j)]) & m
             e = d
             d = c
             c = rotl30(b)
