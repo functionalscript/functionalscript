@@ -5,7 +5,7 @@
  * @import { NodeProgram } from '../../effects/node/types.ts'
  */
 
-import { foldStep, pureOk } from '../../effects/module.f.mjs'
+import { foldStep, pureOk } from '../../effects/module.f.js'
 import { main as clean } from '../clean/module.f.mjs'
 import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'

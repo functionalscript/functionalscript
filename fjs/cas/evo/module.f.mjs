@@ -63,14 +63,14 @@ import {
     pureOk,
     resultMapStep,
     step as ioStep,
-} from '../../effects/module.f.mjs'
+} from '../../effects/module.f.js'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
 import { canonicalCBase32, cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'

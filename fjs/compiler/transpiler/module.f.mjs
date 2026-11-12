@@ -25,7 +25,7 @@ import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { tryUnresolved } from '../edag/module.f.mjs'
 import { _fileError, _jsonModule, _program, parse as sourceParse } from '../source/module.f.mjs'
-import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.js'
 
 export const parse = sourceParse
 

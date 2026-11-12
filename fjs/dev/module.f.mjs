@@ -11,7 +11,7 @@
 import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
 import { cmp as strCmp } from '../types/string/module.f.js'
 import { fromEntries } from '../types/object/module.f.js'
-import { mapStep, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { mapStep, pureOk, resultStep, step } from '../effects/module.f.js'
 import { join, relativize, toPosix } from '../path/module.f.js'
 
 /**

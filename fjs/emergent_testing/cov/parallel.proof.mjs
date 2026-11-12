@@ -12,7 +12,7 @@
 import { strict as assert } from 'node:assert'
 import { setImmediate } from 'node:timers'
 
-import { history, historyStep, mapStep, pureOk } from '../../effects/module.f.mjs'
+import { history, historyStep, mapStep, pureOk } from '../../effects/module.f.js'
 import { asyncPartialRun } from '../../effects/module.mjs'
 import { access, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'

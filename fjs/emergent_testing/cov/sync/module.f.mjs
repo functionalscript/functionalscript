@@ -8,7 +8,7 @@
  * @import { Synchronize } from './types.ts'
  */
 
-import { history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.mjs'
+import { history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { childWait, execFile, spawn } from '../../../effects/node/module.f.mjs'
 import { publishFrom } from '../../../ci/cache/publish/module.f.mjs'
 

@@ -20,7 +20,7 @@ if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
 if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
 ```
 
-`writes` in [`effects`](../effects/module.f.mjs) spells the full children
+`writes` in [`effects`](../effects/module.f.js) spells the full children
 table a third time (`initialize`/`write`, `compound-write`, `if`, `while`,
 `switch`, and the exit), and `continuedSteps` in [`module.f.mjs`](../module.f.mjs)
 recurses through `if` arms and `switch` cases a fourth time to insert a `for`

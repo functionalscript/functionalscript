@@ -44,7 +44,7 @@
  * @import { Dirs } from '../types.ts'
  */
 
-import { catchStep, compensateStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
+import { catchStep, compensateStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.js'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { ancestors, parent, under } from '../../../path/module.f.js'

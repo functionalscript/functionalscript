@@ -9,7 +9,7 @@
  * @import { ExecFile, NodeProgram, NodeProgramOptions, Subprocess } from '../../../effects/node/types.ts'
  */
 
-import { attemptStep, finallyStep, history, historyStep, mapStep, pureError, pureOk, refuse, step } from '../../../effects/module.f.mjs'
+import { attemptStep, finallyStep, history, historyStep, mapStep, pureError, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { childWait, execFile, exitStep, spawn } from '../../../effects/node/module.f.mjs'
 import { join } from '../../../path/module.f.js'
 

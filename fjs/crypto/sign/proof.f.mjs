@@ -17,7 +17,7 @@ import { all, computeK, fromCurve, sign, verify } from './module.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, nonceReuse, outgoing, parseHexField, received, signed } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 

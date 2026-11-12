@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { ioError } from '../../../effects/module.f.mjs'
+import { ioError } from '../../../effects/module.f.js'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'

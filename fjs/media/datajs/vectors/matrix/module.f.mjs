@@ -52,7 +52,7 @@
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
-import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.js'
 import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.mjs'
 import { charIs, isDigit, isLatinLetter } from '../../../../text/ascii/module.f.js'
 import { fromVec } from '../../../../text/utf8/module.f.mjs'

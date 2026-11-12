@@ -14,7 +14,7 @@ import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { doneStep } from '../../types/function/operator/module.f.js'
 
 /** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */

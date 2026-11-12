@@ -25,7 +25,7 @@
 
 import { assoc, isArray } from '../../../types/array/module.f.js'
 import { error, mapOk, ok } from '../../../types/result/module.f.js'
-import { commandsOf, do_, pureOk } from '../../../effects/module.f.mjs'
+import { commandsOf, do_, pureOk } from '../../../effects/module.f.js'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
 import { isFunction, untagUndefined } from '../semantics/module.f.js'
 

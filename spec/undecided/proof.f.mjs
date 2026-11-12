@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../fjs/asserts/module.f.js'
-import { ioError } from '../../fjs/effects/module.f.mjs'
+import { ioError } from '../../fjs/effects/module.f.js'
 import { run } from '../../fjs/effects/mock/module.f.mjs'
 import { htmlToString } from '../../fjs/media/html/module.f.mjs'
 import { error, ok } from '../../fjs/types/result/module.f.js'

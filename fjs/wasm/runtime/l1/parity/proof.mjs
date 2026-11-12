@@ -15,7 +15,7 @@
 
 import { assertEq, assertOk } from '../../../../asserts/module.f.js'
 import { _transpileDefault } from '../../../../compiler/transpiler/module.f.mjs'
-import { pureOk } from '../../../../effects/module.f.mjs'
+import { pureOk } from '../../../../effects/module.f.js'
 import { vm } from '../../../../edag/amnesia/module.f.mjs'
 import { read } from '../../../../edag/value/property/module.f.js'
 import { virtualAt } from '../../../../effects/node/virtual/module.f.mjs'

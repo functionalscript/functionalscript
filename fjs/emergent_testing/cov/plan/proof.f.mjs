@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { foldStep, mapStep, pureOk, step } from '../../../effects/module.f.mjs'
+import { foldStep, mapStep, pureOk, step } from '../../../effects/module.f.js'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
 import { access, ioError, nodeCommands, readdir } from '../../../effects/node/module.f.mjs'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'

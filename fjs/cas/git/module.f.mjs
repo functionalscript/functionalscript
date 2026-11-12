@@ -69,8 +69,8 @@ import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
     catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, step, walkStep,
-} from '../../effects/module.f.mjs'
-import { fromList, run as runStream } from '../../effects/list/module.f.mjs'
+} from '../../effects/module.f.js'
+import { fromList, run as runStream } from '../../effects/list/module.f.js'
 import { isNotFound, namesNothing, now, readUtf8File, stat } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { lastValue, tryEntries as configEntries } from '../../git/config/module.f.js'

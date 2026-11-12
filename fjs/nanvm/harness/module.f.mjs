@@ -30,7 +30,7 @@
 
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { interpret } from '../../compiler/transpiler/module.f.mjs'
-import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { cmp } from '../../types/string/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'

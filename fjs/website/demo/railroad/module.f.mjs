@@ -44,7 +44,7 @@
  * @import { _Size } from './private.ts'
  */
 
-import { pureOk } from '../../../effects/module.f.mjs'
+import { pureOk } from '../../../effects/module.f.js'
 import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { sum } from '../../../types/number/module.f.js'

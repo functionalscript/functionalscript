@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { repository } from '../page/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'

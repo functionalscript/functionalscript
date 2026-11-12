@@ -17,8 +17,8 @@ import {
     assertEq,
     assertStructurallySame,
 } from '../../asserts/module.f.js'
-import { pure } from '../../effects/module.f.mjs'
-import { pureError } from '../../effects/module.f.mjs'
+import { pure } from '../../effects/module.f.js'
+import { pureError } from '../../effects/module.f.js'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.js'
@@ -27,7 +27,7 @@ import { vec8 } from '../../types/bit_vec/module.f.js'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { ok, error, unwrap as unwrapResult } from '../../types/result/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
 import {

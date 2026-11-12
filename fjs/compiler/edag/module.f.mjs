@@ -19,7 +19,7 @@
 import { tryNormalize } from '../../js/ast/sugar/module.f.mjs'
 import { fromFast } from '../../edag/from_fast/module.f.mjs'
 import { _fileError, _jsonModule, _program } from '../source/module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])

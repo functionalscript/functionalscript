@@ -4,7 +4,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { run } from '../mock/module.f.mjs'
-import { pureOk, step } from '../module.f.mjs'
+import { pureOk, step } from '../module.f.js'
 import {
     asBase, asNominal,
     create, read, write,

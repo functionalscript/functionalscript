@@ -31,7 +31,7 @@
  */
 
 import { _compileMarked, noRuntime } from '../../../compiler/module.f.mjs'
-import { foldStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.mjs'
+import { foldStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../../effects/node/module.f.mjs'
 import { toTagged } from '../../../text/marked/module.f.mjs'
 import { samples } from '../samples/module.f.js'

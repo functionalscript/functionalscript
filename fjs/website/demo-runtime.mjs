@@ -17,7 +17,7 @@
  */
 
 import { asyncPartialRun } from '../effects/module.mjs'
-import { commandsOf } from '../effects/module.f.mjs'
+import { commandsOf } from '../effects/module.f.js'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'

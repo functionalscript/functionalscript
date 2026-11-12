@@ -32,11 +32,11 @@ import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../list/module.f.js'
 import { error as resultError, ok } from '../../types/result/module.f.js'
 import {
     commandsOf, do_, errorMessage as effectsErrorMessage, ioError as effectsIoError, toIoError as effectsToIoError,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { min } from '../../types/number/min/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import {
@@ -46,13 +46,13 @@ import {
 } from '../common/module.f.mjs'
 import {
     compensateStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { normalize, parent } from '../../path/module.f.js'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
- * [`../module.f.mjs`](../module.f.mjs) beside the effect representation,
+ * [`../module.f.js`](../module.f.js) beside the effect representation,
  * because neither is node's: normalizing a thrown value into serializable
  * effect data is what any host's interpreter does at its `catch`. They are
  * re-exported here so the modules that reach for them through the node module
@@ -720,7 +720,7 @@ export const readChunks = (source, bound) => {
         if (remaining <= 0) { return elEmpty() }
         // A source that performs a command suspends here, so the list is built
         // one cell per pull. A source that answers purely does not: `nonEmpty`
-        // takes its tail as an ordinary argument (`../list/module.f.mjs`), so
+        // takes its tail as an ordinary argument (`../list/module.f.js`), so
         // the whole chain is constructed up front and a large bound overflows
         // the stack. That is the list representation's property, not this
         // loop's — every chunk source with a real host behind it is a command.

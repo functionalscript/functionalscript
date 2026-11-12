@@ -7,8 +7,8 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { pure } from '../../../effects/module.f.mjs'
-import { pureOk } from '../../../effects/module.f.mjs'
+import { pure } from '../../../effects/module.f.js'
+import { pureOk } from '../../../effects/module.f.js'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'

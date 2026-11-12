@@ -40,7 +40,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.js'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.js'
 import { isWellFormed } from '../../text/utf16/module.f.js'

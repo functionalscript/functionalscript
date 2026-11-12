@@ -11,7 +11,7 @@
  * @import { Effect, IoChannel } from '../effects/types.ts'
  */
 
-import { step } from '../effects/module.f.mjs'
+import { step } from '../effects/module.f.js'
 import { exists, exitStep, writeFiles } from '../effects/node/module.f.mjs'
 import { images, node } from './config/module.f.js'
 import {

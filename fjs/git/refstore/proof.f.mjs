@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
+import { ioError } from '../../effects/module.f.js'
 import { run as mockRun } from '../../effects/mock/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'

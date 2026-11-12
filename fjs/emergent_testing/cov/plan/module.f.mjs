@@ -9,7 +9,7 @@
  * @import { ChildResult, Command, CoverageCache, Planned, RunResult } from './types.ts'
  */
 
-import { foldStep, history, historyStep, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { foldStep, history, historyStep, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.js'
 import { error, errorMessage } from '../../../effects/node/module.f.mjs'
 
 /** Failed admission fails only the directory whose inputs could not be named.

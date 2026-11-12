@@ -8,7 +8,7 @@
  * @import { FetchText, Instantiate, JsHeapSize } from './types.ts'
  */
 
-import { do_ } from '../module.f.mjs'
+import { do_ } from '../module.f.js'
 
 /** @type {Func<FetchText>} */
 export const fetchText = do_('fetchText')

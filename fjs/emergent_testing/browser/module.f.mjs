@@ -32,7 +32,7 @@ import { catch_, import_ } from '../../effects/common/module.f.mjs'
 import {
     addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
 } from '../module.f.mjs'
-import { attemptStep, do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { attemptStep, do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { error } from '../../types/result/module.f.js'
 
 /** The page's leaf-landed operation; see `_BrowserReport`.

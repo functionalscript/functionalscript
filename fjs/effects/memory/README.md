@@ -7,7 +7,7 @@ so a key made for a number can only be read as a number.
 interpreter, and [`types.ts`](./types.ts) the `Key<T>` and `MemOp` types.
 
 ```js
-import { history, historyStep, mapStep } from '../module.f.mjs'
+import { history, historyStep, mapStep } from '../module.f.js'
 import { run } from '../mock/module.f.mjs'
 import { create, memoryInitial, memoryOperationMap, read, write } from './module.f.mjs'
 

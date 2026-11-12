@@ -12,7 +12,7 @@ import { computeSync } from '../sha2/module.f.js'
 import { sha1 } from './module.f.mjs'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */

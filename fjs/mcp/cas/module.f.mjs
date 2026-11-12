@@ -123,7 +123,7 @@
 
 import { string, option, or, boolean } from '../../rtti/module.f.js'
 import { stringify } from '../../media/json/module.f.mjs'
-import { pureOk, resultStep } from '../../effects/module.f.mjs'
+import { pureOk, resultStep } from '../../effects/module.f.js'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
@@ -140,7 +140,7 @@ import { collectRead } from '../../cas/module.f.mjs'
 import { errorSummary } from '../../effects/node/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { syncRevision } from '../../cas/evo/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 

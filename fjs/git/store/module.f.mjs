@@ -67,7 +67,7 @@
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.js'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'

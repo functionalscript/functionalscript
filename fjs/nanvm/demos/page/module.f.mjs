@@ -41,8 +41,8 @@
  */
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
-import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.mjs'
-import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
+import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.js'
+import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.js'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.js'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'

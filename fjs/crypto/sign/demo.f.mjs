@@ -47,7 +47,7 @@ import { reuse } from './nonce_reuse/module.f.js'
 import { sha256 } from '../sha2/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 

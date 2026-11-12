@@ -11,8 +11,8 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { match, partialMatch } from "../module.f.mjs"
-import { notImplemented } from "../module.f.mjs"
+import { match, partialMatch } from "../module.f.js"
+import { notImplemented } from "../module.f.js"
 import { error, ok } from "../../types/result/module.f.js"
 
 /** @type {<O extends Operation, S>(o: MemOperationMap<O, S>) => RunInstance<O, S>} */

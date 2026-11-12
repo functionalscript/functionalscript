@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
+import { ioError } from '../../effects/module.f.js'
 import { run } from '../../effects/mock/module.f.mjs'
 import { normalize } from '../../path/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'

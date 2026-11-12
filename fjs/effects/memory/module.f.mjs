@@ -27,7 +27,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { do_ } from '../module.f.mjs'
+import { do_ } from '../module.f.js'
 
 const { hasOwn } = Object
 

@@ -18,7 +18,7 @@ import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } fro
 import { run as mockRun } from '../../effects/mock/module.f.mjs'
 import { ok } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../result/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { set, squares } from './testlib.f.js'

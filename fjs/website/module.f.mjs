@@ -58,7 +58,7 @@
 
 import { codePoints } from '../text/ascii/module.f.js'
 import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.mjs'
-import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { basename, concat as pathConcat, parent } from '../path/module.f.js'
 import { resolve } from '../path/import/module.f.mjs'

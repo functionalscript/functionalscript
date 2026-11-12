@@ -1,6 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { rust } from '../../ci/config/module.f.js'
-import { step as ioStep } from '../../effects/module.f.mjs'
+import { step as ioStep } from '../../effects/module.f.js'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { buildPath, buildText, cloudflare, generatedDirectory, main, uploadArgs, wranglerVersion } from './module.f.mjs'

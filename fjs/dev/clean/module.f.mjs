@@ -21,7 +21,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { step } from '../../effects/module.f.mjs'
+import { step } from '../../effects/module.f.js'
 import { allOk, exitStep, rm } from '../../effects/node/module.f.mjs'
 import { isThirdParty, walk } from '../module.f.mjs'
 

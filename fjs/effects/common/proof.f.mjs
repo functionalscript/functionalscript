@@ -16,7 +16,7 @@ import { codePointListToString } from '../../text/utf16/module.f.js'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from './module.f.mjs'
-import { pureError, pureOk } from '../module.f.mjs'
+import { pureError, pureOk } from '../module.f.js'
 
 /**
  * A runner claiming both operations by the names they are declared under.

@@ -26,7 +26,7 @@ import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { ioError, unreadableThrownValue } from '../../effects/module.f.mjs'
+import { ioError, unreadableThrownValue } from '../../effects/module.f.js'
 
 /**
  * The handlers a working page supplies. `catch` cannot really catch — a pure

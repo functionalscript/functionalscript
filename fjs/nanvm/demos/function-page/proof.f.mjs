@@ -16,7 +16,7 @@
 
 import { tagged } from '../../../text/marked/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { ioError, notImplemented } from '../../../effects/module.f.mjs'
+import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { codePoints } from '../../../text/ascii/module.f.js'

@@ -10,7 +10,7 @@ import { demo, parseNBits, parseNonce } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { concat as stringConcat } from '../../types/string/module.f.js'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 
