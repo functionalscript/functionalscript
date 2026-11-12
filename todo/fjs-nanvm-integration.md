@@ -142,6 +142,15 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Native minimum and inflater promotion
+
+#3797 (`602e9883b`) adds native `Math.min`, preserving NaN propagation,
+negative-zero ties and conversion after NaN or negative infinity.
+`zlib/inflate` now uses `.f.js`; imports and current links are updated.
+The graph has **278 `.f.js`**, **365 `.f.mjs`**, **12 blocked leaves**;
+none accepted and no new leaves exposed. `testlib` still stops at
+`lengths.forEach` (`148:17`).
+
 #### Demo entry, inflate indexes and noise state
 
 #3797 (`6e05b59ae`) reads curve names with `entry`; `website/demo/secp`
@@ -1165,24 +1174,9 @@ relative to `fjs/`.
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'website/browser-source',
-  'website/demo/code',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `e40fa58` (historical)
 
