@@ -2336,7 +2336,7 @@ export const proof = {
     referenceMap: async () => {
         const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
         assert(runtime instanceof Array && runtime[0] === '{}')
-        const root = {
+        const root = /** @type {const} */ ({
             main: [utf8(`${referenceMap}
 const a = { name: 'a' }
 const b = { name: 'b' }
@@ -2344,7 +2344,7 @@ const [, one] = empty(a, 1)
 const [, two] = one(b, 2)
 export default { a, b, one, two, again: two, empty }
 `)],
-        }
+        })
         const [, result] = virtualAt(root)(interpret(pureOk(runtime))('main'))
         const { a, b, one, two, again, empty } = (await compile(assertOk(result))).default
         assertEq(two(a)[0], 1)
