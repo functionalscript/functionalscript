@@ -70,6 +70,12 @@ const escapeCharCode = code =>
 
 const escape = compose(stringToList)(map(escapeCharCode))
 
+/** @type {(render: (e: Element) => List<string>, n: Node) => List<string>} */
+const node = (render, n) => typeof n === 'string' ? escape(n) : render(n)
+
+/** @type {(render: (e: Element) => List<string>, n: List<Node>) => List<string>} */
+const nodes = (render, n) => flatMap(child => node(render, child))(n)
+
 /** @type {(n: Node) => string} */
 const raw = n =>
     typeof n === 'string' ? n : ''
@@ -238,15 +244,12 @@ export const pageRefusal = e => {
  * @type {(e: Element) => List<string>}
  */
 export const element = e => {
-    /** @type {(n: Node) => List<string>} */
-    const node = n => typeof n === 'string' ? escape(n) : element(n)
-    const nodes = flatMap(node)
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
     if (isVoidTag(tag)) {
         return open
     }
-    return flat([open, isRawText(tag) ? [rawTextContent(n)] : nodes(n), ['</', tag, '>']])
+    return flat([open, isRawText(tag) ? [rawTextContent(n)] : nodes(element, n), ['</', tag, '>']])
 }
 
 /**

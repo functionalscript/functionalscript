@@ -32,6 +32,9 @@ const showInt = ([, lo, hi]) => {
         : `int(${lo}, ${hi})`
 }
 
+/** @type {(show: (t: Type) => string, parts: Parts) => string} */
+const showParts = (show, parts) => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
+
 /**
  * A type as text: `unit`, `never` and `bool` by their names, a product as
  * its fields in braces, and any other sum as `sum({ … })`.
@@ -39,13 +42,11 @@ const showInt = ([, lo, hi]) => {
  * @type {(t: Type) => string}
  */
 export const show = t => {
-    /** @type {(parts: Parts) => string} */
-    const showParts = parts => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
     switch (t[0]) {
         case 'int': { return showInt(t) }
         case 'f64': case 'f64c': { return t[0] }
-        case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(t[1])} }` }
-        default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(t[1])} })` }
+        case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(show, t[1])} }` }
+        default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(show, t[1])} })` }
     }
 }
 
@@ -117,19 +118,20 @@ const flat = t => {
     }
 }
 
+/** A head, then a term: on the same line where it fits there, else on lines of their own below. @type {(lines: (t: Term, pad: string) => readonly string[], pad: string, head: string, x: Term) => readonly string[]} */
+const headed = (lines, pad, head, x) => {
+    const text = flat(x)
+    return text === null ? [`${pad}${head}`, ...lines(x, `${pad}    `)] : [`${pad}${head} ${text}`]
+}
+
 /** Lines, with a comma after the last where more follows. @type {(ls: readonly string[], more: boolean) => readonly string[]} */
 const comma = (ls, more) => more ? [...ls.slice(0, -1), `${ls.at(-1)},`] : ls
 
 /** @type {(t: Term, pad: string) => readonly string[]} */
 const lines = (t, pad) => {
-    /** A head, then a term: on the same line where it fits there, else on lines of their own below. @type {(pad: string, head: string, x: Term) => readonly string[]} */
-    const headed = (pad, head, x) => {
-        const text = flat(x)
-        return text === null ? [`${pad}${head}`, ...lines(x, `${pad}    `)] : [`${pad}${head} ${text}`]
-    }
     const inner = `${pad}    `
     /** @type {(head: string, x: Term) => readonly string[]} */
-    const after = (head, x) => headed(pad, head, x)
+    const after = (head, x) => headed(lines, pad, head, x)
     /** An application on one line, or its parts on lines of their own, separated by commas. @type {(head: string, parts: readonly Term[]) => readonly string[]} */
     const apply = (head, parts) => {
         const texts = parts.map(flat)
@@ -152,7 +154,7 @@ const lines = (t, pad) => {
             const one = flat(t)
             return one !== null ? [`${pad}${one}`] : [
                 `${pad}{`,
-                ...t[1].flatMap(([k, x], j) => comma(headed(inner, `${k}:`, x), j < t[1].length - 1)),
+                ...t[1].flatMap(([k, x], j) => comma(headed(lines, inner, `${k}:`, x), j < t[1].length - 1)),
                 `${pad}}`,
             ]
         }
