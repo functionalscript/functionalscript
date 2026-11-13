@@ -14,11 +14,16 @@
  * - **Integers are exact.** `add`, `sub` and `mul` have the range of their
  *   results as their type, and a range must fit one word of 64 bits.
  * - **Subtyping is the subset relation**: a range of a wider range, `f64c`
- *   of `f64`, and `never` of every type.
+ *   of `f64`, `never` of every type, and a product of a product of the same
+ *   fields in their order, field by field.
  * - **A local is bound once**: a `let` may not take a name that is in scope,
  *   and a `block` may not take a label that is.
  * - **`never` gives no value.** A term of type `never` may be the body of a
  *   function, a `block`, a `let` or an arm, and nothing else.
+ * - **A product stays in its function.** A local, a loop's parameter and the
+ *   value of a `match`, a `block` or a `loop` may be one, of fields of
+ *   distinct names that each hold a value, and `field` reads a field of one.
+ *   A signature names none, so no product crosses a call.
  * - **A sealed type is its interface's.** A module reads a value of `any`
  *   through the functions of the interfaces it imports, and narrows it with
  *   a `match` whose arms may name the operand at the type of their
@@ -29,13 +34,13 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Param, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
  * @import { _Env, _Label } from './private.ts'
  */
 
 import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, int, never, unit } from '../module.f.mjs'
+import { bool, compareIn, equal, f64, f64c, fits, int, never, product } from '../module.f.mjs'
 import { show } from '../print/module.f.mjs'
 
 // types
@@ -95,10 +100,33 @@ const unsupported = (env, t) =>
     : isFloat(t) || equal(t, bool) || isNever(t) ? null
     : `${show(t)} is not in this slice`
 
+/**
+ * Why a local, a loop or a label may not hold a value of a type, or `null`
+ * where it may: a type that a module may write, or a product whose fields
+ * have distinct names and types that a local may hold, and hold a value.
+ *
+ * @type {(env: _Env, t: Type) => string | null}
+ */
+const unheld = (env, t) => {
+    if (t[0] !== 'product') { return unsupported(env, t) }
+    const names = t[1].map(([k]) => k)
+    const twice = names.find((k, j) => names.indexOf(k) !== j)
+    const empty = t[1].find(([, x]) => isNever(x))
+    const why = t[1].map(([, x]) => unheld(env, x)).find(x => x !== null)
+    return twice !== undefined ? `${show(t)} has two fields named ${twice}`
+        : empty !== undefined ? `${show(t)} holds no value, since its field ${empty[0]} is never`
+        : typeof why === 'string' ? why
+        : null
+}
+
+/** Whether two products have the same fields in their order. @type {(a: Product, b: Product) => boolean} */
+const sameFields = (a, b) => equal(a[1].map(([k]) => k), b[1].map(([k]) => k))
+
 /** Whether every value of `a` is a value of `b`. @type {(env: _Env, a: Type, b: Type) => boolean} */
 const sub = (env, a, b) => isNever(a)
     || (a[0] === 'int' && b[0] === 'int' ? b[1] <= a[1] && a[2] <= b[2]
         : a[0] === 'sealed' && b[0] === 'sealed' ? a[1] === b[1] && a[2] === b[2] && kinds(env, a).every(v => kinds(env, b).includes(v))
+        : a[0] === 'product' && b[0] === 'product' ? sameFields(a, b) && a[1].every(([, x], j) => sub(env, x, b[1][j][1]))
         : (a[0] === 'f64c' && b[0] === 'f64') || equal(a, b))
 
 /** The narrowest type that holds both, or `null` where none does. @type {(env: _Env, a: Type, b: Type) => Type | null} */
@@ -107,7 +135,17 @@ const join = (env, a, b) =>
     : sub(env, b, a) ? a
     : a[0] === 'int' && b[0] === 'int' ? int(a[1] < b[1] ? a[1] : b[1], a[2] > b[2] ? a[2] : b[2])
     : a[0] === 'sealed' && b[0] === 'sealed' && a[1] === b[1] && a[2] === b[2] ? narrowed(env, a, [...kinds(env, a), ...kinds(env, b)])
+    : a[0] === 'product' && b[0] === 'product' && sameFields(a, b) ? joinFields(env, a, b)
     : null
+
+/** The product of the joins of two products' fields, or `null` where two fields have none. @type {(env: _Env, a: Product, b: Product) => Type | null} */
+const joinFields = (env, a, b) => {
+    const fields = a[1].flatMap(([k, x], j) => {
+        const y = join(env, x, b[1][j][1])
+        return y === null ? [] : [/** @type {const} */ ([k, y])]
+    })
+    return fields.length === a[1].length ? product(fields) : null
+}
 
 /** The narrowest type that holds every type of a list, or `null` where none does. @type {(env: _Env, types: readonly Type[]) => Type | null} */
 const joinAll = (env, [a, ...rest]) => {
@@ -291,7 +329,22 @@ const term = (env, t) => {
                 : no(`${full}'s ${params[wrong][0]} is ${show(params[wrong][1])}, not ${show(args[1][wrong][0])}`)
         }
         case 'make': {
-            return t[1].length === 0 ? ok([unit, ['make', []]]) : no('a product with fields is not in this slice')
+            const names = t[1].map(([k]) => k)
+            const twice = names.find((k, j) => names.indexOf(k) !== j)
+            if (twice !== undefined) { return no(`a product names ${twice} twice`) }
+            const fields = values(env, t[1].map(([, x]) => x))
+            if (fields[0] === 'error') { return fields }
+            return ok([product(fields[1].map(([x], j) => [names[j], x])), ['make', fields[1].map((x, j) => /** @type {const} */ ([names[j], x]))]])
+        }
+        case 'field': {
+            const [, e, name] = t
+            const v = value(env, e)
+            if (v[0] === 'error') { return v }
+            const [of] = v[1]
+            const part = of[0] === 'product' ? of[1].find(([k]) => k === name) : undefined
+            return part !== undefined ? ok([part[1], ['field', v[1], name]])
+                : of[0] === 'product' ? no(`${show(of)} has no field ${name}`)
+                : no(`field ${name} of ${show(of)}, which is no product`)
         }
         case 'variant': {
             const [, type, name, payload] = t
@@ -324,14 +377,14 @@ const term = (env, t) => {
             if (bodies[0] === 'error') { return bodies }
             const types = bodies[1].map(([x]) => x)
             const type = joinAll(env, types)
-            const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unsupported(env, type)
+            const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unheld(env, type)
             return type === null || why !== null ? no(`match: ${why}`)
                 : ok([type, ['match', operand[1], resolved[1].map(([vs, binder], k) => /** @type {const} */ ([vs, binder, bodies[1][k]]))]])
         }
         case 'block': {
             const [, label, type, body] = t
             if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
-            const why = unsupported(env, type)
+            const why = unheld(env, type)
             if (why !== null) { return no(why) }
             const b = term({ ...env, labels: label_(label, ['block', type])(env.labels) }, body)
             if (b[0] === 'error') { return b }
@@ -358,9 +411,10 @@ const label_ = (label, l) => setReplace(label)(l)
 
 /**
  * A `loop`: parameters of distinct names, none in scope, of types that a
- * module may write and that hold a value, each first value of its
+ * local may hold and that hold a value, each first value of its
  * parameter's type, typed where the loop stands; then the body, which sees
- * the parameters and the label. The loop's type is its body's.
+ * the parameters and the label. The loop's type is its body's, which a
+ * local may hold, as the type of every term may.
  *
  * @type {(env: _Env, label: string, params: readonly (readonly [string, Type, Term])[], body: Term) => Result<Typed, string>}
  */
@@ -370,7 +424,7 @@ const loopTerm = (env, label, params, body) => {
     const names = params.map(([k]) => k)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const bound = names.find(k => at(k)(env.locals) !== null)
-    const why = params.map(([, x]) => unsupported(env, x)).find(x => x !== null)
+    const why = params.map(([, x]) => unheld(env, x)).find(x => x !== null)
     const empty = params.find(([, x]) => isNever(x))
     if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
     if (twice !== undefined) { return no(`loop ${label} has two parameters named ${twice}`) }
@@ -385,10 +439,7 @@ const loopTerm = (env, label, params, body) => {
     const parts = params.map(([k, x]) => [k, x])
     const locals = parts.reduce((ls, [k, x]) => setReplace(k)(x)(ls), env.locals)
     const b = term({ ...env, locals, labels: label_(label, ['loop', parts])(env.labels) }, body)
-    if (b[0] === 'error') { return b }
-    const unfit = unsupported(env, b[1][0])
-    return unfit !== null ? no(`loop ${label}: ${unfit}`)
-        : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][j]])), b[1]]])
+    return b[0] === 'error' ? b : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][j]])), b[1]]])
 }
 
 /**
@@ -476,13 +527,13 @@ const checkInterface = imports => ([name, { types, functions }]) => {
 /**
  * Why the checker may not type a term in an environment, or `null` where
  * it may: the interfaces and the signatures that the environment sees are
- * ones a module may have, and so are the types of its locals and labels,
- * listed in `types`. Every type that reaches the rules of a term has passed
- * this.
+ * ones a module may have, the types of its locals are ones a local may
+ * hold, and `results`, those of its functions, ones a module may write.
+ * Every type that reaches the rules of a term has passed this.
  *
- * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], types: readonly Type[]) => string | null}
+ * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], locals: readonly Type[], results: readonly Type[]) => string | null}
  */
-const unscoped = (env, imports, functions, types) => {
+const unscoped = (env, imports, functions, locals, results) => {
     const interfaces = imports.map(([name]) => name)
     const imported = interfaces.find((k, j) => interfaces.indexOf(k) !== j || k === 'self')
     const names = functions.map(([name]) => name)
@@ -492,7 +543,7 @@ const unscoped = (env, imports, functions, types) => {
         const why = unsigned(env, s)
         return why === null ? null : `${name}: ${why}`
     }).find(x => x !== null)
-    const local = types.map(t => unsupported(env, t)).find(x => x !== null)
+    const local = [...locals.map(t => unheld(env, t)), ...results.map(t => unsupported(env, t))].find(x => x !== null)
     return imported === 'self' ? 'self is the module itself, so no interface has that name'
         : imported !== undefined ? `${imported} is imported twice`
         : twice !== undefined ? `two functions are named ${twice}`
@@ -520,7 +571,7 @@ const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
 export const check = m => {
     const imports = fromEntries(m.imports)
     const functions = fromEntries(m.functions)
-    const why = unscoped({ name: '', locals: empty, labels: empty, functions, imports }, m.imports, m.functions, [])
+    const why = unscoped({ name: '', locals: empty, labels: empty, functions, imports }, m.imports, m.functions, [], [])
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = m.exports.find((k, j) => m.exports.indexOf(k) !== j)
@@ -544,7 +595,7 @@ export const typeOf = ({ name, locals, result, functions, imports }) => t => {
     const env = {
         name, locals: fromEntries(locals), labels: label_('return', ['block', result])(empty), functions: fromEntries(functions), imports: fromEntries(imports),
     }
-    const why = unscoped(env, imports, functions, [...locals.map(([, x]) => x), result])
+    const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [result])
     if (why !== null) { return error(why) }
     const r = term(env, t)
     return r[0] === 'error' ? r : ok(r[1][0])

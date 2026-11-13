@@ -4,32 +4,37 @@
  * @module
  */
 
-import type { BindingId, Function as FastFunction, LoopTarget } from '../../js/ast/types.ts'
+import type { Result } from '../../types/result/types.ts'
+import type { BindingId, Function as FastFunction, LoopTarget, Value } from '../../js/ast/types.ts'
 import type { OpName, Scope, Term } from '../types.ts'
 
 /**
  * What a binding of FAST stands for: a local of the IR, a term that does
  * nothing, which an argument of an inlined function gave, a function of the
- * module, a function that the function defines, an operator, or a name of
- * the L0 view.
+ * module that the lowering makes, a function that the function defines, a
+ * function of the module that it does not export, both inlined, an
+ * operator, a name of the L0 view, or one of L1's native rows.
  */
 export type _Meaning =
     | readonly ['local', name: string]
     | readonly ['term', Term]
     | readonly ['function', name: string]
     | readonly ['inline', FastFunction]
+    | readonly ['module', FastFunction]
     | readonly ['op', OpName]
     | readonly ['l0', name: string]
+    | readonly ['native', name: string]
 
 /**
  * What a binding that the module defines stands for: one of its functions,
- * the arguments that hold its imports, a name of the L0 view, or why the
- * lowering refuses a function that reads it.
+ * the arguments that hold its imports, a name of the L0 view, one of L1's
+ * native rows, or why the lowering refuses a function that reads it.
  */
 export type _Global =
     | readonly ['function', FastFunction]
     | readonly ['args']
     | readonly ['l0', name: string]
+    | readonly ['native', name: string]
     | readonly ['refused', reason: string]
 
 /** A loop whose body holds a term: its target in FAST, its label and the locals of its parameters. */
@@ -46,13 +51,15 @@ export type _Tail = readonly ['value'] | readonly ['return'] | readonly ['loop',
  * The scope of a term: where it stands in the IR, as the checker reads it,
  * what each binding of FAST stands for there, how many locals of FAST
  * enclose it, which name the next one, the loops whose bodies hold it,
- * innermost first, and whether it stands in a function that is inlined,
- * whose `return` must end its body.
+ * innermost first, the functions that are inlined around it, innermost
+ * first, whose `return` must end its body, and what a capture of a
+ * function of the module stands for, given the value that it captures.
  */
 export type _Scope = {
     readonly ir: Scope
     readonly bindings: readonly (readonly [BindingId, _Meaning])[]
     readonly depth: number
     readonly loops: readonly _Loop[]
-    readonly inlined: boolean
+    readonly inlining: readonly FastFunction[]
+    readonly module: (v: Value) => Result<_Meaning, string>
 }

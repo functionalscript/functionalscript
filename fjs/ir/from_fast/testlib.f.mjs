@@ -1,8 +1,8 @@
 /**
  * What the proofs of the lowering share: the normalized FAST of a module's
  * text, as the compiler makes it, with its imports, and the signatures of
- * [`sample.f.js`](./sample.f.js) and of the functions of L1 that the
- * lowering reads, which FAST does not have.
+ * [`sample.f.js`](./sample.f.js), of [`helpers.f.js`](./helpers.f.js) and
+ * of the functions of L1 that the lowering reads, which FAST does not have.
  *
  * @module
  *
@@ -37,16 +37,25 @@ export const sourceOf = text => {
     return fast[0] === 'error' ? fast : ok({ fast: fast[1], imports: unresolved[1].imports })
 }
 
-/** The specifier by which L1 imports the L0 view. */
-export const view = '../l0/module.f.js'
+/** The runtime that L1 is lowered over: the specifiers by which it imports the L0 view and its native rows. */
+export const runtime = { l0: '../l0/module.f.js', native: './native/module.f.js' }
 
 const any2 = /** @type {const} */ ([['a', any], ['b', any]])
 
-/** The signatures of the functions of L1 that the slices lower so far: the third slice's `toBoolean`, and the fourth's string comparisons. @type {Readonly<Record<string, Signature>>} */
+/**
+ * The signatures of the functions of L1 that the slices lower so far: the
+ * third slice's `toBoolean`, the fourth's string comparisons, and the
+ * fifth's `strictEquals` and `stringIndex`. An index is a number in
+ * JavaScript, so a float here.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
 export const l1 = {
     toBoolean: signature([['v', any]], bool),
     stringEquals: signature(any2, bool),
     stringLess: signature(any2, bool),
+    strictEquals: signature(any2, bool),
+    stringIndex: signature([['s', any]], f64),
 }
 
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
@@ -80,4 +89,16 @@ export const signatures = {
     either: signature(b2, bool),
     sameBool: signature(b2, bool),
     differ: signature(b2, bool),
+}
+
+/** The signatures of `helpers.f.js`, which the lowering reads over the runtime. @type {Readonly<Record<string, Signature>>} */
+export const helpers = {
+    index: signature([['n', f64]], f64),
+    remainder: signature(f2, f64),
+    mod3: signature([['a', f64]], f64),
+    sumOfTwice: signature(f2, f64),
+    doubleBoth: signature([['a', u(8)], ['b', u(16)]], i(18)),
+    quadruple: signature([['x', f64]], f64),
+    middle: signature([['a', f64], ['b', f64], ['c', f64], ['d', f64]], f64),
+    gcd: signature(f2, f64),
 }

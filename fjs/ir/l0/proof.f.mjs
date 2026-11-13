@@ -13,7 +13,7 @@ export const proof = {
         assertEq(kinds.join(), 'undefined,null,boolean,number,string,bigint,array,object,function')
         assertEq([UNDEFINED, NULL, BOOLEAN, NUMBER, STRING, BIGINT, ARRAY, OBJECT, FUNCTION].join(), '0,1,2,3,4,5,6,7,8')
         assertEq([undefined, null, true, 1, '', 1n, [], {}, () => 0].map(viewKind).join(), '0,1,2,3,4,5,6,7,8')
-        assertEq(`${kind} ${carrier} ${functions.map(([k]) => k).join()}`, 'kind i64 kind,to_f64,to_bool')
+        assertEq(`${kind} ${carrier} ${functions.map(([k]) => k).join()}`, 'kind i64 kind,to_f64,to_bool,same')
     },
     // Every parameter of an L0 function narrows `any` to the kinds that the function takes.
     signatures: () => assertEq(l0.flatMap(([m, { functions }]) => functions.map(([f, { params, result }]) =>
@@ -21,6 +21,7 @@ export const proof = {
         'Any.kind(v: any) -> int(0, 8)',
         'Any.to_f64(v: any.only(number)) -> f64c',
         'Any.to_bool(v: any.only(boolean)) -> bool',
+        'Any.same(a: any.only(array, object, function), b: any.only(array, object, function)) -> bool',
         'String.length(s: any.only(string)) -> u(31)',
         'String.unit(s: any.only(string), i: u(31)) -> u(16)',
         'BigInt.length(b: any.only(bigint)) -> u(31)',

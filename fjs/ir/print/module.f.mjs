@@ -2,7 +2,9 @@
  * The code IR as text, the way a review reads it: a function per paragraph,
  * a `let`, a `block`, a `loop` and a `match` over lines of their own, and
  * every other term on one line where its parts fit there. An `if_` whose parts fit is
- * on one line too, and an `else` that is an `if_` continues it.
+ * on one line too, and an `else` that is an `if_` continues it. A product is
+ * its fields in braces, `{ i: 0.0, value: 0.0 }`, and a field of one reads
+ * `r.value`.
  *
  * ```text
  * fn max(a: f64, b: f64) -> f64 =
@@ -114,6 +116,11 @@ const flat = t => {
                 : texts.length === 0 ? '{}'
                 : `{ ${texts.map(([k, x]) => `${k}: ${x}`).join(', ')} }`
         }
+        case 'field': {
+            const [, e, name] = t
+            const text = flat(e)
+            return text === null ? null : e[0] === 'match' || e[0] === 'br' ? `(${text}).${name}` : `${text}.${name}`
+        }
         case 'variant': { return equal(t[3], ['make', []]) ? t[2] : apply(t[2], [t[3]]) }
         case 'match': {
             const [, e, arms] = t
@@ -198,6 +205,10 @@ const lines = (t, pad) => {
                 ...t[1].flatMap(([k, x], j) => comma(headed(inner, `${k}:`, x), j < t[1].length - 1)),
                 `${pad}}`,
             ]
+        }
+        case 'field': {
+            const one = flat(t)
+            return one !== null ? [`${pad}${one}`] : [`${pad}(`, ...lines(t[1], inner), `${pad}).${t[2]}`]
         }
         case 'variant': { return equal(t[3], ['make', []]) ? [`${pad}${t[2]}`] : apply(t[2], [t[3]]) }
         case 'match': {

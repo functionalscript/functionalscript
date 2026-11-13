@@ -16,6 +16,7 @@ export type Host = {
     readonly kind: (h: bigint) => Kind
     readonly to_f64: (h: bigint) => number
     readonly to_bool: (h: bigint) => 0 | 1
+    readonly same: (a: bigint, b: bigint) => 0 | 1
     readonly length: (h: bigint) => number
     readonly unit: (h: bigint, i: number) => number
 }

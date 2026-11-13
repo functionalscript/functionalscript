@@ -70,12 +70,18 @@ and refuses everything outside the slice, so that the next slice only adds.
   [README](../from_fast/README.md#loops-and-functions-inside-functions)
   says why, and [the IR's](../README.md#what-the-fourth-slice-adds) what the
   slice adds.
-- [ ] **Functions that are not exported, and native rows.** Parameter types
+- [x] **Functions that are not exported, and native rows.** Parameter types
   taken from the call sites, which no note settles yet, and `%`, which
   [l1-design.md](../../../doc/sasha-gil/wasm/l1-design.md#the-operations)
   makes native but which has neither a native row nor an IR operator, while
   `numberIndex` uses `n % 1`. Subjects: `strictEquals`, `stringIndex` and
-  `numberIndex`.
+  `numberIndex`. A function that is not exported is inlined at each call,
+  typed by what the call gives, as the owner chose; `%` is a new native row,
+  `numberRemainder`; and `stringIndex` keeps its loop's state in a record,
+  a product that stays in its function. The
+  [README](../README.md#what-the-fifth-slice-adds) has what the slice adds,
+  and [the lowering's](../from_fast/README.md#functions-that-the-module-does-not-export)
+  how it reads such a function.
 - [ ] **Counted values.** The lifetime pass, module constants through `init`,
   string literals, and a host that counts. Subject: `typeOf`.
 - [ ] **Failure.** `throw`, L1's error table and the trap ABI of NaNVM's L0.
