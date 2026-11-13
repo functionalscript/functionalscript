@@ -263,7 +263,7 @@ const lowerFn = (functions, named) => ([name, f, { params, result }]) => {
         ...(f.self === null ? [] : [/** @type {const} */ ([f.self, ['function', name]])]),
         ...captured[1],
     ]
-    const body = block({ ir: { name, locals: params, result, functions }, bindings, params: params.length }, f.body, true)
+    const body = block({ ir: { name, locals: params, result, functions, imports: [] }, bindings, params: params.length }, f.body, true)
     return body[0] === 'error' ? body : ok([name, fn(params, result, body[1])])
 }
 
@@ -315,5 +315,5 @@ export const lower = signatures => ({ statements, exit }) => {
     if (typed[0] === 'error') { return typed }
     const named = all.flatMap(([key, , b]) => b === null ? [] : [/** @type {const} */ ([b, key])])
     const functions = okList(typed[1].map(lowerFn(table, named)))
-    return functions[0] === 'error' ? functions : ok({ functions: functions[1], exports: all.map(([key]) => key) })
+    return functions[0] === 'error' ? functions : ok({ imports: [], functions: functions[1], exports: all.map(([key]) => key) })
 }

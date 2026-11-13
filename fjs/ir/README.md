@@ -30,7 +30,7 @@ import { check } from './check/module.f.mjs'
 import { emit } from './wasm/module.f.mjs'
 
 const max = fn([['a', f64], ['b', f64]], f64, (a, b) => if_(lt(a, b), b, a))
-const bytes = write(emit(unwrap(check({ functions: [['max', max]], exports: ['max'] }))))
+const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], exports: ['max'] }))))
 ```
 
 ## What the first slice admits

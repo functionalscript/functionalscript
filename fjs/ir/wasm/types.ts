@@ -8,10 +8,17 @@
  */
 
 /**
- * A value of the IR on the host, as the host proofs pass it: an integer as
- * a `bigint`, a float as a `number`, and a `bool` as a `boolean`.
+ * A value of a sealed type, as the host proofs pass it: the FunctionalScript
+ * value whose handle the function gets.
  */
-export type _Value = bigint | number | boolean
+export type _Any = { readonly any: unknown }
+
+/**
+ * A value of the IR on the host, as the host proofs pass it: an integer as
+ * a `bigint`, a float as a `number`, a `bool` as a `boolean`, and a value
+ * of `any` as the value it holds.
+ */
+export type _Value = bigint | number | boolean | _Any
 
 /** A function's JavaScript twin, on its arguments in their order. */
 export type _Twin = (xs: readonly _Value[]) => _Value

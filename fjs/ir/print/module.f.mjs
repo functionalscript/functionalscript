@@ -9,12 +9,20 @@
  *     if lt(a, b) then b else a
  * ```
  *
+ * An interface that the module imports comes first, as its binding, its
+ * sealed types and its functions' signatures:
+ *
+ * ```text
+ * import String from fjs:l0
+ *     fn length(s: any.only(string)) -> u(31)
+ * ```
+ *
  * The text is for people and for golden proofs. Nothing reads it back: the
  * IR passes from one stage to the next as data.
  *
  * @module
  *
- * @import { ArmOf, Fn, Int, Module, Parts, Term, Type } from '../types.ts'
+ * @import { ArmOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
  */
 
 import { bool, equal, never, unit } from '../module.f.mjs'
@@ -35,9 +43,13 @@ const showInt = ([, lo, hi]) => {
 /** @type {(parts: Parts) => string} */
 const showParts = parts => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
 
+/** A sealed type by its name, and the variants it keeps where it keeps some: `any`, `any.only(number)`. @type {(t: Sealed) => string} */
+const showSealed = ([, , name, only]) => only === null ? name : `${name}.only(${only.join(', ')})`
+
 /**
  * A type as text: `unit`, `never` and `bool` by their names, a product as
- * its fields in braces, and any other sum as `sum({ … })`.
+ * its fields in braces, a sealed type as its interface names it, and any
+ * other sum as `sum({ … })`.
  *
  * @type {(t: Type) => string}
  */
@@ -46,6 +58,7 @@ export const show = t => {
         case 'int': { return showInt(t) }
         case 'f64': case 'f64c': { return t[0] }
         case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(t[1])} }` }
+        case 'sealed': { return showSealed(t) }
         default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(t[1])} })` }
     }
 }
@@ -68,6 +81,12 @@ const showLit = (type, value) => {
     const text = typeof value === 'bigint' ? `${value}` : showFloat(value)
     const plain = type[0] === 'int' ? type[1] === value && type[2] === value : type[0] === 'f64c'
     return plain ? text : `${text} as ${show(type)}`
+}
+
+/** A trap's reason, quoted: `trap('not number')`. @type {(reason: string) => string} */
+const showTrap = reason => {
+    const quoted = [...reason].map(c => c === "'" || c === '\\' ? `\\${c}` : c).join('')
+    return `trap('${quoted}')`
 }
 
 /**
@@ -105,6 +124,7 @@ const flat = t => {
             const value = flat(t[2])
             return value === null ? null : `${transfer(t[1])} ${value}`
         }
+        case 'trap': { return showTrap(t[1]) }
         default: { return null }
     }
 }
@@ -172,23 +192,35 @@ const lines = (t, pad) => {
             ])]
         }
         case 'block': { return [`${pad}block ${t[1]}: ${show(t[2])}`, ...lines(t[3], inner)] }
-        default: { return after(transfer(t[1]), t[2]) }
+        case 'br': { return after(transfer(t[1]), t[2]) }
+        default: { return [`${pad}${showTrap(t[1])}`] }
     }
 }
 
+/** A signature after `fn` and its name. @type {(name: string, s: Signature) => string} */
+const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`
+
 /** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
-const showFn = (name, { params, result, body }) => [
-    `fn ${name}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)} =`,
-    ...lines(body, '    '),
+const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]
+
+/** An interface as its binding, its sealed types and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
+const showInterface = (name, { abi, types, functions }) => [
+    `import ${name} from ${abi}`,
+    ...types.flatMap(([type, { variants, kind, carrier }]) => [
+        `    type ${type} = ${variants.join(' | ')}`,
+        `        kind: ${kind}, carrier: ${carrier}`,
+    ]),
+    ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),
 ]
 
 /**
- * A module as text: its functions in their order, each after a blank line
- * but the first, and its exports last.
+ * A module as text: the interfaces it imports, then its functions, in their
+ * order, each after a blank line but the first, and its exports last.
  *
  * @type {(m: Module) => string}
  */
 export const print = m => [
-    ...m.functions.flatMap(([name, f], k) => [...(k === 0 ? [] : ['']), ...showFn(name, f)]),
+    ...[...m.imports.map(([name, i]) => showInterface(name, i)), ...m.functions.map(([name, f]) => showFn(name, f))]
+        .flatMap((paragraph, k) => [...(k === 0 ? [] : ['']), ...paragraph]),
     ...(m.exports.length === 0 ? [] : ['', `export ${m.exports.join(', ')}`]),
 ].map(line => `${line}\n`).join('')

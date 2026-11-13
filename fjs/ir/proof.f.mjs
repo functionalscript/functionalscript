@@ -4,9 +4,9 @@
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
-    abs, add, block, bool, br, call, compareIn, div, eq, equal, f64, f64c, false_, fits, float, fn, get,
-    i, if_, int, le, let_, lit, lt, make, match, mul, n, ne, neg, never, not, return_, signature, sqrt, sub,
-    true_, u, unit, variant,
+    abs, add, block, bool, br, call, cast, compareIn, div, eq, equal, f64, f64c, false_, fits, float, fn, get,
+    i, if_, int, le, let_, lit, lt, make, match, mul, n, ne, neg, never, not, only, return_, sealed, signature,
+    sqrt, sub, trap, true_, u, unit, variant,
 } from './module.f.mjs'
 
 export const proof = {
@@ -67,6 +67,16 @@ export const proof = {
         assert(equal(match(get('b'), [[null, null, n(1n)]]), ['match', get('b'), [[null, null, n(1n)]]]))
         assert(equal(block('l', f64, n(1n)), ['block', 'l', f64, n(1n)]))
         assert(equal(br('l', n(1n)), ['br', 'l', n(1n)]))
+    },
+    sealed: () => {
+        const any = sealed('Any', 'any')
+        assert(equal(any, ['sealed', 'Any', 'any', null]))
+        assert(equal(only(any, 'number', 'string'), ['sealed', 'Any', 'any', ['number', 'string']]))
+        assert(equal(trap('no'), ['trap', 'no']))
+        // A cast is a `match` whose other arm traps, and a cast to every variant is a `let`.
+        assert(equal(cast(only(any, 'number'), get('v'), 'x', x => x), match(get('v'), [[['number'], 'x', get('x')], [null, null, trap('not number')]])))
+        assert(equal(cast(only(any, 'null', 'undefined'), get('v'), 'x', n(1n)), match(get('v'), [[['null', 'undefined'], 'x', n(1n)], [null, null, trap('not null or undefined')]])))
+        assert(equal(cast(any, get('v'), 'x', get('x')), let_('x', get('v'), get('x'))))
     },
     let_: () => {
         // The body is a term, or a function of the local.
