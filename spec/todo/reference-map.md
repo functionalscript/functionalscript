@@ -132,10 +132,12 @@ uses the existing [function representation](../design/serialization.md) and
 its sharing, which keeps a key the same reference as its other uses in the
 graph, and adds no format.
 
-The entries are written in the order the keys were first set. Each map is built
-from the one before it, so that order follows from the program and not from
-the order an executor evaluates in. A native map therefore retains its keys
-and their first-set order, neither of which a call can observe.
+The map has no order, so the serializer supplies one from what it already
+has: the entries are written in the order of their keys' positions in the
+serialized graph. An entry whose key appears nowhere else in that graph is
+left out, since nothing could pass that key to the map once it is read back.
+A native map therefore retains its keys, which no call can observe, and
+records no order.
 
 ### Several bodies, one instruction
 
@@ -182,6 +184,12 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
   set, whose result type then depends on an argument, and a get-or-create
   taking a callback, which cannot replace a value and loses what the callback
   itself adds to the map. Each is a wrapper over the one proposed.
+- **A container with `size` and `entries` commands.** Usable without a
+  separate ordered container, and its body is only a few lines longer, but
+  the order of entries becomes observable. The ids cannot supply it: they are
+  assigned across every map descended from one empty map, so a set whose
+  result is discarded would change a later listing. Each entry then carries a
+  per-map order number that every body and the VM must reproduce.
 
 ### Open decisions
 
@@ -203,12 +211,12 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
   [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md);
   a body that departs from an admitted one is refused where it uses `WeakMap`.
 - [ ] Implement the native map in the EDAG interpreters and NaNVM, retaining
-  keys and their first-set order, and serialize it as the fold that rebuilds it.
+  keys, and serialize it as the fold that rebuilds it.
 - [ ] Prove agreement with the copy-on-set reference across executors:
   aliases, equal-content distinct objects, arrays and functions, a `value` of
-  `undefined`, a read answering the same map, primitive keys, older versions after later sets, two
-  families that share keys, and a serialized map read back with its keys
-  still shared.
+  `undefined`, a read answering the same map, primitive keys, older versions
+  after later sets, two families that share keys, and a serialized map read
+  back with its keys still shared.
 - [ ] Spell the pattern once in a standard module, document it with an
   example that keeps its data in an ordinary container under keys the map
   assigns, and fold the behavior into the specification.
