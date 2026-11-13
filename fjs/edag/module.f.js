@@ -787,7 +787,7 @@ export const noStatic = name => `no binding for the static ${name}`
  * an executor without the map fails naming it, never answering a function
  * that is not one.
  */
-export const noRefMap = 'no reference map in this executor'
+export const noRefMap = /** @type {const} */ ('no reference map in this executor')
 
 /**
  * The intrinsics: the member functions no body can define — the
