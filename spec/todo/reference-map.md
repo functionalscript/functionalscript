@@ -212,33 +212,84 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
   result is discarded would change a later listing. Each entry then carries a
   per-map order number that every body and the VM must reproduce.
 
+### Where it lands
+
+A recognized helper is an EDAG leaf: `entry` is the zero-operand node
+`['entry']`, listed in [`fjs/edag`](../../fjs/edag/module.f.js) and repeated by
+hand in the tag lists of analysis, sharing, the shared evaluator, the
+serializers and the Rust output. The empty map is one more such leaf. What is
+new is its result: no evaluated function carries state today except a closure,
+so a map after a set is a new kind of evaluated value.
+
+- The interpreters are FunctionalScript and cannot use `WeakMap`; they look
+  keys up through the standard module, whose body runs on the host. This
+  assumes an interpreter's reference values keep their host identity, so that
+  the module sees the keys `===` sees.
+- NaNVM builds every function with `static_function(code, length, frame,
+  text)`, so a native function can hold a map in `frame` and return another.
+  It needs a reference's identity as a number, which the VM interface may not
+  offer yet.
+- The parser already parses loops, `let`, assignments and call statements, and
+  parses `new` before refusing it. Whether it parses every construct of the
+  body, a captured `let` assigned from a nested function among them, is not
+  yet checked.
+- The WASM runtime keeps its own helper bodies and is out of scope: it refuses
+  the map until a `todo/` of its own takes it.
+
 ### Open decisions
 
-- What the other observations of the function answer: `String(m)` under the
-  [function-source exception](../principles/README.md#function-source-representation-exception)
-  or a refusal, and `m.length`.
-- How the EDAG and its JavaScript interpreters represent the native callable.
+Each has a proposal; none is decided.
+
+1. **Approval** of the feature by the language designer, with its link, as
+   [DESIGN §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+   requires before implementation.
+2. **The evaluated value of a map with state.** Proposed: `['refMap', index,
+   sets]`, an index for lookup and the list of sets for serialization.
+3. **How the body is recognized.** It is about 35 lines, where `entry` is two
+   statements. Proposed: one matcher that compares the parsed function with a
+   canonical tree up to a consistent renaming of bindings, so that a further
+   admitted body is one more tree.
+4. **The other observations of the function.** Proposed: `m.length` is 2, and
+   `String(m)` is one canonical text for every map, under the
+   [function-source exception](../principles/README.md#function-source-representation-exception).
+5. **Names.** Proposed: the leaf `refMap`, the module `fjs/types/ref_map`, and
+   its export `empty`.
+6. **Whether the open P1 of
+   [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
+   comes first.** It asks for the boundary before a pattern instruction ships;
+   the proposed matcher works on the same parsed syntax `entry` is matched on
+   today.
 
 ### Tasks
 
-- [ ] Settle the open decisions and record the language designer's approval
-  and its link before implementing, as
-  [DESIGN §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-  requires.
-- [ ] Define recognition of the whole function over parsed statements and
-  expressions with validated bindings, following
-  [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md);
-  a body that departs from an admitted one is refused where it uses `WeakMap`.
-- [ ] Implement the native map in the EDAG interpreters and NaNVM, retaining
-  keys, and serialize it as the fold that rebuilds it.
-- [ ] Prove agreement with the copy-on-set reference across executors:
-  aliases, equal-content distinct objects, arrays and functions, a `value` of
-  `undefined`, a read answering the same map, primitive keys, older versions
-  after later sets, two families that share keys, and a serialized map read
-  back with its keys still shared.
-- [ ] Spell the pattern once in a standard module, document it with an
-  example that keeps its data in an ordinary container under keys the map
-  assigns, and fold the behavior into the specification.
+A stack of pull requests on the one that files this proposal, each taking one
+step ([SESSION.md](../../doc/SESSION.md)):
+
+- [ ] Settle the open decisions and record them here.
+- [ ] `edag`: add the `refMap` leaf — its id, types and schemas, and every
+  hand-written tag list. Every executor and the Rust output refuse it; the
+  JavaScript serializer writes the canonical body. No source reaches it yet.
+- [ ] `compiler/parser`: recognize the body and emit the leaf. Prove renamed
+  bindings, layouts, and bodies that depart from it by one step, which are
+  ordinary functions refused where they use `WeakMap`.
+- [ ] `types/ref_map`: spell the pattern once, with its types and a proof of
+  the contract against a map copied on every set: aliases, equal-content
+  distinct objects, arrays and functions, a `value` of `undefined`, a read
+  answering the same map, primitive keys, older versions after later sets,
+  and two families that share keys.
+- [ ] `edag`: evaluate maps in the shared evaluator, for both interpreters —
+  the value, calls, `length`, equality and text — and prove the same cases.
+- [ ] `compiler/serializer`: write a map as the fold that rebuilds it, entries
+  in the order of their keys' positions and unreachable keys left out; prove
+  that a map read back keeps its keys shared.
+- [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
+  keys, within the `O(log n)` bound.
+- [ ] `rust/serializer`: emit the map, with harness fixtures and demos.
+- [ ] `spec`: the specification page with a sample that keeps its data in an
+  ordinary container under keys the map assigns; update the
+  [design sketch](../design/object-identity.md) and the
+  [capability gap](../../todo/037-language-design-map.md), and delete this
+  file.
 
 ### Related
 
