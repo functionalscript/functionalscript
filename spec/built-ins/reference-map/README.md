@@ -3,8 +3,37 @@
 **Status:** implemented
 
 ```js
-import { empty } from 'functionalscript/fjs/types/ref_map/module.f.js';
-
+const empty = (key, value) => {
+    const ids = new WeakMap()
+    let next = 1n
+    const get = (node, i) => {
+        while (true) {
+            if (node === undefined) { return undefined }
+            if (i === 1n) { return node.value }
+            node = i & 1n ? node.one : node.zero
+            i >>= 1n
+        }
+    }
+    const set = (node, i, newValue) => {
+        const { value, zero, one } = node ?? {}
+        return i === 1n ? { value: newValue, zero, one } :
+            i & 1n ? { value, zero, one: set(one, i >> 1n, newValue) } :
+            { value, zero: set(zero, i >> 1n, newValue), one }
+    }
+    const make = root => {
+        const self = (key, value) => {
+            const existing = ids.get(key)
+            const old = existing === undefined ? undefined : get(root, existing)
+            if (value === undefined) { return [old, self] }
+            const i = existing ?? next
+            if (existing === undefined) { next += 1n }
+            ids.set(key, i)
+            return [old, make(set(root, i, value))]
+        }
+        return self
+    }
+    return value === undefined ? [undefined, empty] : make(undefined)(key, value)
+}
 const a = {};
 const b = [];
 const [, one] = empty(a, "an object");
@@ -15,8 +44,13 @@ export default (...c) => two([a, b, {}][Number(c[0])])[0];
 A program compares two references with `===`, and nothing else tells them
 apart: there is no hash and no order of references, so a reference among
 many is found by comparing it with each. The **reference map** is the one
-thing that finds it faster. It is a function, and the empty one is
-[`empty`](../../../fjs/types/ref_map/module.f.js):
+thing that finds it faster. It is a function, and the empty one is `empty`,
+the function the example begins with, which a program imports instead of
+writing out:
+
+```js
+import { empty } from 'functionalscript/fjs/types/ref_map/module.f.js';
+```
 
 ```ts
 type RefMapKey = object | Function
@@ -63,45 +97,11 @@ and the [principles](../../principles/README.md) hold as written.
 
 `empty` is recognized whole, as the
 [`entry` helper](../../property-access/entries/README.md) is: the function
-below, as the whole initializer of a `const`, under any names and any layout.
-It is written once in
+the example begins with, as the whole initializer of a `const`, under any
+names and any layout. It is written once in
 [`fjs/types/ref_map`](../../../fjs/types/ref_map/module.f.js) and imported
 from there; a module that spells its own gets a map of its own, which is what
 JavaScript gives it too.
-
-```js
-const empty = (key, value) => {
-    const ids = new WeakMap()
-    let next = 1n
-    const get = (node, i) => {
-        while (true) {
-            if (node === undefined) { return undefined }
-            if (i === 1n) { return node.value }
-            node = i & 1n ? node.one : node.zero
-            i >>= 1n
-        }
-    }
-    const set = (node, i, newValue) => {
-        const { value, zero, one } = node ?? {}
-        return i === 1n ? { value: newValue, zero, one } :
-            i & 1n ? { value, zero, one: set(one, i >> 1n, newValue) } :
-            { value, zero: set(zero, i >> 1n, newValue), one }
-    }
-    const make = root => {
-        const self = (key, value) => {
-            const existing = ids.get(key)
-            const old = existing === undefined ? undefined : get(root, existing)
-            if (value === undefined) { return [old, self] }
-            const i = existing ?? next
-            if (existing === undefined) { next += 1n }
-            ids.set(key, i)
-            return [old, make(set(root, i, value))]
-        }
-        return self
-    }
-    return value === undefined ? [undefined, empty] : make(undefined)(key, value)
-}
-```
 
 The body reads its own name, so that a read of the empty map answers the
 empty map, which is why only a `const` declaration can be it. `WeakMap`, the
@@ -146,9 +146,10 @@ The design, the alternatives and the measurements are in
 
 ## Examples
 
-The example above is [`sample.f.js`](./sample.f.js), with the function
-written out, since a demo is one module; [`demo.f.mjs`](./demo.f.mjs) shows
-its outputs and calls it with `0`, `1` and `2`.
+The example is [`sample.f.js`](./sample.f.js), with the function written
+out, since a demo is one module; [`demo.f.mjs`](./demo.f.mjs) shows its
+outputs and calls it with `0`, `1` and `2`: the object, the array, and an
+object the map never held.
 
 ## Reference
 
