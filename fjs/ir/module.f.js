@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, F64, F64c, Fn, Int, OpName, Param, Product, Sealed, Signature, Sum, Term, Type } from './types.ts'
+ * @import { ArmOf, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Product, Sealed, Signature, Sum, Term, Type } from './types.ts'
  */
 
 // types
@@ -119,6 +119,14 @@ export const le = op('le')
 /** An integer, within ±2^53, as the float of its value. */
 export const float = op('float')
 
+/**
+ * A float as an integer of `t`: truncated toward zero, then saturated to
+ * `t`'s bounds, a NaN as `0` is. It never fails.
+ *
+ * @type {(t: Int, x: Term) => Term}
+ */
+export const trunc_sat = (t, x) => ['op', 'trunc_sat', [x], t]
+
 /** A function of a module, `self` for the module itself. @type {(module: string, name: string, args: readonly Term[]) => Term} */
 export const call = (module, name, args) => ['call', module, name, args]
 
@@ -137,6 +145,15 @@ export const match = (e, arms) => ['match', e, arms]
 
 /** @type {(label: string, type: Type, body: Term) => Term} */
 export const block = (label, type, body) => ['block', label, type, body]
+
+/**
+ * A loop: `body`, which is a term or a function of the parameters' locals
+ * in their order, repeated with the parameters that a `br` to `label`
+ * gives.
+ *
+ * @type {(label: string, params: readonly LoopParamOf<Term>[], body: Term | ((...xs: readonly Term[]) => Term)) => Term}
+ */
+export const loop = (label, params, body) => ['loop', label, params, typeof body === 'function' ? body(...params.map(([name]) => get(name))) : body]
 
 /** @type {(label: string, e: Term) => Term} */
 export const br = (label, e) => ['br', label, e]
@@ -157,6 +174,24 @@ export const ne = (a, b) => not(eq(a, b))
 
 /** @type {(e: Term) => Term} */
 export const return_ = e => br('return', e)
+
+/** The next round of a loop: `br` to its label with the next values of its parameters, by their names. @type {(label: string, fields: readonly (readonly [string, Term])[]) => Term} */
+export const next = (label, fields) => br(label, make(fields))
+
+/**
+ * `body` of the integer of `t` that a float holds exactly, which is bound to
+ * `name`, and a trap where the float holds none: a fraction, a NaN or an
+ * infinity, or a value outside `t`. `-0` holds `0`. A float that is no
+ * local or literal is bound first, to `name.float`. `t` is within ±2^53, as
+ * `float` needs.
+ *
+ * @type {(t: Int, x: Term, name: string, body: (k: Term) => Term) => Term}
+ */
+export const exact = (t, x, name, body) => {
+    /** @type {(y: Term) => Term} */
+    const test = y => let_(name, trunc_sat(t, y), k => if_(eq(float(k), y), body(k), trap('inexact')))
+    return x[0] === 'get' || x[0] === 'lit' ? test(x) : let_(`${name}.float`, x, test)
+}
 
 /**
  * A cast: `e`, as `name` in `body`, where it holds a value of `t`'s

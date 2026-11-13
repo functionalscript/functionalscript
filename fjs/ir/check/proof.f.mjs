@@ -5,11 +5,11 @@
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, cast, div, eq, f64, f64c, float, fn, get, i, if_, int, let_, lit, lt, make,
-    match, mul, n, neg, never, only, return_, sealed, signature, trap, true_, u, unit, variant,
+    add, block, bool, br, call, cast, div, eq, f64, f64c, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
+    match, mul, n, neg, never, next, only, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { corners, samples, unknown } from '../testlib.f.mjs'
+import { corners, loops, samples, unknown } from '../testlib.f.mjs'
 import { check, typeOf } from './module.f.mjs'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -234,6 +234,57 @@ export const proof = {
         const scope = { name: 'f', locals: /** @type {const} */ ([['a', unit]]), result: f64, functions: [], imports: [] }
         assertEq(assertError(typeOf(scope)(one_)), 'f: unit is not in this slice')
         assertEq(assertError(typeOf({ ...scope, locals: [], functions: [['g', signature([['b', unit]], f64)]] })(one_)), 'g: unit is not in this slice')
+    },
+    loops: () => {
+        const { functions } = assertOk(check(loops))
+        assertEq(functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '), [
+            'stringEquals: bool', 'stringLess: bool', 'factorial: f64', 'triangle: f64', 'kindAfter: int(0, 8)',
+            'index: u(31)', 'indexOfSum: u(31)', 'three: u(31)', 'toU31: u(31)', 'toI32: i(32)', 'toU32: u(32)',
+            'toSmall: int(-5, 300)', 'toU64: u(64)', 'toI64: i(64)', 'toWide: int(10, 1099511627776)',
+            'toNegative: int(-1099511627776, -3)',
+        ].join(', '))
+    },
+    loop: () => {
+        const p = /** @type {const} */ ([['x', f64]])
+        /** A loop of `f`, which gives an `f64`. @type {(params: Parameters<typeof loop>[1], body: Parameters<typeof loop>[2]) => Module} */
+        const looping = (params, body) => one(p, f64, loop('l', params, body))
+        // The loop's type is its body's, and a parameter takes a narrower first value.
+        assertEq(bodyType(looping([['k', f64, one_]], k => if_(lt(k, x), next('l', [['k', add(k, one_)]]), k))), 'f64')
+        assertEq(bodyType(looping([], one_)), 'f64c')
+        // A label and a parameter are new names, of types that a module may write and that hold a value.
+        assertEq(why(one(p, f64, block('l', f64, looping([], one_).functions[0][1].body))), 'f: the label l is in scope already')
+        assertEq(why(looping([], loop('l', [], one_))), 'f: the label l is in scope already')
+        assertEq(why(looping([['k', f64, one_], ['k', f64, one_]], one_)), 'f: loop l has two parameters named k')
+        assertEq(why(looping([['x', f64, one_]], one_)), 'f: x is bound twice')
+        assertEq(why(looping([['k', unit, make([])]], one_)), 'f: unit is not in this slice')
+        assertEq(why(looping([['k', never, trap('no')]], one_)), 'f: k is never, so loop l never starts')
+        // The first values are typed where the loop stands, and the body where the parameters are.
+        assertEq(why(looping([['k', f64, y]], one_)), 'f: no local y')
+        assertEq(why(looping([['k', f64, true_]], one_)), 'f: k of loop l is f64, not bool')
+        assertEq(why(looping([['k', f64, get('k')]], one_)), 'f: no local k')
+        assertEq(why(looping([], y)), 'f: no local y')
+        assertEq(why(looping([], make([]))), 'f: loop l: unit is not in this slice')
+        assertEq(why(one(p, f64, let_('r', loop('l', [['k', f64, one_]], k => k), get('k')))), 'f: no local k')
+        assertEq(why(one(p, f64, let_('r', loop('l', [], one_), next('l', [])))), 'f: no label l')
+        // A `br` to a loop gives each of its parameters, by name, in their order.
+        const two = /** @type {const} */ ([['a', f64, one_], ['b', f64, one_]])
+        assertEq(why(looping(two, br('l', one_))), "f: br l takes { a, b }, the loop's parameters in their order")
+        assertEq(why(looping(two, next('l', [['b', one_], ['a', one_]]))), "f: br l takes { a, b }, the loop's parameters in their order")
+        assertEq(why(looping(two, next('l', [['a', one_]]))), "f: br l takes { a, b }, the loop's parameters in their order")
+        assertEq(why(looping(two, next('l', [['a', one_], ['b', y]]))), 'f: no local y')
+        assertEq(why(looping(two, next('l', [['a', one_], ['b', true_]]))), 'f: b of loop l is f64, not bool')
+        assertEq(why(looping(two, add(next('l', [['a', one_], ['b', one_]]), one_))), 'f: a br that gives no value stands where a value is used')
+    },
+    trunc_sat: () => {
+        const p = /** @type {const} */ ([['x', f64]])
+        assertEq(bodyType(one(p, u(8), trunc_sat(u(8), x))), 'u(8)')
+        assertEq(bodyType(one(p, u(8), trunc_sat(u(8), one_))), 'u(8)')
+        assertEq(why(one(p, u(8), ['op', 'trunc_sat', [x]])), 'f: trunc_sat takes the range that it saturates to')
+        assertEq(why(one(p, u(8), trunc_sat(int(0n, 1n << 64n), x))), 'f: int(0, 18446744073709551616) needs more than one word')
+        assertEq(why(one(p, u(8), ['op', 'trunc_sat', [x, x], u(8)])), 'f: trunc_sat takes one operand, not 2')
+        assertEq(why(one(p, u(8), trunc_sat(u(8), n(1n)))), 'f: trunc_sat of int(1, 1): trunc_sat takes a float')
+        assertEq(why(one(p, u(8), trunc_sat(u(8), y))), 'f: no local y')
+        assertEq(why(one(p, f64, ['op', 'add', [x, x], u(8)])), 'f: add takes no range')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

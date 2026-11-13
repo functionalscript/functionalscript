@@ -717,6 +717,7 @@ const structItem = (value, k) => entry(value, k)
  * @returns {(rtti: Type) => ValidateE}
  */
 export const readerOf = ({ empty, cons }, finish) => {
+    /** @type {Omit<Reader<A>, 'read'>} */
     const reader = { empty, cons }
     const container = openContainerRead(reader)
     const constContainer = openConstContainerRead(reader)

@@ -86,6 +86,20 @@ export const proof = {
         assertEq(stringify(['[]', [captured, fn, fn]]),
             'const $0=[2];const $1=(($2,$3)=>(()=>$3))($0,$0);export default [$0,$1,$1];')
     },
+    // A function that reads itself is named at the start, and what it
+    // captures with it. A value its capture holds, and one operand repeats,
+    // is named there too: one object, written once, wherever it is nested.
+    selfCaptureSharing: () => {
+        const shared = /** @type {const} */ (['{}', [[':', 'name', 'a']]])
+        const captured = /** @type {const} */ (['[]', [shared]])
+        const fn = /** @type {const} */ (['=>', 1, [captured], ['[]', [['frame', 0], ['self']]]])
+        const expected = /** @type {const} */ ('const $0={"name":"a"};const $1=[$0];const $2=(function $3($4){return [$1,$3];});')
+        assertEq(stringify(['[]', [shared, fn]]), `${expected}export default [$0,$2];`)
+        assertEq(stringify(['{}', [[':', 'x', ['[]', [shared, fn]]]]]), `${expected}export default {"x":[$0,$2]};`)
+        assertEq(stringify(['{}', [[':', 'x', ['{}', [[':', 'y', ['[]', [shared, fn]]]]]]]]), `${expected}export default {"x":{"y":[$0,$2]}};`)
+        // with no such function, a value repeated inside one operand stays there
+        assertEq(stringify(['{}', [[':', 'x', ['[]', [shared, shared]]]]]), 'export default {"x":(()=>{const $0={"name":"a"};return [$0,$0];})()};')
+    },
     bodyScopes: () => {
         // Body constructors remain in the function, even when their spelling
         // matches a captured container constructed at module load.

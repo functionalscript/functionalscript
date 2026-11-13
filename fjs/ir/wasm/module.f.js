@@ -30,9 +30,16 @@
  *   Imports come first, an interface at a time.
  * - **A `match` of a `bool` is an `if`**, a `block` is a `block`, and a `br`
  *   is a `br`, or a `return` to the label `return`. Where a `match`, a
- *   `block` or a `call` is `never`, an `unreachable` follows it, so that the
- *   code after it validates: WASM knows that nothing follows a `br`, and
- *   not that nothing follows these.
+ *   `block`, a `loop` or a `call` is `never`, an `unreachable` follows it,
+ *   so that the code after it validates: WASM knows that nothing follows a
+ *   `br`, and not that nothing follows these.
+ * - **A `loop` is a `loop`, and its parameters are locals.** Their first
+ *   values are set before it, and a `br` to it computes every next value
+ *   before it sets any, then branches back to its start.
+ * - **`trunc_sat` is the word's saturating truncation**, `trunc_sat_f64_s`
+ *   or `trunc_sat_f64_u` of the range's word by its signedness, then a
+ *   `select` for each bound of the range that lies inside the word, through
+ *   a local named `trunc_sat`.
  * - **A `match` of a sealed type asks its interface for the tag**, through
  *   the function that the type names as its `kind`, once, and tests it with
  *   an `if` for each arm but the last, which takes the variants that no arm
@@ -40,18 +47,18 @@
  * - **A `trap` is an `unreachable`.**
  *
  * The functions keep their order and their names, which the name section
- * holds with their parameters and the locals of their `let`s, and an import
- * is named for its interface and its function: `String.length`.
+ * holds with their parameters and the locals of their `let`s and loops, and
+ * an import is named for its interface and its function: `String.length`.
  *
  * @module
  *
  * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
  * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { _Callee, _Code, _EmitTerm, _Env } from './private.ts'
+ * @import { _Callee, _Code, _EmitTerm, _Env, _Target } from './private.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { bitsOf } from '../../media/rust/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { compareIn, equal, fits, i, never, u } from '../module.f.js'
@@ -181,12 +188,45 @@ const sequence = (emitTerm, env, parts, after) => {
 }
 
 /**
+ * `trunc_sat` of a float to `t`: the WASM truncation that saturates to the
+ * word of `t`, read as `t` reads it, then a `select` through a local, named
+ * `trunc_sat`, for each bound of `t` inside the word's.
+ *
+ * @type {(emitTerm: _EmitTerm, env: _Env, t: Int, x: Typed) => _Code}
+ */
+const truncSat = (emitTerm, env, t, x) => {
+    const bits = width(t)
+    const isSigned = signed(t)
+    const [, lo, hi] = isSigned ? i(bits) : u(bits)
+    /** @type {Instruction} */
+    const cut = bits === 32 ? (isSigned ? ['i32.trunc_sat_f64_s'] : ['i32.trunc_sat_f64_u'])
+        : isSigned ? ['i64.trunc_sat_f64_s'] : ['i64.trunc_sat_f64_u']
+    const c = sequence(emitTerm, env, [[x, x[0]]], [cut])
+    const slot = env.next + c.locals.length
+    const less = integer('lt', bits, isSigned)
+    /** `bound` where `beyond` holds of the value, else the value. @type {(bound: bigint, beyond: Expr) => Expr} */
+    const clamp = (bound, beyond) => [['local.set', slot], literal(t, bound), ['local.get', slot], ...beyond, ['select']]
+    /** @type {Expr} */
+    const low = t[1] > lo ? clamp(t[1], [['local.get', slot], literal(t, t[1]), less]) : []
+    /** @type {Expr} */
+    const high = t[2] < hi ? clamp(t[2], [literal(t, t[2]), ['local.get', slot], less]) : []
+    /** @type {_Code['locals']} */
+    const kept = low.length + high.length === 0 ? [] : [['trunc_sat', bits === 32 ? 'i32' : 'i64']]
+    return { code: [...c.code, ...low, ...high], locals: [...c.locals, ...kept] }
+}
+
+/**
  * An operator: its operands, each made a value of the word that it runs in,
  * then its instruction, and a wrap where its result's word is narrower.
  *
  * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, name: OpName, args: readonly Typed[]) => _Code}
  */
 const operator = (emitTerm, env, type, name, args) => {
+    if (name === 'trunc_sat') {
+        // The checker types `trunc_sat` as the range that it saturates to.
+        assert(type[0] === 'int', type)
+        return truncSat(emitTerm, env, type, args[0])
+    }
     const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))
     if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
@@ -206,6 +246,15 @@ const operator = (emitTerm, env, type, name, args) => {
 
 /** @type {(env: _Env) => _Env} */
 const deeper = env => ({ ...env, depth: env.depth + 1 })
+
+/** The labels of `env` and `label`, which names a structure at `env`'s depth. @type {(env: _Env, label: string, target: _Target) => _Env['labels']} */
+const labelled = (env, label, target) => setReplace(label)(/** @type {const} */ ([env.depth, target]))(env.labels)
+
+/** The value on the top of the stack into a parameter's local. @type {(slot: readonly [number, Type]) => Instruction} */
+const setOne = ([slot]) => ['local.set', slot]
+
+/** The values on the stack, the last on top, each into its parameter's local. @type {(slots: readonly (readonly [number, Type])[]) => Expr} */
+const setAll = slots => slots.map(setOne).toReversed()
 
 /**
  * A `match` of a sealed type. A `get` is read from its local, and any other
@@ -304,15 +353,33 @@ const term = (env, [type, t]) => {
         }
         case 'block': {
             const [, label, , body] = t
-            const b = valueOf(term, deeper({ ...env, labels: setReplace(label)(/** @type {const} */ ([env.depth, type]))(env.labels) }), 0, body, type)
+            const b = valueOf(term, deeper({ ...env, labels: labelled(env, label, ['block', type]) }), 0, body, type)
             return { code: [['block', blockType(env, type)], ...b.code, ['end'], ...afterNever(type)], locals: b.locals }
+        }
+        case 'loop': {
+            const [, label, params, body] = t
+            const firsts = sequence(term, env, params.map(([, x, first]) => /** @type {const} */ ([first, x])), [])
+            const base = env.next + firsts.locals.length
+            /** @type {readonly (readonly [number, Type])[]} */
+            const slots = params.map(([, x], j) => [base + j, x])
+            const locals = params.reduce((ls, [k], j) => setReplace(k)(base + j)(ls), env.locals)
+            const inner = deeper({ ...env, locals, next: base + params.length, labels: labelled(env, label, ['loop', slots]) })
+            const b = valueOf(term, inner, 0, body, type)
+            return {
+                code: [...firsts.code, ...setAll(slots), ['loop', blockType(env, type)], ...b.code, ['end'], ...afterNever(type)],
+                locals: [...firsts.locals, ...params.map(([k, x]) => /** @type {const} */ ([k, carrier(env.interfaces, x)[0]])), ...b.locals],
+            }
         }
         case 'br': {
             const [, label, value] = t
             const [depth, target] = assertNotNullish(at(label)(env.labels))
             /** @type {Instruction} */
             const leave = label === 'return' ? ['return'] : ['br', env.depth - depth - 1]
-            return sequence(term, env, [[value, target]], [leave])
+            if (target[0] === 'block') { return sequence(term, env, [[value, target[1]]], [leave]) }
+            // The checker takes a `br` to a loop only with a `make` of the loop's parameters.
+            const v = value[1]
+            assert(v[0] === 'make', v)
+            return sequence(term, env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][Number(j)][1]])), [...setAll(target[1]), leave])
         }
         default: { return just([['unreachable']]) }
     }
@@ -364,7 +431,7 @@ export const emit = m => {
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
         locals: fromEntries(params.map(([name], k) => [name, k])),
-        labels: setReplace('return')(/** @type {const} */ ([-1, result]))(empty),
+        labels: setReplace('return')(/** @type {const} */ ([-1, ['block', result]]))(empty),
         depth: 0,
         next: params.length,
         functions,

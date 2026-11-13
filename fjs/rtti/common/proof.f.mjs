@@ -274,15 +274,13 @@ export const proof = {
     },
     orVisit: {
         firstMatch: () => {
-            let reads = 0
             const matched = ok('matched')
             /** @type {Reader<undefined>['read']} */
             const read = t => value => {
-                reads += 1
+                assert(t !== 3, 'read past the first matching variant')
                 return t === value ? matched : verror('not this variant')
             }
-            assertEq(orVisit(read)([1, 2, 2])(2), matched)
-            assertEq(reads, 2)
+            assertEq(orVisit(read)([1, 2, 3])(2), matched)
         },
         noMatch: () => assertStructurallySame(orVisit(listing.read)([1, 2])(3), verror('no match')),
         empty: () => assertStructurallySame(orVisit(listing.read)([])(1), verror('no match')),

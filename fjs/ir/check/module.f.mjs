@@ -29,8 +29,8 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
- * @import { _CheckTerm, _Env } from './private.ts'
+ * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Param, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { _CheckTerm, _Env, _Label } from './private.ts'
  */
 
 import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
@@ -183,6 +183,21 @@ const opType = (name, args) => {
         : error(`${name} of ${texts}: an operator takes integers or floats`)
 }
 
+/**
+ * `trunc_sat`'s type: the range that it saturates to, which a module may
+ * write, of one float.
+ *
+ * @type {(env: _Env, target: Int | undefined, args: readonly Type[]) => Result<Type, string>}
+ */
+const truncType = (env, target, args) => {
+    if (target === undefined) { return error('trunc_sat takes the range that it saturates to') }
+    const why = unsupported(env, target)
+    return why !== null ? error(why)
+        : args.length !== 1 ? error(`trunc_sat takes one operand, not ${args.length}`)
+        : !isFloat(args[0]) ? error(`trunc_sat of ${show(args[0])}: trunc_sat takes a float`)
+        : ok(target)
+}
+
 // terms
 
 /**
@@ -234,6 +249,62 @@ const value = (checkTerm, env, t) => {
 /** @type {(checkTerm: _CheckTerm, env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
 const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, t)))
 
+/** A label bound to what it names. @type {(label: string, l: _Label) => (labels: OrderedMap<_Label>) => OrderedMap<_Label>} */
+const label_ = (label, l) => setReplace(label)(l)
+
+/**
+ * A `loop`: parameters of distinct names, none in scope, of types that a
+ * module may write and that hold a value, each first value of its
+ * parameter's type, typed where the loop stands; then the body, which sees
+ * the parameters and the label. The loop's type is its body's.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly (readonly [string, Type, Term])[], body: Term) => Result<Typed, string>}
+ */
+const loopTerm = (checkTerm, env, label, params, body) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${env.name}: ${message}`)
+    const names = params.map(([k]) => k)
+    const twice = names.find((k, j) => names.indexOf(k) !== j)
+    const bound = names.find(k => at(k)(env.locals) !== null)
+    const why = params.map(([, x]) => unsupported(env, x)).find(x => x !== null)
+    const empty = params.find(([, x]) => isNever(x))
+    if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
+    if (twice !== undefined) { return no(`loop ${label} has two parameters named ${twice}`) }
+    if (bound !== undefined) { return no(`${bound} is bound twice`) }
+    if (typeof why === 'string') { return no(why) }
+    if (empty !== undefined) { return no(`${empty[0]} is never, so loop ${label} never starts`) }
+    const firsts = values(checkTerm, env, params.map(([, , first]) => first))
+    if (firsts[0] === 'error') { return firsts }
+    const wrong = firsts[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
+    if (wrong >= 0) { return no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(firsts[1][wrong][0])}`) }
+    /** @type {readonly Param[]} */
+    const parts = params.map(([k, x]) => [k, x])
+    const locals = parts.reduce((ls, [k, x]) => setReplace(k)(x)(ls), env.locals)
+    const b = checkTerm({ ...env, locals, labels: label_(label, ['loop', parts])(env.labels) }, body)
+    if (b[0] === 'error') { return b }
+    const unfit = unsupported(env, b[1][0])
+    return unfit !== null ? no(`loop ${label}: ${unfit}`)
+        : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][j]])), b[1]]])
+}
+
+/**
+ * A `br` that repeats a loop: a `make` of the loop's parameters, by their
+ * names in their order, each of its parameter's type.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly Param[], e: Term) => Result<Typed, string>}
+ */
+const repeat = (checkTerm, env, label, params, e) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${env.name}: ${message}`)
+    const names = params.map(([k]) => k)
+    if (e[0] !== 'make' || !equal(e[1].map(([k]) => k), names)) { return no(`br ${label} takes { ${names.join(', ')} }, the loop's parameters in their order`) }
+    const fields = values(checkTerm, env, e[1].map(([, x]) => x))
+    if (fields[0] === 'error') { return fields }
+    const wrong = fields[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
+    return wrong >= 0 ? no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(fields[1][wrong][0])}`)
+        : ok([never, ['br', label, [['product', params], ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][j]]))]]]])
+}
+
 /** @type {_CheckTerm} */
 const term = (env, t) => {
     /** @type {(message: string) => Result<Typed, string>} */
@@ -261,10 +332,14 @@ const term = (env, t) => {
             return b[0] === 'error' ? b : ok([b[1][0], ['let', name, v[1], b[1]]])
         }
         case 'op': {
-            const args = values(term, env, t[2])
+            const [, name, xs, target] = t
+            const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
-            const type = opType(t[1], args[1].map(([x]) => x))
-            return type[0] === 'error' ? no(type[1]) : ok([type[1], ['op', t[1], args[1]]])
+            const types = args[1].map(([x]) => x)
+            const type = name === 'trunc_sat' ? truncType(env, target, types)
+                : target !== undefined ? error(`${name} takes no range`)
+                : opType(name, types)
+            return type[0] === 'error' ? no(type[1]) : ok([type[1], ['op', name, args[1]]])
         }
         case 'call': {
             const [, module, name, xs] = t
@@ -323,19 +398,21 @@ const term = (env, t) => {
             if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
             const why = unsupported(env, type)
             if (why !== null) { return no(why) }
-            const b = term({ ...env, labels: setReplace(label)(type)(env.labels) }, body)
+            const b = term({ ...env, labels: label_(label, ['block', type])(env.labels) }, body)
             if (b[0] === 'error') { return b }
             return sub(env, b[1][0], type) ? ok([type, ['block', label, type, b[1]]])
                 : no(`block ${label} is ${show(type)}, and its body is ${show(b[1][0])}`)
         }
+        case 'loop': { return loopTerm(term, env, t[1], t[2], t[3]) }
         case 'br': {
             const [, label, e] = t
             const target = at(label)(env.labels)
             if (target === null) { return no(`no label ${label}`) }
+            if (target[0] === 'loop') { return repeat(term, env, label, target[1], e) }
             const v = value(term, env, e)
             if (v[0] === 'error') { return v }
-            return sub(env, v[1][0], target) ? ok([never, ['br', label, v[1]]])
-                : no(`${label} takes ${show(target)}, not ${show(v[1][0])}`)
+            return sub(env, v[1][0], target[1]) ? ok([never, ['br', label, v[1]]])
+                : no(`${label} takes ${show(target[1])}, not ${show(v[1][0])}`)
         }
         default: { return ok([never, t]) }
     }
@@ -427,7 +504,7 @@ const unscoped = (env, imports, functions, types) => {
 
 /** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
 const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
-    const b = term({ name, locals: fromEntries(params), labels: setReplace('return')(result)(empty), functions, imports }, body)
+    const b = term({ name, locals: fromEntries(params), labels: label_('return', ['block', result])(empty), functions, imports }, body)
     if (b[0] === 'error') { return b }
     return sub({ name, locals: empty, labels: empty, functions, imports }, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
         : error(`${name}: the body is ${show(b[1][0])}, not ${show(result)}`)
@@ -465,7 +542,7 @@ export const check = m => {
 export const typeOf = ({ name, locals, result, functions, imports }) => t => {
     /** @type {_Env} */
     const env = {
-        name, locals: fromEntries(locals), labels: setReplace('return')(result)(empty), functions: fromEntries(functions), imports: fromEntries(imports),
+        name, locals: fromEntries(locals), labels: label_('return', ['block', result])(empty), functions: fromEntries(functions), imports: fromEntries(imports),
     }
     const why = unscoped(env, imports, functions, [...locals.map(([, x]) => x), result])
     if (why !== null) { return error(why) }
