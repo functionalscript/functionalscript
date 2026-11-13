@@ -141,9 +141,24 @@ while its key is in a map.
 ### Serialization
 
 Running the source on a JavaScript engine, a map is a closure, and it cannot
-be serialized there, as no function can. An EDAG executor holds the map as a
-native value and can serialize it as the expression that rebuilds it, a fold
-of its entries over the empty map:
+be serialized there, as no function can.
+
+**Today.** An interpreter holds a map as the runtime's function, so a map is
+written out as any function is, with no rule of its own:
+
+- the empty map, never called, is the node itself and is written as the
+  canonical body;
+- a map that has been set is the runtime's function with its pairs, and is
+  written as that function, the pairs its captured data.
+
+Read back, such a map holds the same keys, each still the reference the rest
+of the written value holds; a map met twice is one map, and two maps are two.
+It is the runtime's map still, so its calls take `O(n)` steps wherever it is
+read back, on a JavaScript engine too.
+
+**With a native map.** An executor that holds a map as a value of its own
+can write it as the expression that rebuilds it, a fold of its entries over
+the empty map, which is the recognized map again once read back:
 
 ```js
 [[key0, value0], [key1, value1]].reduce((m, [k, v]) => m(k, v)[1], empty)
@@ -152,7 +167,8 @@ of its entries over the empty map:
 The entries are ordinary data, one per key with the key's current value. That
 uses the existing [function representation](../design/serialization.md) and
 its sharing, which keeps a key the same reference as its other uses in the
-graph, and adds no format.
+graph, and adds no format. This is the form for NaNVM's map, and for the
+interpreters once they have [a store](../../fjs/edag/todo/reference-map-store.md).
 
 The map has no order, so the serializer supplies one from what it already
 has: the entries are written in the order of their keys' positions in the
@@ -321,10 +337,11 @@ step ([SESSION.md](../../doc/SESSION.md)):
   empty map.
 - [x] `edag`: evaluate maps in the shared evaluator, for both interpreters,
   with the runtime's map, and prove it against the recognized one.
-- [ ] `compiler/serializer`: decide what is left of the fold. An interpreter
-  now holds a used map as the runtime's function with its pairs, and writes
-  it out as that; the fold over the empty map waits for
-  [a store](../../fjs/edag/todo/reference-map-store.md).
+- [x] `compiler/serializer`: prove that a map an interpreter has used is
+  written out and read back with its keys shared. It is written as the
+  runtime's function with its pairs; the fold over the empty map is the form
+  for a native map, and is NaNVM's step and
+  [the store](../../fjs/edag/todo/reference-map-store.md)'s.
 - [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
   keys, within the `O(log n)` bound. NaNVM's runtime is generated from the
   same source, so it already holds the runtime's map; its own code still
