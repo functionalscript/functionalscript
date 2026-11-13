@@ -5,7 +5,8 @@
  */
 
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
-import type { Interface, Signature, Type } from '../types.ts'
+import type { Result } from '../../types/result/types.ts'
+import type { Interface, Signature, Term, Type, Typed } from '../types.ts'
 
 /** The scope of a term: its function's name, the locals and labels it sees, the module's functions, and the interfaces it imports. */
 export type _Env = {
@@ -15,3 +16,6 @@ export type _Env = {
     readonly functions: OrderedMap<Signature>
     readonly imports: OrderedMap<Interface>
 }
+
+/** Check one term in its current scope. */
+export type _CheckTerm = (env: _Env, term: Term) => Result<Typed, string>

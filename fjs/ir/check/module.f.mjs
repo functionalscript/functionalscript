@@ -30,7 +30,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
- * @import { _Env } from './private.ts'
+ * @import { _CheckTerm, _Env } from './private.ts'
  */
 
 import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
@@ -225,7 +225,16 @@ const callee = (env, module, name) => {
         : ok(f[1])
 }
 
-/** @type {(env: _Env, t: Term) => Result<Typed, string>} */
+/** A term that gives a value, which a `never` does not. @type {(checkTerm: _CheckTerm, env: _Env, t: Term) => Result<Typed, string>} */
+const value = (checkTerm, env, t) => {
+    const r = checkTerm(env, t)
+    return r[0] === 'ok' && isNever(r[1][0]) ? error(`${env.name}: a ${t[0]} that gives no value stands where a value is used`) : r
+}
+
+/** @type {(checkTerm: _CheckTerm, env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
+const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, t)))
+
+/** @type {_CheckTerm} */
 const term = (env, t) => {
     /** @type {(message: string) => Result<Typed, string>} */
     const no = message => error(`${env.name}: ${message}`)
@@ -246,13 +255,13 @@ const term = (env, t) => {
         case 'let': {
             const [, name, e, body] = t
             if (at(name)(env.locals) !== null) { return no(`${name} is bound twice`) }
-            const v = value(env, e)
+            const v = value(term, env, e)
             if (v[0] === 'error') { return v }
             const b = term({ ...env, locals: setReplace(name)(v[1][0])(env.locals) }, body)
             return b[0] === 'error' ? b : ok([b[1][0], ['let', name, v[1], b[1]]])
         }
         case 'op': {
-            const args = values(env, t[2])
+            const args = values(term, env, t[2])
             if (args[0] === 'error') { return args }
             const type = opType(t[1], args[1].map(([x]) => x))
             return type[0] === 'error' ? no(type[1]) : ok([type[1], ['op', t[1], args[1]]])
@@ -265,7 +274,7 @@ const term = (env, t) => {
             const full = module === 'self' ? name : `${module}.${name}`
             if (result[0] === 'sealed') { return no(`${full} gives ${show(result)}, which its caller would own: not in this slice`) }
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
-            const args = values(env, xs)
+            const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
             const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
             return wrong < 0 ? ok([result, ['call', module, name, args[1]]])
@@ -279,14 +288,14 @@ const term = (env, t) => {
             if (!equal(type, bool)) { return no(`a variant of ${show(type)}: the one sum of this slice is bool`) }
             const part = bool[1].find(([k]) => k === name)
             if (part === undefined) { return no(`bool has no variant ${name}`) }
-            const p = value(env, payload)
+            const p = value(term, env, payload)
             if (p[0] === 'error') { return p }
             return sub(env, p[1][0], part[1]) ? ok([bool, ['variant', bool, name, p[1]]])
                 : no(`${name} holds ${show(part[1])}, not ${show(p[1][0])}`)
         }
         case 'match': {
             const [, e, arms] = t
-            const operand = value(env, e)
+            const operand = value(term, env, e)
             if (operand[0] === 'error') { return operand }
             const [of] = operand[1]
             /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term]) => Result<Typed, string>} */
@@ -323,7 +332,7 @@ const term = (env, t) => {
             const [, label, e] = t
             const target = at(label)(env.labels)
             if (target === null) { return no(`no label ${label}`) }
-            const v = value(env, e)
+            const v = value(term, env, e)
             if (v[0] === 'error') { return v }
             return sub(env, v[1][0], target) ? ok([never, ['br', label, v[1]]])
                 : no(`${label} takes ${show(target)}, not ${show(v[1][0])}`)
@@ -331,15 +340,6 @@ const term = (env, t) => {
         default: { return ok([never, t]) }
     }
 }
-
-/** A term that gives a value, which a `never` does not. @type {(env: _Env, t: Term) => Result<Typed, string>} */
-const value = (env, t) => {
-    const r = term(env, t)
-    return r[0] === 'ok' && isNever(r[1][0]) ? error(`${env.name}: a ${t[0]} that gives no value stands where a value is used`) : r
-}
-
-/** @type {(env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
-const values = (env, ts) => okList(ts.map(t => value(env, t)))
 
 // functions and modules
 

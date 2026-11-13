@@ -19,7 +19,7 @@ going through `common`'s `job` and `mise`'s steps.
 The cache's manifest directory, `join(env.RUNNER_TEMP ?? '',
 `fjs-ci-${env.GITHUB_JOB ?? ''}`)`, is a private `manifestDirectory` in
 [`cache`](../cache/module.f.mjs) and spelled again, with `'publish'`
-appended, in [`cache/publish`](../cache/publish/module.f.mjs); if the two
+appended, in [`cache/publish`](../cache/publish/module.f.js); if the two
 drift, `publish` reads a directory `init` did not write.
 
 ### Proposal

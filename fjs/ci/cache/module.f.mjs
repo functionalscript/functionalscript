@@ -35,7 +35,7 @@ import { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, types
 import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
 import { jobs } from '../self/module.f.mjs'
 import { select } from './inputs/module.f.js'
-import { main as publish } from './publish/module.f.mjs'
+import { main as publish } from './publish/module.f.js'
 
 const digest = computeSync(sha256)
 

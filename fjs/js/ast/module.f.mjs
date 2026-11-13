@@ -90,6 +90,9 @@ const mapItem = (map, offset) => (item, index) => isSpread(item) ? ['...', map(i
 /** @type {<T, U>(map: (value: T, index: number) => U, index: number) => (key: Key<T>) => Key<U>} */
 const mapKey = (map, index) => key => key instanceof Array ? ['Number', map(key[1], index)] : key
 
+/** @type {<T>(key: Key<T>) => readonly T[]} */
+const keyOperands = key => key instanceof Array ? [key[1]] : []
+
 /**
  * @template T, U
  * @param {(value: T, index: number) => U} map
@@ -176,9 +179,6 @@ export const mapOperator = map => operator => {
         default: { return [operator[0], map(operator[1], 0), map(operator[2], 1)] }
     }
 }
-
-/** @type {<T>(key: Key<T>) => readonly T[]} */
-const keyOperands = key => key instanceof Array ? [key[1]] : []
 
 /** @type {<T>(item: Item<T>) => T} */
 const itemOperand = item => isSpread(item) ? item[1] : item

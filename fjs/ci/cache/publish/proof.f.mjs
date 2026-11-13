@@ -12,7 +12,7 @@ import { exitCode, exitStep, nodeCommands } from '../../../effects/node/module.f
 import { defaultNodeProgramOptions } from '../../../effects/node/virtual/module.f.mjs'
 import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { main, publishFrom } from './module.f.mjs'
+import { main, publishFrom } from './module.f.js'
 
 /** @type {Child} */
 const child = asNominal('git')

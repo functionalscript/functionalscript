@@ -11,7 +11,7 @@ import { nodeCommands } from '../../../effects/node/module.f.js'
 import { defaultNodeProgramOptions } from '../../../effects/node/virtual/module.f.mjs'
 import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { openSync } from './module.f.mjs'
+import { openSync } from './module.f.js'
 
 const root = /** @type {const} */ ('/checkout')
 const local = /** @type {const} */ ('refs/heads/build-cache')

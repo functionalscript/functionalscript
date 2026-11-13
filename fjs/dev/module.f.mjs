@@ -15,6 +15,16 @@ import { mapStep, pureOk, resultStep, step } from '../effects/module.f.js'
 import { join, relativize, toPosix } from '../path/module.f.js'
 
 /**
+ * Opt-in host proofs, including the existing JavaScript/TypeScript spellings.
+ * Ordinary host modules and legacy FunctionalScript files are excluded.
+ *
+ * @type {(path: string) => boolean}
+ */
+export const isHostProof = path =>
+    path.endsWith('proof.ts') || path.endsWith('proof.mts') ||
+    path.endsWith('proof.js') || path.endsWith('proof.mjs')
+
+/**
  * Returns `true` if the file should be loaded for proof discovery.
  *
  * Two symmetrical rules, each covering all four TS/JS module extensions:
@@ -52,16 +62,6 @@ export const shouldLoad = s =>
  * @type {(path: string) => boolean}
  */
 export const isAuthored = path => path.endsWith('.f.mjs') || path.endsWith('.f.js')
-
-/**
- * Opt-in host proofs, including the existing JavaScript/TypeScript spellings.
- * Ordinary host modules and legacy FunctionalScript files are excluded.
- *
- * @type {(path: string) => boolean}
- */
-export const isHostProof = path =>
-    path.endsWith('proof.ts') || path.endsWith('proof.mts') ||
-    path.endsWith('proof.js') || path.endsWith('proof.mjs')
 
 /**
  * Which files proof discovery loads on `engine`.

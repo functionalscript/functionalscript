@@ -42,12 +42,17 @@ const renderHelp = commands => {
 }
 
 /**
- * Runs a `Main`: a `Program` as itself, a `Commands` table by routing its first
- * argument to the command it names.
- *
- * @type {<O extends NodeOp>(main: Main<O>) => Program<O | Write>}
+ * @param {(value: unknown) => boolean} isMain
+ * @param {unknown} value
+ * @returns {value is Command<NodeOp>}
  */
-export const dispatch = main => typeof main === 'function' ? main : dispatchCommands(main)
+const isCommand = (isMain, value) => {
+    if (!isObject(value)) { return false }
+    const { names, description, handler } = value
+    return isArray(names) && names.every(n => typeof n === 'string')
+        && typeof description === 'string'
+        && isMain(handler)
+}
 
 /**
  * Whether a value from outside the type system — a module's `main`, say — is a
@@ -58,19 +63,7 @@ export const dispatch = main => typeof main === 'function' ? main : dispatchComm
  * @param {unknown} value
  * @returns {value is Main<NodeOp>}
  */
-export const isMain = value => typeof value === 'function' || (isArray(value) && value.every(isCommand))
-
-/**
- * @param {unknown} value
- * @returns {value is Command<NodeOp>}
- */
-const isCommand = value => {
-    if (!isObject(value)) { return false }
-    const { names, description, handler } = value
-    return isArray(names) && names.every(n => typeof n === 'string')
-        && typeof description === 'string'
-        && isMain(handler)
-}
+export const isMain = value => typeof value === 'function' || (isArray(value) && value.every(command => isCommand(isMain, command)))
 
 /** Spelled-out counts for arity messages; larger counts fall back to digits. */
 const countWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
@@ -88,8 +81,8 @@ export const exactArgs = (name, n) => program => options => {
     return errorExit(`'${name}' expects ${count} parameter${n === 1 ? '' : 's'}`)
 }
 
-/** @type {<O extends NodeOp>(commands: Commands<O>) => Program<O | Write>} */
-const dispatchCommands = commands => options => {
+/** @type {<O extends NodeOp>(run: (main: Main<O>) => Program<O | Write>, commands: Commands<O>) => Program<O | Write>} */
+const dispatchCommands = (run, commands) => options => {
     const [cmd, ...rest] = options.args
     const map = fromEntries(commands.flatMap(c => c.names.map(n => /** @type {const} */ ([n, c]))))
     if (cmd === undefined) {
@@ -100,7 +93,7 @@ const dispatchCommands = commands => options => {
         if (target !== undefined) {
             const targetCmd = entry(map, target)
             if (targetCmd !== undefined && typeof targetCmd.handler !== 'function') {
-                return dispatchCommands(targetCmd.handler)({ ...options, args: ['help'] })
+                return dispatchCommands(run, targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
         return exitStep(log(renderHelp(commands)))
@@ -109,5 +102,13 @@ const dispatchCommands = commands => options => {
     if (found === undefined) {
         return errorExit(`Error: unknown command "${cmd}".\n${renderHelp(commands)}`)
     }
-    return dispatch(found.handler)({ ...options, args: rest })
+    return run(found.handler)({ ...options, args: rest })
 }
+
+/**
+ * Runs a `Main`: a `Program` as itself, a `Commands` table by routing its first
+ * argument to the command it names.
+ *
+ * @type {<O extends NodeOp>(main: Main<O>) => Program<O | Write>}
+ */
+export const dispatch = main => typeof main === 'function' ? main : dispatchCommands(dispatch, main)

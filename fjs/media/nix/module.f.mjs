@@ -190,8 +190,8 @@ const checkConflicts = bindings => findMap(
     })
     (bindings)
 
-/** @type {(reason: Nullable<string>, binding: _Binding) => Nullable<string>} */
-const valueReason = (reason, [, , value]) => reason ?? check(value)
+/** @type {(recurse: typeof check) => (reason: Nullable<string>, binding: _Binding) => Nullable<string>} */
+const valueReason = recurse => (reason, [, , value]) => reason ?? recurse(value)
 
 /**
  * A binding group is legal when its paths do not conflict and every value is.
@@ -202,28 +202,28 @@ const valueReason = (reason, [, , value]) => reason ?? check(value)
  * `findMap`: this is the walk every level of a nested set takes, and the
  * frame it saves is nesting depth.
  *
- * @type {(bindings: readonly _Binding[]) => Nullable<string>}
+ * @type {(recurse: typeof check, bindings: readonly _Binding[]) => Nullable<string>}
  */
-const checkBindings = bindings =>
-    checkConflicts(bindings) ?? bindings.reduce(valueReason, null)
+const checkBindings = (recurse, bindings) =>
+    checkConflicts(bindings) ?? bindings.reduce(valueReason(recurse), null)
 
-/** @type {(set: _AttributeSet) => Nullable<string>} */
-const checkSet = ([, ...bindings]) => checkBindings(bindings)
+/** @type {(recurse: typeof check, set: _AttributeSet) => Nullable<string>} */
+const checkSet = (recurse, [, ...bindings]) => checkBindings(recurse, bindings)
 
-/** @type {(list: _NixList) => Nullable<string>} */
-const checkList = ([, ...items]) => findMap(check)(items)
+/** @type {(recurse: typeof check, list: _NixList) => Nullable<string>} */
+const checkList = (recurse, [, ...items]) => findMap(recurse)(items)
 
-/** @type {(application: _Application) => Nullable<string>} */
-const checkApplication = ([, fn, ...args]) => findMap(check)([fn, ...args])
+/** @type {(recurse: typeof check, application: _Application) => Nullable<string>} */
+const checkApplication = (recurse, [, fn, ...args]) => findMap(recurse)([fn, ...args])
 
-/** @type {(lambda: _Lambda) => Nullable<string>} */
-const checkLambda = ([, pattern, body]) => checkPattern(pattern) ?? check(body)
+/** @type {(recurse: typeof check, lambda: _Lambda) => Nullable<string>} */
+const checkLambda = (recurse, [, pattern, body]) => checkPattern(pattern) ?? recurse(body)
 
-/** @type {(let_: _Let) => Nullable<string>} */
-const checkLet = ([, bindings, body]) => checkBindings(bindings) ?? check(body)
+/** @type {(recurse: typeof check, let_: _Let) => Nullable<string>} */
+const checkLet = (recurse, [, bindings, body]) => checkBindings(recurse, bindings) ?? recurse(body)
 
-/** @type {(indented: _IndentedString) => Nullable<string>} */
-const checkIndentedString = ([, ...parts]) => findMap(check)(parts)
+/** @type {(recurse: typeof check, indented: _IndentedString) => Nullable<string>} */
+const checkIndentedString = (recurse, [, ...parts]) => findMap(recurse)(parts)
 
 /**
  * The reason `expression` is not legal Nix, or `null` when it is.
@@ -247,12 +247,12 @@ const check = expression => {
     }
     switch (expression[0]) {
         case 'ref': { return checkReference(expression) }
-        case 'set': { return checkSet(expression) }
-        case 'list': { return checkList(expression) }
-        case 'apply': { return checkApplication(expression) }
-        case 'lambda': { return checkLambda(expression) }
-        case 'let': { return checkLet(expression) }
-        case 'indented-string': { return checkIndentedString(expression) }
+        case 'set': { return checkSet(check, expression) }
+        case 'list': { return checkList(check, expression) }
+        case 'apply': { return checkApplication(check, expression) }
+        case 'lambda': { return checkLambda(check, expression) }
+        case 'let': { return checkLet(check, expression) }
+        case 'indented-string': { return checkIndentedString(check, expression) }
         default: { return `not an expression: ${quoted(`${expression[0]}`)}` }
     }
 }
@@ -320,43 +320,43 @@ const serializeList = ([, ...items]) =>
 /**
  * The bindings of one group, one per line at `level`.
  *
- * @type {(level: number) => (bindings: readonly _Binding[]) => List<string>}
+ * @type {(render: typeof serialize, level: number) => (bindings: readonly _Binding[]) => List<string>}
  */
-const serializeBindings = level => {
+const serializeBindings = (render, level) => {
     const prefix = indent(level)
-    const value = serialize(level)
+    const value = render(level)
     /** @type {(binding: _Binding) => List<string>} */
     const binding = ([, path, v]) => flat([[prefix, attributePath(path), ' = '], value(v), [';']])
     return bindings => flat(intersperse(['\n'])(map(binding)(bindings)))
 }
 
-/** @type {(level: number) => (set: _AttributeSet) => List<string>} */
-const serializeSet = level => ([, ...bindings]) =>
+/** @type {(render: typeof serialize, level: number) => (set: _AttributeSet) => List<string>} */
+const serializeSet = (render, level) => ([, ...bindings]) =>
     bindings.length === 0
         ? ['{}']
-        : flat([['{\n'], serializeBindings(level + 1)(bindings), ['\n', indent(level), '}']])
+        : flat([['{\n'], serializeBindings(render, level + 1)(bindings), ['\n', indent(level), '}']])
 
-/** @type {(level: number) => (application: _Application) => List<string>} */
-const serializeApplication = level => ([, fn, ...args]) => {
-    const argument = serialize(level)
+/** @type {(render: typeof serialize, level: number) => (application: _Application) => List<string>} */
+const serializeApplication = (render, level) => ([, fn, ...args]) => {
+    const argument = render(level)
     return flat([
         [serializeReference(fn)],
         flatMap(a => flat([[' '], argument(a)]))(args)
     ])
 }
 
-/** @type {(level: number) => (lambda: _Lambda) => List<string>} */
-const serializeLambda = level => ([, pattern, body]) =>
-    flat([[serializePattern(pattern), ': '], serialize(level)(body)])
+/** @type {(render: typeof serialize, level: number) => (lambda: _Lambda) => List<string>} */
+const serializeLambda = (render, level) => ([, pattern, body]) =>
+    flat([[serializePattern(pattern), ': '], render(level)(body)])
 
-/** @type {(level: number) => (let_: _Let) => List<string>} */
-const serializeLet = level => ([, bindings, body]) => {
+/** @type {(render: typeof serialize, level: number) => (let_: _Let) => List<string>} */
+const serializeLet = (render, level) => ([, bindings, body]) => {
     const prefix = indent(level)
     return flat([
         ['let\n'],
-        serializeBindings(level + 1)(bindings),
+        serializeBindings(render, level + 1)(bindings),
         ['\n', prefix, 'in\n', prefix],
-        serialize(level)(body)
+        render(level)(body)
     ])
 }
 
@@ -387,11 +387,11 @@ const serialize = level => expression => {
     }
     switch (expression[0]) {
         case 'ref': { return [serializeReference(expression)] }
-        case 'set': { return serializeSet(level)(expression) }
+        case 'set': { return serializeSet(serialize, level)(expression) }
         case 'list': { return serializeList(expression) }
-        case 'apply': { return serializeApplication(level)(expression) }
-        case 'lambda': { return serializeLambda(level)(expression) }
-        case 'let': { return serializeLet(level)(expression) }
+        case 'apply': { return serializeApplication(serialize, level)(expression) }
+        case 'lambda': { return serializeLambda(serialize, level)(expression) }
+        case 'let': { return serializeLet(serialize, level)(expression) }
         // `'indented-string'`, the one tag left: `check` refuses any other
         default: { return serializeIndentedString(level)(expression) }
     }

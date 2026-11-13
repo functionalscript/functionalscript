@@ -10,7 +10,7 @@
 
 import { history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { childWait, execFile, spawn } from '../../../effects/node/module.f.js'
-import { publishFrom } from '../../../ci/cache/publish/module.f.mjs'
+import { publishFrom } from '../../../ci/cache/publish/module.f.js'
 
 const localRef = /** @type {const} */ ('refs/heads/build-cache')
 const remoteRef = /** @type {const} */ ('refs/remotes/origin/build-cache')

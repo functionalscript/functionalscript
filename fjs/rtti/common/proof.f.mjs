@@ -16,6 +16,7 @@ import {
     hasUndeclaredMember,
     noAccumulate,
     noDeclared,
+    orVisit,
     readerOf,
     restContainerRead,
     structSchemaEntries,
@@ -270,6 +271,21 @@ export const proof = {
             [['a', 1]],
         ),
         notAContainer: () => assertErrorPath([])(restStructRead({ a: 1 }, 2)(1)),
+    },
+    orVisit: {
+        firstMatch: () => {
+            let reads = 0
+            const matched = ok('matched')
+            /** @type {Reader<undefined>['read']} */
+            const read = t => value => {
+                reads += 1
+                return t === value ? matched : verror('not this variant')
+            }
+            assertEq(orVisit(read)([1, 2, 2])(2), matched)
+            assertEq(reads, 2)
+        },
+        noMatch: () => assertStructurallySame(orVisit(listing.read)([1, 2])(3), verror('no match')),
+        empty: () => assertStructurallySame(orVisit(listing.read)([])(1), verror('no match')),
     },
     // One reader, whole: the containers it reads, and what it builds of
     // each kind through `finish`.
