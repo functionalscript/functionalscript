@@ -21,9 +21,10 @@ const empty: RefMap = (key: RefMapKey, value: unknown) => {
     }
     const set = (node: RefMapNode, i: bigint, newValue: unknown): RefMapNode => {
         const { value, zero, one } = node ?? {}
-        return i === 1n ? { value: newValue, zero, one } :
-            i & 1n ? { value, zero, one: set(one, i >> 1n, newValue) } :
-            { value, zero: set(zero, i >> 1n, newValue), one }
+        if (i === 1n) { return { value: newValue, zero, one } }
+        const ni = i >> 1n
+        return i & 1n ? { value, zero, one: set(one, ni, newValue) } :
+            { value, zero: set(zero, ni, newValue), one }
     }
     const make = (root: RefMapNode) => {
         const self: RefMap = (key: RefMapKey, value: unknown) => {
