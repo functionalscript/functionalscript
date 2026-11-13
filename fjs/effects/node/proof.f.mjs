@@ -548,6 +548,8 @@ export const proof = {
             assert(parts.every(p => utf8(p) !== null))
             assertStructurallySame(_pieces(5)(''), [''])
             assertStructurallySame(_pieces(5)('abc'), ['abc'])
+            assertStructurallySame(_pieces(NaN)('abc'), [])
+            assertStructurallySame(_pieces(0)(''), [])
         },
         // The list is walked in constant stack: 200,000 cells through the
         // stream writer, against a host that only counts what it is given (the

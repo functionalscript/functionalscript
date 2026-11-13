@@ -18,6 +18,7 @@
  */
 
 import { stringToU8List } from '../../../../text/utf8/module.f.js'
+import { generate } from '../../../../types/array/generate/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { encoding } from '../../instruction/module.f.js'
 
@@ -51,7 +52,7 @@ const s64 = leb(true)
  *
  * @type {(n: number) => (value: bigint) => Bytes}
  */
-const fixed = n => value => Array.from({ length: n }, (_, k) => Number((value >> BigInt(8 * k)) & 0xffn))
+const fixed = n => value => generate(n, k => Number((value >> BigInt(8 * k)) & 0xffn))
 
 /** @type {(items: readonly Bytes[]) => Bytes} */
 const vec = items => [...u32(items.length), ...items.flat()]

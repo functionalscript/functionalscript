@@ -35,6 +35,7 @@ import { contains } from '../../types/range/module.f.js'
 import { fromU8List } from '../../text/utf8/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500
@@ -89,7 +90,7 @@ const punycodeDecode = (ascii, punycode) => {
     const base = 36
     const tMin = 1
     const tMax = 26
-    let output = Array.from(ascii)
+    let output = [...ascii]
     if (output.length > 128) { return null }
     let damp = 700
     let bias = 72
@@ -156,7 +157,7 @@ const escapeChar = quote => c => {
  */
 const utf8Nibbles = nibbles => {
     if (nibbles.length % 2 !== 0) { return null }
-    return fromU8List(Array.from({ length: nibbles.length / 2 }, (_, k) => parseInt(nibbles.slice(2 * k, 2 * k + 2), 16)))
+    return fromU8List(generate(nibbles.length / 2, k => parseInt(nibbles.slice(2 * k, 2 * k + 2), 16)))
 }
 
 /**
@@ -298,7 +299,7 @@ const demangler = s => {
         if (g === null || BigInt(bound) + g[0] > maxBound) { return null }
         const count = Number(g[0])
         const j = g[1]
-        const names = Array.from({ length: count }, (_, k) => lifetime(1n, bound + k + 1))
+        const names = generate(count, k => lifetime(1n, bound + k + 1))
         const r = f(j, bound + count)
         return r === null ? null
             : [`${count === 0 ? '' : `for<${names.join(', ')}> `}${r[0]}`, r[1]]
@@ -505,7 +506,7 @@ const demangler = s => {
     const uint = i => {
         const hex = hexNibbles(i)
         if (hex === null) { return null }
-        const first = Array.from(hex[0]).findIndex(c => c !== '0')
+        const first = [...hex[0]].findIndex(c => c !== '0')
         const significant = first < 0 ? '' : hex[0].slice(first)
         return [significant.length > 16 ? `0x${hex[0]}` : BigInt(`0x0${significant}`).toString(), hex[1]]
     }
@@ -540,7 +541,7 @@ const demangler = s => {
         const strLiteral = j => {
             const hex = hexNibbles(j)
             const text = hex === null ? null : utf8Nibbles(hex[0])
-            return hex === null || text === null ? null : [`"${Array.from(text, escapeChar('"')).join('')}"`, hex[1]]
+            return hex === null || text === null ? null : [`"${[...text].map(escapeChar('"')).join('')}"`, hex[1]]
         }
         if (tag === 'e') {
             const r = strLiteral(i + 1)
@@ -603,19 +604,19 @@ const isSymbolChar = c => c >= '!' && c <= '~'
 export const demangle = name => {
     const llvm = name.indexOf('.llvm.')
     const hash = llvm < 0 ? '' : name.slice(llvm + 6)
-    const s = llvm >= 0 && Array.from(hash).every(c => isUpperHex(c) || c === '@')
+    const s = llvm >= 0 && [...hash].every(c => isUpperHex(c) || c === '@')
         ? name.slice(0, llvm)
         : name
     const start = s.length > 2 && s.startsWith('_R') ? 2
         : s.length > 3 && s.startsWith('__R') ? 3
         : s.length > 1 && s.startsWith('R') ? 1
         : -1
-    if (start < 0 || !isUpper(s[start]) || Array.from(s).some(c => c > '\x7f')) { return name }
+    if (start < 0 || !isUpper(s[start]) || [...s].some(c => c > '\x7f')) { return name }
     // Backrefs count from the start of the path, after the prefix.
     const r = demangler(s.slice(start))(0)
     if (r === null) { return name }
     const suffix = s.slice(start + r[1])
-    return suffix === '' || (suffix.startsWith('.') && Array.from(suffix).every(isSymbolChar))
+    return suffix === '' || (suffix.startsWith('.') && [...suffix].every(isSymbolChar))
         ? `${r[0]}${suffix}`
         : name
 }

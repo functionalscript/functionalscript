@@ -92,10 +92,10 @@ const leb = (bits, signed) => (b, i) => {
 }
 
 /** @type {_Read<number>} */
-const u32 = map(leb(32, false), Number)
+const u32 = map(leb(32, false), v => Number(v))
 
 /** @type {_Read<number>} */
-const s32 = map(leb(32, true), Number)
+const s32 = map(leb(32, true), v => Number(v))
 
 /** @type {_Read<bigint>} */
 const s64 = leb(64, true)
@@ -111,7 +111,7 @@ const s33 = leb(33, true)
 const fixed = n => map(bytes(n), x => x.reduceRight((v, byte) => (v << 8n) | BigInt(byte), 0n))
 
 /** @type {_Read<number>} */
-const f32 = map(fixed(4), Number)
+const f32 = map(fixed(4), v => Number(v))
 
 /** @type {_Read<bigint>} */
 const f64 = fixed(8)

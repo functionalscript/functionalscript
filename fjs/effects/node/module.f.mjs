@@ -31,6 +31,7 @@ import { utf8ToString } from '../../text/utf8/module.f.js'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.js'
 import { error as resultError, ok } from '../../types/result/module.f.js'
@@ -647,9 +648,9 @@ const chunkUnits = Math.floor(maxVecBytes / 3) - 1
 export const _pieces = units => s => {
     /** @type {(k: number) => number} */
     const cutAt = k => floorCodePointBoundary(s)(k * units)
-    return Array.from(
-        { length: max(1, Math.ceil(s.length / units)) },
-        (_, k) => s.slice(cutAt(k), cutAt(k + 1)))
+    const count = max(1, Math.ceil(s.length / units))
+    // A NaN count denotes no pieces, matching the original length coercion.
+    return generate(count || 0, k => s.slice(cutAt(k), cutAt(k + 1)))
 }
 
 /**
