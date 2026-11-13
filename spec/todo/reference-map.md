@@ -43,8 +43,16 @@ resulting map:
 
 The result has one shape whatever the arguments, so a computed `value` that
 happens to be `undefined` gives a set that changes nothing, not a result of
-another type. The interface is the simplest one, not the most convenient; a
-library wraps it in ordinary FunctionalScript.
+another type.
+
+**A reference map is only a mapping.** Size, iteration, order and removal
+belong to the program's own containers, such as a
+[B-tree](../../fjs/types/btree/README.md): the map gives a reference a key the
+program chooses, `m(key, next)` answering the key it already has or assigning
+`next`, and the data lives under that key. The `Map` and `Set` values in
+today's modules are used for all of those — `fjs/js/ast/memo` removes
+`BindingId` object keys to shadow a scope, and many sites read `.size` or
+spread a collection — and none of it becomes a command of the map.
 
 The reference body, checked on Node against a map copied on every set over
 200 000 random operations across 50 live versions:
@@ -170,9 +178,9 @@ it accepts primitive keys, which the contract refuses.
   aliases, equal-content distinct objects, arrays and functions, a `value` of
   `undefined`, a read answering the same map, primitive keys, older versions after later sets, and two
   families that share keys.
-- [ ] Spell the pattern once in a standard module with a wrapper, document it
-  with an identity-keyed example, and fold the behavior into the
-  specification.
+- [ ] Spell the pattern once in a standard module, document it with an
+  example that keeps its data in an ordinary container under keys the map
+  assigns, and fold the behavior into the specification.
 
 ### Related
 
