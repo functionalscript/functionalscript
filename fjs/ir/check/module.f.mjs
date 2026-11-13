@@ -5,8 +5,8 @@
  * so what this takes is what the emitter has to get right, and nothing
  * else reaches it.
  *
- * It takes the first slice of [the task](../todo/slices.md), as the
- * [README](../README.md) lists it, and refuses everything else
+ * It takes the slices of [the task](../todo/slices.md) so far, as the
+ * [README](../README.md) lists them, and refuses everything else
  * ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
  * The rules are [definition.md](../../../doc/sasha-gil/ir/definition.md)'s
  * and [type-system.md](../../../doc/sasha-gil/ir/type-system.md)'s:
@@ -19,16 +19,21 @@
  *   and a `block` may not take a label that is.
  * - **`never` gives no value.** A term of type `never` may be the body of a
  *   function, a `block`, a `let` or an arm, and nothing else.
+ * - **A sealed type is its interface's.** A module reads a value of `any`
+ *   through the functions of the interfaces it imports, and narrows it with
+ *   a `match` whose arms may name the operand at the type of their
+ *   variants. Every such value is borrowed: no function gives one, so no
+ *   term owns one, and nothing has to release it.
  *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, FunctionOf, Int, Module, OpName, Scope, Signature, Term, Type, Typed, TypedArm } from '../types.ts'
+ * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
  * @import { _Env } from './private.ts'
  */
 
-import { error, ok, okList } from '../../types/result/module.f.js'
+import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { bool, compareIn, equal, f64, f64c, fits, int, never, unit } from '../module.f.mjs'
 import { show } from '../print/module.f.mjs'
@@ -41,33 +46,74 @@ const isNever = t => equal(t, never)
 /** @type {(t: Type) => boolean} */
 const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
 
+/** A sealed type's definition in the interface that names it, or why there is none. @type {(env: _Env, t: Sealed) => Result<SealedDef, string>} */
+const definition = (env, [, module, name]) => {
+    const i = at(module)(env.imports)
+    const d = i?.types.find(([k]) => k === name)
+    return i === null ? error(`no interface ${module}`)
+        : d === undefined ? error(`${module} has no type ${name}`)
+        : ok(d[1])
+}
+
+/** The variants that a value of a sealed type that the checker took may hold, in the order of their tags. @type {(env: _Env, t: Sealed) => readonly string[]} */
+const kinds = (env, t) => {
+    const { variants } = unwrap(definition(env, t))
+    const only = t[3]
+    return only === null ? variants : variants.filter(v => only.includes(v))
+}
+
+/** The sealed type of some of `t`'s variants, `null` standing for all of them. @type {(env: _Env, t: Sealed, held: readonly string[]) => Sealed} */
+const narrowed = (env, t, held) => {
+    const { variants } = unwrap(definition(env, t))
+    const only = variants.filter(v => held.includes(v))
+    return ['sealed', t[1], t[2], only.length === variants.length ? null : only]
+}
+
+/** Why a module may not write a sealed type, or `null` where it may: an imported type, with some of its variants, each once. @type {(env: _Env, t: Sealed) => string | null} */
+const unsealed = (env, t) => {
+    const d = definition(env, t)
+    if (d[0] === 'error') { return d[1] }
+    const only = t[3] ?? d[1].variants
+    const stranger = only.find(v => !d[1].variants.includes(v))
+    const twice = only.find((v, k) => only.indexOf(v) !== k)
+    return only.length === 0 ? `${show(t)} holds no value`
+        : stranger !== undefined ? `${t[2]} has no variant ${stranger}`
+        : twice !== undefined ? `${show(t)} names ${twice} twice`
+        : null
+}
+
 /**
  * Why a module may not write a type, or `null` where it may: a range holds
- * an integer and fits one word, and the only sums are `bool` and `never`.
+ * an integer and fits one word, the only sums are `bool` and `never`, and a
+ * sealed type is one that an imported interface names.
  *
- * @type {(t: Type) => string | null}
+ * @type {(env: _Env, t: Type) => string | null}
  */
-const unsupported = t =>
+const unsupported = (env, t) =>
     t[0] === 'int' ? (t[1] > t[2] ? `${show(t)} is empty` : fits(64)(t) ? null : `${show(t)} needs more than one word`)
+    : t[0] === 'sealed' ? unsealed(env, t)
     : isFloat(t) || equal(t, bool) || isNever(t) ? null
     : `${show(t)} is not in this slice`
 
-/** Whether every value of `a` is a value of `b`. @type {(a: Type, b: Type) => boolean} */
-const sub = (a, b) => isNever(a)
-    || (a[0] === 'int' && b[0] === 'int' ? b[1] <= a[1] && a[2] <= b[2] : (a[0] === 'f64c' && b[0] === 'f64') || equal(a, b))
+/** Whether every value of `a` is a value of `b`. @type {(env: _Env, a: Type, b: Type) => boolean} */
+const sub = (env, a, b) => isNever(a)
+    || (a[0] === 'int' && b[0] === 'int' ? b[1] <= a[1] && a[2] <= b[2]
+        : a[0] === 'sealed' && b[0] === 'sealed' ? a[1] === b[1] && a[2] === b[2] && kinds(env, a).every(v => kinds(env, b).includes(v))
+        : (a[0] === 'f64c' && b[0] === 'f64') || equal(a, b))
 
-/** The narrowest type that holds both, or `null` where none does. @type {(a: Type, b: Type) => Type | null} */
-const join = (a, b) =>
-    sub(a, b) ? b
-    : sub(b, a) ? a
+/** The narrowest type that holds both, or `null` where none does. @type {(env: _Env, a: Type, b: Type) => Type | null} */
+const join = (env, a, b) =>
+    sub(env, a, b) ? b
+    : sub(env, b, a) ? a
     : a[0] === 'int' && b[0] === 'int' ? int(a[1] < b[1] ? a[1] : b[1], a[2] > b[2] ? a[2] : b[2])
+    : a[0] === 'sealed' && b[0] === 'sealed' && a[1] === b[1] && a[2] === b[2] ? narrowed(env, a, [...kinds(env, a), ...kinds(env, b)])
     : null
 
-/** The narrowest type that holds every type of a list, or `null` where none does. @type {(types: readonly Type[]) => Type | null} */
-const joinAll = ([a, ...rest]) => {
+/** The narrowest type that holds every type of a list, or `null` where none does. @type {(env: _Env, types: readonly Type[]) => Type | null} */
+const joinAll = (env, [a, ...rest]) => {
     if (rest.length === 0) { return a }
-    const j = join(a, rest[0])
-    return j === null ? null : joinAll([j, ...rest.slice(1)])
+    const j = join(env, a, rest[0])
+    return j === null ? null : joinAll(env, [j, ...rest.slice(1)])
 }
 
 /** A count in a message: `one operand`, `2 arguments`. @type {(k: number, noun: string) => string} */
@@ -131,8 +177,10 @@ const opType = (name, args) => {
             : unary ? error(`${name} of an integer is not in this slice`)
             : intOp(name, a, b)
     }
+    const texts = args.map(show).join(' and ')
     return args.every(isFloat) ? floatOp(name, args[0])
-        : error(`${name} of ${args.map(show).join(' and ')}: the operands are integers or floats, not both`)
+        : args.every(t => t[0] === 'int' || isFloat(t)) ? error(`${name} of ${texts}: the operands are integers or floats, not both`)
+        : error(`${name} of ${texts}: an operator takes integers or floats`)
 }
 
 // terms
@@ -140,10 +188,9 @@ const opType = (name, args) => {
 /**
  * The arms of a `match`, each with the variants it takes, `else` written
  * out. Each arm names variants of the operand, none is named twice, `else`
- * comes last and takes some, every variant has an arm, and no arm names the
- * operand.
+ * comes last and takes some, and every variant has an arm.
  *
- * @type {(variants: readonly string[], arms: readonly ArmOf<Term>[]) => Result<readonly (readonly [readonly string[], Term])[], string>}
+ * @type {(variants: readonly string[], arms: readonly ArmOf<Term>[]) => Result<readonly (readonly [readonly string[], string | null, Term])[], string>}
  */
 const resolveArms = (variants, arms) => {
     const named = arms.flatMap(([vs]) => vs ?? [])
@@ -154,15 +201,29 @@ const resolveArms = (variants, arms) => {
     return stranger !== undefined ? error(`no variant ${stranger}`)
         : twice !== undefined ? error(`${twice} has two arms`)
         : arms.some(([vs]) => vs !== null && vs.length === 0) ? error('an arm names no variant')
-        : arms.some(([, binder]) => binder !== null) ? error('a name for the operand of an arm is not in this slice')
         : otherwise >= 0 && otherwise !== arms.length - 1 ? error('else is not the last arm')
         : otherwise >= 0 && rest.length === 0 ? error('else takes no variant')
         : otherwise < 0 && rest.length > 0 ? error(`no arm for ${rest.join(' or ')}`)
-        : ok(arms.map(([vs, , body]) => /** @type {const} */ ([vs ?? rest, body])))
+        : ok(arms.map(([vs, binder, body]) => /** @type {const} */ ([vs ?? rest, binder, body])))
 }
 
-/** @type {(variants: readonly string[], body: Typed) => TypedArm} */
-const arm = (variants, body) => [variants, body]
+/**
+ * The function that a `call` names, or why there is none: one of the
+ * module, or of an interface that it imports.
+ *
+ * @type {(env: _Env, module: string, name: string) => Result<Signature, string>}
+ */
+const callee = (env, module, name) => {
+    if (module === 'self') {
+        const f = at(name)(env.functions)
+        return f === null ? error(`no function ${name}`) : ok(f)
+    }
+    const i = at(module)(env.imports)
+    const f = i?.functions.find(([k]) => k === name)
+    return i === null ? error(`no interface ${module}`)
+        : f === undefined ? error(`${module} has no function ${name}`)
+        : ok(f[1])
+}
 
 /** @type {(env: _Env, t: Term) => Result<Typed, string>} */
 const term = (env, t) => {
@@ -171,9 +232,12 @@ const term = (env, t) => {
     switch (t[0]) {
         case 'lit': {
             const [, type, v] = t
-            const why = unsupported(type)
+            const why = unsupported(env, type)
             const fit = type[0] === 'int' ? typeof v === 'bigint' && type[1] <= v && v <= type[2] : isFloat(type) && typeof v === 'number'
-            return why !== null ? no(why) : fit ? ok([type, t]) : no(`${v} is not a literal of ${show(type)}`)
+            return why !== null ? no(why)
+                : type[0] === 'sealed' ? no(`a literal of ${show(type)} is a constant, which is not in this slice`)
+                : fit ? ok([type, t])
+                : no(`${v} is not a literal of ${show(type)}`)
         }
         case 'get': {
             const type = at(t[1])(env.locals)
@@ -195,15 +259,17 @@ const term = (env, t) => {
         }
         case 'call': {
             const [, module, name, xs] = t
-            if (module !== 'self') { return no(`${module}.${name}: a call of another module is not in this slice`) }
-            const f = at(name)(env.functions)
-            if (f === null) { return no(`no function ${name}`) }
-            if (xs.length !== f.params.length) { return no(`${name} takes ${count(f.params.length, 'argument')}, not ${xs.length}`) }
+            const f = callee(env, module, name)
+            if (f[0] === 'error') { return no(f[1]) }
+            const { params, result } = f[1]
+            const full = module === 'self' ? name : `${module}.${name}`
+            if (result[0] === 'sealed') { return no(`${full} gives ${show(result)}, which its caller would own: not in this slice`) }
+            if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
             const args = values(env, xs)
             if (args[0] === 'error') { return args }
-            const wrong = args[1].findIndex(([x], k) => !sub(x, f.params[k][1]))
-            return wrong < 0 ? ok([f.result, ['call', module, name, args[1]]])
-                : no(`${name}'s ${f.params[wrong][0]} is ${show(f.params[wrong][1])}, not ${show(args[1][wrong][0])}`)
+            const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
+            return wrong < 0 ? ok([result, ['call', module, name, args[1]]])
+                : no(`${full}'s ${params[wrong][0]} is ${show(params[wrong][1])}, not ${show(args[1][wrong][0])}`)
         }
         case 'make': {
             return t[1].length === 0 ? ok([unit, ['make', []]]) : no('a product with fields is not in this slice')
@@ -215,43 +281,54 @@ const term = (env, t) => {
             if (part === undefined) { return no(`bool has no variant ${name}`) }
             const p = value(env, payload)
             if (p[0] === 'error') { return p }
-            return sub(p[1][0], part[1]) ? ok([bool, ['variant', bool, name, p[1]]])
+            return sub(env, p[1][0], part[1]) ? ok([bool, ['variant', bool, name, p[1]]])
                 : no(`${name} holds ${show(part[1])}, not ${show(p[1][0])}`)
         }
         case 'match': {
             const [, e, arms] = t
             const operand = value(env, e)
             if (operand[0] === 'error') { return operand }
-            if (!equal(operand[1][0], bool)) { return no(`a match of ${show(operand[1][0])} is not in this slice`) }
-            const resolved = resolveArms(['false', 'true'], arms)
+            const [of] = operand[1]
+            /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term]) => Result<Typed, string>} */
+            const body = ([vs, binder, x]) => {
+                if (binder === null || of[0] !== 'sealed') { return term(env, x) }
+                if (at(binder)(env.locals) !== null) { return no(`${binder} is bound twice`) }
+                /** @type {(t: Type) => (locals: OrderedMap<Type>) => OrderedMap<Type>} */
+                const bind = setReplace(binder)
+                return term({ ...env, locals: bind(narrowed(env, of, vs))(env.locals) }, x)
+            }
+            if (of[0] !== 'sealed' && !equal(of, bool)) { return no(`a match of ${show(of)} is not in this slice`) }
+            if (of[0] !== 'sealed' && arms.some(([, binder]) => binder !== null)) { return no("a name for the operand of a bool's arm is not in this slice") }
+            const resolved = resolveArms(of[0] === 'sealed' ? kinds(env, of) : ['false', 'true'], arms)
             if (resolved[0] === 'error') { return no(resolved[1]) }
-            const bodies = okList(resolved[1].map(([, body]) => term(env, body)))
+            const bodies = okList(resolved[1].map(body))
             if (bodies[0] === 'error') { return bodies }
             const types = bodies[1].map(([x]) => x)
-            const type = joinAll(types)
-            const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unsupported(type)
+            const type = joinAll(env, types)
+            const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unsupported(env, type)
             return type === null || why !== null ? no(`match: ${why}`)
-                : ok([type, ['match', operand[1], resolved[1].map(([vs], k) => arm(vs, bodies[1][k]))]])
+                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder], k) => /** @type {const} */ ([vs, binder, bodies[1][k]]))]])
         }
         case 'block': {
             const [, label, type, body] = t
             if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
-            const why = unsupported(type)
+            const why = unsupported(env, type)
             if (why !== null) { return no(why) }
             const b = term({ ...env, labels: setReplace(label)(type)(env.labels) }, body)
             if (b[0] === 'error') { return b }
-            return sub(b[1][0], type) ? ok([type, ['block', label, type, b[1]]])
+            return sub(env, b[1][0], type) ? ok([type, ['block', label, type, b[1]]])
                 : no(`block ${label} is ${show(type)}, and its body is ${show(b[1][0])}`)
         }
-        default: {
+        case 'br': {
             const [, label, e] = t
             const target = at(label)(env.labels)
             if (target === null) { return no(`no label ${label}`) }
             const v = value(env, e)
             if (v[0] === 'error') { return v }
-            return sub(v[1][0], target) ? ok([never, ['br', label, v[1]]])
+            return sub(env, v[1][0], target) ? ok([never, ['br', label, v[1]]])
                 : no(`${label} takes ${show(target)}, not ${show(v[1][0])}`)
         }
+        default: { return ok([never, t]) }
     }
 }
 
@@ -267,44 +344,114 @@ const values = (env, ts) => okList(ts.map(t => value(env, t)))
 // functions and modules
 
 /**
- * A function: parameters of distinct names, types that a module may write,
- * no parameter of type `never`, and a body of its result's type.
+ * Why a module may not have a function of a signature, or `null` where it
+ * may: parameters of distinct names, types that a module may write, no
+ * parameter of type `never`, and a result that no one has to own.
  *
- * @type {(functions: OrderedMap<Signature>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>}
+ * @type {(env: _Env, s: Signature) => string | null}
  */
-const checkFn = functions => ([name, { params, result, body }]) => {
-    /** @type {(message: string) => Result<readonly [string, FunctionOf<Typed>], string>} */
-    const no = message => error(`${name}: ${message}`)
+const unsigned = (env, { params, result }) => {
     const names = params.map(([k]) => k)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
-    const why = [...params.map(([, t]) => t), result].map(unsupported).find(x => x !== null) ?? null
+    const why = [...params.map(([, t]) => t), result].map(t => unsupported(env, t)).find(x => x !== null)
     const unreachable = params.find(([, t]) => isNever(t))
-    if (twice !== undefined) { return no(`two parameters are named ${twice}`) }
-    if (why !== null) { return no(why) }
-    if (unreachable !== undefined) { return no(`${unreachable[0]} is never, so no call reaches the function`) }
-    const b = term({ name, locals: fromEntries(params), labels: setReplace('return')(result)(empty), functions }, body)
-    if (b[0] === 'error') { return b }
-    return sub(b[1][0], result) ? ok([name, { params, result, body: b[1] }])
-        : no(`the body is ${show(b[1][0])}, not ${show(result)}`)
+    return twice !== undefined ? `two parameters are named ${twice}`
+        : typeof why === 'string' ? why
+        : unreachable !== undefined ? `${unreachable[0]} is never, so no call reaches the function`
+        : result[0] === 'sealed' ? `the result is ${show(result)}, which the caller would own: not in this slice`
+        : null
 }
 
 /**
- * A module, checked: its functions of distinct names, each checked, and
- * exports that name them once each. The answer is the module with every
- * body typed, which is what the emitter reads.
+ * Why a module may not import an interface, or `null` where it may: it
+ * names each of its types and its functions once, since a call and a sealed
+ * type find them by their names, each of its sealed types names its
+ * variants once each, its signatures have types that a module may write,
+ * and the tag of each sealed type comes from a function of the interface
+ * that takes the type and answers `int(0, n - 1)`, one tag for each of its
+ * `n` variants.
+ *
+ * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
+ */
+const checkInterface = imports => ([name, { types, functions }]) => {
+    /** @type {_Env} */
+    const env = { name, locals: empty, labels: empty, functions: empty, imports }
+    const typeNames = types.map(([k]) => k)
+    const type = typeNames.find((k, j) => typeNames.indexOf(k) !== j)
+    const functionNames = functions.map(([k]) => k)
+    const named = functionNames.find((k, j) => functionNames.indexOf(k) !== j)
+    const twice = types.find(([, { variants }]) => variants.some((v, k) => variants.indexOf(v) !== k))
+    const why = functions.flatMap(([, { params, result }]) => [...params.map(([, t]) => t), result]).map(t => unsupported(env, t)).find(x => x !== null)
+    /** @type {(entry: readonly [string, SealedDef]) => boolean} */
+    const tagged = ([type, { variants, kind }]) => {
+        const f = functions.find(([k]) => k === kind)?.[1]
+        return f !== undefined && equal(f.params.map(([, t]) => t), [['sealed', name, type, null]]) && equal(f.result, int(0n, BigInt(variants.length - 1)))
+    }
+    const untagged = types.find(entry => !tagged(entry))
+    return type !== undefined ? `${name}: two types are named ${type}`
+        : named !== undefined ? `${name}: two functions are named ${named}`
+        : twice !== undefined ? `${name}: ${twice[0]} names a variant twice`
+        : typeof why === 'string' ? `${name}: ${why}`
+        : untagged !== undefined ? `${name}: ${untagged[1].kind} does not answer the tag of ${untagged[0]}, one for each of its variants`
+        : null
+}
+
+/**
+ * Why the checker may not type a term in an environment, or `null` where
+ * it may: the interfaces and the signatures that the environment sees are
+ * ones a module may have, and so are the types of its locals and labels,
+ * listed in `types`. Every type that reaches the rules of a term has passed
+ * this.
+ *
+ * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], types: readonly Type[]) => string | null}
+ */
+const unscoped = (env, imports, functions, types) => {
+    const interfaces = imports.map(([name]) => name)
+    const imported = interfaces.find((k, j) => interfaces.indexOf(k) !== j || k === 'self')
+    const names = functions.map(([name]) => name)
+    const twice = names.find((k, j) => names.indexOf(k) !== j)
+    const iface = imports.map(checkInterface(env.imports)).find(x => x !== null)
+    const signature = functions.map(([name, s]) => {
+        const why = unsigned(env, s)
+        return why === null ? null : `${name}: ${why}`
+    }).find(x => x !== null)
+    const local = types.map(t => unsupported(env, t)).find(x => x !== null)
+    return imported === 'self' ? 'self is the module itself, so no interface has that name'
+        : imported !== undefined ? `${imported} is imported twice`
+        : twice !== undefined ? `two functions are named ${twice}`
+        : typeof iface === 'string' ? iface
+        : typeof signature === 'string' ? signature
+        : typeof local === 'string' ? `${env.name}: ${local}`
+        : null
+}
+
+/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
+const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
+    const b = term({ name, locals: fromEntries(params), labels: setReplace('return')(result)(empty), functions, imports }, body)
+    if (b[0] === 'error') { return b }
+    return sub({ name, locals: empty, labels: empty, functions, imports }, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
+        : error(`${name}: the body is ${show(b[1][0])}, not ${show(result)}`)
+}
+
+/**
+ * A module, checked: the interfaces it imports, its functions of distinct
+ * names, each checked, and exports that name them once each. The answer is
+ * the module with every body typed, which is what the emitter reads.
  *
  * @type {(m: Module) => Result<Checked, string>}
  */
 export const check = m => {
+    const imports = fromEntries(m.imports)
+    const functions = fromEntries(m.functions)
+    const why = unscoped({ name: '', locals: empty, labels: empty, functions, imports }, m.imports, m.functions, [])
     const names = m.functions.map(([name]) => name)
-    const twice = names.find((k, j) => names.indexOf(k) !== j)
     const missing = m.exports.find(k => !names.includes(k))
     const again = m.exports.find((k, j) => m.exports.indexOf(k) !== j)
-    if (twice !== undefined) { return error(`two functions are named ${twice}`) }
+    if (why !== null) { return error(why) }
     if (missing !== undefined) { return error(`no function ${missing} to export`) }
     if (again !== undefined) { return error(`${again} is exported twice`) }
-    const functions = okList(m.functions.map(checkFn(fromEntries(m.functions))))
-    return functions[0] === 'error' ? functions : ok({ functions: functions[1], exports: m.exports })
+    const typed = okList(m.functions.map(checkFn(functions, imports)))
+    return typed[0] === 'error' ? typed : ok({ imports: m.imports, functions: typed[1], exports: m.exports })
 }
 
 /**
@@ -315,7 +462,13 @@ export const check = m => {
  *
  * @type {(scope: Scope) => (t: Term) => Result<Type, string>}
  */
-export const typeOf = ({ name, locals, result, functions }) => t => {
-    const r = term({ name, locals: fromEntries(locals), labels: setReplace('return')(result)(empty), functions: fromEntries(functions) }, t)
+export const typeOf = ({ name, locals, result, functions, imports }) => t => {
+    /** @type {_Env} */
+    const env = {
+        name, locals: fromEntries(locals), labels: setReplace('return')(result)(empty), functions: fromEntries(functions), imports: fromEntries(imports),
+    }
+    const why = unscoped(env, imports, functions, [...locals.map(([, x]) => x), result])
+    if (why !== null) { return error(why) }
+    const r = term(env, t)
     return r[0] === 'error' ? r : ok(r[1][0])
 }

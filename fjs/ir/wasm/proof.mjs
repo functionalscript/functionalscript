@@ -8,15 +8,19 @@
  * the host's engine, and every function it exports is called on the edges of
  * its parameters' types and compared with a JavaScript twin, which computes
  * the same in exact integers and IEEE doubles, as
- * [`testlib.mjs`](./testlib.mjs) does it.
+ * [`testlib.mjs`](./testlib.mjs) does it. The twins of the functions over
+ * values of unknown kind are L1's own `toBoolean` and the functions of the
+ * [L0 view](../../wasm/runtime/l0/module.f.js) that it reads.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _Twin, _Value } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { corners, samples } from '../testlib.f.mjs'
-import { edges, product, run } from './testlib.mjs'
+import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
+import { toBoolean } from '../../wasm/runtime/l1/module.f.js'
+import { corners, samples, unknown } from '../testlib.f.mjs'
+import { edges, held, product, run } from './testlib.mjs'
 
 // values
 
@@ -79,6 +83,14 @@ const twins = {
     neverIf: ([a]) => bit(a) ? 1 : 2,
     guarded: ([, x]) => x,
     twice: ([a]) => a,
+    toBoolean: ([v]) => toBoolean(held(v)),
+    kindOf: ([v]) => BigInt(kind(held(v))),
+    isNumber: ([v]) => typeof held(v) === 'number',
+    size: ([v]) => [STRING, ARRAY, OBJECT, FUNCTION].includes(kind(held(v))) ? BigInt(length(held(v))) : 0n,
+    tag: ([v]) => BigInt(kind(held(v))),
+    number: ([v]) => asNumber(held(v)),
+    fail: () => { throw 'no answer' },
+    falsy: ([v]) => !toBoolean(held(v)),
 }
 
 /**
@@ -95,4 +107,5 @@ const inputs = {
 export const proof = {
     samples: () => run(samples, twins, inputs),
     corners: () => run(corners, twins, inputs),
+    unknown: () => run(unknown, twins, inputs),
 }

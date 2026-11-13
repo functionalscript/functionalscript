@@ -1,7 +1,7 @@
 /**
  * The code IR as data: types, terms, functions and modules, as
  * [definition.md](../../doc/sasha-gil/ir/definition.md) defines them, in
- * the part that [the first slice](./todo/slices.md) builds.
+ * the part that [the slices](./todo/slices.md) have built so far.
  *
  * **Types and terms are tuples**, a tag first, so a module is plain data
  * that any producer can write: the lowering from FAST, or a person through
@@ -34,7 +34,14 @@ export type Product = readonly ['product', Parts]
 /** One variant, of those in the order of their tags. `bool` is `false`, then `true`. */
 export type Sum = readonly ['sum', Parts]
 
-export type Type = Int | F64 | F64c | Product | Sum
+/**
+ * A type that an interface names and does not define, holding the values of
+ * the variants of `only`, `null` standing for all of them: `any` is
+ * `['sealed', 'Any', 'any', null]`, and a number of it is `any.only(number)`.
+ */
+export type Sealed = readonly ['sealed', module: string, name: string, only: readonly string[] | null]
+
+export type Type = Int | F64 | F64c | Product | Sum | Sealed
 
 /** The operators of the first slice, each typed by its operands. */
 export type OpName =
@@ -74,17 +81,19 @@ export type Block = readonly ['block', string, Type, Term]
 /** The one transfer. To the label `return`, it leaves the function. */
 export type Br = readonly ['br', string, Term]
 
-export type Term = Lit | Get | Let | Op | Call | Make | Variant | Match | Block | Br
+/** A failure at a named point. It gives no value, and the reason is for whoever reads a failed proof. */
+export type Trap = readonly ['trap', reason: string]
+
+export type Term = Lit | Get | Let | Op | Call | Make | Variant | Match | Block | Br | Trap
 
 /** A term as the checker answers it: its type, then the term with its parts typed. */
 export type Typed = readonly [Type, TypedTerm]
 
 /**
  * A `match` arm as the checker answers it: every variant it takes, `else`
- * written out, and its body. No arm names the operand yet, so a slice that
- * admits a name adds it here, where the emitter meets it.
+ * written out, the name of the operand there, if it has one, and its body.
  */
-export type TypedArm = readonly [variants: readonly string[], body: Typed]
+export type TypedArm = readonly [variants: readonly string[], binder: string | null, body: Typed]
 
 export type TypedTerm =
     | Lit
@@ -97,6 +106,7 @@ export type TypedTerm =
     | readonly ['match', Typed, readonly TypedArm[]]
     | readonly ['block', string, Type, Typed]
     | readonly ['br', string, Typed]
+    | Trap
 
 /** A parameter: its name and its type. */
 export type Param = readonly [name: string, type: Type]
@@ -114,8 +124,32 @@ export type FunctionOf<T> = {
     readonly body: T
 }
 
-/** A module: its functions in their order, and the names of those it exports. */
+/**
+ * A sealed type as its interface shows it: its public variants in the order
+ * of their tags, the function of the interface that answers a value's tag,
+ * and the WASM value that carries it where a host binds the interface.
+ */
+export type SealedDef = {
+    readonly variants: readonly string[]
+    readonly kind: string
+    readonly carrier: 'i32' | 'i64'
+}
+
+/**
+ * What a module needs to know of another that it imports: the other's
+ * sealed types and the signatures of its functions, whose parameters borrow
+ * their arguments. `abi` is the WASM module of the imports that bind it on
+ * a host, which name its functions as it does.
+ */
+export type Interface = {
+    readonly abi: string
+    readonly types: readonly (readonly [name: string, SealedDef])[]
+    readonly functions: readonly (readonly [name: string, Signature])[]
+}
+
+/** A module: the interfaces it imports, by their names, its functions in their order, and the names of those it exports. */
 export type ModuleOf<T> = {
+    readonly imports: readonly (readonly [name: string, Interface])[]
     readonly functions: readonly (readonly [name: string, FunctionOf<T>])[]
     readonly exports: readonly string[]
 }
@@ -129,13 +163,15 @@ export type Checked = ModuleOf<Typed>
 
 /**
  * Where a term stands in a function: the function's name, the locals in
- * scope with their types, the function's result, and the signatures of the
- * module's functions. A producer that picks an operator by the types of its
- * operands asks the checker for them in a scope.
+ * scope with their types, the function's result, the signatures of the
+ * module's functions, and the interfaces it imports. A producer that picks
+ * an operator by the types of its operands asks the checker for them in a
+ * scope.
  */
 export type Scope = {
     readonly name: string
     readonly locals: readonly Param[]
     readonly result: Type
     readonly functions: readonly (readonly [name: string, Signature])[]
+    readonly imports: readonly (readonly [name: string, Interface])[]
 }

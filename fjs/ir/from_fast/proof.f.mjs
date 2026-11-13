@@ -4,10 +4,12 @@
  */
 
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
+import { check } from '../check/module.f.mjs'
+import { any, l0 } from '../l0/module.f.mjs'
 import { bool, f64, i, signature, u } from '../module.f.mjs'
 import { print } from '../print/module.f.mjs'
 import { lower } from './module.f.mjs'
-import { fastOf } from './testlib.f.mjs'
+import { sourceOf, view } from './testlib.f.mjs'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
@@ -21,8 +23,28 @@ const ir = (signatures, fast) => print(assertOk(lower(signatures)(fast)))
 /** The reason that the lowering gives for refusing normalized FAST. @type {(signatures: Readonly<Record<string, Signature>>, fast: Block) => string} */
 const why = (signatures, fast) => assertError(lower(signatures)(fast))
 
-/** The normalized FAST of a module's text. @type {(text: string) => Block} */
-const fast = text => assertOk(fastOf(text))
+/** The normalized FAST of a module's text that imports nothing. @type {(text: string) => Block} */
+const fast = text => {
+    const { fast, imports } = assertOk(sourceOf(text))
+    assertEq(imports.length, 0)
+    return fast
+}
+
+/** What the lowering makes of a module's text, with its imports, over the L0 view `v`. @type {(signatures: Readonly<Record<string, Signature>>, text: string, v?: string | null) => ReturnType<ReturnType<typeof lower>>} */
+const over = (signatures, text, v = view) => {
+    const { fast, imports } = assertOk(sourceOf(text))
+    return lower(signatures, v)(fast, imports)
+}
+
+/** The IR of a module's text over the L0 view, printed without the interfaces of L0, which it imports. @type {(signatures: Readonly<Record<string, Signature>>, text: string) => string} */
+const irOver = (signatures, text) => {
+    const m = assertOk(over(signatures, text))
+    assertEq(m.imports, l0)
+    return print({ ...m, imports: [] })
+}
+
+/** The L0 view's names that the proofs of the view read. */
+const imports = "import { NUMBER, asBoolean, asNumber, asString, kind, length } from '../l0/module.f.js'\n"
 
 // FAST written by hand, for the forms that no text makes today
 
@@ -250,15 +272,40 @@ export const proof = {
         assertEq(why(fa, module([], ['+', ['ref', a]])), 'f: + of one operand is not in this slice')
     },
     modules: () => {
-        assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), 'a module constant is not in this slice')
-        assertEq(why(fa, fast('export const k = 2')), 'k: an export that is not a function is not in this slice')
+        // The table names the functions to lower; the module's other bindings are read where they are captured.
+        assertEq(ir({}, fast('export const f = a => a')), '')
+        assertEq(ir(fa, fast('const k = [1]\nexport const g = a => k\nexport const f = a => a')), [
+            'fn f(a: f64) -> f64 =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), 'f: a module constant is not in this slice')
+        // A constant that reads a constant the way an import is read is a constant.
+        assertEq(why(fa, fast('const o = [[1]]\nconst k = o[0].length\nexport const f = a => k')), 'f: a module constant is not in this slice')
+        assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), 'f: a module constant is not in this slice')
+        assertEq(why({ k: fa.f }, fast('export const k = 2')), 'k: an export that is not a function is not in this slice')
         assertEq(why({ g: fa.f, h: fa.f }, fast('const f = a => a\nexport const g = f\nexport const h = f')), 'h exports the same function as g')
-        assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a)')), 'a function that the module does not export is not in this slice')
+        assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a)')), 'f: a function that the module does not export is not in this slice')
+        assertEq(why(fa, fast('export const g = a => a\nexport const f = a => g(a)')), 'f: g has no signature')
         assertEq(why({ ...fa, g: fa.f }, fast('export const f = a => a')), 'g has a signature, and the module exports no function g')
-        assertEq(why({}, fast('export const f = a => a')), 'f has no signature')
         const f = /** @type {const} */ (['function', fun(yields(1))])
-        assertEq(why(fa, exporting([['if', [], true, yields(1), yields(1)]], ['yield', [1]])), 'a module statement of the kind if is not in this slice')
-        assertEq(why(fa, exporting([['define', x, f, 'lazy']], ['yield', [1]])), 'a lazy definition is not in this slice')
+        /** A module that exports `f`, which captures `x`, after `statements`. @type {(statements: readonly Statement[]) => Block} */
+        const reading = statements => exporting(statements, ['yield', [['object', [[':', 'f', ['function', fun(yields(['ref', x]), [{ binding: x, value: ['ref', x] }])]]]]]])
+        assertEq(why(fa, reading([['if', [x], true, yields(1), yields(1)]])), 'f: a module statement of the kind if is not in this slice')
+        assertEq(why(fa, reading([['loop', { target: loop, parameters: [], initial: [], results: [x], body: blk([], ['break', loop, [1]]) }]])), 'f: a module statement of the kind loop is not in this slice')
+        assertEq(why(fa, reading([['define', x, 1, 'lazy']])), 'f: a lazy definition is not in this slice')
+        assertEq(why(fa, exporting([['define', x, f, 'lazy']], ['yield', [['object', [[':', 'f', ['ref', x]]]]]])), 'f: a lazy definition is not in this slice')
+        // The normalization may put a block around an export, for the bindings that only it reads.
+        assertEq(ir(fa, exporting([], ['yield', [['object', [[':', 'f', ['block', blk([['define', x, 1, 'required']], ['yield', [f]])]]]]]])), [
+            'fn f(a: f64) -> f64 =',
+            '    1.0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, exporting([], ['yield', [['object', [[':', 'f', ['block', blk([], ['throw', 1])]]]]]])), 'f: an export that is not a function is not in this slice')
         assertEq(why(fa, exporting([], ['throw', 1])), 'a module that yields no object of exports is not in this slice')
         assertEq(why(fa, exporting([], ['yield', [1, 2]])), 'a module that yields no object of exports is not in this slice')
         assertEq(why(fa, exporting([], ['yield', [1]])), 'a module that yields no object of exports is not in this slice')
@@ -268,8 +315,75 @@ export const proof = {
         assertEq(why(fa, exporting([], ['yield', [['object', [[':', 'f', ['ref', x]]]]]])), 'f: an export that is not a function is not in this slice')
     },
     text: () => {
-        assertEq(assertError(fastOf('export const f = a => {')), 'parse: unexpected end')
-        assertEq(assertError(fastOf('import g from "./g.f.js"\nexport const f = a => g(a)')), 'an import is not in this slice')
-        assertEq(assertError(fastOf('export const f = a => +a')), 'unary + AST-to-FAST conversion is not implemented')
+        assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
+        assertEq(assertError(sourceOf('export const f = a => +a')), 'unary + AST-to-FAST conversion is not implemented')
+    },
+    view: () => {
+        const fv = only([['v', any]], f64)
+        const bv = only([['v', any]], bool)
+        // A tag is a number in JavaScript, so a float here, and so is what `kind` answers.
+        assertEq(irOver(bv, `${imports}export const f = v => kind(v) === NUMBER`), [
+            'fn f(v: any) -> bool =',
+            '    eq(float(Any.kind(v)), 3.0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A cast names its operand at the kind that it takes.
+        assertEq(irOver(bv, `${imports}export const f = v => asBoolean(v)`), [
+            'fn f(v: any) -> bool =',
+            '    match v',
+            '      boolean as v.boolean =>',
+            '        Any.to_bool(v.boolean)',
+            '      else =>',
+            "        trap('not boolean')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(fv, `${imports}export const f = v => asNumber(v)`), [
+            'fn f(v: any) -> f64 =',
+            '    match v',
+            '      number as v.number =>',
+            '        Any.to_f64(v.number)',
+            '      else =>',
+            "        trap('not number')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // `length` is the `length` of each module of L0, and a trap for the kinds that have none.
+        // An operand that is no local is named for the function.
+        assertEq(irOver(only([['c', bool], ['v', any]], f64), `${imports}export const f = (c, v) => length(c ? v : v)`), [
+            'fn f(c: bool, v: any) -> f64 =',
+            '    float(',
+            '        match if c then v else v',
+            '          string as length.string =>',
+            '            String.length(length.string)',
+            '          bigint as length.bigint =>',
+            '            BigInt.length(length.bigint)',
+            '          array | object as length.containers =>',
+            '            Containers.length(length.containers)',
+            '          function as length.functions =>',
+            '            Functions.length(length.functions)',
+            '          undefined | null | boolean | number =>',
+            "            trap('no length')",
+            '    )',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // What the view does not read.
+        assertEq(assertError(over(fv, `${imports}export const f = v => asString(v)`)), 'f: asString of L0 is not in this slice')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind(v, v)`)), 'f: kind takes one argument, not 2')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind(1)`)), 'f: kind of f64c is not in this slice')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind`)), 'f: a function as a value is not in this slice')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind(v)`, null)), 'f: an import of ../l0/module.f.js is not in this slice')
+        assertEq(assertError(over(fv, 'import g from "./g.f.js"\nexport const f = a => g(a)')), 'f: an import of ./g.f.js is not in this slice')
+        assertEq(assertError(over(fv, 'import d from "./d.json" with { type: "json" }\nexport const f = a => d', './d.json')), 'f: an import of ./d.json is not in this slice')
+        assertEq(assertError(lower(fv, view)(assertOk(sourceOf(`${imports}export const f = v => kind(v)`)).fast)), 'f: no import 4')
+        // Without the L0 view, the module imports no interface, so the checker finds none that names `any`.
+        assertEq(assertError(check(assertOk(lower(fv)(fast('export const f = v => 1'))))), 'f: no interface Any')
     },
 }

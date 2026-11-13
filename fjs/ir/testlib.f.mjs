@@ -2,9 +2,10 @@
  * Modules that the proofs under `fjs/ir` share, written by hand in the
  * constructors of [`module.f.mjs`](./module.f.mjs): `samples`, functions
  * of the kind that the first slice is for, among them one for each integer
- * instruction that the emitter writes, and `corners`, the forms that the
- * emitter handles once each. The [host proof](./wasm/proof.mjs) runs
- * both against JavaScript twins.
+ * instruction that the emitter writes, `corners`, the forms that the
+ * emitter handles once each, and `unknown`, functions over values of
+ * unknown kind, as the third slice reads them. The
+ * [host proof](./wasm/proof.mjs) runs all three against JavaScript twins.
  *
  * Data only, so no proof of its own: what each module is, is checked
  * wherever it is read.
@@ -12,9 +13,10 @@
  * @import { Module, Term } from './types.ts'
  */
 
+import { any, l0 } from './l0/module.f.mjs'
 import {
-    abs, add, block, bool, br, call, div, eq, f64, f64c, false_, float, fn, i, if_, int, le, let_,
-    lit, lt, make, match, mul, n, ne, neg, never, not, return_, sqrt, sub, true_, u, variant,
+    abs, add, block, bool, br, call, cast, div, eq, f64, f64c, false_, float, fn, get, i, if_, int, le, let_,
+    lit, lt, make, match, mul, n, ne, neg, never, not, only, return_, sqrt, sub, trap, true_, u, variant,
 } from './module.f.mjs'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -25,6 +27,7 @@ const c = v => lit(f64c, v)
 
 /** Functions of the kind that the first slice is for, every one exported. @type {Module} */
 export const samples = {
+    imports: [],
     functions: [
         ['max', fn([['a', f64], ['b', f64]], f64, (a, b) => if_(lt(a, b), b, a))],
         ['sum', fn([['a', u(32)], ['b', u(32)]], int(0n, 0x1_ffff_fffen), (a, b) => add(a, b))],
@@ -76,6 +79,7 @@ export const samples = {
  * @type {Module}
  */
 export const corners = {
+    imports: [],
     functions: [
         ['topU32', fn([], u(32), lit(u(32), 0xffff_ffffn))],
         ['topU64', fn([], u(64), lit(u(64), 0xffff_ffff_ffff_ffffn))],
@@ -92,4 +96,51 @@ export const corners = {
             if_(a, let_('t', true_, t => t), let_('t', false_, t => t)))],
     ],
     exports: ['topU32', 'topU64', 'bottomI64', 'wide', 'unitLocal', 'oneArm', 'falseFirst', 'neverBlock', 'neverIf', 'guarded', 'twice'],
+}
+
+/** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */
+const l0Call = (module, name) => (...args) => call(module, name, args)
+
+const kindOf = l0Call('Any', 'kind')
+
+const toF64 = l0Call('Any', 'to_f64')
+
+/** The `length` of an L0 module. @type {(module: string) => (...args: readonly Term[]) => Term} */
+const lengthOf = module => l0Call(module, 'length')
+
+/**
+ * Functions over values of unknown kind, each parameter borrowed: L1's
+ * `toBoolean`, as one `match` of its operand, and the forms that the
+ * emitter writes once each for a `match` of `any`: the tag read where the
+ * one arm that is tested tests it, and into a local where more arms are;
+ * an operand that is no local; one arm alone; a cast; a `match` whose
+ * every arm traps; and a call that lends `any` on.
+ *
+ * @type {Module}
+ */
+export const unknown = {
+    imports: l0,
+    functions: [
+        ['toBoolean', fn([['v', any]], bool, v => match(v, [
+            [['boolean'], 'b', l0Call('Any', 'to_bool')(get('b'))],
+            [['number'], 'x', let_('f', toF64(get('x')), f => if_(eq(f, f), ne(f, c(0)), false_))],
+            [['string'], 's', ne(lengthOf('String')(get('s')), n(0n))],
+            [['bigint'], 'g', ne(lengthOf('BigInt')(get('g')), n(0n))],
+            [['array', 'object', 'function'], null, true_],
+            [null, null, false_],
+        ]))],
+        ['kindOf', fn([['v', any]], int(0n, 8n), v => kindOf(v))],
+        ['isNumber', fn([['v', any]], bool, v => match(v, [[['number'], null, true_], [null, null, false_]]))],
+        ['size', fn([['v', any]], u(31), v => match(let_('w', v, w => w), [
+            [['string'], 's', lengthOf('String')(get('s'))],
+            [['array', 'object'], 'c', lengthOf('Containers')(get('c'))],
+            [['function'], 'f', lengthOf('Functions')(get('f'))],
+            [null, null, n(0n)],
+        ]))],
+        ['tag', fn([['v', any]], int(0n, 8n), v => match(v, [[null, 'x', kindOf(get('x'))]]))],
+        ['number', fn([['v', any]], f64c, v => cast(only(any, 'number'), v, 'x', toF64))],
+        ['fail', fn([['v', any]], f64, v => match(v, [[['number'], null, trap('a number')], [null, null, trap('no number')]]))],
+        ['falsy', fn([['v', any]], bool, v => not(call('self', 'toBoolean', [v])))],
+    ],
+    exports: ['toBoolean', 'kindOf', 'isNumber', 'size', 'tag', 'number', 'fail', 'falsy'],
 }
