@@ -47,7 +47,7 @@ import { runPure } from '../effects/module.f.js'
 import {
     exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
     helperIds, helperLength, helpers, intrinsicIds, intrinsics, isFunctionNode, isHelper, isIntrinsic,
-    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
+    noRefMap, noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
 } from './module.f.js'
 
 /**
@@ -101,7 +101,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'refMap', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw'])
@@ -246,25 +246,27 @@ export const proof = {
         for (const id of intrinsicIds) { assert(isIntrinsic([id]), id) }
         for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], ['charCodeAt', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
     },
-    // The helpers: `entry` and `hasEntry`, of `length` `2`, and the
-    // intrinsics; a function node is a lambda or a helper, and a static
+    // The helpers: `entry` and `hasEntry`, of `length` `2`, the empty
+    // reference map, of `length` `2`, and the intrinsics; a function node is a lambda or a helper, and a static
     // function is neither.
     helpers: () => {
-        assertStructurallySame(helpers, [['entry', 2], ['hasEntry', 2], ['slice', 3], ['charCodeAt', 2]])
-        assertStructurallySame(helperIds, ['entry', 'hasEntry', 'slice', 'charCodeAt'])
+        assertStructurallySame(helpers, [['entry', 2], ['hasEntry', 2], ['refMap', 2], ['slice', 3], ['charCodeAt', 2]])
+        assertStructurallySame(helperIds, ['entry', 'hasEntry', 'refMap', 'slice', 'charCodeAt'])
         assertEq(helperLength('entry'), 2)
         assertEq(helperLength('hasEntry'), 2)
+        assertEq(helperLength('refMap'), 2)
         assertEq(helperLength('slice'), 3)
         assertEq(helperLength('charCodeAt'), 2)
         for (const id of helperIds) { assert(isHelper([id]), id) }
         for (const node of [['Object.is'], ['entry', 1], ['=>', 0], 'entry', [], null]) { assert(!isHelper(node), node) }
-        for (const node of [['=>', 0, [], 1], ['entry'], ['hasEntry'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
+        for (const node of [['=>', 0, [], 1], ['entry'], ['hasEntry'], ['refMap'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
         for (const node of [['Object.is'], ['slice', 1], ['[]', []], 'entry', [], null]) { assert(!isFunctionNode(node), node) }
     },
     staticIds: () => {
         assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2'], ['Math', 'trunc'], ['Math', 'floor'], ['Math', 'abs'], ['Math', 'sqrt'], ['Math', 'ceil'], ['Math', 'imul'], ['Math', 'max'], ['Math', 'min']])
         assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function keys() { [native code] }', 'function fromCharCode() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }', 'function log2() { [native code] }', 'function trunc() { [native code] }', 'function floor() { [native code] }', 'function abs() { [native code] }', 'function sqrt() { [native code] }', 'function ceil() { [native code] }', 'function imul() { [native code] }', 'function max() { [native code] }', 'function min() { [native code] }'])
         assertEq(noStatic('Object.is'), 'no binding for the static Object.is')
+        assertEq(noRefMap, 'no reference map in this executor')
         for (const id of staticIds) { assert(isStatic([id]), id) }
         for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {
             assert(!isStatic(node), JSON.stringify(node))
