@@ -1,10 +1,10 @@
-import { refMap } from './module.f.js'
-import { empty } from '../../types/ref_map/module.f.js'
-import { assert, assertEq } from '../../asserts/module.f.js'
-
 /**
  * @import { RefMap, RefMapKey } from '../../types/ref_map/types.ts'
  */
+
+import { refMap } from './module.f.js'
+import { empty } from '../../types/ref_map/module.f.js'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 /** A step of a fixed pseudo-random sequence, each below `2 ** 31`. @type {(seed: number) => number} */
 const step = seed => (Math.imul(seed, 0x41c6_4e6d) + 0x3039) & 0x7fff_ffff
@@ -17,7 +17,7 @@ export const proof = {
     // included; a set answers the value the key had and a new map.
     readAndSet: () => {
         const start = refMap()
-        const key = {}
+        const key = /** @type {const} */ ({})
         assert(start(key)[1] === start)
         assert(start(key, undefined)[1] === start)
         const [previous, one] = start(key, 1)

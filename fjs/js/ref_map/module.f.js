@@ -16,10 +16,10 @@
  * @module
  *
  * @import { RefMap, RefMapKey } from '../../types/ref_map/types.ts'
- * @import { Pairs } from './types.ts'
+ * @import { _Pairs } from './private.ts'
  */
 
-/** The value the newest pair for `key` holds, or `undefined`. @type {(pairs: Pairs, key: RefMapKey) => unknown} */
+/** The value the newest pair for `key` holds, or `undefined`. @type {(pairs: _Pairs, key: RefMapKey) => unknown} */
 const find = (pairs, key) => {
     let rest = pairs
     while (rest !== undefined) {
@@ -29,7 +29,7 @@ const find = (pairs, key) => {
     return undefined
 }
 
-/** The map holding `pairs`. @type {(pairs: Pairs) => RefMap} */
+/** The map holding `pairs`. @type {(pairs: _Pairs) => RefMap} */
 const make = pairs => {
     /** @type {RefMap} */
     const self = (key, value) => {

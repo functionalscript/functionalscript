@@ -409,7 +409,7 @@ export const proof = /** @type {const} */ ({
     // The reference map's maker is the body of `../ref_map`, a new empty
     // map on each call.
     referenceMap: () => {
-        const key = {}
+        const key = /** @type {const} */ ({})
         const [, map] = runtime.refMap()(key, 1)
         assertEq(map(key)[0], 1)
         assert(runtime.refMap() !== runtime.refMap())
