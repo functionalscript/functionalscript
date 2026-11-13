@@ -18,14 +18,14 @@ code written by hand, with no FAST and no imports.
 |[`.`](./module.f.js)                  |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.mjs)        |the checker: a type for every term, or the module refused with a reason|
 |[`print`](./print/module.f.js)        |the IR as text, for review and golden proofs                           |
-|[`wasm`](./wasm/module.f.mjs)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
+|[`wasm`](./wasm/module.f.js)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 
 ```js
 import { unwrap } from '../types/result/module.f.js'
 import { write } from '../media/wasm/binary/write/module.f.mjs'
 import { f64, fn, if_, lt } from './module.f.js'
 import { check } from './check/module.f.mjs'
-import { emit } from './wasm/module.f.mjs'
+import { emit } from './wasm/module.f.js'
 
 const max = fn([['a', f64], ['b', f64]], f64, (a, b) => if_(lt(a, b), b, a))
 const bytes = write(emit(unwrap(check({ functions: [['max', max]], exports: ['max'] }))))
@@ -61,7 +61,7 @@ read as unsigned where it holds no negative integer. Arithmetic runs in the
 wider word of its operands and its result, which is exact because the
 checker's range of the result fits its word; a comparison runs in the word
 that both operands fit, signed where one may be negative. A float is an
-`f64` and a `bool` an `i32`. The [emitter's](./wasm/module.f.mjs) module
+`f64` and a `bool` an `i32`. The [emitter's](./wasm/module.f.js) module
 documentation has the rest.
 
 ## Proofs

@@ -1,7 +1,7 @@
 /**
  * The checker: it types every term of a module and answers the module again
  * with each body typed, or refuses it with the function's name and the
- * reason. The [emitter](../wasm/module.f.mjs) reads only what this answers,
+ * reason. The [emitter](../wasm/module.f.js) reads only what this answers,
  * so what this takes is what the emitter has to get right, and nothing
  * else reaches it.
  *

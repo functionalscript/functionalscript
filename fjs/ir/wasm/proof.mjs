@@ -24,7 +24,7 @@ import { write } from '../../media/wasm/binary/write/module.f.mjs'
 import { check } from '../check/module.f.mjs'
 import { fits } from '../module.f.js'
 import { corners, samples } from '../testlib.f.mjs'
-import { emit } from './module.f.mjs'
+import { emit } from './module.f.js'
 
 // values
 

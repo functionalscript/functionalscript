@@ -171,7 +171,7 @@ const operator = (emitTerm, env, type, name, args) => {
     if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
     if (name === 'float') { return sequence(emitTerm, env, own, [convert(ints[0])]) }
     /** The operands as values of `bits`. @type {(bits: 32 | 64) => readonly (readonly [Typed, Type])[]} */
-    const inWord = bits => args.map((x, k) => [x, word(ints[k], bits)])
+    const inWord = bits => args.map((x, k) => [x, word(ints[Number(k)], bits)])
     if (name === 'eq' || name === 'lt' || name === 'le') {
         const { bits, signed: isSigned } = assertNotNullish(compareIn(ints[0], ints[1]))
         return sequence(emitTerm, env, inWord(bits), [integer(name, bits, isSigned)])
@@ -209,7 +209,7 @@ const term = (env, [type, t]) => {
         case 'call': {
             const [, , name, args] = t
             const [index, params] = assertNotNullish(at(name)(env.functions))
-            return sequence(term, env, args.map((x, k) => [x, params[k]]), [['call', index], ...afterNever(type)])
+            return sequence(term, env, args.map((x, k) => [x, params[Number(k)]]), [['call', index], ...afterNever(type)])
         }
         case 'make': { return just([]) }
         case 'variant': {
@@ -294,7 +294,7 @@ export const emit = m => {
         types,
         imports: [],
         functions: codes.map((c, k) => ({
-            type: types.findIndex(x => same(x, signatures[k])),
+            type: types.findIndex(x => same(x, signatures[Number(k)])),
             locals: runs(c.locals.map(([, t]) => t)),
             body: c.code,
         })),
@@ -310,7 +310,7 @@ export const emit = m => {
             after: 'code',
             content: ['name', [
                 ['function', m.functions.map(([name], k) => [k, name])],
-                ['local', m.functions.map(([, f], k) => [k, [...f.params.map(([name]) => name), ...codes[k].locals.map(([name]) => name)].map((name, j) => [j, name])])],
+                ['local', m.functions.map(([, f], k) => [k, [...f.params.map(([name]) => name), ...codes[Number(k)].locals.map(([name]) => name)].map((name, j) => [j, name])])],
             ]],
         }],
     }
