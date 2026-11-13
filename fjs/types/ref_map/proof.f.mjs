@@ -1,9 +1,9 @@
-import { empty } from './module.f.js'
-import { assert, assertEq } from '../../asserts/module.f.js'
-
 /**
  * @import { RefMap, RefMapKey } from './types.ts'
  */
+
+import { empty } from './module.f.js'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 /**
  * The contract in its shortest form: a list of `[key, value]` pairs
@@ -23,7 +23,7 @@ export const proof = {
     // A read answers the key's value and the same map; a set answers the
     // value the key had and a new map, and leaves the old one as it was.
     readAndSet: () => {
-        const key = {}
+        const key = /** @type {const} */ ({})
         const [none, same] = empty(key)
         assertEq(none, undefined)
         assert(same === empty)
@@ -43,10 +43,10 @@ export const proof = {
     // the same key, two objects alike are two, and an array, a function
     // and a map are keys as an object is.
     keys: () => {
-        const a = { x: 1 }
+        const a = /** @type {const} */ ({ x: 1 })
         const alias = a
-        const alike = { x: 1 }
-        const list = [1]
+        const alike = /** @type {const} */ ({ x: 1 })
+        const list = /** @type {const} */ ([1])
         const fn = () => 1
         const [, m1] = empty(a, 'a')
         const [, m2] = m1(alike, 'alike')
@@ -65,7 +65,7 @@ export const proof = {
     // A value of `undefined` is no value: the call is a read, on the empty
     // map and on any other, so a key is never set back to `undefined`.
     undefinedValue: () => {
-        const key = {}
+        const key = /** @type {const} */ ({})
         assert(empty(key, undefined)[1] === empty)
         const [, m] = empty(key, 0)
         const [value, same] = m(key, undefined)
@@ -85,13 +85,13 @@ export const proof = {
     // Each set on the empty map starts a family of its own, and two
     // families hold the same keys apart.
     families: () => {
-        const key = {}
+        const key = /** @type {const} */ ({})
         const [, a] = empty(key, 'a')
         const [, b] = empty(key, 'b')
         assert(a !== b)
         assertEq(a(key)[0], 'a')
         assertEq(b(key)[0], 'b')
-        const other = {}
+        const other = /** @type {const} */ ({})
         assertEq(a(other, 1)[1](key)[0], 'a')
         assertEq(b(other)[0], undefined)
     },

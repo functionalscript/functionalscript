@@ -29,7 +29,7 @@
  * @module
  *
  * @import { RefMap, RefMapKey } from './types.ts'
- * @import { RefMapNode } from './private.ts'
+ * @import { _RefMapNode } from './private.ts'
  */
 
 /** @type {RefMap} */
@@ -38,7 +38,7 @@ export const empty = (key, value) => {
     const ids = new WeakMap()
     let next = 1n
     // A node is `{ value, zero, one }`; the path to an id is its bits, low first.
-    /** @type {(node: RefMapNode, i: bigint) => unknown} */
+    /** @type {(node: _RefMapNode, i: bigint) => unknown} */
     const get = (node, i) => {
         while (true) {
             if (node === undefined) { return undefined }
@@ -47,14 +47,14 @@ export const empty = (key, value) => {
             i >>= 1n
         }
     }
-    /** @type {(node: RefMapNode, i: bigint, newValue: unknown) => RefMapNode} */
+    /** @type {(node: _RefMapNode, i: bigint, newValue: unknown) => _RefMapNode} */
     const set = (node, i, newValue) => {
         const { value, zero, one } = node ?? {}
         return i === 1n ? { value: newValue, zero, one } :
             i & 1n ? { value, zero, one: set(one, i >> 1n, newValue) } :
             { value, zero: set(zero, i >> 1n, newValue), one }
     }
-    /** @type {(root: RefMapNode) => RefMap} */
+    /** @type {(root: _RefMapNode) => RefMap} */
     const make = root => {
         /** @type {RefMap} */
         const self = (key, value) => {
