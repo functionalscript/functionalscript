@@ -7,6 +7,13 @@ impl<A: IVm> PartialEq for Function<A> {
     }
 }
 
+impl<A: IVm> Function<A> {
+    /// The number of this function's identity, [`IComplex::address`].
+    pub(crate) fn address(&self) -> usize {
+        self.internal().address()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{

@@ -81,7 +81,7 @@ const converted = (root, shared, text, runtime) => {
 
 /** The primitive/constructor cases expose values; operations expose Results. @type {(root: Exp) => boolean} */
 const resultRoot = root => root instanceof Array && !isStatic(root) && !isIntrinsic(root)
-    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', '=>', '{}'].includes(root[0])
+    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'refMap', '=>', '{}'].includes(root[0])
     && (root[0] !== '[]' || root[1].some(v => v instanceof Array && v[0] === '...'))
 
 /**
@@ -121,8 +121,6 @@ const memberCall = (step, member) => step === undefined ? false : step[0] === '|
 export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) => {
     if (isStatic(node)) { return true }
     const operation = /** @type {ExpOp} */ (node)
-    // the empty reference map is the runtime's
-    if (operation[0] === 'refMap') { return true }
     switch (operation[0]) {
         case 'memberPresent': { return true }
         // Entry checks and boolean conversion call their shared runtime bodies.

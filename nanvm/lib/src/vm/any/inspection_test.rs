@@ -71,6 +71,9 @@ impl<H: PartialEq, I> IComplex<InspectVm> for InspectContainer<H, I> {
     fn ptr_eq(&self, other: &Self) -> bool {
         self.header == other.header && Rc::ptr_eq(&self.items, &other.items)
     }
+    fn address(&self) -> usize {
+        Rc::as_ptr(&self.items).cast::<()>() as usize
+    }
 }
 
 impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<InspectVm> for InspectContainer<H, I> {
@@ -105,6 +108,9 @@ impl Clone for InspectFunction {
 impl IComplex<InspectVm> for InspectFunction {
     fn ptr_eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
+    }
+    fn address(&self) -> usize {
+        Rc::as_ptr(&self.0) as usize
     }
 }
 

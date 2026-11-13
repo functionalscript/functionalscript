@@ -16,7 +16,7 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { helperLength, isHelper, isStatic, noRefMap, staticText } from '../../edag/module.f.js'
+import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
 import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
@@ -502,12 +502,10 @@ const operation = (s, n, result) => {
         // the arity and the text are the helper table's; only the native
         // body is this writer's own
         const id = /** @type {import('../../edag/types.ts').HelperId} */ (tag)
-        // the empty reference map is a new map of the runtime's, an
-        // ordinary function, asked for where the node is established;
-        // with no runtime in scope it is refused by name
+        // the empty reference map is NaNVM's own, a new map wherever
+        // the node is established, under the text the writer gives it
         if (id === 'refMap') {
-            if (s.runtime === null) { return error([noRefMap, n]) }
-            return map1(fallible(result))(ok(cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('refMap'), ').end())?, ', vm('Array'), '::default()', toAny, ')'])))
+            return map1(pure(result))(ok(cat([unstable('ref_map'), `(${represented(helperText(_helperText(id)('helper')))})`])))
         }
         const length = helperLength(id)
         const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
