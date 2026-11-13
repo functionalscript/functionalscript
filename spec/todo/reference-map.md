@@ -59,6 +59,10 @@ today's modules are used for all of those — `fjs/js/ast/memo` removes
 `BindingId` object keys to shadow a scope, and many sites read `.size` or
 spread a collection — and none of it becomes a command of the map.
 
+A program that drops many references builds a new map from the empty one with
+the references it keeps, in `O(k log k)` for `k` of them. The new map starts
+its own count, so `n` and the memory held follow what was kept.
+
 The reference body, checked on Node against a map copied on every set over
 200 000 random operations across 50 live versions:
 
