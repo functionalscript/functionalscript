@@ -9,8 +9,8 @@ One of the options is to use `Map`. The `Map` type is mutable and requires an ob
 ## Proposed reference map
 
 **Status:** proposed, not admitted. The [reference map](../todo/reference-map.md)
-proposal recognizes one function, the empty map, whose calls read a reference
-key or return a new map with the key set. It exposes no label for a reference,
+proposal recognizes one function, `refMap`, which answers a new empty map; a
+call of a map reads a reference key or returns a new map with the key set. It exposes no label for a reference,
 so its results are deterministic and need no exception to the
 [principles](../principles/README.md). It replaces the earlier `id` proposal,
 whose bigint labels could differ across VMs and runs.

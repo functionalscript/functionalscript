@@ -17,8 +17,9 @@ references faster than a linear scan. `Map` and `Set` are not language types.
 ### Proposal
 
 Recognize one function whole, as the
-[`entry` helper](../property-access/entries/README.md) is: the **empty
-reference map**. A reference map is a function, an existing value type:
+[`entry` helper](../property-access/entries/README.md) is: `refMap`, which
+takes no argument and answers a new **empty reference map**. A reference map
+is a function, an existing value type:
 
 ```ts
 type RefMapKey = object | Function
@@ -26,7 +27,11 @@ type RefMap = (key: RefMapKey, value?: unknown) => RefMapResult
 type RefMapResult = readonly [unknown, RefMap]
 ```
 
-Every call answers the value `key` has in the map it is called on, and the
+`refMap()` is a map in which no key has a value. Each call answers a map of
+its own: `refMap() === refMap()` is `false`, as it is of any function that
+answers a new function.
+
+Every call of a map answers the value `key` has in the map it is called on, and the
 resulting map:
 
 - `m(key)` is `[current, m]`: the value last set for `key`, or `undefined`
@@ -41,7 +46,7 @@ resulting map:
   fails.
 - There is nothing else: no iteration and no size.
 - A call takes at most `O(log n)` steps on every map, an older one included,
-  where `n` is the number of distinct keys set since the empty map. This
+  where `n` is the number of distinct keys set since its `refMap()`. This
   bound is the point of the feature and part of its contract: with it a
   program can store and find references in its own containers in
   `O(log n)`, which `===` alone does not allow.
@@ -59,7 +64,7 @@ today's modules are used for all of those — `fjs/js/ast/memo` removes
 `BindingId` object keys to shadow a scope, and many sites read `.size` or
 spread a collection — and none of it becomes a command of the map.
 
-A program that drops many references builds a new map from the empty one with
+A program that drops many references builds a new map from `refMap()` with
 the references it keeps, in `O(k log k)` for `k` of them. The new map starts
 its own count, so `n` and the memory held follow what was kept.
 
@@ -67,8 +72,8 @@ The reference body, checked on Node against a map copied on every set over
 200 000 random operations across 50 live versions:
 
 ```js
-/** @type {RefMap} */
-const empty = (key, value) => {
+/** @type {() => RefMap} */
+const refMap = () => {
     /** @type {WeakMap<RefMapKey, bigint>} */
     const ids = new WeakMap()
     let next = 1n
@@ -102,7 +107,7 @@ const empty = (key, value) => {
         }
         return self
     }
-    return value === undefined ? [undefined, empty] : make(undefined)(key, value)
+    return make(undefined)
 }
 ```
 
@@ -116,9 +121,11 @@ type RefMapNode = {
 } | undefined
 ```
 
-The empty map holds no state: a read of it answers the empty map itself, as
-a read of any map does, and each set on it starts a family of maps with its
-own `WeakMap` and counter. The ids are sequential, so a plain binary trie over
+Each call of `refMap` starts a family of maps with its own `WeakMap` and
+counter. Every map, an empty one included, is the closure `self`, so a read
+answers the map it was called on with no case of its own, and the body never
+names itself: it is an arrow that can be written wherever a value can, as
+`entry` is. The ids are sequential, so a plain binary trie over
 their bits stays balanced and needs no rebalancing. The ids never leave the
 closure.
 
@@ -142,10 +149,10 @@ while its key is in a map.
 Running the source on a JavaScript engine, a map is a closure, and it cannot
 be serialized there, as no function can. An EDAG executor holds the map as a
 native value and can serialize it as the expression that rebuilds it, a fold
-of its entries over the empty map:
+of its entries over a new empty map:
 
 ```js
-[[key0, value0], [key1, value1]].reduce((m, [k, v]) => m(k, v)[1], empty)
+[[key0, value0], [key1, value1]].reduce((m, [k, v]) => m(k, v)[1], refMap())
 ```
 
 The entries are ordinary data, one per key with the key's current value. That
@@ -162,10 +169,8 @@ records no order.
 
 A map is a function, so which map it is can be observed with `===` and by
 using it as a key. A map met twice in the graph is written once and shared, as
-any function is. A map other than the empty one is always written with at
-least one set, so that reading it back makes a new map: where none of its
-entries is left, it is written as one set of a key made for the purpose,
-`empty({}, 0)[1]`, which nothing else can hold.
+any function is. The fold starts from `refMap()`, so every map written is a
+map of its own when read back, one with no entry left included.
 
 ### Several bodies, one instruction
 
@@ -216,7 +221,7 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
 - **A container with `size` and `entries` commands.** Usable without a
   separate ordered container, and its body is only a few lines longer, but
   the order of entries becomes observable. The ids cannot supply it: they are
-  assigned across every map descended from one empty map, so a set whose
+  assigned across every map descended from one `refMap()`, so a set whose
   result is discarded would change a later listing. Each entry then carries a
   per-map order number that every body and the VM must reproduce.
 
@@ -225,9 +230,9 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
 A recognized helper is an EDAG leaf: `entry` is the zero-operand node
 `['entry']`, listed in [`fjs/edag`](../../fjs/edag/module.f.js) and repeated by
 hand in the tag lists of analysis, sharing, the shared evaluator, the
-serializers and the Rust output. The empty map is one more such leaf. What is
-new is its result: no evaluated function carries state today except a closure,
-so a map after a set is a new kind of evaluated value.
+serializers and the Rust output. `refMap` is one more such leaf. What is new
+is its result: no evaluated function carries state today except a closure, so
+a map is a new kind of evaluated value.
 
 - The interpreters are FunctionalScript and cannot use `WeakMap`; they look
   keys up through the standard module, whose body runs on the host. This
@@ -253,17 +258,23 @@ requires before implementation, writing
 on the pull request that files this proposal, and accepted the rest in the
 [working session](https://claude.ai/code/session_01Q2nX9uV9wfr4V8NeiJ3xb4):
 
-- **The evaluated value of a map with state** is `['refMap', index, sets]`:
-  an index for lookup and the list of sets for serialization.
+- **The recognized function is a factory**, `() => RefMap`, not the empty map
+  itself. An empty map that answers itself on a read would have to name
+  itself, `return [undefined, empty]`, and a recognized helper is an anonymous
+  arrow the serializer writes wherever a value stands. With the factory no
+  map has a case of its own, in the body or in serialization.
+- **The evaluated value of a map** is `['refMap', index, sets]`: an index for
+  lookup and the list of sets for serialization.
 - **The body is recognized by one matcher** that compares the parsed function
   with a canonical tree up to a consistent renaming of bindings. The body is
   about 35 lines, where `entry` is two statements; a further admitted body is
   one more tree.
-- **The other observations of the function:** `m.length` is 2, and
-  `String(m)` is one canonical text for every map, under the
+- **The other observations of the functions:** `refMap.length` is 0,
+  `m.length` is 2, and `String(m)` is one canonical text for every map, under
+  the
   [function-source exception](../principles/README.md#function-source-representation-exception).
 - **Names:** the leaf `refMap`, the module `fjs/types/ref_map`, and its export
-  `empty`.
+  `refMap`.
 - **The open P1 of
   [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   does not come first.** The matcher works on the same parsed syntax `entry`
@@ -285,15 +296,14 @@ step ([SESSION.md](../../doc/SESSION.md)):
   the contract against a map copied on every set: aliases, equal-content
   distinct objects, arrays and functions, a `value` of `undefined`, a read
   answering the same map, primitive keys, older versions after later sets,
-  two families that share keys, and a read of the empty map answering the
-  empty map.
+  two families that share keys, and two calls of `refMap` answering two
+  maps.
 - [ ] `edag`: evaluate maps in the shared evaluator, for both interpreters —
   the value, calls, `length`, equality and text — and prove the same cases.
 - [ ] `compiler/serializer`: write a map as the fold that rebuilds it, entries
   in the order of their keys' positions and unreachable keys left out; prove
   that a map read back keeps its keys shared, and that a map none of
-  whose keys is reachable is read back as a map of its own, not as the empty
-  one.
+  whose keys is reachable is read back as a map of its own.
 - [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
   keys, within the `O(log n)` bound.
 - [ ] `rust/serializer`: emit the map, with harness fixtures and demos.

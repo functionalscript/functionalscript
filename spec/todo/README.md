@@ -236,8 +236,8 @@ information — see [serialization](../design/serialization.md) and
    name an enclosing scope binds; a warning or an error, undecided.
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
 3. [ ] [reference map pattern](./reference-map.md) — one recognized
-   function, the empty map, for reference-keyed lookup without exposing a
-   label; design approved, not implemented.
+   function, a factory of empty maps, for reference-keyed lookup without
+   exposing a label; design approved, not implemented.
 
 ## 4. ECMAScript Proposals
 
