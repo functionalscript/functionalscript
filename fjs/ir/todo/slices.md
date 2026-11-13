@@ -63,8 +63,13 @@ and refuses everything outside the slice, so that the next slice only adds.
   text. The [README](../README.md#what-the-third-slice-adds) has what it
   adds, and [`from_fast`](../from_fast/README.md#the-l0-view) how the
   lowering reads the L0 view.
-- [ ] **Loops.** Loop parameters, lifted loop functions and an exact `f64`
-  counter. Subjects: `stringEquals` and `stringLess`.
+- [x] **Loops.** Loop parameters, loop functions and an exact `f64`
+  counter. Subjects: `stringEquals` and `stringLess`, lowered from L1's own
+  text. A function inside a function is inlined at each call, where
+  definition.md lifts it; the
+  [README](../from_fast/README.md#loops-and-functions-inside-functions)
+  says why, and [the IR's](../README.md#what-the-fourth-slice-adds) what the
+  slice adds.
 - [ ] **Functions that are not exported, and native rows.** Parameter types
   taken from the call sites, which no note settles yet, and `%`, which
   [l1-design.md](../../../doc/sasha-gil/wasm/l1-design.md#the-operations)

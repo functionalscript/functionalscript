@@ -22,6 +22,7 @@ export const proof = {
         'Any.to_f64(v: any.only(number)) -> f64c',
         'Any.to_bool(v: any.only(boolean)) -> bool',
         'String.length(s: any.only(string)) -> u(31)',
+        'String.unit(s: any.only(string), i: u(31)) -> u(16)',
         'BigInt.length(b: any.only(bigint)) -> u(31)',
         'Containers.length(c: any.only(array, object)) -> u(31)',
         'Functions.length(f: any.only(function)) -> u(31)',

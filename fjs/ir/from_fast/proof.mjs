@@ -3,11 +3,13 @@
  * text, lowered from its normalized FAST, checked and emitted, runs on the
  * host's WebAssembly engine against the functions of that module
  * themselves, on the edges of their parameters' types, as
- * [`testlib.mjs`](../wasm/testlib.mjs) runs a module. So does L1's
- * `toBoolean`, lowered from the text of
- * [L1](../../wasm/runtime/l1/module.f.js) over the L0 view, against L1's own,
- * on values of every kind. The IR that the lowering makes of each is
- * written out below, to read beside the original.
+ * [`testlib.mjs`](../wasm/testlib.mjs) runs a module. So do the functions
+ * of [L1](../../wasm/runtime/l1/module.f.js) that the slices lower so far,
+ * lowered from L1's text over the L0 view, against L1's own: `toBoolean` on
+ * values of every kind, and `stringEquals` and `stringLess`, whose loops
+ * read strings unit by unit, on pairs of strings and of other values. The
+ * IR that the lowering makes of each is written out below, to read beside
+ * the original.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -16,7 +18,7 @@
 
 import { readFileSync } from 'node:fs'
 import { assertEq, assertOk } from '../../asserts/module.f.js'
-import { toBoolean } from '../../wasm/runtime/l1/module.f.js'
+import { stringEquals, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { print } from '../print/module.f.js'
 import { edges, held, product, run } from '../wasm/testlib.mjs'
 import { lower } from './module.f.mjs'
@@ -43,6 +45,19 @@ const originals = Object.fromEntries(Object.entries(sample).map(([name, f]) => {
 
 /** `pow` recurses `k` times, so the edges of `f64` do not suit `k`. @type {StringMap<readonly (readonly _Value[])[]>} */
 const inputs = { pow: product([edges(['f64']), [0, -0, 1, 2, 10, -1, 0.5, 3.5]]) }
+
+/**
+ * An operand of L1's string comparisons: a string of each length up to
+ * three, two with a common prefix, units at both ends of their range, a
+ * surrogate pair, which compares by its units, and half of one, or a value
+ * of another kind, which neither takes.
+ *
+ * @type {readonly _Value[]}
+ */
+const operands = ['', 'a', 'b', 'ab', 'ba', 'abc', 'abd', '\u0000', '\uffff', '\ud83d\ude00', 'a\ud83d', 1, null, ['a']].map(any => ({ any }))
+
+/** Every pair of operands, for both string comparisons. */
+const pairs = product([operands, operands])
 
 export const proof = {
     ir: () => assertEq(print(lowered()), [
@@ -155,6 +170,7 @@ export const proof = {
         '',
         'import String from fjs:l0',
         '    fn length(s: any.only(string)) -> u(31)',
+        '    fn unit(s: any.only(string), i: u(31)) -> u(16)',
         '',
         'import BigInt from fjs:l0',
         '    fn length(b: any.only(bigint)) -> u(31)',
@@ -164,6 +180,96 @@ export const proof = {
         '',
         'import Functions from fjs:l0',
         '    fn length(f: any.only(function)) -> u(31)',
+        '',
+        'fn stringEquals(a: any, b: any) -> bool =',
+        '    match a',
+        '      string as a.string =>',
+        '        let #0 = float(String.length(a.string))',
+        '        match b',
+        '          string as b.string =>',
+        '            if if eq(#0, float(String.length(b.string))) then false else true',
+        '            then',
+        '                false',
+        '            else',
+        '                eq(',
+        '                    loop L0 (#1: f64 = 0.0)',
+        '                        if',
+        '                            let #2 = lt(#1, #0)',
+        '                            if #2',
+        '                            then',
+        '                                eq(',
+        '                                    float(',
+        '                                        let #1.index = trunc_sat(u(31), #1)',
+        "                                        if eq(float(#1.index), #1) then String.unit(a.string, #1.index) else trap('inexact')",
+        '                                    ),',
+        '                                    float(',
+        '                                        let #1.index = trunc_sat(u(31), #1)',
+        "                                        if eq(float(#1.index), #1) then String.unit(b.string, #1.index) else trap('inexact')",
+        '                                    )',
+        '                                )',
+        '                            else',
+        '                                #2',
+        '                        then',
+        '                            br L0 { #1: add(#1, 1.0) }',
+        '                        else',
+        '                            #1,',
+        '                    #0',
+        '                )',
+        '          else =>',
+        "            trap('not string')",
+        '      else =>',
+        "        trap('not string')",
+        '',
+        'fn stringLess(a: any, b: any) -> bool =',
+        '    match a',
+        '      string as a.string =>',
+        '        let #0 = float(String.length(a.string))',
+        '        match b',
+        '          string as b.string =>',
+        '            let #1 = float(String.length(b.string))',
+        '            let #2 =',
+        '                loop L0 (#2: f64 = 0.0)',
+        '                    if',
+        '                        let #3 = lt(#2, #0)',
+        '                        let #4 = if #3 then lt(#2, #1) else #3',
+        '                        if #4',
+        '                        then',
+        '                            eq(',
+        '                                float(',
+        '                                    let #2.index = trunc_sat(u(31), #2)',
+        "                                    if eq(float(#2.index), #2) then String.unit(a.string, #2.index) else trap('inexact')",
+        '                                ),',
+        '                                float(',
+        '                                    let #2.index = trunc_sat(u(31), #2)',
+        "                                    if eq(float(#2.index), #2) then String.unit(b.string, #2.index) else trap('inexact')",
+        '                                )',
+        '                            )',
+        '                        else',
+        '                            #4',
+        '                    then',
+        '                        br L0 { #2: add(#2, 1.0) }',
+        '                    else',
+        '                        #2',
+        '            if',
+        '                let #3 = lt(#2, #0)',
+        '                if #3 then lt(#2, #1) else #3',
+        '            then',
+        '                lt(',
+        '                    float(',
+        '                        let #2.index = trunc_sat(u(31), #2)',
+        "                        if eq(float(#2.index), #2) then String.unit(a.string, #2.index) else trap('inexact')",
+        '                    ),',
+        '                    float(',
+        '                        let #2.index = trunc_sat(u(31), #2)',
+        "                        if eq(float(#2.index), #2) then String.unit(b.string, #2.index) else trap('inexact')",
+        '                    )',
+        '                )',
+        '            else',
+        '                lt(#0, #1)',
+        '          else =>',
+        "            trap('not string')",
+        '      else =>',
+        "        trap('not string')",
         '',
         'fn toBoolean(v: any) -> bool =',
         '    let #0 = float(Any.kind(v))',
@@ -177,18 +283,17 @@ export const proof = {
         '    else',
         '        if eq(#0, 3.0)',
         '        then',
-        '            let #1 =',
-        '                match v',
-        '                  number as v.number =>',
-        '                    Any.to_f64(v.number)',
-        '                  else =>',
-        "                    trap('not number')",
-        '            let #2 = eq(#1, #1)',
-        '            if #2',
-        '            then',
-        '                if eq(#1, 0.0) then false else true',
-        '            else',
-        '                #2',
+        '            match v',
+        '              number as v.number =>',
+        '                let #1 = Any.to_f64(v.number)',
+        '                let #2 = eq(#1, #1)',
+        '                if #2',
+        '                then',
+        '                    if eq(#1, 0.0) then false else true',
+        '                else',
+        '                    #2',
+        '              else =>',
+        "                trap('not number')",
         '        else',
         '            if',
         '                let #1 = eq(#0, 4.0)',
@@ -220,8 +325,12 @@ export const proof = {
         '                let #2 = if #1 then #1 else eq(#0, 7.0)',
         '                if #2 then #2 else eq(#0, 8.0)',
         '',
-        'export toBoolean',
+        'export stringEquals, stringLess, toBoolean',
         '',
     ].join('\n')),
-    l1Run: () => run(fromL1(), { toBoolean: ([v]) => toBoolean(held(v)) }, {}),
+    l1Run: () => run(fromL1(), {
+        toBoolean: ([v]) => toBoolean(held(v)),
+        stringEquals: ([a, b]) => stringEquals(held(a), held(b)),
+        stringLess: ([a, b]) => stringLess(held(a), held(b)),
+    }, { stringEquals: pairs, stringLess: pairs }),
 }

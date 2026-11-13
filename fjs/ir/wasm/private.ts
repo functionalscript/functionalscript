@@ -12,15 +12,21 @@ import type { Interface, Type, Typed } from '../types.ts'
 export type _Callee = readonly [index: number, params: readonly Type[]]
 
 /**
+ * What a label names: a `block` of a type, or a `loop`, with the local and
+ * the type of each of its parameters, which a `br` to it sets.
+ */
+export type _Target = readonly ['block', Type] | readonly ['loop', readonly (readonly [local: number, type: Type])[]]
+
+/**
  * The scope of a term: the index of each local that holds a value, the
- * depth and the type of the structure that each label names, how deep the
+ * depth of the structure that each label names and what it is, how deep the
  * term stands, the first local that no term before it took, the module's
  * functions, the functions of each interface that it imports, and those
  * interfaces, which give its sealed types their carriers.
  */
 export type _Env = {
     readonly locals: OrderedMap<number>
-    readonly labels: OrderedMap<readonly [depth: number, type: Type]>
+    readonly labels: OrderedMap<readonly [depth: number, target: _Target]>
     readonly depth: number
     readonly next: number
     readonly functions: OrderedMap<_Callee>
