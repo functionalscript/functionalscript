@@ -5,11 +5,11 @@
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import {
     add, block, bool, br, call, div, eq, f64, f64c, float, fn, get, i, if_, int, let_, lit, lt, make,
-    match, mul, n, neg, never, return_, true_, u, unit, variant,
+    match, mul, n, neg, never, return_, signature, true_, u, unit, variant,
 } from '../module.f.mjs'
 import { show } from '../print/module.f.mjs'
 import { corners, samples } from '../testlib.f.mjs'
-import { check } from './module.f.mjs'
+import { check, typeOf } from './module.f.mjs'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
 const one = (params, result, body) => ({ functions: [['f', fn(params, result, body)]], exports: [] })
@@ -18,7 +18,7 @@ const one = (params, result, body) => ({ functions: [['f', fn(params, result, bo
 const why = m => assertError(check(m))
 
 /** The type of `f`'s body, where the checker takes it. @type {(m: Module) => string} */
-const typeOf = m => show(assertOk(check(m)).functions[0][1].body[0])
+const bodyType = m => show(assertOk(check(m)).functions[0][1].body[0])
 
 const x = get('x')
 const y = get('y')
@@ -51,11 +51,11 @@ export const proof = {
     },
     types: () => {
         // Exact: the range of a product is the range of its ends.
-        assertEq(typeOf(one([['a', int(1n, 2n)], ['b', int(3n, 4n)]], u(8), mul(get('a'), get('b')))), 'int(3, 8)')
+        assertEq(bodyType(one([['a', int(1n, 2n)], ['b', int(3n, 4n)]], u(8), mul(get('a'), get('b')))), 'int(3, 8)')
         // The arms of a `match` meet in the narrowest type that holds them, either way round.
-        assertEq(typeOf(one([['b', bool]], u(8), if_(get('b'), n(2n), n(1n)))), 'int(1, 2)')
-        assertEq(typeOf(one([['b', bool], ['x', f64]], f64, if_(get('b'), x, one_))), 'f64')
-        assertEq(typeOf(one([['b', bool]], f64, if_(get('b'), one_, return_(one_)))), 'f64c')
+        assertEq(bodyType(one([['b', bool]], u(8), if_(get('b'), n(2n), n(1n)))), 'int(1, 2)')
+        assertEq(bodyType(one([['b', bool], ['x', f64]], f64, if_(get('b'), x, one_))), 'f64')
+        assertEq(bodyType(one([['b', bool]], f64, if_(get('b'), one_, return_(one_)))), 'f64c')
     },
     functions: () => {
         assertEq(why(one([['a', int(1n, 0n)]], f64, one_)), 'f: int(1, 0) is empty')
@@ -141,6 +141,15 @@ export const proof = {
         assertEq(why(one([], f64, block('l', unit, make([])))), 'f: unit is not in this slice')
         assertEq(why(one([], f64, block('l', f64, y))), 'f: no local y')
         assertEq(why(one([], f64, block('l', bool, one_))), 'f: block l is bool, and its body is f64c')
+    },
+    typeOf: () => {
+        // The type of a term where it stands, as a producer asks for it while it builds a body.
+        const scope = { name: 'f', locals: /** @type {const} */ ([['a', u(8)], ['x', f64]]), result: f64, functions: /** @type {const} */ ([['g', signature([['b', bool]], u(16))]]) }
+        assertEq(show(assertOk(typeOf(scope)(add(get('a'), n(1n))))), 'int(1, 256)')
+        assertEq(show(assertOk(typeOf(scope)(call('self', 'g', [true_])))), 'u(16)')
+        assertEq(show(assertOk(typeOf(scope)(return_(x)))), 'never')
+        assertEq(assertError(typeOf(scope)(return_(true_))), 'f: return takes f64, not bool')
+        assertEq(assertError(typeOf(scope)(get('y'))), 'f: no local y')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

@@ -7,8 +7,9 @@ and the emitter writes WASM from the typed form, with no text between the
 stages.
 
 It is built in vertical slices, from the least risky to the most
-([todo/slices.md](./todo/slices.md)). This directory holds the first: typed
-code written by hand, with no FAST and no imports.
+([todo/slices.md](./todo/slices.md)). This directory holds the first two:
+typed code written by hand, and the same code lowered from normalized FAST
+([`from_fast`](./from_fast/README.md)). Neither has imports yet.
 
 ## Map of this directory
 
@@ -19,6 +20,7 @@ code written by hand, with no FAST and no imports.
 |[`check`](./check/module.f.mjs)        |the checker: a type for every term, or the module refused with a reason|
 |[`print`](./print/module.f.mjs)        |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.mjs)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
+|[`from_fast`](./from_fast/README.md)   |the lowering from normalized FAST, with the types from a table         |
 
 ```js
 import { unwrap } from '../types/result/module.f.js'
@@ -71,3 +73,6 @@ the hand-written modules of [`testlib.f.mjs`](./testlib.f.mjs).
 [`wasm/proof.mjs`](./wasm/proof.mjs) runs those modules on the host's
 WebAssembly engine and compares every exported function with a JavaScript
 twin on the same inputs, the edges of each type included.
+[`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
+FunctionalScript functions lowered from their text, and their twins are the
+functions themselves.
