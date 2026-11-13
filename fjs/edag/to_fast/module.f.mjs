@@ -225,8 +225,17 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         // region, after the preceding operands and their implicit work.
         const operands = node === null ? [] : node[0] === '=>' ? node[2] : operatorOperands(graphOperator(a, node))
         const uses = repeatedHere.map(i => operands.filter(operand => reachable(a, ownOperandsOf, bound)([operand]).includes(i)))
-        const local = uses.flatMap(values => values.length === 1 && values[0] instanceof Array ? [values[0][1]] : [])
-        const sharedHere = repeatedHere.filter((_, index) => uses[index].length !== 1)
+        // A function that reads itself is named here, at the region's start,
+        // and its captures with it. What they hold is then needed here too,
+        // before any operand: a value repeated inside one operand and held
+        // by such a function is this region's, not that operand's, or the
+        // capture would be written with a copy of it.
+        const recursive = eager.filter(i => a.nodes[i][0] === '=>' && assertNotNullish(at(String(i))(context.functions)).named)
+        const held = reachable(a, ownOperandsOf, bound)(recursive.flatMap(i =>
+            /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])[2]))
+        const within = repeatedHere.map((i, index) => uses[index].length === 1 && !held.includes(i))
+        const local = uses.flatMap((values, index) => within[index] && values[0] instanceof Array ? [values[0][1]] : [])
+        const sharedHere = repeatedHere.filter((_, index) => !within[index])
         const localContext = { ...context, regions: [...context.regions.filter(i => !roots.some(root => root instanceof Array && root[1] === i)), ...local] }
         const crosses = sharedHere.filter(i => !eager.includes(i) && children.filter(child => child.includes(i)).length !== 1)
         const splits = crosses.filter(i => reachable(a, ownOperandsOf, [...bound, ...eager])([['#', i]]).every(j => mergeable(a.nodes[j]) && a.nodes[j][0] !== ','))
@@ -236,7 +245,6 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         // Region roots and established owners can name their callees and
         // captures immediately. A name needed only inside a later operand
         // stays in that operand's value block.
-        const recursive = eager.filter(i => a.nodes[i][0] === '=>' && assertNotNullish(at(String(i))(context.functions)).named)
         const owners = [...shared.filter(i => eager.includes(i)), ...recursive]
         const prefix = reachable(a, node => node[0] === '=>' ? node[2]
             : node[0] === '()' || node[0] === '?.()' ? [node[1]] : [], bound)([...roots, ...owners.map(i => /** @type {const} */ (['#', i]))])
