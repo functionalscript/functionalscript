@@ -5,8 +5,8 @@
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, compareIn, div, eq, equal, f64, f64c, false_, fits, float, fn, get,
-    i, if_, int, le, let_, lit, lt, make, match, mul, n, ne, neg, never, not, return_, sqrt, sub, true_,
-    u, unit, variant,
+    i, if_, int, le, let_, lit, lt, make, match, mul, n, ne, neg, never, not, return_, signature, sqrt, sub,
+    true_, u, unit, variant,
 } from './module.f.mjs'
 
 export const proof = {
@@ -84,5 +84,7 @@ export const proof = {
         assert(equal(fn(params, f64, (a, b) => add(a, b)).body, add(get('a'), get('b'))))
         const f = fn(params, f64, get('a'))
         assert(equal([f.params, f.result, f.body], [params, f64, get('a')]))
+        const s = signature(params, bool)
+        assert(equal([s.params, s.result], [params, bool]))
     },
 }

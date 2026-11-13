@@ -51,10 +51,11 @@ and refuses everything outside the slice, so that the next slice only adds.
   one word; `lit`, `get`, `let`, `op`, `call`, `variant` and `match` of a
   `bool`, `block` and `br`; the checker, the printer and the emitter. No
   FAST and no imports. The [README](../README.md) has what it admits.
-- [ ] **The first lowering.** The same part of the language from normalized
+- [x] **The first lowering.** The same part of the language from normalized
   FAST, with each function's parameter types given to the lowering, since
-  FAST has none. It needs the compiler owner's view on reading normalized
-  FAST, definition.md's open question 2.
+  FAST has none. Normalized FAST is assumed, as definition.md's open
+  question 2 recommends, until the compiler owner's view settles it. The
+  [README](../from_fast/README.md) has what it lowers.
 - [ ] **Values of unknown type, read only.** Borrowed `any` parameters, the
   interfaces of L0 as data, a JavaScript host for the `fjs:l0` imports,
   casts and conversions. Subject: L1's `toBoolean`.

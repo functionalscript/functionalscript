@@ -101,6 +101,12 @@ export type TypedTerm =
 /** A parameter: its name and its type. */
 export type Param = readonly [name: string, type: Type]
 
+/** What a call of a function needs: its parameters and its result. A function has them too. */
+export type Signature = {
+    readonly params: readonly Param[]
+    readonly result: Type
+}
+
 /** A function: its parameters, its result, and a body that the label `return` leaves. */
 export type FunctionOf<T> = {
     readonly params: readonly Param[]
@@ -120,3 +126,16 @@ export type Module = ModuleOf<Term>
 
 /** A module that the checker took, every body typed. */
 export type Checked = ModuleOf<Typed>
+
+/**
+ * Where a term stands in a function: the function's name, the locals in
+ * scope with their types, the function's result, and the signatures of the
+ * module's functions. A producer that picks an operator by the types of its
+ * operands asks the checker for them in a scope.
+ */
+export type Scope = {
+    readonly name: string
+    readonly locals: readonly Param[]
+    readonly result: Type
+    readonly functions: readonly (readonly [name: string, Signature])[]
+}

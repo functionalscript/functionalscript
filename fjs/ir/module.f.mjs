@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, F64, F64c, Fn, Int, OpName, Param, Product, Sum, Term, Type } from './types.ts'
+ * @import { ArmOf, F64, F64c, Fn, Int, OpName, Param, Product, Signature, Sum, Term, Type } from './types.ts'
  */
 
 // types
@@ -160,3 +160,6 @@ export const fn = (params, result, body) => ({
     result,
     body: typeof body === 'function' ? body(...params.map(([name]) => get(name))) : body,
 })
+
+/** What a call of a function needs, written apart from its body. @type {(params: readonly Param[], result: Type) => Signature} */
+export const signature = (params, result) => ({ params, result })

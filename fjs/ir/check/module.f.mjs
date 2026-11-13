@@ -24,7 +24,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, Fn, FunctionOf, Int, Module, OpName, Term, Type, Typed, TypedArm } from '../types.ts'
+ * @import { ArmOf, Checked, FunctionOf, Int, Module, OpName, Scope, Signature, Term, Type, Typed, TypedArm } from '../types.ts'
  * @import { _Env } from './private.ts'
  */
 
@@ -270,7 +270,7 @@ const values = (env, ts) => okList(ts.map(t => value(env, t)))
  * A function: parameters of distinct names, types that a module may write,
  * no parameter of type `never`, and a body of its result's type.
  *
- * @type {(functions: OrderedMap<Fn>) => (entry: readonly [string, Fn]) => Result<readonly [string, FunctionOf<Typed>], string>}
+ * @type {(functions: OrderedMap<Signature>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>}
  */
 const checkFn = functions => ([name, { params, result, body }]) => {
     /** @type {(message: string) => Result<readonly [string, FunctionOf<Typed>], string>} */
@@ -305,4 +305,17 @@ export const check = m => {
     if (again !== undefined) { return error(`${again} is exported twice`) }
     const functions = okList(m.functions.map(checkFn(fromEntries(m.functions))))
     return functions[0] === 'error' ? functions : ok({ functions: functions[1], exports: m.exports })
+}
+
+/**
+ * The type of a term where it stands in a function, or why the checker
+ * refuses it there: for a producer that picks an operator by the types of
+ * its operands, as the lowering from FAST does for `-` and `===`. The label
+ * `return` takes the function's result, as in a body.
+ *
+ * @type {(scope: Scope) => (t: Term) => Result<Type, string>}
+ */
+export const typeOf = ({ name, locals, result, functions }) => t => {
+    const r = term({ name, locals: fromEntries(locals), labels: setReplace('return')(result)(empty), functions: fromEntries(functions) }, t)
+    return r[0] === 'error' ? r : ok(r[1][0])
 }
