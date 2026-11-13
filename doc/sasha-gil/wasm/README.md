@@ -67,7 +67,9 @@ each layer say where.
 
 Each step ends in a discussion before the next one starts. Steps 1 and 2
 are done as drafts: the designs for [L0](./l0-design.md), [L1](./l1-design.md)
-and [L2](./l2-design.md). The aim since 2026-11-03 is to write as much of
+and [L2](./l2-design.md). Step 3 is done, in `fjs/wasm/runtime` (#3615 to
+#3655). Step 4 has started with the code IR, in `fjs/ir` (#3806), and its
+notes are in [`../ir`](../ir/README.md). The aim since 2026-11-03 is to write as much of
 the runtime as possible in FunctionalScript first, and to make it faster
 later by substitution.
 

@@ -4,7 +4,8 @@ The core describes the FunctionalScript data model, not JavaScript. Values
 are immutable and come in a few kinds: numbers, booleans, `undefined` and
 `null`, strings, bigints, arrays, ordered objects and functions. L0 is how a
 module makes, reads, shares, frees and calls them. The sections below name
-24 functions, and the design names 31. L0 should stay near that size: a new
+24 functions; the [L0 design's summary](./l0-design.md#summary) lists the
+full set. L0 should stay near that size: a new
 function needs a reason that L1 cannot serve.
 
 Every section below is a **proposal**, with the options considered.
@@ -112,7 +113,7 @@ Reference counting is therefore sound without a cycle collector.
 
 | Option | Runtime | Program |
 | --- | --- | --- |
-| Reference counting: `dup` and `drop`, arguments borrowed, results owned | Frees memory, as NaNVM's `Rc` does today | Emits `drop` at last use. That needs an ownership and last-use analysis over the EDAG, which no pass does today: preparation does not choose value owners |
+| Reference counting: `dup` and `drop`, arguments borrowed, results owned | Frees memory, as NaNVM's `Rc` does today | Emits `drop` at last use. That needs an ownership and last-use analysis over the EDAG, which preparation does not do: it does not choose value owners. The [IR design, choice 9](../ir/ir-design.md#9-lifetimes-are-one-pass-over-the-ir) plans that pass |
 | An arena per run, where `drop` does nothing | Trivial | Same code as the row above |
 | WasmGC | Nothing to do | No `dup` or `drop`; needs `any` to be a reference type |
 
@@ -129,7 +130,8 @@ proposal is accepted, this choice is revisited.
 A function is code plus a frame, a `length`, and optionally its text. The
 code is an entry in a function table that program and runtime share.
 
-- **Make:** `make_function(code_index, frame, length, text_ptr, text_len)`.
+- **Make:** `make_function(code_index, frame, length, text)`, with the text
+  as a string value ([L0 design §12](./l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
 - **Call:** `call(f, args)` returns the value, and a throw traps
   ([Errors](#errors)). The runtime calls
   the code through `call_indirect` on the shared table, passing `self` and

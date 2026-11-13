@@ -7,46 +7,16 @@ items here is decided. Remove an item when a note takes it up.
 
 ## Stale statements
 
-Small, mechanical fixes. Each is one line.
+Each is one line, but needs the owner to say what is decided. The
+mechanical ones were fixed on 2026-11-13.
 
-1. **The L0 function count.** At commit 071b574, [l0-core.md](./l0-core.md)
-   says the design "names 31" functions, and the
-   [L0 design summary](./l0-design.md#summary) says 32, since `throw` was
-   added on 2026-11-04. The fix could name the summary table instead of a
-   number. A modular L0 would make
-   it 35 ([modular-l0.md §2](./modular-l0.md#2-length-splits-into-one-function-per-module)).
-2. **The `make_function` signature.** [l0-core.md § Calls and returns](./l0-core.md#calls-and-returns)
-   still shows `make_function(code_index, frame, length, text_ptr, text_len)`.
-   Its own introduction and [L0 design §12](./l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)
-   take the text as a string value: `(code, frame, length, text)`.
-3. **The lifetime pass.** [l0-core.md § Lifetime](./l0-core.md#lifetime)
-   says the last-use analysis is something "no pass does today". The
-   [IR design, choice 9](../ir/ir-design.md#9-lifetimes-are-one-pass-over-the-ir)
-   now plans that pass.
-4. **`i64` is decided in practice, but still open on paper.**
+1. **`i64` is decided in practice, but still open on paper.**
    [README open question 1](./README.md#open-questions) and
    [l0-core.md](./l0-core.md#the-wasm-type-of-any) keep the WASM type of
    `any` open. The NaNVM i64-handle ABI (#3648) is merged, and the IR,
    inline fragments and runtime modules all assume `i64`. It could move
-   to [Decisions](./README.md#decisions).
-5. **The README plan.** It says "Steps 1 and 2 are done as drafts".
-   Step 3, the runtime in FunctionalScript on a JavaScript host, is done
-   too (#3615 to #3655). Step 4 is now IR-first. Step 1's check against
-   `vm::unstable` is still marked to do.
-6. **The L1 operation count.** [l1-operations.md](./l1-operations.md)
-   option A says "about 50 operations". The
-   [L1 design](./l1-design.md#the-operations) has the real table, so the
-   count can be exact or dropped.
-7. **Which VM is which.** The other notes call today's Rust runtime
-   NaNVM. [modular-runtime.md](./modular-runtime.md#two-vms-any) calls it
-   the "Naive" VM and the NaN-boxing one "upcoming", and says "we have
-   based the first WASM runtime on that implementation", which reads as
-   done. One sentence mapping the names would help.
-8. **A byte in a local.** The CPU-saving String module "claims one byte
-   stack frame" for the length. WASM locals are at least `i32`, so the
-   smallest slot is 4 bytes. [modular-l0.md §6](./modular-l0.md#6-a-manifest-per-module)
-   now gives slots as `i32`, `i64` or `f64` locals.
-9. **A status per choice.** The [L0 design](./l0-design.md) header lists
+   to [Decisions](./README.md#decisions), which is the owner's call.
+2. **A status per choice.** The [L0 design](./l0-design.md) header lists
    §22 and §13 as the only decided choices, while §2 and §16 carry notes
    tied to the 2026-11-09 decisions. A one-line status on each choice
    would say this more clearly.
@@ -122,7 +92,7 @@ its modules (a build flag, the manifest, the loader).
   [l1-operations](./l1-operations.md) and [l1-design](./l1-design.md),
   [l2-stock-runtime](./l2-stock-runtime.md) and [l2-design](./l2-design.md).
   Moving the option tables into the designs' "Alternatives" lines would
-  leave one note per layer and remove most stale statements above. A
+  leave one note per layer and remove statements that go stale. A
   lighter option is a banner on each proposal note: "historical, see the
   design".
 - **A status line on every note.** "Decided" lives in the README table,
