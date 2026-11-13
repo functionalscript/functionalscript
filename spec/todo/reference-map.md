@@ -273,8 +273,19 @@ on the pull request that files this proposal, and accepted the rest in the
   body written twice, in one module or in two, is two functions that are not
   `===`, on a JavaScript engine and compiled alike. The leaf is never merged
   with another.
-- **The evaluated value of a map with state** is `['refMap', index, sets]`:
-  an index for lookup and the list of sets for serialization.
+- **The interpreters answer the node with the runtime's map**, not with a
+  value of their own. Every evaluated value is an EDAG expression, which the
+  serializer, the function-text renderer and the memo interpreter's call
+  rely on, and a lookup table is not one; nor have the interpreters a store
+  that lasts across invocations to keep it beside the map. So
+  [`fjs/js/ref_map`](../../fjs/js/ref_map/module.f.js) writes the map in
+  FunctionalScript alone, a list of pairs searched with `===`, and the
+  runtime hands a new one out wherever the node is established. A map is
+  then an ordinary function to an interpreter. Every answer is the same;
+  a call takes `O(n)` steps there, and
+  [a store](../../fjs/edag/todo/reference-map-store.md) is what would
+  restore the bound. This replaces the value first accepted,
+  `['refMap', index, sets]`.
 - **The body is recognized by one matcher** that compares the parsed function
   with a canonical tree up to a consistent renaming of bindings. The body is
   about 35 lines, where `entry` is two statements; a further admitted body is
@@ -308,15 +319,16 @@ step ([SESSION.md](../../doc/SESSION.md)):
   answering the same map, primitive keys, older versions after later sets,
   two families that share keys, and a read of the empty map answering the
   empty map.
-- [ ] `edag`: evaluate maps in the shared evaluator, for both interpreters —
-  the value, calls, `length`, equality and text — and prove the same cases.
-- [ ] `compiler/serializer`: write a map as the fold that rebuilds it, entries
-  in the order of their keys' positions and unreachable keys left out; prove
-  that a map read back keeps its keys shared, and that a map none of
-  whose keys is reachable is read back as a map of its own, not as the empty
-  one.
+- [x] `edag`: evaluate maps in the shared evaluator, for both interpreters,
+  with the runtime's map, and prove it against the recognized one.
+- [ ] `compiler/serializer`: decide what is left of the fold. An interpreter
+  now holds a used map as the runtime's function with its pairs, and writes
+  it out as that; the fold over the empty map waits for
+  [a store](../../fjs/edag/todo/reference-map-store.md).
 - [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
-  keys, within the `O(log n)` bound.
+  keys, within the `O(log n)` bound. NaNVM's runtime is generated from the
+  same source, so it already holds the runtime's map; its own code still
+  refuses the node.
 - [ ] `rust/serializer`: emit the map, with harness fixtures and demos.
 - [ ] `spec`: the specification page with a sample that keeps its data in an
   ordinary container under keys the map assigns; update the

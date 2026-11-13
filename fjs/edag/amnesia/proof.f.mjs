@@ -15,6 +15,9 @@ import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.js'
 import { typeOf } from '../value/semantics/module.f.js'
 import { ok } from '../../types/result/module.f.js'
+import { read } from '../value/property/module.f.js'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
+import { noRefMap } from '../module.f.js'
 
 /** The one value in `context`'s frame, slot `0`. */
 const captured = /** @type {const} */ (['{}', [[':', 'x', 1]]])
@@ -733,6 +736,29 @@ export const proof = {
     // position carries it — an arm, a comma's last operand, a logical
     // operator's right operand — through a bare, an optional and a method
     // call alike; a call a step continues is made where it stands.
+    // The empty reference map: with a runtime, a new map of its own
+    // wherever the node is read; with none, refused by name.
+    referenceMap: () => {
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        // a function of a map and a key, so that each is one value where
+        // the body reads it twice
+        const set = /** @type {const} */ (['()', ['arg', 0], [['arg', 1], 7]])
+        const later = /** @type {const} */ (['.', set, 1])
+        /** @type {Exp} */
+        const uses = ['()', ['=>', 2, [], ['[]', [
+            ['.', ['()', later, [['arg', 1]]], 0],
+            ['.', set, 0],
+            ['===', ['.', ['()', ['arg', 0], [['arg', 1]]], 1], ['arg', 0]],
+            ['===', later, ['arg', 0]],
+            ['.', ['()', later, [['{}', []]]], 0],
+            ['.', ['()', later, [1]], 0],
+            ['typeof', later],
+            ['.', later, 'length'],
+        ]]], [['refMap'], ['{}', []]]]
+        assertStructurallySame(vm({ frame: [], args: [], runtime })(uses), ['ok', ['[]', [7, ['undefined'], true, false, ['undefined'], ['undefined'], 'function', 2]]])
+        assertStructurallySame(vm({ frame: [], args: [] })(['refMap']), ['error', noRefMap])
+    },
     tailCalls: () => {
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 10_000], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]], 10_000)
         // mutual recursion, each function the other's argument

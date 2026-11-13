@@ -406,8 +406,16 @@ export const proof = /** @type {const} */ ({
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
+    // The reference map's maker is the body of `../ref_map`, a new empty
+    // map on each call.
+    referenceMap: () => {
+        const key = {}
+        const [, map] = runtime.refMap()(key, 1)
+        assertEq(map(key)[0], 1)
+        assert(runtime.refMap() !== runtime.refMap())
+    },
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,refMap,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)

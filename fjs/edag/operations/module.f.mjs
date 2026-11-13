@@ -330,9 +330,13 @@ export const operation = evaluator => {
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
-            // the empty reference map: no executor holds one yet, so the
-            // read fails naming it rather than answer a function
-            case 'refMap': { return [state, error(noRefMap)] }
+            // the empty reference map: a new map of the runtime's, an
+            // ordinary function, asked for wherever the node is
+            // established; with no runtime the read fails naming it
+            case 'refMap': {
+                const make = functionAt(runtime, ['refMap'])
+                return [state, make === undefined ? error(noRefMap) : invoke(make, [], ['[]', []])]
+            }
             // an intrinsic as a value: the node, fresh as `entry` is, its
             // call `intrinsicCall`'s; named here as the statics are below
             case 'slice': case 'charCodeAt': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }
