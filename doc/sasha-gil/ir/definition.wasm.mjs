@@ -117,7 +117,8 @@ export const emit = (checked, exports) => {
                     // a literal of a sealed type is made by the function that its interface names
                     typeof value === 'string' || refuse('this prototype makes a literal from the units of a string only')
                     literals.set(value, null)
-                    const maker = decl(x).literal[x[3].join()]
+                    // a whole sealed type has all its variants, as `variantsOf` in the checker reads them
+                    const maker = decl(x).literal[(x[3] ?? decl(x).variants).join()]
                     return [[['i32.const', { ptr: value }], ['i32.const', value.length], ['call', importRaw(ifaces[maker.module].abi, maker.name, ['i32', 'i32'], [decl(x).carrier])]], x]
                 }
                 case 'get': { const v = env.get(t[1]); return [v.slots.map(s => ['local.get', s]), v.type] }
