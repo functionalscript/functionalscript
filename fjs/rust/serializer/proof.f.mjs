@@ -366,6 +366,11 @@ export const proof = {
         ]
         for (const value of values) { assert(text(value).includes('Any::')) }
     },
+    // The empty reference map is a new map of the runtime's: the call of
+    // its maker, asked for where the node is established.
+    referenceMap: () => {
+        assertEq(text(['refMap'], true), 'Any::call((Any::dot(runtime.clone(), string_any("refMap")).end())?, Array::default().to_any())')
+    },
     helpers: () => {
         for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])) { assert(text([tag]).length > 0) }
         const native = unwrap(valueTagged(['Object.entries'], { ...options, runtime: null }))
@@ -488,8 +493,8 @@ export const proof = {
         unknownPrimitive: () => valueTagged(/** @type {never} */ ({}), options),
         unknownStatement: () => scope({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }, options),
         unsupportedStaticWithoutRuntime: () => unwrap(valueTagged(['Object.is'], { ...options, runtime: null })),
-        // NaNVM holds no reference map yet
-        referenceMap: () => unwrap(valueTagged(['refMap'], options)),
+        // the empty reference map is the runtime's, so with none in scope it is refused
+        referenceMapWithoutRuntime: () => unwrap(valueTagged(['refMap'], { ...options, runtime: null })),
         memberWithoutRuntime: () => unwrap(valueTagged(['.', ['array', []], 'slice', ['|()', []]], { ...options, runtime: null })),
     },
 }

@@ -434,8 +434,11 @@ export const proof = {
         assertEq(printed(['()', ['entry'], [1, 2]]), "{\n    let _b0: Any<A> = A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some(\"($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}\")).to_any();\n    Any::call(_b0.clone(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())\n}")
         // `hasEntry` the same, its `bool` made an `Any`
         assertEq(printed(['hasEntry']), "A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some(\"($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}\")).to_any()")
-        // the empty reference map is refused: NaNVM holds none yet
+        // the empty reference map is the runtime's: with none it is refused,
+        // and with one it is the call of the runtime's maker
         assertEq(refusalReason(['refMap'])[0], noRefMap)
+        assertEq(printed(['refMap']), 'Any::call((Any::dot(runtime.clone(), string_any("refMap")).end())?, Array::default().to_any())')
+        assertEq(needsRuntime(['refMap']), true)
         // an intrinsic: the closure answering the member call of the name
         // on its first argument with the rest, the library's call step
         assertEq(printed(['charCodeAt']), "A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any(\"charCodeAt\")).end_call_native(|| Ok([_args.argument(1)].to_array().to_any())), 2, Array::default(), Some(\"($0,$1)=>$0.charCodeAt($1)\")).to_any()")

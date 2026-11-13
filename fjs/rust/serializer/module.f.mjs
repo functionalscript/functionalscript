@@ -502,9 +502,13 @@ const operation = (s, n, result) => {
         // the arity and the text are the helper table's; only the native
         // body is this writer's own
         const id = /** @type {import('../../edag/types.ts').HelperId} */ (tag)
-        // NaNVM holds no reference map yet: refused, never written as a
-        // function that is not one
-        if (id === 'refMap') { return error([noRefMap, n]) }
+        // the empty reference map is a new map of the runtime's, an
+        // ordinary function, asked for where the node is established;
+        // with no runtime in scope it is refused by name
+        if (id === 'refMap') {
+            if (s.runtime === null) { return error([noRefMap, n]) }
+            return map1(fallible(result))(ok(cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('refMap'), ').end())?, ', vm('Array'), '::default()', toAny, ')'])))
+        }
         const length = helperLength(id)
         const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
