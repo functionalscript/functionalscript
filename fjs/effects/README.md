@@ -263,7 +263,7 @@ rather than discard it:
   `unwrap` buried in a continuation, so a site that has not chosen a real
   policy is exactly a site this name marks. The library has none left; the
   remaining calls are in test harnesses, where a missing fixture is fatal.
-- `exitStep` / `errorMessage` (`./node/module.f.mjs`) — a `NodeProgram`'s
+- `exitStep` / `errorMessage` (`./node/module.f.js`) — a `NodeProgram`'s
   exit-code policy: report the failure on `stderr` and exit `1`.
 
 Neither is composition, and neither should grow: a consumer that can do

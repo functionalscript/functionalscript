@@ -20,6 +20,7 @@
 import { stringToU8List } from '../../../../text/utf8/module.f.js'
 import { generate } from '../../../../types/array/generate/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
+import { entry } from '../../../../types/object/entry/module.f.js'
 import { encoding } from '../../instruction/module.f.js'
 
 // values
@@ -68,24 +69,30 @@ const name = text => {
 /** @type {Readonly<Record<RefType, number>>} */
 const refTypes = { funcref: 0x70, externref: 0x6f }
 
+/** @type {(t: RefType) => number} */
+const refType = t => /** @type {number} */ (entry(refTypes, t))
+
 /** @type {Readonly<Record<ValType, number>>} */
 const valTypes = { i32: 0x7f, i64: 0x7e, f32: 0x7d, f64: 0x7c, ...refTypes }
+
+/** @type {(t: ValType) => number} */
+const valType = t => /** @type {number} */ (entry(valTypes, t))
 
 /** @type {(t: FuncType) => Bytes} */
 const funcType = ({ params, results }) => [
     0x60,
-    ...vec(params.map(t => [valTypes[t]])),
-    ...vec(results.map(t => [valTypes[t]])),
+    ...vec(params.map(t => [valType(t)])),
+    ...vec(results.map(t => [valType(t)])),
 ]
 
 /** @type {(l: Limits) => Bytes} */
 const limits = ({ min, max }) => max === null ? [0, ...u32(min)] : [1, ...u32(min), ...u32(max)]
 
 /** @type {(t: TableType) => Bytes} */
-const tableType = ({ element, limits: l }) => [refTypes[element], ...limits(l)]
+const tableType = ({ element, limits: l }) => [refType(element), ...limits(l)]
 
 /** @type {(t: GlobalType) => Bytes} */
-const globalType = ({ type, mutable }) => [valTypes[type], mutable ? 1 : 0]
+const globalType = ({ type, mutable }) => [valType(type), mutable ? 1 : 0]
 
 // instructions
 
@@ -93,7 +100,7 @@ const globalType = ({ type, mutable }) => [valTypes[type], mutable ? 1 : 0]
 const blockType = t =>
     t === null ? [0x40]
     : typeof t === 'number' ? leb(true)(BigInt(t))
-    : [valTypes[t]]
+    : [valType(t)]
 
 /**
  * An instruction's immediates, by the kind its encoding names.
@@ -110,13 +117,13 @@ const immediates = x => {
         : kind === 'index' ? u32(a)
         : kind === 'index2' ? [...u32(a), ...u32(b)]
         : kind === 'brTable' ? [...vec(a.map(u32)), ...u32(b)]
-        : kind === 'select' ? vec(a.map((/** @type {ValType} */ t) => [valTypes[t]]))
+        : kind === 'select' ? vec(a.map((/** @type {ValType} */ t) => [valType(t)]))
         : kind === 'memarg' ? [...u32(a.align), ...u32(a.offset)]
         : kind === 'i32' ? s32(a)
         : kind === 'i64' ? s64(a)
         : kind === 'f32' ? fixed(4)(BigInt(a))
         : kind === 'f64' ? fixed(8)(a)
-        : [refTypes[/** @type {RefType} */ (a)]]
+        : [refType(/** @type {RefType} */ (a))]
 }
 
 /** @type {(x: Instruction) => Bytes} */
@@ -134,11 +141,14 @@ const expr = e => [...e.flatMap(instruction), 0x0b]
 /** @type {Readonly<Record<Import['desc'][0] | Export['kind'], number>>} */
 const externKinds = { func: 0, table: 1, memory: 2, global: 3 }
 
+/** @type {(kind: Import['desc'][0] | Export['kind']) => number} */
+const externKind = kind => /** @type {number} */ (entry(externKinds, kind))
+
 /** @type {(x: Import) => Bytes} */
 const import_ = ({ module, name: n, desc }) => [
     ...name(module),
     ...name(n),
-    externKinds[desc[0]],
+    externKind(desc[0]),
     ...(desc[0] === 'func' ? u32(desc[1])
         : desc[0] === 'table' ? tableType(desc[1])
         : desc[0] === 'memory' ? limits(desc[1])
@@ -149,7 +159,7 @@ const import_ = ({ module, name: n, desc }) => [
 const _globalDefinition = ({ type, init }) => [...globalType(type), ...expr(init)]
 
 /** @type {(x: Export) => Bytes} */
-const export_ = ({ name: n, kind, index }) => [...name(n), externKinds[kind], ...u32(index)]
+const export_ = ({ name: n, kind, index }) => [...name(n), externKind(kind), ...u32(index)]
 
 /**
  * A segment, in the encoding whose flag bits say what it is: bit 0 passive or
@@ -162,7 +172,7 @@ const export_ = ({ name: n, kind, index }) => [...name(n), externKinds[kind], ..
 const element = ({ mode, init }) => {
     const isExpr = init[0] === 'expr'
     const items = init[0] === 'func' ? vec(init[1].map(u32)) : vec(init[2].map(expr))
-    const kind = init[0] === 'func' ? [0x00] : [refTypes[init[1]]]
+    const kind = init[0] === 'func' ? [0x00] : [refType(init[1])]
     const implicit = mode[0] === 'active' && mode[1] === 0 && (init[0] === 'func' || init[1] === 'funcref')
     const flag = (isExpr ? 4 : 0) + (mode[0] === 'active' ? (implicit ? 0 : 2) : mode[0] === 'passive' ? 1 : 3)
     return [
@@ -185,7 +195,7 @@ const data = ({ mode, bytes }) => [
 
 /** @type {(f: Module['functions'][number]) => Bytes} */
 const code = ({ locals, body }) => {
-    const content = [...vec(locals.map(([count, type]) => [...u32(count), valTypes[type]])), ...expr(body)]
+    const content = [...vec(locals.map(([count, type]) => [...u32(count), valType(type)])), ...expr(body)]
     return [...u32(content.length), ...content]
 }
 
@@ -203,16 +213,19 @@ const nameIds = {
     memory: 6, global: 7, elem: 8, data: 9, field: 10, tag: 11,
 }
 
+/** @type {(kind: Exclude<NameSubsection[0], 'unknown'>) => number} */
+const nameId = kind => /** @type {number} */ (entry(nameIds, kind))
+
 /** @type {(s: NameSubsection) => Bytes} */
 const nameSubsection = s => {
     /** @type {(id: number, content: Bytes) => Bytes} */
     const sub = (id, content) => [id, ...u32(content.length), ...content]
     return s[0] === 'unknown' ? sub(s[1], s[2])
         : s[0] === 'module' ? sub(nameIds.module, name(s[1]))
-        : s[0] === 'local' || s[0] === 'label' || s[0] === 'field' ? sub(nameIds[s[0]], indirectNameMap(s[1]))
+        : s[0] === 'local' || s[0] === 'label' || s[0] === 'field' ? sub(nameId(s[0]), indirectNameMap(s[1]))
         // What is left is a name map: TypeScript does not narrow the tuple
         // union by the three mnemonics above.
-        : sub(nameIds[s[0]], nameMap(/** @type {NameMap} */ (s[1])))
+        : sub(nameId(s[0]), nameMap(/** @type {NameMap} */ (s[1])))
 }
 
 /** @type {(c: Custom['content']) => Bytes} */

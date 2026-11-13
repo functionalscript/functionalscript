@@ -26,7 +26,7 @@
  */
 
 import { step } from '../../effects/module.f.js'
-import { exitStep, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { exitStep, writeUtf8File } from '../../effects/node/module.f.js'
 import { rustdocHead, rustdocHeadPath, rustdocFooter, rustdocFooterPath, rustdocHeader, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { rustdocStylesheet } from '../style/module.f.js'
 import { _readBuild } from '../module.f.mjs'

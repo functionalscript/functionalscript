@@ -37,7 +37,7 @@ this package already had to put it.
 ### Proposal
 
 **Shipped so far:** `spawn`, `childWait` and `ExitStatus` are in
-`../types.ts`, `../module.f.mjs` and the Node runner. `SpawnOptions` requires
+`../types.ts`, `../module.f.js` and the Node runner. `SpawnOptions` requires
 `stdio: 'inherit' | 'ignore'` and accepts `cwd`. A piped long-lived child still
 has no reader, so its pipe mode is not exposed until `childRead` exists.
 
@@ -238,7 +238,7 @@ Open for review before code:
 
 - [ ] Settle the signatures above.
 - [x] `spawn`, `childWait`, `Child`, `ExitStatus` and `SpawnOptions` with
-      `stdio: 'inherit'`, in `../types.ts`, `../module.f.mjs` and the Node
+      `stdio: 'inherit'`, in `../types.ts`, `../module.f.js` and the Node
       runner — the brand around the `ChildProcess` itself, `'spawn'` raced
       against `'error'`, the outcome read before `'exit'` is listened for —
       with host proofs for an exit, a signal and a missing command.
@@ -246,7 +246,7 @@ Open for review before code:
       isolated coverage to replay failed child logs.
 - [ ] `../types.ts`: the five remaining operations; `stdio` becomes optional
       once `childRead` can drain a piped child.
-- [ ] `../module.f.mjs`: their `do_` constructors and `nodeCommandSet` keys.
+- [ ] `../module.f.js`: their `do_` constructors and `nodeCommandSet` keys.
 - [ ] `../module.mjs`: the piped child — `writeAll`-style backpressure, the
       reads and their race, `childKill`.
 - [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,

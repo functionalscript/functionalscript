@@ -10,7 +10,7 @@
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError, mapStep, pureError, pureOk } from '../../effects/module.f.js'
 import { partialRun } from '../../effects/mock/module.f.js'
-import { access, exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
+import { access, exitCode, nodeCommands } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'

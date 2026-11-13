@@ -116,7 +116,7 @@
  */
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
-import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.js'
 import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
@@ -292,7 +292,7 @@ const idxNames = pd => catchStep(
  * objects — 28 bytes an object over a 1,072-byte frame. This repository's own
  * `objects/pack` holds indexes of 161,764 bytes and more, so reading one through
  * `readFile` failed for the ordinary case rather than an extreme one.
- * [`readWholeBytes`](../../effects/node/module.f.mjs) answers the chunks one
+ * [`readWholeBytes`](../../effects/node/module.f.js) answers the chunks one
  * open took — each a `Vec` and so each within the cap, the file however many it
  * takes — joined into a byte list, which has no such bound and is what `tryIdx`
  * takes.

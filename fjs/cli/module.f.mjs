@@ -9,7 +9,7 @@
  * @import { Command, Commands, CommandReference, Main } from './types.ts'
  */
 
-import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
+import { errorExit, exitStep, log } from '../effects/node/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.js'
 import { entry } from '../types/object/entry/module.f.js'
 import { isArray } from '../types/array/module.f.js'

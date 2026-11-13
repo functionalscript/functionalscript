@@ -32,7 +32,7 @@
 
 import { asyncPartialRun, io } from '../module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
-import { exitCode, lexicalFileModule, nodeCommands } from '../node/module.f.mjs'
+import { exitCode, lexicalFileModule, nodeCommands } from '../node/module.f.js'
 import { _orderDirents } from '../node/virtual/readdir/module.f.js'
 import { concat, normalize } from '../../path/module.f.js'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'

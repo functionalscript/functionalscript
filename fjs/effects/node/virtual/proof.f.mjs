@@ -11,8 +11,8 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { assertIoMessage } from '../../testlib.f.js'
-import { catch_, now, randomInt, read, sandbox } from '../module.f.mjs'
-import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
+import { catch_, now, randomInt, read, sandbox } from '../module.f.js'
+import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.js'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.js'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.js'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.js'
@@ -776,7 +776,7 @@ export const proof = {
         assert(nested[0] === 'error')
         assertStructurallySame(state.root, root)
         // And a `Vec` that is not whole bytes never reaches this runner at all:
-        // `writeExclusive` refuses it in `../module.f.mjs`, because the node
+        // `writeExclusive` refuses it in `../module.f.js`, because the node
         // runner's `fromVec` would pad the last byte and create a file holding
         // a byte the caller never gave while this one stored the vector as it
         // was. The refusal is the same one `inflate` makes.
@@ -829,7 +829,7 @@ export const proof = {
     },
     writeBytesNotWholeBytes: () => {
         // A `Vec` that is not whole bytes never reaches this runner: `writeBytes`
-        // refuses it in `../module.f.mjs`, as `writeExclusive` does, because the
+        // refuses it in `../module.f.js`, as `writeExclusive` does, because the
         // node runner's `fromVec` would pad the last byte and write a byte the
         // caller never gave while this one appended the vector as it was. The
         // offset is the file's size, which the append-only check accepts, so
@@ -843,7 +843,7 @@ export const proof = {
     },
     writeBytesUnnamedOffset: () => {
         // An offset no position names never reaches this runner either:
-        // `writeBytes` refuses it in `../module.f.mjs`, in the words a read's
+        // `writeBytes` refuses it in `../module.f.js`, in the words a read's
         // window is refused with, so the append-only check below is never
         // the one that answers. The refusal comes before the name is
         // resolved — a missing file is refused for its offset, not `ENOENT`
@@ -1960,7 +1960,7 @@ export const proof = {
         },
         // **A chunk of no bytes is stepped over, not answered as the end of the
         // body.** No bytes is how a pull says *end* — `readChunks` in
-        // `../module.f.mjs` ends an unbounded stream there — and Node's parser
+        // `../module.f.js` ends an unbounded stream there — and Node's parser
         // owes nobody a promise to keep an empty chunk out of a body, so the
         // Node runner's reader steps over one and answers the next chunk that
         // has bytes. A fixture chunk with no bits is that chunk. Answered as

@@ -8,7 +8,7 @@
  * compiled exactly as the command compiles one.
  */
 
-import { exitCode } from '../effects/node/module.f.mjs'
+import { exitCode } from '../effects/node/module.f.js'
 import { compile } from './module.f.mjs'
 import { noRuntime, transpile } from './transpiler/module.f.mjs'
 import { virtualAt, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'

@@ -14,7 +14,7 @@ import { setImmediate } from 'node:timers'
 
 import { history, historyStep, mapStep, pureOk } from '../../effects/module.f.js'
 import { asyncPartialRun } from '../../effects/module.mjs'
-import { access, nodeCommands } from '../../effects/node/module.f.mjs'
+import { access, nodeCommands } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { within } from '../../effects/node/testlib.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.js'

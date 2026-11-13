@@ -110,7 +110,7 @@ proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
       share no pattern. A renamed export changes the public
       API: explain it and update every importer in the same PR. Breaking
       notices are optional before 1.0.
-- [x] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
+- [x] Drop the two unused imports in `fjs/effects/node/module.f.js`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related

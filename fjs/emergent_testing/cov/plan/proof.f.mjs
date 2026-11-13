@@ -9,7 +9,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { foldStep, mapStep, pureOk, step } from '../../../effects/module.f.js'
 import { partialRun } from '../../../effects/mock/module.f.js'
-import { access, ioError, nodeCommands, readdir } from '../../../effects/node/module.f.mjs'
+import { access, ioError, nodeCommands, readdir } from '../../../effects/node/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { createPlan, runPlanned } from './module.f.mjs'

@@ -659,7 +659,7 @@ export const _pieces = units => s => {
  *
  * @type {(vs: readonly Vec[], i: number) => EffectList<WriteBytes, Vec, IoChannel>}
  */
-export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail: _vecList(vs, i + 1) } : undefined)
+export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[Number(i)], tail: _vecList(vs, i + 1) } : undefined)
 
 /**
  * Writes `chunks` to `path`, one after another, replacing what it held — the

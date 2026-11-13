@@ -21,7 +21,7 @@
 import { buildScriptPath, wasmTarget } from '../../nanvm/demos/module.f.mjs'
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
-import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
+import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 import { previewAlias } from '../origin/module.f.js'
 

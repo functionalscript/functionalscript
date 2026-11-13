@@ -36,6 +36,7 @@ import { fromU8List } from '../../text/utf8/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
 import { generate } from '../../types/array/generate/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500
@@ -104,7 +105,7 @@ const punycodeDecode = (ascii, punycode) => {
         while (true) {
             k = k + base
             const t = Math.min(Math.max(k - bias, tMin), tMax)
-            const c = punycode[at]
+            const c = punycode[Number(at)]
             at = at + 1
             const d = isLower(c) ? c.charCodeAt(0) - latinSmallLetterA : isDigit(c) ? 26 + c.charCodeAt(0) - digit0 : -1
             if (d < 0) { return null }
@@ -175,11 +176,11 @@ const demangler = s => {
      * @type {(i: number) => _Read<bigint>}
      */
     const integer62 = i => {
-        if (s[i] === '_') { return [0n, i + 1] }
+        if (s[Number(i)] === '_') { return [0n, i + 1] }
         let x = 0n
         let j = i
-        while (s[j] !== '_') {
-            const c = s[j]
+        while (s[Number(j)] !== '_') {
+            const c = s[Number(j)]
             const d = isDigit(c) ? c.charCodeAt(0) - digit0
                 : isLower(c) ? 10 + c.charCodeAt(0) - latinSmallLetterA
                 : isUpper(c) ? 36 + c.charCodeAt(0) - latinCapitalLetterA
@@ -193,7 +194,7 @@ const demangler = s => {
 
     /** @type {(tag: string) => (i: number) => _Read<bigint>} */
     const optInteger62 = tag => i => {
-        if (s[i] !== tag) { return [0n, i] }
+        if (s[Number(i)] !== tag) { return [0n, i] }
         const r = integer62(i + 1)
         return r === null || r[0] + 1n > 0xffff_ffff_ffff_ffffn ? null : [r[0] + 1n, r[1]]
     }
@@ -203,8 +204,8 @@ const demangler = s => {
     /** @type {(i: number) => _Read<string>} */
     const hexNibbles = i => {
         let j = i
-        while (s[j] !== '_') {
-            const c = s[j]
+        while (s[Number(j)] !== '_') {
+            const c = s[Number(j)]
             if (!isLowerHex(c)) { return null }
             j = j + 1
         }
@@ -217,15 +218,15 @@ const demangler = s => {
      * @type {(i: number) => _Read<readonly [string, string]>}
      */
     const ident = i => {
-        const punycode = s[i] === 'u'
+        const punycode = s[Number(i)] === 'u'
         const start = punycode ? i + 1 : i
-        if (!isDigit(s[start])) { return null }
+        if (!isDigit(s[Number(start)])) { return null }
         let j = start + 1
-        if (s[start] !== '0') {
-            while (isDigit(s[j])) { j = j + 1 }
+        if (s[Number(start)] !== '0') {
+            while (isDigit(s[Number(j)])) { j = j + 1 }
         }
         const length = Number(s.slice(start, j))
-        const from = s[j] === '_' ? j + 1 : j
+        const from = s[Number(j)] === '_' ? j + 1 : j
         const end = from + length
         if (end > s.length) { return null }
         const text = s.slice(from, end)
@@ -278,7 +279,7 @@ const demangler = s => {
         let items = null
         let count = 0
         let j = i
-        while (s[j] !== 'E') {
+        while (s[Number(j)] !== 'E') {
             if (j >= s.length) { return null }
             const r = f(j)
             if (r === null) { return null }
@@ -309,14 +310,14 @@ const demangler = s => {
     const path = (i, inValue, bound, depth) => {
         if (depth + 1 > maxDepth) { return null }
         const d = depth + 1
-        const tag = s[i]
+        const tag = s[Number(i)]
         if (tag === 'C') {
             const dis = disambiguator(i + 1)
             const name = dis === null ? null : ident(dis[1])
             return name === null ? null : [identText(name[0]), name[1]]
         }
         if (tag === 'N') {
-            const ns = s[i + 1]
+            const ns = s[Number(i + 1)]
             if (!(isUpper(ns) || isLower(ns))) { return null }
             const prefix = path(i + 2, inValue, bound, d)
             const dis = prefix === null ? null : disambiguator(prefix[1])
@@ -354,17 +355,17 @@ const demangler = s => {
 
     /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const genericArg = (i, bound, depth) => {
-        if (s[i] === 'L') {
+        if (s[Number(i)] === 'L') {
             const lt = integer62(i + 1)
             const text = lt === null ? null : lifetime(lt[0], bound)
             return lt === null || text === null ? null : [text, lt[1]]
         }
-        return s[i] === 'K' ? constant(i + 1, false, bound, depth) : type(i, bound, depth)
+        return s[Number(i)] === 'K' ? constant(i + 1, false, bound, depth) : type(i, bound, depth)
     }
 
     /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const type = (i, bound, depth) => {
-        const splat = s[i] === 'w'
+        const splat = s[Number(i)] === 'w'
         const j = splat ? i + 1 : i
         const r = typeBody(j, bound, depth)
         return r === null ? null : [`${splat ? '#[splat] ' : ''}${r[0]}`, r[1]]
@@ -372,16 +373,16 @@ const demangler = s => {
 
     /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const typeBody = (i, bound, depth) => {
-        const tag = s[i]
+        const tag = s[Number(i)]
         if (tag === undefined) { return null }
-        const basic = basicTypes[tag]
+        const basic = entry(basicTypes, tag)
         if (basic !== undefined) { return [basic, i + 1] }
         if (depth + 1 > maxDepth) { return null }
         const d = depth + 1
         /** @type {(prefix: string, r: _Read<string>, suffix?: string) => _Read<string>} */
         const wrap = (prefix, r, suffix = '') => r === null ? null : [`${prefix}${r[0]}${suffix}`, r[1]]
         if (tag === 'R' || tag === 'Q') {
-            const lt = s[i + 1] === 'L' ? integer62(i + 2) : /** @type {const} */ ([0n, i + 1])
+            const lt = s[Number(i + 1)] === 'L' ? integer62(i + 2) : /** @type {const} */ ([0n, i + 1])
             if (lt === null) { return null }
             const ltText = lt[0] === 0n ? '' : lifetime(lt[0], bound)
             return ltText === null ? null
@@ -404,7 +405,7 @@ const demangler = s => {
                 const r = list(j, ' + ', k => dynTrait(k, bound, d))
                 return r === null ? null : [r[0][0], r[1]]
             })
-            if (traits === null || s[traits[1]] !== 'L') { return null }
+            if (traits === null || s[Number(traits[1])] !== 'L') { return null }
             const lt = integer62(traits[1] + 1)
             if (lt === null) { return null }
             const ltText = lt[0] === 0n ? '' : lifetime(lt[0], bound)
@@ -421,11 +422,11 @@ const demangler = s => {
 
     /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const fnSig = (i, bound, depth) => {
-        const isUnsafe = s[i] === 'U'
+        const isUnsafe = s[Number(i)] === 'U'
         const j = isUnsafe ? i + 1 : i
         /** @type {_Read<string | null>} */
-        const abi = s[j] !== 'K' ? [null, j]
-            : s[j + 1] === 'C' ? ['C', j + 2]
+        const abi = s[Number(j)] !== 'K' ? [null, j]
+            : s[Number(j + 1)] === 'C' ? ['C', j + 2]
             : (() => {
                 const id = ident(j + 1)
                 return id === null || id[0][0] === '' || id[0][1] !== '' ? null : [id[0][0], id[1]]
@@ -434,11 +435,11 @@ const demangler = s => {
         const params = list(abi[1], ', ', k => type(k, bound, depth))
         if (params === null) { return null }
         /** @type {_Read<string>} */
-        const result = s[params[1]] === 'u' ? ['', params[1] + 1] : type(params[1], bound, depth)
+        const result = s[Number(params[1])] === 'u' ? ['', params[1] + 1] : type(params[1], bound, depth)
         if (result === null) { return null }
         const abiText = abi[0] === null ? '' : `extern "${abi[0].split('_').join('-')}" `
         return [
-            `${isUnsafe ? 'unsafe ' : ''}${abiText}fn(${params[0][0]})${s[params[1]] === 'u' ? '' : ` -> ${result[0]}`}`,
+            `${isUnsafe ? 'unsafe ' : ''}${abiText}fn(${params[0][0]})${s[Number(params[1])] === 'u' ? '' : ` -> ${result[0]}`}`,
             result[1],
         ]
     }
@@ -452,8 +453,8 @@ const demangler = s => {
     const dynTrait = (i, bound, depth) => {
         /** @type {(i: number, depth: number) => _Read<readonly [string, boolean]>} */
         const openPath = (i, depth) => {
-            if (s[i] === 'B') { return backref(i, depth, openPath) }
-            if (s[i] === 'I') {
+            if (s[Number(i)] === 'B') { return backref(i, depth, openPath) }
+            if (s[Number(i)] === 'I') {
                 const prefix = path(i + 1, false, bound, depth)
                 const args = prefix === null ? null : list(prefix[1], ', ', j => genericArg(j, bound, depth))
                 return prefix === null || args === null ? null : [[`${prefix[0]}<${args[0][0]}`, true], args[1]]
@@ -464,10 +465,10 @@ const demangler = s => {
         const head = openPath(i, depth)
         if (head === null) { return null }
         let [[text, open], j] = head
-        while (s[j] === 'p') {
+        while (s[Number(j)] === 'p') {
             const name = ident(j + 1)
             if (name === null) { return null }
-            const value = s[name[1]] === 'K' ? constant(name[1] + 1, false, bound, depth) : type(name[1], bound, depth)
+            const value = s[Number(name[1])] === 'K' ? constant(name[1] + 1, false, bound, depth) : type(name[1], bound, depth)
             if (value === null) { return null }
             text = `${text}${open ? ', ' : '<'}${identText(name[0])} = ${value[0]}`
             open = true
@@ -478,7 +479,7 @@ const demangler = s => {
 
     /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const pattern = (i, bound, depth) => {
-        const tag = s[i]
+        const tag = s[Number(i)]
         if (tag === 'R') {
             const low = constant(i + 1, false, bound, depth)
             const high = low === null ? null : constant(low[1], false, bound, depth)
@@ -490,7 +491,7 @@ const demangler = s => {
             if (first === null) { return null }
             let text = first[0]
             let j = first[1]
-            while (s[j] !== 'E') {
+            while (s[Number(j)] !== 'E') {
                 if (j >= s.length) { return null }
                 const next = pattern(j, bound, depth + 1)
                 if (next === null) { return null }
@@ -513,7 +514,7 @@ const demangler = s => {
 
     /** @type {(i: number, inValue: boolean, bound: number, depth: number) => _Read<string>} */
     const constant = (i, inValue, bound, depth) => {
-        const tag = s[i]
+        const tag = s[Number(i)]
         if (tag === undefined || depth + 1 > maxDepth) { return null }
         const d = depth + 1
         /** @type {(r: _Read<string>) => _Read<string>} */
@@ -523,7 +524,7 @@ const demangler = s => {
         if (tag === 'p') { return ['_', i + 1] }
         if ('htmyoj'.includes(tag)) { return uint(i + 1) }
         if ('aslxni'.includes(tag)) {
-            const negative = s[i + 1] === 'n'
+            const negative = s[Number(i + 1)] === 'n'
             const r = uint(negative ? i + 2 : i + 1)
             return r === null ? null : [`${negative ? '-' : ''}${r[0]}`, r[1]]
         }
@@ -547,7 +548,7 @@ const demangler = s => {
             const r = strLiteral(i + 1)
             return braced(r === null ? null : [`*${r[0]}`, r[1]])
         }
-        if (tag === 'R' && s[i + 1] === 'e') { return strLiteral(i + 2) }
+        if (tag === 'R' && s[Number(i + 1)] === 'e') { return strLiteral(i + 2) }
         if (tag === 'R' || tag === 'Q') {
             const r = constant(i + 1, true, bound, d)
             return braced(r === null ? null : [`&${tag === 'Q' ? 'mut ' : ''}${r[0]}`, r[1]])
@@ -563,7 +564,7 @@ const demangler = s => {
         if (tag === 'V') {
             const p = path(i + 1, true, bound, d)
             if (p === null) { return null }
-            const kind = s[p[1]]
+            const kind = s[Number(p[1])]
             if (kind === 'U') { return braced([p[0], p[1] + 1]) }
             if (kind === 'T') {
                 const r = list(p[1] + 1, ', ', element)
@@ -588,7 +589,7 @@ const demangler = s => {
         const r = path(i, true, 0, 0)
         if (r === null) { return null }
         // The instantiating crate, which the crate reads and does not print.
-        const end = isUpper(s[r[1]]) ? path(r[1], false, 0, 0) : r
+        const end = isUpper(s[Number(r[1])]) ? path(r[1], false, 0, 0) : r
         return end === null ? null : [r[0], end[1]]
     }
 }
@@ -611,7 +612,7 @@ export const demangle = name => {
         : s.length > 3 && s.startsWith('__R') ? 3
         : s.length > 1 && s.startsWith('R') ? 1
         : -1
-    if (start < 0 || !isUpper(s[start]) || [...s].some(c => c > '\x7f')) { return name }
+    if (start < 0 || !isUpper(s[Number(start)]) || [...s].some(c => c > '\x7f')) { return name }
     // Backrefs count from the start of the path, after the prefix.
     const r = demangler(s.slice(start))(0)
     if (r === null) { return name }

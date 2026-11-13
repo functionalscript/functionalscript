@@ -71,7 +71,7 @@ import {
     catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, step, walkStep,
 } from '../../effects/module.f.js'
 import { fromList, run as runStream } from '../../effects/list/module.f.js'
-import { isNotFound, namesNothing, now, readUtf8File, stat } from '../../effects/node/module.f.mjs'
+import { isNotFound, namesNothing, now, readUtf8File, stat } from '../../effects/node/module.f.js'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { lastValue, tryEntries as configEntries } from '../../git/config/module.f.js'
 import { oidBytes as widthOf } from '../../git/format/module.f.mjs'

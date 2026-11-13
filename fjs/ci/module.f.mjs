@@ -12,7 +12,7 @@
  */
 
 import { step } from '../effects/module.f.js'
-import { exists, exitStep, writeFiles } from '../effects/node/module.f.mjs'
+import { exists, exitStep, writeFiles } from '../effects/node/module.f.js'
 import { images, node } from './config/module.f.js'
 import {
     _workflowsDirectory,

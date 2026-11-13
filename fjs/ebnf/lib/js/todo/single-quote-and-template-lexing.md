@@ -282,7 +282,7 @@ The repository had two, one per module, and **they are not the same case**:
 
 | regex | tokenizes as | cost |
 | --- | --- | --- |
-| [`effects/node`](../../../../effects/node/module.f.mjs)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
+| [`effects/node`](../../../../effects/node/module.f.js)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
 | `text/sgr`'s `str` `` /\x1b\[[0-9;]*m/g ``, since replaced by the scanner `stripSgr` | `invalid token` at the `\` | the module is lost from there on |
 
 Both are `.f.mjs` modules, where regular expressions are ruled out, which is

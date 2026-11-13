@@ -8,8 +8,8 @@
  * @import { Ts } from '../rtti/ts/types.ts'
  */
 
-import { exitCode } from '../effects/node/module.f.mjs'
-import { log } from '../effects/node/module.f.mjs'
+import { exitCode } from '../effects/node/module.f.js'
+import { log } from '../effects/node/module.f.js'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.js'
 import { fgGreen, fgRed, reset } from '../text/sgr/module.f.js'

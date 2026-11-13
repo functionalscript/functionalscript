@@ -44,7 +44,7 @@ import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage, invalidModuleSpecifier,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, windowRefusal,
-} from './module.f.mjs'
+} from './module.f.js'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
 import { maxVecBytes } from '../../types/bit_vec/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
@@ -762,7 +762,7 @@ export const runNodeEffect = asyncRunAll({
         isDirectory: v.isDirectory()
     }))),
     // A `Vec` that is not whole bytes never reaches here: the effect in
-    // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
+    // `module.f.js` refuses it before the host is asked, since `fromVec` would
     // pad the last byte.
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
@@ -852,7 +852,7 @@ export const runNodeEffect = asyncRunAll({
     // a loose object with bytes after its stream is one Git refuses as
     // garbage at its end, and this must not hand back the object in front.
     // A `Vec` that is not whole bytes never reaches here: the effect in
-    // `module.f.mjs` refuses it before the host is asked.
+    // `module.f.js` refuses it before the host is asked.
     inflate: data => io(async () => {
         const input = fromVec(data)
         // `info: true` answers `{ buffer, engine }`, an overload the Node

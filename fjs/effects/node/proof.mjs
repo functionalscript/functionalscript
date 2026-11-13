@@ -52,7 +52,7 @@ import {
     inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
-} from './module.f.mjs'
+} from './module.f.js'
 import { _wrapInlineTest, readFlags, runEffect } from './module.mjs'
 import { isNode, loopback, within, withServer, withTemporary } from './testlib.mjs'
 

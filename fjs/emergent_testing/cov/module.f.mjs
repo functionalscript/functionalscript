@@ -18,7 +18,7 @@
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.js'
-import { allOk, availableParallelism, capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.mjs'
+import { allOk, availableParallelism, capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.js'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'

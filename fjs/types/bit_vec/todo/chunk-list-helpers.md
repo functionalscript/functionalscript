@@ -22,7 +22,7 @@ const bytesOf = chunks => flat(map(u8ListMsb)(chunks))
 const fileSizeBytes = chunks => chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
 ```
 
-in [`fjs/effects/node`](../../../effects/node/module.f.mjs),
+in [`fjs/effects/node`](../../../effects/node/module.f.js),
 [`fjs/git/inflater`](../../../git/inflater/module.f.mjs),
 [`fjs/cas/git`](../../../cas/git/module.f.mjs) and
 [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs).

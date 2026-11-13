@@ -493,7 +493,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
-  [`fjs/effects/node`](../effects/node/module.f.mjs)'s `readWhole` is one
+  [`fjs/effects/node`](../effects/node/module.f.js)'s `readWhole` is one
   operation: the host opens the path once, reads it to the end under that
   descriptor, and answers the chunks it took — each a `Vec` and so within the
   cap, the file however many it takes — which `readWholeBytes` joins into a byte

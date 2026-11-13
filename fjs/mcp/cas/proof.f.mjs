@@ -9,7 +9,7 @@
 
 import { casToolRegistry } from './module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { ioError } from '../../effects/node/module.f.mjs'
+import { ioError } from '../../effects/node/module.f.js'
 import { maxLengthBytes, vec, vec8 } from '../../types/bit_vec/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'

@@ -44,7 +44,7 @@ import {
     stat,
     readChunks,
     writeBytes,
-} from '../effects/node/module.f.mjs'
+} from '../effects/node/module.f.js'
 import { toOption } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { splitAt } from '../types/string/module.f.js'

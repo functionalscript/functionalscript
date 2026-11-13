@@ -200,7 +200,7 @@
  */
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
-import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
 import { under } from '../../path/module.f.js'
 import { occurrences } from '../../types/array/module.f.js'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.js'

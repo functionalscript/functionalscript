@@ -50,7 +50,7 @@ import { empty, nonEmpty } from '../effects/list/module.f.js'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
     isDirectory, isNotFound, listen, log, maxPort, open, plainTextResponse, readChunks, releaseHandle, stat,
-} from '../effects/node/module.f.mjs'
+} from '../effects/node/module.f.js'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.js'
 import { isDigits } from '../text/ascii/module.f.js'

@@ -10,7 +10,7 @@
  * @import { Exp } from '../edag/types.ts'
  */
 
-import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
+import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.js'
 import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'

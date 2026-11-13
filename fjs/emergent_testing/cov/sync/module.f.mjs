@@ -9,7 +9,7 @@
  */
 
 import { history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.js'
-import { childWait, execFile, spawn } from '../../../effects/node/module.f.mjs'
+import { childWait, execFile, spawn } from '../../../effects/node/module.f.js'
 import { publishFrom } from '../../../ci/cache/publish/module.f.mjs'
 
 const localRef = /** @type {const} */ ('refs/heads/build-cache')

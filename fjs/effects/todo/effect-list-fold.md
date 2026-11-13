@@ -40,7 +40,7 @@ it stays.
 chunk → fold and recurse* skeleton appears in six places — `detectStream`
 (`fjs/media/type/module.f.mjs`), `collectRead` and `contentKey`
 (`fjs/cas/module.f.mjs`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
-(`fjs/effects/node/module.f.mjs`) and `fileCas.write`'s inner loop
+(`fjs/effects/node/module.f.js`) and `fileCas.write`'s inner loop
 (`fjs/cas/module.f.mjs`). That is `foldStep` over a stream. The *error item →
 propagate* case it once also had is gone: an `EffectList` cell carries its own failure,
 and `step` propagates it. The two pure folds fit the plain shape; `writeLoop`

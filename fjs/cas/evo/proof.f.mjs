@@ -19,7 +19,7 @@ import {
 } from '../../asserts/module.f.js'
 import { pure } from '../../effects/module.f.js'
 import { pureError } from '../../effects/module.f.js'
-import { ioError } from '../../effects/node/module.f.mjs'
+import { ioError } from '../../effects/node/module.f.js'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.js'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'

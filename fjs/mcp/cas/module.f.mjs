@@ -137,7 +137,7 @@ import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
 } from '../../protocol/mcp/module.f.mjs'
 import { collectRead } from '../../cas/module.f.mjs'
-import { errorSummary } from '../../effects/node/module.f.mjs'
+import { errorSummary } from '../../effects/node/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'

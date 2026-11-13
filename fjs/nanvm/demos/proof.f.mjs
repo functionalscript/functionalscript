@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
-import { exitCode, readUtf8File } from '../../effects/node/module.f.mjs'
+import { exitCode, readUtf8File } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.js'
 import { buildScript, buildScriptPath, builtWasmPath, callStatement, f64Literal, generate, main, modules, modulesPath, rustPath, samplePath, samples, wasmTarget } from './module.f.mjs'

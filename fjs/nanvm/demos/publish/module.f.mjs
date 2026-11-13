@@ -42,7 +42,7 @@
 
 import { errorExit } from '../../../effects/common/module.f.js'
 import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
-import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
+import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.js'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
 import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
 import { parent } from '../../../path/module.f.js'

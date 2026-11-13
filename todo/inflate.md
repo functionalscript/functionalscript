@@ -10,7 +10,7 @@ over [RFC 1951](https://www.rfc-editor.org/rfc/rfc1951)), and a packfile
 holds one per object. The decoder for Git objects
 ([`fjs/git`](../fjs/git/README.md)) is pure over the inflated
 bytes, and today the inflating is the host's: `inflate` in
-[`fjs/effects/node`](../fjs/effects/node/module.f.mjs) hands a `Vec` to
+[`fjs/effects/node`](../fjs/effects/node/module.f.js) hands a `Vec` to
 `node:zlib` and gets a `Vec` back. Two modules call it:
 [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) for the one stream a loose
 object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) for each

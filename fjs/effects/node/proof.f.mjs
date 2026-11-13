@@ -17,8 +17,8 @@ import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.js"
 import {
     availableParallelism, capture, handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
     requestBodyOffsetMessage, writeBytes, writeExclusive,
-} from "./module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, random256, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+} from "./module.f.js"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, random256, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.js"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.js"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.js"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"

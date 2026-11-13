@@ -14,7 +14,7 @@
  */
 
 
-import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
+import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { step } from '../../effects/module.f.js'
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'

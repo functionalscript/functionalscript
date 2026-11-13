@@ -22,7 +22,7 @@ import { assert, assertEq } from '../../asserts/module.f.js'
 import { resultMapStep, step } from '../module.f.js'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { createServer, listen } from './module.f.mjs'
+import { createServer, listen } from './module.f.js'
 import { isBun, runEffect } from './module.mjs'
 
 export { isBun }

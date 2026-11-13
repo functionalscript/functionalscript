@@ -4,7 +4,7 @@
 import { ci, main } from './module.f.mjs'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
-import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.mjs'
+import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.js'
 import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'

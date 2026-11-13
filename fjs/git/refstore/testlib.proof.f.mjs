@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { mkdir } from '../../effects/node/module.f.mjs'
+import { mkdir } from '../../effects/node/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { latin1 } from '../testlib.f.js'

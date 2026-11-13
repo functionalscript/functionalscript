@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/effects/node/module.f.mjs` (plus its `types.ts` companion) declares ~25 operation families.
+`fjs/effects/node/module.f.js` (plus its `types.ts` companion) declares ~25 operation families.
 Most are genuinely Node-shaped I/O — `Fs` (`mkdir`, `readFile`, `readdir`,
 `writeFile`, `rm`, `rename`, `readBytes`, `writeBytes`, `stat`, `access`,
 `createExclusive`, `exec`), `Http` (`createServer`, `listen`), `Fetch`,
@@ -45,7 +45,7 @@ separation-of-concerns smell stated in the documentation.
 ### Proposal
 
 Move each non-Node concern to the layer that owns it, leaving
-`fjs/effects/node/module.f.mjs` to be exactly *the operations a Node-like host
+`fjs/effects/node/module.f.js` to be exactly *the operations a Node-like host
 provides*.
 
 **One destination, `fjs/effects/common`, not one per family.** This table

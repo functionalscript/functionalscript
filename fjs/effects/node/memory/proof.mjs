@@ -5,7 +5,7 @@
  * @import { Uuid } from './types.ts'
  */
 
-import { errorSummary } from '../module.f.mjs'
+import { errorSummary } from '../module.f.js'
 import {
     asBase, asNominal,
     create, read, write,

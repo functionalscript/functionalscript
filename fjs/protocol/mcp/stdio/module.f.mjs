@@ -37,7 +37,7 @@
  */
 
 import { pureError, pureOk, resultStep, step } from '../../../effects/module.f.js'
-import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
+import { ioError, readLine, write } from '../../../effects/node/module.f.js'
 import { tryUtf8 } from '../../../text/module.f.js'
 import { parse, stringifySorted } from '../../../media/json/module.f.mjs'
 import { errorResponseOf, internalError, parseError } from '../../json_rpc/module.f.mjs'

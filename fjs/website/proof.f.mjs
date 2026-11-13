@@ -6,10 +6,10 @@
  * @import { FetchText } from '../effects/browser/types.ts'
  */
 
-import { exitCode } from '../effects/node/module.f.mjs'
+import { exitCode } from '../effects/node/module.f.js'
 import { isTodoDir, main, startRounds } from './module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
-import { nodeCommands } from '../effects/node/module.f.mjs'
+import { nodeCommands } from '../effects/node/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'

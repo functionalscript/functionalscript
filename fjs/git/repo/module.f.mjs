@@ -41,7 +41,7 @@
  */
 
 import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.js'
-import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
+import { isNotFound, readFile, stat } from '../../effects/node/module.f.js'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.js'
 import { isWellFormed } from '../../text/utf16/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
