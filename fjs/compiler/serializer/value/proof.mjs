@@ -2314,9 +2314,9 @@ export const proof = {
     // container holds is still the object the rest of the module holds,
     // where both stand under one property of the export.
     selfCaptureSharing: async () => {
-        const root = {
+        const root = /** @type {const} */ ({
             main: [utf8('const a={name:"a"}; const make=pairs=>{const self=key=>key===0?[pairs,self]:make([key]); return self;}; const f=make(0)(a); export default [a,f];')],
-        }
+        })
         const [, result] = virtualAt(root)(interpret(noRuntime)('main'))
         const [a, f] = (await compile(assertOk(result))).default
         const [pairs, self] = f(0)

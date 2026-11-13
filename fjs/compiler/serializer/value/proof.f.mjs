@@ -93,7 +93,7 @@ export const proof = {
         const shared = /** @type {const} */ (['{}', [[':', 'name', 'a']]])
         const captured = /** @type {const} */ (['[]', [shared]])
         const fn = /** @type {const} */ (['=>', 1, [captured], ['[]', [['frame', 0], ['self']]]])
-        const expected = 'const $0={"name":"a"};const $1=[$0];const $2=(function $3($4){return [$1,$3];});'
+        const expected = /** @type {const} */ ('const $0={"name":"a"};const $1=[$0];const $2=(function $3($4){return [$1,$3];});')
         assertEq(stringify(['[]', [shared, fn]]), `${expected}export default [$0,$2];`)
         assertEq(stringify(['{}', [[':', 'x', ['[]', [shared, fn]]]]]), `${expected}export default {"x":[$0,$2]};`)
         assertEq(stringify(['{}', [[':', 'x', ['{}', [[':', 'y', ['[]', [shared, fn]]]]]]]]), `${expected}export default {"x":{"y":[$0,$2]}};`)
