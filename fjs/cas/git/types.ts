@@ -15,7 +15,7 @@ import type { Cas } from '../types.ts'
  * and the branch's name — `build-cache` for `refs/heads/build-cache`.
  *
  * `dir` is the repository directory, the one that holds `objects/`,
- * `refs/` and `config`: what [`fjs/git/repo`](../../git/repo/module.f.mjs)'s
+ * `refs/` and `config`: what [`fjs/git/repo`](../../git/repo/module.f.js)'s
  * `tryCommonDir` answers for a worktree, and a bare repository itself. The
  * worktree a caller may be standing in is deliberately not part of this: the
  * backend reads and writes refs of its own and never the checkout's `HEAD`,

@@ -12,7 +12,7 @@ import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { tryEntries } from '../config/module.f.js'
 import { initConfig, initSha256Config, latin1, noFile } from '../testlib.f.js'
-import { oidBytes, tryOidBytes } from './module.f.mjs'
+import { oidBytes, tryOidBytes } from './module.f.js'
 
 /**
  * The id width a `config` file Git reads names.

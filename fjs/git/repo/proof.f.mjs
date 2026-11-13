@@ -13,7 +13,7 @@ import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.js'
 import { vec } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { tryCommonDir } from './module.f.mjs'
+import { tryCommonDir } from './module.f.js'
 
 /** A file of one line of text, as the virtual filesystem holds one. */
 const file = /** @type {(text: string) => readonly [import('../../types/bit_vec/types.ts').Vec]} */ (
