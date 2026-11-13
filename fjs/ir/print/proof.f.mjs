@@ -3,8 +3,9 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { add, block, bool, br, call, f64, f64c, fn, get, i, if_, int, let_, lit, make, match, n, never, true_, u, unit, variant } from '../module.f.js'
-import { corners, samples } from '../testlib.f.mjs'
+import { any } from '../l0/module.f.js'
+import { add, block, bool, br, call, f64, f64c, fn, get, i, if_, int, let_, lit, make, match, n, never, only, trap, true_, u, unit, variant } from '../module.f.js'
+import { corners, samples, unknown } from '../testlib.f.mjs'
 import { print, show } from './module.f.js'
 
 /** @type {Type} */
@@ -18,6 +19,7 @@ const sumType = ['sum', [['a', unit], ['b', f64]]]
  * @type {Module}
  */
 const zoo = {
+    imports: [],
     functions: [
         ['ranges', fn([['a', int(-5n, -1n)], ['b', int(0n, 0n)], ['c', int(1n, 3n)]], f64, lit(f64, 1.5))],
         ['shapes', fn([['p', ['product', [['a', f64], ['b', bool]]]], ['s', sumType]], unit, make([]))],
@@ -50,7 +52,111 @@ export const proof = {
         assertEq(show(never), 'never')
         assertEq(show(bool), 'bool')
         assertEq(show(sumType), 'sum({ a: unit, b: f64 })')
+        // A sealed type is named as its interface names it, with the variants that it keeps.
+        assertEq(show(any), 'any')
+        assertEq(show(only(any, 'number', 'string')), 'any.only(number, string)')
     },
+    // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is.
+    trap: () => assertEq(print({
+        imports: [],
+        functions: [['f', fn([], never, trap("it's \\ there"))], ['g', fn([['b', bool]], f64, b => if_(b, trap('no'), n(1n)))]],
+        exports: [],
+    }), [
+    'fn f() -> never =',
+    "    trap('it\\'s \\\\ there')",
+    '',
+    'fn g(b: bool) -> f64 =',
+    "    if b then trap('no') else 1",
+    '',
+    ].join('\n')),
+    unknown: () => assertEq(print(unknown), [
+    'import Any from fjs:l0',
+    '    type any = undefined | null | boolean | number | string | bigint | array | object | function',
+    '        kind: kind, carrier: i64',
+    '    fn kind(v: any) -> int(0, 8)',
+    '    fn to_f64(v: any.only(number)) -> f64c',
+    '    fn to_bool(v: any.only(boolean)) -> bool',
+    '',
+    'import String from fjs:l0',
+    '    fn length(s: any.only(string)) -> u(31)',
+    '',
+    'import BigInt from fjs:l0',
+    '    fn length(b: any.only(bigint)) -> u(31)',
+    '',
+    'import Containers from fjs:l0',
+    '    fn length(c: any.only(array, object)) -> u(31)',
+    '',
+    'import Functions from fjs:l0',
+    '    fn length(f: any.only(function)) -> u(31)',
+    '',
+    'fn toBoolean(v: any) -> bool =',
+    '    match v',
+    '      boolean as b =>',
+    '        Any.to_bool(b)',
+    '      number as x =>',
+    '        let f = Any.to_f64(x)',
+    '        if eq(f, f)',
+    '        then',
+    '            if eq(f, 0.0) then false else true',
+    '        else',
+    '            false',
+    '      string as s =>',
+    '        if eq(String.length(s), 0) then false else true',
+    '      bigint as g =>',
+    '        if eq(BigInt.length(g), 0) then false else true',
+    '      array | object | function =>',
+    '        true',
+    '      else =>',
+    '        false',
+    '',
+    'fn kindOf(v: any) -> int(0, 8) =',
+    '    Any.kind(v)',
+    '',
+    'fn isNumber(v: any) -> bool =',
+    '    match v',
+    '      number =>',
+    '        true',
+    '      else =>',
+    '        false',
+    '',
+    'fn size(v: any) -> u(31) =',
+    '    match',
+    '        let w = v',
+    '        w',
+    '      string as s =>',
+    '        String.length(s)',
+    '      array | object as c =>',
+    '        Containers.length(c)',
+    '      function as f =>',
+    '        Functions.length(f)',
+    '      else =>',
+    '        0',
+    '',
+    'fn tag(v: any) -> int(0, 8) =',
+    '    match v',
+    '      else as x =>',
+    '        Any.kind(x)',
+    '',
+    'fn number(v: any) -> f64c =',
+    '    match v',
+    '      number as x =>',
+    '        Any.to_f64(x)',
+    '      else =>',
+    "        trap('not number')",
+    '',
+    'fn fail(v: any) -> f64 =',
+    '    match v',
+    '      number =>',
+    "        trap('a number')",
+    '      else =>',
+    "        trap('no number')",
+    '',
+    'fn falsy(v: any) -> bool =',
+    '    if toBoolean(v) then false else true',
+    '',
+    'export toBoolean, kindOf, isNumber, size, tag, number, fail, falsy',
+    '',
+    ].join('\n')),
     samples: () => assertEq(print(samples), [
     'fn max(a: f64, b: f64) -> f64 =',
     '    if lt(a, b) then b else a',

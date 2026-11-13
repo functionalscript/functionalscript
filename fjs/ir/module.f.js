@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, F64, F64c, Fn, Int, OpName, Param, Product, Sum, Term, Type } from './types.ts'
+ * @import { ArmOf, F64, F64c, Fn, Int, OpName, Param, Product, Sealed, Signature, Sum, Term, Type } from './types.ts'
  */
 
 // types
@@ -35,6 +35,12 @@ export const never = ['sum', []]
 
 /** `false`, then `true`, each holding nothing. @type {Sum} */
 export const bool = ['sum', [['false', unit], ['true', unit]]]
+
+/** The sealed type `name` of the interface `module`, all its variants. @type {(module: string, name: string) => Sealed} */
+export const sealed = (module, name) => ['sealed', module, name, null]
+
+/** The values of some variants of a sealed type: `only(any, 'number')`. @type {(t: Sealed, ...variants: readonly string[]) => Sealed} */
+export const only = ([, module, name], ...variants) => ['sealed', module, name, variants]
 
 /**
  * Whether two values of the IR's data are the same: equal strings, numbers
@@ -135,6 +141,9 @@ export const block = (label, type, body) => ['block', label, type, body]
 /** @type {(label: string, e: Term) => Term} */
 export const br = (label, e) => ['br', label, e]
 
+/** @type {(reason: string) => Term} */
+export const trap = reason => ['trap', reason]
+
 // what a producer may write, and what it stands for
 
 /** `match(c, { true: a, false: b })`. @type {(c: Term, a: Term, b: Term) => Term} */
@@ -150,6 +159,19 @@ export const ne = (a, b) => not(eq(a, b))
 export const return_ = e => br('return', e)
 
 /**
+ * A cast: `e`, as `name` in `body`, where it holds a value of `t`'s
+ * variants, and a trap where it holds another. A cast to every variant is
+ * no test, so it is a `let`. `body` is a term, or a function of the local.
+ *
+ * @type {(t: Sealed, e: Term, name: string, body: Term | ((x: Term) => Term)) => Term}
+ */
+export const cast = (t, e, name, body) => {
+    const b = typeof body === 'function' ? body(get(name)) : body
+    const variants = t[3]
+    return variants === null ? let_(name, e, b) : match(e, [[variants, name, b], [null, null, trap(`not ${variants.join(' or ')}`)]])
+}
+
+/**
  * A function. `body` is a term, or a function of the parameters' locals in
  * their order.
  *
@@ -160,3 +182,6 @@ export const fn = (params, result, body) => ({
     result,
     body: typeof body === 'function' ? body(...params.map(([name]) => get(name))) : body,
 })
+
+/** What a call of a function needs, written apart from its body. @type {(params: readonly Param[], result: Type) => Signature} */
+export const signature = (params, result) => ({ params, result })
