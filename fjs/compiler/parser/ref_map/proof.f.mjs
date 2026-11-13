@@ -21,6 +21,7 @@ const declared = text => {
 /** Whether the first function of `text` is the map under its own name. @type {(text: string) => boolean} */
 const is = text => isRefMap(...declared(text))
 
+/** @type {string} */
 const canonical = `${source}export default empty\n`
 
 export const proof = {

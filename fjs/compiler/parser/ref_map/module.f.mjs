@@ -24,6 +24,8 @@ import { nameOf, parseSyntax } from '../syntax/module.f.mjs'
  * The canonical body. It names itself, `empty`, so that a read of the
  * empty map answers the empty map; a candidate does so under the name its
  * own declaration binds.
+ *
+ * @type {string}
  */
 export const source = `const empty = (key, value) => {
     const ids = new WeakMap()
@@ -67,7 +69,7 @@ export const source = `const empty = (key, value) => {
 const isToken = tree => hasEntry(tree, 'newline')
 
 /** What a tree says of its layout alone: where a statement starts and whether it ends with `;`, a `return`'s first token, a key's spelling. */
-const layout = ['start', 'semicolon', 'first', 'spelling']
+const layout = /** @type {readonly string[]} */ (['start', 'semicolon', 'first', 'spelling'])
 
 /**
  * The names a binding target binds, in order: a name's, or those an object
@@ -102,7 +104,7 @@ const named = (scope, token) => {
  * that is deeper is not the map, so the reader stops there, `'deep'`: no
  * source, however nested, costs more than the map itself does.
  */
-const limit = 48
+const limit = /** @type {const} */ (48)
 
 /**
  * A syntax tree without its names and its layout, read `depth` levels
