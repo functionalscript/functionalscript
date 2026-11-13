@@ -259,7 +259,10 @@ on the pull request that files this proposal, and accepted the rest in the
   for every map. The body is therefore a declaration that refers to its own
   name, where `entry` is an anonymous arrow: recognition matches the
   declaration and resolves the name to the function, the EDAG's `self`, and
-  the serializer writes it as a named binding. Two shapes that avoid the name
+  the serializer writes it as a named binding: a `const` inside an arrow
+  called at once, `(()=>{const $0=($1,$2)=>{…};return $0;})()`, the form it
+  gives every function that refers to itself, so that the text stands
+  wherever a value does. Two shapes that avoid the name
   were considered and not taken: a factory, `refMap()` answering a new empty
   map, which replaces the one value with a call; and a read of `empty`
   answering a new map each time, which makes `empty(key)[1] === empty` false
@@ -291,9 +294,10 @@ A stack of pull requests on the one that files this proposal, each taking one
 step ([SESSION.md](../../doc/SESSION.md)):
 
 - [x] Settle the open decisions and record them here.
-- [ ] `edag`: add the `refMap` leaf — its id, types and schemas, and every
-  hand-written tag list, unmergeable as `entry` is. Every executor and the Rust output refuse it; the
-  JavaScript serializer writes the canonical body. No source reaches it yet.
+- [x] `edag`: add the `refMap` leaf — its id, types and schemas, and every
+  hand-written tag list, unmergeable as `entry` is. Every executor and the
+  Rust output refuse it; the JavaScript serializer writes the canonical body.
+  No source reaches it yet.
 - [ ] `compiler/parser`: recognize the body and emit the leaf. Prove renamed
   bindings, layouts, and bodies that depart from it by one step, which are
   ordinary functions refused where they use `WeakMap`.
