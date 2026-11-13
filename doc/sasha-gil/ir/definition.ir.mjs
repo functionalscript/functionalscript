@@ -40,13 +40,14 @@ export const code = (params, result) => ['code', params, result]
 export const own = type => ({ own: type })
 
 const isNever = t => t[0] === 'sum' && Object.keys(t[1]).length === 0
-const isBool = t => t[0] === 'sum' && Object.keys(t[1]).join() === 'false,true'
 const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
 const same = (a, b) => a === b || (a instanceof Array && b instanceof Array
     ? a.length === b.length && a.every((x, k) => same(x, b[k]))
     : typeof a === 'object' && typeof b === 'object' && a !== null && b !== null
         ? same(Object.entries(a), Object.entries(b))
         : false)
+/** A sum is `bool` only when its variants are `false` and `true`, in that order, and hold nothing. */
+const isBool = t => same(t, bool)
 const min = (a, b) => a < b ? a : b
 const max = (a, b) => a > b ? a : b
 const fits64 = t => (t[1] >= -(1n << 63n) && t[2] < 1n << 63n) || (t[1] >= 0n && t[2] < 1n << 64n)
@@ -283,6 +284,8 @@ export const check = module => {
             }
             case 'product': return product(Object.fromEntries(Object.entries(t[1]).map(([k, x]) => [k, normal(x)])))
             case 'code': return code(t[1].map(([mode, x]) => [mode, normal(x)]), normal(t[2]))
+            // every type that a module writes comes through here, so no value is carried as a tag without its fields
+            case 'sum': return isNever(t) || isBool(t) ? t : refuse(`${show(t)}: this prototype has no sum of its own but bool`)
             default: return t
         }
     }

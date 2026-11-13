@@ -635,7 +635,7 @@ WASM emitter for import form. The module then runs under Node on a host that imp
   function on a value of unknown kind, a counter incremented without a
   comparison, or a constant that reads a later one, and 2 by the lifetime
   pass, a builder used after `seal` and a builder never sealed.
-- **7 modules that break no rule** of typing or of ownership are refused
+- **9 modules that break no rule** of typing or of ownership are refused
   all the same. Each meets a limit of the prototype or uses a name that is
   taken ([What the prototype is not](#what-the-prototype-is-not)).
 - **Without the lifetime pass** the host reports values left over, so
@@ -765,7 +765,9 @@ Each has a recommendation.
 - **Not the lowering.** The seven functions are lowered by hand from the
   FAST that `definition.fast.mjs` prints.
 - **Not the whole core.** It has no `call_ref`, no `match` on an integer,
-  no sum of its own but `bool`, and integers of one word only. Its WASM
+  no sum of its own but `bool`, and integers of one word only. A sum is
+  carried as its tag, so a sum whose variant holds a field is refused,
+  even one whose variants are named `false` and `true`. Its WASM
   blocks have one result, so a product crosses a label only as a loop's
   parameters. A constant is one global, so a constant of a product is
   refused, and a literal is made from the units of a string only. The
@@ -805,6 +807,6 @@ node definition.fast.mjs stringEquals       # the normalized FAST it was lowered
 | [`definition.lifetime.mjs`](./definition.lifetime.mjs) | the lifetime pass |
 | [`definition.wasm.mjs`](./definition.wasm.mjs) | the WASM emitter for import form, to [`fjs/media/wasm`](../../../fjs/media/wasm/README.md)'s AST |
 | [`definition.host.mjs`](./definition.host.mjs) | the counting host for `fjs:l0` |
-| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, the 16 mistakes, and the 7 modules that are refused besides |
+| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, the 16 mistakes, and the 9 modules that are refused besides |
 | [`definition.check.mjs`](./definition.check.mjs) | the check; it ends with a summary, and exits with 1 on a difference |
 | [`definition.fast.mjs`](./definition.fast.mjs) | the normalized FAST of a module, from the compiler |

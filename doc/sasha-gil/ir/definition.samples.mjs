@@ -11,7 +11,7 @@
 
 import {
     add, block, bool, br, call, cast, code, codeOf, constant, eq, exact, f64, f64c, float, fn, get, iface, if_, int, let_, lit,
-    loop, lt, make, match, n, ne, never, only, own, product, return_, sealed, sig, trap, u, unit,
+    loop, lt, make, match, n, ne, never, only, own, product, return_, sealed, sig, sum, trap, u, unit,
 } from './definition.ir.mjs'
 
 // ── The interfaces ───────────────────────────────────────────────────────
@@ -261,6 +261,10 @@ export const mistakes = [
 /** A second interface for an import that String has already, with another result. */
 const Twin = iface('Twin', { abi: 'fjs:l0', functions: { length: sig({ s: string }, u(40)) } })
 
+// a sum is carried as its tag, which holds no field, so `bool` is the only sum of a module's own
+const option = sum({ none: unit, some: product({ x: u(8) }) })
+const flagged = sum({ false: product({ x: u(8) }), true: unit })
+
 /**
  * Modules that break no rule of typing or of ownership and are refused all
  * the same: a limit of the prototype, or a name that is taken. Each is
@@ -283,4 +287,6 @@ export const refusals = [
     ['a local named as the checker names its own', {
         ...sample, constants: {}, functions: { named: fn({ x: f64 }, index, ({ x }) => let_('$1', n(0n), () => exact(index, x))) },
     }],
+    ['a sum of its own whose variant holds a field', withConstants({}, { identity: fn({ v: option }, option, ({ v }) => v) })],
+    ['a sum with the variants of bool whose false holds a field', withConstants({}, { identity: fn({ v: flagged }, flagged, ({ v }) => v) })],
 ]

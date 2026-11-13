@@ -33,7 +33,7 @@ export const emit = (checked, exports) => {
         switch (t[0]) {
             case 'int': return [`i${carrier(t).bits}`]
             case 'f64': case 'f64c': return ['f64']
-            case 'sum': return isNever(t) ? [] : ['i32']
+            case 'sum': return isNever(t) ? [] : isBool(t) ? ['i32'] : refuse(`no carrier for ${show(t)}`)
             case 'sealed': return [decl(t).carrier]
             case 'product': return Object.values(t[1]).flatMap(flat)
             case 'code': return ['i32']
