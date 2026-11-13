@@ -253,6 +253,22 @@ requires before implementation, writing
 on the pull request that files this proposal, and accepted the rest in the
 [working session](https://claude.ai/code/session_01Q2nX9uV9wfr4V8NeiJ3xb4):
 
+- **The recognized function is the empty map, and it names itself.** A read
+  of it answers the empty map itself, `return [undefined, empty]`, which keeps
+  the interface the simplest for its user: one value, `empty`, and one rule
+  for every map. The body is therefore a declaration that refers to its own
+  name, where `entry` is an anonymous arrow: recognition matches the
+  declaration and resolves the name to the function, the EDAG's `self`, and
+  the serializer writes it as a named binding. Two shapes that avoid the name
+  were considered and not taken: a factory, `refMap()` answering a new empty
+  map, which replaces the one value with a call; and a read of `empty`
+  answering a new map each time, which makes `empty(key)[1] === empty` false
+  and the contract uneven.
+- **Identity follows the rule of every helper.** One written body is one
+  function wherever it is referred to, so an alias of `empty` is `empty`; the
+  body written twice, in one module or in two, is two functions that are not
+  `===`, on a JavaScript engine and compiled alike. The leaf is never merged
+  with another.
 - **The evaluated value of a map with state** is `['refMap', index, sets]`:
   an index for lookup and the list of sets for serialization.
 - **The body is recognized by one matcher** that compares the parsed function
@@ -276,7 +292,7 @@ step ([SESSION.md](../../doc/SESSION.md)):
 
 - [x] Settle the open decisions and record them here.
 - [ ] `edag`: add the `refMap` leaf — its id, types and schemas, and every
-  hand-written tag list. Every executor and the Rust output refuse it; the
+  hand-written tag list, unmergeable as `entry` is. Every executor and the Rust output refuse it; the
   JavaScript serializer writes the canonical body. No source reaches it yet.
 - [ ] `compiler/parser`: recognize the body and emit the leaf. Prove renamed
   bindings, layouts, and bodies that depart from it by one step, which are
