@@ -86,14 +86,16 @@ The language designer, `sergey-shandar`, asked in the session that produced
 this proposal: "Let's implement optional chaining. Including `?.`, `?.()`".
 That records implementation authorization. The proposer is the implementation
 agent. [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
-requires formal, explicit approval from another language designer before
-implementation, with a link to that approval. The
+at the time required formal, explicit approval from another language designer
+before implementation, with a link to that approval. The
 [implementation discussion](https://github.com/functionalscript/functionalscript/pull/2660#discussion_r4214191999)
 recorded the missing approval, and the
 [approving review](https://github.com/functionalscript/functionalscript/pull/2660#pullrequestreview-5451767338)
 explicitly excluded language-design approval. #2660 merged with the approval
-task still unchecked. This chronology is not claimed compliant with the rule;
-neither the implementation request nor the merge supplies the missing record.
+task still unchecked. That chronology reflects the former rule. The current
+policy accepts an explicit implementation request from the language designer
+as approval, including a proposal from the designer; the request quoted above
+therefore supplies approval. Its source link still needs to be recorded.
 
 ### Tasks
 
@@ -112,9 +114,8 @@ neither the implementation request nor the merge supplies the missing record.
 - [x] The specification describes the feature
       ([optional chaining](../property-access/optional-chaining/README.md)); the roadmap's
       entry and the survey's rows are reread.
-- [ ] Locate and link explicit pre-implementation language-design approval from
-      `sergey-shandar`; if no such record exists, obtain and record the
-      designer's resolution of this approval-process gap for the merged feature.
+- [ ] Locate and link the implementation request from `sergey-shandar` quoted
+      above as the language-design approval record.
 
 ### Related
 

@@ -36,25 +36,25 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
- * @import { ForStatement, NameExpression } from '../grammar/types.ts'
- * @import { BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ReturnStatement, ValueStatement, While, DoWhile } from './types.ts'
+ * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement, DoWhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-import { concat } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { concat } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
-import { assignmentOperators } from '../../ast/module.f.js'
+import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    afterCase, binaryOpTag, blockContents, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
+    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -124,6 +124,19 @@ const outAt = node => {
     return meta
 }
 
+/**
+ * What a mapping returned at a position, asserted to be the `id` member of
+ * `Out`. The assert is the check; the cast only says what it checked,
+ * since a generic `id` does not narrow the union.
+ *
+ * @type {<I extends Out['id']>(id: I, node: _Leaf) => Extract<Out, { readonly id: I }>}
+ */
+const outOf = (id, node) => {
+    const out = outAt(node)
+    assert(out.id === id)
+    return /** @type {Extract<Out, { readonly id: typeof id }>} */ (out)
+}
+
 /** The node at a value's position, whether or not a `(` opened it. @type {(node: _Leaf) => Node} */
 const nodeAt = node => {
     const out = outAt(node)
@@ -133,45 +146,24 @@ const nodeAt = node => {
 
 /** @type {(node: _Leaf) => _ParameterTail} */
 const parametersAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'parameters')
-    return { fixed: out.fixed, rest: out.rest }
+    const { fixed, rest } = outOf('parameters', node)
+    return { fixed, rest }
 }
 
 /** @type {(node: _Leaf) => Item} */
-const itemAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'item')
-    return out.item
-}
+const itemAt = node => outOf('item', node).item
 
 /** @type {(node: _Leaf) => List<Item>} */
-const valuesAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'values')
-    return out.items
-}
+const valuesAt = node => outOf('values', node).items
 
 /** @type {(node: _Leaf) => Member} */
-const memberAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'member')
-    return out.member
-}
+const memberAt = node => outOf('member', node).member
 
 /** @type {(node: _Leaf) => Entry} */
-const entryAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entry')
-    return out.entry
-}
+const entryAt = node => outOf('entry', node).entry
 
 /** @type {(node: _Leaf) => List<Entry>} */
-const entriesAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entries')
-    return out.items
-}
+const entriesAt = node => outOf('entries', node).items
 
 /**
  * The target a value is where a binding is wanted: its own reading, or
@@ -179,7 +171,7 @@ const entriesAt = node => {
  * `const [(a)] = x;` being a syntax error in JavaScript, so the `paren`
  * id is what decides it, at the `(`.
  *
- * @type {(node: _Leaf) => BindingTarget}
+ * @type {(node: _Leaf) => PlainBindingTarget}
  */
 const valueTargetAt = node => {
     const out = outAt(node)
@@ -188,122 +180,57 @@ const valueTargetAt = node => {
 }
 
 /** @type {(node: _Leaf) => BindingElement} */
-const itemTargetAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'item')
-    return out.target
-}
+const itemTargetAt = node => outOf('item', node).target
 
 /** @type {(node: _Leaf) => List<Element>} */
-const elementsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'elements')
-    return out.items
-}
+const elementsAt = node => outOf('elements', node).items
 
 /** @type {(node: _Leaf) => List<BindingElement>} */
-const elementTargetsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'elements')
-    return out.targets
-}
+const elementTargetsAt = node => outOf('elements', node).targets
 
 /** @type {(node: _Leaf) => BindingProperty} */
-const memberTargetAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'member')
-    return out.target
-}
+const memberTargetAt = node => outOf('member', node).target
 
 /** @type {(node: _Leaf) => BindingProperty} */
-const entryTargetAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entry')
-    return out.target
-}
+const entryTargetAt = node => outOf('entry', node).target
 
 /** @type {(node: _Leaf) => List<BindingProperty>} */
-const entryTargetsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entries')
-    return out.targets
-}
+const entryTargetsAt = node => outOf('entries', node).targets
 
-/** A value that is no binding target, at the token it begins with. @type {(first: ModuleTokenWithMetadata) => BindingTarget} */
+/** A value that is no binding target, at the token it begins with. @type {(first: ModuleTokenWithMetadata) => PlainBindingTarget} */
 const invalid = first => ['invalid', first]
 
-/** A name as a binding target, by its token. @type {(token: ModuleTokenWithMetadata) => BindingTarget} */
+/** A name as a binding target, by its token. @type {(token: ModuleTokenWithMetadata) => PlainBindingTarget} */
 const named = token => ['name', token]
 
 /** @type {(node: _Leaf) => Import} */
-const importAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'import')
-    return out.statement
-}
+const importAt = node => outOf('import', node).statement
 
 /** @type {(node: _Leaf) => Const} */
-const constAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'const')
-    return out.statement
-}
+const constAt = node => outOf('const', node).statement
+
+/** @type {(node: _Leaf) => Let} */
+const letAt = node => outOf('let', node).statement
 
 /** @type {(node: _Leaf) => NamedStatement} */
-const namedAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'named')
-    return out.statement
-}
+const namedAt = node => outOf('named', node).statement
 
-/** @type {(node: _Leaf) => BlockStatement} */
-const statementAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'statement')
-    return out.statement
-}
 
-/** @type {(node: _Leaf) => Block[1]} */
-const endAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'end')
-    return out.end
-}
 
-/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'caseTail' }>} */
-const caseTailAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'caseTail')
-    return out
-}
 
-/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'afterCase' }>} */
-const afterCaseAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'afterCase')
-    return out
-}
+
+
+
+
 
 /** @type {(node: _Leaf) => LoopStatement} */
-const loopStatementAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'loopStatement')
-    return out.statement
-}
+const loopStatementAt = node => outOf('loopStatement', node).statement
 
 /** @type {(node: _Leaf) => Extract<Out, { readonly id: 'last' }>} */
-const lastAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'last')
-    return out
-}
+const lastAt = node => outOf('last', node)
 
 /** @type {(node: _Leaf) => Module} */
-const moduleAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'module')
-    return out.module
-}
+const moduleAt = node => outOf('module', node).module
 
 /**
  * The words that denote a value, which the tokenizer gives token kinds of
@@ -387,7 +314,7 @@ const chunkOf = node => {
 const toTemplate = ([tag, branch]) => {
     if (tag === 'plain') {
         const start = tokenAt(branch)
-        return symbol({ id: 'value', node: ['primitive', chunkOf(branch)], first: start, target: invalid(start) })
+        return symbol({ id: 'value', node: ['template', chunkOf(branch)], first: start, target: invalid(start) })
     }
     const [head, firstValue, rounds, tail] = unmapped(branch)
     /** @type {Node} */
@@ -452,8 +379,22 @@ const valuesOf = listOf(itemAt, valuesAt)
 /** The elements of an array's list from an item on, its tail already mapped. @type {(node: _ListNode) => List<Element>} */
 const elementsOf = listOf(itemAt, elementsAt)
 
-/** The targets of an array's list from an item on, beside its elements. */
-const elementTargetsOf = listOf(itemTargetAt, elementTargetsAt)
+/**
+ * Array targets retain a comma after a rest element, which only a binding
+ * refuses. The value items keep the same spread and trailing-comma syntax.
+ *
+ * @type {(node: _ListNode) => List<BindingElement>}
+ */
+const elementTargetsOf = ([item, more]) => {
+    const target = itemTargetAt(item)
+    const rounds = unmapped(more)
+    if (rounds.length === 0) { return { first: target, tail: null } }
+    const [comma, following] = unmapped(rounds[0])
+    return {
+        first: target[0] === '...' ? ['...', target[1], target[2], tokenAt(comma)] : target,
+        tail: elementTargets(following),
+    }
+}
 
 /** The targets of a list of entries, beside its entries. */
 const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
@@ -463,7 +404,7 @@ const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
  * its bracket, and the targets its list's mapping kept beside the items,
  * `[ open [ items ] close ]`'s list at the second position.
  *
- * @type {(tag: 'array' | 'object', open: ModuleTokenWithMetadata, list: _OptionalList) => BindingTarget}
+ * @type {(tag: 'array' | 'object', open: ModuleTokenWithMetadata, list: _OptionalList) => PlainBindingTarget}
  */
 const containerTarget = (tag, open, list) => {
     if (tag === 'array') { return ['array', open, toArray(elementTargets(list))] }
@@ -487,17 +428,24 @@ const parametersAfter = node => {
 }
 
 /**
- * A fixed parameter from its target and its default, `[ '=' value ]`: the
- * target alone where it has none, and otherwise the target with the `=`
- * and the value, {@link Parameter}.
+ * A binding target with its optional default, shared by parameters and
+ * array/object binding elements. The `=` and initializer retain their source.
  *
- * @type {(target: BindingTarget, init: _DefaultNode) => Parameter}
+ * @type {(target: PlainBindingTarget, init: _DefaultNode) => BindingTarget}
  */
-const parameterWith = (target, init) => {
+const targetWith = (target, init) => {
     const rounds = unmapped(init)
     if (rounds.length === 0) { return target }
     const [eq, v] = unmapped(rounds[0])
     return ['=', target, tokenAt(eq), nodeAt(v)]
+}
+
+/** A cover default remains explicitly refused where a value is wanted. @type {(node: Node, init: _DefaultNode) => Node} */
+const valueWith = (node, init) => {
+    const rounds = unmapped(init)
+    if (rounds.length === 0) { return node }
+    const [eq, value] = unmapped(rounds[0])
+    return ['binding-default', node, tokenAt(eq), nodeAt(value)]
 }
 
 /**
@@ -509,11 +457,7 @@ const parameterWith = (target, init) => {
 const noParenItems = trailing => ({ fixed: null, rest: null, operands: null, refusal: null, trailing })
 
 /** @type {(node: _Leaf) => _ParenItems} */
-const parenItemsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'parenItems')
-    return out
-}
+const parenItemsAt = node => outOf('parenItems', node)
 
 /** The items a `(` value `,` holds after the comma, `[ parenItems ]`: none, a trailing comma, where nothing follows it. @type {(node: _OptionalList) => _ParenItems} */
 const parenItemsOf = node => {
@@ -607,7 +551,7 @@ const parameterOf = node => {
  * is no target inside a pattern, `([(a)]) => 1`, is the pattern's to carry
  * and the fold's to refuse where it stands, as it is in a `const`.
  *
- * @type {(open: ModuleTokenWithMetadata, head: _Leaf, init: (target: BindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
+ * @type {(open: ModuleTokenWithMetadata, head: _Leaf, init: (target: PlainBindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
  */
 const namedList = (open, head, init, more) => {
     const out = outAt(head)
@@ -615,7 +559,7 @@ const namedList = (open, head, init, more) => {
     return { fixed: [init(out.target), ...toArray(more.fixed)], rest: more.rest }
 }
 
-/** A head with no default: the target itself. @type {(target: BindingTarget) => Parameter} */
+/** A head with no default: the target itself. @type {(target: PlainBindingTarget) => Parameter} */
 const bare = target => target
 
 /**
@@ -736,6 +680,41 @@ const accessed = closed => (base, round) => {
  */
 const steps = (base, accesses, closed) => accesses.reduce((node, round, i) => accessed(closed && i === 0)(node, round), base)
 
+/** A callee's member steps stop before the construction's argument list. @type {(node: Children<ConstructorCallee, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toConstructorCallee = ([tag, branch]) => {
+    if (tag === 'group') {
+        const [open, v, more, , accesses] = unmapped(branch)
+        const first = tokenAt(open)
+        return symbol({ id: 'value', node: steps(grouped(v, more), unmapped(accesses), true), first, target: invalid(first) })
+    }
+    if (tag === 'name') {
+        const [id, accesses] = unmapped(branch)
+        const first = tokenAt(unmapped(id)[1])
+        return symbol({ id: 'value', node: steps(['ref', first], unmapped(accesses), false), first, target: invalid(first) })
+    }
+    const [constructed, accesses] = unmapped(branch)
+    const first = firstAt(constructed)
+    return symbol({ id: 'value', node: steps(nodeAt(constructed), unmapped(accesses), false), first, target: invalid(first) })
+}
+
+/** Construction is retained independently from ordinary calls and has its own source token. @type {(node: Children<NewExpression, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toNewExpression = ([keyword, callee, , args]) => {
+    const first = tokenAt(keyword)
+    return symbol({ id: 'value', node: ['new', nodeAt(callee), toArray(valueItems(args)), first], first, target: invalid(first) })
+}
+
+/** A constructor statement uses the existing discard record and retains its starting token. @type {(node: Children<NewExpressionStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toNewExpressionStatement = ([constructed, accesses, end]) => {
+    const start = firstAt(constructed)
+    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['discard', start], value: steps(nodeAt(constructed), unmapped(accesses), false) } })
+}
+
+/** Array-led statements share the established discard record. @type {(node: Children<ArrayExpressionStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toArrayExpressionStatement = ([value, end]) => {
+    const start = firstAt(value)
+    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['discard', start], value: nodeAt(value) } })
+}
+
 /**
  * `**`'s round, when a primitive, a reference, an array, an object or a
  * group is raised to a power: the operand at the second position of `'**'
@@ -772,8 +751,9 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
     // `instanceof` keeps its operator token: the fold refuses a right
     // operand that is no reference to `Array` there, where every spelling
-    // of the right side has a token
-    return tag === 'instanceof' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
+    // of the right side has a token; `in` keeps it for its left operand,
+    // which the fold admits only as a string literal
+    return tag === 'instanceof' || tag === 'in' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
 }, base)
 
 /**
@@ -889,7 +869,7 @@ export const _baseOf = ([tag, branch]) => {
             const p = unmapped(x)[0]
             return ['primitive', _primitiveOf(unmapped(p))]
         }
-        case 'template': {
+        case 'template': case 'construct': {
             const x = unmapped(branch)[0]
             return nodeAt(unmapped(x)[0])
         }
@@ -929,9 +909,9 @@ const firstAt = node => {
  * token, under the alternative it matched, or a container's opening
  * bracket, the first symbol of `[ open [ items ] close ]`.
  *
- * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object', base: _Leaf) => ModuleTokenWithMetadata}
+ * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object' | 'construct', base: _Leaf) => ModuleTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -1008,7 +988,7 @@ const parenNode = (open, [tag, branch]) => {
     }
     if (kind === 'default') {
         const [eq, d, more, , arrow, b] = unmapped(rest)
-        /** @type {(target: BindingTarget) => Parameter} */
+        /** @type {(target: PlainBindingTarget) => Parameter} */
         const init = target => ['=', target, tokenAt(eq), nodeAt(d)]
         return ['=>', arrowed(namedList(open, v, init, parametersAfter(more)), tokenAt(arrow)), nodeAt(b)]
     }
@@ -1030,11 +1010,13 @@ const groupNode = node => {
 }
 
 /**
- * The operator each prefix branch of the grammar reads: `neg`, `bitnot`,
- * `not` and `typeof` are `-`, `~`, `!` and `typeof`, the tags `../ast` and
- * the EDAG share.
+ * Whether `node` is one of the grammar's prefix branches, which
+ * `prefixLayer` in `../../ast` names and tags. A type guard over the whole
+ * node, so the branch's children narrow with its name; cast to it as
+ * `hasEntry` is, its body answering a plain boolean.
  */
-const prefixOps = /** @type {const} */ ({ neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
+const isPrefix = /** @type {<N extends readonly [string, unknown]>(node: N) => node is Extract<N, readonly [keyof typeof prefixLayer, unknown]>} */ (
+    node => hasEntry(prefixLayer, node[0]))
 
 /**
  * A value is the node its branch made, with each access after it, the
@@ -1076,14 +1058,15 @@ const toNode = node => {
         const first = tokenAt(open)
         return symbol({ id: 'value', node: groupNode(g), first, target: invalid(first) })
     }
-    if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
+    if (isPrefix(node)) {
         const [op, v, ...tailLists] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: applyTail([prefixOps[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
+        return symbol({ id: 'value', node: applyTail([prefixLayer[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
     }
     if (node[0] === 'block') {
-        const [block, first] = blockOf(unmapped(node[1]))
-        return symbol({ id: 'value', node: block, first, target: invalid(first) })
+        const children = unmapped(node[1])
+        const first = tokenAt(children[0])
+        return symbol({ id: 'value', node: ['block', loopBlockOf(children)[1]], first, target: invalid(first) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
@@ -1113,10 +1096,10 @@ const toNode = node => {
  * @type {(node: Children<UnaryOperand, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const operandToNode = node => {
-    if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
+    if (isPrefix(node)) {
         const [op, v] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: [prefixOps[node[0]], nodeAt(v)], first, target: invalid(first) })
+        return symbol({ id: 'value', node: [prefixLayer[node[0]], nodeAt(v)], first, target: invalid(first) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
@@ -1132,128 +1115,12 @@ const operandToNode = node => {
 }
 
 /**
- * A block from its children, `{`, the retained body contents and `}`:
- * its ordered statements, `const`s and guards, then what ends it, the
- * terminator's own record, {@link toEnd} — and the `{` it begins at. A
- * function's body, a guard's block and a case's are read the same way.
- *
- * @type {(node: Children<BlockRule, ModuleTokenWithMetadata, Out>) => readonly [Block, ModuleTokenWithMetadata]}
- */
-const blockOf = ([open, contents]) => [['block', blockContentsAt(contents)], tokenAt(open)]
-
-/** @type {(node: _Leaf) => Block[1]} */
-const blockContentsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'blockContents')
-    return out.statements
-}
-
-/** @type {(node: Children<BlockContents, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
-const toBlockContents = ([statements, ending]) => {
-    const prefix = unmapped(statements).map(statementAt)
-    const [kind, branch] = unmapped(ending)
-    if (kind === 'end') { return symbol({ id: 'blockContents', statements: [...prefix, ...endAt(branch)] }) }
-    const following = unmapped(unmapped(branch)[1])[0]
-    if (kind === 'for') {
-        const read = forAt(unmapped(branch)[0])
-        return symbol({ id: 'blockContents', statements: following === undefined
-            ? [...prefix, ['terminal-for', read]]
-            : [...prefix, ['for', read], ...blockContentsAt(following)] })
-    }
-    const read = loopConditionAt(unmapped(branch)[0])
-    return symbol({ id: 'blockContents', statements: following === undefined
-        ? [...prefix, ['terminal-while', read]]
-        : [...prefix, ['while', read], ...blockContentsAt(following)] })
-}
-
-/**
- * What ends a block, from the terminator's children: the `return` or
- * `throw`, tagged by its keyword, one statement; or the switch — the
- * `switch` it begins at, its discriminant, and its first case closed over
- * its first label, {@link closedCase}, which carries every case after it
- * and what ends the switch: a `default` block, which ends the block the
- * switch stands in; or the rest of that block, this record again, put
- * after the switch — so that a block is one flat list whatever its
- * switches hold, and the fold reads the statements after a switch where
- * it reads the statements after a guard.
- *
- * @type {(node: Children<Terminator, ModuleTokenWithMetadata, Out>) => Meta<Out>}
- */
-const toEnd = node => {
-    // destructured here rather than in the parameter list, where
-    // narrowing on `kind` would not reach `branch`
-    const [kind, branch] = node
-    if (kind === 'return') { return symbol({ id: 'end', end: [['return', valueStatementOf(unmapped(branch))]] }) }
-    if (kind === 'throw') { return symbol({ id: 'end', end: [['throw', valueStatementOf(unmapped(branch))]] }) }
-    const [first, , discriminant, , , , label, , tail] = unmapped(branch)
-    const { cases, end } = closedCase(nodeAt(label), caseTailAt(tail))
-    const read = { start: tokenAt(first), discriminant: nodeAt(discriminant), cases: toArray(cases) }
-    return symbol({ id: 'end', end: end[0] === 'default' ? [['switch', { ...read, default: end[1] }]] : [['switch', { ...read, default: null }], ...end[1]] })
-}
-
-/**
- * A case closed over its first label, from the record of its tail: the
- * label before the ones the tail read, the case before the ones closed
- * after it, and what ends the switch as the tail has it.
- *
- * @type {(label: Node, tail: Extract<Out, { readonly id: 'caseTail' }>) => Extract<Out, { readonly id: 'afterCase' }>}
- */
-const closedCase = (label, { labels, block, cases, end }) =>
-    ({ id: 'afterCase', cases: { first: { labels: [label, ...toArray(labels)], block }, tail: cases }, end })
-
-/**
- * A case's tail, from its children: a label, put before the ones the tail
- * after it read, the case still open; or the case's block, read as a
- * body's, and what follows the case, {@link toAfterCase}, which opens the
- * case with no label yet. Each mapping reads one node and puts one item
- * before what its tail's mapping returned, as a list's does, so a switch
- * of thousands of cases or of labels, which the grammar reads as that
- * many levels, is read on the machine's heap stack and not the host's
- * (`stackSafety` in `../proof.f.mjs`).
- *
- * @type {(node: Children<CaseTail, ModuleTokenWithMetadata, Out>) => Meta<Out>}
- */
-const toCaseTail = node => {
-    const [which, branch] = node
-    if (which === 'case') {
-        const [, label, , next] = unmapped(branch)
-        const tail = caseTailAt(next)
-        return symbol({ ...tail, labels: { first: nodeAt(label), tail: tail.labels } })
-    }
-    const [blk, after] = unmapped(branch)
-    return symbol({ ...afterCaseAt(after), id: 'caseTail', labels: null, block: blockOf(unmapped(blk))[0] })
-}
-
-/**
- * What follows a case's block, from its children: the next case, closed
- * over its first label as the first case is, {@link closedCase}; the
- * `default` block, read as a body's, which ends the switch and the block
- * it stands in; or the rest of that block, its statements and its end,
- * which follow the switch in it.
- *
- * @type {(node: Children<AfterCase, ModuleTokenWithMetadata, Out>) => Meta<Out>}
- */
-const toAfterCase = node => {
-    const [which, branch] = node
-    if (which === 'case') {
-        const [, label, , next] = unmapped(branch)
-        return symbol(closedCase(nodeAt(label), caseTailAt(next)))
-    }
-    if (which === 'default') {
-        const [, , blk] = unmapped(branch)
-        return symbol({ id: 'afterCase', cases: null, end: ['default', blockOf(unmapped(blk))[0]] })
-    }
-    const [, contents] = unmapped(branch)
-    return symbol({ id: 'afterCase', cases: null, end: ['rest', blockContentsAt(contents)] })
-}
-
-/**
  * A loop's block from its children, `{`, the statements and `}`: its
  * statements in order, `const`s and assignments.
  *
  * @type {(node: Children<LoopBlockRule, ModuleTokenWithMetadata, Out>) => LoopBlock}
  */
-const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
+const loopBlockOf = ([, statements]) => ['block', unmapped(statements).map(loopStatementAt)]
 
 /** A loop switch keeps every label, braced arm and optional last default. @type {(node: Ast<LoopSwitchRule, ModuleTokenWithMetadata, Out>) => LoopSwitch} */
 const loopSwitchAt = node => {
@@ -1274,34 +1141,73 @@ const loopConditionAt = node => {
     return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
 }
 
-/** Retain each clause, using literal true only when the test is omitted. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => For} */
+/** Retain the written post-test loop without analyzing its control flow. @type {(node: Ast<DoWhileStatement, ModuleTokenWithMetadata, Out>) => DoWhile} */
+const doWhileAt = node => {
+    const [first, blk, , , condition, , end] = unmapped(node)
+    return { start: tokenAt(first), block: loopBlockOf(unmapped(blk)), condition: nodeAt(condition), postTest: true, semicolon: ended(end) }
+}
+
+/**
+ * Share the classic/iteration header read after preserving the target's spelling.
+ * @type {(node: Children<Pick<ForHeader, 'const' | 'let'>, ModuleTokenWithMetadata, Out>) => readonly [ModuleTokenWithMetadata, PlainBindingTarget, Ast<ForNamedLetTail, ModuleTokenWithMetadata, Out>]}
+ */
+const forDeclarationOf = node => {
+    const [kind, branch] = node
+    if (kind === 'const') {
+        const [keyword, target, continuation] = unmapped(branch)
+        return [tokenAt(keyword), targetOf(unmapped(target)), continuation]
+    }
+    const [keyword, binding] = unmapped(branch)
+    const [form, selected] = unmapped(binding)
+    if (form === 'name') {
+        const [name, continuation] = unmapped(selected)
+        return [tokenAt(keyword), named(tokenAt(unmapped(name)[1])), continuation]
+    }
+    const [target, continuation] = unmapped(selected)
+    return [tokenAt(keyword), targetOf(unmapped(target)), continuation]
+}
+
+/** Keep `for...of` distinct while classic clauses retain their existing AST. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => readonly ['for', For] | readonly ['for-of', ForOf]} */
 const forAt = node => {
-    const [first, , initial, , condition, , step, , block] = unmapped(node)
-    const initializer = unmapped(initial)[0]
+    const [first, , header, , block] = unmapped(node)
+    const choice = unmapped(header)
+    const [kind, branch] = choice
     /** @type {For['initializer']} */
     let declaration = null
-    if (initializer !== undefined) {
-        const [kind, branch] = unmapped(initializer)
-        if (kind === 'name') { declaration = namedExpressionOf(unmapped(branch), true) }
-        else {
-            const [first, target, , value] = unmapped(branch)
-            declaration = [kind, { start: tokenAt(first), semicolon: true, target: targetOf(unmapped(target)), value: nodeAt(value) }]
+    /** @type {Ast<ForClassicTail, ModuleTokenWithMetadata, Out> | null} */
+    let classic = null
+    if (kind === 'empty') { classic = unmapped(branch)[1] }
+    else if (kind === 'name') {
+        const [initial, , tail] = unmapped(branch)
+        declaration = namedExpressionOf(unmapped(initial), true)
+        classic = tail
+    } else {
+        const [keyword, target, continuation] = forDeclarationOf(choice)
+        const [form, following] = unmapped(continuation)
+        if (form === 'of') {
+            return ['for-of', { start: tokenAt(first), kind, target,
+                iterable: nodeAt(unmapped(following)[1]), block: loopBlockOf(unmapped(block)) }]
+        }
+        if (form === 'uninitialized') {
+            declaration = ['let', { start: keyword, semicolon: true, target, value: null }]
+            classic = unmapped(following)[1]
+        } else {
+            const [, value, , tail] = unmapped(following)
+            declaration = [kind, { start: keyword, semicolon: true, target, value: nodeAt(value) }]
+            classic = tail
         }
     }
+    const [condition, , step] = unmapped(classic)
     const test = unmapped(condition)[0]
     const update = unmapped(step)[0]
-    return { start: tokenAt(first), initializer: declaration,
+    return ['for', { start: tokenAt(first), initializer: declaration,
         condition: test === undefined ? ['primitive', true] : nodeAt(test),
         step: update === undefined ? null : namedExpressionOf(unmapped(update), true),
-        block: loopBlockOf(unmapped(block)) }
+        block: loopBlockOf(unmapped(block)) }]
 }
 
 /** An alternate has already been rewritten, so chained conditionals cost no host recursion. @type {(node: _Leaf) => LoopBlock} */
-const loopElseAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'loopElse')
-    return out.block
-}
+const loopElseAt = node => outOf('loopElse', node).block
 
 /** A missing alternate remains distinct from an explicitly empty lexical block. @type {(node: Ast<LoopIfStatement, ModuleTokenWithMetadata, Out>) => LoopIf} */
 const loopIfAt = node => {
@@ -1312,29 +1218,8 @@ const loopIfAt = node => {
 /** `else if` is a conditional in a normal alternate region. @type {(node: Children<LoopElse, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toLoopElse = ([kind, branch]) => {
     /** @type {LoopBlock} */
-    const block = kind === 'block' ? loopBlockOf(unmapped(branch)) : ['loop', [['if', loopIfAt(branch)]]]
+    const block = kind === 'block' ? loopBlockOf(unmapped(branch)) : ['block', [['if', loopIfAt(branch)]]]
     return symbol({ id: 'loopElse', block })
-}
-
-/**
- * A block's statement, tagged by its keyword: a `const` or a `let`, its
- * record; what begins with a name, an assignment or a call statement,
- * {@link toBodyNameStatement}; a guard, `if ( condition ) block` — the `if`
- * it begins at, its condition, and its block read as a body's is. Loops
- * are read by `toBlockContents`, which also retains final-loop candidates.
- *
- * @type {(node: Children<SimpleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
- */
-const toStatement = ([kind, branch]) => {
-    switch (kind) {
-        case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
-        case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        default: {
-            const [first, , condition, , blk] = unmapped(branch)
-            const [block] = blockOf(unmapped(blk))
-            return symbol({ id: 'statement', statement: ['if', { start: tokenAt(first), condition: nodeAt(condition), block }] })
-        }
-    }
 }
 
 /**
@@ -1350,13 +1235,18 @@ const discarded = (name, rest, semicolon) =>
 
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'block') { return symbol({ id: 'moduleStatement', statement: ['block', { start: tokenAt(unmapped(branch)[0]), block: loopBlockOf(unmapped(branch)) }] }) }
+    if (kind === 'construct' || kind === 'array') { return symbol({ id: 'moduleStatement', statement: ['const', { declaration: constAt(branch), exported: false }] }) }
+    if (kind === 'do') { return symbol({ id: 'moduleStatement', statement: ['do', doWhileAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
-    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: ['for', forAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: forAt(branch) }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
     }
-    return symbol({ id: 'moduleStatement', statement: [kind, { declaration: constAt(branch), exported: false }] })
+    return symbol({ id: 'moduleStatement', statement: kind === 'let'
+        ? ['let', { declaration: letAt(branch), exported: false }]
+        : ['const', { declaration: constAt(branch), exported: false }] })
 }
 
 /**
@@ -1393,17 +1283,22 @@ const namedExpressionOf = ([name, rest], semicolon) => {
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'block') { return symbol({ id: 'loopStatement', statement: ['block', { start: tokenAt(unmapped(branch)[0]), block: loopBlockOf(unmapped(branch)) }] }) }
+    if (kind === 'construct' || kind === 'array') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
     if (kind === 'break' || kind === 'continue') {
         const [keyword, end] = unmapped(branch)
         return symbol({ id: 'loopStatement', statement: [kind, { start: tokenAt(keyword), semicolon: ended(end) }] })
     }
+    if (kind === 'bareReturn') { return symbol({ id: 'loopStatement', statement: ['return', bareReturnOf(unmapped(branch))] }) }
     if (kind === 'return') { return symbol({ id: 'loopStatement', statement: ['return', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
+    if (kind === 'do') { return symbol({ id: 'loopStatement', statement: ['do', doWhileAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'loopStatement', statement: ['while', loopConditionAt(branch)] }) }
-    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: ['for', forAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: forAt(branch) }) }
     if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
-    return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
+    return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch)
+        : kind === 'let' ? ['let', letAt(branch)] : ['const', constAt(branch)] })
 }
 
 /**
@@ -1416,6 +1311,14 @@ const toLoopStatement = ([kind, branch]) => {
  */
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
+
+/** Preserve the omitted operand of a written bare return.
+ * @type {(node: Children<(typeof terminator)['bareReturn'], ModuleTokenWithMetadata, Out>) => ReturnStatement}
+ */
+const bareReturnOf = ([keyword, end]) => {
+    const start = tokenAt(keyword)
+    return { start, semicolon: ended(end), first: null, value: null }
+}
 
 /** A member's record as the rewrite returns it, with the property it is where a binding is wanted. @type {(member: Member, target: BindingProperty) => Meta<Out>} */
 const memberOf = (member, target) => symbol({ id: 'member', member, target })
@@ -1444,18 +1347,28 @@ export const _toMember = ([tag, branch]) => {
             if (rounds.length === 0) {
                 return memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['ref', key] }, { key, target: ['name', key] })
             }
-            const v = unmapped(rounds[0])[1]
-            return memberOf({ key, spelling: 'plain', name: nameOf(key), value: nodeAt(v) }, { key, target: valueTargetAt(v) })
+            const [kind, tail] = unmapped(rounds[0])
+            if (kind === 'default') {
+                const [eq, v] = unmapped(tail)
+                return memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['binding-default', ['ref', key], tokenAt(eq), nodeAt(v)] }, { key, target: ['=', ['name', key], tokenAt(eq), nodeAt(v)] })
+            }
+            const [, v, init] = unmapped(tail)
+            return memberOf({ key, spelling: 'plain', name: nameOf(key), value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
         }
         case 'string': {
-            const [s, , v] = unmapped(branch)
+            const [s, , v, init] = unmapped(branch)
             const key = tokenAt(s)
-            return memberOf({ key, spelling: 'string', name: textOf(key), value: nodeAt(v) }, { key, target: valueTargetAt(v) })
+            return memberOf({ key, spelling: 'string', name: textOf(key), value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
+        }
+        case 'number': {
+            const [n, , v, init] = unmapped(branch)
+            const key = tokenAt(n)
+            return memberOf({ key, spelling: 'number', node: ['primitive', _primitiveOf(['number', n])], value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
         }
         case 'computed': {
-            const [, k, , , v] = unmapped(branch)
+            const [, k, , , v, init] = unmapped(branch)
             const first = firstAt(k)
-            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: nodeAt(v) }, { key: bracketKey(k), target: valueTargetAt(v) })
+            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: valueWith(nodeAt(v), init) }, { key: bracketKey(k), target: targetWith(valueTargetAt(v), init) })
         }
         default: { throw ['not a member', tag] }
     }
@@ -1489,18 +1402,10 @@ const attributeOf = node => {
 }
 
 /** @type {(node: _Leaf) => ImportBinding} */
-const importBindingAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'importBinding')
-    return out.binding
-}
+const importBindingAt = node => outOf('importBinding', node).binding
 
 /** @type {(node: _Leaf) => List<ImportBinding>} */
-const importBindingsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'importBindings')
-    return out.items
-}
+const importBindingsAt = node => outOf('importBindings', node).items
 
 const importBindingsOf = listOf(importBindingAt, importBindingsAt)
 const importItems = optionalItems(importBindingsAt)
@@ -1562,7 +1467,7 @@ const toImport = ([first, clause, , module, attribute, end]) => {
  * `[ open [ items ] close ]`, read from its list's mapping as a value's
  * is, {@link containerTarget}.
  *
- * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => BindingTarget}
+ * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => PlainBindingTarget}
  */
 const targetOf = ([tag, branch]) => {
     if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
@@ -1571,15 +1476,32 @@ const targetOf = ([tag, branch]) => {
 }
 
 /** @type {(node: Children<ConstStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
-const toConst = ([first, target, , v, end]) =>
-    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) } })
+const toConst = ([first, target, , v, rest, end]) => {
+    /** @type {Const} */
+    const statement = { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) }
+    const following = unmapped(rest).map(item => {
+        const [comma, target, , value] = unmapped(item)
+        return { start: tokenAt(comma), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(value) }
+    })
+    return symbol({ id: 'const', statement: following.length === 0 ? statement : { ...statement, following } })
+}
+
+/** @type {(node: Children<LetStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toLet = ([first, binding, end]) => {
+    const [kind, branch] = unmapped(binding)
+    if (kind === 'name') {
+        const [name, initializer] = unmapped(branch)
+        const initial = unmapped(initializer)[0]
+        return symbol({ id: 'let', statement: { start: tokenAt(first), semicolon: ended(end),
+            target: named(tokenAt(unmapped(name)[1])), value: initial === undefined ? null : nodeAt(unmapped(initial)[1]) } })
+    }
+    const [target, initializer] = unmapped(branch)
+    return symbol({ id: 'let', statement: { start: tokenAt(first), semicolon: ended(end),
+        target: targetOf(unmapped(target)), value: nodeAt(unmapped(initializer)[1]) } })
+}
 
 /** @type {(node: _Leaf) => ModuleStatementRecord} */
-const moduleStatementAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'moduleStatement')
-    return out.statement
-}
+const moduleStatementAt = node => outOf('moduleStatement', node).statement
 
 
 
@@ -1644,7 +1566,10 @@ const map = mapping
  * @type {(node: Children<ItemRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toItem = ([tag, branch]) => {
-    if (tag === 'value') { return symbol({ id: 'item', item: nodeAt(branch), target: valueTargetAt(branch) }) }
+    if (tag === 'value') {
+        const [v, init] = unmapped(branch)
+        return symbol({ id: 'item', item: valueWith(nodeAt(v), init), target: targetWith(valueTargetAt(v), init) })
+    }
     const [dots, v] = unmapped(branch)
     return symbol({ id: 'item', item: ['...', nodeAt(v)], target: ['...', tokenAt(dots), valueTargetAt(v)] })
 }
@@ -1678,7 +1603,7 @@ const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), target
 /**
  * The parameters after a named list's first, from `parameterNames`'s
  * branch: a fixed parameter — its target, {@link targetOf}, with its
- * default where it has one, {@link parameterWith} — before the parameters
+ * default where it has one, {@link targetWith} — before the parameters
  * its tail's mapping already returned, `target [ '=' value ] [ ',' [
  * parameters ] ]` — so a list of any length costs one step at each of its
  * nodes, as an array's items do — or the rest parameter's token, which
@@ -1693,13 +1618,13 @@ const toParameterNames = ([tag, branch]) => {
     }
     const [target, init, more] = unmapped(branch)
     const tail = parametersAfter(more)
-    return symbol({ id: 'parameters', fixed: { first: parameterWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
+    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
 }
 
 /**
  * What follows `(` value `,`, from `parenItems`'s branch, read both ways
  * the `)` may decide: a fixed item — its target as a parameter, with its
- * default where it has one, {@link parameterWith}, and its node as an
+ * default where it has one, {@link targetWith}, and its node as an
  * operand — before the items its tail's mapping already returned, the
  * first token no operand list holds kept, the default's `=` before the
  * tail's; or the rest parameter's token, which ends the list and is that
@@ -1717,7 +1642,7 @@ const toParenItems = ([tag, branch]) => {
     const rounds = unmapped(init)
     return symbol({
         id: 'parenItems',
-        fixed: { first: parameterWith(valueTargetAt(v), init), tail: tail.fixed },
+        fixed: { first: targetWith(valueTargetAt(v), init), tail: tail.fixed },
         rest: tail.rest,
         operands: { first: nodeAt(v), tail: tail.operands },
         refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),
@@ -1734,6 +1659,11 @@ const toParenItems = ([tag, branch]) => {
  * @type {RewriteSet<ModuleTokenWithMetadata, Out>}
  */
 export const mappings = [
+    map(constructorCallee, toConstructorCallee),
+    map(arrayStatementValue, toNode),
+    map(arrayExpressionStatement, toArrayExpressionStatement),
+    map(newExpression, toNewExpression),
+    map(newExpressionStatement, toNewExpressionStatement),
     map(template, toTemplate),
     map(value, toNode),
     map(body, toNode),
@@ -1762,15 +1692,9 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
-    // a `let` is the record a `const` is, under the other keyword
-    map(letStatement, toConst),
+    map(letStatement, toLet),
     map(bodyNameStatement, toBodyNameStatement),
     map(moduleStatement, toModuleStatement),
-    map(simpleStatement, toStatement),
-    map(blockContents, toBlockContents),
-    map(terminator, toEnd),
-    map(caseTail, toCaseTail),
-    map(afterCase, toAfterCase),
     map(loopStatement, toLoopStatement),
     map(loopElse, toLoopElse),
     map(lastStatement, toLast),
@@ -1780,7 +1704,7 @@ export const mappings = [
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (module), mappings)
+const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's
@@ -1798,7 +1722,7 @@ export const parseSyntax = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
-    const [matched, result] = parseModule(tokens.map(symbolOf))
+    const [matched, result] = parseModule(symbolsOf(tokens))
     if (matched === 'error') {
         // A failure past the last token is the end of input rather than a
         // token the reader can point at.

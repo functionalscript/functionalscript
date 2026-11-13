@@ -11,6 +11,27 @@ export default { "dev": server, "prod": server };
 A `const` statement names a value so that it can be *used more than once*. It
 is what makes a module denote a **graph** rather than a tree, and it is the
 main thing FunctionalScript data has that JSON data does not.
+A `const` declaration always requires an initializer. A statement may contain
+several declarations separated by commas:
+
+```js
+const a = [1], b = a;
+export default a === b; // true
+```
+
+This lowers to `const a = [1]; const b = a;` in the same lexical scope.
+Initializers run from left to right and may read earlier bindings. Each target
+may also be a destructuring pattern. Required initializers still execute when
+their result is unused, and duplicate names and unsupported forward references
+retain their existing errors. Named exports use the same declaration list.
+There is no trailing comma. This increment covers statements; `let` lists and
+classic `for` header lists remain separate work.
+
+The syntax AST retains the written declaration group. Source resolution
+expands it into individual declarations before FAST normalization. The
+language designer `sergey-shandar` approved this desugaring in the
+[working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019),
+under DESIGN.md §12.
 
 JSON can only represent a tree, so a value used twice is written twice. Two
 copies are not one shared value: they take twice the space, they drift apart
@@ -33,11 +54,12 @@ written.
   since any broken JavaScript program is a broken FunctionalScript program.
   `undefined`, `NaN` and `Infinity` are refused as well, although a
   JavaScript module may bind them, so that each denotes its value wherever a
-  value stands ([numbers](../../values/numbers/README.md)). `Array`, `Number`, `Object` and `String`
+  value stands ([numbers](../../values/numbers/README.md)). `Array`, `Boolean`, `Number`, `Object` and `String`
   are also reserved under [global names](../../todo/2365-global-names.md), with no
   standalone values: `Array` stands in [instance checks](../../operators/instanceof/README.md), `Number`
   and `String` stand as [number](../../conversions/number/README.md) and
-  [string](../../conversions/string/README.md) conversions, and `Object` and `Number` as the
+  [string](../../conversions/string/README.md) conversions, `Boolean` as the
+  [boolean conversion](../../conversions/boolean/README.md), and `Object` and `Number` as the
   namespaces of the [static functions](../../built-ins/static-functions/README.md). A word
   that is a keyword only in some
   position — `async`, `of`, `get`, `set`, `from`, `as` — is an ordinary name,

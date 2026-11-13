@@ -53,7 +53,7 @@
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { lf, space as traitSeparator } from '../../text/ascii/module.f.js'
-import { concat, sameItems } from '../../types/list/module.f.mjs'
+import { concat, sameItems } from '../../types/list/module.f.js'
 import { cmp, cString } from '../bytes/module.f.js'
 import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
@@ -104,7 +104,7 @@ const space = set(' \t\r\n')
  * {@link targetOf}, and `entryRule`, whose name runs to the NUL and so carries
  * that whitespace already.
  */
-const nul = set('\0')
+const nul = set('\u0000')
 
 /**
  * A byte that ends a loose ref's id: whitespace, or the NUL that ends the
@@ -115,7 +115,7 @@ const nul = set('\0')
  * symbolic ref and a `packed-refs` line tell them apart, which is why they do
  * not share this.
  */
-const looseEnd = set(' \t\r\n\0')
+const looseEnd = set(' \t\r\n\u0000')
 
 /**
  * A hex digit, in either case. An entry of `packed-refs` and a `^` line
@@ -391,7 +391,7 @@ const separator = set(' \t\r')
 const entryRule = /** @type {const} */ ([
     repeatFrom1(hexDigit),
     separator,
-    repeatFrom1(not(set('\n\0'))),
+    repeatFrom1(not(set('\n\u0000'))),
     option([nul, repeatFrom0(not(set('\n')))]),
     '\n',
     option(peeledRule),

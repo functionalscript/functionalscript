@@ -10,6 +10,7 @@
 
 import { typescript } from '../config/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
+import { shellQuote } from '../../text/shell/module.f.js'
 
 /**
  * The runner's temporary directory, which GitHub empties at the start and at
@@ -27,8 +28,8 @@ const consumerName = /** @type {const} */ ('consumer')
  * the runner sets to {@link runnerTemp}; the shell expands it, so nothing
  * GitHub substitutes is read as shell source.
  *
- * The job that packs makes this directory and packs into it, before
- * {@link packageCheckSteps} run in it.
+ * The producer packs here and uploads its tarball. The consumer job downloads
+ * it into the same relative temporary path on its own runner.
  */
 export const consumerDirectory = /** @type {const} */ (`"$RUNNER_TEMP/${consumerName}"`)
 
@@ -105,19 +106,6 @@ const tsconfig = /** @type {const} */ ({
 })
 
 /**
- * A string as one single-quoted shell word. Nothing inside single quotes is
- * special to the shell but the quote itself, so `'` is written as the quote
- * closed, the character escaped, and the quote reopened. Every consumer
- * string reaches its command through this, the identifiers included, which
- * `stringLiteral` cannot cover: so a `value` of `x'; printf PWNED; #` is an
- * import the compiler refuses, not a command the runner executes. An
- * unsupported consumer fails the check; it never runs.
- *
- * @type {(s: string) => string}
- */
-const shellWord = s => `'${s.replaceAll("'", "'\\''")}'`
-
-/**
  * The two consumer files, as one `echo` each writes them. `good.mts` imports
  * the runtime export and a declared type from the installed package and
  * gives the type a value it accepts; `bad.mts` gives it one it does not.
@@ -127,8 +115,10 @@ const shellWord = s => `'${s.replaceAll("'", "'\\''")}'`
  * compile would count as the type refusing it. The export and the type are
  * written bare, as the identifiers they are, and one that is not an identifier
  * fails `good.mts`, which is not negated. The shell sees none of it raw:
- * {@link consumerCommands} writes each file as one {@link shellWord}. `.mts`
- * rather than `.ts` because
+ * {@link consumerCommands} writes each file as one `shellQuote` word, so a
+ * `value` of `x'; printf PWNED; #` is an import the compiler refuses, not a
+ * command the runner executes. An unsupported consumer fails the check; it
+ * never runs. `.mts` rather than `.ts` because
  * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
  *
  * @type {(consumer: PackageConsumer) => string}
@@ -163,11 +153,9 @@ const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig
  * an opaque script.
  *
  * The compiler is `../config/module.f.js`'s, installed from npm as a consumer
- * installs it, rather than taken from the environment manifest the rest of the job enters:
- * entering that environment manifest would put this repository's toolchain on `PATH` in the
- * one place nothing of the repository should be in reach. It is the same
- * version the shell provides through the manager, so the declarations in the tarball
- * are read by the compiler that emitted them.
+ * installs it, rather than taken from the producer's mise environment. The
+ * consumer job has no checkout or repository toolchain. It installs the same
+ * compiler version that the producer used to emit the declarations.
  *
  * That version must stay exact for a reason peculiar to this check: the
  * consumer project has no lockfile, so a range would let a later registry
@@ -218,8 +206,8 @@ const declarationCommands = [
  * @type {(consumer: PackageConsumer) => readonly string[]}
  */
 const consumerCommands = consumer => [
-    `echo ${shellWord(goodConsumer(consumer))} > good.mts`,
-    `echo ${shellWord(badConsumer(consumer))} > bad.mts`,
+    `echo ${shellQuote(goodConsumer(consumer))} > good.mts`,
+    `echo ${shellQuote(badConsumer(consumer))} > bad.mts`,
     `${consumerTsc} good.mts`,
     'node good.mts',
     `! ${consumerTsc} bad.mts`,
@@ -232,39 +220,11 @@ const consumerCommands = consumer => [
  * file, runs it, and type-checks a use of its declaration with a negative
  * control that must fail.
  *
- * These are steps, not a job, and they run last in the job that packs. As a
- * job of their own they waited for that one (`needs`), and GitHub creates a
- * waiting job only when the job it waits for has finished — so whenever the
- * runner queue was full, the check joined the back of it and waited a second
- * time, for seconds of work.
- *
- * What made the separate job a clean consumer was that its runner had no
- * checkout. Every run step here starts in {@link consumerDirectory} instead,
- * which keeps each property that gave:
- *
- * - **Nothing of the repository up the tree.** The directory is under the
- *   runner's temporary directory, not inside the checkout and not above it,
- *   so there is no `tsconfig.json` to inherit, no `node_modules` for Node or
- *   `tsc` to resolve into, and no source file that could stand in for a
- *   declaration the tarball omits. Both resolve by walking up from the file
- *   that imports, and the walk never reaches the checkout. It does cross the
- *   temporary directory itself, which `install-nix-action` also exports as
- *   every later step's `TMPDIR`; so this rests on nothing writing a
- *   `package.json`, `node_modules` or `tsconfig.json` at its root, where
- *   temporary files are directories of their own.
- * - **Nothing but the tarball in it.** The job makes it with a `mkdir` that
- *   fails if it already exists, and `npm pack` writes the tarball into it.
- * - **No repository toolchain on `PATH`.** No step here enters the environment manifest: each
- *   environment step entered its shell for its own command alone, so the `node`,
- *   `npm` and `npx` here are those of the `setup-node` step the job runs just
- *   before them, as a consumer's would be (`../node/module.f.mjs`).
- *
- * What the same runner still holds is outside a consumer's resolution: the
- * checkout beside it, the tool installation directories, and the npm cache `npm ci` filled, which
- * hands out package contents only against their recorded integrity.
- *
- * Commands only, each starting in that directory: the job these steps close
- * has already checked out, and installs their Node itself.
+ * The separate `package` job waits for `node` and downloads its artifact.
+ * Its runner has no checkout or mise setup; `setup-node` supplies Node and
+ * npm, and npm installs the pinned compiler locally. Every command starts
+ * under the runner's temporary directory so package resolution cannot borrow
+ * source files, declarations or dependencies from the producer.
  *
  * @type {(consumer: PackageConsumer | undefined) => readonly Step[]}
  */

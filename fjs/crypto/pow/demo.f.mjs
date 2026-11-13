@@ -14,15 +14,15 @@
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
-import { sha256Pow, targetFromNBits } from './module.f.mjs'
-import { tryUtf8 } from '../../text/module.f.mjs'
+import { sha256Pow, targetFromNBits } from './module.f.js'
+import { tryUtf8 } from '../../text/module.f.js'
 import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { hexOf } from '../../website/demo/hash/module.f.mjs'
-import { sha256 } from '../sha2/module.f.mjs'
-import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.mjs'
+import { sha256 } from '../sha2/module.f.js'
+import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.js'
 
 const formatHex = hexOf(sha256)
 const hashBits = vec(sha256.hashLength)

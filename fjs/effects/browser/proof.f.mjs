@@ -4,7 +4,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { fetchText, instantiate, jsHeapSize } from './module.f.mjs'
+import { fetchText, instantiate, jsHeapSize } from './module.f.js'
 
 export const proof = {
     fetchText: () => {

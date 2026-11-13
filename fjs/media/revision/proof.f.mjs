@@ -4,8 +4,8 @@
  */
 
 import { assert, assertEq, assertError } from '../../asserts/module.f.js'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences, lockFieldError, lockMapError } from './module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
@@ -14,14 +14,6 @@ const h1 = '8'
 const h2 = 'r'
 // `I` is accepted as an alias spelling of canonical cBase32 `1`.
 const alias = /** @type {const} */ ('I')
-
-/** @type {LockMap} */
-const _lockMapAllowsMissingSubjects = {}
-
-// A lock map's values are `string | LockMap | undefined` at every depth, so
-// the same value is a legal binding for a direct hash and for a nested scope.
-/** @type {LockMap} */
-const _lockMapNests = { direct: h1, scope: { direct: h2, deeper: { direct: h1 } } }
 
 // A shape-valid revision: every required field present (`snapshot` and
 // `generation` included), with `extra` overriding or adding fields per test.
@@ -43,6 +35,13 @@ const validRevisionOf = extra => {
 }
 
 export const proof = {
+    lockReferences: () => {
+        assertEq(lockFieldError(h1), null)
+        assertEq(lockMapError({ dependency: h2 }), null)
+        assertEq(lockFieldError('bad!'), 'lock reference is not a valid hash: bad!')
+        assertEq(lockMapError({ scope: { dependency: 'bad!' } }),
+            'lock value for scope/dependency is not a valid hash: bad!')
+    },
     dialectAndMediaType: () => {
         assertEq(dialect, 'vnd.fjs.revision')
         assertEq(mediaType, 'application/vnd.fjs.revision+json')
@@ -285,7 +284,7 @@ export const proof = {
         shortCircuits: () => {
             /** @type {LockMap} */
             let lock = { leaf: h1 }
-            for (let i = 0; i < 100_000; i++) { lock = { scope: lock } }
+            for (let i = 0; i < 100_000; i += 1) { lock = { scope: lock } }
             const r = checkReferences({ ...validRevisionOf({}), parents: ['not a hash!'], lock })
             assert(r[0] === 'error', ['expected error', r])
             assertEq(r[1], 'parent is not a valid hash: not a hash!')
@@ -373,6 +372,3 @@ export const proof = {
         },
     },
 }
-
-void _lockMapAllowsMissingSubjects
-void _lockMapNests

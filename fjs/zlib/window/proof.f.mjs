@@ -1,7 +1,7 @@
 /** @import { Window } from './types.ts' */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { copy, empty, last, push, pushAll } from './module.f.mjs'
+import { copy, empty, last, push, pushAll } from './module.f.js'
 
 /** @type {(bytes: number) => readonly number[]} */
 const varied = bytes => Array.from({ length: bytes }, (_, i) => i * 37 + 11 & 0xff)

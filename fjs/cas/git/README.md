@@ -98,7 +98,7 @@ siblings would make a write cost what a listing does.
 Everything is native over [`fjs/git`](../../git/README.md): the id width
 from `config`, the refs through the ref store and its writer, the objects
 through the object store and the walk, the trees and commits through their
-writers, the loose file through [`fjs/zlib/stored`](../../zlib/stored/module.f.mjs).
+writers, the loose file through [`fjs/zlib/stored`](../../zlib/stored/module.f.js).
 No `git` runs.
 
 ## Limits

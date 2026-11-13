@@ -4,17 +4,30 @@ pub mod arguments;
 pub mod arity;
 pub mod array;
 pub mod array_methods;
+pub mod array_rest;
+pub mod array_rest_default_throws;
+pub mod array_rest_nested_throws;
+pub mod array_rest_noniterable_throws;
+pub mod array_rest_null_throws;
+pub mod array_rest_scopes;
+pub mod array_rest_undefined_throws;
 pub mod at;
 pub mod bigint;
 pub mod bigint_mixed;
 pub mod bigint_operators;
 pub mod boolean;
+pub mod boolean_conversion;
+pub mod boolean_evaluation;
+pub mod boolean_no_coercion;
+pub mod boolean_operand_throws;
 pub mod call;
 pub mod callbacks;
 pub mod calls;
 pub mod closure;
 pub mod closure_identity;
 pub mod closure_throws;
+pub mod concat;
+pub mod concat_coercion_throws;
 pub mod entry;
 pub mod escapes;
 pub mod function_scope;
@@ -23,12 +36,66 @@ pub mod intrinsic;
 pub mod intrinsic_throws;
 pub mod lazy;
 pub mod length;
+pub mod math_abs;
+pub mod math_abs_bigint_throws;
+pub mod math_abs_coercion_throws;
+pub mod math_abs_converted_bigint_throws;
+pub mod math_abs_extra_argument_throws;
+pub mod math_ceil;
+pub mod math_ceil_bigint_throws;
+pub mod math_ceil_coercion_throws;
+pub mod math_ceil_converted_bigint_throws;
+pub mod math_ceil_extra_argument_throws;
+pub mod math_floor;
+pub mod math_floor_bigint_throws;
+pub mod math_floor_coercion_throws;
+pub mod math_floor_converted_bigint_throws;
+pub mod math_floor_extra_argument_throws;
+pub mod math_imul;
+pub mod math_imul_bigint_throws;
+pub mod math_imul_coercion_throws;
+pub mod math_imul_converted_bigint_throws;
+pub mod math_imul_extra_argument_throws;
+pub mod math_imul_second_bigint_throws;
+pub mod math_imul_second_coercion_throws;
+pub mod math_imul_second_converted_bigint_throws;
+pub mod math_log2;
+pub mod math_log2_bigint_boundaries;
+pub mod math_log2_bigint_throws;
+pub mod math_log2_coercion_throws;
+pub mod math_log2_converted_bigint_throws;
+pub mod math_max;
+pub mod math_max_argument_throws;
+pub mod math_max_bigint_throws;
+pub mod math_max_coercion_throws;
+pub mod math_max_converted_bigint_throws;
+pub mod math_max_infinity_coercion_throws;
+pub mod math_max_nan_coercion_throws;
+pub mod math_min;
+pub mod math_min_argument_throws;
+pub mod math_min_bigint_throws;
+pub mod math_min_coercion_throws;
+pub mod math_min_converted_bigint_throws;
+pub mod math_min_infinity_coercion_throws;
+pub mod math_min_nan_coercion_throws;
+pub mod math_sqrt;
+pub mod math_sqrt_bigint_throws;
+pub mod math_sqrt_coercion_throws;
+pub mod math_sqrt_converted_bigint_throws;
+pub mod math_sqrt_extra_argument_throws;
+pub mod math_trunc;
+pub mod math_trunc_bigint_throws;
+pub mod math_trunc_coercion_throws;
+pub mod math_trunc_converted_bigint_throws;
+pub mod math_trunc_extra_argument_throws;
 pub mod method;
 pub mod missing;
+pub mod mixed_if;
 pub mod named;
 pub mod named_imports;
 pub mod named_imports_throws;
 pub mod nested;
+pub mod normal_if;
 pub mod not_a_function;
 pub mod nullish;
 pub mod number;
@@ -42,9 +109,14 @@ pub mod object_from_entries;
 pub mod object_from_entries_not_array_throws;
 pub mod object_from_entries_throws;
 pub mod object_is;
+pub mod object_keys;
+pub mod object_keys_missing_throws;
+pub mod object_keys_null_throws;
+pub mod object_keys_undefined_throws;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;
+pub mod owning_self_tail_calls;
 pub mod parameters;
 pub mod property;
 pub mod recursion;
@@ -53,6 +125,9 @@ pub mod sharing;
 pub mod special_numbers;
 pub mod spread;
 pub mod string;
+pub mod string_from_char_code;
+pub mod string_from_char_code_coercion_throws;
+pub mod string_from_char_code_throws;
 pub mod string_methods;
 pub mod throw;
 pub mod throws;
@@ -68,17 +143,30 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "arity", fixture: crate::fixtures::arity::module::<Naive>, expected: arity::module::<Naive>, json: arity::JSON, throws: arity::THROWS },
     crate::Case { name: "array", fixture: crate::fixtures::array::module::<Naive>, expected: array::module::<Naive>, json: array::JSON, throws: array::THROWS },
     crate::Case { name: "array_methods", fixture: crate::fixtures::array_methods::module::<Naive>, expected: array_methods::module::<Naive>, json: array_methods::JSON, throws: array_methods::THROWS },
+    crate::Case { name: "array_rest", fixture: crate::fixtures::array_rest::module::<Naive>, expected: array_rest::module::<Naive>, json: array_rest::JSON, throws: array_rest::THROWS },
+    crate::Case { name: "array_rest_default_throws", fixture: crate::fixtures::array_rest_default_throws::module::<Naive>, expected: array_rest_default_throws::module::<Naive>, json: array_rest_default_throws::JSON, throws: array_rest_default_throws::THROWS },
+    crate::Case { name: "array_rest_nested_throws", fixture: crate::fixtures::array_rest_nested_throws::module::<Naive>, expected: array_rest_nested_throws::module::<Naive>, json: array_rest_nested_throws::JSON, throws: array_rest_nested_throws::THROWS },
+    crate::Case { name: "array_rest_noniterable_throws", fixture: crate::fixtures::array_rest_noniterable_throws::module::<Naive>, expected: array_rest_noniterable_throws::module::<Naive>, json: array_rest_noniterable_throws::JSON, throws: array_rest_noniterable_throws::THROWS },
+    crate::Case { name: "array_rest_null_throws", fixture: crate::fixtures::array_rest_null_throws::module::<Naive>, expected: array_rest_null_throws::module::<Naive>, json: array_rest_null_throws::JSON, throws: array_rest_null_throws::THROWS },
+    crate::Case { name: "array_rest_scopes", fixture: crate::fixtures::array_rest_scopes::module::<Naive>, expected: array_rest_scopes::module::<Naive>, json: array_rest_scopes::JSON, throws: array_rest_scopes::THROWS },
+    crate::Case { name: "array_rest_undefined_throws", fixture: crate::fixtures::array_rest_undefined_throws::module::<Naive>, expected: array_rest_undefined_throws::module::<Naive>, json: array_rest_undefined_throws::JSON, throws: array_rest_undefined_throws::THROWS },
     crate::Case { name: "at", fixture: crate::fixtures::at::module::<Naive>, expected: at::module::<Naive>, json: at::JSON, throws: at::THROWS },
     crate::Case { name: "bigint", fixture: crate::fixtures::bigint::module::<Naive>, expected: bigint::module::<Naive>, json: bigint::JSON, throws: bigint::THROWS },
     crate::Case { name: "bigint_mixed", fixture: crate::fixtures::bigint_mixed::module::<Naive>, expected: bigint_mixed::module::<Naive>, json: bigint_mixed::JSON, throws: bigint_mixed::THROWS },
     crate::Case { name: "bigint_operators", fixture: crate::fixtures::bigint_operators::module::<Naive>, expected: bigint_operators::module::<Naive>, json: bigint_operators::JSON, throws: bigint_operators::THROWS },
     crate::Case { name: "boolean", fixture: crate::fixtures::boolean::module::<Naive>, expected: boolean::module::<Naive>, json: boolean::JSON, throws: boolean::THROWS },
+    crate::Case { name: "boolean_conversion", fixture: crate::fixtures::boolean_conversion::module::<Naive>, expected: boolean_conversion::module::<Naive>, json: boolean_conversion::JSON, throws: boolean_conversion::THROWS },
+    crate::Case { name: "boolean_evaluation", fixture: crate::fixtures::boolean_evaluation::module::<Naive>, expected: boolean_evaluation::module::<Naive>, json: boolean_evaluation::JSON, throws: boolean_evaluation::THROWS },
+    crate::Case { name: "boolean_no_coercion", fixture: crate::fixtures::boolean_no_coercion::module::<Naive>, expected: boolean_no_coercion::module::<Naive>, json: boolean_no_coercion::JSON, throws: boolean_no_coercion::THROWS },
+    crate::Case { name: "boolean_operand_throws", fixture: crate::fixtures::boolean_operand_throws::module::<Naive>, expected: boolean_operand_throws::module::<Naive>, json: boolean_operand_throws::JSON, throws: boolean_operand_throws::THROWS },
     crate::Case { name: "call", fixture: crate::fixtures::call::module::<Naive>, expected: call::module::<Naive>, json: call::JSON, throws: call::THROWS },
     crate::Case { name: "callbacks", fixture: crate::fixtures::callbacks::module::<Naive>, expected: callbacks::module::<Naive>, json: callbacks::JSON, throws: callbacks::THROWS },
     crate::Case { name: "calls", fixture: crate::fixtures::calls::module::<Naive>, expected: calls::module::<Naive>, json: calls::JSON, throws: calls::THROWS },
     crate::Case { name: "closure", fixture: crate::fixtures::closure::module::<Naive>, expected: closure::module::<Naive>, json: closure::JSON, throws: closure::THROWS },
     crate::Case { name: "closure_identity", fixture: crate::fixtures::closure_identity::module::<Naive>, expected: closure_identity::module::<Naive>, json: closure_identity::JSON, throws: closure_identity::THROWS },
     crate::Case { name: "closure_throws", fixture: crate::fixtures::closure_throws::module::<Naive>, expected: closure_throws::module::<Naive>, json: closure_throws::JSON, throws: closure_throws::THROWS },
+    crate::Case { name: "concat", fixture: crate::fixtures::concat::module::<Naive>, expected: concat::module::<Naive>, json: concat::JSON, throws: concat::THROWS },
+    crate::Case { name: "concat_coercion_throws", fixture: crate::fixtures::concat_coercion_throws::module::<Naive>, expected: concat_coercion_throws::module::<Naive>, json: concat_coercion_throws::JSON, throws: concat_coercion_throws::THROWS },
     crate::Case { name: "entry", fixture: crate::fixtures::entry::module::<Naive>, expected: entry::module::<Naive>, json: entry::JSON, throws: entry::THROWS },
     crate::Case { name: "escapes", fixture: crate::fixtures::escapes::module::<Naive>, expected: escapes::module::<Naive>, json: escapes::JSON, throws: escapes::THROWS },
     crate::Case { name: "function_scope", fixture: crate::fixtures::function_scope::module::<Naive>, expected: function_scope::module::<Naive>, json: function_scope::JSON, throws: function_scope::THROWS },
@@ -87,12 +175,66 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "intrinsic_throws", fixture: crate::fixtures::intrinsic_throws::module::<Naive>, expected: intrinsic_throws::module::<Naive>, json: intrinsic_throws::JSON, throws: intrinsic_throws::THROWS },
     crate::Case { name: "lazy", fixture: crate::fixtures::lazy::module::<Naive>, expected: lazy::module::<Naive>, json: lazy::JSON, throws: lazy::THROWS },
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
+    crate::Case { name: "math_abs", fixture: crate::fixtures::math_abs::module::<Naive>, expected: math_abs::module::<Naive>, json: math_abs::JSON, throws: math_abs::THROWS },
+    crate::Case { name: "math_abs_bigint_throws", fixture: crate::fixtures::math_abs_bigint_throws::module::<Naive>, expected: math_abs_bigint_throws::module::<Naive>, json: math_abs_bigint_throws::JSON, throws: math_abs_bigint_throws::THROWS },
+    crate::Case { name: "math_abs_coercion_throws", fixture: crate::fixtures::math_abs_coercion_throws::module::<Naive>, expected: math_abs_coercion_throws::module::<Naive>, json: math_abs_coercion_throws::JSON, throws: math_abs_coercion_throws::THROWS },
+    crate::Case { name: "math_abs_converted_bigint_throws", fixture: crate::fixtures::math_abs_converted_bigint_throws::module::<Naive>, expected: math_abs_converted_bigint_throws::module::<Naive>, json: math_abs_converted_bigint_throws::JSON, throws: math_abs_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_abs_extra_argument_throws", fixture: crate::fixtures::math_abs_extra_argument_throws::module::<Naive>, expected: math_abs_extra_argument_throws::module::<Naive>, json: math_abs_extra_argument_throws::JSON, throws: math_abs_extra_argument_throws::THROWS },
+    crate::Case { name: "math_ceil", fixture: crate::fixtures::math_ceil::module::<Naive>, expected: math_ceil::module::<Naive>, json: math_ceil::JSON, throws: math_ceil::THROWS },
+    crate::Case { name: "math_ceil_bigint_throws", fixture: crate::fixtures::math_ceil_bigint_throws::module::<Naive>, expected: math_ceil_bigint_throws::module::<Naive>, json: math_ceil_bigint_throws::JSON, throws: math_ceil_bigint_throws::THROWS },
+    crate::Case { name: "math_ceil_coercion_throws", fixture: crate::fixtures::math_ceil_coercion_throws::module::<Naive>, expected: math_ceil_coercion_throws::module::<Naive>, json: math_ceil_coercion_throws::JSON, throws: math_ceil_coercion_throws::THROWS },
+    crate::Case { name: "math_ceil_converted_bigint_throws", fixture: crate::fixtures::math_ceil_converted_bigint_throws::module::<Naive>, expected: math_ceil_converted_bigint_throws::module::<Naive>, json: math_ceil_converted_bigint_throws::JSON, throws: math_ceil_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_ceil_extra_argument_throws", fixture: crate::fixtures::math_ceil_extra_argument_throws::module::<Naive>, expected: math_ceil_extra_argument_throws::module::<Naive>, json: math_ceil_extra_argument_throws::JSON, throws: math_ceil_extra_argument_throws::THROWS },
+    crate::Case { name: "math_floor", fixture: crate::fixtures::math_floor::module::<Naive>, expected: math_floor::module::<Naive>, json: math_floor::JSON, throws: math_floor::THROWS },
+    crate::Case { name: "math_floor_bigint_throws", fixture: crate::fixtures::math_floor_bigint_throws::module::<Naive>, expected: math_floor_bigint_throws::module::<Naive>, json: math_floor_bigint_throws::JSON, throws: math_floor_bigint_throws::THROWS },
+    crate::Case { name: "math_floor_coercion_throws", fixture: crate::fixtures::math_floor_coercion_throws::module::<Naive>, expected: math_floor_coercion_throws::module::<Naive>, json: math_floor_coercion_throws::JSON, throws: math_floor_coercion_throws::THROWS },
+    crate::Case { name: "math_floor_converted_bigint_throws", fixture: crate::fixtures::math_floor_converted_bigint_throws::module::<Naive>, expected: math_floor_converted_bigint_throws::module::<Naive>, json: math_floor_converted_bigint_throws::JSON, throws: math_floor_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_floor_extra_argument_throws", fixture: crate::fixtures::math_floor_extra_argument_throws::module::<Naive>, expected: math_floor_extra_argument_throws::module::<Naive>, json: math_floor_extra_argument_throws::JSON, throws: math_floor_extra_argument_throws::THROWS },
+    crate::Case { name: "math_imul", fixture: crate::fixtures::math_imul::module::<Naive>, expected: math_imul::module::<Naive>, json: math_imul::JSON, throws: math_imul::THROWS },
+    crate::Case { name: "math_imul_bigint_throws", fixture: crate::fixtures::math_imul_bigint_throws::module::<Naive>, expected: math_imul_bigint_throws::module::<Naive>, json: math_imul_bigint_throws::JSON, throws: math_imul_bigint_throws::THROWS },
+    crate::Case { name: "math_imul_coercion_throws", fixture: crate::fixtures::math_imul_coercion_throws::module::<Naive>, expected: math_imul_coercion_throws::module::<Naive>, json: math_imul_coercion_throws::JSON, throws: math_imul_coercion_throws::THROWS },
+    crate::Case { name: "math_imul_converted_bigint_throws", fixture: crate::fixtures::math_imul_converted_bigint_throws::module::<Naive>, expected: math_imul_converted_bigint_throws::module::<Naive>, json: math_imul_converted_bigint_throws::JSON, throws: math_imul_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_imul_extra_argument_throws", fixture: crate::fixtures::math_imul_extra_argument_throws::module::<Naive>, expected: math_imul_extra_argument_throws::module::<Naive>, json: math_imul_extra_argument_throws::JSON, throws: math_imul_extra_argument_throws::THROWS },
+    crate::Case { name: "math_imul_second_bigint_throws", fixture: crate::fixtures::math_imul_second_bigint_throws::module::<Naive>, expected: math_imul_second_bigint_throws::module::<Naive>, json: math_imul_second_bigint_throws::JSON, throws: math_imul_second_bigint_throws::THROWS },
+    crate::Case { name: "math_imul_second_coercion_throws", fixture: crate::fixtures::math_imul_second_coercion_throws::module::<Naive>, expected: math_imul_second_coercion_throws::module::<Naive>, json: math_imul_second_coercion_throws::JSON, throws: math_imul_second_coercion_throws::THROWS },
+    crate::Case { name: "math_imul_second_converted_bigint_throws", fixture: crate::fixtures::math_imul_second_converted_bigint_throws::module::<Naive>, expected: math_imul_second_converted_bigint_throws::module::<Naive>, json: math_imul_second_converted_bigint_throws::JSON, throws: math_imul_second_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_log2", fixture: crate::fixtures::math_log2::module::<Naive>, expected: math_log2::module::<Naive>, json: math_log2::JSON, throws: math_log2::THROWS },
+    crate::Case { name: "math_log2_bigint_boundaries", fixture: crate::fixtures::math_log2_bigint_boundaries::module::<Naive>, expected: math_log2_bigint_boundaries::module::<Naive>, json: math_log2_bigint_boundaries::JSON, throws: math_log2_bigint_boundaries::THROWS },
+    crate::Case { name: "math_log2_bigint_throws", fixture: crate::fixtures::math_log2_bigint_throws::module::<Naive>, expected: math_log2_bigint_throws::module::<Naive>, json: math_log2_bigint_throws::JSON, throws: math_log2_bigint_throws::THROWS },
+    crate::Case { name: "math_log2_coercion_throws", fixture: crate::fixtures::math_log2_coercion_throws::module::<Naive>, expected: math_log2_coercion_throws::module::<Naive>, json: math_log2_coercion_throws::JSON, throws: math_log2_coercion_throws::THROWS },
+    crate::Case { name: "math_log2_converted_bigint_throws", fixture: crate::fixtures::math_log2_converted_bigint_throws::module::<Naive>, expected: math_log2_converted_bigint_throws::module::<Naive>, json: math_log2_converted_bigint_throws::JSON, throws: math_log2_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_max", fixture: crate::fixtures::math_max::module::<Naive>, expected: math_max::module::<Naive>, json: math_max::JSON, throws: math_max::THROWS },
+    crate::Case { name: "math_max_argument_throws", fixture: crate::fixtures::math_max_argument_throws::module::<Naive>, expected: math_max_argument_throws::module::<Naive>, json: math_max_argument_throws::JSON, throws: math_max_argument_throws::THROWS },
+    crate::Case { name: "math_max_bigint_throws", fixture: crate::fixtures::math_max_bigint_throws::module::<Naive>, expected: math_max_bigint_throws::module::<Naive>, json: math_max_bigint_throws::JSON, throws: math_max_bigint_throws::THROWS },
+    crate::Case { name: "math_max_coercion_throws", fixture: crate::fixtures::math_max_coercion_throws::module::<Naive>, expected: math_max_coercion_throws::module::<Naive>, json: math_max_coercion_throws::JSON, throws: math_max_coercion_throws::THROWS },
+    crate::Case { name: "math_max_converted_bigint_throws", fixture: crate::fixtures::math_max_converted_bigint_throws::module::<Naive>, expected: math_max_converted_bigint_throws::module::<Naive>, json: math_max_converted_bigint_throws::JSON, throws: math_max_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_max_infinity_coercion_throws", fixture: crate::fixtures::math_max_infinity_coercion_throws::module::<Naive>, expected: math_max_infinity_coercion_throws::module::<Naive>, json: math_max_infinity_coercion_throws::JSON, throws: math_max_infinity_coercion_throws::THROWS },
+    crate::Case { name: "math_max_nan_coercion_throws", fixture: crate::fixtures::math_max_nan_coercion_throws::module::<Naive>, expected: math_max_nan_coercion_throws::module::<Naive>, json: math_max_nan_coercion_throws::JSON, throws: math_max_nan_coercion_throws::THROWS },
+    crate::Case { name: "math_min", fixture: crate::fixtures::math_min::module::<Naive>, expected: math_min::module::<Naive>, json: math_min::JSON, throws: math_min::THROWS },
+    crate::Case { name: "math_min_argument_throws", fixture: crate::fixtures::math_min_argument_throws::module::<Naive>, expected: math_min_argument_throws::module::<Naive>, json: math_min_argument_throws::JSON, throws: math_min_argument_throws::THROWS },
+    crate::Case { name: "math_min_bigint_throws", fixture: crate::fixtures::math_min_bigint_throws::module::<Naive>, expected: math_min_bigint_throws::module::<Naive>, json: math_min_bigint_throws::JSON, throws: math_min_bigint_throws::THROWS },
+    crate::Case { name: "math_min_coercion_throws", fixture: crate::fixtures::math_min_coercion_throws::module::<Naive>, expected: math_min_coercion_throws::module::<Naive>, json: math_min_coercion_throws::JSON, throws: math_min_coercion_throws::THROWS },
+    crate::Case { name: "math_min_converted_bigint_throws", fixture: crate::fixtures::math_min_converted_bigint_throws::module::<Naive>, expected: math_min_converted_bigint_throws::module::<Naive>, json: math_min_converted_bigint_throws::JSON, throws: math_min_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_min_infinity_coercion_throws", fixture: crate::fixtures::math_min_infinity_coercion_throws::module::<Naive>, expected: math_min_infinity_coercion_throws::module::<Naive>, json: math_min_infinity_coercion_throws::JSON, throws: math_min_infinity_coercion_throws::THROWS },
+    crate::Case { name: "math_min_nan_coercion_throws", fixture: crate::fixtures::math_min_nan_coercion_throws::module::<Naive>, expected: math_min_nan_coercion_throws::module::<Naive>, json: math_min_nan_coercion_throws::JSON, throws: math_min_nan_coercion_throws::THROWS },
+    crate::Case { name: "math_sqrt", fixture: crate::fixtures::math_sqrt::module::<Naive>, expected: math_sqrt::module::<Naive>, json: math_sqrt::JSON, throws: math_sqrt::THROWS },
+    crate::Case { name: "math_sqrt_bigint_throws", fixture: crate::fixtures::math_sqrt_bigint_throws::module::<Naive>, expected: math_sqrt_bigint_throws::module::<Naive>, json: math_sqrt_bigint_throws::JSON, throws: math_sqrt_bigint_throws::THROWS },
+    crate::Case { name: "math_sqrt_coercion_throws", fixture: crate::fixtures::math_sqrt_coercion_throws::module::<Naive>, expected: math_sqrt_coercion_throws::module::<Naive>, json: math_sqrt_coercion_throws::JSON, throws: math_sqrt_coercion_throws::THROWS },
+    crate::Case { name: "math_sqrt_converted_bigint_throws", fixture: crate::fixtures::math_sqrt_converted_bigint_throws::module::<Naive>, expected: math_sqrt_converted_bigint_throws::module::<Naive>, json: math_sqrt_converted_bigint_throws::JSON, throws: math_sqrt_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_sqrt_extra_argument_throws", fixture: crate::fixtures::math_sqrt_extra_argument_throws::module::<Naive>, expected: math_sqrt_extra_argument_throws::module::<Naive>, json: math_sqrt_extra_argument_throws::JSON, throws: math_sqrt_extra_argument_throws::THROWS },
+    crate::Case { name: "math_trunc", fixture: crate::fixtures::math_trunc::module::<Naive>, expected: math_trunc::module::<Naive>, json: math_trunc::JSON, throws: math_trunc::THROWS },
+    crate::Case { name: "math_trunc_bigint_throws", fixture: crate::fixtures::math_trunc_bigint_throws::module::<Naive>, expected: math_trunc_bigint_throws::module::<Naive>, json: math_trunc_bigint_throws::JSON, throws: math_trunc_bigint_throws::THROWS },
+    crate::Case { name: "math_trunc_coercion_throws", fixture: crate::fixtures::math_trunc_coercion_throws::module::<Naive>, expected: math_trunc_coercion_throws::module::<Naive>, json: math_trunc_coercion_throws::JSON, throws: math_trunc_coercion_throws::THROWS },
+    crate::Case { name: "math_trunc_converted_bigint_throws", fixture: crate::fixtures::math_trunc_converted_bigint_throws::module::<Naive>, expected: math_trunc_converted_bigint_throws::module::<Naive>, json: math_trunc_converted_bigint_throws::JSON, throws: math_trunc_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_trunc_extra_argument_throws", fixture: crate::fixtures::math_trunc_extra_argument_throws::module::<Naive>, expected: math_trunc_extra_argument_throws::module::<Naive>, json: math_trunc_extra_argument_throws::JSON, throws: math_trunc_extra_argument_throws::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
     crate::Case { name: "missing", fixture: crate::fixtures::missing::module::<Naive>, expected: missing::module::<Naive>, json: missing::JSON, throws: missing::THROWS },
+    crate::Case { name: "mixed_if", fixture: crate::fixtures::mixed_if::module::<Naive>, expected: mixed_if::module::<Naive>, json: mixed_if::JSON, throws: mixed_if::THROWS },
     crate::Case { name: "named", fixture: crate::fixtures::named::module::<Naive>, expected: named::module::<Naive>, json: named::JSON, throws: named::THROWS },
     crate::Case { name: "named_imports", fixture: crate::fixtures::named_imports::module::<Naive>, expected: named_imports::module::<Naive>, json: named_imports::JSON, throws: named_imports::THROWS },
     crate::Case { name: "named_imports_throws", fixture: crate::fixtures::named_imports_throws::module::<Naive>, expected: named_imports_throws::module::<Naive>, json: named_imports_throws::JSON, throws: named_imports_throws::THROWS },
     crate::Case { name: "nested", fixture: crate::fixtures::nested::module::<Naive>, expected: nested::module::<Naive>, json: nested::JSON, throws: nested::THROWS },
+    crate::Case { name: "normal_if", fixture: crate::fixtures::normal_if::module::<Naive>, expected: normal_if::module::<Naive>, json: normal_if::JSON, throws: normal_if::THROWS },
     crate::Case { name: "not_a_function", fixture: crate::fixtures::not_a_function::module::<Naive>, expected: not_a_function::module::<Naive>, json: not_a_function::JSON, throws: not_a_function::THROWS },
     crate::Case { name: "nullish", fixture: crate::fixtures::nullish::module::<Naive>, expected: nullish::module::<Naive>, json: nullish::JSON, throws: nullish::THROWS },
     crate::Case { name: "number", fixture: crate::fixtures::number::module::<Naive>, expected: number::module::<Naive>, json: number::JSON, throws: number::THROWS },
@@ -106,9 +248,14 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "object_from_entries_not_array_throws", fixture: crate::fixtures::object_from_entries_not_array_throws::module::<Naive>, expected: object_from_entries_not_array_throws::module::<Naive>, json: object_from_entries_not_array_throws::JSON, throws: object_from_entries_not_array_throws::THROWS },
     crate::Case { name: "object_from_entries_throws", fixture: crate::fixtures::object_from_entries_throws::module::<Naive>, expected: object_from_entries_throws::module::<Naive>, json: object_from_entries_throws::JSON, throws: object_from_entries_throws::THROWS },
     crate::Case { name: "object_is", fixture: crate::fixtures::object_is::module::<Naive>, expected: object_is::module::<Naive>, json: object_is::JSON, throws: object_is::THROWS },
+    crate::Case { name: "object_keys", fixture: crate::fixtures::object_keys::module::<Naive>, expected: object_keys::module::<Naive>, json: object_keys::JSON, throws: object_keys::THROWS },
+    crate::Case { name: "object_keys_missing_throws", fixture: crate::fixtures::object_keys_missing_throws::module::<Naive>, expected: object_keys_missing_throws::module::<Naive>, json: object_keys_missing_throws::JSON, throws: object_keys_missing_throws::THROWS },
+    crate::Case { name: "object_keys_null_throws", fixture: crate::fixtures::object_keys_null_throws::module::<Naive>, expected: object_keys_null_throws::module::<Naive>, json: object_keys_null_throws::JSON, throws: object_keys_null_throws::THROWS },
+    crate::Case { name: "object_keys_undefined_throws", fixture: crate::fixtures::object_keys_undefined_throws::module::<Naive>, expected: object_keys_undefined_throws::module::<Naive>, json: object_keys_undefined_throws::JSON, throws: object_keys_undefined_throws::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
     crate::Case { name: "optional", fixture: crate::fixtures::optional::module::<Naive>, expected: optional::module::<Naive>, json: optional::JSON, throws: optional::THROWS },
+    crate::Case { name: "owning_self_tail_calls", fixture: crate::fixtures::owning_self_tail_calls::module::<Naive>, expected: owning_self_tail_calls::module::<Naive>, json: owning_self_tail_calls::JSON, throws: owning_self_tail_calls::THROWS },
     crate::Case { name: "parameters", fixture: crate::fixtures::parameters::module::<Naive>, expected: parameters::module::<Naive>, json: parameters::JSON, throws: parameters::THROWS },
     crate::Case { name: "property", fixture: crate::fixtures::property::module::<Naive>, expected: property::module::<Naive>, json: property::JSON, throws: property::THROWS },
     crate::Case { name: "recursion", fixture: crate::fixtures::recursion::module::<Naive>, expected: recursion::module::<Naive>, json: recursion::JSON, throws: recursion::THROWS },
@@ -117,6 +264,9 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "special_numbers", fixture: crate::fixtures::special_numbers::module::<Naive>, expected: special_numbers::module::<Naive>, json: special_numbers::JSON, throws: special_numbers::THROWS },
     crate::Case { name: "spread", fixture: crate::fixtures::spread::module::<Naive>, expected: spread::module::<Naive>, json: spread::JSON, throws: spread::THROWS },
     crate::Case { name: "string", fixture: crate::fixtures::string::module::<Naive>, expected: string::module::<Naive>, json: string::JSON, throws: string::THROWS },
+    crate::Case { name: "string_from_char_code", fixture: crate::fixtures::string_from_char_code::module::<Naive>, expected: string_from_char_code::module::<Naive>, json: string_from_char_code::JSON, throws: string_from_char_code::THROWS },
+    crate::Case { name: "string_from_char_code_coercion_throws", fixture: crate::fixtures::string_from_char_code_coercion_throws::module::<Naive>, expected: string_from_char_code_coercion_throws::module::<Naive>, json: string_from_char_code_coercion_throws::JSON, throws: string_from_char_code_coercion_throws::THROWS },
+    crate::Case { name: "string_from_char_code_throws", fixture: crate::fixtures::string_from_char_code_throws::module::<Naive>, expected: string_from_char_code_throws::module::<Naive>, json: string_from_char_code_throws::JSON, throws: string_from_char_code_throws::THROWS },
     crate::Case { name: "string_methods", fixture: crate::fixtures::string_methods::module::<Naive>, expected: string_methods::module::<Naive>, json: string_methods::JSON, throws: string_methods::THROWS },
     crate::Case { name: "throw", fixture: crate::fixtures::throw::module::<Naive>, expected: throw::module::<Naive>, json: throw::JSON, throws: throw::THROWS },
     crate::Case { name: "throws", fixture: crate::fixtures::throws::module::<Naive>, expected: throws::module::<Naive>, json: throws::JSON, throws: throws::THROWS },

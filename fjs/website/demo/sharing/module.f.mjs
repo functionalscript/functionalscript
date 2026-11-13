@@ -5,24 +5,19 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
+ * @import { Nullable } from '../../../types/nullable/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { definedEntries } from '../../../types/object/module.f.mjs'
-import { stringToU8List } from '../../../text/utf8/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { definedEntries } from '../../../types/object/module.f.js'
 import { parse } from '../../../media/json/module.f.mjs'
-import { percentDecode } from '../../../text/percent/module.f.mjs'
+import { percentDecode, percentEncodeComponent } from '../../../text/percent/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 /** Maximum encoded query characters plus the canonical #demo target. @type {number} */
 export const queryLimit = 16 * 1_024
 const { keys, fromEntries } = Object
 const entries = definedEntries
-/** @type {(text: string) => string} */
-const escaped = text => toArray(stringToU8List(text)).map(b =>
-    b >= 0x61 && b <= 0x7a || b >= 0x41 && b <= 0x5a || b >= 0x30 && b <= 0x39 || [0x2d, 0x2e, 0x5f, 0x7e].includes(b)
-        ? String.fromCharCode(b) : `%${b.toString(16).padStart(2, '0').toUpperCase()}`).join('')
 /** @type {(fields: Fields) => Inputs} */
 export const defaultsOf = fields => fromEntries(entries(fields).map(([name, field]) => [name, field.default]))
 /** Validate all fields before merging defaults; never invoke a demo on a partial set.
@@ -94,6 +89,14 @@ export const restoreInputs = (sharing, query) => {
 }
 /** @type {(a: Inputs, b: Inputs) => boolean} */
 const same = (a, b) => keys(a).length === keys(b).length && entries(a).every(([name, value]) => Object.hasOwn(b, name) && b[name] === value)
+/** One `name=value` query parameter, or `null` when either holds a lone surrogate.
+ * @type {(pair: readonly [string, string]) => Nullable<string>}
+ */
+const queryPair = ([name, value]) => {
+    const n = percentEncodeComponent(name)
+    const v = percentEncodeComponent(value)
+    return n === null || v === null ? null : `${n}=${v}`
+}
 /** Defaults use #demo; complete example matches use a stable ID. All other
  * inputs are individual query parameters with ordinary URL escaping.
  * @type {<S>(sharing: Sharing<S>, inputs: Inputs) => Result<string, string>}
@@ -105,8 +108,12 @@ export const encodeQuery = (sharing, inputs) => {
     const example = sharing.examples.find(e => same(valid[1], { ...defaultsOf(sharing.fields), ...fromEntries(entries(e.inputs)) })
         && (!Object.hasOwn(sharing.fields, 'example') || valid[1].example === e.id))
     if (Object.values(valid[1]).some(v => typeof v === 'string' && v.length > queryLimit)) { return error('Inputs exceed the 16 KiB sharing limit') }
-    const query = example !== undefined ? `example=${escaped(example.id)}`
-        : keys(valid[1]).toSorted().map(name => `${escaped(name)}=${escaped(String(assertNotNullish(valid[1][name])))}`).join('&')
+    /** @type {readonly (readonly [string, string])[]} */
+    const pairs = example !== undefined ? [['example', example.id]]
+        : keys(valid[1]).toSorted().map(name => [name, String(assertNotNullish(valid[1][name]))])
+    const parts = pairs.map(queryPair)
+    if (parts.includes(null)) { return error('Inputs hold a lone surrogate, which a URL cannot carry') }
+    const query = parts.join('&')
     const link = `?${query}#demo`
     return link.length > queryLimit ? error('Demo query exceeds the 16 KiB sharing limit') : ok(link)
 }

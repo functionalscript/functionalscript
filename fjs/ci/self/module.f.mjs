@@ -14,10 +14,11 @@
 
 import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
 import { uses, _workflowsDirectory } from '../common/module.f.mjs'
-import { step } from '../../effects/module.f.mjs'
+import { step } from '../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
+import { installNode } from '../node/module.f.mjs'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 
@@ -61,6 +62,8 @@ export const websiteJob = {
             shell: 'bash',
             env: buildMetadata,
         },
+        // The card images the pages name, screenshot by the runner's Chrome.
+        { run: miseDevelop('node ./fjs/website/cards.mjs'), shell: 'bash' },
         {
             if: "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
             run: miseDevelop('node ./fjs/website/github-deploy.mjs preview'),
@@ -110,7 +113,10 @@ export const packageConsumer = {
  */
 export const main = () => step(
     writeCi(repositoryWorkflow),
-    () => exitStep(writeFiles([[websitePath, JSON.stringify(websiteWorkflow, null, '  ')]])))
+    () => exitStep(writeFiles([
+        [websitePath, JSON.stringify(websiteWorkflow, null, '  ')],
+        [personalNotesPath, JSON.stringify(personalNotesWorkflow, null, '  ')],
+    ])))
 
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
@@ -140,4 +146,51 @@ export const websiteWorkflow = {
     },
     permissions: { contents: 'read' },
     jobs: { website: websiteJob },
+}
+
+/** Generated apart from the tests, since it reviews rather than checks. */
+export const personalNotesPath = /** @type {const} */ (`${_workflowsDirectory}/gen.personal-notes.yml`)
+
+/**
+ * The approval of a pull request that changes only its author's personal
+ * notes: [`../personal-notes`](../personal-notes/module.f.js) decides, and
+ * its GitHub boundary approves, or dismisses the approval it gave once a file
+ * outside the notes changes. The checkout is the base branch's, the default
+ * on `pull_request_target`, so the code that runs with the token is never the
+ * pull request's.
+ *
+ * @type {Job}
+ */
+export const personalNotesJob = {
+    'runs-on': images.ubuntu.intel,
+    'timeout-minutes': jobTimeout,
+    permissions: { contents: 'read', 'pull-requests': 'write' },
+    steps: [
+        uses('actions/checkout', { 'persist-credentials': 'false' }),
+        installNode({}),
+        {
+            run: 'node ./fjs/ci/personal-notes/main.mjs',
+            env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' },
+        },
+    ],
+}
+
+/**
+ * Approves pull requests that change only their author's personal notes.
+ * It runs on `pull_request_target`, so the workflow is always the base
+ * branch's: a pull request cannot change what approves it. It runs again on
+ * `edited`, since a new base branch changes the files a pull request carries
+ * without a new commit.
+ *
+ * @type {GitHubAction}
+ */
+export const personalNotesWorkflow = {
+    name: 'Personal notes',
+    on: { pull_request_target: { types: ['opened', 'synchronize', 'reopened', 'edited'] } },
+    concurrency: {
+        group: '${{ github.workflow }}-${{ github.event.pull_request.number }}',
+        'cancel-in-progress': true,
+    },
+    permissions: { contents: 'read' },
+    jobs: { approve: personalNotesJob },
 }

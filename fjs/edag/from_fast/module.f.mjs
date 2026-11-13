@@ -12,23 +12,24 @@
  * @import { Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
  * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { Monoid } from '../../common/monoid/types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { iterable } from '../../types/list/iterable/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.mjs'
 import { exitValues, freeLoopBindings } from '../../js/ast/control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
-import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
+import { _directOwningInvocationRoot, directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
+import { _owningTailCalls } from './loop/owning/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
 import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.js'
-import { step } from '../../common/monoid/module.f.mjs'
-import { maxLength } from '../../types/function/length/module.f.mjs'
+import { step } from '../../common/monoid/module.f.js'
+import { maxLength } from '../../types/function/length/module.f.js'
 import { demandsInOrder, requiredPrefixLength } from '../demand/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
@@ -82,8 +83,11 @@ const bindingOf = (scope, binding) => {
 /** @type {(earlier: ReadonlyMap<BindingId, Binding>) => (later: ReadonlyMap<BindingId, Binding>) => ReadonlyMap<BindingId, Binding>} */
 const mergeIndex = earlier => later => new Map([...earlier, ...later])
 
+/** The index's runs under union, each weighing its size. @type {Monoid<ReadonlyMap<BindingId, Binding>>} */
+const indexUnion = { identity: new Map(), operation: mergeIndex, weight: m => m.size }
+
 /** Immutable map runs avoid whole-scope copies; lookup examines logarithmically many runs. @type {(run: ReadonlyMap<BindingId, Binding>) => (index: Scope['index']) => Scope['index']} */
-const appendIndex = step(mergeIndex)
+const appendIndex = step(indexUnion)
 
 /** @type {Scope} */
 const emptyScope = { index: null, entries: null, lazy: null }
@@ -130,6 +134,7 @@ const children = node => {
                     : statement[0] === 'if' ? [/** @type {Node} */ (['value', statement[2]]), /** @type {Node} */ (['block', statement[3]]), /** @type {Node} */ (['block', statement[4]])]
                         : [...statement[1].initial.map(value => /** @type {Node} */ (['value', value])), /** @type {Node} */ (['block', statement[1].body])]),
             ...exitValues(node[1].exit).map(value => /** @type {Node} */ (['value', value])),
+            ...(node[1].exit[0] === 'loop' ? [/** @type {const} */ (['block', node[1].exit[1].body])] : []),
         ]
     }
     const value = node[1]
@@ -167,9 +172,9 @@ const prefixReads = (parts, divergent = false) => {
     return prefix
 }
 
-/** Calls, coercions, and computed keys may invoke user functions. @type {(value: Operator<Value>) => boolean} */
+/** Calls, runtime operators, coercions, and computed keys can invoke functions. @type {(value: Operator<Value>) => boolean} */
 const invokes = value => {
-    if (value[0] === '()' || value[0] === '?.()') { return true }
+    if (value[0] === '()' || value[0] === '?.()' || value[0] === 'Boolean') { return true }
     if ((value[0] === '.' || value[0] === '?.' || value[0] === 'memberPresent') && value[2] instanceof Array) { return true }
     if (value[0] === 'object' && value[1].some(entry => entry[0] === ':' && typeof entry[1] !== 'string')) { return true }
     if (value.length > 1 && !['array', 'object', '.', '?.', 'memberPresent', '?:', ',', '!', 'typeof', '===', '!==', 'instanceof', 'throw'].includes(value[0])
@@ -285,7 +290,7 @@ const summary = (node, parts, external) => {
     let executions = []
     for (const statement of node[1].statements) {
         if (!normal) { break }
-        ++active
+        active += 1
         const part = parts[position]
         if (statement[0] === 'define') {
             relations = [...relations, [statement[1], part.references]]
@@ -300,7 +305,7 @@ const summary = (node, parts, external) => {
             } else if (part.fails || part.diverges) {
                 orderScope = { ...orderScope, opaque: [...orderScope.opaque, statement[1]], deferred: [...orderScope.deferred, ...(part.diverges ? [statement[1]] : [])] }
             }
-            ++position
+            position += 1
         } else if (statement[0] === 'block') {
             const order = orderedStep(orderScope, pending, part)
             pending = order.pending
@@ -311,7 +316,7 @@ const summary = (node, parts, external) => {
             entering = false
             returns = returns || part.returns
             normal = part.normal
-            ++position
+            position += 1
         } else if (statement[0] === 'if') {
             const arms = parts.slice(position + 1, position + 3)
             const execution = /** @type {Summary} */ ({ ...part, fails: part.fails || arms.some(part => part.fails), diverges: part.diverges || arms.some(part => part.diverges) })
@@ -343,20 +348,30 @@ const summary = (node, parts, external) => {
             position += length + 1
         }
     }
-    const exits = parts.slice(parts.length - exitValues(node[1].exit).length)
-    const terminal = orderedStep(orderScope, pending, { prefix: prefixReads(exits), demand: prefixReads(exits, true), fails: node[1].exit[0] === 'throw' || exits.some(part => part.fails), diverges: node[1].exit[0] === 'throw' || exits.some(part => part.diverges) })
-    const reached = closure(relations, [...(normal ? exits.flatMap(part => part.references) : []), ...required])
+    const exit = node[1].exit
+    const terminalLoop = exit[0] === 'loop' ? exit[1] : null
+    const end = parts.length - (terminalLoop === null ? 0 : 1)
+    const exits = parts.slice(end - exitValues(exit).length, end)
+    const free = terminalLoop === null ? [] : freeLoopBindings(terminalLoop)
+    /** @type {readonly BindingId[]} */
+    const references = [...exits.flatMap(part => part.references), ...free]
+    /** @type {readonly Summary[]} */
+    const tail = terminalLoop === null ? exits : [{ ...empty, references, prefix: [...free, ...prefixReads(exits)], demand: [...free, ...prefixReads(exits, true)],
+        normal: false, returns: parts[parts.length - 1].returns, fails: true, diverges: true }]
+    const terminal = orderedStep(orderScope, pending, { prefix: prefixReads(tail), demand: prefixReads(tail, true),
+        fails: exit[0] === 'throw' || tail.some(part => part.fails), diverges: exit[0] === 'throw' || tail.some(part => part.diverges) })
+    const reached = closure(relations, [...(normal ? references : []), ...required])
     const unused = node[1].statements.slice(0, active).flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : [])
     const local = new Set(relations.map(([binding]) => binding))
     return {
         references: reached.filter(id => !local.has(id)),
         required: [...ordered, ...terminal.required, ...unused],
         reached,
-        entry: closure(relations, [...entry, ...(entering ? exits.flatMap(part => part.references) : [])]),
-        returns: returns || (normal && node[1].exit[0] === 'return'),
-        normal: normal && node[1].exit[0] === 'yield',
-        prefix: firstDemands(orderScope.reads, orderScope.opaque, prefixReads([...executions, ...exits])).references.filter(id => !local.has(id)),
-        demand: firstDemands(orderScope.demands, orderScope.deferred, prefixReads([...executions, ...exits], true)).references.filter(id => !local.has(id)),
+        entry: closure(relations, [...entry, ...(entering ? references : [])]),
+        returns: returns || (normal && (exit[0] === 'return' || terminalLoop !== null && parts[parts.length - 1].returns)),
+        normal: normal && exit[0] === 'yield',
+        prefix: firstDemands(orderScope.reads, orderScope.opaque, prefixReads([...executions, ...tail])).references.filter(id => !local.has(id)),
+        demand: firstDemands(orderScope.demands, orderScope.deferred, prefixReads([...executions, ...tail], true)).references.filter(id => !local.has(id)),
         fails: executions.some(part => part.fails) || terminal.fails,
         diverges: executions.some(part => part.diverges) || terminal.diverges,
     }
@@ -396,7 +411,7 @@ const summaries = (root, known = new Map(), external = []) => {
         results = { first: value, tail: results }
         entries = { first: [visit[1][1], value], tail: entries }
     }
-    return new Map(iterable(entries))
+    return new Map(toArray(entries))
 }
 
 /** @type {(block: Block, context: Context) => Summary} */
@@ -414,15 +429,16 @@ const lowerValues = (input, context) => {
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const lifted = _forwardReturns(liftReturns(source.body, source.target), source.target)
-    const memoized = normalizeMemo(lifted, [], source.target)
-    /** @type {FastFunction} */
-    const prepared = memoized === source.body ? source : { ...source, body: memoized }
+    const memoized = normalizeMemo(lifted, [], source.target, source.self)
+    const owning = _owningTailCalls(memoized === source.body ? source : { ...source, body: memoized })
+    const prepared = owning.fn
     const originalScalar = rootLoopOf(prepared)
-    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(prepared)
+    const originalRoot = owning.root ?? (originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(prepared))
     const normalized = completeTransfers(prepared, originalRoot)
     const scalar = rootLoopOf(normalized)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
-    const fn = matched !== null ? directInvocationRoot(normalized, matched) : normalized
+    const fn = owning.root !== null ? _directOwningInvocationRoot(normalized, owning.root.target)
+        : matched !== null ? directInvocationRoot(normalized, matched) : normalized
     return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
         const placed = orderedOperands(captures, values => ['[]', values])
         const candidates = placed.values.filter(exp => exp instanceof Array)
@@ -533,7 +549,7 @@ const conditional = (condition, then, otherwise, context, normalize = false) => 
 
 /** Operand owners retain completion boundaries; eager memo planning runs once. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
 const regionTask = (block, context, normalize = false) => call(() => {
-    if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') { throw 'nonlocal transfers in value regions require structured completion lowering' }
+    if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw' && block.exit[0] !== 'loop') { throw 'nonlocal transfers in value regions require structured completion lowering' }
     const memoized = normalize && !context.memoPrepared ? normalizeMemo(block, lazyBindings(context.scope)) : block
     if (memoized !== block && context.transfer.kind !== 'default') { throw 'memo normalization requires the default transfer owner' }
     const normalized = normalize ? completeBlockTransfers(memoized) : block
@@ -554,6 +570,7 @@ const resultsValue = values => {
 
 /** @type {(exit: Exit, context: Context) => Task<Lowered>} */
 const transferTask = (exit, context) => call(() => {
+    if (exit[0] === 'loop') { return bind(loopTask(exit[1], context), result => done(result.value)) }
     const owner = context.transfer
     if (owner.kind === 'custom') { return done(owner.transfer(exit, environmentOf(context.scope))) }
     if (owner.kind === 'scalar' && exit[0] !== 'yield' && exit[0] !== 'throw') {

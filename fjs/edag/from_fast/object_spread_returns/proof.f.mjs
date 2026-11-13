@@ -252,7 +252,7 @@ export const proof = /** @type {const} */ ({
         let graph = fromFast(result(['function', fn]))
         /** @type {readonly Exp[]} */
         let graphs = [graph]
-        for (let index = 0; index < 6; ++index) {
+        for (let index = 0; index < 6; index += 1) {
             graph = fromFast(assertOk(toFast(graph)))
             graphs = [...graphs, graph]
         }

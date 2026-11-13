@@ -67,5 +67,5 @@ must not be applied to the traversal.
 
 - `foldStep` / `forEachStep` — the sequential sibling.
 - Computational collections issue above — `allReduce` is the result-aggregating variant.
-- `fjs/common/monoid/module.f.mjs` — if `allReduce` takes a `Monoid<R>` it composes naturally with existing monoid definitions.
+- `fjs/common/monoid/module.f.js` — if `allReduce` takes a `Monoid<R>` it composes naturally with existing monoid definitions.
 - #885 review — origin of this issue.

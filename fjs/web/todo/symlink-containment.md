@@ -58,7 +58,7 @@ cases plant links in a host temporary directory.
 
 - [`fjs/web`](../README.md) — "Symlinks are followed" documents the current
   behavior.
-- `fjs/path/module.f.mjs` — `isProperPrefix`, the containment test once both
+- `fjs/path/module.f.js` — `isProperPrefix`, the containment test once both
   paths are real.
 - Reported by the Codex review bot on
   [#1693](https://github.com/functionalscript/functionalscript/pull/1693).

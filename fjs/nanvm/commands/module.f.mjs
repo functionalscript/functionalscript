@@ -3,7 +3,7 @@
  *
  * A native host answers `notImplemented` to a command of the declared set it
  * has no operation for, and refuses a command outside it, as `partialMatch`
- * does (`fjs/effects/module.f.mjs`). The set is
+ * does (`fjs/effects/module.f.js`). The set is
  * [`nodeCommands`](../../effects/node/module.f.mjs), so it is printed from
  * there rather than written twice.
  *
@@ -11,7 +11,7 @@
  */
 
 import { nodeCommands } from '../../effects/node/module.f.mjs'
-import { stringLiteral } from '../../media/rust/module.f.mjs'
+import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 

@@ -16,7 +16,7 @@
 export const binaryTags = /** @type {const} */ ([
     '*', '/', '%', '**',
     '+', '-',
-    '===', '!==', '<', '<=', '>', '>=',
+    '==', '!=', '===', '!==', '<', '<=', '>', '>=',
     '&', '|', '^', '<<', '>>', '>>>',
     '&&', '||', '??',
 ])
@@ -39,8 +39,10 @@ export const assignmentOperators = /** @type {const} */ ({
  * needs. The `-` here is subtraction, sharing a token and nothing else
  * with the negation prefix, unary negation. `instanceof` is a relational
  * operator, one level with `<` and left-associative as it is, though its
- * node is a constructor check, not a binary one. `==` and `!=` are not
- * this language's, per `spec/operators/README.md`. `**` is in
+ * node is a constructor check, not a binary one; so is `in`, whose node is
+ * an entry check carrying its key, the string literal on its left, as a
+ * spelling. `==` and `!=` are AST-only pending lowering,
+ * per `spec/operators/README.md`. `**` is in
  * no layer: it is right-associative and read inside the operand, so each
  * side places it, tightest of all, where it builds its own structure.
  * Pinned beside {@link binaryTags} in `./types.ts`.
@@ -49,8 +51,8 @@ export const eagerLayers = /** @type {const} */ ([
     { mul: '*', div: '/', mod: '%' },
     { add: '+', sub: '-' },
     { left: '<<', right: '>>', unsigned: '>>>' },
-    { lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof' },
-    { eq: '===', ne: '!==' },
+    { lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof', in: 'in' },
+    { looseEq: '==', looseNe: '!=', eq: '===', ne: '!==' },
     { and: '&' },
     { xor: '^' },
     { or: '|' },
@@ -76,13 +78,22 @@ export const lazyLayers = /** @type {const} */ ([
 export const isBinary = node => node.length === 3 && binaryTags.some(tag => tag === node[0])
 
 /**
+ * The prefix operators, by the name the grammar gives each branch, to the
+ * tag its node carries: the one statement of the set, as {@link eagerLayers}
+ * is of the binary operators. The grammar builds its prefix branches from
+ * it and the syntax reader tags them with it. Pinned in `./types.ts` to the
+ * {@link UnaryTag}s that are prefixes.
+ */
+export const prefixLayer = /** @type {const} */ ({ pos: '+', neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
+
+/**
  * Every unary operator's tag, {@link UnaryTag} at run time — pinned to it in
- * `./types.ts` as {@link binaryTags} is to its own: the prefixes `-`, `~`,
- * `!` and `typeof`, and the `Number` and `String` conversions, each a node
+ * `./types.ts` as {@link binaryTags} is to its own: the prefixes `+`, `-`, `~`,
+ * `!` and `typeof`, and the `Boolean`, `Number`, `String`, and `BigInt` conversions, each a node
  * of one operand. `instanceof` is not one: its node carries the constructor
  * name too. Nor is `throw`, which ends a body rather than computing a value.
  */
-export const unaryTags = /** @type {const} */ (['-', '~', '!', 'typeof', 'Number', 'String'])
+export const unaryTags = /** @type {const} */ (['+', '-', '~', '!', 'typeof', 'Number', 'String', 'BigInt', 'Boolean'])
 
 /**
  * Whether a node is a unary operator, a source node of two entries: a tag of {@link unaryTags} and one operand. The

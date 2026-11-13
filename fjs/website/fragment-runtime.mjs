@@ -1,6 +1,6 @@
-/** The browser boundary for section navigation, heading clipboard controls and README code blocks. */
+/** The browser boundary for section navigation and README code blocks. */
 
-import { bindCopies, copy } from './copy-runtime.mjs'
+import { bindCopies } from './copy-runtime.mjs'
 
 /** Reveal a fragment's target without running tests or dispatching demo actions.
  * Demo-state restoration may call this again after its render changes layout.
@@ -26,7 +26,8 @@ export const revealFragment = doc => {
     target.scrollIntoView({ block: 'start' })
 }
 
-/** Enhance the native links once per document. Copy never changes the URL.
+/** Enhance the native links once per document. Heading anchors keep the
+ * browser's own scrolling, address bar and history.
  * @type {(doc: Document) => void}
  */
 export const startFragments = doc => {
@@ -38,25 +39,9 @@ export const startFragments = doc => {
     view.addEventListener('load', reveal, { once: true })
     // A README's code blocks copy as the CLI reference's do.
     for (const readme of doc.querySelectorAll('[data-readme]')) { bindCopies(readme) }
-    for (const button of doc.querySelectorAll('button[data-copy-fragment]')) {
-        if (button.hasAttribute('data-copy-demo')) continue
-        /** @type {HTMLButtonElement} */ (button).hidden = false
-        const fallback = button.parentElement?.querySelector('a')
-        if (fallback) fallback.hidden = true
-    }
     doc.addEventListener('click', event => {
         const target = event.target
         if (!(target instanceof view.Element)) return
-        const button = target.closest('button[data-copy-fragment]')
-        if (button) {
-            if (button.hasAttribute('data-copy-demo')) return
-            event.preventDefault()
-            event.stopPropagation()
-            const url = new URL(view.location.href)
-            url.hash = encodeURIComponent(button.getAttribute('data-copy-fragment') ?? '')
-            void copy(/** @type {HTMLButtonElement} */ (button), url.href)
-            return
-        }
         // Clicking the current fragment does not emit hashchange. Reveal it
         // again if its parent section has since been folded, while retaining
         // the anchor's native URL/history and modified-click behavior.

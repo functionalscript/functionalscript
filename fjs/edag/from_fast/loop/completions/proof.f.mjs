@@ -4,6 +4,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { completeBlockTransfers, completeTransfers } from './module.f.mjs'
+import { proof as terminalLoops } from '../../terminal_loops.proof.f.mjs'
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })
 const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -43,6 +44,11 @@ const transferGuard = (completion, kind, id) => ['if', ['===', ['.', ['ref', com
 const transferValues = (completion, length) => Array.from({ length }, (_, i) => ['.', ['.', ['ref', completion], 2], i])
 
 export const proof = {
+    terminalReturnValues: terminalLoops.returnsCarryTheValueWithoutACompletionDiscriminator,
+    terminalOutwardTransfers: terminalLoops.mixedOutwardTransfersHaveNoNormalFallback,
+    terminalSingleTransfer: terminalLoops.aSingleOuterBreakNeedsNoDispatch,
+    terminalGoals: terminalLoops.divergentAndThrowingLoopsAreTheirOwnGoals,
+    terminalNestedContinue: terminalLoops.nestedTerminalContinuesKeepTheirOuterTarget,
     unchanged: () => {
         const nestedTarget = /** @type {const} */ ({ kind: 'function', index: target.index })
         const nested = /** @type {Value} */ (['function', {
@@ -385,10 +391,10 @@ export const proof = {
     deepRegions: () => {
         /** @type {Block} */
         let region = body(['return', target, 7])
-        for (let depth = 0; depth < 20_000; ++depth) { region = body(['yield', []], [['block', [], region]]) }
+        for (let depth = 0; depth < 20_000; depth += 1) { region = body(['yield', []], [['block', [], region]]) }
         const wrapped = firstLoop(completeTransfers(containing(loopOf(region)), null))
         let result = wrapped.body
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const statement = result.statements[0]
             assert(statement[0] === 'block')
             result = statement[2]

@@ -28,6 +28,61 @@ export const proof = {
     // and binds every name as a `const`'s
     // (spec/bindings/destructuring/README.md).
     destructuring: {
+        arrayRest: () => {
+            const source = /** @type {const} */ ('["[]",[["...",["[]",[1,2,3]]]]]')
+            const tail = /** @type {const} */ (`[".",${source},"slice",["|()",[1]]]`)
+            expectModule('const [head, ...tail] = [1, 2, 3]; export default [head, tail];',
+                `["{}",[[":","default",["[]",[[".",${source},0],${tail}]]]]]`)
+            expectModule('const [, ...tail] = [1, 2, 3]; export default tail;',
+                `["{}",[[":","default",${tail}]]]`)
+            expectModule('export const [...tail] = [1, 2, 3];',
+                `["{}",[[":","tail",[".",${source},"slice",["|()",[0]]]]]]`)
+        },
+        arrayRestInBodiesAndParameters: () => {
+            const source = /** @type {const} */ ('["[]",[["...",["arg",0]]]]')
+            const value = /** @type {const} */ (`["[]",[[".",${source},0],[".",${source},"slice",["|()",[1]]]]]`)
+            const expected = /** @type {const} */ (`["{}",[[":","default",["=>",1,[],${value}]]]]`)
+            expectModule('export default ([head, ...tail]) => [head, tail];', expected)
+            expectModule('export default source => { const [head, ...tail] = source; return [head, tail]; };', expected)
+            expectModule('export default source => { let [head, ...tail] = source; return [head, tail]; };', expected)
+        },
+        arrayRestNestedTargets: () => {
+            const source = /** @type {const} */ ('["[]",[["...",["[]",[1,2,3]]]]]')
+            const remaining = /** @type {const} */ (`["[]",[["...",[".",${source},"slice",["|()",[1]]]]]]`)
+            expectModule('const [head, ...[second, ...tail]] = [1, 2, 3]; export default [head, second, tail];',
+                `["{}",[[":","default",["[]",[[".",${source},0],[".",${remaining},0],[".",${remaining},"slice",["|()",[1]]]]]]]]`)
+            expectModule('const [...{ length: size }] = [1, 2, 3]; export default size;',
+                `["{}",[[":","default",[".",[".",${source},"slice",["|()",[0]]],"length"]]]]`)
+        },
+        arrayRestBindingErrors: () => {
+            const later = /** @type {const} */ ('const [head = tail, ...tail] = []; export default head;')
+            expectRefused(later, 'const not found', later.indexOf('tail') + 1)
+            for (const source of [
+                'const [value, ...value] = []; export default 0;',
+                'const [...[value, value]] = []; export default 0;',
+                'export default ([value, ...value]) => 0;',
+            ]) { expectRefused(source, 'duplicate id', source.lastIndexOf('value') + 1) }
+            const reserved = /** @type {const} */ ('const [...Number] = []; export default 0;')
+            expectRefused(reserved, 'reserved word', reserved.indexOf('Number') + 1)
+            const invalid = /** @type {const} */ ('const [...[1]] = []; export default 0;')
+            expectRefused(invalid, 'invalid destructuring target', invalid.indexOf('1') + 1)
+            for (const source of [
+                'const [...tail = []] = []; export default 0;',
+                'export default ([...tail = []]) => 0;',
+            ]) { expectRefused(source, 'unexpected token', source.indexOf('=', source.indexOf('...')) + 1) }
+        },
+        arrayRestComma: () => {
+            for (const source of [
+                'const [...tail,] = []; export default 0;',
+                'const [...tail, next] = []; export default 0;',
+                'const [...tail,,] = []; export default 0;',
+                'const [head, ...tail,] = []; export default 0;',
+                'let [...tail,] = []; export default 0;',
+                'export default ([head, ...tail,]) => 0;',
+            ]) { expectRefused(source, 'comma after rest element', source.indexOf(',', source.indexOf('...')) + 1) }
+            expectModule('const tail = [1]; export default [...tail,];',
+                '["{}",[[":","default",["[]",[["...",["[]",[1]]]]]]]]')
+        },
         module: () => {
             // an object pattern's property is an access of the hidden entry,
             // the shorthand and the string key alike; an array pattern is a
@@ -123,10 +178,8 @@ export const proof = {
             expectRefused('export default ((a)) => 1;', 'malformed parameter list', 16)
             expectRefused('export default ([a].length) => 1;', 'malformed parameter list', 16)
             expectRefused('export default ({ a, ...r }) => 1;', 'rest element not supported', 22)
-            expectRefused('export default ([a, ...r]) => 1;', 'rest element not supported', 21)
             expectRefused('export default ({ [k]: a }) => 1;', 'computed key in a binding pattern not supported', 20)
             expectRefused('export default (...[a]) => 1;', 'unexpected token', 20)
-            expectRefused('export default ({ a = 1 }) => 1;', 'unexpected token', 21)
             expectRefused('export default ({ a })\n=> 1;', 'unexpected token', 1)
         },
         // A pattern names no function as its whole value, so no name in it
@@ -158,14 +211,11 @@ export const proof = {
             expectRefused('const x = {}; const { a: [b, (c)] } = x; export default 1;', 'invalid destructuring target', 30)
             expectRefused('export default () => { const { x: 1 } = {}; return 1; };', 'invalid destructuring target', 35)
         },
-        // What the language does not read yet, refused by name: a rest
-        // element at its `...`, a computed
-        // key at the token it begins with, the conversion included
-        // (spec/todo/2450-destructuring.md).
+        // Object rest remains refused at its `...`; a computed key is
+        // refused at the token it begins with, the conversion included
+        // (spec/bindings/destructuring/README.md).
         unsupported: () => {
-            expectRefused('const x = []; const [a, ...r] = x; export default 1;', 'rest element not supported', 25)
             expectRefused('const x = {}; const { a, ...r } = x; export default 1;', 'rest element not supported', 26)
-            expectRefused('export default () => { const [a, ...r] = [1]; return a; };', 'rest element not supported', 34)
             expectRefused('const x = {}; const k = 1; const { [k]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 37)
             expectRefused('const x = {}; const { [Number(1)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             // a grouped or a signed literal is no constant, as `o[(3)]` and
@@ -173,11 +223,6 @@ export const proof = {
             expectRefused('const x = {}; const { [(3)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { [-1]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { ["toString"]: a } = x; export default 1;', 'prohibited property name', 24)
-            // a default is no literal, so the grammar stops at its `=`
-            expectRefused('const x = []; const [a = 1] = x; export default 1;', 'unexpected token', 24)
-            expectRefused('const x = {}; const { a = 1 } = x; export default 1;', 'unexpected token', 25)
-            // a rest element after an elision is still the rest element
-            expectRefused('const x = []; const [, ...r] = x; export default 1;', 'rest element not supported', 24)
         },
         // An elision skips a position of an array pattern: it binds and
         // reads nothing, and the element after it reads the next index of

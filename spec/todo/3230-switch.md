@@ -206,7 +206,7 @@ bind (`duplicate id`, `capture shadowed`), exactly as after a guard.
 ### Approval
 
 A new language feature needs the formal, explicit approval of the language
-designer, `sergey-shandar`, distinct from the proposer, before it is
+designer, `sergey-shandar`, before it is
 implemented
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 **Approved** by `sergey-shandar`, the language designer, on the

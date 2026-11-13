@@ -8,9 +8,11 @@
  *
  * **And the script that builds the module the pages load**,
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
- * `nanvm-demos-publish` copying it into `nanvm/demos/wasm/` with each
- * sample's WAT beside it. The website deploy builds these ignored assets
- * before generating pages. The script
+ * [`publish`](./publish/module.f.mjs) copying it into `nanvm/demos/wasm/`
+ * with each sample's WAT beside it, then [`marked`](./marked/module.f.mjs)
+ * writing each sample's Rust there with each word's kind in a tag, which the
+ * sample's page reads to draw the Rust coloured. The website deploy builds
+ * these ignored assets before generating pages. The script
  * requires the pinned Rust so local builds use the same compiler as deploys.
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is
@@ -36,11 +38,11 @@
 
 import { rust } from '../../ci/config/module.f.js'
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
-import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
+import { forEachStep, pureOk, step } from '../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
-import { stringLiteral } from '../../media/rust/module.f.mjs'
-import { cmp } from '../../types/string/module.f.mjs'
+import { stringLiteral } from '../../media/rust/module.f.js'
+import { cmp } from '../../types/string/module.f.js'
 import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
@@ -143,6 +145,12 @@ export const wasmTarget = 'wasm32-unknown-unknown'
 /** Where `cargo build` writes that module. */
 export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
 
+/** The program that publishes the module and its disassembly. */
+export const publishPath = 'fjs/nanvm/demos/publish/module.f.mjs'
+
+/** The program that writes each sample's marked Rust beside them. */
+export const markedPath = 'fjs/nanvm/demos/marked/module.f.mjs'
+
 /**
  * The script that builds the module and its disassembly: a `gen.` name, run
  * through `sh` as `sh ./nanvm/demos/gen.build.sh`, since a regenerated file
@@ -152,7 +160,8 @@ export const buildScriptPath = 'nanvm/demos/gen.build.sh'
 
 /**
  * The script's text: the pinned Rust checked first, then the module built and
- * published with the WAT of each of `places`. Run in the shared shell, which
+ * published with the WAT of each of `places`, then every sample's marked
+ * Rust written beside them. Run in the shared shell, which
  * carries that Rust and the `wasm32` target: `./dev.sh sh
  * ./nanvm/demos/gen.build.sh`.
  *
@@ -165,8 +174,17 @@ case "$(rustc --version)" in
 *) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run ./dev.sh sh ./${buildScriptPath}" >&2; exit 1 ;;
 esac
 cargo build -p nanvm-demos --release --target ${wasmTarget}
-cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
+node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
+node ./fjs/module.mjs run ./${markedPath}
 `
+
+/**
+ * Compiles one sample into the Rust `cargo` builds, as `fjs compile` does,
+ * or reports the compiler's refusal and writes nothing.
+ *
+ * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, void, IoChannel>}
+ */
+const compileSample = ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))
 
 /**
  * Compiles every sample into its `.rs`, in order, stopping at the first the
@@ -176,7 +194,7 @@ cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${bui
  * @type {(places: readonly (Place | FunctionPlace)[]) => Effect<_CompileOp, void, IoChannel>}
  */
 export const generate = places => step(
-    forEachStep(pureOk(places), ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))),
+    forEachStep(pureOk(places), compileSample),
     () => writeFiles([[modulesPath, modules(places)], [buildScriptPath, buildScript(places)]]))
 
 /** @type {NodeProgram} */

@@ -17,7 +17,7 @@ return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
 return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))), () => undefined)
 ```
 
-`fjs/effects/module.f.mjs` already ships `forEachStep` (the *sequential* void
+`fjs/effects/module.f.js` already ships `forEachStep` (the *sequential* void
 combinator), and [allreduce-combinator](./allreduce-combinator.md)
 covers the parallel *reduce* variant — but the parallel *void* sibling is
 missing, so every call site re-spells the whole fan-out-then-discard dance.
@@ -25,9 +25,9 @@ missing, so every call site re-spells the whole fan-out-then-discard dance.
 ### Proposal
 
 Add the void sibling next to `all` / `All` / `both` / `allOk`, in
-`fjs/effects/common/module.f.mjs`, where
+`fjs/effects/common/module.f.js`, where
 [node-module-layering](./node-module-layering.md) moved them. It cannot live
-next to `forEachStep` in the core `fjs/effects/module.f.mjs`: `all`/`All` are
+next to `forEachStep` in the core `fjs/effects/module.f.js`: `all`/`All` are
 defined in a module that already imports the core one, so placing `allVoid` in
 core would invert that dependency.
 
@@ -40,7 +40,7 @@ effect's error channel, where `step`/`mapStep` propagate it. The three call
 sites already spell it that way.
 
 `mapStep` is the projection combinator and has landed in
-`fjs/effects/module.f.mjs`, so this is one line:
+`fjs/effects/module.f.js`, so this is one line:
 
 ```ts
 export const allVoid =
@@ -96,13 +96,13 @@ recorded as superseded there.)
       `All`/`all`/`both` **and `allOk`** to `fjs/effects/all/module.f.mjs`.
       `allVoid` is built on `allOk`, so moving one without the other inverts
       the layering. **Done** — all four moved together, to
-      `fjs/effects/common/module.f.mjs` rather than the `effects/all` this task
+      `fjs/effects/common/module.f.js` rather than the `effects/all` this task
       guessed at.
 - [ ] Wait for [all-argument-limit](./all-argument-limit.md)'s list-shaped
       `allOk`, and hand it the list: `allVoid` is an arbitrary-length
       fan-out, so a spread in its body would rebuild the argument ceiling it
       is called at (the note under the proposal).
-- [ ] Add `allVoid` to `fjs/effects/common/module.f.mjs` (next to
+- [ ] Add `allVoid` to `fjs/effects/common/module.f.js` (next to
       `all`/`both`/`allOk`) with proof coverage.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
       `fjs/emergent_testing/module.f.mjs`.
@@ -112,4 +112,4 @@ recorded as superseded there.)
 
 - [allreduce-combinator](./allreduce-combinator.md) — the aggregating
   sibling; `allVoid` discards.
-- `fjs/effects/module.f.mjs` — `forEachStep`, the sequential sibling.
+- `fjs/effects/module.f.js` — `forEachStep`, the sequential sibling.

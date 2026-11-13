@@ -2,9 +2,13 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
-import { step } from '../../effects/module.f.mjs'
+import { step } from '../../effects/module.f.js'
 import { emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { parseFromTokens } from '../../compiler/parser/module.f.mjs'
+import { tokenize } from '../../compiler/tokenizer/module.f.mjs'
+import { stringToList } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { edagPath, generate, load, rustPath, source } from './module.f.mjs'
 
 /** A root holding `text` at the runtime's path. @type {(text: string) => Dir} */
@@ -14,7 +18,7 @@ export const proof = {
     paths: () => {
         assertEq(source, './fjs/js/runtime/module.f.js')
         assertEq(rustPath, 'nanvm/lib/src/vm/gen.runtime.rs')
-        assertEq(edagPath, 'fjs/js/runtime/gen.edag.data.js')
+        assertEq(edagPath, 'fjs/js/runtime/gen.edag.js')
     },
     // Both compiles, in order: the static runtime, a module holding one
     // body, read back as the item it becomes; the EDAG, read back as the
@@ -29,7 +33,14 @@ export const proof = {
         assert(assertOk(rust).includes('(string_key("Object.x"), A::static_function(') && assertOk(rust).includes('Some("function x() { [native code] }")'))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
         const data = assertOk(edag)
-        assert(data.includes('export default ["{}",[') && data.includes('[":","Object.x",["=>",0,[],1]]') && data.includes('[":","static",["=>",1,'))
+        assert(data.includes('\n/** @type {unknown} */\nconst $') && data.includes('[":","Object.x",["=>",0,[],1]]') && data.includes('[":","static",["=>",1,'))
+        // This artifact is ordinary JavaScript holding EDAG data, with an
+        // explicit type boundary; comments remain outside DataJS's grammar.
+        assertOk(parseFromTokens(toArray(tokenize(stringToList(data))(''))))
+        for (const output of [assertOk(rust), data]) {
+            assert(output.includes('Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.'))
+            assert(output.includes('granted, provided that this notice is preserved.'))
+        }
         const [broken, failed] = virtualAt(withRuntime('export default ('))(step(generate(), () => readUtf8File(edagPath)))
         assertEq(failed[0], 'error')
         assertEq(Object.keys(broken.root).join(','), 'fjs')

@@ -13,17 +13,19 @@ first the language had — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](instanceof/README.md)) — and
+`"k" in o`, the entry check with a literal key ([below](in/README.md)) — and
 the comma operator, written in parentheses ([below](comma/README.md)).
-`==`/`!=` stay refused, since neither language reads them the same way
-twice, and so does `in` ([below](in/README.md)). Unary `+` is not in the language:
-the conversion to a number is `Number(x)`
-([number conversion](../conversions/number/README.md)). The EDAG admits every pure
-operation, unary `+` among them, and the language spells a subset of them;
-which is the language's decision, made on these pages, not the EDAG's.
+`==` and `!=` are admitted into syntax and resolved source AST, with explicit refusal at
+AST-to-FAST conversion pending [loose-equality lowering](../todo/loose-equality.md).
+Unary `+` is admitted into the syntax and resolved source AST, including
+numeric-index syntax such as `a[+x]`. Its AST-to-FAST conversion is explicitly
+refused pending [unary-plus lowering](../todo/unary-plus.md). It must not be
+silently replaced with `Number(x)`: unary `+` rejects BigInts, whereas `Number`
+accepts them. The existing `Number(x)` conversion remains available.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
-levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
-the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `=== !==`; `&`; `^`;
+levels are the prefixes `+`, `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
+the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `== != === !==`; `&`; `^`;
 `|`; `&&`; `||`,
 with `??` a chain of its own at the same level; the conditional above
 them; and the comma above them all, in its parentheses. The shifts therefore sit between arithmetic and comparison, unlike
@@ -176,12 +178,13 @@ and `7` as JSON.
 - [Grouping](./grouping/README.md)
 - [Comma](./comma/README.md)
 - [`instanceof`](./instanceof/README.md)
+- [`in`](./in/README.md)
 
 Refused by design, each page showing what `fjs compile` prints and what to write instead:
 
-- [`in` Is Refused](./in/README.md)
+- [`in` With a Computed Key Is Refused](./in/computed-key/README.md)
 - [`instanceof` Other Than `Array` Is Refused](./instanceof/other-classes/README.md)
-- [`==` Is Refused](./loose-equality/README.md)
+- [Loose equality: AST admission, deferred lowering](./loose-equality/README.md)
 - [`this` Is Refused](./this/README.md)
 
 ## Examples

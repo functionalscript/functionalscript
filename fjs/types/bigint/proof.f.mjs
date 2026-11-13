@@ -6,13 +6,14 @@
  */
 
 import { demo, parseSize, work } from './demo.f.mjs'
-import { partialRun, run } from '../../effects/mock/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { partialRun, run } from '../../effects/mock/module.f.js'
+import { runPure } from '../../effects/module.f.js'
 import { error, ok, unwrap } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import {
     sum,
     abs,
+    sign,
     serialize,
     log2,
     bitLength,
@@ -27,7 +28,9 @@ import {
     roundUp,
     divUp8,
     roundUp8
-} from './module.f.mjs'
+} from './module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { min } from '../function/compare/module.f.js'
 
 /**
  * The candidates the demo page compares, in the order it renders them.
@@ -45,8 +48,6 @@ const candidateNames = [
     'string32Log2',
     'mathLog2',
 ]
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { min } from '../function/compare/module.f.js'
 
 /** @type {(v: bigint) => bigint} */
 const oldLog2 = v => {
@@ -173,7 +174,7 @@ const m1023log2 = v => {
 const benchmark = f => () => {
     let e = 1_048_575n
     let c = 1n << e
-    for (let i = 0n; i < 1_100; ++i) {
+    for (let i = 0n; i < 1_100; i += 1n) {
         {
             const x = f(c)
             assertEq(x, e)
@@ -183,7 +184,7 @@ const benchmark = f => () => {
             assertEq(x, e - 1n, [e, x])
         }
         c >>= 1n
-        --e
+        e -= 1n
     }
 }
 
@@ -197,16 +198,16 @@ const benchmarkSmall = f => () => {
             const x = f(c)
             assertEq(x, e, [e, x])
         }
-        for (let j = 1n; j < min(c >> 1n)(1_000n); ++j) {
+        for (let j = 1n; j < min(c >> 1n)(1_000n); j += 1n) {
             const x = f(c - j)
             assertEq(x, e - 1n, [j, e, x])
         }
         c >>= 1n
-        --e
+        e -= 1n
     } while (c !== 0n)
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     example: () => {
         const total = sum([1n, 2n, 3n]) // 6n
         assertEq(total, 6n)
@@ -268,6 +269,11 @@ export const proof = {
             assertEq(result, 10n)
         }
     ],
+    sign: () => {
+        assertEq(sign(-10n), -1)
+        assertEq(sign(0n), 0)
+        assertEq(sign(10n), 1)
+    },
     serialize: [
         () => {
             const result = serialize(0n)
@@ -748,4 +754,4 @@ export const proof = {
             assert(!done.includes('data-copy='), done)
         },
     },
-}
+})

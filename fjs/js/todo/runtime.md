@@ -6,8 +6,8 @@
 the mechanism and the first body, `startsWith`, have landed
 ([`../runtime/README.md`](../runtime/README.md)); the proposal below
 describes the shape as first built — the member table is now the module's
-`member` export, keyed by name alone, and the runtime value its two
-functions, `static` and `dot`
+`member` export, keyed by name alone, and the runtime value its
+functions, `static`, `dot` and, since the `in` operator's body, `in`
 ([`runtime-members.md`](./runtime-members.md))
 
 ### Problem

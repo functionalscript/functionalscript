@@ -46,7 +46,7 @@ for and why every pull request waits for it. The pull request waits; the
 session does not: push, and go on with the next step or hand the dialog back
 to the owner, rather than sitting on a run that can take tens of minutes. A
 red result comes back as an event, or the owner brings it, and is handled
-then. A full local run — `node --test`, `npm run cov` — is a choice, never a
+then. A full local run — `node --test`, `npm start cov node` — is a choice, never a
 requirement: take it when an answer CI would give later is worth having now.
 Each check must complete with exit code 0
 and an observed final summary; a partial or interrupted run is not a result. If
@@ -68,7 +68,7 @@ Before proposing changes to FunctionalScript syntax or semantics, read
 [DESIGN.md §12](./doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
 Preserve harmless JavaScript conventions and justify restrictions. A new
 language feature must start with a `todo/` proposal explaining its benefits and
-drawbacks, and receive formal, explicit approval from another language designer
+drawbacks, and receive formal, explicit approval from the language designer
 before implementation.
 
 This file is a map: each section below holds the facts you must not violate and
@@ -134,6 +134,18 @@ Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md). How one session takes
 one task from its `todo/` to the last pull request merged — a stack of small
 pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
+
+### NUL spelling in JavaScript and FunctionalScript
+
+Never use the `\0` escape in source code, including proofs, demos, helpers
+and host adapters. Its interpretation depends on the following character.
+Use `\u0000` consistently, or `\x00` where the string grammar admits it
+(single-quoted FunctionalScript strings). Double-quoted strings and templates
+use `\u0000`. The shorthand stays outside FJS's accepted escape subset;
+the compiler tokenizer and dependency scan reject it.
+
+Literal backslash-zero text, such as `\\0` in a rejection-test input or a
+diagnostic, is different: preserve that text rather than changing its meaning.
 
 ### Numeric notation
 
@@ -300,10 +312,15 @@ is not. Instances predating this rule are not precedent for new ones.
 ## 7. Continuous integration
 
 The generator in `fjs/ci` owns the committed workflows; run `./dev.sh npm run gen`
-after changing its sources or inputs. All nine jobs use mise, across Linux,
-macOS and Windows on x64 and ARM64. Each native or runtime check remains a
-separate workflow step. The packed-package consumer uses a clean temporary
-directory and `setup-node` outside the repository environment.
+after changing its sources or inputs. Eleven of the twelve jobs use mise, across
+Linux, macOS and Windows on x64 and ARM64. Each native or runtime check remains a
+separate workflow step. The additional `cov` job caches isolated Node coverage
+by dependency manifest and synchronizes successful manifests in one batch at
+the end of a run when permitted; `node` runs the full source test suite with
+its own successful-check cache. `node` always builds and uploads the npm tarball.
+The separate `package` job downloads that artifact and tests it in a clean
+temporary directory, using `setup-node` and npm-installed TypeScript without a
+checkout or mise. Packing and consumer validation run without whole-check caching.
 
 `fjs ci` requires the caller's committed mise manifest and lock. It writes only
 the CI and publishing workflows. See [the generator](./fjs/ci/README.md).

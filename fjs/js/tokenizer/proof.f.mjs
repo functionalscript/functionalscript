@@ -3,16 +3,17 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
+import { string as jsonString } from '../../ebnf/lib/json/module.f.mjs'
 import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, tokensOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /**
@@ -83,6 +84,32 @@ const step = event => state => {
 }
 
 export const proof = {
+    bracedUnicode: () => {
+        for (const quote of ["'", '"']) {
+            for (const [digits, value] of [
+                ['0', '\u0000'], ['41', 'A'], ['00000000000041', 'A'],
+                ['d800', '\ud800'], ['DFFF', '\udfff'], ['ffff', '\uffff'],
+                ['10000', '𐀀'], ['1f600', '😀'], ['10FFFF', '􏿿'],
+            ]) {
+                assertStructurallySame(tokenizeString(quote + '\\u{' + digits + '}' + quote), [
+                    { kind: 'string', value }, { kind: 'eof' },
+                ])
+            }
+            for (const escape of ['\\u{}', '\\u{g}', '\\u{41', '\\u{41G}', '\\u{110000}', '\\u{FFFFFFFFFFFFFFFF}', '\\u{-1}']) {
+                assertEq(tokenizeString(quote + escape + quote), 'error', escape)
+            }
+            assertStructurallySame(tokenizeString(quote + '\\u{5c}u{41}' + quote), [
+                { kind: 'string', value: '\\u{41}' }, { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString(quote + '\\u{0}9\\u0041' + quote), [
+                { kind: 'string', value: '\u00009A' }, { kind: 'eof' },
+            ])
+        }
+        assertEq(errorAt("'\\u{110000}'"), '1:1..1:13')
+        const json = parser(jsonString)
+        assertEq(json(Array.from('"\\u{41}"', character => ({ symbol: character.charCodeAt(0), meta: null })))[0], 'error')
+    },
+
     templates: {
         chunks: () => {
             assertStructurallySame(tokenizeString('``'), [
@@ -120,13 +147,13 @@ export const proof = {
             // Each JavaScript spelling cooks correctly, while the exact source
             // stays distinct from the value for consumers' spelling policies.
             const cases = /** @type {const} */ ([
-                ['\\x41', 'A'], ['\\v', '\v'], ['\\0', '\0'], ['\\0a', '\0a'],
+                ['\\x41', 'A'], ['\\v', '\v'], ['\\0', '\u0000'], ['\\0a', '\u0000a'],
                 ['\\u{1f600}', '😀'], ['\\u{000000000041}', 'A'],
-                ['\\u{0}', '\0'], ['\\u{10FFFF}', '\u{10ffff}'], ['\\u{0000000000000010fFfF}', '\u{10ffff}'],
+                ['\\u{0}', '\u0000'], ['\\u{10FFFF}', '\u{10ffff}'], ['\\u{0000000000000010fFfF}', '\u{10ffff}'],
                 ['\\xfF', '\xff'], ['\\u00411', 'A1'], ['\\uD83D\\uDE00', '😀'], ['\\x411', 'A1'],
                 ['\\q', 'q'], ["\\'", "'"], ['\\$', '$'], ['\\$x', '$x'],
                 ['\\\n', ''], ['\\\r', ''], ['\\\r\n', ''], ['\\\u2028', ''], ['\\\u2029', ''],
-                ['\0', '\0'], ['\t', '\t'], ['\x1f', '\x1f'],
+                ['\u0000', '\u0000'], ['\t', '\t'], ['\x1f', '\x1f'],
             ])
             for (const [source, value] of cases) {
                 assertStructurallySame(tokenizeString('`' + source + '`'), [
@@ -182,7 +209,7 @@ export const proof = {
             assertEq(tokenizeString('`\\u12`'), 'error')
             assertEq(tokenizeString('`\\x1`'), 'error')
             assertEq(tokenizeString('`\\'), 'error')
-            // Ordinary quoted strings retain their existing escape subset.
+            // Double-quoted strings retain JSON's escape subset.
             assertEq(tokenizeString('"\\x41"'), 'error')
         },
     },
@@ -589,10 +616,8 @@ export const proof = {
             assertEq(result, 'error')
         },
     ],
-    // A string between single quotes is JSON's with the delimiters swapped
-    // (`spec/todo/2460-js-string-literals.md`): the same value as its
-    // double-quoted spelling, a `"` standing for itself, `\'` the one escape
-    // it adds, and everything else JSON refuses still refused.
+    // Single quotes admit JSON's escapes plus the delimiter, vertical tab
+    // and two-digit hexadecimal escapes. Double quotes retain JSON's rules.
     singleQuoted: {
         sameValue: () => {
             assertStructurallySame(tokenizeString("'value'"), tokenizeString('"value"'))
@@ -619,13 +644,47 @@ export const proof = {
         escapedQuote: () => {
             assertStructurallySame(tokenizeString("'can\\'t'"), [{ kind: 'string', value: 'can\'t' }, { kind: 'eof' }])
         },
+        byteEscapes: () => {
+            assertStructurallySame(tokenizeString("'\\x00\\x07\\x0b\\x41\\x7f\\x80\\xfF'"), [
+                { kind: 'string', value: '\u0000\u0007\u000bA\u007f\u0080\u00ff' },
+                { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString("'\\v'"), [{ kind: 'string', value: '\u000b' }, { kind: 'eof' }])
+        },
+        fixedWidth: () => {
+            assertStructurallySame(tokenizeString("'\\x123\\x000\\v0'"), [
+                { kind: 'string', value: '\u00123\u00000\u000b0' },
+                { kind: 'eof' },
+            ])
+            // Decoded characters never become source to scan again.
+            assertStructurallySame(tokenizeString("'\\x5cn'"), [{ kind: 'string', value: '\\n' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString("'\\\\x41'"), [{ kind: 'string', value: '\\x41' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString("'\\x27\\x22'"), [{ kind: 'string', value: '\'"' }, { kind: 'eof' }])
+        },
+        mixedEscapes: () => {
+            assertStructurallySame(tokenizeString("'\\u0041\\x42\\vC\\n\\x44\\uD83D\\uDE00\\uD800'"), [
+                { kind: 'string', value: 'AB\u000bC\nD😀\ud800' },
+                { kind: 'eof' },
+            ])
+        },
+        malformedByteEscapes: () => {
+            assertEq(tokenizeString("'\\x'"), 'error')
+            assertEq(tokenizeString("'\\x0'"), 'error')
+            assertEq(tokenizeString("'\\xG1'"), 'error')
+            assertEq(tokenizeString("'\\x1G'"), 'error')
+            assertEq(tokenizeString("'\\x41"), 'error')
+            assertEq(tokenizeString("'\\X41'"), 'error')
+            assertEq(tokenizeString("'\\V'"), 'error')
+        },
         refused: () => {
             // `\'` is not JSON's, so a double-quoted string keeps refusing it
             assertEq(tokenizeString('"\\\'"'), 'error')
-            // JavaScript's other escapes are not FunctionalScript's
-            assertEq(tokenizeString("'\\x41'"), 'error')
-            assertEq(tokenizeString("'\\v'"), 'error')
+            assertEq(tokenizeString('"\\x41"'), 'error')
+            assertEq(tokenizeString('"\\v"'), 'error')
+            // Other JavaScript escapes remain outside this subset.
             assertEq(tokenizeString("'\\0'"), 'error')
+            assertEq(tokenizeString("'\\1'"), 'error')
+            assertEq(tokenizeString("'\\\n'"), 'error')
             // no raw control character, no line terminator, no end
             assertEq(tokenizeString("'\t'"), 'error')
             assertEq(tokenizeString("'a\nb'"), 'error')

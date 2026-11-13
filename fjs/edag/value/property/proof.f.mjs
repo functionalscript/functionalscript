@@ -7,13 +7,12 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
-import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
-import { array } from '../array/module.f.mjs'
-import { object } from '../object/module.f.mjs'
-import { func } from '../function/module.f.mjs'
-import { call } from '../call/module.f.mjs'
-import { entry, hasEntry, findProperty, functionAt, read } from './module.f.mjs'
+import { array } from '../array/module.f.js'
+import { object } from '../object/module.f.js'
+import { func } from '../function/module.f.js'
+import { call } from '../call/module.f.js'
+import { entry, hasEntry, findProperty, functionAt, read } from './module.f.js'
 import { invokeWith } from '../../amnesia/module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
@@ -138,7 +137,7 @@ export const proof = {
         assertEq(some('ab', '1'), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], ['Math.trunc'], ['Math.floor'], ['Math.abs'], ['Math.sqrt'], ['Math.ceil'], ['Math.imul'], ['Math.max'], ['Math.min'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
@@ -160,6 +159,24 @@ export const proof = {
         // runtime holds at its path, failing by name with no runtime or
         // none at the path
         expectValue(['Object.entries'], 'length', 1)
+        expectValue(['String.fromCharCode'], 'length', 1)
+        expectValue(['Math.trunc'], 'length', 1)
+        expectValue(['Math.floor'], 'length', 1)
+        expectValue(['Math.abs'], 'length', 1)
+        expectValue(['Math.sqrt'], 'length', 1)
+        expectValue(['Math.ceil'], 'length', 1)
+        expectValue(['Math.imul'], 'length', 2)
+        expectValue(['Math.max'], 'length', 2)
+        expectValue(['Math.min'], 'length', 2)
+        missing(['String.fromCharCode'], 'name')
+        missing(['Math.trunc'], 'name')
+        missing(['Math.floor'], 'name')
+        missing(['Math.abs'], 'name')
+        missing(['Math.sqrt'], 'name')
+        missing(['Math.ceil'], 'name')
+        missing(['Math.imul'], 'name')
+        missing(['Math.max'], 'name')
+        missing(['Math.min'], 'name')
         missing(['Object.entries'], 'name')
         /** @type {import('../types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
@@ -168,6 +185,7 @@ export const proof = {
         assertStructurallySame(assertOk(read(ok(['Object.is']), 'name', runtime, invoke)), ['undefined'])
         missing(['Object.is'], 'name')
         assertEq(assertError(read(ok(['Object.is']), 'length')), 'no binding for the static Object.is')
+        assertEq(assertError(read(ok(['Object.is']), 'length', undefined, invoke)), 'no binding for the static Object.is')
         // a runtime with no invoker to ask it through answers no body
         assertEq(assertError(read(ok(['Object.is']), 'length', runtime)), 'no binding for the static Object.is')
         assertEq(assertError(read(ok(['Number.isNaN']), 'length', runtime, invoke)), 'no binding for the static Number.isNaN')

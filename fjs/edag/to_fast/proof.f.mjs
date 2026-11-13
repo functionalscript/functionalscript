@@ -14,7 +14,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { memo } from '../memo/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
@@ -72,8 +72,8 @@ export const proof = {
             1, undefined === null, null, 'value', 3n, ['undefined'],
             ['[]', [1, ['...', 'ab']]], ['{}', [[':', 'x', 1], ['...', ['{}', []]]]],
             ['entry'], ['hasEntry'], ['slice'], ['Object.is'],
-            ['!', 1], ['~', 2], ['-', ['[]', []]], ['+', ['[]', []]], ['typeof', 1], ['Number', '3'], ['String', 2],
-            ['+', 1, 2], ['-', 2, 1], ['*', 2, 3], ['instanceof', ['[]', []], 'Array'],
+            ['!', 1], ['~', 2], ['-', ['[]', []]], ['+', ['[]', []]], ['typeof', 1], ['Number', '3'], ['BigInt', '3'], ['BigInt', 1.5], ['String', 2], ['Boolean', ['undefined']], ['Boolean', ['{}', []]],
+            ['+', 1, 2], ['-', 2, 1], ['*', 2, 3], ['instanceof', ['[]', []], 'Array'], ['in', 'x', ['{}', []]],
             ['.', ['{}', [[':', 'x', 1]]], 'x'], ['.', ['[]', [8]], ['Number', '0']],
             ['memberPresent', ['[]', [8]], 'length'], ['memberPresent', ['[]', [8]], 0],
             ['memberPresent', ['[]', [8]], ['Number', '0']],
@@ -93,6 +93,7 @@ export const proof = {
         roundTrip(['?.', null, 'x', ['|?.()', [1]]])
         roundTrip(['?.()', ['undefined'], [1], ['|.', 'x', ['|()', [2]]]])
         roundTrip(['.', ['{}', []], 'x', ['|?.()', [1]]])
+        roundTrip(['?.', null, 'x', ['|()', [], ['|.', 'y']]])
     },
     memberPresentSharing: () => {
         const receiver = /** @type {const} */ (['[]', [9]])
@@ -105,7 +106,7 @@ export const proof = {
         }
         let restored = fromFast(assertOk(toFast(graph)))
         const stable = flat(restored)
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < 4; i += 1) {
             restored = fromFast(assertOk(toFast(restored)))
             assertStructurallySame(flat(restored), stable)
         }
@@ -165,10 +166,43 @@ export const proof = {
         const call = /** @type {const} */ (['()', ['=>', 0, [], ['throw', 'failure']], []])
         roundTrip(['=>', 1, [], ['?:', ['arg', 0], [',', [call, 0]], call]])
     },
+    operandClosuresCaptureComputedValues: () => {
+        const computed = /** @type {const} */ (['()', ['=>', 0, [], ['[]', [3]]], []])
+        const closure = /** @type {const} */ (['=>', 0, [computed], ['frame', 0]])
+        const graph = /** @type {Exp} */ (['[]', [0, closure]])
+        roundTrip(graph)
+        const value = /** @type {Exp} */ (['()', ['.', graph, 1], []])
+        assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(fromFast(assertOk(toFast(value))))))({ args: [] })))), [3])
+    },
+    operandClosuresCaptureObjects: () => {
+        /** @type {readonly Exp[]} */
+        const objects = [
+            ['{}', [[':', 'value', 1]]],
+            ['{}', [[':', ['String', 1], 1]]],
+            ['{}', [['...', ['{}', []]]]],
+            ['{}', [[':', 'value', ['+', 1, 2]]]],
+        ]
+        for (const object of objects) {
+            const graph = /** @type {Exp} */ (['[]', [0, ['=>', 0, [object], ['frame', 0]]]])
+            roundTrip(graph)
+            const call = /** @type {Exp} */ (['()', ['.', graph, 1], []])
+            assertStructurallySame(
+                assertOk(toData(assertOk(memo(assertOk(identityAnalysis(fromFast(assertOk(toFast(call))))))({ args: [] })))),
+                assertOk(toData(assertOk(memo(assertOk(identityAnalysis(call)))({ args: [] })))),
+            )
+        }
+    },
+    emptySequence: () => {
+        assertStructurallySame(fromFast(fromAnalysis(assertOk(identityAnalysis([',', []])))), ['undefined'])
+    },
     functions: () => {
         const captured = /** @type {const} */ (['[]', [1]])
         roundTrip(['=>', 1, [captured], ['[]', [['arg', 0], ['rest'], ['frame', 0]]]])
         roundTrip(['=>', 1, [], ['()', ['self'], [['arg', 0]]]])
+        roundTrip(['=>', 0, [], ['self']])
+        assertStructurallySame(fromFast(assertOk(toFast(['=>', 0, [1], ['frame', 0]]))), ['=>', 0, [], 1])
+        roundTrip(['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]])
+        roundTrip(['=>', 1, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1]]], ['self']]])
         roundTrip(['=>', 0, [], [',', [['[]', []], ['throw', 1]]]])
         const direct = assertOk(identityAnalysis(['=>', 0, [], 1]))
         assertEq(functionFromAnalysis(direct, /** @type {readonly ['#', number]} */ (direct.root)[1]).parameters.length, 0)

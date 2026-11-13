@@ -1,4 +1,4 @@
-import { editOf } from './module.f.mjs'
+import { editOf } from './module.f.js'
 import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 
 // The copy `a b` of a highlighted field, as the nodes `a`, ` b` and the

@@ -73,17 +73,17 @@ fn index<A: IVm>(i: u32) -> Any<A> {
 #[cfg(test)]
 mod tests {
     use super::callback;
+    use crate::vm::test::function::identity;
     use crate::{
         naive::Naive,
-        vm::{Any, Array, Function, IVm, ToAny, ToArray, error},
+        vm::{Any, Array, Function, ToAny, ToArray, error},
     };
 
     type A = Naive;
 
     /// `(...a) => a`: the arguments a callback was given, as an array.
     fn args() -> Function<A> {
-        callback(A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any())
-            .unwrap()
+        callback(identity()).unwrap()
     }
 
     fn array() -> Array<A> {

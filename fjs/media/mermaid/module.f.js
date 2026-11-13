@@ -21,11 +21,14 @@
  * arrow — is refused, with the line it is on. So is a flowchart of more
  * than {@link maxEdges} arrows, which Mermaid refuses to draw.
  *
- * **A label is plain text.** Mermaid reads `<br/>`, `#quot;`, `&amp;`, a
- * backtick's Markdown and a quote's delimiting inside a label, so a label
- * holding `<`, `>`, `&`, `#`, `\`, a backtick or `"` is refused rather than
- * drawn as its spelling. A
- * node labelled twice is refused unless both labels agree. Mermaid's statement
+ * **A label is plain text, and may break.** A line break, `<br>`, `<br/>` or
+ * `<br />` in any case, is read as `\n`, where Mermaid breaks the line, and
+ * an entity, `#lt;`, `#gt;`, `#amp;` or `#quot;`, as the character it
+ * names, as Mermaid shows it. Mermaid reads `&amp;`, any other tag or
+ * entity, a backtick's Markdown and a quote's delimiting inside a label
+ * too, so a label holding `<`, `>`, `&`, `#`, `\`, a backtick or `"` outside
+ * a break or one of those entities is refused rather than drawn as its
+ * spelling. A node labelled twice is refused unless both labels agree. Mermaid's statement
  * keywords `end`, `classDef`, `class`, `style` and `subgraph` are no names.
  * Unquoted edge labels also refuse `(`, `)`, `[`, `]`, `{` and `}`, which
  * Mermaid reads as syntax; quoted node labels may hold those characters.
@@ -75,17 +78,86 @@ const skipSpaces = (line, at) => {
 }
 
 /**
- * A label from `at` to its closing `close`, and the index after it.
+ * Where a line break that starts at `at` ends, or `-1` where none starts
+ * there: `<br`, in any case, then blanks, an optional `/` and `>`, as
+ * Mermaid's own `<br\s*\/?>` reads it.
+ *
+ * @type {(text: string, at: number) => number}
+ */
+const breakEnd = (text, at) => {
+    if (text.slice(at, at + 3).toLowerCase() !== '<br') { return -1 }
+    const slash = skipSpaces(text, at + 3)
+    const close = text[Number(slash)] === '/' ? slash + 1 : slash
+    return text[Number(close)] === '>' ? close + 1 : -1
+}
+
+/**
+ * The entities a label may name, Mermaid's spelling of the markup it would
+ * otherwise read: `#lt;`, `#gt;`, `#amp;` and `#quot;`.
+ *
+ * @type {readonly (readonly [string, string])[]}
+ */
+const entities = [['lt', '<'], ['gt', '>'], ['amp', '&'], ['quot', '"']]
+
+/**
+ * The character an entity that starts at `at` stands for, and the index
+ * after it, or `null` where none starts there. Mermaid reads `#name;` as
+ * the HTML entity `&name;`; a name this does not know, a decimal code such
+ * as `#35;` among them, is no entity here, so its `#` is refused.
+ *
+ * @type {(text: string, at: number) => readonly [string, number] | null}
+ */
+const entityAt = (text, at) => {
+    const end = text.indexOf(';', at)
+    const name = end === -1 ? '' : text.slice(at + 1, end)
+    const named = entities.find(([n]) => n === name)
+    return named === undefined ? null : [named[1], end + 1]
+}
+
+/**
+ * A label's text as Mermaid shows it: each line break as `\n`, each entity
+ * as its character, and refused where it holds markup Mermaid reads.
+ *
+ * @type {(text: string) => Result<string, string>}
+ */
+const readLabel = text => {
+    let out = ''
+    let i = 0
+    while (i < text.length) {
+        const c = text[Number(i)]
+        const lineEnd = breakEnd(text, i)
+        if (lineEnd !== -1) {
+            out = `${out}\n`
+            i = lineEnd
+            continue
+        }
+        const entity = c === '#' ? entityAt(text, i) : null
+        if (entity !== null) {
+            const [char, next] = entity
+            out = out + char
+            i = next
+            continue
+        }
+        if (markup.includes(c)) { return error(`a label holding ${c}, which Mermaid does not show as written`) }
+        out = out + c
+        i = i + 1
+    }
+    return ok(out)
+}
+
+/**
+ * A label from `at` to its closing `close`, read as Mermaid shows it, and
+ * the index after it.
  *
  * @type {(line: string, at: number, close: string) => Result<readonly [string, number], string>}
  */
 const labelAt = (line, at, close) => {
     const end = line.indexOf(close, at)
     if (end === -1) { return error(`a label not closed by ${close}`) }
-    const label = line.slice(at, end)
-    if (label === '') { return error('an empty label') }
-    const c = [...label].find(c => markup.includes(c))
-    if (c !== undefined) { return error(`a label holding ${c}, which Mermaid does not show as written`) }
+    const text = line.slice(at, end)
+    if (text === '') { return error('an empty label') }
+    const [tag, label] = readLabel(text)
+    if (tag === 'error') { return error(label) }
     return ok([label, end + close.length])
 }
 
@@ -121,7 +193,8 @@ const arrowAt = (line, at) => {
     const [tag, value] = labelAt(line, after + 1, '|')
     if (tag === 'error') { return error(value) }
     const [label, end] = value
-    const delimiter = [...label].find(c => '()[]{}'.includes(c))
+    // Mermaid's parser sees the source, not what an entity stands for.
+    const delimiter = [...line.slice(after + 1, end - 1)].find(c => '()[]{}'.includes(c))
     if (delimiter !== undefined) { return error(`an unquoted edge label holding the syntax delimiter ${delimiter}`) }
     return ok([[both, label], end])
 }

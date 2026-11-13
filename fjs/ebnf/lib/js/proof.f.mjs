@@ -4,8 +4,8 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { codePointListToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../../../text/utf16/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { repeatFrom0 } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
@@ -98,6 +98,8 @@ export const proof = {
             assertStructurallySame(read('0b101 '), ['number', '0b101', 5])
             assertStructurallySame(read('0B01n;'), ['number', '0B01n', 5])
             assertStructurallySame(read('0b0'), ['number', '0b0', 3])
+            assertStructurallySame(read('0o7_1 '), ['number', '0o7_1', 5])
+            assertStructurallySame(read('0O17n;'), ['number', '0O17n', 5])
             assertStructurallySame(read('1_000.2_5e+1_0 '), ['number', '1_000.2_5e+1_0', 14])
             assertStructurallySame(read('0xF_Fn'), ['number', '0xF_Fn', 6])
             assertStructurallySame(read('0B1_0n'), ['number', '0B1_0n', 6])
@@ -107,6 +109,9 @@ export const proof = {
             assertStructurallySame(read('"é😀"'), ['string', '"é😀"', 4])
             assertStructurallySame(read("'a\\'\"b'x"), ['string', "'a\\'\"b'", 7])
             assertStructurallySame(read("''"), ['string', "''", 2])
+            const escaped = /** @type {const} */ ("'\\x00\\xFf\\v'")
+            assertStructurallySame(read(escaped), ['string', escaped, escaped.length])
+            assertStructurallySame(read("'\\x411'next"), ['string', "'\\x411'", 7])
         },
         template: () => {
             assertStructurallySame(read('``x'), ['template', '``', 2])
@@ -213,7 +218,15 @@ export const proof = {
         assertStructurallySame(parseToken(cps('"\\x"')), ['error', 2])
         // `\'` is the single-quoted string's, not JSON's
         assertStructurallySame(parseToken(cps('"\\\'"')), ['error', 2])
-        assertStructurallySame(parseToken(cps("'\\x'")), ['error', 2])
+        assertStructurallySame(parseToken(cps('"\\x41"')), ['error', 2])
+        assertStructurallySame(parseToken(cps('"\\v"')), ['error', 2])
+        assertStructurallySame(parseToken(cps("'\\x'")), ['error', 3])
+        assertStructurallySame(parseToken(cps("'\\x0'")), ['error', 4])
+        assertStructurallySame(parseToken(cps("'\\xG1'")), ['error', 3])
+        assertStructurallySame(parseToken(cps("'\\x1G'")), ['error', 4])
+        assertStructurallySame(parseToken(cps("'\\x41")), ['error', 5])
+        assertStructurallySame(parseToken(cps("'\\X41'")), ['error', 2])
+        assertStructurallySame(parseToken(cps("'\\V'")), ['error', 2])
         assertStructurallySame(parseToken(cps("'abc")), ['error', 4])
     },
     throw: {

@@ -23,8 +23,8 @@
  * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
-import { content, id, newLine, number, operator, slash, string, template, templateAfterDollar, templateContent, templateEscape, token, ws } from './module.f.mjs'
-import { escape, hex } from '../json/module.f.mjs'
+import { content, id, newLine, number, operator, slash, string, stringEscape, unicodeEscape, template, templateAfterDollar, templateContent, templateEscape, token, ws } from './module.f.mjs'
+import { hex } from '../json/module.f.mjs'
 import { codePoints } from '../../railroad/module.f.mjs'
 import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
@@ -52,7 +52,8 @@ export const diagrams = [
     ['operator', operator],
     ['ws', ws],
     ['newLine', newLine],
-    ['escape', escape],
+    ['stringEscape', stringEscape],
+    ['unicodeEscape', unicodeEscape],
     ['hex', hex],
 ]
 

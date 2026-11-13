@@ -12,12 +12,12 @@
  * word, which is its root.
  *
  * **The stripes are the encoder's own.** Each bit's height — how many levels
- * close a word on it — comes from `pushWithHeight` and `endWithHeights`
+ * close a word on it — comes from `updateWithHeight` and `endWithHeights`
  * ([`module.f.mjs`](./module.f.mjs)); the demo only draws them.
  *
  * **A hash level's symbol is raw or a hash.** It holds the bits it covers
  * inline while they fit in 253, and is a hash once they do not
- * ([`id/module.f.mjs`](./id/module.f.mjs)'s `isHashLength`); a hash stripe is
+ * ([`id/module.f.js`](./id/module.f.js)'s `isHashLength`); a hash stripe is
  * hatched, so a reader sees where hashing starts. The root is written out.
  *
  * **The bits are padded as `end` pads them**: a `1`, then `0`s, until a
@@ -51,21 +51,25 @@
  */
 
 import { withInputs } from '../website/demo/sharing/module.f.mjs'
-import { encode, emptyEncodeState } from './module.f.mjs'
-import { levels } from './level/literal/module.f.mjs'
-import { isHash, isHashLength, isRaw } from './id/module.f.mjs'
+import { encode } from './module.f.mjs'
+import { levels } from './level/literal/module.f.js'
+import { isHash, isHashLength, isRaw } from './id/module.f.js'
 import { byteChars } from '../website/demo/bits/module.f.mjs'
 import { caption, fieldUpdate, inputField, radios, refusal } from '../website/demo/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
-import { pureOk } from '../effects/module.f.mjs'
+import { pureOk } from '../effects/module.f.js'
 import { asBase } from '../types/nominal/module.f.js'
+import { encodeScalar } from '../basen/base16/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
+
+/** A root, a 256-bit number, as its 64 hex digits. */
+const rootHex = encodeScalar(64)
 
 /** The most input bits the demo draws: 128 bytes. */
 export const maxBits = 0x400
 
-const { pushWithHeight, endWithHeights } = encode(() => null)
+const { init: [, , initialState], updateWithHeight, endWithHeights } = encode(() => null)(null)
 
 /**
  * What the encoder says about `bits`, a string of `0` and `1`: the padding
@@ -75,9 +79,9 @@ const { pushWithHeight, endWithHeights } = encode(() => null)
  */
 export const stripes = bits => {
     /** @type {readonly [readonly number[], EncodeState<null>]} */
-    const start = [[], emptyEncodeState(null)]
+    const start = [[], initialState]
     const [heights, state] = [...bits].reduce(([hs, s], b) => {
-        const [h, next] = pushWithHeight(BigInt(b), s)
+        const [h, next] = updateWithHeight(s, BigInt(b))
         return /** @type {const} */ ([[...hs, h], next])
     }, start)
     const [padding, root] = endWithHeights(state)
@@ -215,7 +219,7 @@ const stripesView = units => {
         ],
         ['p', `${n} input bits and ${padding.length} padding bits: ${names.map((name, i) => `${name} ${words[i].length}`).join(', ')} words.`],
         caption(`Root, ${rootKind(root)}:`),
-        codeBlock(`0x${asBase(root).toString(16).padStart(64, '0')}`, 'Copy the root'),
+        codeBlock(`0x${rootHex(asBase(root))}`, 'Copy the root'),
     ]
 }
 

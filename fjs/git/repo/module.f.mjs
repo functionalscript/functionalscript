@@ -40,12 +40,12 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.js'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
-import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
-import { isWellFormed } from '../../text/utf16/module.f.mjs'
-import { fromVec } from '../../text/utf8/module.f.mjs'
-import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { isBareDrive, isDriveRoot, under } from '../../path/module.f.js'
+import { isWellFormed } from '../../text/utf16/module.f.js'
+import { fromVec } from '../../text/utf8/module.f.js'
+import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { cString } from '../bytes/module.f.js'
 
 /** What a `.git` file says before the directory it names. */
@@ -116,7 +116,7 @@ const readAt = path => mapStep(readFile(path), read)
  * POSIX directory really named `C:` is relative there — and it is read as a
  * root here because `C:/…` is what Windows Git writes into a gitfile and a
  * POSIX directory named after a drive is not a thing that happens. This is
- * [`fjs/path`](../../path/module.f.mjs)'s own reading of a drive, through its
+ * [`fjs/path`](../../path/module.f.js)'s own reading of a drive, through its
  * `isDriveRoot`, and the same limitation it records.
  *
  * The `/` is required. `C:r` names a directory under drive C's *current*

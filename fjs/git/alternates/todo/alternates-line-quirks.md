@@ -89,7 +89,7 @@ that one was not, which is why it was fixed instead of listed.
 
 ### Related
 
-- [`fjs/git/alternates`](../module.f.mjs) — the decoder this issue is
+- [`fjs/git/alternates`](../module.f.js) — the decoder this issue is
   entirely about: `alternatesIn` and its note on why neither line is refused,
   and `untilNul` for the shape that was a third.
 - [`fjs/git/store`](../../store/module.f.mjs) — owns where a store looks, over

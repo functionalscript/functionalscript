@@ -1,9 +1,11 @@
 # Conversions
 
-The explicit conversions of a value: `Number(...)` and `String(...)`.
+The explicit conversions of a value: `Boolean(...)`, `Number(...)`, `String(...)`, and `BigInt(...)`.
 
 ## Pages
 
+- [BigInt Conversion](./bigint/README.md)
+- [Boolean Conversion](./boolean/README.md)
 - [Number Conversion](./number/README.md)
 - [String Conversion](./string/README.md)
 

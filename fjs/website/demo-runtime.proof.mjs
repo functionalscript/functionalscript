@@ -540,7 +540,8 @@ export const demo = {
 
 /** Generated heading controls and a controllable hashchange source for the
  * actual demo controller, using the same DOM stand-in as the other proofs.
- * @type {(d: ReturnType<typeof dom>, hash?: string) => { status: { textContent: string }, pushed: string[], navigate: (hash: string) => void }}
+ * The address bar's pause runs on a real zero-delay timer, so `settle` covers it.
+ * @type {(d: ReturnType<typeof dom>, hash?: string) => { status: { textContent: string }, pushed: string[], replaced: string[], navigate: (hash: string) => void }}
  */
 const shared = (d, hash = '#documentation') => {
     /** @type {(() => void)[]} */
@@ -552,20 +553,27 @@ const shared = (d, hash = '#documentation') => {
     view.requestAnimationFrame = (/** @type {() => void} */ callback) => callback()
     /** @type {string[]} */
     const pushed = []
-    view.history = { pushState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => {
-        pushed.push(url)
+    /** @type {string[]} */
+    const replaced = []
+    /** @type {(url: string) => void} */
+    const go = url => {
         const next = new URL(url, view.location.href)
         view.location.search = next.search
         view.location.hash = next.hash
-    } }
+    }
+    view.history = {
+        pushState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => { pushed.push(url); go(url) },
+        replaceState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => { replaced.push(url); go(url) },
+    }
+    view.setTimeout = (/** @type {() => void} */ run) => setTimeout(run, 0)
+    view.clearTimeout = (/** @type {any} */ timer) => clearTimeout(timer)
     doc.getElementById = () => null
     const status = { textContent: '' }
-    const button = { hidden: true, addEventListener() {} }
     d.root.parentElement = {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
-            : selector.includes('button[data-copy-demo]') || selector.includes('button[data-copy-demo-section]') ? button : status,
+            : selector.includes('[data-demo-link-status]') ? status : null,
     }
-    return { status, pushed, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
+    return { status, pushed, replaced, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
 }
 
 const sharedModule = moduleUrl(`
@@ -588,24 +596,28 @@ export const demo = {
 const sharedHash = inputs => '?' + new URLSearchParams(inputs).toString() + '#demo'
 
 export const proof = {
-    actionChangesSharedFieldWithoutPushingHistory: async () => {
+    // An action that changes a shared field keeps the address bar on it, so
+    // the address bar stays the link to share, and adds no history entry.
+    actionChangesSharedFieldReplacesHistory: async () => {
         const d = dom(new URL('../crypto/pow/demo.f.mjs', import.meta.url).href)
         const links = shared(d, '#demo')
         await startDemo(d.root)
         await settle()
         assertEq(links.pushed.length, 0)
         d.click('next-nonce')
-        await settle()
+        await settle(); await settle()
         assertEq(d.named('nonce').value, '43')
         assertEq(links.pushed.length, 0)
+        assert(links.replaced.at(-1)?.includes('nonce=43') === true, links.replaced.join())
         d.input('nonce', '50')
-        await settle()
+        await settle(); await settle()
         assertEq(links.pushed.length, 1)
         assert(links.pushed[0].includes('nonce=50'))
         d.click('next-nonce')
-        await settle()
+        await settle(); await settle()
         assertEq(d.named('nonce').value, '51')
         assertEq(links.pushed.length, 1)
+        assert(links.replaced.at(-1)?.includes('nonce=51') === true, links.replaced.join())
     },
     atomicSharing: async () => {
         const d = dom(sharedModule)
@@ -626,7 +638,7 @@ export const proof = {
         await settle()
         links.navigate(sharedHash({ left: 'X', right: 'Y' }))
         links.navigate(sharedHash({ left: 'X', right: 'Y' }).replace('#demo', '#documentation'))
-        for (let i = 0; i < 50 && !d.root.innerHTML.includes('A|B|2'); i++) { await new Promise(resolve => setTimeout(resolve, 10)) }
+        for (let i = 0; i < 50 && !d.root.innerHTML.includes('A|B|2'); i += 1) { await new Promise(resolve => setTimeout(resolve, 10)) }
         assert(d.root.innerHTML.includes('A|B|2'), d.root.innerHTML)
         assert(!d.rendered.some((/** @type {string} */ html) => html.includes('X|Y|')))
     },
@@ -639,7 +651,7 @@ export const proof = {
         // Document capture runs before the target's runtime input handler.
         d.root.setAttribute('data-demo-input-edited', '1')
         d.named('left').enterText('reader')
-        for (let i = 0; i < 5; i++) { await Promise.resolve() }
+        for (let i = 0; i < 5; i += 1) { await Promise.resolve() }
         assertEq(d.named('left').value, 'reader')
         d.input('left', 'reader')
         await settle()

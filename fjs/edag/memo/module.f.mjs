@@ -24,11 +24,11 @@
  */
 
 import { assertOk } from '../../asserts/module.f.js'
-import { isArray } from '../../types/array/module.f.mjs'
+import { isArray } from '../../types/array/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { checked, identityAnalysis } from '../analysis/module.f.mjs'
 import { invokerWith, operation } from '../operations/module.f.mjs'
-import { settle } from '../value/call/module.f.mjs'
+import { settle } from '../value/call/module.f.js'
 
 /** The root in tail position: its value, or the call it leaves. @type {(a: Analysis, context: Context, root: Operand) => Outcome} */
 const evaluate = (a, context, root) => {

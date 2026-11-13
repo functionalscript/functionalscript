@@ -69,11 +69,11 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md); page: [`==` Is Refused](../operators/loose-equality/README.md)) |
-| `op.in` | `"a" in o` | planned ([in](./2346-in-operator.md) admits a string-literal key that names no prototype property; page: [`in` Is Refused](../operators/in/README.md)) |
+| `op.loose-equality` | `a == b`, `a != b` | `==` and `!=` parse into AST but lowering remains [TODO](./loose-equality.md) ([operators](../operators/README.md); [page](../operators/loose-equality/README.md)) |
+| `op.in` | `k in o` | design ([`in`](../operators/in/README.md), whose key is a string literal; page: [`in` With a Computed Key Is Refused](../operators/in/computed-key/README.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md); page: [`instanceof` Other Than `Array` Is Refused](../operators/instanceof/other-classes/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
-| `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |
+| `op.update` | `++a`, `a--` | refused; `++` deferred to the low-priority [common-runtime proposal](./increment-common-runtime.md); `--` remains [separate work](./3430-assignments.md#further-increments) |
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |
 | `op.new` | `new Map()` | planned ([mutability](../design/mutability.md), [object identity](../design/object-identity.md)) |
@@ -82,7 +82,7 @@ describes:
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time; page: [`eval` Is Refused](../built-ins/eval/README.md)) |
 | `op.conversion-call-shape` | `Number(1, 2)`, `Number(...a)`, `String(1, 2)`, `String(...[])` | design ([operators and functions](../principles/README.md#operators-and-functions): a conversion is an operator, with a fixed set of operands; page: [A Conversion With Other Than One Operand Is Refused](../conversions/operands/README.md)) |
 | `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | design ([operators and functions](../principles/README.md#operators-and-functions): an operator is no value, so it has no nullishness to guard; page: [A Guarded Conversion Is Refused](../conversions/guarded/README.md)) |
-| `op.unary-plus` | `+1`, `+a` | open ([operators](../operators/README.md) leaves unary `+` out of the language; no record plans it) |
+| `op.unary-plus` | `+1`, `+a` | planned ([unary plus](./unary-plus.md): AST admission is implemented; AST-to-FAST conversion is explicitly deferred) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) |
@@ -99,10 +99,9 @@ describes:
 | `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions/README.md): a namespace is no value, so it has no nullishness to guard; page: [A Guarded Namespace Is Refused](../built-ins/static-functions/guarded/README.md)) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects/README.md#the-__proto__-key); page: [A `__proto__:` Key Is Refused](../values/objects/proto-key/README.md)) |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
-| `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md); page: [Binding a Literal Word Is Refused](../bindings/literal-words/README.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value; page: [Binding a Built-in's Name Is Refused](../bindings/intrinsic-names/README.md)) |
-| `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
+| `name.unbound` | `zzz`, `JSON`, `globalThis`, `Promise` | design; an unadmitted global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) |
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
 | `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports/README.md); page: [Exporting `then` Is Refused](../modules/exports/then/README.md)) |
@@ -111,10 +110,10 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
-| `st.for` | `for (const x of values) { }`, `for (const key in value) { }` | open ([remaining for iteration forms](./3270-for.md)) |
+| `st.guard` | an unbraced `if`, an `if` at module level, ordinary conditionals outside the terminating-guard or normal/owning-return one-outer-binding profiles, including explicit throws in mixed arms | planned ([bodies and guards](../control-flow/guards/README.md#normally-completing-conditionals); broader completion and join profiles in [reachable block ends](./3210-reachable-block-end.md)) |
+| `st.for` | `for (const key in value) { }` | open ([remaining for iteration forms](./3270-for.md)); braced declaration `for…of` over arrays/strings is [admitted](../control-flow/loops/README.md#forof) |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
-| `st.do-while` | `do { } while (c)` | open |
+| `st.do-while` | `do { } while (c)` | implemented ([loops](../control-flow/loops/README.md#post-test-dowhile)) |
 | `st.switch` | a case without braces, a case path that falls through, `break` in a case outside a loop-body switch, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch directly at module level | planned ([switch](./3230-switch.md), "Later": follow-ups additive on [switch](../control-flow/switch/README.md); loop-body cases also admit switch-local `break` and enclosing-loop `continue`) |
 | `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch/README.md): last is the one spelling, the position saying nothing once every branch terminates; page: [A `default` Before a `case` Is Refused](../control-flow/switch/default-position/README.md)) |
 | `st.try` | `try`, `catch`, `finally` | open |
@@ -125,8 +124,6 @@ describes:
 | `st.expression` | an expression statement that is no call statement, no assignment to a variable and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it; page: [An Expression Statement That Is No Call Is Refused](../functions/call-statements/expression-statements/README.md)) |
 | `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements/README.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
 | `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements/README.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
-| `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch/README.md)) — `{}` | design ([functions](../functions/README.md); page: [A Body That Does Not Terminate Is Refused](../functions/body-end/README.md)) |
-| `st.unreachable` | a statement after a terminal function-body, guard or case `return`, `throw`, or switch with a `default` | design ([functions](../functions/README.md); [loop bodies](../control-flow/loops/README.md) instead retain subsequent statements for source checks and skip their computations; page: [A Statement After `return` Is Refused](../functions/unreachable/README.md)) |
 
 ### Declarations and members
 
@@ -138,11 +135,8 @@ describes:
 | `decl.generator` | `function* g() {}` | open |
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open |
 | `decl.method` | `{ f() { return 1 } }` | open |
-| `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
-| `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
-| `decl.let-uninitialized` | `let x;` | planned ([definite assignment](./3225-definite-assignment.md), P5: admitted where every path assigns the variable before a read; refused by design until then — [variables](../bindings/variables/README.md): a variable names its value where it is declared, as a body ends in an explicit `return`, and no path is tracked to a first assignment) |
-| `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
-| `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
+| `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([object rest destructuring](./object-rest-destructuring.md)) |
+| `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([computed binding keys](./computed-binding-keys.md)) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md); page: [More Than 16 Fixed Parameters Are Refused](../functions/parameters/limit/README.md)) |
 
 ### Module structure
@@ -167,14 +161,13 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `lit.octal` | `0o7` | open ([numbers](../values/numbers/README.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
 | `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md); page: [An Array Hole Is Refused](../values/arrays/holes/README.md)) |
-| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): a double-quoted string stays a JSON string; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
-| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | open ([string literals](./2460-js-string-literals.md) defers them until a measured need appears) |
+| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): quoted-string restrictions are specified separately; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
+| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, a raw TAB | design for double-quoted escapes ([string escapes](../lexical/string-escapes/README.md) lists the admitted spellings); the remaining single-quoted spellings and raw controls are open in [string literals](./2460-js-string-literals.md) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
-| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
+| `lit.template-escape` | a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
 
 ### Not on this register
 

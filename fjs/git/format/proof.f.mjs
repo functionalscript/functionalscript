@@ -7,11 +7,11 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
-import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { tryEntries } from '../config/module.f.js'
-import { initConfig, initSha256Config, latin1, noFile } from '../testlib.f.mjs'
+import { initConfig, initSha256Config, latin1, noFile } from '../testlib.f.js'
 import { oidBytes, tryOidBytes } from './module.f.mjs'
 
 /**
@@ -98,8 +98,8 @@ export const proof = {
         // format Git does not know, and one a NUL cuts short is the format
         // before it, which is the one Git reads.
         assertEq(width(extension(1, 'objectFormat', 'sha256 ""')), null)
-        assertEq(width(extension(1, 'objectFormat', 'sha256\0junk')), 32)
-        assertEq(width(extension(1, 'objectFormat', 'sha256 \0junk')), null)
+        assertEq(width(extension(1, 'objectFormat', 'sha256\u0000junk')), 32)
+        assertEq(width(extension(1, 'objectFormat', 'sha256 \u0000junk')), null)
         assertEq(width('\uFEFF' + extension(1, 'objectFormat', 'sha256')), 32)
         assertEq(width(extension(0, 'objectformat', 'sha256')), null)
         assertEq(width(extension(0, 'noop-v1', 'x')), null)

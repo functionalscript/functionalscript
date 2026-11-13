@@ -11,7 +11,7 @@ import type { StaticId } from '../../../edag/types.ts'
 import type { AstImport, BinaryTag } from '../../../compiler/ast/types.ts'
 import type {
     BindingEvent, BindingId, FunctionTarget, LoopTarget, Operator,
-    _Unary, _InstanceOf, _Array, _Object, _Access, _ContinuedAccess,
+    _Unary, _InstanceOf, _In, _Array, _Object, _Access, _ContinuedAccess,
     _GuardedCall, _ContinuedGuardedCall, _Call, _Conditional, _Comma, _Leaf,
 } from '../types.ts'
 
@@ -21,12 +21,17 @@ export interface _SourceBinary<V> extends Readonly<[BinaryTag, V, V]> {}
 export type SourceOperator<V> = Operator<V> | _SourceBinary<V>
 
 /** Checked pattern reads retain their source identities until expansion. */
-export type ExpansionPlan = {
+export type ExpansionPlan<V = SourceValue> = {
     readonly reads: readonly {
-        /** The initializer, an earlier pattern read, or a namespace member. */
-        readonly source: null | readonly [number, string | number] | readonly [StaticId]
+        /**
+         * The initializer, an earlier property read, or a namespace function/number.
+         * `['slice', parent, start]` selects a suffix of an earlier array copy.
+         */
+        readonly source: null | number | readonly [number, string | number] | readonly ['slice', number, number] | readonly [StaticId]
         /** Array patterns copy the iterable before reading its elements. */
         readonly spread: boolean
+        /** Test the established read before any iterable copy or nested reads. */
+        readonly default?: { readonly value: V }
     }[]
     readonly ids: readonly BindingId[]
 }
@@ -51,7 +56,7 @@ export type SourceFunction = {
 export type SourceValue =
     | Primitive
     | readonly ['ref', BindingId]
-    | _Unary<SourceValue> | _SourceBinary<SourceValue> | _InstanceOf<SourceValue>
+    | _Unary<SourceValue> | _SourceBinary<SourceValue> | _InstanceOf<SourceValue> | _In<SourceValue>
     | _Array<SourceValue> | _Object<SourceValue> | _Access<SourceValue> | _ContinuedAccess<SourceValue>
     | _GuardedCall<SourceValue> | _ContinuedGuardedCall<SourceValue> | _Call<SourceValue>
     | _Conditional<SourceValue> | _Comma<SourceValue> | _Leaf
@@ -60,12 +65,24 @@ export type SourceValue =
 
 /** Resolved loops retain source evidence; sugar selects their mutable state. */
 export type SourceLoop = {
+    /** A written do-while tests after the body; only sugar expands this mode. */
+    readonly postTest?: true
     readonly target: LoopTarget
     readonly events: readonly BindingEvent[]
     readonly condition: SourceValue
     readonly body: SourceBlock
-    /** A classic for's header-scoped update; its block exits normally. */
+    /** Continuation work: a written for update, or a normalized post-test check. */
     readonly step?: SourceBlock
+}
+
+/** Iteration keeps its source operand and fresh item identity until sugar. */
+export type SourceForOf = {
+    readonly target: LoopTarget
+    readonly events: readonly BindingEvent[]
+    readonly source: SourceValue
+    /** Internal input to the body's checked declaration or assignment plan. */
+    readonly item: BindingId
+    readonly body: SourceBlock
 }
 
 /** A switch owns break completion without changing the enclosing continue target. */
@@ -82,9 +99,10 @@ export type SourceStatement =
     | readonly ['write', BindingId, SourceValue]
     /** The implicit target read precedes the operand; sugar chooses any conditional write. */
     | readonly ['compound-write', BindingId, BinaryTag, SourceValue]
-    /** Both normal arms precede the next statement; an omitted else is empty. */
+    /** Only normally completing arms resume the next statement; an omitted else is empty. */
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
+    | readonly ['for-of', SourceForOf]
     | readonly ['switch', SourceSwitch]
     /** Source resolution fixes the innermost loop; sugar supplies its state. */
     | readonly ['break', LoopTarget]

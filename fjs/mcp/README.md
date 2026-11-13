@@ -173,7 +173,7 @@ payload lands in `text` or `blob`:
 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `blob` is
    RFC 4648 base64.
 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`, and
-   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.mjs)
+   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.js)
    `fromVec`, used here purely as the decoder).
 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`,
    `blob` is base64.
@@ -207,7 +207,7 @@ Examples:
 ## Encoding split: hashes (cBase32) vs. content
 
 `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
-Hashes travel as **cBase32** ([`fjs/basen/cbase32`](../basen/cbase32/module.f.mjs)) — the
+Hashes travel as **cBase32** ([`fjs/basen/cbase32`](../basen/cbase32/module.f.js)) — the
 canonical CAS hash format shared with the CLI and the on-disk store layout.
 Content encoding is determined at read time as described above.
 

@@ -8,12 +8,11 @@ mod common;
 
 use common::{V, member, names, perform_case};
 use nanvm_effects_node::Native;
-use nanvm_harness::{fixtures::console, runtime};
+use nanvm_harness::fixtures::console;
 use nanvm_lib::{
     naive::Naive,
     vm::{Array, Number, Object, ToArray},
 };
-use std::io::Cursor;
 
 /// An array of byte values.
 fn bytes(any: V) -> Vec<u8> {
@@ -32,16 +31,12 @@ fn json(bytes: &[u8]) -> String {
 
 #[test]
 fn the_native_host_answers_what_the_cases_expect() {
-    let exports = Object::try_from(console::module::<Naive>(runtime()).unwrap()).unwrap();
+    let exports = nanvm_lib::vm::exports(console::module::<Naive>).unwrap();
     let cases = names(&exports);
     assert!(!cases.is_empty());
     for case in cases {
         let object = Object::try_from(member(&exports, &case)).unwrap();
-        let mut host = Native::new(
-            Cursor::new(bytes(member(&object, "input"))),
-            Vec::new(),
-            Vec::new(),
-        );
+        let mut host = Native::buffered(&bytes(member(&object, "input")));
         perform_case(&case, &object, [].to_array(), &mut host);
         assert_eq!(
             json(host.stdout()),

@@ -23,8 +23,14 @@ A `Block` contains ordered statements followed by an explicit exit:
 - `loop` declares ordered parameters and entry values, independently of its
   result bindings. `continue` computes all next values before transferring
   them simultaneously; `break` supplies the results and resumes after the loop.
+- A terminal `loop` is the block's exit. It has no break to its own target,
+  no normal results and no following continuation. Owning function returns,
+  failures and continued iteration retain their existing meanings.
 - `return` names its owning function; `throw` uses the existing failure
   channel. Abrupt exits supply no normal block results.
+
+A terminal loop ends its block without an invented throw or implicit returned
+value after it.
 
 A block or conditional used as a `Value` yields exactly one result. The
 statement variants support several results. Function parameters, rest, self,

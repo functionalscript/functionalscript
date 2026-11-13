@@ -4,11 +4,11 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath } from './module.f.mjs'
+import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.mjs'
 import { ciWorkflow, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -35,19 +35,32 @@ const workflowOf = (program, filename = 'gen.ci.yml') => {
 }
 
 export const proof = {
+    personalNotes: () => {
+        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.personal-notes.yml')))))
+        assertEq(personalNotesPath, '.github/workflows/gen.personal-notes.yml')
+        assertStructurallySame(generated, personalNotesWorkflow)
+        // The base branch's workflow, never the pull request's.
+        assertStructurallySame(generated.on, { pull_request_target: { types: ['opened', 'synchronize', 'reopened', 'edited'] } })
+        const steps = generated.jobs.approve?.steps ?? []
+        assertStructurallySame(steps, personalNotesJob.steps)
+        // The checkout names no ref, so it is the base branch's.
+        assertStructurallySame(steps[0]?.with, { 'persist-credentials': 'false' })
+        assertEq(steps[2]?.run, 'node ./fjs/ci/personal-notes/main.mjs')
+        assertStructurallySame(generated.jobs.approve?.permissions, { contents: 'read', 'pull-requests': 'write' })
+    },
     sharedChecks: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
         assertStructurallySame(generated, repositoryWorkflow)
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
         assertStructurallySame(generated, checks)
-        assertEq(Object.keys(generated.jobs).length, 9)
+        assertEq(Object.keys(generated.jobs).length, 12)
         assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
         const github = state.root['.github']
         assert(typeof github === 'object' && !(github instanceof Array))
         const workflows = github.workflows
         assert(typeof workflows === 'object' && !(workflows instanceof Array))
-        assertStructurallySame(Object.keys(workflows), ['gen.ci.yml', 'gen.npm-publish.yml', 'gen.website.yml'])
+        assertStructurallySame(Object.keys(workflows), ['gen.ci.yml', 'gen.npm-publish.yml', 'gen.website.yml', 'gen.personal-notes.yml'])
     },
     websiteBuild: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.website.yml')))))
@@ -60,12 +73,13 @@ export const proof = {
         assertStructurallySame(websiteJob.permissions, { contents: 'read', 'pull-requests': 'write' })
         assertEq(generated.jobs.website?.needs, undefined)
         assertEq(generated.jobs.website?.if, undefined)
-        assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
+        assertStructurallySame(websiteJob.steps.slice(2, 8).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
             'mise exec -- npm run rustdoc-bars',
             'mise exec -- cargo doc --no-deps --workspace',
             'mise exec -- npm run website',
+            'mise exec -- node ./fjs/website/cards.mjs',
         ])
         assertEq(websiteJob.steps[1]?.with?.install_args, '--locked')
         assertEq(websiteJob.steps[5]?.env?.RUSTDOCFLAGS, '--html-in-header ${{ github.workspace }}/_rustdoc-head.html --html-before-content ${{ github.workspace }}/_rustdoc-header.html --html-after-content ${{ github.workspace }}/_rustdoc-footer.html --extend-css ${{ github.workspace }}/_rustdoc.css')
@@ -74,7 +88,7 @@ export const proof = {
             WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
         })
         assertStructurallySame(websiteJob.steps[4]?.env, websiteJob.steps[6]?.env)
-        assert(websiteJob.steps.slice(0, 7).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
+        assert(websiteJob.steps.slice(0, 8).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
     },
     production: () => {
@@ -83,16 +97,16 @@ export const proof = {
             group: '${{ github.workflow }}-${{ github.ref }}',
             'cancel-in-progress': "${{ github.event_name != 'push' }}",
         })
-        const production = generated.jobs.website?.steps[8]
+        const production = generated.jobs.website?.steps[9]
         assertEq(production?.if, "github.event_name == 'push' && github.ref == 'refs/heads/main'")
         assertEq(production?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs production')
         assertStructurallySame(production?.env, { CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}' })
     },
     deploymentGates: () => {
-        const preview = websiteJob.steps[7]
+        const preview = websiteJob.steps[8]
         assertEq(preview?.if, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository")
         assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
-        assertEq(websiteJob.steps.length, 9)
+        assertEq(websiteJob.steps.length, 10)
         assertStructurallySame(preview?.env, {
             CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
             WORKERS_CI_BRANCH: '${{ github.head_ref }}',

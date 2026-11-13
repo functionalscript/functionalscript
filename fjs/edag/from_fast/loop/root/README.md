@@ -5,8 +5,9 @@ signature and one whole public result. It supports zero through sixteen fixed
 parameters, following the shared function-length limit. An observed rest binding
 adds one internal loop input without changing the function's fixed arity. Only
 aliases of invocation inputs, captures and self may precede the loop. It requires
-matching positional entry values and a
-direct return of the loop result to its owning function. One-time computation,
+matching positional entry values and either a
+direct return of the loop result to its owning function or a terminal loop
+exit without normal results. One-time computation,
 changed input order and following result processing do not qualify.
 
 The body must read invocation inputs through the loop's iteration bindings.
@@ -25,7 +26,7 @@ function boundaries remain ordinary functions. Inputs and results are opaque:
 the pass never guesses a private protocol from array contents or adds another
 helper/result wrapper. The existing scalar path remains first.
 
-Rest transitions use the exact shared [`js/ast/invocation`](../../../../js/ast/invocation/module.f.mjs)
+Rest transitions use the exact shared [`js/ast/invocation`](../../../../js/ast/invocation/module.f.js)
 recipe: a final required private argument array, fixed-prefix reads, and a
 fresh slice for the next rest value. All arguments and spreads finish before
 state updates. The matcher rejects borrowed rest arrays or other transition
@@ -70,3 +71,19 @@ from admitted operand regions are lifted by the shared FAST return pass before
 root reconstruction. Loop transfers still require a locally owned target.
 Rest/default/spread invocation transitions use the same contract as
 [tail-call analysis](../../../to_fast/README.md#tail-call-eligibility).
+
+The [owning-tail producer](../owning/module.f.mjs) also creates invocation roots
+before inner loops become helpers. It carries the actual root identity through
+completion lowering. `_directOwningInvocationRoot` resolves only that trusted
+root, including a terminal root without normal results. Completion packets can
+replace the original rest recipe with projections; the trusted resolver then
+calls self with the fixed payloads and a spread of the established fresh rest
+payload. Strict structural root matching remains unchanged for other loops.
+
+Terminal loops inferred during AST-to-FAST conversion use the same invocation
+root matching as loops with a returned result. A function ending in a loop
+exit has zero loop results and no normal successor; its entire statement
+prefix must consist of the established invocation aliases. The same input
+lineage and rest-transition checks apply. Reuse the owning function when
+lowering this form, rather than wrapping it in another helper on each source
+round trip.

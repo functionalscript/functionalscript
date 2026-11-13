@@ -33,6 +33,12 @@ pub(crate) fn unexpected_type<A: IVm>() -> Any<A> {
     type_error("unexpected type")
 }
 
+/// A compiled module that answered a value other than its export object,
+/// which no module `fjs compile` prints does ([`exports`](crate::vm::exports)).
+pub(crate) fn not_an_export_object<A: IVm>() -> Any<A> {
+    type_error("a compiled module answers its export object")
+}
+
 /// A member read on `undefined` or `null`.
 pub(crate) fn nullish_to_object<A: IVm>() -> Any<A> {
     type_error("Cannot convert undefined or null to object")
@@ -142,6 +148,16 @@ pub(crate) fn argument_out_of_range<A: IVm>(name: &str, low: u32, high: u32) -> 
 /// A fraction's `toString` in a radix other than ten, not implemented.
 pub(crate) fn fraction_radix<A: IVm>() -> Any<A> {
     range_error("a fraction's digits in a radix other than 10 are not supported")
+}
+
+/// `BigInt` of a non-integral or non-finite number.
+pub(crate) fn number_to_bigint<A: IVm>() -> Any<A> {
+    range_error("The number cannot be converted to a BigInt because it is not an integer")
+}
+
+/// `BigInt` of text outside StringIntegerLiteral.
+pub(crate) fn string_to_bigint<A: IVm>() -> Any<A> {
+    thrown("SyntaxError", "Cannot convert string to a BigInt")
 }
 
 #[cfg(test)]

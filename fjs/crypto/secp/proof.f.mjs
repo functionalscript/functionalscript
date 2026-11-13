@@ -4,10 +4,10 @@
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, transition } from './demo.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
-import { prime_field } from '../../types/prime_field/module.f.mjs'
-import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.mjs'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
+import { prime_field } from '../../types/prime_field/module.f.js'
+import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.js'
+import { occurrences } from '../../types/string/module.f.js'
 
 /** @type {(param: Curve) => () => void} */
 const poker = param => () => {
@@ -33,7 +33,7 @@ const poker = param => () => {
     //
     /** @type {readonly Point[]} */
     let d = []
-    for (let i = 0n; i < 52n; ++i) {
+    for (let i = 0n; i < 52n; i += 1n) {
         let nonce = 0n // can be a random number in a range [`0`, `p >> 6n`).
         let x = 0n
         /** @type {bigint | null} */
@@ -44,7 +44,7 @@ const poker = param => () => {
             if (yi !== null) {
                 break
             }
-            ++nonce
+            nonce += 1n
         }
         d = [...d, [x, yi]]
     }
@@ -59,7 +59,7 @@ const poker = param => () => {
         assert(p !== null, 'null')
         const x = p[0] & 0x3Fn
         assertEq(x, m, [p[0], x, m])
-        ++m
+        m += 1n
     }
 }
 

@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — nested `while` and classic `for` bodies with conditionals and explicit exits
+**Status:** implemented — nested `while`, `do…while`, classic `for` and declaration `for…of` bodies with conditionals and explicit exits
 
 ```js
 export default n => {
@@ -24,11 +24,35 @@ case's block, inside another loop or conditional arm, or after another loop.
 Module loops run in initialization order,
 including between named exports; earlier exported constants retain their
 declared values ([modules](../../modules/README.md)). Its body holds `const`s
-and initialized `let`s, call statements, assignments and conditional blocks.
+and `let`s, call statements, assignments and conditional blocks. A named
+`let` without an initializer starts at `undefined` on each reached iteration
+([variables](../../bindings/variables/README.md#declarations-without-initializers)).
 It may assign zero, one or several outer variables, including parameters.
 Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
 belong to that round, and a shadowed name denotes its own binding.
+
+## Post-test `do…while`
+
+`do { body } while (condition);` runs the braced body at least once. Normal
+completion and an owning `continue` evaluate the condition exactly once;
+a falsy value ends the loop, and a truthy value starts the next iteration.
+An owning `break`, `return` or `throw` leaves without evaluating the condition.
+Nested loops and functions retain their own transfers. Body-local declarations
+are out of scope in the condition, including when they shadow an outer name.
+
+The trailing semicolon is optional, including before a following statement on
+the same line, as JavaScript permits. Syntax AST retains the `do` statement,
+its condition, written semicolon and unreachable body statements. Resolved
+source uses the shared loop record with `postTest: true`; it does not move the
+condition or analyze the body's control flow. The language designer approved
+this lowering in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+
+AST-to-FAST conversion uses the existing unconditional loop, body, conditional
+break and targeted transfers. The existing resolved-step mechanism places the
+condition check both at normal body completion and before an owning continue.
+A continue nested in a switch still tests and, when false, breaks the loop.
+No new FAST operation, generated function boundary or runtime primitive is needed.
 
 ## Classic `for`
 
@@ -45,10 +69,12 @@ for (let i = 0; i < count; i += 1) {
 }
 ```
 
-The initializer may be one initialized `let` or `const` declaration, an
+The initializer may be one `let` or initialized `const` declaration, an
 assignment, a call statement, or empty. The step may be an assignment, a call
 statement, or empty. Existing pattern, assignment and call restrictions apply
-to those clauses. `++`, `--`, `for…of` and `for…in` remain separate features.
+to those clauses. A named `let` may omit its initializer, starting at
+`undefined` before the first condition test; a pattern still requires one.
+`++`, `--` and `for…in` remain separate features.
 The condition is an ordinary expression. Computed property keys still require
 their explicit conversion, as `Number(first + i)` does above.
 
@@ -68,6 +94,54 @@ continue each run the step exactly once.
 The direct expansion is a lexical region containing the initializer followed
 by `while (condition) { body; step; }`, with the same step before each owning
 continue. No new graph or VM operation is needed.
+
+## `for…of`
+
+Braced declaration loops visit array elements or string code points:
+
+```js
+let sum = 0;
+for (const item of [1, 2, 3]) {
+    sum = sum + item;
+}
+```
+
+The header uses `const` or `let` and the existing binding-pattern rules.
+Patterns may destructure each item and use the admitted lazy defaults.
+Each iteration initializes a fresh header binding; its body owns a nested
+lexical scope. Header names end after the loop, and the ordinary own-reference,
+shadowing and write-based capture checks apply. A `let` header can be assigned
+within its iteration. A retained function may capture an unreassigned header
+binding or a const snapshot, preserving that iteration's value.
+
+The source expression runs once. The compiler then materializes `[...source]`
+using the existing [spread contract](../../values/arrays/README.md#spread):
+arrays preserve element order and identities; strings yield one string per
+code point, including unchanged lone surrogates. For example, `"a😀"` yields
+`"a"` and `"😀"`. Other FunctionalScript values fail during expansion before
+any iteration binding, pattern default or body computation is evaluated.
+This deliberately uses O(n) work and storage up front, even if the first
+iteration exits. The source's writes take effect before initial loop state
+is selected, including when its result is empty.
+
+Normal body completion and an owning `continue` advance to the next item.
+An owning `break` resumes the following statements with the current outer
+values. An owning-function `return` and a throw skip those statements.
+Nested loops, switches and source functions keep their existing transfer
+owners. Empty input runs no body and immediately resumes following code.
+A function ending with `for…of` returns `undefined` on normal completion,
+including empty input; a normal conditional arm resumes its surrounding block.
+
+Assignment-target headers, `for…in`, `for await…of` and unbraced bodies remain
+outside the admitted forms. The contextual separator `of` is an ordinary
+identifier elsewhere.
+
+Normalization implements the [fold proposal](../../../doc/sergey-shandar/for-of.md)
+through the existing structured loop inputs, results and scoped completion
+transport. An internal cursor advances on both fallthrough and owning
+continue and is omitted from the normal result signature. The source binding
+analysis supplies aggregate user state. Spread supplies validation and Unicode
+handling; this adds no EDAG operation or public `tryFold` API.
 
 ## Loop bodies and exits
 
@@ -228,8 +302,9 @@ with a following return keeps its existing rules.
 Only a break to this loop disqualifies it. Breaks in an inner loop or switch
 target that inner construct and remain allowed. A continue cannot complete
 the loop normally, and returns retain their owning function. Nested functions
-own their own control flow. All source breaks are considered, including an
-unreachable `if (false) { break; }` and a break after a return or throw.
+own their own control flow. FAST ignores breaks after an unconditional return or throw. A break in a
+conditional arm is conservatively retained, including `if (false) { break; }`;
+syntax AST retains all of these statements.
 
 Such a loop has no normal completion: an execution may return explicitly,
 throw, or continue indefinitely. It cannot silently fall through and return
@@ -237,11 +312,13 @@ throw, or continue indefinitely. It cannot silently fall through and return
 unreachable source text. Module loops do not replace the module's required
 exports or terminal throw.
 
-Source resolution retains the loop's target identity and verifies the absence
-of an owning break before desugaring. Normalization uses the existing loop
-operations with no normal result or false-condition exit. Any internal
-unreachable-completion guard is an invariant check, not an implicit function
-result or a reachable post-loop continuation; no new VM operation is needed.
+Source resolution retains the loop's target identity. FAST normalization
+determines whether a reachable owning break permits normal completion. Normalization uses the existing loop
+operations with no normal result or false-condition exit. The loop itself ends
+its FAST block; there is no synthetic throw or implicit returned value after
+it. Graph construction uses the terminal computation directly. A helper whose
+only completing outcome is an owning function return supplies that result
+without a normal-completion fallback; no new VM operation is needed.
 
 ## Bindings and captures
 
@@ -327,6 +404,14 @@ header scope and shadowing, optional clauses, update timing, nested transfers,
 switch continues, owning function exits, required failures and unreachable
 source checks through parsing, normalization and EDAG execution.
 
+The [for-of proofs](../../../fjs/compiler/parser/for_of.proof.f.mjs) cover
+array/string input, Unicode and lone surrogates, patterns and defaults, fresh
+captures, source writes, zero and many state values, nested transfers and
+required failures. Sugar proofs cover the internal cursor, required spread
+entry and aggregate-state normalization; the
+[function-text proofs](../../../fjs/compiler/serializer/function_text/proof.mjs)
+compare generated source execution and stable graph/text round trips.
+
 ## Design approval
 
 The general loop and binding extension was approved by `sergey-shandar` in
@@ -340,6 +425,12 @@ The [authorization and scope record](../../todo/3270-for.md#classic-for-authoriz
 quotes that request and lists the implemented header variants. No separate
 formal approval comment is recorded beyond that request. The general-loop
 approval above covers `while` and bindings, not classic `for`.
+
+`sergey-shandar` explicitly requested the spread-based `for…of` implementation
+in the [working session](https://chatgpt.com/local/01a19e8c-c68a-733e-86e5-9dde72899035).
+The [authorization record](../../todo/3270-for.md#forof-implementation-authorization)
+quotes the request. This admits the braced `const`/`let` declaration forms
+above; the earlier syntax-only request did not admit iteration semantics.
 
 ## Examples
 

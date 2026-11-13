@@ -55,10 +55,11 @@ import {
     sharedExp,
     valueExp,
 } from '../module.f.mjs'
-import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
+import { snakeCase, stringLiteral } from '../../media/rust/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
-import { bindingLine, braced, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'
+import { bindingLine, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'
+import { braced } from '../../rust/serializer/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The name a group's `run` binds the runtime value to, {@link groupFile}. */
@@ -136,9 +137,13 @@ export const rustName = {
     '!==': 'ne',
     typeof: 'typeof_',
     'instanceof Array': 'instanceof_array',
+    'in "x"': 'in_x',
+    'in "0"': 'in_0',
+    'in "length"': 'in_length',
     throw: 'throw',
     String: 'string_coercion',
     Number: 'number_cast',
+    BigInt: 'bigint_cast',
 }
 
 /**

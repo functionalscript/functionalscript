@@ -9,8 +9,8 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { fromArrayLike } from '../../types/list/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
+import { fromArrayLike } from '../../types/list/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.mjs'
 import { mapping } from '../ll1/module.f.mjs'
@@ -43,7 +43,7 @@ export const proof = {
     },
     // `not` complements within the byte universe, not the Unicode one.
     not: () => {
-        assertStructurallySame(not(set('\0'))(), ['set', 1, 0x100])
+        assertStructurallySame(not(set('\u0000'))(), ['set', 1, 0x100])
         assertStructurallySame(not(set(' \n'))(), ['set', 0, 0x0A, 0x0B, 0x20, 0x21, 0x100])
         assertStructurallySame(not(byte)(), ['set'])
     },
@@ -204,7 +204,7 @@ export const proof = {
         // left, so a reader can slice the rest.
         prefix: () => {
             const d = repeatFrom1(range('09'))
-            const parse = byteParser([d, '\0'])
+            const parse = byteParser([d, '\u0000'])
             // `byteParser`'s `const R` keeps the argument a tuple of literals,
             // where a dropped modifier would widen it to an array and `tsc`
             // would still pass; this is what makes the modifier load-bearing.

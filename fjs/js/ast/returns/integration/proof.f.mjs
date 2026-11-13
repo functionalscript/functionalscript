@@ -865,7 +865,7 @@ export const proof = /** @type {const} */ ({
         let value = escape()
         // Unit proofs cover 20,000-level traversal; the full memo pipeline
         // retains its existing nested scope-snapshot resource bound here.
-        for (let depth = 0; depth < 512; ++depth) { value = depth % 2 === 0 ? ['array', [1, value]] : [',', [1, value]] }
+        for (let depth = 0; depth < 512; depth += 1) { value = depth % 2 === 0 ? ['array', [1, value]] : [',', [1, value]] }
         assertEq(evaluate(calledFunction(requiredFunction(value))), 7)
     },
     canonicalLogicalReturns: () => {
@@ -1082,7 +1082,7 @@ export const proof = /** @type {const} */ ({
         let value = escape()
         // The unit proof covers 20,000-level operand traversal. This full path
         // bounds the memo planner's existing nested scope-snapshot cost.
-        for (let depth = 0; depth < 512; ++depth) { value = depth % 2 === 0 ? ['+', 1, value] : ['-', value] }
+        for (let depth = 0; depth < 512; depth += 1) { value = depth % 2 === 0 ? ['+', 1, value] : ['-', value] }
         assertEq(evaluate(calledFunction(requiredFunction(value))), 7)
     },
     requiredInitializerOwningReturns: () => {

@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { freeBindings, freeLoopBindings, hasLoopTransfer } from './module.f.mjs'
+import { children, exitValues, foldNodes, freeBindings, freeLoopBindings, hasLoopTransfer, someBlock } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })
@@ -40,7 +40,55 @@ const identities = (bindings, expected) => {
     bindings.forEach((binding, i) => assertEq(binding, expected[i]))
 }
 
+/** Every binding a `ref` reads, in the order the walk meets it, repeats kept. */
+const reads = foldNodes(
+    /** @type {(found: readonly BindingId[], node: Value | Block) => readonly BindingId[]} */
+    (found, node) => node instanceof Array && node[0] === 'ref' ? [...found, node[1]] : found,
+    [])
+
+/** How many nodes the walk meets. */
+const count = foldNodes(/** @type {(n: number) => number} */ (n => n + 1), 0)
+
 export const proof = {
+    transferKindsKeepLoopOwnershipAndFunctionBoundaries: () => {
+        assertEq(hasLoopTransfer.length, 2)
+        const continued = /** @type {Block} */ ({ statements: [], exit: ['continue', outer, []] })
+        const stopped = /** @type {Block} */ ({ statements: [], exit: ['break', outer, []] })
+        assertEq(hasLoopTransfer(continued, outer, 'continue'), true)
+        assertEq(hasLoopTransfer(continued, outer, 'break'), false)
+        assertEq(hasLoopTransfer(stopped, outer, 'break'), true)
+        assertEq(hasLoopTransfer(stopped, outer, 'continue'), false)
+        const mixed = /** @type {Block} */ ({ statements: [['if', [], true, stopped, continued]], exit: ['yield', []] })
+        assertEq(hasLoopTransfer(mixed, outer, 'continue'), true)
+        assertEq(hasLoopTransfer(mixed, outer, 'break'), true)
+        assertEq(hasLoopTransfer(mixed, inner, 'continue'), false)
+        for (const value of /** @type {readonly (Value | Block)[]} */ ([
+            ['block', continued], ['if', false, yielding(0), continued],
+            fn([{ binding: local, value: ['block', continued] }], nestedReturning(0)),
+            { statements: [['define', local, ['block', continued], 'lazy']], exit: ['yield', []] },
+            { statements: [['loop', { target: inner, parameters: [], initial: [], results: [], body: continued }]], exit: ['yield', []] },
+        ])) { assertEq(hasLoopTransfer(value, outer, 'continue'), true) }
+        for (const value of /** @type {readonly (Value | Block)[]} */ ([
+            fn([], nestedReturning(['block', continued])),
+            { statements: [['loop', { target: inner, parameters: [], initial: [], results: [], body: { statements: [], exit: ['continue', inner, []] } }]], exit: ['yield', []] },
+        ])) { assertEq(hasLoopTransfer(value, outer, 'continue'), false) }
+    },
+    terminalLoopsKeepTheirLexicalDependencies: () => {
+        /** @type {Loop} */
+        const loop = { target: outer, parameters: [state], initial: [['ref', a]], results: [], body: {
+            statements: [['define', local, ['ref', state], 'required']],
+            exit: ['continue', outer, [['array', [['ref', local], ['ref', b]]]]],
+        } }
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', loop] }
+        assertEq(exitValues(terminal.exit), loop.initial)
+        identities(freeBindings(terminal), [a, b])
+        assertEq(hasLoopTransfer(terminal, outer), true)
+        assertEq(hasLoopTransfer(terminal, inner), false)
+        /** @type {Loop} */
+        const captured = { ...loop, initial: [], body: returning(fn([], nestedReturning(['block', loop.body]))) }
+        assertEq(hasLoopTransfer({ statements: [], exit: ['loop', captured] }, outer), false)
+    },
     loopTransferOwners: () => {
         const escaping = /** @type {Block} */ ({ statements: [], exit: ['continue', outer, [['ref', a]]] })
         const stopped = /** @type {Block} */ ({ statements: [], exit: ['break', outer, []] })
@@ -108,5 +156,76 @@ export const proof = {
         identities(freeBindings({ statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }), [a, b, c])
         identities(freeLoopBindings(loop), [b, c])
         identities(freeLoopBindings(nested), [c, state])
+    },
+    // The one children table: operands, captures without the body, a
+    // block's statement values and regions, its exit's values and a
+    // terminal loop's body; nothing for a primitive or a reference.
+    children: () => {
+        const body = returning(['ref', local])
+        assertEq(children(null).length, 0)
+        assertEq(children(1).length, 0)
+        assertEq(children(['ref', a]).length, 0)
+        const captured = /** @type {Value} */ (['ref', c])
+        const kids = children(fn([{ binding: local, value: captured }], body))
+        assertEq(kids.length, 1)
+        assertEq(kids[0], captured)
+        const inside = yielding(1)
+        const block = children(['block', inside])
+        assertEq(block[0], inside)
+        const condition = /** @type {Value} */ (['ref', a])
+        const then = yielding(2)
+        const otherwise = yielding(3)
+        const branches = children(/** @type {Value} */ (['if', condition, then, otherwise]))
+        assertEq(branches[0], condition)
+        assertEq(branches[1], then)
+        assertEq(branches[2], otherwise)
+        const loop = /** @type {Loop} */ ({ target: outer, parameters: [state], initial: [['ref', a]], results: [result], body: yielding(4) })
+        const statements = /** @type {Block} */ ({
+            statements: [
+                ['define', local, 5, 'required'],
+                ['loop', loop],
+                ['block', [result], inside],
+                ['if', [innerResult], 6, then, otherwise],
+            ],
+            exit: ['loop', loop],
+        })
+        const all = children(statements)
+        assertEq(all.length, 9)
+        assertEq(all[0], 5)
+        assertEq(all[1], loop.initial[0])
+        assertEq(all[2], loop.body)
+        assertEq(all[3], inside)
+        assertEq(all[4], 6)
+        assertEq(all[5], then)
+        assertEq(all[6], otherwise)
+        assertEq(all[7], loop.initial[0])
+        assertEq(all[8], loop.body)
+        assertEq(children(['!', ['ref', b]]).length, 1)
+    },
+    // Blocks are asked in preorder, a function's body never, and the walk
+    // carries any depth.
+    someBlock: () => {
+        const inner = yielding(1)
+        const outer = yielding(['block', inner])
+        assertEq(someBlock(block => block === inner)(outer), true)
+        assertEq(someBlock(block => block === inner)(fn([], inner)), false)
+        assertEq(someBlock(() => false)(outer), false)
+        assertEq(someBlock(() => true)(1), false)
+        const deep = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['block', inner]))
+        assertEq(someBlock(block => block === inner)(deep), true)
+    },
+    // Every node, the root first, in preorder: a block's statement values
+    // before its exit's, a condition before its branches, and a function's
+    // captures without its body; the walk carries any depth.
+    foldNodes: () => {
+        const body = returning(['ref', b])
+        const block = /** @type {Block} */ ({
+            statements: [['define', local, ['ref', a], 'required']],
+            exit: ['yield', [['if', ['ref', b], yielding(['ref', c]), yielding(fn([{ binding: local, value: ['ref', a] }], body))]]],
+        })
+        identities(reads(block), [a, b, c, a])
+        assertEq(count(1), 1)
+        const deep = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['ref', a]))
+        assertEq(count(deep), 20_001)
     },
 }

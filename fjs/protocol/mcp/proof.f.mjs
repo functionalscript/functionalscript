@@ -17,13 +17,13 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
-import { history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
+import { history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.js'
 import { error, unwrap as unwrapResult } from '../../types/result/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { internalError } from '../json_rpc/module.f.mjs'
-import { string } from '../../rtti/module.f.mjs'
-import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.mjs'
+import { string } from '../../rtti/module.f.js'
+import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
@@ -498,6 +498,34 @@ export const proof = {
     },
 
     registry: {
+        toolsListDescribesRegisteredEntries: () => {
+            const handlers = fromRegistry([
+                toolEntry('echo', 'echoes text', { value: string }, ({ value }) => pureOk(okResult(value))),
+            ])
+            const [result] = runPure(handlers.toolsList({}))
+            assert(result !== undefined && result[0] === 'ok', result)
+            const [tool] = result[1].tools
+            assertEq(tool.name, 'echo')
+            assertEq(tool.description, 'echoes text')
+            const schema = tool.inputSchema
+            assert(schema !== null && typeof schema === 'object' && !(schema instanceof Array) && hasEntry(schema, 'type'), schema)
+            assertEq(schema.type, 'object')
+        },
+        unknownToolReturnsAnInBandError: () => {
+            const handlers = fromRegistry([])
+            const [result] = runPure(handlers.toolsCall({ name: 'missing' }))
+            assert(result !== undefined && result[0] === 'ok', result)
+            assertEq(result[1].isError, true)
+            assertEq(textOf(result[1]), 'unknown tool: missing')
+        },
+        invalidArgumentsReturnAnInBandError: () => {
+            const entry = toolEntry('echo', 'echoes', { value: string },
+                ({ value }) => pureOk(okResult(value)))
+            const [result] = runPure(entry.handle({ value: 1 }))
+            assert(result !== undefined && result[0] === 'ok', result)
+            assertEq(result[1].isError, true)
+            assert(textOf(result[1]).startsWith('invalid arguments:'))
+        },
         // `fromRegistry`'s `toolsCall` defaults a missing `arguments` field to
         // `{}` before dispatching to the matched entry's `handle`. Exercised
         // here directly (bypassing `mcpStep`) so the default reaches

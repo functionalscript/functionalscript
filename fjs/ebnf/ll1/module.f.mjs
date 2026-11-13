@@ -29,15 +29,16 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
-import { concat } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
-import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
+import { concat } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { definedEntries, definedValues, structurallySame } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { contains, difference, empty, intersection, union } from '../../types/range_set/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
+import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.js'
 import { _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
 import { min as minNumber } from '../../types/number/min/module.f.js'
-import { walkFold } from '../../types/stack_walk/module.f.mjs'
+import { walkFold } from '../../types/stack_walk/module.f.js'
 
 const { keys, fromEntries } = Object
 const { isSafeInteger } = Number
@@ -56,8 +57,8 @@ const { isSafeInteger } = Number
 const firstOf = (ruleSet, nullable) => {
     /** @type {(current: StringSet) => (map: FirstMap, name: string) => _FirstState} */
     const first = current => (map, name) => {
-        const known = at(name)(map)
-        if (known !== null) { return [map, known] }
+        const known = entry(map, name)
+        if (known !== undefined) { return [map, known] }
         assert(!visiting(name)(current), ['left recursion', name])
         const inner = first(visit(name)(current))
         /** @type {RuleVisitor<_FirstState>} */
@@ -237,15 +238,16 @@ const decisionOf = (first, nullable) => name => {
  * lookahead takes the step where the grammar also allows the rule to end
  * and leave the symbol to what follows, so `[option('x'), 'x']` would never
  * match `x`, and neither would `[repeat(1, 2)('x'), 'x']` on `xx`. The
- * refusal names the rule and the symbols.
+ * refusal names the rule and the symbols. Explicit continuation symbols
+ * assign those overlaps to consumption; every other overlap is refused.
  *
- * @type {(ruleSet: RuleSet, first: FirstMap, nullable: (name: string) => boolean, names: readonly string[]) => void}
+ * @type {(ruleSet: RuleSet, first: FirstMap, nullable: (name: string) => boolean, names: readonly string[], greedy: RangeSet) => void}
  */
-const checkFollow = (ruleSet, first, nullable, names) => {
+const checkFollow = (ruleSet, first, nullable, names, greedy) => {
     const follow = followMap(ruleSet, first, nullable, names)
     const decision = decisionOf(first, nullable)
     names.forEach(name => {
-        const clash = intersection(matchRule(decision(name))(ruleSet[name]))(follow[name])
+        const clash = difference(intersection(matchRule(decision(name))(ruleSet[name]))(follow[name]))(greedy)
         assert(clash.length === 0, ['first/follow conflict', name, clash])
         return undefined
     })
@@ -302,13 +304,13 @@ const emitBy = mappers => (name, node) => {
  * structure that exists is the unmapped region between a mapping and the
  * mappings below it.
  *
- * @type {(ruleSet: RuleSet, empty: EmptyTagMap, entry: string, mappers: _Mappers) => Parser<unknown, unknown>}
+ * @type {(ruleSet: RuleSet, empty: EmptyTagMap, entry: string, mappers: _Mappers, greedy: RangeSet) => Parser<unknown, unknown>}
  */
-const build = (ruleSet, empty, entry, mappers) => {
+const build = (ruleSet, empty, entry, mappers, greedy) => {
     const isNullable = nullable(empty)
     const names = reach(ruleSet)([], entry)
     const first = firstMapOf(ruleSet, isNullable)(names)
-    checkFollow(ruleSet, first, isNullable, names)
+    checkFollow(ruleSet, first, isNullable, names, greedy)
     const emit = emitBy(mappers)
     return (symbols, start = 0) => {
         const { length } = symbols
@@ -451,20 +453,21 @@ const build = (ruleSet, empty, entry, mappers) => {
  * validates it, then the rules the entry reaches are analysed as
  * {@link firstMap} analyses a set, and their follow sets beside, so a set
  * that is no grammar and a grammar that is not LL(1) — left recursion, a
- * first/first conflict, a first/follow conflict — are all refused here,
+ * first/first conflict, a first/follow conflict — are refused by default,
  * before any input, naming the rule; a rule the entry does not reach is
  * dead, not wrong, and is left alone. The tree it builds is the one
  * `Ast<R, I>` gives the rule the set was lowered from — the input symbol
  * for a set, an empty node for EOF, an array for a sequence, `[tag, node]`
  * for a variant, and one flat array for a repetition whatever its bounds.
  * Nothing is mapped: a hand-written set holds no rule an author can key a
- * mapping by.
+ * mapping by. Explicit `greedy` symbols permit FIRST/FOLLOW overlaps,
+ * preferring consumption; all other checks remain in force.
  *
- * @type {(ruleSet: RuleSet, entry: string) => Parser<unknown, unknown>}
+ * @type {(ruleSet: RuleSet, entry: string, greedy?: RangeSet) => Parser<unknown, unknown>}
  */
-export const parserRuleSet = (ruleSet, entry) => {
+export const parserRuleSet = (ruleSet, entry, greedy = empty) => {
     validate(ruleSet, entry)
-    return build(ruleSet, emptyTagMap(ruleSet), entry, noMappers)
+    return build(ruleSet, emptyTagMap(ruleSet), entry, noMappers, greedy)
 }
 
 /**
@@ -482,11 +485,12 @@ export const parserRuleSet = (ruleSet, entry) => {
  * @template [O=never]
  * @param {R} rule
  * @param {RewriteSet<I, O>} [set]
+ * @param {RangeSet} [greedy] Explicit FIRST/FOLLOW continuation symbols; consumption wins.
  * @returns {Parser<Ast<R, I, O>, I>}
  */
-export const parser = (rule, set = []) => {
+export const parser = (rule, set = [], greedy = empty) => {
     const [ruleSet, entry, names] = toData(rule)
-    return /** @type {Parser<any, any>} */ (build(ruleSet, emptyTagMap(ruleSet), entry, mappersOf(names)(set)))
+    return /** @type {Parser<any, any>} */ (build(ruleSet, emptyTagMap(ruleSet), entry, mappersOf(names)(set), greedy))
 }
 
 /**

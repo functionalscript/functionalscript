@@ -41,8 +41,8 @@ export const samples = [
         [-2, ['returned', '[2,1]']],
     ] },
     { name: 'destructuring', directory: 'spec/bindings/destructuring', calls: [
-        [1, ['returned', '[1,2,[3,4]]']],
-        [5, ['returned', '[5,10,[3,4]]']],
+        [1, ['returned', '[1,2,[3],[3,4]]']],
+        [5, ['returned', '[5,10,[15],[3,4]]']],
     ] },
     { name: 'member_functions', directory: 'spec/built-ins/member-functions', calls: [
         [0, ['returned', '"10-20-30-40"']],
@@ -66,6 +66,10 @@ export const samples = [
         [1, ['returned', '"container"']],
         [2, ['returned', '"text"']],
         [3, ['threw', '["unknown",3]']],
+    ] },
+    { name: 'boolean_conversion', directory: 'spec/conversions/boolean', calls: [
+        [0, ['returned', '[false,false,true,true,true]']],
+        [1, ['returned', '[true,false,true,true,true]']],
     ] },
     { name: 'number_conversion', directory: 'spec/conversions/number', calls: [
         [7, ['returned', '[7,16,1,7]']],
@@ -133,6 +137,11 @@ export const samples = [
         [2, ['returned', '[12,8,2]']],
     ] },
     { name: 'instanceof', directory: 'spec/operators/instanceof', calls: [
+        [0, ['returned', 'true']],
+        [1, ['returned', 'false']],
+    ] },
+    // `in_operator`, since `in` is a Rust keyword and the name is a module's
+    { name: 'in_operator', directory: 'spec/operators/in', calls: [
         [0, ['returned', 'true']],
         [1, ['returned', 'false']],
     ] },

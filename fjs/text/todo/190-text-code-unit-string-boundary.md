@@ -5,7 +5,7 @@
 
 Converting between a single character-code number and a one-character JS
 `string` is a `fjs/text` concern. The *writer* half has one owner now:
-[`fjs/text/utf16`](../utf16/module.f.mjs) exports `codeUnitToString` next to
+[`fjs/text/utf16`](../utf16/module.f.js) exports `codeUnitToString` next to
 `codePointToString`, `listToString` is built on it, and `media/json/parser`,
 `media/html`, `js/string_escape`, `text/percent`, `git/alternates`,
 `ebnf/railroad` and the `ebnf/ll1` proof import those instead of calling
@@ -20,7 +20,7 @@ built-in directly:
 const r = s.codePointAt(i)
 if (r === undefined) { throw s }
 
-// fjs/text/utf16/module.f.mjs, stringToList (and floorCodePointBoundary)
+// fjs/text/utf16/module.f.js, stringToList (and floorCodePointBoundary)
 const first = s.charCodeAt(i)
 ```
 
@@ -52,10 +52,10 @@ single code unit in a `.f.mjs` module; proofs that build fixtures with
 
 ### Related
 
-- [i167](../../types/bit_vec/module.f.mjs) — re-binding a shared helper under
+- [i167](../../types/bit_vec/module.f.js) — re-binding a shared helper under
   per-module names; shipped, the per-module `listToVec(msb)` binds dropped for
   the shared `msb.listToVec`.
 - [i168](../code_point/README.md#the-streaming-decoder-skeleton) — the
   utf8/utf16 *decoder* skeleton, shipped as `decoder` in
-  `fjs/text/code_point/module.f.mjs` (a different, list-level duplication; this
+  `fjs/text/code_point/module.f.js` (a different, list-level duplication; this
   issue is the single-character boundary).

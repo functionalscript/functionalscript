@@ -98,7 +98,7 @@ export const proof = /** @type {const} */ ({
     branchingTransitionsUseTheTaskStack: () => {
         /** @type {Block} */
         let selected = step
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             selected = { statements: [['if', [], true, selected, step]], exit: ['yield', []] }
         }
         const plan = branchingPlainLoopOf(withArms(selected, done))
@@ -343,7 +343,7 @@ export const proof = /** @type {const} */ ({
     deepConditionalNormalResultsUseTheTaskStack: () => {
         /** @type {Block} */
         let normal = { statements: [], exit: ['break', target, [7]] }
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             normal = { statements: [['if', [], true, normal, done]], exit: ['yield', []] }
         }
         const retained = resultBlockPlainLoopOf(withArms(step, normal))
@@ -535,7 +535,7 @@ export const proof = /** @type {const} */ ({
         }
         /** @type {Value} */
         let value = ['ref', state]
-        for (let depth = 0; depth < 20_000; ++depth) { value = ['.', value, 0] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = ['.', value, 0] }
         assertEq(plainLoopOf({ ...source, body: { ...source.body, statements: [['define', alias, value, 'required'], ...source.body.statements.slice(1)] } })?.prefix[0][2], value)
     },
     refusesIdentityMintingPrefixes: () => {

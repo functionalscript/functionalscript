@@ -10,7 +10,7 @@ The repository's blob formats, and JSON itself, are schemas:
   [`media/note`](../../../../media/note/module.f.mjs);
 - the dialect registry in [`media`](../../../../media/module.f.mjs), which
   matches a blob against the format schemas and declares none of its own;
-- the JSON data model, in [`media/json/rtti`](../../../../media/json/rtti/module.f.mjs),
+- the JSON data model, in [`media/json/rtti`](../../../../media/json/rtti/module.f.js),
   and JSON Schema itself, in
   [`media/json/schema`](../../../../media/json/schema/module.f.mjs) — both
   [recursive](../../schemas/recursion/README.md).

@@ -1,9 +1,9 @@
 /**
  * The FunctionalScript writer, claim by claim.
  *
- * Every graph that has a spelling is checked twice: the text itself, so the
- * output is pinned rather than merely round-tripping, and the graph the
- * front end reads back out of that text, so the output is FunctionalScript
+ * Graphs in the established canonical domain are checked twice: the text
+ * itself, so the output is pinned rather than merely round-tripping, and the
+ * graph the front end reads back out of that text, so the output is FunctionalScript
  * and not only a string. The second check goes through `parse` and
  * `unresolved`, the front end's own two halves, which is what makes it the
  * compiler's answer rather than a second writer's; the graphs are compared
@@ -23,19 +23,19 @@ import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
-import { call } from '../../edag/value/call/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.js'
+import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis, identityAnalysis } from '../../edag/analysis/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { invert, ok, unwrap } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.js'
-import { staticIds } from '../../edag/module.f.mjs'
-import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
-import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { staticIds } from '../../edag/module.f.js'
+import { operandsOf, visit } from '../../edag/sharing/module.f.js'
+import { disagreement } from '../../js/marked/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
@@ -77,11 +77,9 @@ const reads = e => {
  * @type {(e: Exp) => boolean}
  */
 const redundantAnchor = e => {
-    /** @type {(n: readonly unknown[]) => readonly unknown[]} */
-    const everything = n => n[0] === '=>' ? [...operandsOf(n), n[3]] : operandsOf(n)
     /** @type {(root: unknown) => readonly unknown[]} */
     const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
-    return visit(everything)([])(e).some(([n]) => {
+    return visit(allOperands)([])(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
         const all = n[1]
@@ -92,20 +90,28 @@ const redundantAnchor = e => {
     })
 }
 
+/** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
+const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
+
 /**
  * Newly admitted operand prefixes in the generated family. Its old scope
  * roots are the graph, function bodies and conditional arms; all other
- * operands previously refused commas. Admission has already excluded shared
- * operand commas before the law asks this question.
- * @type {(e: Exp) => boolean}
+ * operands previously refused commas. Both shared and independent operand
+ * prefixes can normalize their sequence regions when read back. `sharedOnly`
+ * selects precisely the family members newly admitted by removing the shared
+ * operand-comma restriction; the family's only region openers are functions
+ * and conditionals.
+ * @type {(e: Exp, sharedOnly?: boolean) => boolean}
  */
-const generatedOperandPrefix = e => {
+const generatedOperandPrefix = (e, sharedOnly = false) => {
+    /** @type {readonly Exp[]} */
+    const shared = sharedOnly ? visit(allOperands)([])(e).filter(([, count]) => count > 1).map(([node]) => node) : []
     /** @type {readonly { readonly value: unknown; readonly region: boolean }[]} */
     let pending = [{ value: e, region: true }]
     while (pending.length !== 0) {
         const [{ value, region }, ...rest] = pending
         if (!(value instanceof Array)) { pending = rest; continue }
-        if (value[0] === ',' && !region) { return true }
+        if (value[0] === ',' && !region && (!sharedOnly || shared.some(node => Object.is(node, value)))) { return true }
         const children = value[0] === '=>'
             ? [...value[2].map((/** @type {unknown} */ value) => ({ value, region: false })), { value: value[3], region: true }]
             : operandsOf(value).map((child, index) => ({ value: child, region: value[0] === '?:' && index !== 0 }))
@@ -113,6 +119,10 @@ const generatedOperandPrefix = e => {
     }
     return false
 }
+
+/** Newly admitted primitive captures retain semantic readback rather than raw graph identity. @type {(e: Exp) => boolean} */
+const generatedPrimitiveCapture = e => visit(allOperands)([])(e).some(([node]) => node instanceof Array && node[0] === '=>'
+    && node[2].some(slot => !(slot instanceof Array) || slot[0] === 'undefined'))
 
 /**
  * The text the writer writes for a graph holding a redundant anchor
@@ -244,6 +254,20 @@ const analyzedFunction = e => {
 }
 
 export const proof = {
+    deferredLoweringIsDisplayed: () => {
+        for (const source of ['export default +1;', 'export default (a,x)=>a[+x];', 'export default ()=>{return 1;const unused=+2;};']) {
+            const result = _sourceOf(source)
+            assert(result[0] === 'error')
+            assertEq(result[1], 'unary + AST-to-FAST conversion is not implemented')
+            const html = htmlToString(demo.view(source))
+            assert(html.includes('unary + AST-to-FAST conversion is not implemented'), html)
+            assert(html.includes('data-result="error"'), html)
+            assert(!html.includes('<svg'), html)
+        }
+    },
+    bigintConversion: () => {
+        assertEq(reads(['BigInt', '9007199254740993']), 'export default BigInt("9007199254740993");')
+    },
     literalUndefinedAnchorsNormalizeButResultsRemain: () => {
         assert(redundantAnchor([',', [['undefined'], 1]]))
         assert(redundantAnchor(['?:', true, 1, [',', [['undefined'], 2]]]))
@@ -302,6 +326,9 @@ export const proof = {
             assertEq(fn, assertOk(read(result, 'default')))
             const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
             assertStructurallySame(assertOk(toData(called)), [1, 2])
+            const primitive = /** @type {const} */ (['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]])
+            const restored = memo(assertOk(identityAnalysis(moduleGraph(assertOk(tryModuleStringify(primitive))))))({ args: [] })
+            assertEq(assertOk(call(read(restored, 'a'), [], invoke)), 7)
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
@@ -318,7 +345,6 @@ export const proof = {
                 ['{}', [[':', 'a', [',', [1]]]]],
                 ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
-                ['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
     },
@@ -652,6 +678,7 @@ export const proof = {
         assertStructurallySame(keywordsOf(['[]', [['[]', [1]], ['[]', [1]]]]), ['export', 'default'])
         assertStructurallySame(keywordsOf(['=>', 0, [], ['typeof', ['rest']]]), ['export', 'default', 'typeof'])
         assertStructurallySame(keywordsOf(['=>', 0, [], ['instanceof', ['rest'], 'Array']]), ['export', 'default', 'instanceof'])
+        assertStructurallySame(keywordsOf(['=>', 0, [], ['in', 'x', ['rest']]]), ['export', 'default', 'in'])
         assertStructurallySame(keywordsOf(['throw', 1]), ['throw'])
     },
     // The names are identifiers: a parameter and its use, a property after `.`,
@@ -745,8 +772,10 @@ export const proof = {
         assertEq(
             reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),
             'const $0=[1];const $1=[2];export default ()=>{const $2=$0;const $3=$1;const $4=()=>$3;return [$2,$4,$4];};')
-        // Slots the parser would not build have no text that reads back.
-        refuses(['=>', 0, [1], slot(0)], 'a frame slot holding a primitive')
+        // Primitive captures can normalize their frame while preserving its value.
+        const primitive = _defaultExport(moduleGraph(assertOk(tryStringify(['=>', 0, [1], slot(0)]))))
+        assertEq(moduleValue(['()', primitive, []]), 1)
+        // Repeated nonprimitive and unused slots keep their source restrictions.
         refuses(['=>', 0, [c, c], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
         refuses(['=>', 0, [c], 1], 'a frame slot the body never reads')
         // a read of no slot, one whose index is no canonical index, and one
@@ -959,7 +988,7 @@ export const proof = {
             // writer keeps its structural round-trip restrictions.
             /** @type {readonly (readonly [Exp, string])[]} */
             const cases = [
-                [['=>', 0, [], ['=>', 0, [1], 2]], 'a frame slot holding a primitive'],
+                [['=>', 0, [], ['=>', 0, [1], 2]], 'a frame slot the body never reads'],
                 [['=>', 0, [['[]', [1]]], ['=>', 0, [['frame', 0], ['frame', 0]], 2]], 'a frame slot that repeats another'],
             ]
             for (const [graph, expected] of cases) {
@@ -1137,11 +1166,6 @@ export const proof = {
         refuses(['+', 1], 'a unary + node')
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
-        // One comma shared across operand positions still has no canonical
-        // source spelling; independent local prefixes have their own blocks.
-        const operand = /** @type {const} */ ([',', [1, 2]])
-        refuses(['[]', [operand, operand]], 'a shared comma outside a scope')
-        refuses(['=>', 0, [], ['[]', [operand, operand]]], 'a shared comma outside a scope')
         // An access key no literal spells: a computed one, and the three
         // numbers the tokenizer does not read back.
         // a key the EDAG's index admits nowhere, which only a graph built
@@ -1232,7 +1256,7 @@ export const proof = {
         assertEq(text, 'export const $0=($1)=>$1;export const $2=[];')
         assertEq(unwrap(tryModuleStringify(moduleGraph(text))), text)
         // Literal names and the internal symbol delimiter remain literal data.
-        writes(['=>', 1, [], ['[]', [['arg', 0], '$a_0', '$0', '\0!binding\0']]],
+        writes(['=>', 1, [], ['[]', [['arg', 0], '$a_0', '$0', '\u0000!binding\u0000']]],
             'export default ($0)=>[$0,"$a_0","$0","\\u0000!binding\\u0000"];')
     },
     // Eligible scalar function graphs become structured loops before syntax
@@ -1357,8 +1381,8 @@ export const proof = {
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=($7)=>{let $8=$7;while((()=>{const $9=$8;return $9<2;})()){const $10=$8;const $11=$10+1;$8=$11;}return $8;};const $12=$6(0);$3=$12;}return $3;};return $1(0);};')
         writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(conditional('&&', true, ['()', loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])), [['[]', [1]]]]))), [0]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?(()=>{const $7=($8)=>{let $9=$8;while((()=>{const $10=$9;return $10<2;})()){const $11=$9;const $12=$11+1;$9=$12;}return $9;};return $7([1]);})():true;$3=$6;}return $3;};return $1(0);};')
-        // a frame slot no name stands for is refused as it is anywhere
-        refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
+        // An unused frame slot is refused even when it holds a primitive.
+        refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot the body never reads')
         // Source loop exits keep a condition/body allocation inside one round.
         // This bounded spelling retains its immutable iteration snapshot and
         // the exact raw graph and source round trip.
@@ -1480,6 +1504,20 @@ export const proof = {
         writes(['.', ['instanceof', ['[]', []], 'Array'], 'x'], 'export default ([] instanceof Array).x;')
         writes(['!', ['instanceof', 1, 'Array']], 'export default !(1 instanceof Array);')
         writes(['instanceof', ['=>', 0, [], 1], 'Array'], 'export default (()=>1) instanceof Array;')
+        // the entry check, read back as written: its key a string literal,
+        // spaces around the word, the right operand grouped as `<`'s right
+        // operand would be, and the node grouped where `<` is
+        writes(fn(['in', 'x', r0]), 'export default (...$0)=>"x" in $0[0];')
+        writes(['in', 'x', ['{}', []]], 'export default "x" in {};')
+        writes(['in', 'a b', ['!', 1]], 'export default "a b" in !1;')
+        writes(['in', 'x', ['<', 1, 2]], 'export default "x" in (1<2);')
+        writes(['in', 'x', ['in', 'y', 1]], 'export default "x" in ("y" in 1);')
+        writes(['<', ['in', 'x', 1], 2], 'export default "x" in 1<2;')
+        writes(['===', ['in', 'x', 1], true], 'export default "x" in 1===true;')
+        writes(['in', 'x', ['+', 1, 2]], 'export default "x" in 1+2;')
+        writes(['+', ['in', 'x', 1], 2], 'export default ("x" in 1)+2;')
+        writes(['!', ['in', 'x', 1]], 'export default !("x" in 1);')
+        writes(['in', 'x', ['=>', 0, [], 1]], 'export default "x" in (()=>1);')
         // `**` takes no prefix on its left bare, a negative number
         // included, as JavaScript does not; on its right either stands bare
         writes(['**', -2, 2], 'export default (-2)**2;')
@@ -1507,7 +1545,7 @@ export const proof = {
         // each conversion is the call it is in JavaScript: its
         // operand an argument, which groups nothing, and the call binding
         // tighter than every operator, as a call does
-        for (const tag of /** @type {const} */ (['Number', 'String'])) {
+        for (const tag of /** @type {const} */ (['Number', 'String', 'Boolean'])) {
             writes([tag, 1], `export default ${tag}(1);`)
             writes([tag, ['|', 1, 2]], `export default ${tag}(1|2);`)
             writes([tag, ['=>', 0, [], 1]], `export default ${tag}(()=>1);`)
@@ -1735,8 +1773,8 @@ export const proof = {
             writes(fn([',', [defaulted, ['?:', r1, defaultedField, defaultedField]]]), 'export default (...$0)=>{const $1=$0[0];const $2=$0(($1===null?true:$1===undefined)?{}:$1);return $0[1]?$2.a:$2.a;};')
         },
     },
-    // The writer's one law, over graphs nobody chose: a graph is refused,
-    // or its text is read back to the same table. Every case above is a
+    // The writer's canonical law, over graphs nobody chose: a graph is refused,
+    // or its text is read back to the same table. Every canonical case above is a
     // text this module pins; this is the claim that nothing outside them
     // is answered with a plausible wrong value
     // ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)),
@@ -1747,6 +1785,8 @@ export const proof = {
     // back to a graph the law holds for ({@link rewrites}). Newly admitted
     // unshared operand prefixes use that first-source normalization too;
     // every formerly admitted nonredundant shape keeps the raw-table law.
+    // Primitive captures and shared operand commas have dedicated semantic
+    // readback coverage without expanding that canonical domain.
     //
     // The graphs are every shape over every shape over the atoms, some
     // thousands of them, of which about half have a text and the rest are
@@ -1759,6 +1799,15 @@ export const proof = {
         () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
+            // Primitive captures and shared operand commas extend source
+            // support without extending the old canonical graph/text domain.
+            // Dedicated semantic proofs check capture values, allocation
+            // identity and failures through this public source boundary.
+            if (generatedPrimitiveCapture(e) || generatedOperandPrefix(e, true)) {
+                const { imports } = unresolved(unwrap(parse(path)(written[1])))
+                assertEq(imports.length, 0, written[1])
+                return
+            }
             if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
         }),
     ])),
@@ -1771,7 +1820,7 @@ export const proof = {
         examples: () => {
             for (const [name, source] of examples) {
                 const [tag, value] = _sourceOf(source)
-                assertEq(tag, ['An import', 'A named import and a call', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok', name)
+                assertEq(tag, ['An import', 'A named import and a call', 'A module imported twice', 'A cyclic import', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok', name)
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
             assertEq(textOfResult(_sourceOf('const a = [1];\nexport default [a, a];')), 'const $0=[1];export default [$0,$0];')

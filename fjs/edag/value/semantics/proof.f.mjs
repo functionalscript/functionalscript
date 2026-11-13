@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary } from './module.f.mjs'
+import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary, instanceOf } from './module.f.js'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -44,6 +44,14 @@ const compare = (a, b, equal, same) => {
 }
 
 export const proof = {
+    arrayConstructor: () => {
+        assertEq(instanceOf.Array(['[]', []]), true)
+        assertEq(instanceOf.Array(['[]', [1]]), true)
+        assertEq(instanceOf.Array(['{}', []]), false)
+        assertEq(instanceOf.Array(['=>', 0, [], 0]), false)
+        assertEq(instanceOf.Array('[]'), false)
+        assertEq(instanceOf.Array(null), false)
+    },
     untag: () => {
         for (const [value, , type] of classifications) {
             assertEq(Object.is(untagUndefined(value), type === 'undefined' ? undefined : value), true)

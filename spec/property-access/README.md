@@ -70,7 +70,10 @@ mean one thing in both. The rule refuses reading such a name, not owning it:
 an object literal may hold one, `{ toString: 1 }`
 ([property keys](../values/objects/README.md#property-keys)). `length` is the exception, since an
 array, a string and a function own it. The rules are
-[property-accessor](../todo/2330-property-accessor.md)'s.
+[property-accessor](../todo/2330-property-accessor.md)'s. The same names
+are refused as the key of `"k" in o`, the presence check, with the same
+exemption: `length` is a key there as it is here, `"length" in []` being
+`true` as in JavaScript ([`in`](../operators/in/README.md)).
 
 A method call has a rule of its own. `a.push(1)`, `a.valueOf()` and the
 other member functions
@@ -118,3 +121,8 @@ export default (...a) => [cfg.ports[Number(a[0])], cfg["ports"].length];
 
 - ECMA-262: [Property accessors](https://tc39.es/ecma262/#sec-property-accessors)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors>
+
+Unary-plus numeric indices such as `a[+x]` and `a?.[+x]` are admitted into
+AST, but [their FAST lowering](../todo/unary-plus.md) remains explicitly refused.
+Resolved numeric keys keep the existing numeric-index wrapper around the
+unary-plus operand; this does not lower `+x` as `Number(x)`.

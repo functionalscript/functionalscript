@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperandsOf, scopeHolds } from './module.f.mjs'
-import { sharedNodesOf } from '../sharing/module.f.mjs'
+import { sharedNodesOf } from '../sharing/module.f.js'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -64,6 +64,13 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    booleanOperand: () => {
+        assertStructurallySame(nodesOf(['Boolean', ['[]', []]]), [['[]', []], ['Boolean', ['#', 0]]])
+        assertStructurallySame(nodesOf(['Boolean', ['undefined']]), [['undefined'], ['Boolean', ['#', 0]]])
+    },
+    bigintOperand: () => {
+        assertStructurallySame(nodesOf(['BigInt', ['+', 1, 2]]), [['+', 1, 2], ['BigInt', ['#', 0]]])
+    },
     itemOperand: () => {
         /** @type {Ref} */
         const ref = ['#', 0]
@@ -85,6 +92,8 @@ export const proof = {
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
             [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
+            // and so is the key of an entry check, a string that is no literal operand
+            [['in', 'x', a], [a]], [['in', 'x', 'x'], ['x']],
             [['memberPresent', a, b], [a, b]], [['memberPresent', a, 'length'], [a, 'length']],
             [['?:', false, a, false], [false, a, false]], [['?:', true, true, b], [true, true, b]],
             [['?:', null, a, null], [null, a, null]], [['?:', true, a, b], [true, a, b]],
@@ -156,6 +165,14 @@ export const proof = {
         assertStructurallySame(nodesOf(['instanceof', empty, 'Array']), [
             ['[]', []], ['instanceof', ['#', 0], 'Array'],
         ])
+        // The key of an entry check survives the same way, its operand
+        // numbered and the key kept as the spelling it is.
+        assertStructurallySame(nodesOf(['in', 'x', 'x']), [
+            ['in', 'x', 'x'],
+        ])
+        assertStructurallySame(nodesOf(['in', 'x', empty]), [
+            ['[]', []], ['in', 'x', ['#', 0]],
+        ])
     },
     // `Object.is` is a value wherever one stands — a callee, the root, an
     // argument, an element, a captured slot, a receiver — and one function
@@ -172,6 +189,23 @@ export const proof = {
         const twice = an(['[]', [['()', is, [1]], ['()', ['Object.is'], [2]]]])
         assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
         assertStructurallySame(operandsOf(is), [])
+    },
+    // A Math static is a shared value, not a fresh closure at each read.
+    mathStatics: () => {
+        for (const id of /** @type {const} */ (['Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])) {
+            const fn = /** @type {const} */ ([id])
+            assertOk(checked(an(['=>', 0, [fn], ['.', ['frame', 0], 'length']])))
+            const twice = an(['[]', [fn, [id]]])
+            assertEq(twice.nodes.filter(node => node[0] === id).length, 1)
+            assertStructurallySame(operandsOf(fn), [])
+        }
+    },
+    objectKeys: () => {
+        const keys = /** @type {const} */ (['Object.keys'])
+        const repeated = an(['[]', [keys, ['Object.keys']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'Object.keys').length, 1)
+        assertStructurallySame(operandsOf(keys), [])
+        assertOk(checked(an(['()', keys, [['{}', []]]])))
     },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([

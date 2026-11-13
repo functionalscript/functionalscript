@@ -6,20 +6,22 @@
  * @import { MemOperationMap } from '../effects/mock/types.ts'
  * @import { Ok, Result } from '../types/result/types.ts'
  * @import { EffectList } from '../effects/list/types.ts'
+ * @import { Transducer } from '../types/function/operator/types.ts'
  */
 
-import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
-import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
-import { fileCas, casAddFile, collectRead, contentKey } from './module.f.mjs'
-import { runPure } from '../effects/module.f.mjs'
-import { run } from '../effects/mock/module.f.mjs'
-import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
+import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.js'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.js'
+import { computeSync, sha256 } from '../crypto/sha2/module.f.js'
+import { fileCas, casAddFile, collectRead, contentKey, wholeByteMachine } from './module.f.mjs'
+import { runPure } from '../effects/module.f.js'
+import { run } from '../effects/mock/module.f.js'
+import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.js'
 import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects/node/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import { join } from '../path/module.f.mjs'
-import { nonEmpty, empty } from '../effects/list/module.f.mjs'
+import { join } from '../path/module.f.js'
+import { nonEmpty, empty, fromList, run as runStream } from '../effects/list/module.f.js'
+import { doneStep, nextStep } from '../types/function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { assertIoMessage } from '../effects/testlib.f.js'
 
@@ -226,8 +228,13 @@ export const proof = {
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
         const [, readResult] = virtual(state1)(collectRead(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
-        const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const expected = msb.concatVec(msb.concatVec(chunks[0])(chunks[1]))(chunks[2])
         assertEq(msb.cmp(readResult[1])(expected), 0, 'multi-chunk read content mismatch')
+    },
+    casListMissingStoreIsEmpty: () => {
+        const [state, result] = virtual(emptyState)(fileCas(sha256)('fresh-store').list())
+        assertStructurallySame(result, ok([]))
+        assertStructurallySame(state.root, emptyState.root)
     },
     casWriteDedup: () => {
         // Same content ⇒ same hash; the second upload's replace-`rename` publishes over the
@@ -292,19 +299,8 @@ export const proof = {
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
-        // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        /** @type {(state: typeof sha256.init) => (stream: EffectList<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, Vec, IoChannel>} */
-        const rehash = state =>
-            stream =>
-                ioStep(
-                    stream,
-                    (node) => {
-                        if (node === undefined) { return pureOk(sha256.end(state)) }
-                        const { first, tail } = node
-                        return rehash(sha256.append(first)(state))(tail)
-                    }
-                )
-        const [, readBack] = virtual(state1)(rehash(sha256.init)(c.read(hash)))
+        // The shared stream driver hashes the read chunks without one whole `Vec`.
+        const [, readBack] = virtual(state1)(runStream(sha256)(c.read(hash)))
         assert(readBack[0] === 'ok', ['expected read ok', readBack])
         assertEq(msb.cmp(readBack[1])(hash), 0, 'oversized read-back hash mismatch')
     },
@@ -464,7 +460,7 @@ export const proof = {
         assertEq(msb.cmp(key)(computeSync(sha256)(chunks)), 0, 'contentKey is not the SHA-256 of the bytes')
         // The same bytes in one chunk: the chunking is the stream's business and
         // not the key's.
-        const whole = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const whole = msb.concatVec(msb.concatVec(chunks[0])(chunks[1]))(chunks[2])
         const o1 = runPure(contentKey(sha256)(payload([whole])))
         assert(o1.length === 1)
         assertEq(msb.cmp(key)(unwrapResult(o1[0])), 0, 'rechunked contentKey disagrees')
@@ -478,6 +474,39 @@ export const proof = {
         const o = runPure(/** @satisfies {Effect<never, Vec, IoChannel>} */ (keyOf(empty())))
         assert(o.length === 1)
         assertEq(msb.cmp(unwrapResult(o[0]))(computeSync(sha256)([])), 0)
+    },
+    contentKeyLongPureSpan: () => {
+        // Byte admission must happen inside the machine update. Rebuilding the
+        // source recursively exhausted the stack before the driver saw this span.
+        const chunk = vec(0n)(0n)
+        const stream = fromList(Array.from({ length: 50_000 }, () => chunk))
+        const result = runPure(contentKey(sha256)(stream))
+        assert(result.length === 1)
+        assertEq(msb.cmp(unwrapResult(result[0]))(computeSync(sha256)([])), 0)
+    },
+    wholeByteMachinePreservesLifecycle: () => {
+        /** @type {Transducer<Vec, number, number, string>} */
+        const source = {
+            init: nextStep(0, [1]),
+            update: (state, chunk) => doneStep('input', [state + Number(length(chunk))]),
+            end: state => doneStep('eof', [state]),
+        }
+        const admitted = wholeByteMachine(source)
+        assertStructurallySame(admitted.init, ['next', [1], 0])
+        assertStructurallySame(admitted.update(2, vec8(0x11n)), ['done', [10], ['ok', 'input']])
+        assertStructurallySame(admitted.end(3), ['done', [3], ['ok', 'eof']])
+        /** @type {Transducer<Vec, number, number, string>} */
+        const complete = { ...source, init: doneStep('initial', [9]) }
+        assertStructurallySame(wholeByteMachine(complete).init, ['done', [9], ['ok', 'initial']])
+    },
+    contentKeyRefusalStopsBeforeTail: () => {
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const unread = () => { throw 'a refused chunk must leave the source tail unread' }
+        const stream = nonEmpty(vec(5n)(0b10101n), unread)
+        const result = runPure(contentKey(sha256)(stream))
+        assert(result.length === 1)
+        assert(result[0][0] === 'error')
+        assertIoMessage(result[0][1], 'invalid buffer size')
     },
     contentKeyRefusesPartialByte: () => {
         // A chunk that is not whole bytes: `write` refuses it through

@@ -37,7 +37,7 @@ import type { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * [`spec/operators/README.md`](../../../../spec/operators/README.md):
  * arithmetic, strict comparison, and bitwise — and Stage B's lazy `&&`,
  * `||` and `??` the same shape, laziness being no shape difference here
- * any more than in the EDAG. `-` alone is both a prefix and an infix, told
+ * any more than in the EDAG. `+` and `-` are both prefixes and infixes, told
  * apart by arity exactly as `~`'s prefix and every infix are told apart
  * from each other, by tag; `**` is right-associative, folded by the
  * grammar rather than by this tree, so `2 ** 3 ** 2` is already
@@ -56,10 +56,17 @@ import type { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  */
 export type Node =
     | readonly ['primitive', Primitive]
+    // a template without substitutions: its cooked text, a constant the
+    // fold reads as a primitive's value, kept apart from a string literal
+    // because `in`'s key is a string literal and no template
+    | readonly ['template', string]
     | readonly ['ref', ModuleTokenWithMetadata]
     | readonly ['.', Node, Key]
     | readonly ['()', Node, readonly Item[]]
+    /** Syntax only: callee, ordered arguments and the original `new` token. */
+    | readonly ['new', Node, readonly Item[], ModuleTokenWithMetadata]
     | Chain
+    | readonly ['+', Node]
     | readonly ['-', Node]
     | readonly ['~', Node]
     | readonly ['!', Node]
@@ -72,35 +79,28 @@ export type Node =
     // there, a reference to `Array`, refusing the rest at the operator —
     // the one token every spelling of the right side shares
     | readonly ['instanceof', Node, Node, ModuleTokenWithMetadata]
+    // `in` with its operator token: the grammar reads both operands as any
+    // relational operator's, and the fold admits one left operand, a
+    // string literal naming no prototype property, refusing the rest at
+    // the operator
+    | readonly ['in', Node, Node, ModuleTokenWithMetadata]
     | readonly ['?:', Node, Node, Node]
     // the comma operator, `(a, b)`: its operands in order, two at least,
     // and the token the fold refuses it at where the parentheses also
     // hold what no comma has — a default, a rest or a trailing comma,
     // which only a parameter list may — or `null`
     | readonly [',', readonly Node[], ModuleTokenWithMetadata | null]
+    // A binding default retained by the array/object cover grammar. It is
+    // not an admitted assignment expression in a value position.
+    | readonly ['binding-default', Node, ModuleTokenWithMetadata, Node]
     | readonly ['=>', ParameterList, Node]
     | Block
     | Container
 
-/**
- * The block syntax: zero or more statements — `const` declarations and
- * guards, {@link BlockStatement} — followed by the one statement that ends
- * it, a `return` or a `throw` with its value, or a switch with a `default`,
- * {@link BlockEnd}, or a candidate final loop retained for source admission.
- * The grammar enforces this order; a bare `return`, a bare `throw` and a
- * statement after the last are unsupported.
- */
-export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), BlockEnd]]
-
-/**
- * The statement a block ends with, tagged by its keyword: a `return` or a
- * `throw` with its value, or a switch with a `default`, {@link Switch},
- * which the grammar lets nothing follow, or a candidate final loop.
- */
-export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For]
-
-/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a `let` — the record a `const` has, under the keyword that declares a variable — an assignment, {@link Assignment}, a guard, a loop, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
-export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', Switch]
+/** A written block preserves every statement in source order, including unreachable syntax. */
+export type Block = readonly ['block', LoopBlock[1]]
+export type BlockStatement = LoopStatement
+export type StandaloneLoopBlock = { readonly start: ModuleTokenWithMetadata; readonly block: LoopBlock }
 
 /** What begins with a name, tagged: a call statement, the record a `const` has, or an assignment. */
 export type NamedStatement = readonly ['const', Const] | readonly ['assign', Assignment]
@@ -116,25 +116,14 @@ export type NamedStatement = readonly ['const', Const] | readonly ['assign', Ass
  * block's one list, so that the fold reads them as it reads the
  * statements after a guard ([spec: switch](../../../../spec/control-flow/switch/README.md)).
  */
-export type Switch = {
-    readonly start: ModuleTokenWithMetadata
-    readonly discriminant: Node
-    readonly cases: readonly Case[]
-    readonly default: Block | null
-}
 
-/** A case of a switch: its labels, one or more values, each the `case` of a `case value:`, and its block, which ends as every block does, {@link BlockEnd}. */
-export type Case = {
-    readonly labels: readonly Node[]
-    readonly block: Block
-}
+/** A switch case retains its labels and written block. */
 
 /**
  * What ends a switch: the `default` block, or the rest of the block the
  * switch stands in, its statements and its end, which follow the switch
  * in that block's list.
  */
-export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]]
 
 /**
  * A loop, `while (condition) block`: the token it begins with, its
@@ -148,15 +137,27 @@ export type While = {
     readonly block: LoopBlock
 }
 
+/** A post-test loop retains its written kind and semicolon. */
+export type DoWhile = While & { readonly postTest: true; readonly semicolon: boolean }
+
 /** A loop's block: statements in order, including syntax after transfers, and no required terminator. */
-export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
+export type LoopBlock = readonly ['block', readonly LoopStatement[]]
 
 /** A classic `for` keeps its lexical initializer and step until normalization. */
 export type For = {
     readonly start: ModuleTokenWithMetadata
-    readonly initializer: NamedStatement | readonly ['let' | 'const', Const] | null
+    readonly initializer: NamedStatement | readonly ['let', Let] | null
     readonly condition: Node
     readonly step: NamedStatement | null
+    readonly block: LoopBlock
+}
+
+/** Declaration-based `for...of` syntax; no iteration semantics or FJS admission is implied. */
+export type ForOf = {
+    readonly start: ModuleTokenWithMetadata
+    readonly kind: 'const' | 'let'
+    readonly target: PlainBindingTarget
+    readonly iterable: Node
     readonly block: LoopBlock
 }
 
@@ -177,7 +178,7 @@ export type LoopSwitch = {
 }
 
 /** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
+export type LoopStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['do', DoWhile] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ReturnStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -192,7 +193,7 @@ export type Assignment = Statement & {
 
 /**
  * A guard, `if (condition) block`: the token it begins with, its condition,
- * and its block, which ends as every block does, {@link BlockEnd}. It
+ * and its written block. It
  * records no `;`: a block statement ends at its `}`, and JavaScript inserts
  * no semicolon after one, so the statement after a guard may share its
  * line. The statements after the guard, up to and including the body's own
@@ -200,11 +201,6 @@ export type Assignment = Statement & {
  * the two arms of a conditional of them
  * ([spec: functions](../../../../spec/functions/README.md)).
  */
-export type If = {
-    readonly start: ModuleTokenWithMetadata
-    readonly condition: Node
-    readonly block: Block
-}
 
 /**
  * An access's key: the token a constant key is read from — the name after
@@ -288,8 +284,8 @@ export type Entry = Member | readonly ['...', Node]
  * A member of an object, `key: value`: the token its key begins with,
  * which anchors the error a plain `__proto__` earns, the key by its
  * spelling, and the value. A constant key is the name its token spells,
- * {@link ConstantMember}; a computed key, `[k]`, is the node between the
- * brackets, {@link ComputedMember}, evaluated before the value as
+ * {@link ConstantMember}; a computed key, `[k]`, or a Number literal key
+ * retains its expression node, {@link ComputedMember}, evaluated before the value as
  * JavaScript evaluates the two. The spelling matters for `__proto__`
  * alone: the computed and the shorthand spellings denote an own property,
  * the other two a prototype.
@@ -309,13 +305,14 @@ export type ConstantMember = {
 }
 
 /**
- * A member whose key is computed, `[k]: v`: the node between the brackets,
- * any value — `["a"]` is the constant `"a"` by another spelling, and `[a]`
- * a key read at run time.
+ * A member whose key is a value: a bracketed expression, `[k]: v`, or a
+ * Number literal, `0x70: v`. Their spelling stays distinct while both retain
+ * the key's value node — `["a"]` is the constant `"a"` by another spelling,
+ * and `[a]` a key read at run time.
  */
 export type ComputedMember = {
     readonly key: ModuleTokenWithMetadata
-    readonly spelling: 'computed'
+    readonly spelling: 'computed' | 'number'
     readonly node: Node
     readonly value: Node
 }
@@ -358,8 +355,16 @@ export type ImportBinding = {
  * the `export` before one a module exports.
  */
 export type Const = Statement & {
-    readonly target: BindingTarget | Discard
+    /** Additional declarators in this written statement, retained until source lowering. */
+    readonly following?: readonly Const[]
+    readonly target: PlainBindingTarget | Discard
     readonly value: Node
+}
+
+/** A `let` retains an omitted initializer as `null`; explicit `undefined` is still a value node. */
+export type Let = Statement & {
+    readonly target: PlainBindingTarget
+    readonly value: Node | null
 }
 
 /**
@@ -383,9 +388,13 @@ export type Discard = readonly ['discard', ModuleTokenWithMetadata]
  * recorded as `invalid`, at the token it begins with, for the fold to
  * refuse: a literal, an access, a call, an operator, a function, or a
  * group, `[(a)]`, which JavaScript refuses in a binding pattern though it
- * admits it in an assignment.
+ * admits it in an assignment. A default wrapper retains the original target,
+ * its `=` token and its initializer, including defaults inside nested patterns.
  */
-export type BindingTarget =
+export type BindingTarget = PlainBindingTarget | readonly ['=', PlainBindingTarget, ModuleTokenWithMetadata, Node]
+
+/** A target before its optional default; nested children may themselves default. */
+export type PlainBindingTarget =
     | readonly ['name', ModuleTokenWithMetadata]
     | readonly ['array', ModuleTokenWithMetadata, readonly BindingElement[]]
     | readonly ['object', ModuleTokenWithMetadata, readonly BindingProperty[]]
@@ -394,20 +403,23 @@ export type BindingTarget =
 /**
  * An element of an array pattern: a target; an {@link Elision}, which
  * skips the source's element at its position; or a rest element,
- * `...target`, by its `...` — JavaScript's, which the fold refuses for now
- * ([destructuring](../../../../spec/todo/2450-destructuring.md)).
+ * `...target`, by its `...`. A comma following a rest element is retained
+ * only in this binding cover, so the fold can refuse it without changing
+ * an array value's spread and trailing-comma syntax
+ * ([destructuring](../../../../spec/bindings/destructuring/README.md)).
  */
-export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTokenWithMetadata, BindingTarget]
+export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget, ModuleTokenWithMetadata?]
 
 /**
  * A property of an object pattern: its key, as an access's — the token a
  * constant key is read from, or a computed key — and the target it binds,
  * the shorthand `{ a }` binding the key's own name; or a rest property,
- * `...target`, by its `...`, which the fold refuses for now.
+ * `...target`, by its `...`, which the fold refuses for now
+ * ([object rest](../../../../spec/todo/object-rest-destructuring.md)).
  */
 export type BindingProperty =
     | { readonly key: Key, readonly target: BindingTarget }
-    | readonly ['...', ModuleTokenWithMetadata, BindingTarget]
+    | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget]
 
 /**
  * A statement that is a value: a block's `return` or `throw`, and a
@@ -420,14 +432,26 @@ export type ValueStatement = Statement & {
     readonly value: Node
 }
 
+/** A written return may omit its operand; lowering supplies undefined. */
+export type ReturnStatement = Statement & {
+    readonly first: ModuleTokenWithMetadata | null
+    readonly value: Node | null
+}
+
 /** A module declaration, with its source export marker retained. */
 export type ModuleConst = {
     readonly declaration: Const
     readonly exported: boolean
 }
 
+/** A module `let` keeps the declaration's omitted initializer and cannot be exported. */
+export type ModuleLet = {
+    readonly declaration: Let
+    readonly exported: false
+}
+
 /** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
-export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For]
+export type ModuleStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['do', DoWhile] | readonly ['for', For] | readonly ['for-of', ForOf]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an
@@ -472,7 +496,7 @@ export type Parameters = {
  * is anchored at, and the value as written
  * ([default parameters](../../../../spec/todo/3125-default-parameters.md)).
  */
-export type Parameter = BindingTarget | readonly ['=', BindingTarget, ModuleTokenWithMetadata, Node]
+export type Parameter = BindingTarget
 
 /**
  * The output alphabet: what the mappings return, each tagged by the rule it
@@ -497,7 +521,7 @@ export type Parameter = BindingTarget | readonly ['=', BindingTarget, ModuleToke
  * through its own mapping.
  */
 export type Out =
-    | { readonly id: 'value', readonly node: Node, readonly first: ModuleTokenWithMetadata, readonly target: BindingTarget }
+    | { readonly id: 'value', readonly node: Node, readonly first: ModuleTokenWithMetadata, readonly target: PlainBindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: ModuleTokenWithMetadata }
     | { readonly id: 'parameters', readonly fixed: List<Parameter>, readonly rest: ModuleTokenWithMetadata | null }
     // what follows `(` value `,`, read both ways until the `)` decides:
@@ -515,12 +539,8 @@ export type Out =
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
+    | { readonly id: 'let', readonly statement: Let }
     | { readonly id: 'named', readonly statement: NamedStatement }
-    | { readonly id: 'statement', readonly statement: BlockStatement }
-    | { readonly id: 'end', readonly end: Block[1] }
-    | { readonly id: 'blockContents', readonly statements: Block[1] }
-    | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
-    | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
     | { readonly id: 'loopElse', readonly block: LoopBlock }
     | { readonly id: 'moduleStatement', readonly statement: ModuleStatement }

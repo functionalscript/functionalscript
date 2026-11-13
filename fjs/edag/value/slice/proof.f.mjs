@@ -1,69 +1,44 @@
 /**
- * Slicing converts and clamps bounds, creates fresh array values with shared
- * elements, and counts UTF-16 code units for strings.
+ * Slicing clamps bounds, creates fresh array values with shared elements,
+ * and counts UTF-16 code units for strings.
  *
- * @import { Array as ValueArray, Primitive } from '../types.ts'
+ * @import { Array as ValueArray } from '../types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
-import { slice } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { slice } from './module.f.js'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 const letters = /** @type {const} */ (['[]', ['a', 'b', 'c']])
 
-/** Common range expectations over the same ASCII letters. @param {readonly (readonly [Primitive, Primitive, string])[]} cases */
+/** Common range expectations over the same ASCII letters. @param {readonly (readonly [number, number | undefined, string])[]} cases */
 const expectRanges = cases => {
     for (const [start, end, expected] of cases) {
-        assertEq(assertOk(slice('abc', start, end)), expected)
-        assertStructurallySame(assertOk(slice(letters, start, end)), ['[]', [...expected]])
+        assertEq(slice('abc', start, end), expected)
+        assertStructurallySame(slice(letters, start, end), ['[]', [...expected]])
     }
 }
 
 export const proof = {
     numericRanges: () => {
         expectRanges([
-            [0, undefinedValue, 'abc'], [1, undefinedValue, 'bc'],
+            [0, undefined, 'abc'], [1, undefined, 'bc'],
             [0, 2, 'ab'], [1, 2, 'b'], [1, 1, ''], [2, 1, ''],
-            [-1, undefinedValue, 'c'], [-2, -1, 'b'], [-4, undefinedValue, 'abc'],
-            [0, -1, 'ab'], [0, -4, ''], [3, undefinedValue, ''],
+            [-1, undefined, 'c'], [-2, -1, 'b'], [-4, undefined, 'abc'],
+            [0, -1, 'ab'], [0, -4, ''], [3, undefined, ''],
             [1.9, 2.9, 'b'], [-2.9, -1.9, 'b'], [-0.9, 2.9, 'ab'],
-            [0.9, undefinedValue, 'abc'], [-0, undefinedValue, 'abc'],
-            [NaN, undefinedValue, 'abc'], [0, NaN, ''],
-            [-Infinity, Infinity, 'abc'], [Infinity, undefinedValue, ''],
-            [0, -Infinity, ''], [-1e100, 1e100, 'abc'], [1e100, undefinedValue, ''],
-        ])
-    },
-    primitiveBounds: () => {
-        expectRanges([
-            [undefinedValue, undefinedValue, 'abc'], [null, undefinedValue, 'abc'],
-            [false, true, 'a'], [true, undefinedValue, 'bc'],
-            [0, null, ''], [0, false, ''], [0, true, 'a'],
-            ['1', '2', 'b'], ['-2', '-1', 'b'], ['1.9', '2.9', 'b'],
-            [' 0x1 ', '0b10', 'b'], ['0o1', 2, 'b'],
-            ['', 2, 'ab'], [' \t\n', undefinedValue, 'abc'], ['-0.9', undefinedValue, 'abc'],
-            ['invalid', undefinedValue, 'abc'], [0, 'invalid', ''], [0, 'undefined', ''],
-            [0, 'Infinity', 'abc'], [0, '-Infinity', ''],
+            [0.9, undefined, 'abc'], [-0, undefined, 'abc'],
+            [NaN, undefined, 'abc'], [0, NaN, ''],
+            [-Infinity, Infinity, 'abc'], [Infinity, undefined, ''],
+            [0, -Infinity, ''], [-1e100, 1e100, 'abc'], [1e100, undefined, ''],
         ])
     },
     emptyReceivers: () => {
-        /** @type {readonly (readonly [Primitive, Primitive])[]} */
-        const bounds = [[undefinedValue, undefinedValue], [0, 0], [1, -1], [NaN, NaN], [-Infinity, Infinity], ['invalid', null]]
+        /** @type {readonly (readonly [number, number | undefined])[]} */
+        const bounds = [[0, undefined], [0, 0], [1, -1], [NaN, NaN], [-Infinity, Infinity]]
         for (const [start, end] of bounds) {
-            assertEq(assertOk(slice('', start, end)), '')
-            assertStructurallySame(assertOk(slice(['[]', []], start, end)), ['[]', []])
-        }
-    },
-    bigintBounds: () => {
-        /** @type {readonly (ValueArray | string)[]} */
-        const receivers = [['[]', []], letters, '', 'abc']
-        for (const receiver of receivers) {
-            for (const bigint of [0n, 1n, -1n, 123_456_789_012_345_678_901_234_567_890n]) {
-                assertStructurallySame(assertError(slice(receiver, bigint, undefinedValue)), undefinedValue)
-                assertStructurallySame(assertError(slice(receiver, bigint, bigint)), undefinedValue)
-                for (const start of [undefinedValue, 0, 4, Infinity, -Infinity]) {
-                    assertStructurallySame(assertError(slice(receiver, start, bigint)), undefinedValue)
-                }
-            }
+            assertEq(slice('', start, end), '')
+            assertStructurallySame(slice(['[]', []], start, end), ['[]', []])
         }
     },
     freshArrays: () => {
@@ -75,8 +50,8 @@ export const proof = {
         /** @type {readonly ValueArray[]} */
         const receivers = [source, ['[]', []]]
         for (const receiver of receivers) {
-            const first = assertOk(slice(receiver, 0, undefinedValue))
-            const second = assertOk(slice(receiver, 0, undefinedValue))
+            const first = slice(receiver, 0, undefined)
+            const second = slice(receiver, 0, undefined)
             assert(typeof first !== 'string' && typeof second !== 'string')
             assertEq(first[0], '[]')
             assertEq(second[0], '[]')
@@ -91,15 +66,15 @@ export const proof = {
                 assertEq(Object.is(second[1][i], values[i]), true)
             }
         }
-        const selected = assertOk(slice(source, -4, undefinedValue))
+        const selected = slice(source, -4, undefined)
         assert(typeof selected !== 'string')
         assertEq(selected[1].length, 4)
         assertEq(selected[1][0], data)
         assertEq(selected[1][1], object)
         assertEq(selected[1][2], func)
         assertEq(selected[1][3], data)
-        const empty = assertOk(slice(source, 2, 1))
-        const otherEmpty = assertOk(slice(source, 2, 1))
+        const empty = slice(source, 2, 1)
+        const otherEmpty = slice(source, 2, 1)
         assertStructurallySame(empty, ['[]', []])
         assertStructurallySame(otherEmpty, ['[]', []])
         assertEq(Object.is(empty, otherEmpty), false)
@@ -112,9 +87,9 @@ export const proof = {
             [0, 3, 'a😀'], [3, 4, 'b'],
         ]
         for (const [start, end, expected] of cases) {
-            assertEq(assertOk(slice('a😀b', start, end)), expected)
+            assertEq(slice('a😀b', start, end), expected)
         }
-        assertEq(assertOk(slice('\ud800x\udc00', 0, 1)), '\ud800')
-        assertEq(assertOk(slice('\ud800x\udc00', -1, undefinedValue)), '\udc00')
+        assertEq(slice('\ud800x\udc00', 0, 1), '\ud800')
+        assertEq(slice('\ud800x\udc00', -1, undefined), '\udc00')
     },
 }

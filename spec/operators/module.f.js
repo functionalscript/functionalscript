@@ -34,4 +34,9 @@ const instanceOf = [
     ['instanceof', 'export default [[1] instanceof Array, [] instanceof (Array), null instanceof Array, !1 instanceof Array];', 'instanceof'],
 ]
 
-export default { grouping, index, comma, instanceOf, all: [...grouping, ...index, ...comma, ...instanceOf] }
+/** @type {Examples} */
+const inOperator = [
+    ['in', 'export default ["x" in { x: 1 }, "x" in { x: undefined }, "0" in [7], "x" in {}, "x" in (() => 1)];', 'in'],
+]
+
+export default { grouping, index, comma, instanceOf, inOperator, all: [...grouping, ...index, ...comma, ...instanceOf, ...inOperator] }

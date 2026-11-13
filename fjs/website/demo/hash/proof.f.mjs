@@ -1,7 +1,7 @@
 import { digestOf, hashOutput, hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from './module.f.mjs'
-import { maxLengthBytes, vec } from '../../../types/bit_vec/module.f.mjs'
-import { sha1 } from '../../../crypto/sha1/module.f.mjs'
-import { sha256 } from '../../../crypto/sha2/module.f.mjs'
+import { maxLengthBytes, vec } from '../../../types/bit_vec/module.f.js'
+import { sha1 } from '../../../crypto/sha1/module.f.js'
+import { sha256 } from '../../../crypto/sha2/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 
@@ -32,7 +32,7 @@ export const proof = {
     verification: () => {
         const h = htmlToString(['div', ...opensslVerification(['message', 'key'], ([text, key]) => `printf '%s' ${text} | openssl dgst -sha256 -hmac ${key}`)])
         assert(h.includes("<pre>printf '%s' 'message' | openssl dgst -sha256 -hmac 'key'</pre>"), h)
-        const refused = htmlToString(['div', ...opensslVerification(['a\0b', 'key'], () => { throw 'must not build a command for NUL' })])
+        const refused = htmlToString(['div', ...opensslVerification(['a\u0000b', 'key'], () => { throw 'must not build a command for NUL' })])
         assert(refused.includes('OpenSSL command unavailable:'), refused)
         assert(!refused.includes('Copy OpenSSL command'), refused)
     },
@@ -43,7 +43,7 @@ export const proof = {
     digest: () => {
         assertEq(digestOf(sha1)('9'), '0ade7c2cf97f75d009975f4d720d1fa6c19f4897')
         assertEq(digestOf(sha1)('a\nb'), 'fcd127ffa1016069006ad91f3f361248f9bdf272')
-        assertEq(digestOf(sha1)('a\0b'), '4a3dec2d1f8245280855c42db0ee4239f917fdb8')
+        assertEq(digestOf(sha1)('a\u0000b'), '4a3dec2d1f8245280855c42db0ee4239f917fdb8')
         assertEq(digestOf(sha256)('1234'), '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')
     },
     oversized: () => {
@@ -65,7 +65,7 @@ export const proof = {
         assert(empty.includes("<pre>printf '%s' '' | openssl dgst -sha256</pre>"), empty)
     },
     nul: () => {
-        const h = htmlToString(['div', ...sha256Output('a\0b')])
+        const h = htmlToString(['div', ...sha256Output('a\u0000b')])
         assert(h.includes('59b271ae1bbcb1d31d41929817f4b16fb439eb4f31520b5ad1d5ce98920a7138'), h)
         assert(h.includes('OpenSSL command unavailable:'), h)
         assert(h.includes('NUL (U+0000)'), h)

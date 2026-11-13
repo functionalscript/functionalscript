@@ -15,37 +15,15 @@
  * @import { _DeferredBinding, _DeferredBlock, _DeferredScope, _DeferredSummary, _LoopInfo, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer } from './private.ts'
  */
 
-import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
-import { concat } from '../../../../types/list/module.f.mjs'
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings, someBlock } from '../../control/module.f.mjs'
+import { concat } from '../../../../types/list/module.f.js'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 import { mapOperator, operatorOperands } from '../../module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 
 /** Owning returns inside deferred recipes, without crossing ordinary bodies. @type {(value: Value, target: FunctionTarget) => boolean} */
-export const _hasReturn = (value, target) => {
-    /** @type {Link<Value | Block> | null} */
-    let pending = { first: value, tail: null }
-    while (pending !== null) {
-        const { first: node, tail } = /** @type {Link<Value | Block>} */ (pending)
-        pending = tail
-        if (node === null || typeof node !== 'object') { continue }
-        if (!(node instanceof Array)) {
-            if (node.exit[0] === 'return' && node.exit[1] === target) { return true }
-            /** @type {readonly (Value | Block)[]} */
-            const values = [...node.statements.flatMap(statement => statement[0] === 'define' ? [statement[2]]
-                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(node.exit)]
-            pending = values.reduceRight((tail, first) => ({ first, tail }), pending)
-        } else {
-            const values = node[0] === 'function' ? node[1].captures.map(capture => capture.value)
-                : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]]
-                    : node[0] === 'ref' ? [] : operatorOperands(node)
-            pending = values.reduceRight((tail, first) => ({ first, tail }), pending)
-        }
-    }
-    return false
-}
+export const _hasReturn = (value, target) => someBlock(({ exit }) => exit[0] === 'return' && exit[1] === target)(value)
 
 /** Established values shadow any enclosing deferred entry. @type {(scope: _Scope, bindings: readonly BindingId[]) => _Scope} */
 const established = (scope, bindings) => bindings.some(binding => scope.has(binding))
@@ -194,7 +172,7 @@ const mergeOwned = (first, second) => ({
     pruned: first.pruned || second.pruned,
 })
 
-/** @type {(exit: Exit, values: readonly Value[]) => Exit} */
+/** @type {(exit: Exclude<Exit, readonly ['loop', Loop]>, values: readonly Value[]) => Exit} */
 const mappedExit = (exit, values) => values.every((value, index) => value === exitValues(exit)[index]) ? exit
     : exit[0] === 'yield' ? ['yield', values]
         : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
@@ -244,14 +222,41 @@ const ownedValue = (source, scope, ancestors) => call(() => {
     }))
 })
 
+/** Inventory one lexical loop occurrence, including a terminal exit loop. @type {(source: Loop, scope: _Scope, ancestors: Link<Loop> | null, owners: Link<Loop> | null) => Task<{ readonly loop: Loop; readonly owned: _Owned }>} */
+const ownedLoop = (source, scope, ancestors, owners) => {
+    /** @type {Loop} */
+    const occurrence = { ...source }
+    return bind(ownedValues(occurrence.initial, scope, ancestors), initial =>
+        bind(ownedBlock(occurrence.body, established(scope, occurrence.parameters), { first: occurrence, tail: ancestors }, { first: occurrence, tail: owners }), body => {
+            /** @type {Loop} */
+            const loop = { ...occurrence, initial: initial.values, body: body.block }
+            const free = freeLoopBindings(loop).flatMap(binding => {
+                const root = scope.get(binding)
+                return root === undefined ? [] : [root]
+            })
+            /** @type {_LoopInfo} */
+            const info = { source: occurrence, loop, roots: free, ancestors, owners, transfers: loopTransfers(loop) }
+            /** @type {_Owned} */
+            const owned = { ...body.owned, loops: concat([info])(body.owned.loops) }
+            return done({ loop, owned: mergeOwned(initial.owned, owned) })
+        }))
+}
+
 /** @type {(source: Block, initialScope: _Scope, ancestors: Link<Loop> | null, owners: Link<Loop> | null) => Task<_OwnedBlock>} */
 const ownedBlock = (source, initialScope, ancestors, owners) => {
     /** @type {(index: number, scope: _Scope, statements: List<Statement>, owned: _Owned) => Task<_OwnedBlock>} */
     const each = (index, scope, statements, owned) => call(() => {
         if (index === source.statements.length) {
-            return bind(ownedValues(exitValues(source.exit), scope, ancestors), values => done({
-                block: { statements: toArray(statements).toReversed(), exit: mappedExit(source.exit, values.values) },
-                normal: source.exit[0] === 'yield', owned: mergeOwned(owned, values.owned),
+            const exit = source.exit
+            if (exit[0] === 'loop') {
+                return bind(ownedLoop(exit[1], scope, ancestors, owners), result => done({
+                    block: { statements: toArray(statements).toReversed(), exit: ['loop', result.loop] },
+                    normal: false, owned: mergeOwned(owned, result.owned),
+                }))
+            }
+            return bind(ownedValues(exitValues(exit), scope, ancestors), values => done({
+                block: { statements: toArray(statements).toReversed(), exit: mappedExit(exit, values.values) },
+                normal: exit[0] === 'yield', owned: mergeOwned(owned, values.owned),
             }))
         }
         const statement = source.statements[index]
@@ -287,18 +292,8 @@ const ownedBlock = (source, initialScope, ancestors, owners) => {
             return append(definition, root === null ? established(scope, [binding]) : new Map([...scope, [binding, root]]), added)
         }
         if (statement[0] === 'loop') {
-            const occurrence = /** @type {Loop} */ ({ ...statement[1] })
-            return bind(ownedValues(occurrence.initial, scope, ancestors), initial =>
-                bind(ownedBlock(occurrence.body, established(scope, occurrence.parameters), { first: occurrence, tail: ancestors }, { first: occurrence, tail: owners }), body => {
-                    const loop = /** @type {Loop} */ ({ ...occurrence, initial: initial.values, body: body.block })
-                    const free = freeLoopBindings(loop).flatMap(binding => {
-                        const root = scope.get(binding)
-                        return root === undefined ? [] : [root]
-                    })
-                    const info = /** @type {_LoopInfo} */ ({ source: occurrence, loop, roots: free, ancestors, owners, transfers: loopTransfers(loop) })
-                    const owned = /** @type {_Owned} */ ({ ...body.owned, loops: concat([info])(body.owned.loops) })
-                    return append(['loop', loop], established(scope, loop.results), mergeOwned(initial.owned, owned))
-                }))
+            return bind(ownedLoop(statement[1], scope, ancestors, owners), result =>
+                append(['loop', result.loop], established(scope, result.loop.results), result.owned))
         }
         if (statement[0] === 'block') {
             return bind(ownedBlock(statement[2], scope, ancestors, owners), result => append(
@@ -372,8 +367,17 @@ const deferredSeeds = (source, external, definitions, candidates) => {
     const block = (source, initial, depth) => {
         /** @type {(index: number, scope: _DeferredScope, summary: _DeferredSummary) => Task<_DeferredBlock>} */
         const each = (index, scope, summary) => call(() => {
-            if (index === source.statements.length) { return bind(values(exitValues(source.exit), scope, depth), result =>
-                done({ summary: mergeDeferred(summary, result), normal: source.exit[0] === 'yield' })) }
+            if (index === source.statements.length) {
+                if (source.exit[0] === 'loop') {
+                    const loop = source.exit[1]
+                    return bind(values(loop.initial, scope, depth), initial =>
+                        bind(block(loop.body, shadowed(scope, loop.parameters), depth + 1), body => done({
+                            summary: mergeDeferred(summary, mergeDeferred(initial, body.summary)), normal: false,
+                        })))
+                }
+                return bind(values(exitValues(source.exit), scope, depth), result =>
+                    done({ summary: mergeDeferred(summary, result), normal: source.exit[0] === 'yield' }))
+            }
             const statement = source.statements[index]
             /** @type {(added: _DeferredSummary, next: _DeferredScope, normal?: boolean) => Task<_DeferredBlock>} */
             const append = (added, next, normal = true) => normal ? each(index + 1, next, mergeDeferred(summary, added))

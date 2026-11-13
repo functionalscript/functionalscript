@@ -243,44 +243,45 @@ emission, `npm pack`, and a clean consumer.
       implementation and proof `.f.ts` are retired, so the fixture must not
       reintroduce them). The proof is not optional paperwork: `fjs/AGENTS.md`
       §1.2 requires 100% proof coverage for every authored `.f.mjs`, so a
-      fixture without one fails `npm run cov` and lands the repository in
+      fixture without one fails `npm start cov node` and lands the repository in
       violation of its own rule — while demonstrating package support.
       Two constraints follow from what the fixture is *for*:
-      - It must be a **conforming** module: its private type stays out of every
-        exported signature, matching the public-declaration-closure rule and
-        the rest of the tree. A fixture that exports a private-typed binding
-        would permanently redden the packed-declaration check it exists to
-        support.
-      - Any violation is therefore *deliberate and temporary*, applied while
-        verifying the check and then reverted — never the fixture's steady
-        state. Two different controls are needed, and they must not be run in
-        the same place:
-        - **Can the check fail at all?** Export a binding whose signature names
-          the private type, here in the fixture, and confirm `TS2307`.
-        - **Is the check exhaustive?** This one must go in a module the
-          consumer would *not* name — one with no private surface today, and
-          in particular **not** this fixture. A hand-written import list would
-          name the fixture, so a violation placed here fails under a fixed list
-          too and proves nothing about enumeration. Measured end to end with
-          `fjs/emergent_testing`, which had no `private.ts`: given one, plus an
-          exported binding whose signature names it, the job exits 2 with
-          `TS2307` on the packed declaration.
+  - It must be a **conforming** module: its private type stays out of every
+    exported signature, matching the public-declaration-closure rule and
+    the rest of the tree. A fixture that exports a private-typed binding
+    would permanently redden the packed-declaration check it exists to
+    support.
+  - Any violation is therefore *deliberate and temporary*, applied while
+    verifying the check and then reverted — never the fixture's steady
+    state. Two different controls are needed, and they must not be run in
+    the same place:
+    - **Can the check fail at all?** Export a binding whose signature names
+      the private type, here in the fixture, and confirm `TS2307`.
+    - **Is the check exhaustive?** This one must go in a module the
+      consumer would *not* name — one with no private surface today, and
+      in particular **not** this fixture. A hand-written import list would
+      name the fixture, so a violation placed here fails under a fixed list
+      too and proves nothing about enumeration. Measured end to end with
+      `fjs/emergent_testing`, which had no `private.ts`: given one, plus an
+      exported binding whose signature names it, the job exits 2 with
+      `TS2307` on the packed declaration.
 
-          The same violation with the `files` negation dropped is **green**,
-          because the private declaration then ships and the reference
-          resolves. So this job does not detect a dropped negation, and nothing
-          else does either: an assertion over the packed listing was written for
-          that and removed as not worth its complexity — what it caught was
-          declaration noise in the tarball, which the `_` contract already
-          tolerates, not a broken package. The negation is one line in
-          `package.json` and losing it is a visible diff in review.
-      Scope: the fixture exercises the
-      supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
-      `import * as` / side-effect forms are a documented one-time measurement
-      ([`packed-consumer-validation.md`](../packed-consumer-validation.md),
-      "`types.js` is not a real module") — their behavior belongs to consumer
-      toolchains, not to this package, so re-testing it every CI run adds no
-      information.
+      The same violation with the `files` negation dropped is **green**,
+      because the private declaration then ships and the reference
+      resolves. So this job does not detect a dropped negation, and nothing
+      else does either: an assertion over the packed listing was written for
+      that and removed as not worth its complexity — what it caught was
+      declaration noise in the tarball, which the `_` contract already
+      tolerates, not a broken package. The negation is one line in
+      `package.json` and losing it is a visible diff in review.
+
+  Scope: the fixture exercises the
+  supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
+  `import * as` / side-effect forms are a documented one-time measurement
+  ([`packed-consumer-validation.md`](../packed-consumer-validation.md),
+  "`types.js` is not a real module") — their behavior belongs to consumer
+  toolchains, not to this package, so re-testing it every CI run adds no
+  information.
 - [ ] Import a type from that fixture through the real `./types.ts` path from both
       TypeScript (`import type`) and JavaScript (JSDoc `@import`).
 - [ ] Verify the source fixture under `tsc`, Deno, and Bun; Deno must resolve
@@ -336,7 +337,7 @@ emission, `npm pack`, and a clean consumer.
       repository checkout, consuming the tarball handed over as an artifact by
       [`ci-integration-tests.md`](ci-integration-tests.md), which also owned
       the job-ordering edge that kept it from racing the upload. It is now the
-      packed-package check closing the `node26` job, every command started in
+      packed-package check in the `package` job, every command started in
       a consumer directory under the runner's temporary directory — neither
       inside the checkout nor above it — that the job packs the tarball into.
       Either way there is no `tsconfig.json` up the tree to inherit, no
@@ -344,25 +345,26 @@ emission, `npm pack`, and a clean consumer.
       for a declaration the tarball omits. Four details decide whether such a
       check can fail at all, each learned by measurement rather than
       reasoning:
-      - **Type-check every packed declaration**, enumerated from the installed
-        artifact — not a hand-written consumer importing today's known
-        surfaces, whose import list goes stale the moment a module changes.
-      - **Leave `skipLibCheck` at its `false` default.** `tsc --init` writes
-        `true`; that silently turns the check into a no-op. It applies to
-        declaration files however they enter the program, root files included.
-      - **Install the tarball as a real dependency**, never by unpacking into
-        `node_modules` by hand — a later `npm install` prunes what is not in
-        `package.json`, leaving the check passing on an empty file list.
-      - **Pin the compiler** to an exact `typescript` version. The consumer
-        project has no lockfile, so a bare `npm install typescript` lets the
-        registry change the verdict with no repository change. The version is
-        `../config/module.f.js`'s `typescript`, written into the step as a
-        literal.
-      The private-declaration assertion this check carries is a condition on it:
-      every packed declaration is type-checked from the installed artifact, so a
-      public declaration that came to depend on an unshipped private module is a
-      red build. Landed in
-      [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
+  - **Type-check every packed declaration**, enumerated from the installed
+    artifact — not a hand-written consumer importing today's known
+    surfaces, whose import list goes stale the moment a module changes.
+  - **Leave `skipLibCheck` at its `false` default.** `tsc --init` writes
+    `true`; that silently turns the check into a no-op. It applies to
+    declaration files however they enter the program, root files included.
+  - **Install the tarball as a real dependency**, never by unpacking into
+    `node_modules` by hand — a later `npm install` prunes what is not in
+    `package.json`, leaving the check passing on an empty file list.
+  - **Pin the compiler** to an exact `typescript` version. The consumer
+    project has no lockfile, so a bare `npm install typescript` lets the
+    registry change the verdict with no repository change. The version is
+    `../config/module.f.js`'s `typescript`, written into the step as a
+    literal.
+
+  The private-declaration assertion this check carries is a condition on it:
+  every packed declaration is type-checked from the installed artifact, so a
+  public declaration that came to depend on an unshipped private module is a
+  red build. Landed in
+  [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [x] Decide, based on the fixture, whether the second TypeScript runtime-emission
       pass can ever be removed while authored `types.ts` files remain, or whether
@@ -435,7 +437,7 @@ not, and the pipeline is simplified accordingly.
   no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
-  check closing the `node26` job, which imports a published `.f.js` from a
+  check in the `package` job, which imports a published `.f.js` from a
   clean consumer of the packed package.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.
 - [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md)

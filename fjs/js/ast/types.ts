@@ -37,7 +37,7 @@ export type Step<V> =
  * Logical source syntax is absent: conditionals express every core choice.
  */
 export type Operator<V> =
-    | _Unary<V> | _Binary<V> | _InstanceOf<V> | _MemberPresent<V> | _Array<V> | _Object<V>
+    | _Unary<V> | _Binary<V> | _InstanceOf<V> | _In<V> | _MemberPresent<V> | _Array<V> | _Object<V>
     | _Access<V> | _ContinuedAccess<V> | _GuardedCall<V> | _ContinuedGuardedCall<V>
     | _Call<V> | _Conditional<V> | _Comma<V> | _Leaf
 
@@ -46,6 +46,8 @@ export type Operator<V> =
 export interface _Unary<V> extends Readonly<[UnaryTag | '+', V]> {}
 export interface _Binary<V> extends Readonly<[CoreBinaryTag, V, V]> {}
 export interface _InstanceOf<V> extends Readonly<['instanceof', V, ConstructorId]> {}
+/** The entry check, `"key" in x`: the key a spelling, never an operand. */
+export interface _In<V> extends Readonly<['in', string, V]> {}
 /** Full member-call presence resolution, without evaluating call arguments. */
 export interface _MemberPresent<V> extends Readonly<['memberPresent', V, Key<V>]> {}
 export interface _Array<V> extends Readonly<['array', readonly Item<V>[]]> {}
@@ -63,7 +65,7 @@ export interface _Leaf extends Readonly<['entry' | 'hasEntry' | IntrinsicId | St
 export type Value =
     | Primitive
     | readonly ['ref', BindingId]
-    | _Unary<Value> | _Binary<Value> | _InstanceOf<Value> | _MemberPresent<Value> | _Array<Value> | _Object<Value>
+    | _Unary<Value> | _Binary<Value> | _InstanceOf<Value> | _In<Value> | _MemberPresent<Value> | _Array<Value> | _Object<Value>
     | _Access<Value> | _ContinuedAccess<Value> | _GuardedCall<Value> | _ContinuedGuardedCall<Value>
     | _Call<Value> | _Conditional<Value> | _Comma<Value> | _Leaf
     | readonly ['function', Function]
@@ -91,12 +93,14 @@ export type Statement =
 
 export type Exit =
     | readonly ['yield', readonly Value[]]
+    /** No break targets this loop; it has no normal results or successor. */
+    | readonly ['loop', Loop]
     | readonly ['continue', LoopTarget, readonly Value[]]
     | readonly ['break', LoopTarget, readonly Value[]]
     | readonly ['return', FunctionTarget, Value]
     | readonly ['throw', Value]
 
-/** Every path finishes with an explicit normal or abrupt transfer. */
+/** Every path finishes with a normal result, abrupt transfer or terminal loop. */
 export type Block = {
     readonly statements: readonly Statement[]
     readonly exit: Exit

@@ -45,7 +45,7 @@ records a release that shipped no notable change.
 ## Entries
 
 An entry is one Markdown list item, written in the `Topic: short description`
-style — the topic is the module path (`types/bit_vec`, `djs/tokenizer`) or an
+style — the topic is the module path (`types/bit_vec`, `compiler/tokenizer`) or an
 area (`ci`, `docs`), the same topic the pull request title starts with. How to
 decide what gets an entry, how to group several pull requests into one, and how
 to order them: [RELEASE.md](./RELEASE.md).

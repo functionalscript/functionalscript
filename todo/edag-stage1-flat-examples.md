@@ -8,7 +8,7 @@
 [`edag-stage1-discussion.md`](./edag-stage1-discussion.md) states both
 structural constructors in the nested form its normative parts now use —
 `["[]", [...node]]` and `["{}", [...entry]]`, matching the schema in
-[`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) and the form column in
+[`fjs/edag/module.f.js`](../fjs/edag/module.f.js) and the form column in
 [`fjs/edag/README.md`](../fjs/edag/README.md) — but roughly a dozen of its
 worked examples still spell the operands flat, as `["[]", x, x]`. The empty
 object appears in six of them as the one-element `["{}"]`, which the schema
@@ -28,7 +28,7 @@ this issue.
 Two more node kinds have the same split, and the inventory below originally
 missed them. The comma is `[',', exps]` and the function
 `['=>', length, slots, body]` in the schema (`comma` and `func` in
-`fjs/edag/module.f.mjs`). The discussion's normative places — the
+`fjs/edag/module.f.js`). The discussion's normative places — the
 structural-operations table, the Baseline definition and subject 8's
 resolution — now write `[",", [...node, node]]` and
 `["=>", length, slots, body]`, but its worked examples still spell the comma
@@ -115,5 +115,5 @@ every edit above it, a section name does not.
   rather than a variadic tail" gives the reason the shape is what it is.
 - [`edag-stage1-discussion.md`](./edag-stage1-discussion.md) — the document
   this corrects.
-- [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — the schema of record,
+- [`fjs/edag/module.f.js`](../fjs/edag/module.f.js) — the schema of record,
   where subjects are distilled once decided.

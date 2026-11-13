@@ -121,13 +121,13 @@ export const proof = {
     aggregateDeepRegions: () => {
         /** @type {Block} */
         let region = { statements: [], exit: ['break', loopTarget, []] }
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             region = { statements: [['block', [], region]], exit: ['continue', loopTarget, []] }
         }
         const packed = rootLoopOf(aggregateHelper({ ...loop, parameters: [], initial: [], results: [], body: region }))
         assert(packed !== null)
         let nested = packed.body
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             assertStructurallySame(nested.exit, ['continue', loopTarget, [['array', []]]])
             const statement = nested.statements[0]
             assert(statement[0] === 'block')

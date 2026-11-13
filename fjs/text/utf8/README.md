@@ -10,7 +10,7 @@ which function to call.
 Most callers hold a string or a list of bytes and want the other one.
 
 ```js
-import { stringToU8List, fromU8List, u8ListToString } from './module.f.mjs'
+import { stringToU8List, fromU8List, u8ListToString } from './module.f.js'
 
 stringToU8List('hé€😀')          // 68 c3 a9 e2 82 ac f0 9f 98 80 (as a List)
 fromU8List([0x68, 0xc3, 0xa9])    // 'hé'
@@ -37,12 +37,16 @@ are for bytes this program wrote itself.
 above are built on. A malformed sequence decodes to a code point tagged with
 `errorMask`, and `fromCodePointList` encodes such a value back to the same
 bytes, so bytes to code points to bytes loses nothing.
-`utf8ByteToCodePointOp`, `utf8EofToCodePointOp` and `utf8StateToError` are the
-state machine itself, for a caller that drives the decode step by step.
+`utf8Decoder` is the state machine for step-by-step decoding. It uses the
+shared `init` / `update(state, byte)` / `end(state)` protocol: updates emit code
+points, and `end` flushes an incomplete sequence as one error unit. A saved
+state can resume at the next byte without finishing the sequence early.
+`utf8ByteToCodePointOp` and `utf8StateToError` remain the small operations used
+by the machine and by the MIME detector's UTF-8 factor.
 
 The shared code-point predicates and the `CodePoint` type live in
 [`code_point`](../code_point/README.md). Encoding a whole string as a bit
-vector is `utf8` in [`text/module.f.mjs`](../module.f.mjs).
+vector is `utf8` in [`text/module.f.js`](../module.f.js).
 
 ## See also
 

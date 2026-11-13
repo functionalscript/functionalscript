@@ -10,15 +10,17 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { isTodoDir, main, startRounds } from './module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
-import { partialRun } from '../effects/mock/module.f.mjs'
+import { partialRun } from '../effects/mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
-import { ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { fetchText, instantiate } from '../effects/browser/module.f.mjs'
+import { ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
+import { fetchText, instantiate } from '../effects/browser/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
-import { utf8 } from '../text/module.f.mjs'
-import { utf8ToString } from '../text/utf8/module.f.mjs'
-import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
+import { utf8 } from '../text/module.f.js'
+import { utf8ToString } from '../text/utf8/module.f.js'
+import { maxLengthBytes, vec } from '../types/bit_vec/module.f.js'
 import { repository } from './page/module.f.mjs'
+import { pageUrlMarker } from './cargo-doc/module.f.mjs'
+import { productionOrigin } from './origin/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
 /**
@@ -214,6 +216,20 @@ export const proof = {
             assert(!pageAt(root, ['nanvm', 'other']).includes('API documentation'), pageAt(root, ['nanvm', 'other']))
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
+        },
+        // Each page is copied with its own URL where the head's marker is;
+        // the other files, and every page of a local build, byte for byte.
+        pageUrl: () => {
+            const doc = { target: { doc: {
+                'search.js': file(pageUrlMarker),
+                nanvm_lib: { 'index.html': file(`<head>${pageUrlMarker}</head>`) },
+            } } }
+            const published = /** @type {Dir} */ (generate(doc, { WORKERS_CI_BRANCH: 'main' }).root['cargo.doc'])
+            assertEq(textOf(/** @type {Dir} */ (published.nanvm_lib)['index.html'], 'a crate page'),
+                `<head><meta property="og:url" content="${productionOrigin}/cargo.doc/nanvm_lib/index.html"></head>`)
+            assertEq(textOf(published['search.js'], 'search.js'), pageUrlMarker)
+            const local = /** @type {Dir} */ (generate(doc).root['cargo.doc'])
+            assertEq(textOf(/** @type {Dir} */ (local.nanvm_lib)['index.html'], 'a crate page'), `<head>${pageUrlMarker}</head>`)
         },
         // The bars for rustdoc have one writer, `rustdoc-bars`, which runs
         // before `cargo doc`; the generator, which runs after it, does not.
@@ -722,9 +738,14 @@ export const proof = {
                 c: { 'README.md': file('[up](../../x)\n') },
             })
             const a = pageAt(root, ['a'])
-            assert(a.includes('<article data-readme=""><div data-linked-heading=""><h2 id="a">A</h2>'), a)
+            assert(a.includes('<article data-readme=""><div data-linked-heading=""><h1 id="a">A</h1>'), a)
             assert(a.includes('</div><p>See <a href="/b/index.html#x">b</a> and <a href="/a/c.md">c</a>.</p></article>'), a)
+            // The README's title is the page's heading, so the directory's
+            // name is not one too.
+            assert(!a.includes('<h1>a</h1>'), a)
             const b = pageAt(root, ['b'])
+            // A README that is not rendered gives no title: the name does.
+            assert(b.includes('</nav><h1>b</h1>'), b)
             assert(b.includes('<a href="/b/README.md">README.md</a> is not rendered here: line 1: a table.'), b)
             const c = pageAt(root, ['c'])
             assert(c.includes('is not rendered here: a link that leaves the repository: ../../x.'), c)

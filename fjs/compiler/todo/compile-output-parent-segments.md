@@ -9,7 +9,7 @@
 into a `gen.*` directory that does not exist yet. `compileFile` in
 [`../module.f.mjs`](../module.f.mjs) writes its output through
 [`fjs/effects/node`](../../effects/node/module.f.mjs)'s `writeFiles`, which
-finds that directory with [`fjs/path`](../../path/module.f.mjs)'s `parent`.
+finds that directory with [`fjs/path`](../../path/module.f.js)'s `parent`.
 `parent` normalizes the output path, and normalizing folds `..` away. The
 file itself is then opened at the path as given.
 

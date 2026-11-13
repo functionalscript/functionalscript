@@ -24,10 +24,10 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
-import { assoc, dedup } from '../../types/array/module.f.mjs'
+import { assoc, dedup } from '../../types/array/module.f.js'
 import { cmp as cmpValue } from '../../types/function/compare/module.f.js'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.js'
-import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
+import { definedEntries, definedValues } from '../../types/object/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { declaredTest, eachEntry, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.mjs'
@@ -175,7 +175,7 @@ const cmpBigint = (a, b) => cmpValue(a)(b)
 const cmpList = cmpItem => (a, b) => {
     const d = a.length - b.length
     if (d !== 0) { return d }
-    for (let i = 0; i < a.length; ++i) {
+    for (let i = 0; i < a.length; i += 1) {
         const c = cmpItem(a[i], b[i])
         if (c !== 0) { return c }
     }
@@ -509,7 +509,7 @@ const objectSet = (props, rest0) => {
  *
  * @type {(rules: RuleSet) => (n: Node) => UnionSet}
  */
-export const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
+export const resolve = rules => n => typeof n === 'string' ? assertNotNullish(entry(rules, n)) : n
 
 /** @type {<T>(a: T, b: T) => boolean} */
 const strictEqual = (a, b) => strictEqualCurried(a)(b)
@@ -604,8 +604,8 @@ const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
  * @type {(pattern: ObjectSet) => (k: string) => _Keyed}
  */
 const objectPresentSet = pattern => k => {
-    const n = at(k)(pattern.props)
-    if (n !== null) { return keyed(stripAbsent(n)) }
+    const n = entry(pattern.props, k)
+    if (n !== undefined) { return keyed(stripAbsent(n)) }
     const { rest } = pattern
     return rest === undefined ? [unknown, 't'] : keyed(rest)
 }
@@ -620,8 +620,8 @@ const objectPresentSet = pattern => k => {
  * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => boolean}
  */
 const objectMayOmit = rules => pattern => k => {
-    const n = at(k)(pattern.props)
-    return n === null || admitsAbsence(rules)(n)
+    const n = entry(pattern.props, k)
+    return n === undefined || admitsAbsence(rules)(n)
 }
 
 /**
@@ -923,7 +923,7 @@ const ensureName = (state, t) => {
     let i = 0
     while (used.some(n => n === name)) {
         name = t.name + i
-        ++i
+        i += 1
     }
     return [{ ...state, names: [...state.names, [t, name]] }, name]
 }

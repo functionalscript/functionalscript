@@ -4,14 +4,14 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
-import { maxLengthBytes, uint, vec } from '../../types/bit_vec/module.f.mjs'
-import { sha1 } from '../sha1/module.f.mjs'
-import { sha256, sha384, sha512 } from '../sha2/module.f.mjs'
-import { hmac } from './module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { maxLengthBytes, uint, vec } from '../../types/bit_vec/module.f.js'
+import { sha1 } from '../sha1/module.f.js'
+import { sha256, sha384, sha512 } from '../sha2/module.f.js'
+import { hmac } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 export const proof = {
@@ -34,7 +34,7 @@ export const proof = {
             }
         },
         nul: () => {
-            for (const [key, text] of [['a\0b', 'message'], ['key', 'a\0b'], ['\0', '\0']]) {
+            for (const [key, text] of [['a\u0000b', 'message'], ['key', 'a\u0000b'], ['\u0000', '\u0000']]) {
                 const html = htmlToString(demo.view({ algorithm: 'SHA-256', key, text }))
                 assert(html.includes('OpenSSL command unavailable:'), html)
                 assert(!html.includes('Copy OpenSSL command'), html)

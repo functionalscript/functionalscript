@@ -8,6 +8,10 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.mjs'
 
 export const proof = {
+    bigintOperands: () => {
+        assertStructurallySame(operatorOperands(['BigInt', 7]), [7])
+        assertStructurallySame(mapOperator(value => value + 1)(['BigInt', 7]), ['BigInt', 8])
+    },
     spreadItems: () => {
         const spread = /** @type {typeof isSpread<Value>} */ (isSpread)
         const operand = /** @type {Value} */ (['array', [1]])
@@ -117,6 +121,7 @@ export const proof = {
             [['?.()', 1, [2], ['|?.()', [3]]], ['?.()', 11, [12], ['|?.()', [13]]], [1, 2, 3]],
             [['?.()', 1, [], ['|()', [2]]], ['?.()', 11, [], ['|()', [12]]], [1, 2]],
             [['instanceof', 1, 'Array'], ['instanceof', 11, 'Array'], [1]],
+            [['in', 'x', 1], ['in', 'x', 11], [1]],
             [['?:', 1, 2, 3], ['?:', 11, 12, 13], [1, 2, 3]],
             [['+', 1], ['+', 11], [1]],
             [['-', 1], ['-', 11], [1]],
@@ -126,6 +131,7 @@ export const proof = {
             [['typeof', 1], ['typeof', 11], [1]],
             [['Number', 1], ['Number', 11], [1]],
             [['String', 1], ['String', 11], [1]],
+            [['Boolean', 1], ['Boolean', 11], [1]],
             [['+', 1, 2], ['+', 11, 12], [1, 2]],
             [['*', 1, 2], ['*', 11, 12], [1, 2]],
         ]

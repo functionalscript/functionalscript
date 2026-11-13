@@ -6,28 +6,30 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { add, empty, has, size, values } from './module.f.mjs'
 
 /**
- * The run sizes, newest (top, smallest) first.
+ * The run sizes, newest (top) first.
  *
  * @type {(set: PersistentSet<unknown>) => readonly number[]}
  */
-const sizes = set => set === null ? [] : [set.size, ...sizes(set.rest)]
+const sizes = set => set === null ? [] : [set.value.size, ...sizes(set.rest)]
 
 /** The set of the first `n` naturals, added in order. @type {(n: number) => PersistentSet<number>} */
 const naturals = n => Array.from({ length: n }, (_, i) => i).reduce((set, i) => add(i)(set), /** @type {PersistentSet<number>} */ (empty))
 
 /**
- * The layout invariant: every run's `Set` holds exactly its `size` values, a
- * power of two, and the sizes strictly grow down the stack, so the runs spell
- * the set's size in binary.
+ * The layout invariant: every run holds a power of two of values, no run is
+ * larger than the one beneath it, and the run two beneath is strictly larger,
+ * so a size appears at most twice in a row and the stack is at most twice
+ * the binary length of the set's size.
  *
  * @type {(set: PersistentSet<unknown>) => void}
  */
 const wellFormed = set => {
     if (set === null) { return }
-    const { size, value, rest } = set
-    assertEq(value.size, size)
+    const { value, rest } = set
+    const { size } = value
     assertEq(size & (size - 1), 0)
-    assert(rest === null || size < rest.size, `run ${size}`)
+    assert(rest === null || size <= rest.value.size, `run ${size}`)
+    assert(rest === null || rest.rest === null || size < rest.rest.value.size, `run ${size}`)
     wellFormed(rest)
 }
 
@@ -37,18 +39,23 @@ export const proof = {
         assertEq(has(1)(empty), false)
         assertEq(values(empty).length, 0)
     },
-    // Adding carries like a binary counter: 1 = `1`, 2 = `10`, 3 = `11`,
-    // 4 = `100`, and a value added is a value held, at every size on the
-    // way.
+    // Adding carries like a binary counter one push late: a value never
+    // merges on the add that brings it, so two runs of a size sit side by
+    // side until the next add merges them. A value added is a value held, at
+    // every size on the way.
     carries: () => {
         const one = add(0)(empty)
         assertStructurallySame(sizes(one), [1])
         const two = add(1)(one)
-        assertStructurallySame(sizes(two), [2])
+        assertStructurallySame(sizes(two), [1, 1])
         const three = add(2)(two)
         assertStructurallySame(sizes(three), [1, 2])
         const four = add(3)(three)
-        assertStructurallySame(sizes(four), [4])
+        assertStructurallySame(sizes(four), [1, 1, 2])
+        const five = add(4)(four)
+        assertStructurallySame(sizes(five), [1, 2, 2])
+        const seven = add(6)(add(5)(five))
+        assertStructurallySame(sizes(seven), [1, 2, 4])
         for (let n = 0; n <= 70; n += 1) {
             const set = naturals(n)
             wellFormed(set)
@@ -67,7 +74,7 @@ export const proof = {
         assertEq(has(3)(four), true)
     },
     // Adding what is already there is the same set, not a copy, so the
-    // layout stays the size's binary representation.
+    // layout stays as it was.
     present: () => {
         const set = naturals(5)
         assert(add(2)(set) === set)
@@ -96,8 +103,10 @@ export const proof = {
         const set = naturals(n)
         wellFormed(set)
         assertEq(size(set), n)
-        // 20000 is `100111000100000` in binary.
-        assertStructurallySame(sizes(set), [32, 512, 1_024, 2_048, 16_384])
+        // 20000 is `100111000100000` in binary; the late carry leaves some
+        // of its bits as two runs of the half size, and the ones that have
+        // not carried yet on top.
+        assertStructurallySame(sizes(set), [1, 1, 2, 4, 8, 16, 32, 32, 64, 128, 256, 512, 512, 1_024, 1_024, 2_048, 2_048, 4_096, 8_192])
         assert(has(n - 1)(set))
         assert(!has(n)(set))
     },

@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`fjs/basen/base64`](../base64/module.f.mjs) is the standard RFC 4648 codec,
+[`fjs/basen/base64`](../base64/module.f.js) is the standard RFC 4648 codec,
 whose alphabet ends in `+` and `/` and whose output is padded with `=`. None of
 those characters can appear in a JavaScript identifier, so a value encoded with
 it cannot be used as one. The original report

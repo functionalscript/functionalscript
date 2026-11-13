@@ -8,9 +8,10 @@
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
  * @import { _ClassPc, _Codecs, _ParsedTag, _Records } from './private.ts'
  * @import { Thunk } from '../types/list/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  */
 
-import { bitLength } from '../types/bigint/module.f.mjs'
+import { bitLength } from '../types/bigint/module.f.js'
 import {
     bitsIn,
     byteLength,
@@ -23,13 +24,13 @@ import {
     vec,
     vec8,
     wholeBytes,
-} from '../types/bit_vec/module.f.mjs'
+} from '../types/bit_vec/module.f.js'
 import { assert } from '../asserts/module.f.js'
 import { identity } from '../types/function/module.f.js'
-import { toArray } from '../types/list/alt/module.f.mjs'
-import { at } from '../types/object/module.f.mjs'
+import { toArray } from '../types/list/alt/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 import { max } from '../types/function/compare/module.f.js'
-import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
+import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.js'
 
 //
 
@@ -374,8 +375,8 @@ export const encode = record =>
 /** @type {(raw: Raw) => Record} */
 const rawToRecord = raw => {
     const [tag, value] = raw
-    const c = at(key(tag))(codecs)
-    return c === null ? encodeRaw(raw) : c.decode(value)
+    const c = entry(/** @type {StringMap<_Codecs[keyof _Codecs]>} */ (codecs), key(tag))
+    return c === undefined ? encodeRaw(raw) : c.decode(value)
 }
 
 /**

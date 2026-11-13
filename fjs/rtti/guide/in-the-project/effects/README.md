@@ -2,7 +2,7 @@
 
 **Status:** implemented
 
-[`effects/schema`](../../../../effects/schema/module.f.mjs) describes
+[`effects/schema`](../../../../effects/schema/module.f.js) describes
 data-shaped effect requests and results, such as the entries `readdir`
 answers, for validation. Its [`types.ts`](../../../../effects/schema/types.ts)
 checks the corresponding handwritten TypeScript declarations against the types
@@ -20,4 +20,4 @@ accepts. It is defined in [`sample.f.mjs`](./sample.f.mjs), and the
 
 ## Where it is implemented
 
-[`effects/schema`](../../../../effects/schema/module.f.mjs).
+[`effects/schema`](../../../../effects/schema/module.f.js).

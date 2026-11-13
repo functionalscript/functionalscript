@@ -8,7 +8,7 @@
  * @import { Printer } from './types.ts'
  */
 
-import { serialize as bigintSerialize } from '../bigint/module.f.mjs'
+import { serialize as bigintSerialize } from '../bigint/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
 
@@ -77,12 +77,12 @@ export const printer = mut => {
 export const _taggedPrimitive = c => {
     if (c === null) { return lit('null') }
     switch (typeof c) {
-        case 'bigint': return num(bigintSerialize(c))
-        case 'string': return str(stringLiteral(c))
-        case 'number': return Number.isFinite(c) ? num(String(c)) : kw('number')
-        case 'undefined': return kw('undefined')
-        case 'boolean': return lit(String(c))
-        default: throw ['not a primitive', c]
+        case 'bigint': { return num(bigintSerialize(c)) }
+        case 'string': { return str(stringLiteral(c)) }
+        case 'number': { return Number.isFinite(c) ? num(String(c)) : kw('number') }
+        case 'undefined': { return kw('undefined') }
+        case 'boolean': { return lit(String(c)) }
+        default: { throw ['not a primitive', c] }
     }
 }
 

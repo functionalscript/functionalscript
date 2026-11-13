@@ -66,6 +66,8 @@ export const proof = /** @type {const} */ ({
         // Past the emoji blocks, nothing is known to be dropped.
         legacySymbol: () => assertEq(slug([['text', 'a\u{1fb00}']]), 'a'),
         digits: () => assertEq(slug([['strong', [['text', '10-'], ['code', '2']]]]), '10-2'),
+        // A struck word is a word of the anchor, as GitHub makes it.
+        struck: () => assertEq(slug([['del', [['text', 'a']]], ['text', ' b']]), 'a-b'),
     },
     anchors: () => assertStructurallySame(
         anchors([['heading', 1, [['text', 'A']]], ['paragraph', []], ['heading', 2, [['text', 'a']]], ['heading', 2, [['text', 'B']]], ['heading', 3, [['text', 'A']]]]),
@@ -86,13 +88,13 @@ export const proof = /** @type {const} */ ({
         ]), ['demo-1', 'demo-2', 'emergent-testing-1', 'section', 'section-1', 'demo-1-1', 'drawer-title-1']),
     readmeNodes: {
         latin1Heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'µ ª º']]]]),
-            ok([linkedHeading(2, 'µ-ª-º', 'µ ª º', ['µ ª º'])])),
+            ok([linkedHeading(1, 'µ-ª-º', 'µ ª º', ['µ ª º'])])),
         all: () => {
             /** @type {Blocks} */
             const blocks = [
                 ['heading', 1, [['text', 'T']]],
                 ['heading', 6, [['text', 'S']]],
-                ['paragraph', [['text', 'a '], ['code', 'b'], ['strong', [['text', 'c'], ['code', 'h']]], ['em', [['text', 'd']]], ['link', [['text', 'e '], ['code', 'f']], 'g']]],
+                ['paragraph', [['text', 'a '], ['code', 'b'], ['strong', [['text', 'c'], ['code', 'h'], ['link', [['text', 'l']], 'm']]], ['em', [['text', 'd']]], ['link', [['text', 'e '], ['code', 'f']], 'g']]],
                 ['code', 'js', 'x'],
                 ['code', '', 'y'],
                 ['list', false, [[['paragraph', [['text', 'i']]], ['list', true, [[['paragraph', [['text', 'k']]]]]]], [['paragraph', [['text', 'j']]]]]],
@@ -102,11 +104,14 @@ export const proof = /** @type {const} */ ({
                 ['olist', 3, true, [[['paragraph', [['text', 'n']]]]]],
                 ['list', false, [[['task', true], ['paragraph', [['text', 'o']]]], [['task', false], ['paragraph', [['text', 'p']]]]]],
                 ['list', true, [[['task', false], ['paragraph', [['text', 'q']]], ['paragraph', [['text', 'r']]]]]],
+                ['quote', [['paragraph', [['text', 'u']]], ['list', false, [[['paragraph', [['text', 'v']]]]]]]],
+                ['list', false, [[['quote', [['paragraph', [['text', 'w']]]]]]]],
+                ['rule'],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
-                linkedHeading(2, 't', 'T', ['T']),
+                linkedHeading(1, 't', 'T', ['T']),
                 linkedHeading(6, 's', 'S', ['S']),
-                ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
+                ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h'], ['a', { href: 'm' }, 'l']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
                 fence('x', ['code', { class: 'language-js' }, ['span', { 'data-token': 'identifier' }, 'x']]),
                 fence('y', ['code', 'y']),
                 ['ul', ['li', 'i', ['ul', ['li', ['p', 'k']]]], ['li', 'j']],
@@ -117,8 +122,15 @@ export const proof = /** @type {const} */ ({
                 ['ul', ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '', checked: '' }], ' ', 'o'],
                     ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '' }], ' ', 'p']],
                 ['ul', ['li', { class: 'task-list-item' }, ['p', ['input', { type: 'checkbox', disabled: '' }], ' ', 'q'], ['p', 'r']]],
+                // A quote's paragraph is a `p`, in a tight list's item too.
+                ['blockquote', ['p', 'u'], ['ul', ['li', 'v']]],
+                ['ul', ['li', ['blockquote', ['p', 'w']]]],
+                ['hr'],
             ]))
         },
+        // A link inside bold is placed as any link is, or refused.
+        strongLinkRefusal: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['strong', [['link', [['text', 'x']], 'bad']]]]]]), error('no')),
+        quoteRefusal: () => assertStructurallySame(readmeNodes(href)([['quote', [['paragraph', [['link', [['text', 'x']], 'bad']]]]]]), error('no')),
         // A fence the tokenizer reads is coloured, in any case of its
         // language's name; any other stays its text.
         fences: {
@@ -189,6 +201,15 @@ export const proof = /** @type {const} */ ({
                 error('an image whose source is not an https address: http://e.x/b.svg')),
             imageInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'a '], ['image', 'b', 'https://e.x/c.png']]]]),
                 error('an image in a heading, whose anchor GitHub may make otherwise')),
+            imageStruckInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['del', [['image', 'b', 'https://e.x/c.png']]]]]]),
+                error('an image in a heading, whose anchor GitHub may make otherwise')),
+            // The title is the page's one `h1`; a second is refused, and a
+            // section under it is not.
+            secondTitle: () => assertStructurallySame(
+                readmeNodes(href)([['heading', 1, [['text', 'a']]], ['heading', 2, [['text', 'b']]], ['heading', 1, [['text', 'c']]]]),
+                error('a second `#` title, which would give the page a second heading')),
+            struck: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['del', [['text', 'a'], ['code', 'b']]]]]]),
+                ok([['p', ['del', 'a', ['code', 'b']]]])),
             badgeInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['image', 'b', 'https://e.x/c.png']], 'd']]]]),
                 error('an image in a heading, whose anchor GitHub may make otherwise')),
             paragraph: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['text', 'a'], ['link', [['text', 'x']], 'bad']]]]), error('no')),

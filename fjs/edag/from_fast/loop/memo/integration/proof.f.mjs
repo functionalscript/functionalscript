@@ -199,7 +199,7 @@ export const proof = /** @type {const} */ ({
             assert(value instanceof Array && value[0] instanceof Array && value[2] instanceof Array)
             assertEq(value[0], value[1])
             assertEq(value[0].length, length)
-            for (let index = 0; index < length; ++index) { assertEq(value[0][index], index === 1 ? value[3] : value[2]) }
+            for (let index = 0; index < length; index += 1) { assertEq(value[0][index], index === 1 ? value[3] : value[2]) }
             assertStructurallySame(value[2], ['break', ['continue', [4]]])
             assertEq(value[2][1], value[3])
         }
@@ -1856,7 +1856,7 @@ export const proof = /** @type {const} */ ({
                 assert(value instanceof Array)
                 assertEq(value[0], value[1])
                 let current = value[0]
-                for (let level = length - 1; level > 0; --level) {
+                for (let level = length - 1; level > 0; level -= 1) {
                     assert(current instanceof Array)
                     assertEq(current[1], selected ? 'left' : 'right')
                     current = current[0]

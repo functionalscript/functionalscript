@@ -9,7 +9,7 @@ import type { Reduce, Unary } from '../bigint/types.ts'
 /**
  * A type representing a prime field and its associated operations.
  *
- * @property reduce
+ * @property mod
  *
  * Reduces an arbitrary `bigint` into `[0, p)`.
  *
@@ -26,7 +26,7 @@ export type PrimeField = {
     readonly middle: bigint
     readonly max: bigint
     readonly neg: Unary
-    readonly sub: Reduce
+    readonly subtract: Reduce
     readonly add: Reduce
     readonly abs: Unary
     readonly mul: Reduce
@@ -35,6 +35,6 @@ export type PrimeField = {
     readonly pow: Reduce
     readonly pow2: Unary
     readonly pow3: Unary
-    readonly reduce: Unary
+    readonly mod: Unary
     readonly quadRes: (x: bigint) => boolean
 }

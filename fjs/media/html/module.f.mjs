@@ -11,14 +11,17 @@
  * @import { Element, Node } from './types.ts'
  */
 
-import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
-import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
-import { definedEntries, isObject } from '../../types/object/module.f.mjs'
+import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.js'
+import { concat, concat as stringConcat } from '../../types/string/module.f.js'
+import { definedEntries, isObject } from '../../types/object/module.f.js'
 import { compose } from '../../types/function/module.f.js'
-import { codeUnitToString, stringToList } from '../../text/utf16/module.f.mjs'
-import { findMap, includes } from '../../types/array/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.js'
+import { codeUnitToString, stringToList } from '../../text/utf16/module.f.js'
+import { findMap, includes } from '../../types/array/module.f.js'
+import { utf8 } from '../../text/module.f.js'
+import {
+    quotationMark, ampersand, lessThanSign, greaterThanSign, hyphenMinus, lowLine, fullStop, colon,
+    asciiLowercase, isDigit, isLatinLetter,
+} from '../../text/ascii/module.f.js'
 
 /**
  * Void Elements
@@ -111,6 +114,47 @@ export const parseElement = e => {
 }
 
 /**
+ * `e` with each element in it, `e` included, given the tag and attributes `f`
+ * makes of its own; text and the tree's shape are kept. The one walk for a
+ * rewrite that looks at one element at a time.
+ *
+ * @type {(f: (tag: string, attributes: StringMap<string>) => readonly [string, StringMap<string>]) => (e: Element) => Element}
+ */
+export const mapElement = f => {
+    /** @type {(e: Element) => Element} */
+    const walk = e => {
+        const [tag, attributes, children] = parseElement(e)
+        const [newTag, newAttributes] = f(tag, attributes)
+        return [newTag, newAttributes, ...children.map(child => typeof child === 'string' ? child : walk(child))]
+    }
+    return walk
+}
+
+/**
+ * `f` folded over each element in `e`, `e` first, in document order, from
+ * `init`: what an element contributes is read off its tag and attributes.
+ *
+ * @type {<A>(f: (acc: A, tag: string, attributes: StringMap<string>) => A) => (init: A) => (e: Element) => A}
+ */
+export const foldElement = f => {
+    /** @type {(acc: Parameters<typeof f>[0], e: Element) => Parameters<typeof f>[0]} */
+    const walk = (acc, e) => {
+        const [tag, attributes, children] = parseElement(e)
+        return children.reduce((acc, child) => typeof child === 'string' ? acc : walk(acc, child), f(acc, tag, attributes))
+    }
+    return init => e => walk(init, e)
+}
+
+/**
+ * The text a node reads as: a string itself, an element its children's text
+ * joined, with no separator, as the DOM's `textContent` joins it.
+ * Attributes are not text, so an image says nothing here.
+ *
+ * @type {(n: Node) => string}
+ */
+export const textContent = n => typeof n === 'string' ? n : parseElement(n)[2].map(textContent).join('')
+
+/**
  * Whether `tag` names a void element, which has no children and no end tag.
  */
 export const isVoidTag = includes(voidTagList)
@@ -129,20 +173,17 @@ export const isRawText = includes(rawText)
 export const scriptRefusal = 'media/html: a `script` element is refused: built into a page, it would run'
 
 /** @type {(c: number) => boolean} */
-const isAsciiLetter = c => (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a)
+const tagUnit = c => isLatinLetter(c) || isDigit(c) || c === hyphenMinus
 
 /** @type {(c: number) => boolean} */
-const tagUnit = c => isAsciiLetter(c) || (c >= 0x30 && c <= 0x39) || c === 0x2d
-
-/** @type {(c: number) => boolean} */
-const attributeUnit = c => tagUnit(c) || c === 0x5f || c === 0x2e || c === 0x3a
+const attributeUnit = c => tagUnit(c) || c === lowLine || c === fullStop || c === colon
 
 /**
  * Whether `name` is an ASCII letter followed by code units `rest` accepts.
  *
  * @type {(rest: (c: number) => boolean) => (name: string) => boolean}
  */
-const plainName = rest => name => name.length > 0 && isAsciiLetter(name.charCodeAt(0))
+const plainName = rest => name => name.length > 0 && isLatinLetter(name.charCodeAt(0))
     && name.split('').every((_, i) => i === 0 || rest(name.charCodeAt(i)))
 
 /** A tag a parser reads as written: an ASCII letter, then letters, digits and `-`. */
@@ -182,7 +223,7 @@ export const pageRefusal = e => {
     if (!plainTag(tag)) {
         return `media/html: the tag '${tag}' is not a plain name: a page would read other markup`
     }
-    if (tag.toLowerCase() === 'script') { return scriptRefusal }
+    if (asciiLowercase(tag) === 'script') { return scriptRefusal }
     const name = definedEntries(attributes).map(([n]) => n).find(n => !plainAttribute(n))
     if (name !== undefined) {
         return `media/html: the attribute '${name}' is not a plain name: a page would read other markup`

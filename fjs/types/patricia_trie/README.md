@@ -37,25 +37,32 @@ type State<S, T>     = readonly[S, readonly Candidate<T>[]]  // [storage, right-
 ## API
 
 ```typescript
-const { push, end } = patriciaTrie(create)
+import { run } from '../list/module.f.js'
+
+const machine = patriciaTrie(create)(storage)
+const [root, finalStorage] = run(machine)(leaves)
 ```
 
-|              | Signature                                              | Description                                                                                                 |
-|--------------|--------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| `push`       | `(c: Candidate<T>, state: State<S, T>) => State<S, T>` | Add one leaf. Returns updated state (storage + stack).                                                      |
-| `end`        | `(state: State<S, T>) => readonly[T \| undefined, S]`  | Flush remaining candidates. Returns root identity (`undefined` if no leaves were pushed) and final storage. |
-| `emptyState` | `<S>(storage: S) => State<S, never>`                   | Construct the initial state from a storage value.                                                           |
+The constructed machine implements the shared `Transducer` lifecycle:
 
-Both `push` and `end` are pure — `State<S, T>` is never mutated in place.
+| Operation | Result | Description |
+| --- | --- | --- |
+| `init` | `['next', [], state]` | Initial state wrapping the supplied storage and an empty right spine. |
+| `update(state, candidate)` | `['next', [], state]` | Adds one leaf and returns the updated state. |
+| `end(state)` | `['done', [], [root, storage]]` | Drains remaining candidates, returning the root (`undefined` for no leaves) and final storage. |
+
+All operations are pure: `State<S, T>` is never mutated in place, so a saved
+state can be resumed or finalized without changing another run. The machine
+emits no items; its terminal summary carries the root and final storage.
 
 ## Example
 
-See [example.md](example.md) for a full 16-leaf worked trace showing the state after each `push` and the resulting tree shape.
+See [example.md](example.md) for a full 16-leaf worked trace showing the state after each leaf and the resulting tree shape.
 
 ## Properties
 
 - **Order-dependent identity**: ascending and descending insertion of the same leaf set produce trees with mirrored left/right children — root identities differ unless `create` is symmetric.
-- **Incremental**: nodes are emitted as soon as they are complete; callers can store or transmit them without waiting for the full sequence.
+- **Incremental**: `create` receives a node as soon as it is complete, so a caller's storage backend need not wait for the full sequence.
 - **Parameterised**: any `Create<S, T>` function can be supplied — a cryptographic hash, XOR, string concatenation, or a test stub.
 
 ## References

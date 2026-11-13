@@ -20,7 +20,7 @@ it would hide every other paragraph of the README to avoid a difference that
 misleads no one.
 
 At `92d8e4a1`, two rendered READMEs hold Mermaid fences:
-`doc/sergey/disot/README.md` holds eight flowcharts, and
+`doc/sergey-shandar/disot/README.md` holds eight flowcharts, and
 `fjs/js/runtime/README.md` holds a flowchart and a sequence diagram.
 
 ### Proposal
@@ -61,11 +61,20 @@ sideways: its picture changes direction, not its content.
       ([`mermaid`](../mermaid/module.f.mjs)'s `flowchartGraph`; `ranked` in
       `demo/graph` starts every source at rank 0, so a flowchart with
       several starting points ranks them all).
-- [ ] Draw a label of several lines (`<br/>`, `\n`), and an edge with no
-      label without a record row of its own, as `fjs/js/runtime`'s flowchart
-      needs. Until then the reader refuses a multi-line label, and
-      `flowchartGraph` refuses a node whose arrows are labelled only in
-      part, whose rows would repeat its targets' names.
+- [x] Draw a node's label of several lines: the reader reads Mermaid's
+      `<br>`, `<br/>` and `<br />` as `\n`, and `demo/graph` stacks a
+      label's lines. A `\n` written in a label is no line break Mermaid
+      documents, so the reader refuses one; `doc/sergey-shandar/disot`'s labels
+      spell their breaks `<br/>`, and every one of its flowcharts draws. An arrow
+      with no label beside labelled ones is a row naming its target, as the
+      renderer draws one; an arrow label of several lines is refused, as a
+      row is one line.
+- [x] Mermaid's entity codes in a label: the reader reads `#lt;`, `#gt;`,
+      `#amp;` and `#quot;` as the characters they name, and refuses any
+      other `#`, a decimal code such as `#35;` among them.
+      `fjs/js/runtime`'s flowchart spells `runtime::<A>()` as
+      `runtime::#lt;A#gt;()`, which GitHub shows as written and the site
+      draws; as `<A>`, Mermaid read a tag and GitHub dropped it.
 - [x] Draw a README's flowchart fence as its diagram in
       [`readme`](../readme/module.f.mjs), and keep any other fence as source.
 - [ ] Sequence diagrams: a layout of their own, if a second README wants one.

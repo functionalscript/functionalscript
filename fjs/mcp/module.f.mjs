@@ -35,15 +35,15 @@
  * @import { Key } from '../effects/memory/types.ts'
  */
 
-import { step, history, historyStep } from '../effects/module.f.mjs'
-import { create } from '../effects/memory/module.f.mjs'
+import { step, history, historyStep } from '../effects/module.f.js'
+import { create } from '../effects/memory/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,
 } from '../protocol/mcp/module.f.mjs'
 import { fileCas } from '../cas/module.f.mjs'
 import { initEvo, evo } from '../cas/evo/module.f.mjs'
-import { sha256 } from '../crypto/sha2/module.f.mjs'
+import { sha256 } from '../crypto/sha2/module.f.js'
 import { casToolRegistry } from './cas/module.f.mjs'
 import { evoToolRegistry } from './evo/module.f.mjs'
 
@@ -68,7 +68,7 @@ export const casMcpHandlers = cas => cacheKey =>
  * @type {McpConfig}
  */
 export const casConfig = {
-    serverInfo: { name: 'functionalscript-cas', version: '0.57.0' },
+    serverInfo: { name: 'functionalscript-cas', version: '0.59.0' },
     capabilities: { tools: {} },
     protocolVersions: ['2024-11-05'],
 }
@@ -98,14 +98,3 @@ export const _casMcpSession = home => transport => {
  * @type {(home: string) => Effect<Read | Write | MemOp | FileCasOperation, void, IoChannel>}
  */
 export const casMcpServer = home => _casMcpSession(home)(stdioTransport)
-
-// ── Tests ────────────────────────────────────────────────────────────────────
-
-export const proof = {
-    // casMcpServer is never called in integration tests because it drives a
-    // real stdio server; call it here to cover its effect-building body.
-    casMcpServer: () => {
-        casMcpServer('/')
-        return undefined
-    },
-}

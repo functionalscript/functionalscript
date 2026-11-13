@@ -37,17 +37,17 @@ the two are separate, and this one is not quietly migrated into the other.
 
 ## Shareable demo links
 
-Two controls beside Demo distinguish **Copy section link** (plain chain) from
-**Copy with inputs** (chain with a visible text label). The section link always
-copies `#demo` without a query; input links use `#demo` for defaults. Example links
+The address bar is the link to share: it always holds the demo's current
+inputs in its query, and the Demo heading's anchor is a plain
+[section link](#section-links). Input links use `#demo` for defaults. Example links
 such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
 custom inputs use individual query parameters such as `?compiler=source#demo`.
 Restore validates all inputs before replacing state and never presses action
-buttons. Each settled edit pushes a history entry carrying the same query, so
-the address bar is always the current link and Back walks the edits. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
+buttons. A reader edit pushes a history entry once typing pauses, so Back walks
+the edits; an action that changes an input replaces the entry instead. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
 atomic sharing adapter; `textDemo` supplies one automatically. See the
 [sharing contract](./demo/sharing/README.md) for encodings, validation,
-clipboard feedback, startup edits and history navigation.
+startup edits and history navigation.
 
 ## Section links
 
@@ -59,11 +59,14 @@ suffix. Empty heading slugs start at `section`. Heading text is unchanged. Demo 
 per-instance namespace at prerender and runtime; see
 [DOM identifiers](./demo/README.md#dom-identifiers-and-repeated-instances).
 
-A native permalink beside each documentation or main section heading works
-without JavaScript. Once the shared fragment runtime binds, a keyboard-accessible
-**Copy link** button replaces that fallback. It copies the current page URL with
-the heading fragment, reports clipboard success or failure, and leaves both the
-address bar and section's open state alone. Controls sit outside the heading's
+Each documentation or main section heading has an anchor, as on GitHub: a
+native link to the heading's fragment, in the heading's left margin, shown
+while the heading is hovered or the anchor has keyboard focus. Clicking it
+scrolls the heading to the top and puts its fragment in the address bar, with a
+history entry; copying the link is the browser's own link menu. It needs no
+JavaScript. On a touch screen, where nothing hovers, the anchor stays in the
+margin and is always shown, as on GitHub's mobile view. The page's side gutters
+are wide enough to hold it at every width. It sits outside the heading's
 accessible name.
 
 Initial fragment navigation, hash changes, back/forward navigation, and repeated
@@ -163,8 +166,9 @@ documentation**. A directory is a crate's when it has a `Cargo.toml` and its
 path, with `/` and `-` read as `_`, names a crate rustdoc documented:
 `nanvm/lib` is `nanvm_lib`.
 
-The generator copies `target/doc` there unchanged and writes one page of its
-own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
+The generator copies `target/doc` there unchanged, but for each page's
+`og:url` ([A shared link shows a card](#a-shared-link-shows-a-card)), and
+writes one page of its own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
 page. It does not run `cargo` — whoever builds the site runs
 `cargo doc --no-deps --workspace` first, and a build without `target/doc`
 writes no `cargo.doc/` and no links. `target/` itself is never served: it
@@ -198,7 +202,8 @@ rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
 
 `--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
-icons in the pinned rustdoc. The original links remain; the HTML icon
+icons in the pinned rustdoc, and the card tags
+([A shared link shows a card](#a-shared-link-shows-a-card)). The original links remain; the HTML icon
 selection rule prefers the last equally appropriate icon. Verify the tab
 icon after a hard refresh when changing the rustdoc pin.
 
@@ -227,7 +232,7 @@ the website; same-repository PRs upload previews. Fork PRs build without uploadi
 Pushes to `main` deploy production. Other branches need an open PR (a draft is
 enough) for a preview.
 
-The original CI workflow keeps all nine test jobs on PRs and merge-group
+The original CI workflow keeps all twelve test jobs on PRs and merge-group
 entries, using its existing cache. It has no deployment gates or push trigger.
 Website uploads have their own concurrency and do not affect test jobs. The
 website workflow does not run in the merge queue; the website check is not a
@@ -267,7 +272,7 @@ For example, `codex/cloudflare-preview-comment` becomes
 `https://codex-cloudflare-preview-comment-functionalscript.functionalscript.workers.dev`.
 Different branch names can normalize to the same alias, so keep them distinct.
 The upload logs report the version and alias URLs. After a successful Actions
-preview upload, github-actions[bot] posts an Open preview link on the PR and
+preview upload, `github-actions[bot]` posts an Open preview link on the PR and
 updates that same comment on later pushes. It reads the actual alias URL from
 Wrangler output and uses the automatic Actions token with pull-request write
 permission; no additional secret, action, or setting is required. Forks and
@@ -339,8 +344,8 @@ that page for the repository root — it carries the project's name and the same
 catalogue — rather than a special case beside the rule.
 
 **Contents and Issues use the left margin.** Both sections live in one
-catalogue beside the main column, with Contents and Issues
-open by default. The catalogue stays in view while the demo or test report grows,
+catalogue beside the main column, with Contents open and Issues
+collapsed by default. The catalogue stays in view while the demo or test report grows,
 and can scroll when its links are taller than the viewport. On desktop
 it takes a 16rem column, with a full-height divider and content filling the
 remaining width; at 48rem and below a full-width Contents / Issues bar above the breadcrumb
@@ -867,6 +872,89 @@ carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
 
+## A shared link shows a card
+
+Slack, Telegram, Discord, X, Facebook and LinkedIn build a card for a pasted
+link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
+[`page/`](./page/module.f.mjs) writes into every page's `<head>` through
+`shell`. They are in the static HTML because a crawler runs no script.
+
+**A title and a description on every page.** A directory's description is
+the first sentence of the first paragraph of prose in its README. A
+paragraph of badges has no text, and a field such as `**Status:** implemented`,
+which opens most READMEs under `spec/`, is a label rather than prose, so both
+are skipped. A sentence ends at a `.`, `!` or `?` outside code, since in code
+those are operators. A sentence longer than 160 characters, about what a
+search result shows, is cut at a word and ends with "…"; otherwise each
+platform cuts it mid-sentence at a length of its own. A release names its
+version, and every other page uses the site's own sentence.
+
+**rustdoc's pages carry what does not vary by page, and their URL.**
+`cargo doc` writes the Rust API reference, and the site adds one fixed
+fragment to every page's `<head>` there, `rustdocHead`. It carries
+`siteMeta`, the tags `shell`'s pages share: the site's name, the page kind,
+the card type and, where the build has an origin, the root page's card
+image. It ends with a marker, `<!--og:url-->`, which the generator replaces
+with the page's `og:url` as it copies the page (`withPageUrl` in
+[`cargo-doc/`](./cargo-doc/module.f.mjs)): the copy knows the page's path,
+and the marker is a string the site wrote, so finding it reads nothing of
+rustdoc's markup. A build without an origin leaves the comment, and a
+redirect page, which rustdoc writes without the fragment, has neither.
+Each page's title and description are rustdoc's own `<title>` and
+`<meta name="description">`, which a card falls back to; `og:title`, which
+Open Graph requires, is missing
+([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
+
+**A URL and an image wherever the build has an origin.** Open Graph wants
+both absolute, so a page needs to know where it is published, which
+[`origin/`](./origin/module.f.js) says from the build's branch. Production
+deploys only from a push to `main`, so a build of `main` is at
+`https://functionalscript.com`. Any other branch is its preview, at the alias
+the upload names it by, which is computed in that same module so the two
+cannot disagree. Both write `og:url`, `og:image` and the large card, so a
+preview's card can be checked before it merges. A local build names no
+branch, has no address anyone can fetch, and gets neither and the small
+card.
+
+**A page with a README shows it as its card.** The image is the README as
+its page shows it, without the header, the catalogue, the breadcrumb or the
+footer, so a link to a directory says in the card what the directory holds.
+Every other page — the PR queue, the CLI reference, the changelog's, a
+README the reader refused, and rustdoc's — shows the root page's card, whose
+alt text is the site's name; a page's own card is described by its title.
+
+- **A screenshot, taken at build time.** Only a browser lays out the site's
+  own CSS, so the card cannot drift from the page. The generator writes a
+  card page, `_card.html`, beside each page that has a card, and lists them
+  in `_cards.json` ([`card/`](./card/module.f.mjs)). After it, the website
+  workflow runs [`cards.mjs`](./cards.mjs), which serves the built tree and
+  has headless Chrome screenshot each as `_card.png`, four tabs at a time
+  (`CARD_TABS` overrides it), so a card waiting on a slow image holds up
+  only its own tab. It drives Chrome over
+  the DevTools protocol with Node's own `WebSocket`, so the step adds no npm
+  dependency; `CHROME_PATH` names another browser. A local build writes the
+  card pages and no images, as it writes no `og:image`. The root always has
+  a card, since every other page falls back to it: its README, or the site's
+  name and description where the README is not rendered.
+- **1200×630 at 1×, light.** The size the large cards show uncropped, and
+  those platforms refuse SVG. A card cannot follow the viewer's dark mode.
+- **The whole README, faded at the bottom.** A card that stopped at the
+  first heading would be empty for a README whose intro is a line or none,
+  so it runs on, and the last 140px fade into the background rather than
+  cutting a line in half.
+- **Trimmed to even margins.** 40px above the first heading and 48px on
+  each side; the README's reading width does not apply on a card.
+- **No controls.** Permalinks and buttons are hidden; a picture cannot use
+  them.
+- **An image from another site gets five seconds.** One that has not loaded
+  by then, or fails, is removed before the screenshot, so a slow badge server
+  costs the card its badge and never draws a broken image. A badge shows its
+  value at the build, and the cards are rebuilt with every deploy.
+
+**Checking a card.** View a page's source, or paste its URL into a preview
+debugger such as opengraph.xyz. Platforms cache cards, so a link shared
+before a change keeps its old card for a while.
+
 ## Every page opens with the same header
 
 The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases**,
@@ -910,28 +998,44 @@ and no other page had either.
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the strip.
 
-## The breadcrumb is the page's heading
+## The README's title is the page's heading
 
-A directory's page, a release's page and the release index open with one
-line, `root / fjs / rtti`: each ancestor a link, the page itself as text
-marked `aria-current="page"`. It is `breadcrumb` in
-[`page/module.f.mjs`](./page/module.f.mjs), a `nav` holding the page's `h1`.
+A directory's page opens with its breadcrumb, `root / fjs / rtti`: each
+ancestor a link, the page itself as text marked `aria-current="page"`. It is
+`breadcrumb` in [`page/module.f.mjs`](./page/module.f.mjs), a plain `nav`,
+set as a small muted line. Under it is the page's one `h1`: the README's own
+`#` title, or, where the README gives none, the directory's name
+(`pageHeading`).
 
-- **One line, not two.** The page used to carry a breadcrumb, `root / fjs`,
-  and under it an `h1`, `fjs/rtti` — the same path twice, the second time
-  without its root.
-- **It is still the `h1`.** Only the duplicate is gone, not the heading: a
-  screen reader's list of headings, a search engine and a reader mode take the
-  page's topic from it, and a page with none would give them nothing. An `h1`
-  may sit in a `nav`, not the other way round, so the `nav` is outside.
-  Browsers that still apply the old rule shrinking an `h1` inside a `nav`
-  show it smaller; current ones no longer do, so the stylesheet does not set
-  its size.
-- **Every part is heading-sized.** A variant setting the ancestors at body
-  size, so the page's own name stood out, was rendered beside it, and the
-  plain heading won.
-- **A page with no ancestors keeps a plain `h1`**: the root page, the pull
-  requests and the CLI reference have no path to show.
+- **What the page is about, not where it is.** The breadcrumb used to be the
+  `h1`, and the README's headings were shifted one level down beneath it. A
+  screen reader's list of headings, a search engine and a reader mode then
+  took `root / fjs / types / bit_vec` as the page's topic where the README
+  says "Signed Vector of Bits", and the root page, which has no path, carried
+  a fixed `FunctionalScript` heading over the README's own `FunctionalScript`.
+  The README's title is what it is about; the path is navigation.
+- **A README's headings keep their levels.** Its `#` is the `h1` and its
+  `##` sections are `h2`, beside the sections the page adds itself — the
+  catalogue's Contents and Issues, the demo, the test suite. The heading
+  styles are GitHub's at the same levels.
+- **One `#` title, or the README is refused.** A second `#` would be a
+  second `h1`; demoting it to an `h2` would set it beside the sections it was
+  written above. So `readmeNodes` refuses it, and the page shows why, as it
+  does for anything else it cannot render as GitHub does.
+- **The directory's name where there is no title**: no README, one that is
+  not rendered, or one with no `#` title. Every page has an `h1`.
+- **One space between the breadcrumb and the heading.** It is the
+  breadcrumb's bottom margin alone, and the heading after it brings none of
+  its own, so a README's title sits where a directory's name would; its own
+  margins and its section spacing would otherwise stack under the breadcrumb.
+- **The drawer reads the breadcrumb.** The narrow screen's Browse drawer
+  shows the reader's path under its title, taken from the breadcrumb's text,
+  not from the `h1`, which is now the README's title.
+- **A page with no ancestors has no breadcrumb**: the root page, whose
+  heading is the root README's title, and the pull requests and the CLI
+  reference, which keep a plain `h1` of their own. The release index and a
+  release's page have no README, so their breadcrumb is followed by their
+  name as the `h1`.
 
 ## Every page closes with the funding links
 

@@ -28,13 +28,15 @@ JavaScript text
 
 The first and fourth stages are here, and `compiler/edag` runs the last two.
 The token stream is shared: the compiler folds it once more into its own
-tokens, and the website's demos read it as it is to colour source text.
+tokens, and [`marked`](./marked/module.f.mjs) reads it as it is to find the runs
+the website colours source text by.
 
 ## The modules
 
 |Module                                      |Holds                                                                       |Used by                                      |
 |--------------------------------------------|----------------------------------------------------------------------------|---------------------------------------------|
 |[`tokenizer`](./tokenizer/README.md)        |`tokenize`: text to a stream of `JsToken`s, or the first lexical error      |compiler, website demos                      |
+|[`marked`](./marked/module.f.mjs)           |`spansOf`: the runs of JavaScript or TypeScript text, and `disagreement`    |website, compiler and media/json proofs      |
 |[`keywords`](./keywords/README.md)          |the reserved words, literal words and reserved globals, and `isKeyword`     |compiler, ebnf, rtti, website                |
 |[`identifier`](./identifier/README.md)      |`isIdentifier` and its start and part classes                               |compiler, rtti, emergent_testing, text/marked|
 |[`string_escape`](./string_escape/README.md)|the escape sequences, and `stringLiteral`, the one writer of a quoted string|compiler, media/json, types/ts, ci           |

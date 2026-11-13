@@ -10,7 +10,17 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { runNodeEffect } from '../../effects/node/module.mjs'
 import { withTemporary } from '../../effects/node/testlib.mjs'
-import * as parity from '../../../nanvm/harness/fixtures/parity.mjs'
+import {
+    directory, exclusive, files, handles, inflates, mkdirs, readWhole,
+    renames, resolution, rmOfADirectory, rmdirs, stats, thunks, windows, writeBytes,
+} from '../../../nanvm/harness/fixtures/parity.mjs'
+
+// Keep the namespace's alphabetical export order when enumerating the corpus.
+/** @type {typeof import('../../../nanvm/harness/fixtures/parity.mjs')} */
+const parity = {
+    directory, exclusive, files, handles, inflates, mkdirs, readWhole,
+    renames, resolution, rmOfADirectory, rmdirs, stats, thunks, windows, writeBytes,
+}
 
 /** @type {(name: string) => (c: { readonly run: (root: string) => any, readonly expected: unknown }) => Promise<void>} */
 const perform = name => ({ run, expected }) => withTemporary(`nanvm-parity-${name}-`, async root => {

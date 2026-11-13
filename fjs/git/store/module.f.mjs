@@ -13,7 +13,7 @@
  * [`fjs/git/packstore`](../packstore/module.f.mjs), which is where
  * `git clone` and `git gc` put nearly everything. The repository's own
  * `objects/` is the first such directory and its `objects/info/alternates`
- * names the rest, as [`fjs/git/alternates`](../alternates/module.f.mjs)
+ * names the rest, as [`fjs/git/alternates`](../alternates/module.f.js)
  * decodes it — see {@link objectsDirs}, which walks them, and
  * {@link readIn}, which reads over the list. The caller gives the common
  * directory, `.git` for a main worktree; finding it from a worktree of any
@@ -43,7 +43,7 @@
  * `readBytes` are for: the length, then the header, the trailer and the windows
  * of an entry. `readFile` is for the alternates, and
  * `inflate` is not asked for at all: the objects are inflated by
- * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs), which is pure. The
+ * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.js), which is pure. The
  * host's `inflate` effect, which answered one `Vec` of 128 KiB at most for one of
  * the same, refused every object over that length — about one in a hundred in
  * this repository's own history; none is refused for its length now, though a delta
@@ -67,12 +67,12 @@
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.js'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
-import { join, under } from '../../path/module.f.mjs'
+import { join, under } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { alternatesIn } from '../alternates/module.f.mjs'
-import { tryRead as readLoose } from '../loose/module.f.mjs'
+import { alternatesIn } from '../alternates/module.f.js'
+import { path as loosePath, tryRead as readLoose } from '../loose/module.f.mjs'
 import { hexText, of, ofWidth } from '../oid/module.f.mjs'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
 
@@ -89,22 +89,6 @@ import { tryRead as readPacked } from '../packstore/module.f.mjs'
  * @type {(dir: string) => (id: Oid) => string}
  */
 export const objectPath = dir => id => loosePath(objectsDir(dir), id)
-
-/**
- * The same path from the `objects/` directory itself: a directory named by the
- * first two hex digits of the id, a file named by the rest.
- *
- * **The key is the `objects/` directory and not the repository**, because an
- * `objects/info/alternates` names object directories directly — see
- * {@link objectsDirs}. {@link objectPath} is this one below `objects/`, which is
- * what a caller holding a repository has.
- *
- * @type {(od: string, id: Oid) => string}
- */
-const loosePath = (od, id) => {
-    const h = hexText(id)
-    return under(od, join(h.slice(0, 2), h.slice(2)))
-}
 
 /**
  * A repository's own object directory: `objects/` below it.

@@ -83,12 +83,12 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    than `built-in` admits it, since admitting a name a module may already
    have bound is a breaking change, so the list may land a name at a time
    (its file says P3, not this list's P2),
-6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+6. [x] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 7. [x] computed property key from an expression — `{ [name]: 0 }`
    ([property keys](../values/objects/README.md#property-keys)).
-8. [ ] [the `in` operator](./2346-in-operator.md) — admitted with a
+8. [x] [the `in` operator](../operators/in/README.md) — with a
    string-literal key that names no prototype property, `"k" in o`; the
-   general operator stays out (its file says P3, not this list's P2).
+   general operator stays out ([the record](./2346-in-operator.md)).
 
 ### 2.3. Syntactic Sugar
 
@@ -96,13 +96,12 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    whether a reserved word that denotes a value, `NaN`, may stand as one is
    [literal-words-as-references](./2445-literal-words-as-references.md),
    at P5,
-2. [ ] [destructuring](./2450-destructuring.md) — binding patterns in
-   `const` and parameters, lowered to property reads and the spread; the
-   design is approved and both halves implemented
-   ([destructuring](../bindings/destructuring/README.md)), the elision
-   included; the rest element is open,
+2. [x] [destructuring](../bindings/destructuring/README.md) — binding patterns
+   in `const`, `let`, fixed parameters and declaration `for…of` headers,
+   including elisions, defaults and array rest, lowered to reads, spread and
+   the existing `slice` intrinsic,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
-4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
+4. [ ] remaining number spellings beyond JSON's — `.5`, `1.`
    ([numbers](../values/numbers/README.md)); hexadecimal, binary and numeric separators are implemented;
    [binary design review](./2470-binary-literals.md) remains open for linked
    designer approval, as does the
@@ -125,8 +124,14 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    literal ([spread](../values/arrays/README.md#spread),
    [object spread](../values/objects/README.md#object-spread)).
 10. [ ] [array holes](./2480-array-holes.md) — the elision `[1, , 3]` is
-   refused by design, and valid code builds no sparse array; whether to
-   support one someday, which would change the VM, at P5.
+    refused by design, and valid code builds no sparse array; whether to
+    support one someday, which would change the VM, at P5.
+11. [ ] [object rest destructuring](./object-rest-destructuring.md) —
+    `{ a, ...r }` remains unsupported.
+12. [ ] [computed binding keys](./computed-binding-keys.md) — expressions
+    beyond standalone string and number literals remain unsupported.
+13. [ ] [rest parameter patterns](./rest-parameter-patterns.md) — a rest
+    parameter still takes a plain name, not `(...[a])` or `(...{ length })`.
 
 ## 3. Functions
 
@@ -161,13 +166,15 @@ information — see [serialization](../design/serialization.md) and
 
 1. [x] `if` — the terminating guard, `if (c) { … return v; }` or a `throw`,
    before the body's own terminator; surface syntax over `?:`, no new EDAG
-   node ([functions](../functions/README.md)). The bare consequent, a
-   non-terminating branch with `else` ([3210](./3210-reachable-block-end.md),
-   with a body that runs off its end), and the module-level guard are
-   follow-ups.
-2. [x] [Variables](../bindings/variables/README.md) — initialized `let`, local
-   and parameter reassignment, module variables and write-based capture rules.
-   Definite assignment remains a separate proposal.
+   node ([functions](../functions/README.md)). Braced branches, with or
+   without `else`, now join at most one assigned outer binding on normal
+   paths before an explicit function terminator; owning returns bypass
+   that normal continuation. Broader joins and explicit throws in mixed arms
+   ([3210](./3210-reachable-block-end.md)), the bare consequent
+   and the module-level guard remain follow-ups.
+2. [x] [Variables](../bindings/variables/README.md) — `let` with an explicit
+   initializer or primitive `undefined`, local and parameter reassignment,
+   module variables and write-based capture rules.
 3. [x] [Loops](../control-flow/loops/README.md) — zero or multiple state values,
    conditional, sequential and nested `while`, with `break`, `continue`,
    owning-function returns and throws. `for` remains [3270](./3270-for.md).
@@ -228,14 +235,12 @@ information — see [serialization](../design/serialization.md) and
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
-
-### 3.6. Priority 5
-
-1. [ ] [definite assignment](./3225-definite-assignment.md) — `let x;`
-   admitted where every path assigns `x` before it is read,
-   `let x; if (c) { x = 2; } else { x = 3; }` denoting what
-   `const x = c ? 2 : 3` denotes; refused by design until then
-   ([variables](../bindings/variables/README.md)).
+3. [ ] [object identity `id` pattern](./object-identity-id.md) — bigint IDs
+   for reference-keyed collections; tentative v2 candidate, not a v1
+   requirement. Labels need not be sequential and VM implementations may differ;
+   runtime admission remains open.
+4. [ ] [reversible ID obfuscation](./object-identity-id-obfuscation.md) —
+   nonce-based uint32 permutation; follow-up tentatively for v2, keeping v1 simple.
 
 ## 4. ECMAScript Proposals
 

@@ -91,10 +91,11 @@ fn merge_sort<T: Clone, E>(
 #[cfg(test)]
 mod tests {
     use super::merge_sort;
+    use crate::vm::test::function::throws;
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, Array, IVm, ToAny, ToArray, ToObject},
+        vm::{Any, Array, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
@@ -104,8 +105,7 @@ mod tests {
     /// `toString` throws, and `[x, x].toSorted()` throws it.
     #[test]
     fn a_lone_element_is_not_converted() {
-        let f: Any<A> =
-            A::static_function(|_, _| Err("boom".into()), 0, [].to_array(), None).to_any();
+        let f: Any<A> = throws("boom".into());
         let x = || [("toString".into(), f.clone())].to_object().to_any();
         let lone: Array<A> = [x(), Any::undefined()].to_array();
         assert_eq!(lone.to_sorted(None).map(|a| a.length()), Ok(2));

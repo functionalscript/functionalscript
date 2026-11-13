@@ -1,6 +1,7 @@
 mod any;
 mod array;
 mod bigint;
+mod bigint_coercion;
 mod boolean_coercion;
 mod container_fmt;
 mod dispatch;
@@ -51,11 +52,15 @@ pub use crate::vm::{
 /// (`fjs/js/runtime/README.md`, "How NaNVM finds it").
 pub use crate::vm::runtime::compiled::runtime;
 
+/// A compiled module, and its export object read through the runtime value.
+pub use crate::vm::runtime::{Module, exports};
+
 pub(crate) use crate::vm::impls::ContainerWrapper;
 
 #[cfg(test)]
 mod test {
     pub(super) mod deep;
+    pub(super) mod function;
 
     use crate::vm::ToAny;
 

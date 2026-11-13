@@ -1,17 +1,20 @@
 /**
  * @import { ReadWhole } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
-import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
+import { hex, storedBytes, streams } from '../../zlib/testlib.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
-import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.mjs'
-import { tryRead } from './module.f.mjs'
+import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.js'
+import { virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { hexText, of } from '../oid/module.f.mjs'
+import { path, tryRead, write } from './module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The file, as the chunks one open takes. @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */
@@ -38,7 +41,7 @@ const files = {
     trailing: [...tagLoose, 1, 2, 3],
     // an envelope of three bytes over a body of 100 000, and then bytes that are no
     // stream: the body is stopped at its first chunk, and the rest never read
-    oversize: [...storedBytes([...latin1('blob 3\0'), ...Array.from({ length: 100_000 }, () => 0)]).slice(0, 1_000), ...Array.from({ length: 2_000 }, () => 0xff)],
+    oversize: [...storedBytes([...latin1('blob 3\u0000'), ...Array.from({ length: 100_000 }, () => 0)]).slice(0, 1_000), ...Array.from({ length: 2_000 }, () => 0xff)],
 }
 
 /**
@@ -59,6 +62,22 @@ const hostOf = size => ({
 const runHost = run(hostOf(1000))([])
 
 const read = (/** @type {string} */ path) => runHost(tryRead(path))
+
+/** A blob, its id in a SHA-1 repository, and where its loose file goes. */
+const hello = latin1('hello\n')
+
+const helloId = of(20)('blob', hello)
+
+const helloPath = path('objects', helloId)
+
+/** The loose writer of the object directory `objects`. */
+const writeOwn = write('objects', 20)
+
+/** An object directory holding `bytes` at the blob's path. @type {(bytes: readonly number[]) => Dir} */
+const withFile = bytes => {
+    const h = hexText(helloId)
+    return { objects: { [h.slice(0, 2)]: { [h.slice(2)]: [u8ListToVecMsb(bytes)] } } }
+}
 
 export const proof = {
     // The signed tag's loose file: read whole, inflated, and past its envelope,
@@ -122,5 +141,53 @@ export const proof = {
             assert(e[0] === 'ioError', path)
             assertEq(e[1].code, code, path)
         }
+    },
+    // Where a loose object lives: below the object directory, the first two
+    // hex digits of the id, then the rest; a directory that ends in a
+    // separator gets no second one.
+    path: () => {
+        const h = hexText(helloId)
+        assertEq(path('objects', helloId), `objects/${h.slice(0, 2)}/${h.slice(2)}`)
+        assertEq(path('/', helloId), `/${h.slice(0, 2)}/${h.slice(2)}`)
+    },
+    // A write stores the object where the reader finds it, answers its id,
+    // and leaves no temporary file behind.
+    write: () => {
+        const [state, r] = virtualAt({ objects: {} })(writeOwn('blob', hello))
+        assertStructurallySame(r, ['ok', helloId])
+        const objects = /** @type {Dir} */ (state.root.objects)
+        assertStructurallySame(Object.keys(objects), [hexText(helloId).slice(0, 2)])
+        const [, read] = virtual(state)(tryRead(helloPath))
+        assert(read[0] === 'ok' && read[1] !== null)
+        assertEq(read[1].type, 'blob')
+        assertStructurallySame(toArray(read[1].payload), hello)
+    },
+    // The object already at its path is left as it is: nothing is written.
+    present: () => {
+        const root = withFile(looseOf('blob', hello))
+        const [state, r] = virtualAt(root)(writeOwn('blob', hello))
+        assertStructurallySame(r, ['ok', helloId])
+        assertStructurallySame(state.root, root)
+    },
+    // A file at the path that is not the object — no zlib stream, no object,
+    // or another object's bytes — is replaced by it.
+    replaced: () => {
+        for (const bytes of [latin1('no stream'), storedBytes(latin1('junk')), looseOf('blob', latin1('other'))]) {
+            const [state, r] = virtualAt(withFile(bytes))(writeOwn('blob', hello))
+            assertStructurallySame(r, ['ok', helloId])
+            const [, read] = virtual(state)(tryRead(helloPath))
+            assert(read[0] === 'ok' && read[1] !== null)
+            assertStructurallySame(toArray(read[1].payload), hello)
+        }
+    },
+    // A rename that fails takes the temporary file with it: a directory that
+    // is not empty stands where the file would go.
+    renameFails: () => {
+        const h = hexText(helloId)
+        /** @type {Dir} */
+        const root = { objects: { [h.slice(0, 2)]: { [h.slice(2)]: { x: [] } } } }
+        const [state, r] = virtualAt(root)(writeOwn('blob', hello))
+        assert(r[0] === 'error', r)
+        assertStructurallySame(state.root, root)
     },
 }

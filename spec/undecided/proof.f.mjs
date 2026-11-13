@@ -10,12 +10,12 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../fjs/asserts/module.f.js'
-import { ioError } from '../../fjs/effects/module.f.mjs'
-import { run } from '../../fjs/effects/mock/module.f.mjs'
+import { ioError } from '../../fjs/effects/module.f.js'
+import { run } from '../../fjs/effects/mock/module.f.js'
 import { htmlToString } from '../../fjs/media/html/module.f.mjs'
 import { error, ok } from '../../fjs/types/result/module.f.js'
 import { demo, init, openRows, registerPath, related, strays, undecidedDemo, verdict } from './demo.f.mjs'
-import { samples } from './samples.f.mjs'
+import { samples } from './samples.f.js'
 
 /**
  * Where and why `fjs compile` refuses each sample, after the file name: the
@@ -24,40 +24,38 @@ import { samples } from './samples.f.mjs'
  * @type {StringMap<string>}
  */
 const refusals = {
-    'lex.trivia': '1:15-2:1 - error: unexpected token',
-    'op.comma': '1:26 - error: unexpected token',
-    'op.delete': '2:23 - error: unexpected token',
-    'op.void': '1:21 - error: unexpected token',
-    'op.arguments': '1:23 - error: reserved word',
-    'op.unary-plus': '1:16 - error: unexpected token',
-    'op.import-call': '1:16 - error: reserved word',
-    'op.import-meta': '1:16 - error: reserved word',
-    'op.tagged-template': '2:19 - error: unexpected token',
-    'acc.property-assignment': '1:22 - error: unexpected token',
-    'name.forward-reference': '1:17 - error: const not found',
-    'st.for-in-of': '1:42 - error: unexpected token',
-    'st.do-while': '1:30 - error: unexpected token',
-    'st.try': '1:19 - error: unexpected token',
-    'st.debugger': '1:19 - error: unexpected token',
-    'st.label': '1:31 - error: unexpected token',
-    'st.directive': '1:1 - error: unexpected token',
-    'st.literal-call': '1:19 - error: unexpected token',
-    'decl.function': '1:1 - error: unexpected token',
-    'decl.generator': '1:1 - error: unexpected token',
-    'decl.accessor': '1:22 - error: unexpected token',
-    'decl.method': '1:19 - error: unexpected token',
-    'decl.pattern-object-rest': '1:12 - error: rest element not supported',
-    'decl.pattern-computed-key': '2:10 - error: computed key in a binding pattern not supported',
-    'mod.export-list': '2:8 - error: unexpected token',
-    'mod.reexport': '1:8 - error: unexpected token',
-    'mod.side-effect-import': '1:8 - error: unexpected token',
-    'mod.string-import-name': '1:10 - error: unexpected token',
-    'mod.top-level-await': '1:22 - error: unexpected token',
-    'lit.octal': '1:17 - error: unexpected token',
-    'lit.trailing-dot': '1:18 - error: unexpected token',
-    'lit.string-escape': '1:16-2:1 - error: unexpected token',
-    'lit.string-continuation': '1:16-3:1 - error: unexpected token',
-    'lit.template-escape': '1:16 - error: unexpected token',
+    'lex.trivia': ':1:15-2:1 - error: unexpected token',
+    'op.comma': ':1:26 - error: unexpected token',
+    'op.delete': ':2:23 - error: unexpected token',
+    'op.void': ':1:21 - error: unexpected token',
+    'op.arguments': ':1:23 - error: reserved word',
+    'op.unary-plus': ' - error: unary + AST-to-FAST conversion is not implemented',
+    'op.import-call': ':1:16 - error: reserved word',
+    'op.import-meta': ':1:16 - error: reserved word',
+    'op.tagged-template': ':2:19 - error: unexpected token',
+    'acc.property-assignment': ':1:22 - error: unexpected token',
+    'name.forward-reference': ':1:17 - error: const not found',
+    'st.for-in-of': ':1:42 - error: unexpected token',
+    'st.try': ':1:19 - error: unexpected token',
+    'st.debugger': ':1:19 - error: unexpected token',
+    'st.label': ':1:31 - error: unexpected token',
+    'st.directive': ':1:1 - error: unexpected token',
+    'st.literal-call': ':1:19 - error: unexpected token',
+    'decl.function': ':1:1 - error: unexpected token',
+    'decl.generator': ':1:1 - error: unexpected token',
+    'decl.accessor': ':1:22 - error: unexpected token',
+    'decl.method': ':1:19 - error: unexpected token',
+    'decl.pattern-object-rest': ':1:12 - error: rest element not supported',
+    'decl.pattern-computed-key': ':2:10 - error: computed key in a binding pattern not supported',
+    'mod.export-list': ':2:8 - error: unexpected token',
+    'mod.reexport': ':1:8 - error: unexpected token',
+    'mod.side-effect-import': ':1:8 - error: unexpected token',
+    'mod.string-import-name': ':1:10 - error: unexpected token',
+    'mod.top-level-await': ':1:22 - error: unexpected token',
+    'lit.trailing-dot': ':1:18 - error: unexpected token',
+    'lit.string-escape': ':1:16-2:1 - error: unexpected token',
+    'lit.string-continuation': ':1:16-3:1 - error: unexpected token',
+    'lit.template-escape': ':1:16 - error: unexpected token',
 }
 
 /** A register of one row of each **Why**, and a table that is no register's. */
@@ -118,7 +116,7 @@ export const proof = {
         for (const [id, sample] of Object.entries(samples)) {
             const v = verdict(id, sample)
             assert(v[0] === 'refused', id)
-            assertEq(v[1].split('\n')[0], `${id}.mjs:${refusals[id]}`)
+            assertEq(v[1].split('\n')[0], `${id}.mjs${refusals[id]}`)
         }
     },
     openRows: () => {

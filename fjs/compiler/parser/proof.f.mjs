@@ -12,20 +12,21 @@ import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.js'
 import { tokenize } from '../tokenizer/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { stringToList } from '../../text/utf16/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { stringToList } from '../../text/utf16/module.f.js'
 import { _stringifyTree } from '../module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { _astOf, demo } from './demo.f.mjs'
 import { textOfResult } from '../../text/marked/module.f.mjs'
-import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { disagreement } from '../../js/marked/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { isObject } from '../../types/object/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -90,6 +91,22 @@ export const expectRefused = (source, message, column) => {
 export const _evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
 export const proof = {
+    bigintConversion: () => {
+        expectModule('export default BigInt(1);', '["{}",[[":","default",["BigInt",1]]]]')
+        expectModule('export default (BigInt)("12");', '["{}",[[":","default",["BigInt","12"]]]]')
+        const value = _evaluate(unwrap(parseFromTokens(tokenizeString('export default [BigInt("0x10"), BigInt(true), BigInt(-0), BigInt([7]), BigInt({ valueOf: () => 12 })];'))))
+        assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [16n, 1n, 0n, 7n, 12n]])
+        for (const source of ['export default BigInt();', 'export default BigInt(1, 2);', 'export default BigInt(...[1]);']) {
+            expectRefused(source, 'BigInt takes one argument', 16)
+        }
+        for (const source of ['export default BigInt;', 'export default BigInt.asIntN(8, 1n);', 'export default BigInt?.(1);']) {
+            expectRefused(source, 'reserved word', 16)
+        }
+        expectRefused('const BigInt = 1; export default 0;', 'reserved word', 7)
+        expectRefused('export default (BigInt) => 1;', 'reserved word', 17)
+        expectRefused('export default [1][BigInt(0)];', 'computed key is not Number(...)', 20)
+        expectModule('export default { BigInt: 1 }.BigInt;', '["{}",[[":","default",[".",["{}",[[":","BigInt",1]]],"BigInt"]]]]')
+    },
     // A module may end in `throw` in place of its exports: the body's last
     // entry is the throw of the value, resolved against every name bound,
     // and no export object follows it — a named export before it is the
@@ -173,7 +190,6 @@ export const proof = {
                 'export const a=1 export const b=2;', 'export const a=1; import b from "./x";',
                 'export default 1; export const a=2;', 'export default 1; export default 2;',
                 'export { a };', 'export let a=1;', 'const a=1;', '',
-                'export const f=()=>{return;};', 'export const f=()=>{};',
                 'export const f=()=>{return\n1;};',
             ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'error', source) }
             const duplicate = parseFromTokens(tokenizeString('export const a=1;\nexport const a=2;'))
@@ -210,13 +226,11 @@ export const proof = {
         },
         syntaxRefusals: () => {
             for (const source of [
-                'export default () => {};',
-                'export default () => { return; };',
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',
             ]) {
-                assertEq(parseSyntax(tokenizeString(source))[0], 'error')
-                assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
+                assertEq(parseSyntax(tokenizeString(source))[0], 'ok')
+                assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
             }
             // a line break where JavaScript forbids one, before `=>` and
             // after `return`: the syntax tree holds it, since trivia is no
@@ -404,11 +418,8 @@ export const proof = {
                 ['let a = 1; export const a = 2;', 'duplicate id', 25],
                 ['let r = 0; const f = () => r; r = 1; export default f;', 'reassigned variable captured', 28],
                 ['let f = n => f(n); f = 1; export default f;', 'reassigned variable captured', 14],
-                // a `let` takes its initializer, as a `const` does: a variable
-                // names its value where it is declared, and `let x;` is refused
-                // by design; a module's `let` is no export, `export let` refused
-                ['export default () => { let x; return x; };', 'unexpected token', 29],
-                ['let a; export default a;', 'unexpected token', 6],
+                // A pattern still needs an initializer; a module's `let`
+                // is no export, so `export let` remains refused.
                 ['export default () => { let [a]; return a; };', 'unexpected token', 31],
                 ['export let a = 1; export default a;', 'unexpected token', 8],
             ])) {
@@ -649,8 +660,9 @@ export const proof = {
                 ["42", "unexpected token", [1, 1]],
                 ["", "unexpected end", [1, 1]],
                 ["export default", "unexpected end", [1, 15]],
-                ["[1,2]", "unexpected token", [1, 1]],
-                ["{\"a\":1}", "unexpected token", [1, 1]],
+                ["[1,2]", "unexpected end", [1, 6]],
+                // Braces now begin a lexical block; its string is the unexpected statement.
+                ["{\"a\":1}", "unexpected token", [1, 2]],
                 ["export default [", "unexpected end", [1, 17]],
                 ["export default {", "unexpected end", [1, 17]],
                 ["const a = 1 export default a", "unexpected token", [1, 13]],
@@ -813,24 +825,27 @@ export const proof = {
             assert(tag === 'ok', tag)
         },
         () => {
-            // a body of many guards: each nests as the alternate of the one
-            // before it, the arms resolved as bodies of their own on the same
-            // explicit stack the shapes above pin at twenty thousand, the
-            // statements after a guard shared with the body they continue
-            // rather than copied per guard, and each guard's read of the
-            // parameter answered by the arm before it, which remembers the
-            // word, rather than by a walk out through every arm. A quarter
-            // of the count above: a guard is nine tokens where a ternary's
-            // level is four, and the suite's slowest runner times a test out
-            // at five seconds
+            // Many written guards stay in one source statement sequence.
+            // Resolution uses the explicit stack without constructing a
+            // nested continuation for every remaining statement.
             const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
             assert(tag === 'ok', tag)
-            /** @type {any} */
-            let arm = /** @type {any} */ (value.body.exit[1])[1][0][2][1].body
-            for (let depth = 1; depth < 5_000; depth += 1) { arm = arm.exit[3] }
-            assertEq(arm.exit[0], 'if')
-            assertEq(arm.exit[3].exit[0], 'return')
-            assertEq(arm.exit[3].exit[2], 0)
+            assert(value.body.exit[0] === 'yield')
+            const object = value.body.exit[1]
+            assert(object instanceof Array && object[0] === 'object')
+            const entry = object[1][0]
+            assert(entry[0] === ':' && entry[2] instanceof Array && entry[2][0] === 'function')
+            const fn = entry[2][1]
+            assertEq(fn.body.statements.length, 5_000)
+            for (const statement of fn.body.statements) {
+                assert(statement[0] === 'if')
+                const returned = statement[2].statements[0]
+                assert(returned[0] === 'return')
+                assertEq(returned[1], fn.target)
+                assertEq(returned[2], 1)
+            }
+            assert(fn.body.exit[0] === 'return')
+            assertEq(fn.body.exit[2], 0)
         },
     ],
     // An object's members stand in the order they are written, as JavaScript
@@ -846,7 +861,7 @@ export const proof = {
         assert(tag === 'ok', tag)
         assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
         const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
-        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assert(isObject(object), object)
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
     },
@@ -1009,7 +1024,7 @@ export const proof = {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
         const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
-        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assert(isObject(object), object)
         assertEq(Object.keys(object).join(), 'b,a,c')
         assertEq(object.b, 3)
         assertEq(Object.keys(/** @type {object} */ (object.c)).join(), 'y,x')
@@ -1100,7 +1115,7 @@ export const proof = {
                 ['export default String;', 16],
                 ['export default [String];', 17],
                 ['export default { String };', 18],
-                ['export default String.fromCharCode(65);', 16],
+                ['export default String.fromCodePoint(65);', 16],
                 ['export default String?.(1);', 16],
             ]
             for (const [source, column] of sources) { expectRefused(source, 'reserved word', column) }
@@ -1334,35 +1349,35 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
@@ -1390,7 +1405,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
@@ -1641,7 +1656,7 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token')
         },
         () => {
-            const tokenList = tokenizeString('export default {1:2}')
+            const tokenList = tokenizeString('export default {1 2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
@@ -1817,7 +1832,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             const errorString = stringifySorted(obj[1])
-            if (errorString !== '{"message":"array hole","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
+            assertEq(errorString, '{"message":"array hole","metadata":{"column":17,"line":1,"path":""}}')
         },
     ],
     validWhiteSpaces:[
@@ -1833,7 +1848,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
@@ -1847,7 +1862,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]")
         },
     ],
     comments: [

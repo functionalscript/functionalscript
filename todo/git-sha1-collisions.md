@@ -84,6 +84,7 @@ covers.
      lands, and a precedent and possibly an implementation to reuse; it
      costs a walk, since an object's name depends on the names of what it
      points to.
+
    Which one DISOT wants is open; the second closes the hole in the first
    and is what Git itself will publish. Either way, what is open is who
    vouches for the table:
@@ -160,7 +161,7 @@ covers.
 
 - [`fjs/crypto/todo/sha1.md`](../fjs/crypto/todo/sha1.md) — where collision
   detection (`sha1dc`) would go; the hash itself shipped as
-  [`fjs/crypto/sha1`](../fjs/crypto/sha1/module.f.mjs).
+  [`fjs/crypto/sha1`](../fjs/crypto/sha1/module.f.js).
 - [`fjs/git/store`](../fjs/git/store/module.f.mjs) — the id check on read.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
   — the signed payload, and the "usual hash-security assumptions" it

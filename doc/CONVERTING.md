@@ -263,9 +263,9 @@ stays refused.
 
 ## 5. `Math.min` and `Math.max`
 
-The `Math` global is not admitted: `Number` is a reserved word admitting
-the conversion and the four predicates above, `Math` is no name at all, and `Math.min` is refused as
-`const not found`. On two numbers the replacements are `min` from
+`Math` is a reserved namespace admitting only `Math.log2`. `Math.min` and
+`Math.max` remain refused as unadmitted namespace members. On two numbers
+the replacements are `min` from
 [`fjs/types/number/min`](../fjs/types/number/min/module.f.js) and `max`
 from [`fjs/types/number/max`](../fjs/types/number/max/module.f.js):
 
@@ -292,6 +292,41 @@ identity being what `Math.max()` with no arguments is, and `Infinity` for
 `min`. And the built-ins convert their arguments, `Math.min("1", 2)` being
 `1`, where `min` and `max` take numbers: a call on anything else is
 checked, not rewritten.
+
+### `Math.log2`
+
+Keep `Math.log2` as written, including detached calls and
+`const { log2 } = Math`. Its shared-runtime body performs JavaScript's
+argument conversion and numerical operation; no import or rewrite is
+needed. Other `Math` functions remain separate admissions. In particular,
+`Math.log` is not admitted as a substitute.
+
+This removes the remaining compilation obstacle in `fjs/types/bigint`,
+whose implementation is now `module.f.js`. Its existing corrections near
+powers of two and at conversion overflow remain necessary for the bigint
+logarithm's exact integer result.
+
+### `Math.abs`
+
+For a numeric argument, replace `Math.abs(n)` with `abs(n)` from
+[`fjs/types/number/abs`](../fjs/types/number/abs/module.f.js). The helper
+preserves `NaN` and infinities and maps both zeros to positive zero, matching
+the built-in. Its proof compares these cases, ordinary numbers and the
+smallest and largest finite magnitudes through `Object.is`.
+
+The input must already be a number: `Math.abs` converts other JavaScript
+values, while this helper has a numeric-only contract.
+
+### `Math.ceil`
+
+For a numeric argument, replace `Math.ceil(n)` with `ceil(n)` from
+[`fjs/types/number/ceil`](../fjs/types/number/ceil/module.f.js). The helper
+preserves `NaN`, infinities and signed zeros, including `ceil(-0.5)` returning
+`-0`. Its arithmetic works over the full number range; bitwise rounding
+shortcuts narrow values to 32 bits and do not preserve this contract.
+
+The input must already be a number: `Math.ceil` converts other JavaScript
+values, while this helper has a numeric-only contract.
 
 ## 6. `Object.is` and `Object.entries`
 
@@ -337,87 +372,50 @@ each pair.
 
 ## 7. A body that ends without `return`
 
-A block body ends in a terminating statement, a `return` or a `throw`, and
-every statement before it is a `const` or a guard
-([bodies and guards](../spec/control-flow/guards/README.md)). JavaScript lets
-a body run off its closing brace and answers `undefined`; the compiler
-refuses to infer that return, and reports the brace (`unexpected token`).
-The rewrite spells the value JavaScript supplied:
+No rewrite is needed. A function that reaches the end of its block returns
+`undefined`, as in JavaScript. Bare `return;` is also accepted. The syntax AST
+preserves the written statements; FAST normalization supplies the normal-path
+return and removes unreachable computations. Terminal branches and loops do
+not gain a fallback return.
 
 ```js
 const check = (a, b) => {
     if (a !== b) { throw [a, b] }
-}                                   // refused at the `}`
+} // returns undefined when a === b
 ```
-
-```js
-const check = (a, b) => {
-    if (a !== b) { throw [a, b] }
-    return undefined                // accepted
-}
-```
-
-The value is preserved exactly — the function returned `undefined` on that
-path before, and returns it now — and the compiler lowers the body to the
-conditional the guard already denotes, `a !== b ? (() => { throw [a, b] })()
-: undefined`. The same rewrite closes a body whose last statement is a
-`const`, and a guard's own block, `if (c) { return undefined }`, where the
-guarded path is the one that answers nothing. A bare `return` is not the
-spelling: `return` and its value share a line and the value is required, so
-`return;` is refused as the brace was.
-
-Such a body is nearly always a procedure — a proof that asserts by throwing,
-as [`fjs/emergent_testing/example.f.js`](../fjs/emergent_testing/example.f.js)
-does — and a module may find it reads better as an expression once the
-`return` is written,
-`(a, b) => a !== b ? (() => { throw [a, b] })() : undefined`. Either spelling
-is in the language; the conversion adds the `return` and changes nothing
-else.
-
-A final literal `while (true)` with no source break targeting that loop needs
-no trailing return: it is already a
-[terminating statement](../spec/control-flow/loops/README.md#a-terminal-unconditional-loop).
-Returning paths inside it still return explicitly, and other paths throw or
-continue indefinitely. Breaks targeting an inner loop or switch do not change
-that rule; a break targeting the final loop itself does, even when unreachable.
-Ordinary function-body ends that can be reached still require an explicit
-return as above.
 
 ## 8. `BigInt`
 
-The `BigInt` global is not admitted, and `BigInt(n)` is refused
-(`const not found`). On an integral number the replacement is `bigint`
-from
-[`fjs/types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js):
+`BigInt(exp)` is now a conversion operator, like `Number(exp)` and
+`String(exp)` ([BigInt conversion](../spec/conversions/bigint/README.md)).
+Keep the conversion in place:
 
 ```js
-const twoPow = exp => 1n << BigInt(exp)   // refused
+const twoPow = exp => 1n << BigInt(exp)
 ```
 
-```js
-import { bigint } from '../types/bigint/from_number/module.f.js'
+It accepts integral numbers, bigints, booleans, and valid integer strings,
+with JavaScript's primitive conversion for containers. It requires exactly
+one plain operand. `BigInt` itself is not a value: binding it, reading it
+bare, guarded calls, and static members are refused.
 
-const twoPow = exp => 1n << bigint(exp)   // accepted
+The existing numeric-only helper
+[`fjs/types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js)
+remains available for callers that deliberately reject non-number inputs.
+It is no longer needed to make a `BigInt(exp)` conversion compile.
+
+Source admission alone does not make an importing module compilable: the
+compiler also links its imports. `types/bit_set` previously waited on
+`types/bigint`; with the shared `Math.log2` body admitted, both compile and
+use `.f.js`. Check a module together with its imports:
+
+```sh
+npm start compile fjs/types/bit_set/module.f.js /tmp/bit-set.js
 ```
 
-`bigint(n)` is the bigint with the value of `n`, exact at every magnitude:
-the lowest bit of an integral double is `n % 2`, the bits above it are
-those of `(n - n % 2) / 2`, both exact, and a `let`/`while` loop over one
-variable ([loops](../spec/control-flow/loops/README.md)) reads them one per round, at
-most 1024 for the largest double. `-0` gives `0n`, as
-`BigInt(-0)` does. A fraction, `NaN` or an infinity has no bigint:
-`BigInt` throws a `RangeError` on it, and `bigint` throws too
-([failure is one outcome](../spec/principles/README.md#failure-is-one-outcome)), so
-the rewrite preserves the failure with the value. It is a function the
-compiler compiles, with no node of its own, as the strategy above says;
-the language may take `BigInt(n)` in as sugar for it later, beside
-`Number(n)` and `String(n)`.
-
-One spelling of the built-in is not a call on a number. `BigInt("12")` is
-`12n` and `BigInt(true)` is `1n`: the built-in converts its argument,
-where `bigint` takes a number and throws on anything else, so a call on a
-value of another type is checked, not rewritten — the module says what it
-converts, as it does for `min` and `max` on strings.
+Rename each module and update its importers when it compiles with its imports,
+as [the module-extension rule](../fjs/AGENTS.md#35-functionalscript-module-rules)
+requires; a `.f.js` module's runtime imports must themselves target `.f.js`.
 
 ## 9. A `Map` or a `Set` of strings
 
@@ -521,3 +519,43 @@ is written for, and after a comma's discarded operand, which it follows into
 the value after it — not after `const _ = assert(…)`, which binds a name nothing
 reads, nor through `[assert(…), value][1]`, which builds an array to read one
 item of.
+
+## 11. `Array.from` used to generate by index
+
+`Array.from({ length: n }, (_, i) => f(i))` constructs a dense array by
+index; it does not need an iterable. Import `generate` from
+[`fjs/types/array/generate`](../fjs/types/array/generate/module.f.js):
+
+```js
+const squares = n => Array.from({ length: n }, (_, i) => i * i)   // refused
+```
+
+```js
+import { generate } from '../types/array/generate/module.f.js'
+
+const squares = n => generate(n, i => i * i)   // accepted
+```
+
+The rewrite preserves behavior when `n` is an integer from `0` through
+`0xffff_ffff`, the JavaScript array-length range, and the callback only
+needs the index. Both create a dense array, including entries whose value
+is `undefined`, and call the callback once per index in ascending order.
+Zero, including negative zero, creates a fresh empty array without calling
+the callback. Callback failures propagate.
+
+`generate(n, f)` passes just the index to `f`; `Array.from` passes an item
+value and then its index. Keep that adaptation explicit when converting
+a named callback. This rule applies to the `{ length: n }` generator form;
+an iterable, other array-like properties, or a `thisArg` needs its own
+conversion.
+
+`generate` rejects lengths outside its integer range rather than coercing
+or rounding them: `Array.from({ length: 2.5 }, ...)` makes two elements,
+and `Array.from({ length: -1 }, ...)` makes none. The existing
+`repeat(n)(value)` helper rounds positive fractions up, so it is not a
+direct replacement for arbitrary `Array.from` lengths either.
+
+The implementation repeats a singleton placeholder array with
+[`monoid.repeat`](../fjs/common/monoid/repeat/module.f.js), then maps the
+indices. It and [`array/repeat`](../fjs/types/array/repeat/module.f.js)
+have compiler-compatible runtime dependencies, independent of list folding.

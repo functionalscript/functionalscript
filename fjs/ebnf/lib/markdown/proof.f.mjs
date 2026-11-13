@@ -5,7 +5,7 @@
 
 import { eof } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
-import { units } from '../../utf16/module.f.mjs'
+import { units } from '../../utf16/module.f.js'
 import { entry } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 import { assertRecognizes, diagramPage, recognizer } from '../../testlib.f.mjs'
@@ -88,20 +88,39 @@ export const proof = {
         // be told apart by the one symbol the backend looks at.
         emptyStrong: () => refuses('****'),
         emptyEm: () => refuses('**'),
-        /**
-         * **Emphasis refuses what CommonMark would nest.** GitHub renders
-         * `**see [details](url)**` as bold around a working link, and every
-         * released file is read there as well as on the site. Reading the
-         * delimiters as text would give one source two answers; refusing
-         * leaves one, and says so at build time. Supporting the nesting is
-         * `todo/commonmark-constructs.md`.
-         */
-        linkInsideStrong: () => refuses(`**see [details](u)**`),
-        // Code is the one span emphasis holds, as a label holds it: a README
-        // sets a name in bold as `` **`Object` is reserved** ``.
+        // A plain link is a span emphasis holds, as GitHub renders
+        // `**see [details](url)**` bold around a working link, alone, first
+        // or between text and code.
+        linkInsideStrong: () => accepts(`**see [details](u)**`),
+        linkOpeningStrong: () => accepts(`**[a ${tick}b${tick}](u) and ${tick}c${tick}**`),
+        linkInsideEm: () => accepts(`*[a](u)*`),
+        // Its label holds text and code, as an image's does: no emphasis.
+        emphasisInALinkInsideStrong: () => refuses(`**[*a*](u)**`),
+        // Code is a span emphasis holds, as a label holds it: a README sets
+        // a name in bold as `` **`Object` is reserved** ``.
         codeInsideStrong: () => accepts(`**a ${tick}b${tick} c**`),
         codeInsideEm: () => accepts(`*${tick}b${tick}*`),
-        emphasisInsideStrong: () => refuses(`**a *b* c**`),
+        // Bold holds emphasis, between runs or right before it closes.
+        emphasisInsideStrong: () => accepts(`**a *b* c *d* e**`),
+        emphasisClosingStrong: () => accepts(`**a *b***`),
+        emphasisWithSpansInsideStrong: () => accepts(`**a *${tick}b${tick} [c](u)* d**`),
+        // Any other nesting CommonMark reads is refused: reading its
+        // delimiters as text would give one source two answers.
+        emphasisOpeningStrong: () => refuses(`***a* b**`),
+        emphasisBesideEmphasisInsideStrong: () => refuses(`**a *b**c* d**`),
+        strongInsideEmphasisInsideStrong: () => refuses(`**a *b **c** d* e**`),
+        // Emphasis holds bold after a space, before a space or its own
+        // closing asterisk, as a file writes it.
+        strongInsideEmphasis: () => accepts(`*a **b** c*`),
+        strongClosingEmphasis: () => accepts(`*a **b***`),
+        // A word may follow a code span or a link in emphasis directly.
+        wordAfterASpanInsideEmphasis: () => accepts(`*(an ${tick}exp${tick}) [b](u)s*`),
+        spansAroundStrongInsideEmphasis: () => accepts(`*${tick}a${tick} [b](u) **${tick}c${tick} d** e*`),
+        // A word right after bold, and bold opening emphasis, are refused:
+        // each is a run GitHub reads otherwise.
+        wordAfterStrongInsideEmphasis: () => refuses(`*a **b**c*`),
+        strongOpeningEmphasis: () => refuses(`***a** b*`),
+        emphasisInsideStrongInsideEmphasis: () => refuses(`*a **b *c* d** e*`),
         // A bracket that opens nothing is refused too. The rule is about
         // the symbol, not about whether it went on to form a span.
         loneBracketInsideStrong: () => refuses(`**a [ b**`),
@@ -141,16 +160,19 @@ export const proof = {
         anOrdinaryLink: () => accepts(`[#1421](https://example.com/pull/1421)`),
         /**
          * **A space beside an asterisk is not emphasis.** CommonMark reads
-         * `a * b * c` as the three words and two asterisks they are. The
-         * grammar matches the padded body, since a body holding code cannot
-         * say "no space before the closing asterisk" with one symbol of
-         * lookahead, and `fjs/media/markdown` refuses it after.
+         * `a * b * c` as the three words and two asterisks they are. An
+         * asterisk after a space in emphasis opens bold, so a space before
+         * the closing one is refused here; a space after the opening one is
+         * matched, and `fjs/media/markdown` refuses it after.
          */
-        spaceFlankedAsterisks: () => accepts(`a * b * c`),
-        paddedEm: () => accepts(`* a *`),
-        // A code span loses one leading and trailing space to CommonMark,
-        // so keeping them answers with different content.
-        paddedCode: () => refuses(`${tick} code ${tick}`),
+        spaceFlankedAsterisks: () => refuses(`a * b * c`),
+        paddedEm: () => refuses(`* a *`),
+        leadingSpaceInEm: () => accepts(`* a*`),
+        // A code span may hold a space at either end, as GitHub's does;
+        // the one CommonMark strips from each end is stripped where it is
+        // read.
+        paddedCode: () => accepts(`${tick} code ${tick}`),
+        trailingSpaceInCode: () => accepts(`${tick}name: ${tick}`),
         // The title form: CommonMark ends the destination at the space and
         // reads the rest as the link title, so admitting it links elsewhere.
         linkTitle: () => refuses(`[x](https://example.com "t")`),

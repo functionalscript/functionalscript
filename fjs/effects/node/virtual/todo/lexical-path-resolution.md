@@ -6,7 +6,7 @@
 ### Problem
 
 Every operation in this runner resolves its path with `parse`
-([`fjs/path`](../../../../path/module.f.mjs)), which collapses `a/../b` to `b`
+([`fjs/path`](../../../../path/module.f.js)), which collapses `a/../b` to `b`
 *lexically*. A host resolves the same path physically: it walks `a`, fails if
 `a` is missing or is not a directory, and only then applies the `..`.
 
@@ -66,7 +66,7 @@ Check what depends on the current behaviour first: `fjs/cas`'s staging paths and
 
 ### Related
 
-- `fjs/path/module.f.mjs` — `parse`, which is lexical by design and should stay
+- `fjs/path/module.f.js` — `parse`, which is lexical by design and should stay
   that way; this is about where a file system uses it.
 - [trailing-separator-discarded](./trailing-separator-discarded.md) — the other
   normalization `parse` performs that a host does not, and one that rides on this

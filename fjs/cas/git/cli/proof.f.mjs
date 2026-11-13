@@ -4,15 +4,15 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
-import { vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
 import { dispatch } from '../../../cli/module.f.mjs'
-import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
+import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { exitCode } from '../../../effects/node/module.f.mjs'
 import { nodeProgramOptions, virtual, virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { hexText } from '../../../git/oid/module.f.mjs'
 import { tryResolve } from '../../../git/refstore/module.f.mjs'
-import { initConfig, latin1 } from '../../../git/testlib.f.mjs'
-import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { initConfig, latin1 } from '../../../git/testlib.f.js'
+import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { commands as casCommands } from '../../cli/module.f.mjs'
 import { branchRef } from '../module.f.mjs'
 
@@ -94,8 +94,8 @@ export const proof = {
         assertEq(refused.code, 1)
         assertEq(refused.stderr, 'set user.name and user.email in ./.git/config or ./.gitconfig\n')
         assertEq(headAt(refused.state), null)
-        const global = { ...bare, '.gitconfig': text('[user]\n\tname = Global\n\temail = g@example.com\n') }
-        const added = ran(global, ['git', 'add', 'build-cache', 'file.txt'])
+        const withGlobalConfig = { ...bare, '.gitconfig': text('[user]\n\tname = Global\n\temail = g@example.com\n') }
+        const added = ran(withGlobalConfig, ['git', 'add', 'build-cache', 'file.txt'])
         assertEq(added.code, 0, added.stderr)
         assertEq(added.stdout, `${alphaKey}\n`)
         const bracketed = { ...bare, '.git': { ...bare['.git'], config: text(`${initConfig}\n[user]\n\tname = A <B>\n\temail = cas@example.com\n`) } }

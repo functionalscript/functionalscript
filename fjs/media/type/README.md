@@ -52,15 +52,16 @@ the module also exports `detectStream` — the streaming form of the **same
 byte-accepting state machine**:
 
 ```ts
-import { detectStream, detectVec, push, finish, detectInit } from './module.f.mjs'
+import { detectStream, detectVec, detector } from './module.f.mjs'
 
 // fold a CAS read stream (EffectList<O, Vec, IoChannel>) into { length, mime_type, type }
 detectStream(stream)            // Effect<O, DetectMeta, IoChannel>
 
 // classify a whole Vec you already hold, through the same machine
 detectVec(bytes)                // { length, mime_type, type }
-// detectVec is just finish(push(detectInit)(bytes)); push/finish are exposed for
-// driving the machine chunk-by-chunk directly.
+// detector exposes init / update(state, chunk) / end(state), shared with
+// the hash, builder, and decoder machines. detectVec uses the pure list driver;
+// detectStream uses its effectful counterpart.
 ```
 
 `DetectState` is the product of three independent folds over the byte stream:
@@ -71,7 +72,7 @@ detectVec(bytes)                // { length, mime_type, type }
 | magic   | signature elimination — the same `magicStep` `detect` folds with     | matched / dead (≤12 B)   |
 | utf8    | UTF-8 validity-and-text DFA over `fjs/text/utf8`'s decoder            | invalid / non-text       |
 
-`finish` reads the same three-way verdict as the pure path: magic hit →
+`detector.end` reads the same three-way verdict as the pure path: magic hit →
 `base64` + detected mime; else whole-blob-valid UTF-8 **that is also all-text** →
 `text` + `text/plain`; else `base64` + `application/octet-stream`. UTF-8 classification
 must see **every** byte (a blob can be valid until its last byte), so a
@@ -87,8 +88,8 @@ classify as `application/octet-stream`. C1 controls (`U+0080`–`U+009F`) arrive
 level, after decoding. The whitespace controls `U+0009`–`U+000D` (TAB, LF, VT, FF,
 CR) stay text.
 
-`push` stops decoding and just counts length once the verdict is fixed. Because
-`finish` ignores the utf8 factor when `magic` matched, a **matched** signature
+`detector.update` stops decoding and just counts length once the verdict is fixed. Because
+`detector.end` ignores the utf8 factor when `magic` matched, a **matched** signature
 fixes the verdict on its own — no need to keep validating UTF-8 over the tail (it
 might stay valid forever, e.g. an ASCII PDF). A **dead** magic leaves text-vs-octet
 open, so it fixes the verdict only once `utf8` can no longer be text — it reaches
@@ -103,9 +104,9 @@ the exact shape a declarative BNF→DFA recognizer backend would generate — se
 does not exist yet, so the two factors are hand-written here: `magicStep` does
 signature elimination over the `signatures` list and `utf8Step`
 rides the existing `fjs/text/utf8` decoder. When the backend lands, these should
-be lowered onto it; `length` (an FSM cannot count) and `finish` stay outside it
+be lowered onto it; `length` (an FSM cannot count) and `detector.end` stay outside it
 regardless. The factors are independent — adding a property (e.g. a streaming
-SHA-256 for verify-on-read) is a new field, one `push` line, and one `finish`
+SHA-256 for verify-on-read) is a new field, one `detector.update` line, and one `detector.end`
 clause, touching no existing transition.
 
 ## By extension (`detectPath`)

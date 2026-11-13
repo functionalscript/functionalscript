@@ -112,6 +112,50 @@ const loopPacket = (exit, kind, target, values, memo) => {
 }
 
 export const proof = /** @type {const} */ ({
+    skippedTerminalOperandsKeepTheirOwnedMemoRegions: () => {
+        const local = id(0)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {readonly Block[]} */
+        const bodies = [
+            body(['throw', 7]),
+            body(['throw', ref(output)], [['define', local, ['array', [7]], 'lazy'], ['loop', counting(ref(local))]]),
+        ]
+        for (const loopBody of bodies) {
+            /** @type {Value} */
+            const argument = ['block', body(['loop', { target, parameters: [], initial: [], results: [], body: loopBody }])]
+            const source = yielded(['?.()', null, [argument]], [
+                ['define', lazy, ['array', [7]], 'lazy'], ['loop', counting(ref(lazy))],
+            ])
+            assertEq(evaluate(source), undefined)
+        }
+    },
+    terminalLoopsThreadMemoWithoutNormalResults: () => {
+        /** @type {Block} */
+        const source = body(['loop', {
+            target: loopTarget, parameters: [state], initial: [0], results: [], body: body(['continue', loopTarget, [['+', ref(state), 1]]], [
+                ['if', [], ['===', ref(state), 2], body(['return', functionTarget, ['array', [ref(lazy), ref(lazy)]]]), body(['yield', []])],
+            ]),
+        }], [['define', lazy, ['array', [7]], 'lazy']])
+        const terminalTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const terminalState = id(0)
+        /** @type {readonly Block[]} */
+        const cases = [source, .../** @type {const} */ ([false, true]).map(/** @returns {Block} */ initialized => body(['loop', {
+            target: terminalTarget, parameters: initialized ? [terminalState] : [], initial: initialized ? [ref(lazy)] : [], results: [],
+            body: body(['return', functionTarget, ['array', [ref(output), ref(output)]]]),
+        }], [['define', lazy, ['array', [7]], 'lazy'], ['loop', counting(ref(lazy))]]))]
+        for (const source of cases) {
+            const normalized = normalizeMemo(source, [], functionTarget)
+            assert(normalized.exit[0] === 'loop')
+            assertEq(normalized.exit[1].results.length, 0)
+            /** @type {FastFunction} */
+            const fn = { target: functionTarget, parameters: [], rest: null, self: null, captures: [], body: normalized }
+            const graph = fromFast(yielded(['function', fn]))
+            const value = assertOk(toData(assertOk(memo(assertOk(identityAnalysis(['()', graph, []])))({ args: [] }))))
+            assertStructurallySame(value, [[7], [7]])
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+        }
+    },
     deferredReturns,
     initializerLoops,
     ownedOperands,
@@ -629,7 +673,7 @@ export const proof = /** @type {const} */ ({
         const owner = id(0), local = id(0)
         /** @type {Value} */
         let initializer = ['block', yielded(ref(local), [['define', local, ['array', [ref(lazy)]], 'lazy']])]
-        for (let depth = 0; depth < 20_000; ++depth) { initializer = ['block', yielded(initializer)] }
+        for (let depth = 0; depth < 20_000; depth += 1) { initializer = ['block', yielded(initializer)] }
         const source = yielded(ref(output), [
             ['define', lazy, ['array', []], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
         ])
@@ -646,7 +690,7 @@ export const proof = /** @type {const} */ ({
         const outer = recipe.body.statements[1]
         assert(outer[0] === 'block')
         let current = outer[2]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const region = current.statements[0]
             assert(region[0] === 'block')
             assertEq(region[1].length, 2)
@@ -665,7 +709,7 @@ export const proof = /** @type {const} */ ({
         let initializer = ref(lazy)
         // Two cells keep vector size fixed while twenty thousand recipe
         // regions exercise the demand trampoline without quadratic packets.
-        for (let depth = 0; depth < 20_000; ++depth) { initializer = ['block', yielded(initializer)] }
+        for (let depth = 0; depth < 20_000; depth += 1) { initializer = ['block', yielded(initializer)] }
         const source = yielded(ref(output), [
             ['define', lazy, ['array', []], 'lazy'], ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
         ])
@@ -674,7 +718,7 @@ export const proof = /** @type {const} */ ({
         assertEq(recipes.length, 2)
         const recipe = recipes[1][1]
         let current = recipe.body
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const region = current.statements[0]
             assert(region[0] === 'block')
             assertEq(region[1].length, 2)
@@ -704,7 +748,7 @@ export const proof = /** @type {const} */ ({
         const loops = normalized.statements.flatMap(statement => statement[0] === 'loop' ? [statement[1]] : [])
         assertEq(loops.length, 2)
         assert(loops[0].target !== loops[1].target)
-        for (let index = 0; index < loops.length; ++index) {
+        for (let index = 0; index < loops.length; index += 1) {
             const conditional = loops[index].body.statements[1]
             assert(conditional[0] === 'if')
             const demand = conditional[4].statements[0]
@@ -1913,14 +1957,14 @@ export const proof = /** @type {const} */ ({
     deepStatementRegions: () => {
         /** @type {Block} */
         let region = body(['yield', []], [['loop', counting(ref(lazy))]])
-        for (let depth = 0; depth < 20_000; ++depth) { region = body(['yield', []], [['block', [], region]]) }
+        for (let depth = 0; depth < 20_000; depth += 1) { region = body(['yield', []], [['block', [], region]]) }
         const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['block', [], region]])
         const normalized = normalizeMemo(source)
         const outer = normalized.statements[2]
         assert(outer[0] === 'block')
         assertEq(outer[1].length, 1)
         let current = outer[2]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const statement = current.statements[0]
             assert(statement[0] === 'block')
             assertEq(statement[1].length, 1)
@@ -1936,7 +1980,7 @@ export const proof = /** @type {const} */ ({
     deepOperandOwnedRegions: () => {
         /** @type {Value} */
         let argument = ownedLoopValue(['array', [4, 5]])
-        for (let depth = 0; depth < 20_000; ++depth) { argument = ['block', yielded(argument)] }
+        for (let depth = 0; depth < 20_000; depth += 1) { argument = ['block', yielded(argument)] }
         const source = crossing(ref(lazy), ['?.()', null, [argument]])
         assert(normalizeMemo(source) !== source)
     },

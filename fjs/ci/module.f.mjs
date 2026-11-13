@@ -7,12 +7,12 @@
  *
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
- * @import { PackageConsumer, Setup } from './types.ts'
- * @import { Effect } from '../effects/types.ts'
+ * @import { Setup } from './types.ts'
+ * @import { Effect, IoChannel } from '../effects/types.ts'
  */
 
-import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, writeFiles } from '../effects/node/module.f.mjs'
+import { step } from '../effects/module.f.js'
+import { exists, exitStep, writeFiles } from '../effects/node/module.f.mjs'
 import { images, node } from './config/module.f.js'
 import {
     _workflowsDirectory,
@@ -29,15 +29,18 @@ import {
     shellRustVersionSteps,
 } from './rust/module.f.mjs'
 import {
+    coverageJob,
     installNode,
     nodeVersionJobs,
     nodeVersionStep,
+    packageJob,
+    packageJobId,
     platformNodeSteps,
 } from './node/module.f.mjs'
 import { environmentCommand, environmentSteps } from './environment/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
-import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './spidermonkey/module.f.mjs'
+import { spiderMonkeySteps } from './spidermonkey/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { miseJobs } from './mise/module.f.mjs'
 import { smartJobs } from './smart/module.f.mjs'
@@ -64,12 +67,10 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
 const shellPlatformSteps = (rust, o, a) => [
     nodeVersionStep(),
     ...(rust ? shellRustVersionSteps(o, a) : []),
-    ...shellSpiderMonkeyVersionSteps(o, a),
     ...environmentSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
-        'node --test ./fjs/emergent_testing/js-only.mjs',
-        ...shellSpiderMonkeyCommands(o, a),
+        ...(a === 'arm' ? ['node --test ./fjs/emergent_testing/js-only.mjs'] : []),
     ]),
 ]
 
@@ -81,7 +82,6 @@ const intelMacSteps = rust => [
     test({ run: `test "$(node --version)" = "v${node}"` }),
     test({ run: 'npm ci' }),
     ...(rust ? rustPlatformSteps('macos', 'intel') : []),
-    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**
@@ -153,7 +153,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
-            ...platformNodeSteps(),
+            ...(a === 'arm' ? platformNodeSteps() : []),
             ...nodeExtra.map(inShell),
         ]
         : o === 'macos' && a === 'intel'
@@ -163,21 +163,22 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
 }
 
 /**
- * @type {(packageConsumer: PackageConsumer | undefined) => Jobs}
+ * @type {() => Jobs}
  */
-const canonicalJobs = packageConsumer => ({
+const canonicalJobs = () => ({
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
-    ...nodeVersionJobs(packageConsumer),
+    spidermonkey: ubuntuArm(spiderMonkeySteps),
+    ...nodeVersionJobs(),
 })
 
 /** Jobs shared by workflow generation and successful-check initialization.
  * @type {(setup: Setup) => (rust: boolean) => Jobs}
  */
-export const ciJobs = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => rust => miseJobs({
+export const ciJobs = ({ nodeExtra, mergeQueueOnly = [] }) => rust => miseJobs({
     ...Object.fromEntries(os.flatMap(o =>
         architecture.map(a => platformJob(rust, nodeExtra(o, a), mergeQueueOnly.includes(o))(o)(a)))),
-    ...canonicalJobs(packageConsumer),
+    ...canonicalJobs(),
 }, rust)
 
 /**
@@ -208,28 +209,43 @@ export const ciWorkflow = setup => rust => {
         permissions: {
             contents: 'read',
         },
-        jobs: { ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs), ...setup.extraJobs },
+        // Coverage owns its per-module cache, outside whole-check gates.
+        jobs: {
+            ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs),
+            ...miseJobs({ cov: coverageJob(setup.smart === true) }, false),
+            // The consumer has neither the source checkout nor its toolchain.
+            [packageJobId]: packageJob(setup.packageConsumer),
+            ...setup.extraJobs,
+        },
     }
     return gha
 }
 
+/**
+ * The CI and publishing workflows, written.
+ *
+ * @type {(workflow: GitHubAction) => Effect<NodeOp, void, IoChannel>}
+ */
+const writeWorkflows = workflow => writeFiles([
+    [ciPath, workflowText(workflow)],
+    [npmPublishPath, workflowText(npmPublishWorkflow)],
+])
+
 /** Write CI and publishing workflows through the shared generator.
  * @type {(workflow: GitHubAction) => Effect<NodeOp, 0, number>}
  */
-export const writeCi = workflow => exitStep(writeFiles([
-    [ciPath, workflowText(workflow)],
-    [npmPublishPath, workflowText(npmPublishWorkflow)],
-]))
+export const writeCi = workflow => exitStep(writeWorkflows(workflow))
 
 /**
  * Writes {@link ciWorkflow}, once `Cargo.toml` has said whether the project has
- * Rust.
+ * Rust. A `Cargo.toml` that is there but cannot be read about, a permission
+ * error among others, fails the command rather than leaving the Rust jobs out.
  *
  * @type {(setup: Setup) => Effect<NodeOp, 0, number>}
  */
-export const ci = setup => resultStep(
-    access('Cargo.toml'),
-    result => writeCi(ciWorkflow(setup)(result[0] === 'ok')))
+export const ci = setup => exitStep(step(
+    exists('Cargo.toml'),
+    hasRust => writeWorkflows(ciWorkflow(setup)(hasRust))))
 
 /**
  * The built-in `fjs ci`, the generator any project gets: no extra platform

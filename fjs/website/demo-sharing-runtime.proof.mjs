@@ -1,8 +1,8 @@
-/** Host-boundary proofs for URL navigation, queued restoration and clipboard UI. */
+/** Host-boundary proofs for URL navigation, queued restoration and history. */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
-import { startDemoSharing } from './demo-sharing-runtime.mjs'
-import { textSharing, recordSharing, encodeQuery, decodeQuery, defaultsOf } from './demo/sharing/module.f.mjs'
+import { startDemoSharing, writeDelay } from './demo-sharing-runtime.mjs'
+import { textSharing, recordSharing, encodeQuery, defaultsOf } from './demo/sharing/module.f.mjs'
 
 /** @type {(sharing?: any, hash?: string) => any} */
 const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'first'], ['Second', 'second', 'second']]), hash = '?example=second#demo') => {
@@ -10,17 +10,8 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     const windowEvents = new Map()
     /** @type {Map<string, (() => void)[]>} */
     const rootEvents = new Map()
-    /** @type {Map<string, (event: any) => void>} */
-    const buttonEvents = new Map()
-    /** @type {string[]} */
-    const copied = []
-    /** @type {Map<string, (event: any) => void>} */
-    const sectionEvents = new Map()
     /** @type {any[]} */
     const pending = []
-    /** @type {Map<string, string>} */
-    const attributes = new Map()
-    const feedback = { textContent: '' }
     const status = { textContent: '' }
     let busy = false
     let revision = 0
@@ -29,38 +20,39 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     let state = sharing.restore(defaultsOf(sharing.fields))
     /** @type {string[]} */
     const pushed = []
+    /** @type {string[]} */
+    const replaced = []
+    /** @type {Map<number, { run: () => void, delay: number }>} */
+    const timers = new Map()
+    let nextTimer = 0
+    /** @type {(edited: boolean) => void} */
     let settled = () => {}
     const details = { tagName: 'DETAILS', open: false, parentElement: null }
-    const target = { parentElement: details, scrollIntoView: () => { scrolls++ } }
+    const target = { parentElement: details, scrollIntoView: () => { scrolls += 1 } }
     /** @type {any} */
     const document = { getElementById: (/** @type {string} */ id) => id === 'demo' ? target : null }
     /** @type {any} */
     const view = {
         location: new URL(hash, 'https://example.com/demo/'),
-        navigator: { clipboard: { writeText: async (/** @type {string} */ text) => { copied.push(text) } } },
         addEventListener: (/** @type {string} */ name, /** @type {() => void} */ listener) => windowEvents.set(name, [...windowEvents.get(name) ?? [], listener]),
         requestAnimationFrame: (/** @type {() => void} */ callback) => callback(),
-        history: { pushState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => {
-            pushed.push(url)
-            const next = new URL(url, view.location.href)
-            view.location.search = next.search
-            view.location.hash = next.hash
-        } },
-        setTimeout: () => 1, clearTimeout: () => {},
+        history: {
+            pushState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => { pushed.push(url); go(url) },
+            replaceState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => { replaced.push(url); go(url) },
+        },
+        setTimeout: (/** @type {() => void} */ run, /** @type {number} */ delay) => { nextTimer += 1; timers.set(nextTimer, { run, delay }); return nextTimer },
+        clearTimeout: (/** @type {number | undefined} */ timer) => { if (timer !== undefined) { timers.delete(timer) } },
+    }
+    /** @type {(url: string) => void} */
+    const go = url => {
+        const next = new URL(url, view.location.href)
+        view.location.search = next.search
+        view.location.hash = next.hash
     }
     document.defaultView = view
     /** @type {any} */
-    const button = {
-        ownerDocument: document, hidden: true,
-        addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => buttonEvents.set(name, listener),
-        querySelector: () => feedback,
-        setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => attributes.set(name, value),
-        removeAttribute: (/** @type {string} */ name) => attributes.delete(name),
-    }
-    const sectionButton = { ...button, getAttribute: () => 'demo', addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => sectionEvents.set(name, listener) }
-    /** @type {any} */
     const controls = {
-        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? root : selector.includes('button[data-copy-demo]') ? button : selector.includes('button[data-copy-demo-section]') ? sectionButton : status,
+        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? root : selector.includes('[data-demo-link-status]') ? status : null,
     }
     /** @type {any} */
     const root = {
@@ -75,27 +67,40 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         read: () => state,
         busy: () => busy,
         revision: () => revision,
-        settled: (/** @type {() => void} */ listener) => { settled = listener },
+        settled: (/** @type {(edited: boolean) => void} */ listener) => { settled = listener },
         replace: (/** @type {any} */ next, /** @type {() => void} */ after, /** @type {() => import('./demo/sharing/types.ts').RestoreDisposition} */ current, /** @type {boolean} */ initialize = false) => pending.push({ next, after, current, initialize }),
     }
+    const wait = () => {
+        for (const [id, { run, delay }] of [...timers]) {
+            assertEq(delay, writeDelay)
+            timers.delete(id)
+            run()
+        }
+    }
     return {
-        root, demo, view, controls, document, button, sectionButton, status, feedback, copied, pending, pushed, details, windowEvents,
-        get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
+        root, demo, view, controls, document, status, pending, pushed, replaced, timers, details, windowEvents,
+        get bound() { return windowEvents.has('popstate') }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
-        flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
+        flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores += 1; item.after() } } },
         navigate: (/** @type {string} */ next) => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; windowEvents.get('popstate')?.forEach(f => f()); windowEvents.get('hashchange')?.forEach(f => f()) },
         input: () => { revision += 1 },
-        edit: (/** @type {any} */ value) => { revision += 1; state = value; settled() },
+        // A reader edit, then the pause that writes it.
+        edit: (/** @type {any} */ value) => { revision += 1; state = value; settled(true); wait() },
+        // A reader edit still inside its pause.
+        type: (/** @type {any} */ value) => { revision += 1; state = value; settled(true) },
+        // An action or automatic step that changes the inputs.
+        act: (/** @type {any} */ value) => { state = value; settled(false) },
+        wait: () => wait(),
+        event: (/** @type {string} */ name, /** @type {any} */ event = {}) => windowEvents.get(name)?.forEach(f => /** @type {(event: any) => void} */ (f)(event)),
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
-        click: async (section = false) => { (section ? sectionEvents : buttonEvents).get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
     }
 }
 export const proof = {
     initialAndHistory: () => {
         const f = fixture()
         f.start()
-        assertEq(f.hidden, false)
+        assertEq(f.bound, true)
         assertEq(f.state, 'first')
         assertEq(f.pending.length, 1)
         assertEq(f.pending[0].initialize, false)
@@ -175,58 +180,19 @@ export const proof = {
         assertEq(f.state, 'first')
         assertEq(f.restores, 1)
     },
-    copyExamplesAndCustom: async () => {
-        const f = fixture()
-        f.start(); f.flush()
-        await f.click()
-        assertEq(f.copied[0], 'https://example.com/demo/?example=second#demo')
-        assertEq(f.view.location.search, '?example=second')
-        assertEq(f.feedback.textContent, 'Copied!')
-        f.stateTo('Custom 🌍\n')
-        await f.click()
-        assertStructurallySame(decodeQuery(new URL(f.copied[1]).search), ['ok', { kind: 'inputs', values: { source: 'Custom 🌍\n' } }])
-        const empty = fixture(undefined, '#documentation')
-        empty.demo.sharing = undefined
-        empty.start(); assertEq(empty.button.disabled, true); assertEq(empty.sectionButton.hidden, false); await empty.click(true)
-        assertEq(empty.copied[0], 'https://example.com/demo/#demo')
-    },
-    sectionLinkIgnoresInputs: async () => {
-        const f = fixture()
-        f.start(); f.flush()
-        f.busy(true); await f.click(true)
-        assertEq(f.copied[0], 'https://example.com/demo/#demo')
-        f.busy(false); f.stateTo('x'.repeat(20_000)); await f.click(true)
-        assertEq(f.copied[1], 'https://example.com/demo/#demo')
-        f.sectionButton.getAttribute = () => 'demo-section:3:two'
-        await f.click(true)
-        assertEq(f.copied[2], 'https://example.com/demo/#demo-section%3A3%3Atwo')
-    },
-    copyFailures: async () => {
-        const f = fixture(undefined, '#documentation')
-        f.start(); f.busy(true); await f.click()
-        assertEq(f.copied.length, 0)
-        assert(f.status.textContent.includes('finish updating'))
-        f.busy(false); f.stateTo('a'.repeat(20_000)); await f.click()
-        assertEq(f.copied.length, 0)
-        assert(f.status.textContent.includes('16 KiB'))
-        f.stateTo('valid'); f.view.navigator.clipboard = undefined; await f.click()
-        assertEq(f.feedback.textContent, 'Copy unavailable')
-        f.view.navigator.clipboard = { writeText: async () => { throw 'denied' } }; await f.click()
-        assertEq(f.feedback.textContent, 'Copy failed')
-    },
-    absentAndSecondaryControls: async () => {
+    absentAndSecondaryControls: () => {
         const absent = fixture(); absent.root.parentElement = null; absent.start()
         assertEq(absent.pending.length, 0)
         const extra = fixture()
-        extra.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? {} : extra.button
+        extra.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? {} : extra.status
         extra.start()
-        assertEq(extra.hidden, true)
+        assertEq(extra.bound, false)
         const sparse = fixture(recordSharing({}, { absent: undefined }), '#demo')
         sparse.start(); sparse.flush()
-        assertEq(sparse.button.disabled, true)
-        assertEq(sparse.sectionButton.hidden, false)
+        assertEq(sparse.bound, true)
+        assertEq(sparse.pushed.length, 0)
         const noWindow = fixture(); noWindow.document.defaultView = null; noWindow.start()
-        assertEq(noWindow.hidden, true)
+        assertEq(noWindow.bound, false)
         const implicitScope = fixture()
         implicitScope.root.getAttribute = (/** @type {string} */ name) => name === 'data-demo-scope' ? null : '/demo.f.mjs'
         implicitScope.start(); implicitScope.flush()
@@ -235,10 +201,9 @@ export const proof = {
         secondary.root.getAttribute = (/** @type {string} */ name) => name === 'data-demo-scope' ? 'second' : '/demo.f.mjs'
         secondary.start(); secondary.flush()
         assertEq(secondary.restores, 0)
-        await secondary.click()
-        assertEq(secondary.copied[0], 'https://example.com/demo/#demo')
+        assertEq(secondary.bound, false)
         const noStatus = fixture(undefined, '?example=retired')
-        noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : selector.includes('button[data-copy-demo-section]') ? noStatus.sectionButton : null
+        noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : null
         noStatus.start()
         assertEq(noStatus.pending.length, 0)
     },
@@ -269,5 +234,83 @@ export const proof = {
         const empty = fixture(recordSharing({}, {}), '#demo')
         empty.start(); empty.edit({})
         assertEq(empty.pushed.length, 0)
+    },
+    // Typing faster than the pause is one history entry, not one per key.
+    burstIsOneEntry: () => {
+        const f = fixture(undefined, '#heading')
+        f.start()
+        for (const value of ['a', 'ab', 'abc', 'abcd']) { f.type(value) }
+        assertEq(f.timers.size, 1)
+        assertEq(f.pushed.length, 0)
+        f.wait()
+        assertStructurallySame(f.pushed, ['/demo/?source=abcd#heading'])
+    },
+    // An action or automatic work keeps the address bar current without
+    // adding history; a burst that also holds a reader edit pushes.
+    actionsReplace: () => {
+        const f = fixture(undefined, '#heading')
+        f.start()
+        f.act('second'); f.wait()
+        assertStructurallySame(f.replaced, ['/demo/?example=second#heading'])
+        assertEq(f.pushed.length, 0)
+        f.act('second'); f.wait()
+        assertEq(f.replaced.length, 1)
+        f.type('mine'); f.act('mine+1'); f.wait()
+        assertStructurallySame(f.pushed, ['/demo/?source=mine%2B1#heading'])
+        f.act('mine+2'); f.wait()
+        assertEq(f.replaced.at(-1), '/demo/?source=mine%2B2#heading')
+        assertEq(f.pushed.length, 1)
+    },
+    // A write that comes due while a step runs waits for that step's drain.
+    busyDefers: () => {
+        const f = fixture(undefined, '#heading')
+        f.start()
+        f.type('a'); f.busy(true); f.wait()
+        assertEq(f.pushed.length, 0)
+        f.busy(false); f.type('ab'); f.wait()
+        assertStructurallySame(f.pushed, ['/demo/?source=ab#heading'])
+    },
+    // A browser that refuses the write (Safari's and Firefox's rate limits
+    // throw) leaves the demo working, and the next write tries again.
+    refusedWrite: () => {
+        const f = fixture(undefined, '#heading')
+        f.start()
+        const push = f.view.history.pushState
+        f.view.history.pushState = () => { throw 'SecurityError' }
+        f.edit('a')
+        assertEq(f.view.location.search, '')
+        assertEq(f.status.hidden, undefined)
+        f.view.history.pushState = push
+        f.edit('ab')
+        assertStructurallySame(f.pushed, ['/demo/?source=ab#heading'])
+    },
+    // Following a link, or leaving, writes the pending edit at once, so the
+    // link's own history entry comes after it.
+    flushes: () => {
+        const f = fixture(undefined, '#heading')
+        f.start()
+        f.type('a')
+        f.event('click', { target: { closest: () => null } })
+        assertEq(f.pushed.length, 0)
+        f.event('click', { target: { closest: (/** @type {string} */ s) => s === 'a[href]' ? {} : null } })
+        assertStructurallySame(f.pushed, ['/demo/?source=a#heading'])
+        assertEq(f.timers.size, 0)
+        f.event('click', { target: null })
+        f.type('ab')
+        f.event('pagehide')
+        assertEq(f.pushed.at(-1), '/demo/?source=ab#heading')
+        f.event('pagehide')
+        assertEq(f.pushed.length, 2)
+    },
+    // Back or Forward during the pause drops the pending write: it must not
+    // overwrite the entry the reader went to.
+    navigationCancels: () => {
+        const f = fixture(undefined, '#heading')
+        f.start()
+        f.type('a')
+        f.navigate('#other')
+        assertEq(f.timers.size, 0)
+        f.wait()
+        assertEq(f.pushed.length, 0)
     },
 }

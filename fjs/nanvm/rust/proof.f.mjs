@@ -107,9 +107,9 @@ pub fn run<A: IStaticFunction>() {
 
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("pick", scope(|| { if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
-    check::<A>("skip", scope(|| { if Any::<A>::to_boolean(false.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
-    // TODO: not yet: check::<A>("skipNested", scope(|| { if Any::<A>::to_boolean(false.to_any()) { Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any()) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("pick", scope(|| { if Any::<A>::to_boolean(&true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("skip", scope(|| { if Any::<A>::to_boolean(&false.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    // TODO: not yet: check::<A>("skipNested", scope(|| { if Any::<A>::to_boolean(&false.to_any()) { Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any()) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
 }
 `],
     ['mul.rs', `${header}use crate::harness::*;
@@ -182,10 +182,10 @@ export const proof = {
     nodeExpr: () => {
         assertEq(nodeExpr(['-', 1]), "<Any<A> as core::ops::Neg>::neg(f64_any(0x3ff0000000000000))")
         assertEq(nodeExpr(['+', 1]), 'Any::unary_plus(f64_any(0x3ff0000000000000))')
-        assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_(f64_any(0x3ff0000000000000))')
+        assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_(&f64_any(0x3ff0000000000000))')
         assertEq(
             nodeExpr(['?:', true, 1, 2]),
-            "if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) }")
+            "if Any::<A>::to_boolean(&true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) }")
         // The corpus's function value is an ordinary prepared function,
         // including when an operator consumes it.
         assertEq(nodeExpr(lambdaExp()), "A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some(\"()=>undefined\")).to_any()")

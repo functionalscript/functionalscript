@@ -6,7 +6,7 @@ reads `"\n"` and every printer that writes one agree on what it means.
 
 |Export             |Holds                                                                                            |
 |-------------------|-------------------------------------------------------------------------------------------------|
-|`simpleEscapes`    |the escapes whose meaning is one fixed code point: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`|
+|`simpleEscapes`    |JSON's escapes whose meaning is one fixed code point: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`|
 |`escapeToCodePoint`|the code point a simple escape's letter stands for                                               |
 |`codePointToEscape`|the reverse: the escape letter for a code point, where it has one                                |
 |`optionalEscape`   |`/`, the one escape a reader must accept and a writer never produces                             |
@@ -22,3 +22,5 @@ stringLiteral('a"\n') // '"a\\"\\n"', the text "a\"\n" with its quotes
 the tokenizer decodes it rather than looking it up. `stringLiteral` writes
 JSON-compatible output, which is why [`media/json`](../../media/json/serializer/module.f.mjs)
 and the generated `package.json` in [`ci`](../../ci/README.md) use it too.
+Single-quoted `\'`, `\v` and `\xHH` are decoded by the JavaScript tokenizer
+above this JSON table, preserving JSON-compatible output.

@@ -30,9 +30,9 @@
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
-import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
+import { flat, map, reduce, empty } from '../../../types/list/module.f.js'
 import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/module.f.mjs'
-import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
+import { definedEntries, isObject } from '../../../types/object/module.f.js'
 import { compose, fn } from '../../../types/function/module.f.js'
 import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'

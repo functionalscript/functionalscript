@@ -2,6 +2,7 @@
 
 pub mod arrays;
 pub mod bigints;
+pub mod boolean_conversion;
 pub mod call_statements;
 pub mod calls;
 pub mod captures;
@@ -18,6 +19,7 @@ pub mod grouping;
 pub mod guards;
 pub mod hello;
 pub mod identifiers;
+pub mod in_operator;
 pub mod instanceof;
 pub mod loops;
 pub mod member_functions;
@@ -50,6 +52,12 @@ pub extern "C" fn arrays() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn bigints() -> i32 {
     crate::export(bigints::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `boolean_conversion` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn boolean_conversion() -> i32 {
+    crate::export(boolean_conversion::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `call_statements` sample.
@@ -146,6 +154,12 @@ pub extern "C" fn hello() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn identifiers() -> i32 {
     crate::export(identifiers::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `in_operator` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn in_operator() -> i32 {
+    crate::export(in_operator::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `instanceof` sample.
@@ -295,6 +309,13 @@ mod tests {
     }
 
     #[test]
+    fn boolean_conversion() {
+        let entry = crate::load(super::boolean_conversion::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[false,false,true,true,true]"));
+        crate::assert_call(&entry, 1.0, Ok("[true,false,true,true,true]"));
+    }
+
+    #[test]
     fn call_statements() {
         let entry = crate::load(super::call_statements::module::<Naive>).unwrap();
         crate::assert_call(&entry, 2.0, Ok("3"));
@@ -339,8 +360,8 @@ mod tests {
     #[test]
     fn destructuring() {
         let entry = crate::load(super::destructuring::module::<Naive>).unwrap();
-        crate::assert_call(&entry, 1.0, Ok("[1,2,[3,4]]"));
-        crate::assert_call(&entry, 5.0, Ok("[5,10,[3,4]]"));
+        crate::assert_call(&entry, 1.0, Ok("[1,2,[3],[3,4]]"));
+        crate::assert_call(&entry, 5.0, Ok("[5,10,[15],[3,4]]"));
     }
 
     #[test]
@@ -391,6 +412,13 @@ mod tests {
         let entry = crate::load(super::identifiers::module::<Naive>).unwrap();
         crate::assert_call(&entry, 1.0, Ok("[2,2,3,4]"));
         crate::assert_call(&entry, 2.0, Ok("[3,2,3,4]"));
+    }
+
+    #[test]
+    fn in_operator() {
+        let entry = crate::load(super::in_operator::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("true"));
+        crate::assert_call(&entry, 1.0, Ok("false"));
     }
 
     #[test]

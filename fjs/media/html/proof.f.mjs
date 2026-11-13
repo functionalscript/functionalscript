@@ -2,9 +2,9 @@
  * @import { Element } from './types.ts'
  */
 
-import { htmlToString, htmlUtf8, isRawText, isVoidTag, pageRefusal, parseElement, rawTextContent, scriptRefusal } from "./module.f.mjs"
+import { foldElement, htmlToString, htmlUtf8, isRawText, isVoidTag, mapElement, pageRefusal, parseElement, rawTextContent, scriptRefusal, textContent } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 
 export const proof = {
     // What a page could not read as written, or would run, is refused with
@@ -129,5 +129,14 @@ export const proof = {
         assertEq(isRawText('style'), true)
         assertEq(isRawText('div'), false)
     },
+    // Every element is rewritten, the root and the nested ones, and text stays.
+    mapElement: () => assertStructurallySame(
+        mapElement((tag, attributes) => [tag.toUpperCase(), { ...attributes, seen: '' }])(['p', 'a', ['b', { id: 'x' }, 'c'], ['br']]),
+        ['P', { seen: '' }, 'a', ['B', { id: 'x', seen: '' }, 'c'], ['BR', { seen: '' }]]),
+    // Each element is visited once, the root first, in document order.
+    foldElement: () => assertEq(
+        foldElement((/** @type {string} */ acc, tag, { id }) => `${acc}${tag}${id ?? ''};`)('')(['p', 'a', ['b', { id: 'x' }, ['i']], ['br']]),
+        'p;bx;i;br;'),
+    textContent: () => assertEq(textContent(['p', 'a ', ['a', { href: 'x' }, 'b', ['img', { alt: 'c' }]], ' d']), 'a b d'),
     rawTextContent: () => assertEq(rawTextContent(['a', ['b', 'x'], '</c']), 'a<\\/c'),
 }

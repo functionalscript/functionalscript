@@ -149,7 +149,7 @@ first-class function as it is in JavaScript. Destructuring is sugar, so
 `const { is } = Object` is `const is = Object.is`, one entry, and the
 namespace is read nowhere else: an array pattern over it, or a member it
 does not admit, is refused at the word — but a key that is a prototype
-name, `keys` or `toString`, is refused first, at the key, as in any
+name, `values` or `toString`, is refused first, at the key, as in any
 pattern (`prohibited property name`). A guarded spelling, `Object?.is`,
 never reaches the lowering: it is refused at the word, a namespace being no
 value to guard, as `String?.(x)` is, a conversion being no value either
@@ -195,8 +195,22 @@ natively or by a body — and the native table in reverse.
 
 **The floor grows by the primitives no body can write.** Some static
 functions are definitions over the operators, bodies from the first day:
-`Object.is`, `Number.isInteger`, `Number.isNaN`, `isNaN`, `Math.max`,
-`Math.trunc`, `Math.sign`. One is a primitive a VM must bind natively
+`Object.is`, `Number.isInteger`, `Number.isNaN`, `isNaN`, `Math.sign`.
+`Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`,
+`Math.max` and `Math.min` are admitted natively under the later target rule:
+both Rust and core WASM provide compatible numerical operations, so every executor uses
+its native binding after the existing JavaScript conversions, without a
+common numerical body or third-party dependency
+([truncation](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval),
+[floor](../../../spec/todo/2360-built-in.md#mathfloor-proposal-and-approval),
+[absolute value](../../../spec/todo/2360-built-in.md#mathabs-proposal-and-approval),
+[square root, ceiling and integer multiplication](../../../spec/todo/2360-built-in.md#mathsqrt-mathceil-and-mathimul-proposal-and-approval),
+[maximum](../../../spec/todo/2360-built-in.md#mathmax-proposal-and-approval),
+[minimum](../../../spec/todo/2360-built-in.md#mathmin-proposal-and-approval)).
+`Math.max` and `Math.min` convert every argument in order before returning,
+even after `NaN` or an infinity; their Rust bindings correct the native operations'
+`NaN` and zero-tie behavior to match JavaScript and core WASM.
+One is a primitive a VM must bind natively
 because nothing in the language reaches it: `String.fromCharCode`, a
 string from a code unit. The transcendental `Math` names — `sin`, `exp`,
 `log`, `pow` with a fractional exponent — are neither, and stay refused:
@@ -206,7 +220,7 @@ agreement the spec requires of every successful result, so such a name is
 admitted only with a body that pins its answer, a correctly rounded
 algorithm or a table, and not before. The runtime's README lists each
 admitted static path as bodied or native, as it lists the member names,
-and a native-only name is absent from the table as a member primitive is.
+and a native-only static holds the built-in itself in the runtime table.
 `Object(a)` is the one `''` whose body needs a decision before it is
 admitted: on an object or an array it is the identity, and on a primitive
 JavaScript answers a wrapper object the language has no value for, so the
@@ -303,7 +317,7 @@ this proposal does not take.
       and `Object.is` read in two invocations was two closures there; the
       Rust backend prints the read where a block answers it, as a
       function's body that returns it.
-- [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
+- [x] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.
 - [x] Admit `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
@@ -333,7 +347,7 @@ this proposal does not take.
       the spec, the docs that say the language enumerates no keys, and a
       harness fixture.
 - [x] Give every runtime function the text ECMA-262 requires of a
-      built-in, a NativeFunction naming its [[InitialName]] with no
+      built-in, a NativeFunction naming its `[[InitialName]]` with no
       parameters — `function is() { [native code] }`,
       `function isInteger() { [native code] }` — as `Object.entries`
       answers `function entries() { [native code] }`, in place of its
@@ -364,3 +378,8 @@ this proposal does not take.
   — the `static function` tag and `IStaticFunction`.
 - [`edag/README.md`](../../edag/README.md#nodes) — `['entry']`, the value
   node `['Object.is']` is modelled on.
+
+`String.fromCharCode` is now admitted as a native static; the task owner
+approved native construction, detached calls and JavaScript length 1 in the
+implementation session. Every executor binds it, preserving ToUint16 and
+lone surrogates. See [the admission record](../../../spec/todo/2360-built-in.md#stringfromcharcode-proposal-and-approval).

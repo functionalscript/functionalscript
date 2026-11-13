@@ -74,4 +74,4 @@ normalize only where equivalence holds for every admitted observation.
 - [Compatibility epic](../../todo/fjs-javascript-compatibility.md).
 - [Blocked research](../../todo/blocked/undefined-removes-property.md) — ignored
   as an implementation direction while it remains blocked; not a prerequisite.
-- `fjs/types/object/module.f.mjs` — `definedEntries` and `definedValues`.
+- `fjs/types/object/module.f.js` — `definedEntries` and `definedValues`.

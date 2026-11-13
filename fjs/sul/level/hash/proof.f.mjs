@@ -4,8 +4,8 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
-import { compress, level3Id } from '../../id/module.f.mjs'
-import { emptyEncodeState, encode } from './module.f.mjs'
+import { compress, level3Id } from '../../id/module.f.js'
+import { emptyEncodeState, encode } from './module.f.js'
 
 /** @type {(l: Id, r: Id, m: Id, isSymbol: boolean, s: readonly (readonly [Id, Id, Id, boolean])[]) => readonly (readonly [Id, Id, Id, boolean])[]} */
 const add = (l, r, m, isSymbol, s) => [...s, [l, r, m, isSymbol]]

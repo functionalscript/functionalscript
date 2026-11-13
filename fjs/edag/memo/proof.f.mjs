@@ -12,8 +12,11 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
+import { noBoolean, noIn } from '../operations/module.f.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
+import { read } from '../value/property/module.f.js'
 import { toData } from '../value/to_unknown/module.f.mjs'
-import { call } from '../value/call/module.f.mjs'
+import { call } from '../value/call/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 const context = { frame: [], args: [10, 20] }
@@ -48,6 +51,16 @@ const array = v => /**@type {any}*/(v)
 /** Call a represented function; this proof adapter never exposes a runtime function. @type {(v: EdagValue, args?: Values) => EdagValue} */
 const apply = (v, args = []) => assertOk(call(ok(v), args.map(a => () => ok(a)), invoke))
 
+/** The common runtime, loaded without a runtime as its bootstrap requires. */
+const commonRuntime = () => {
+    const runtime = assertOk(read(vm(context)(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+    assert(runtime instanceof Array && runtime[0] === '{}')
+    return runtime
+}
+
+/** A method supplied by the common runtime, interpreted with memoization. @type {(e: Exp) => unknown} */
+const runWithRuntime = e => assertOk(toData(assertOk(memo(assertOk(analysis(e)))({ ...context, runtime: commonRuntime() }))))
+
 /** @type {(v: EdagValue) => Values} */
 const elements = v => /** @type {ValueArray} */ (v)[1]
 
@@ -55,6 +68,11 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    // The entry check is the runtime's to answer, and this executor is
+    // given none: the operator is refused by name, as its node specifies.
+    inWithoutRuntime: () => {
+        assertEq(assertError(result(['in', 'x', ['{}', []]])), noIn)
+    },
     // An invocation's runtime reaches a member call in the module and in
     // every function it calls, as `amnesia`'s does.
     runtime: () => {
@@ -217,7 +235,7 @@ export const proof = {
         for (const tag of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', '===', '!=='])) {
             agrees([tag, 6, 2])
         }
-        for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', '~', '+', '-'])) { agrees([tag, '2']) }
+        for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', 'BigInt', '~', '+', '-'])) { agrees([tag, '2']) }
         agrees(['instanceof', ['[]', [1]], 'Array'])
         agrees(['instanceof', ['{}', []], 'Array'])
         agrees(['instanceof', conditional("&&", 1, null), 'Array'])
@@ -231,6 +249,25 @@ export const proof = {
         assertEq(run(['===', ['args'], ['args']]), true)
         // Lists beginning with '#' are ordinary data, never table references.
         assertStructurallySame(assertOk(toData(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
+    },
+    booleanRuntime: () => {
+        const runtime = commonRuntime()
+        const options = /** @type {const} */ ({ ...context, runtime })
+        /** @type {readonly (readonly [Exp, boolean])[]} */
+        const cases = [
+            [['Boolean', ['undefined']], false],
+            [['Boolean', 0n], false],
+            [['Boolean', ['{}', []]], true],
+            [['Boolean', ['=>', 0, [], 0]], true],
+            [['()', ['=>', 1, [], ['Boolean', ['arg', 0]]], [0]], false],
+            [['()', ['=>', 1, [], ['Boolean', ['arg', 0]]], [1]], true],
+        ]
+        for (const [expression, expected] of cases) {
+            assertEq(assertOk(memo(assertOk(analysis(expression)))(options)), expected)
+            assertEq(assertOk(vm(options)(expression)), expected)
+        }
+        assertEq(assertError(result(['Boolean', 0])), noBoolean)
+        assertEq(assertError(result(['Boolean', ['throw', 'operand']])), 'operand')
     },
     chains: () => {
         /** @type {Exp} */
@@ -281,7 +318,7 @@ export const proof = {
         eq(['()', ['=>', 0, [], ['===', ['entry'], ['entry']]], []], false)
         const helper = /** @type {Exp} */ (['entry'])
         eq(['===', helper, helper], true)
-        assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
+        assertStructurallySame(runWithRuntime(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
         eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
         fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
         // `length` is own and not enumerable: no entry, no member name and
@@ -301,7 +338,7 @@ export const proof = {
         assertStructurallySame(run(entries('ab')), [['0', 'a'], ['1', 'b']])
         assertStructurallySame(run(entries(1n)), [])
         assertStructurallySame(run(entries(['Object.entries'])), [])
-        assertStructurallySame(run(['.', ['[]', ['ab']], 'map', ['|()', [['Object.entries']]]]), [[['0', 'a'], ['1', 'b']]])
+        assertStructurallySame(runWithRuntime(['.', ['[]', ['ab']], 'map', ['|()', [['Object.entries']]]]), [[['0', 'a'], ['1', 'b']]])
         eq(['.', ['Object.entries'], 'length'], 1)
         eq(['typeof', ['Object.entries']], 'function')
         eq(['===', ['Object.entries'], ['Object.entries']], true)
@@ -348,7 +385,7 @@ export const proof = {
     callbackFailures: () => {
         /** @type {EdagValue} */
         const payload = ['{}', [[':', 'message', 'callback failure']]]
-        const invocation = { args: [payload] }
+        const invocation = /** @type {const} */ ({ args: [payload], runtime: commonRuntime() })
         /** @type {Exp} */
         const callback = ['=>', 0, [['.', ['args'], 0]], ['throw', ['frame', 0]]]
         for (const method of ['map', 'reduce', 'toSorted']) {
@@ -366,7 +403,7 @@ export const proof = {
             for (const result of [
                 memo(assertOk(analysis(implicit)))(invocation),
                 vm({ ...invocation, frame: [] })(implicit),
-            ]) { assertStructurallySame(result, ['error', ['undefined']]) }
+            ]) { assertError(result) }
         }
     },
     throw: {

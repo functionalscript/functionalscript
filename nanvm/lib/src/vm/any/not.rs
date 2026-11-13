@@ -9,6 +9,13 @@ use crate::vm::{Any, IVm, ToAny};
 impl<A: IVm> Not for Any<A> {
     type Output = Result<Any<A>, Any<A>>;
     fn not(self) -> Self::Output {
+        !&self
+    }
+}
+
+impl<A: IVm> Not for &Any<A> {
+    type Output = Result<Any<A>, Any<A>>;
+    fn not(self) -> Self::Output {
         Ok((!self.to_boolean()).to_any())
     }
 }

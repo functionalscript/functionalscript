@@ -16,17 +16,13 @@ impl<A: IVm> Any<A> {
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::identity;
     use crate::{
         naive::Naive,
         vm::{Any, Function, IVm, Nullish, ToAny, ToArray, error, unstable::f64_any},
     };
 
     type A = Naive;
-
-    /// A function that answers its arguments, as the array it was given.
-    fn identity() -> Any<A> {
-        A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any()
-    }
 
     #[test]
     fn calls_with_the_arguments() {

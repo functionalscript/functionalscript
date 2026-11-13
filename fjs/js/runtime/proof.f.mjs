@@ -1,12 +1,12 @@
 /** @import { Exp } from '../../edag/types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../../asserts/module.f.js'
 import { _moduleExports } from '../../compiler/edag/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
-import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
+import { isStatic as isStaticNode } from '../../edag/module.f.js'
 import { member, runtime, statics } from './module.f.js'
-import edag from './gen.edag.data.js'
+import edag from './gen.edag.js'
 
 const { entries, values } = Object
 
@@ -20,13 +20,56 @@ const members = member
 const table = /** @type {Readonly<Record<string, (a: unknown, b: unknown) => unknown>>} */ (/** @type {unknown} */ (statics))
 
 /** The host's own globals, each static path read from them by its keys. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
-const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number }))
+const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number, String, Math }))
 
 /**
- * The statics whose argument is an array of entries, which no pair of
- * {@link samples} is: `host` leaves them to a proof of their own.
+ * Statics with their own oracle proofs: structural results, entry-shaped
+ * arguments, and a numerical approximation needing an accuracy bound.
+ * @type {readonly string[]}
  */
-const entryShaped = ['Object.fromEntries']
+const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Math.log2']
+
+/**
+ * Correctly rounded log2 and the output's ULP, computed from the exact
+ * binary64 input with mpmath at 100 decimal digits. Literal references
+ * make the oracle independent of both this kernel and the host's log2.
+ * Near 1 the output is tiny, so an absolute or input-relative tolerance
+ * would hide large numerical errors. See README.md for the method.
+ * @type {readonly (readonly [number, number, number])[]}
+ */
+const logarithms = [
+    [0.9999999999999999, -1.6017132519074588e-16, 2.465190328815662e-32],
+    [1.0000000000000002, 3.203426503814917e-16, 4.930380657631324e-32],
+    [1.9999999999999998, 0.9999999999999999, 1.1102230246251565e-16],
+    [2.0000000000000004, 1.0000000000000002, 2.220446049250313e-16],
+    [0.1, -3.321928094887362, 4.440892098500626e-16],
+    [0.3, -1.7369655941662063, 2.220446049250313e-16],
+    [0.7, -0.5145731728297583, 1.1102230246251565e-16],
+    [1.1, 0.13750352374993502, 2.7755575615628914e-17],
+    [1.2, 0.2630344058337938, 5.551115123125783e-17],
+    [1.4, 0.48542682717024166, 5.551115123125783e-17],
+    [1.5, 0.5849625007211562, 1.1102230246251565e-16],
+    [1.7, 0.765534746362977, 1.1102230246251565e-16],
+    [2.3, 1.2016338611696504, 2.220446049250313e-16],
+    [3, 1.584962500721156, 2.220446049250313e-16],
+    [7, 2.807354922057604, 4.440892098500626e-16],
+    [10, 3.321928094887362, 4.440892098500626e-16],
+    [1.4142135623730951, 0.5000000000000001, 1.1102230246251565e-16],
+    [1.414213562373095, 0.4999999999999999, 5.551115123125783e-17],
+    [1.4142135623730954, 0.5000000000000003, 1.1102230246251565e-16],
+    [0.7071067811865476, -0.4999999999999999, 5.551115123125783e-17],
+    [1e-300, -996.5784284662087, 1.1368683772161603e-13],
+    [1e-100, -332.19280948873626, 5.684341886080802e-14],
+    [1e100, 332.19280948873626, 5.684341886080802e-14],
+    [1e300, 996.5784284662087, 1.1368683772161603e-13],
+    [5e-324, -1074, 2.2737367544323206e-13],
+    [1e-323, -1073, 2.2737367544323206e-13],
+    [1.5e-323, -1072.415037499279, 2.2737367544323206e-13],
+    [2.2250738585072014e-308, -1022, 1.1368683772161603e-13],
+    [2.225073858507201e-308, -1022, 1.1368683772161603e-13],
+    [1.7976931348623157e308, 1024, 2.2737367544323206e-13],
+    [1.2891833470499138e262, 870.711618318191, 1.1368683772161603e-13],
+]
 
 const array = /** @type {readonly unknown[]} */ ([])
 const object = {}
@@ -66,13 +109,305 @@ const samples = [
     array, [], [1], [NaN], object, {}, f, () => 1,
 ]
 
-export const proof = {
-    // `static` and `dot` are the runtime's two functions; every key `member` holds
+export const proof = /** @type {const} */ ({
+    min: {
+        numbers: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            assertEq(min, Math.min)
+            assertEq(runtime.static('Math.min'), min)
+            assertEq(min.length, 2)
+            for (const [args, expected] of /** @type {const} */ ([
+                [[], Infinity], [[-Infinity], -Infinity], [[Infinity], Infinity],
+                [[0], 0], [[-0], -0], [[0, 0, 0], 0],
+                [[-0, 0], -0], [[0, -0], -0], [[0, 0, -0], -0],
+                [[-3, -2, -1], -3], [[5, 2, 4, 3], 2],
+                [[5e-324, -5e-324, 0], -5e-324],
+                [[-1.7976931348623157e308, Infinity], -1.7976931348623157e308],
+                [[NaN], NaN], [[NaN, -Infinity, 1], NaN], [[-Infinity, 1, NaN], NaN],
+            ])) { assert(Object.is(min(...args), expected), args) }
+        },
+        conversion: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', '-Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(min(value, -3, 2), Math.min(/** @type {number} */ (value), -3, 2)), value)
+                assert(Object.is(min(-3, 2, value), Math.min(-3, 2, /** @type {number} */ (value))), value)
+            }
+            assertEq(min({ valueOf: () => -9, toString: () => { throw 'unreached' } }, 3, 5), -9)
+            assertEq(min(-1, 0, { valueOf: () => ({}), toString: () => '-16' }), -16)
+        },
+    },
+    max: {
+        numbers: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            assertEq(max, Math.max)
+            assertEq(runtime.static('Math.max'), max)
+            assertEq(max.length, 2)
+            for (const [args, expected] of /** @type {const} */ ([
+                [[], -Infinity], [[-Infinity], -Infinity], [[Infinity], Infinity],
+                [[0], 0], [[-0], -0], [[-0, -0, -0], -0],
+                [[-0, 0], 0], [[0, -0], 0], [[-0, -0, 0], 0],
+                [[-3, -2, -1], -1], [[5, 2, 4, 3], 5],
+                [[5e-324, -5e-324, 0], 5e-324],
+                [[1.7976931348623157e308, -Infinity], 1.7976931348623157e308],
+                [[NaN], NaN], [[NaN, Infinity, 1], NaN], [[Infinity, 1, NaN], NaN],
+            ])) { assert(Object.is(max(...args), expected), args) }
+        },
+        conversion: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(max(value, -3, 2), Math.max(/** @type {number} */ (value), -3, 2)), value)
+                assert(Object.is(max(-3, 2, value), Math.max(-3, 2, /** @type {number} */ (value))), value)
+            }
+            assertEq(max({ valueOf: () => 9, toString: () => { throw 'unreached' } }, 3, 5), 9)
+            assertEq(max(-1, 0, { valueOf: () => ({}), toString: () => '16' }), 16)
+        },
+    },
+    sqrt: {
+        numbers: () => {
+            const sqrt = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.sqrt'])
+            assertEq(sqrt, Math.sqrt)
+            assertEq(runtime.static('Math.sqrt'), sqrt)
+            assertEq(sqrt.length, 1)
+            assert(Object.is(sqrt(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, NaN],
+                [0, 0], [-0, -0], [-1, NaN], [-5e-324, NaN],
+                [1, 1], [4, 2], [0.25, 0.5], [2, 1.4142135623730951],
+                [5e-324, 2.2227587494850775e-162],
+                [1.7976931348623157e308, 1.3407807929942596e154],
+            ]) { assert(Object.is(sqrt(value), expected), value) }
+        },
+        conversion: () => {
+            const sqrt = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.sqrt'])
+            for (const value of ['', ' -0 ', ' 0.25 ', ' 0x10 ', '-Infinity', 'bad', true, false, null, undefined, [], [9], [9n], [[4]], {}, () => 1]) {
+                assert(Object.is(sqrt(value), Math.sqrt(/** @type {number} */ (value))), value)
+            }
+            assertEq(sqrt({ valueOf: () => 9, toString: () => { throw 'unreached' } }), 3)
+            assertEq(sqrt({ valueOf: () => ({}), toString: () => '16' }), 4)
+            assertEq(sqrt(25, { valueOf: () => { throw 'unused' } }), 5)
+        },
+    },
+    ceil: {
+        numbers: () => {
+            const ceil = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.ceil'])
+            assertEq(ceil, Math.ceil)
+            assertEq(runtime.static('Math.ceil'), ceil)
+            assertEq(ceil.length, 1)
+            assert(Object.is(ceil(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 1], [-0.5, -0],
+                [1.9, 2], [-1.9, -1], [5e-324, 1], [-5e-324, -0],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, -1.7976931348623157e308],
+            ]) { assert(Object.is(ceil(value), expected), value) }
+        },
+        conversion: () => {
+            const ceil = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.ceil'])
+            for (const value of ['', ' -0 ', ' -0.5 ', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(ceil(value), Math.ceil(/** @type {number} */ (value))), value)
+            }
+            assertEq(ceil({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 3)
+            assertEq(ceil({ valueOf: () => ({}), toString: () => '-3.9' }), -3)
+            assertEq(ceil(4.9, { valueOf: () => { throw 'unused' } }), 5)
+        },
+    },
+    imul: {
+        numbers: () => {
+            const imul = /** @type {(a?: unknown, b?: unknown, unused?: unknown) => number} */ (statics['Math.imul'])
+            assertEq(imul, Math.imul)
+            assertEq(runtime.static('Math.imul'), imul)
+            assertEq(imul.length, 2)
+            assert(Object.is(imul(), 0))
+            assert(Object.is(imul(1), 0))
+            for (const [a, b, expected] of [
+                [NaN, 1, 0], [Infinity, 1, 0], [-Infinity, 1, 0],
+                [0, -1, 0], [-0, 1, 0], [-0.5, 1, 0],
+                [1.9, -2.9, -2], [-3, 5, -15],
+                [0xffff_ffff, 5, -5], [0x8000_0000, 1, -0x8000_0000],
+                [0x8000_0000, 2, 0], [0xffff_ffff, 0xffff_ffff, 1],
+                [0x1_0000_0001, 5, 5], [-0x1_0000_0001, 5, -5],
+                [0x1f_ffff_ffff_ffff, 2, -2],
+                [1.7976931348623157e308, 1, 0], [5e-324, 1, 0],
+            ]) { assert(Object.is(imul(a, b), expected), [a, b]) }
+        },
+        conversion: () => {
+            const imul = /** @type {(a?: unknown, b?: unknown, unused?: unknown) => number} */ (statics['Math.imul'])
+            for (const value of ['', ' -0 ', ' -1.9 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(imul(value, 5), Math.imul(/** @type {number} */ (value), 5)), value)
+                assert(Object.is(imul(5, value), Math.imul(5, /** @type {number} */ (value))), value)
+            }
+            assertEq(imul({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }, 3), 6)
+            assertEq(imul(3, { valueOf: () => ({}), toString: () => '-3.9' }), -9)
+            assertEq(imul(4, 5, { valueOf: () => { throw 'unused' } }), 20)
+        },
+    },
+    abs: {
+        numbers: () => {
+            const abs = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.abs'])
+            assertEq(abs, Math.abs)
+            assertEq(runtime.static('Math.abs'), abs)
+            assertEq(abs.length, 1)
+            assert(Object.is(abs(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, Infinity],
+                [0, 0], [-0, 0], [0.5, 0.5], [-0.5, 0.5],
+                [1.9, 1.9], [-1.9, 1.9], [5e-324, 5e-324], [-5e-324, 5e-324],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [-0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, 1.7976931348623157e308],
+            ]) { assert(Object.is(abs(value), expected), value) }
+        },
+        conversion: () => {
+            const abs = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.abs'])
+            for (const value of ['', ' -0 ', ' -0.5 ', ' 0x10 ', '-Infinity', 'bad', true, false, null, undefined, [], [-8.9], [-8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(abs(value), Math.abs(/** @type {number} */ (value))), value)
+            }
+            assertEq(abs({ valueOf: () => -2.9, toString: () => { throw 'unreached' } }), 2.9)
+            assertEq(abs({ valueOf: () => ({}), toString: () => '-3.9' }), 3.9)
+            assertEq(abs(-4.9, { valueOf: () => { throw 'unused' } }), 4.9)
+        },
+    },
+    floor: {
+        numbers: () => {
+            const floor = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.floor'])
+            assertEq(floor, Math.floor)
+            assertEq(runtime.static('Math.floor'), floor)
+            assertEq(floor.length, 1)
+            assert(Object.is(floor(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 0], [-0.5, -1],
+                [1.9, 1], [-1.9, -2], [5e-324, 0], [-5e-324, -1],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, -1.7976931348623157e308],
+            ]) { assert(Object.is(floor(value), expected), value) }
+        },
+        conversion: () => {
+            const floor = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.floor'])
+            for (const value of ['', ' -0 ', ' -0.5 ', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(floor(value), Math.floor(/** @type {number} */ (value))), value)
+            }
+            assertEq(floor({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 2)
+            assertEq(floor({ valueOf: () => ({}), toString: () => '-3.9' }), -4)
+            assertEq(floor(4.9, { valueOf: () => { throw 'unused' } }), 4)
+        },
+    },
+    trunc: {
+        numbers: () => {
+            const trunc = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.trunc'])
+            assertEq(trunc, Math.trunc)
+            assertEq(runtime.static('Math.trunc'), trunc)
+            assertEq(trunc.length, 1)
+            assert(Object.is(trunc(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 0], [-0.5, -0],
+                [1.9, 1], [-1.9, -1], [5e-324, 0], [-5e-324, -0],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+            ]) { assert(Object.is(trunc(value), expected), value) }
+        },
+        conversion: () => {
+            const trunc = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.trunc'])
+            for (const value of ['', ' -0.5 ', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(trunc(value), Math.trunc(/** @type {number} */ (value))), value)
+            }
+            assertEq(trunc({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 2)
+            assertEq(trunc({ valueOf: () => ({}), toString: () => '-3.9' }), -3)
+            assertEq(trunc(4.9, { valueOf: () => { throw 'unused' } }), 4)
+        },
+    },
+    log2: {
+        specialCases: () => {
+            const body = statics['Math.log2']
+            assertEq(body.length, Math.log2.length)
+            assertEq(runtime.static('Math.log2'), body)
+            assert(Object.is(body(), NaN))
+            for (const value of [NaN, -1, -Infinity, 0, -0, 1, Infinity]) {
+                assert(Object.is(body(value), Math.log2(value)), value)
+            }
+            assertEq(1 / body(1), Infinity)
+        },
+        conversion: () => {
+            const body = statics['Math.log2']
+            for (const value of ['', '8', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8], [8n], [[8]], {}, () => 1]) {
+                assert(Object.is(body(value), Math.log2(/** @type {number} */ (value))), value)
+            }
+            const value = /** @type {const} */ ({ valueOf: () => 8, toString: () => { throw 'toString must not be reached' } })
+            assertEq(body(value), 3)
+            assertEq(body({ valueOf: () => ({}), toString: () => '16' }), 4)
+            // Extra arguments do not undergo numerical conversion.
+            assertEq(table['Math.log2'](8, { valueOf: () => { throw 'unused' } }), 3)
+        },
+        powersOfTwo: () => {
+            // Every representable positive power, including all subnormals.
+            for (let exponent = -1074; exponent <= 1023; exponent = exponent + 1) {
+                assertEq(statics['Math.log2'](2 ** exponent), exponent, exponent)
+            }
+        },
+        highPrecision: () => {
+            for (const [input, expected, ulp] of logarithms) {
+                const actual = statics['Math.log2'](input)
+                const difference = actual - expected
+                assert(-2 * ulp <= difference && difference <= 2 * ulp, [input, actual, expected, ulp])
+            }
+        },
+    },
+    boolean: () => {
+        assertEq(runtime.Boolean.length, 1)
+        for (const value of samples) { assertEq(runtime.Boolean(value), Boolean(value)) }
+        const conversionHooks = /** @type {const} */ ({
+            valueOf: () => { throw 'valueOf must not run' },
+            toString: () => { throw 'toString must not run' },
+        })
+        assertEq(runtime.Boolean(conversionHooks), true)
+        assertStructurallySame(at(at(edag, 'runtime'), 'Boolean'),
+            ['=>', 1, [], ['!', ['!', ['arg', 0]]]])
+    },
+    concat: () => {
+        const onArray = assertNotNullish(member.concat([1]))
+        assertStructurallySame(onArray(), [1])
+        assertStructurallySame(onArray(undefined, [2, [3]], 4), [1, undefined, 2, [3], 4])
+        const onString = assertNotNullish(member.concat('a'))
+        assertEq(onString(), 'a')
+        assertEq(onString('b', 1n, null, undefined), 'ab1nullundefined')
+        for (const self of samples.filter(value => !(value instanceof Array) && typeof value !== 'string')) {
+            assertEq(member.concat(self), undefined, self)
+        }
+        const own = () => 7
+        assertEq(runtime.dot({ concat: own }, 'concat'), own)
+        assertEq(runtime.dot({ concat: undefined }, 'concat'), undefined)
+        assertEq(typeof runtime.dot([], 'concat'), 'function')
+        assertEq(typeof runtime.dot('', 'concat'), 'function')
+    },
+    map: () => {
+        const input = /** @type {const} */ ([1, undefined, 3])
+        /** @type {(value: unknown, index: number, receiver: readonly unknown[]) => readonly unknown[]} */
+        const callback = (value, index, receiver) => [value, index, receiver]
+        const body = assertNotNullish(member.map(input))
+        assertEq(body.length, 1)
+        assertStructurallySame(body(callback), input.map(callback))
+        assertEq(member.map({}), undefined)
+        assertEq(runtime.dot(input, 'map') === undefined, false)
+    },
+    fromCharCode: () => {
+        const { fromCharCode } = String
+        assertEq(statics['String.fromCharCode'], fromCharCode)
+        assertEq(fromCharCode.length, 1)
+        assertEq(fromCharCode(5, 6), '\u0005\u0006')
+        assertEq(fromCharCode(), '')
+        assertEq(fromCharCode(0xd800, 0xffff, 0x1_0041, -1), '\ud800\uffffA\uffff')
+    },
+    // `Boolean`, `static`, `dot` and `in` are the runtime's four functions; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'dot,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)
@@ -94,7 +429,7 @@ export const proof = {
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.keys', 'Math.max', 'toString', 'constructor', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.cbrt', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -107,16 +442,16 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [global, name] of staticPaths.filter(path => !isNative(path) && !entryShaped.includes(path.join('.')))) {
-            const body = table[`${global}.${name}`]
-            const namespace = host[global]
+        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !separatelyProved.includes(path.join('.')))) {
+            const body = table[`${namespaceName}.${name}`]
+            const namespace = host[namespaceName]
             const detached = namespace[name]
-            assertEq(body.length, detached.length, [global, name])
+            assertEq(body.length, detached.length, [namespaceName, name])
             for (const a of samples) {
                 for (const b of samples) {
                     const expected = body(a, b)
-                    assertEq(namespace[name](a, b), expected, [global, name, 'method', a, b])
-                    assertEq(detached(a, b), expected, [global, name, 'detached', a, b])
+                    assertEq(namespace[name](a, b), expected, [namespaceName, name, 'method', a, b])
+                    assertEq(detached(a, b), expected, [namespaceName, name, 'detached', a, b])
                 }
             }
         }
@@ -125,15 +460,14 @@ export const proof = {
     // the section holds the built-in itself at the path, so the table is
     // complete as a value, and the host's own built-in answers alike
     // detached and on its namespace, as `host` checks a body's:
-    // `Object.entries` reads no `this`. On every sample but the two
-    // nullish ones, on which both calls throw.
+    // The natives read no `this`; compare their successful coercion inputs.
     natives: () => {
-        for (const [global, name] of staticPaths.filter(isNative)) {
-            assertEq(table[`${global}.${name}`], host[global][name], [global, name])
-            const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[global])
+        for (const [namespaceName, name] of staticPaths.filter(isNative)) {
+            assertEq(table[`${namespaceName}.${name}`], host[namespaceName][name], [namespaceName, name])
+            const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[namespaceName])
             const detached = namespace[name]
-            for (const a of samples.filter(a => a !== null && a !== undefined)) {
-                assertStructurallySame(detached(a), namespace[name](a), [global, name, a])
+            for (const a of samples.filter(a => a !== null && a !== undefined && (namespaceName === 'Object' || typeof a !== 'bigint'))) {
+                assertStructurallySame(detached(a), namespace[name](a), [namespaceName, name, a])
             }
         }
     },
@@ -160,6 +494,30 @@ export const proof = {
             assertStructurallySame(expected, entries(fromEntries(c)), c)
         }
         assert(body([]) !== body([]))
+    },
+    // `Object.keys` projects native entries through the shared mapper. Its
+    // fresh arrays compare structurally with the host, detached or called on
+    // the namespace; extra arguments are ignored in both forms.
+    objectKeys: () => {
+        const body = table['Object.keys']
+        const { keys } = Object
+        assertEq(body.length, keys.length)
+        /** @type {readonly {}[]} */
+        const cases = [
+            ...samples.filter(value => value !== null && value !== undefined),
+            { b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4, '01': 5, '': 6 },
+            { ['constructor']: undefined, length: 1 }, [undefined], 'a😀', '\ud800',
+        ]
+        for (const input of cases) {
+            const expected = Object.keys(input)
+            assertStructurallySame(body(input, undefined), expected, input)
+            assertStructurallySame(body(input, 'ignored'), keys(input), input)
+        }
+        assertStructurallySame(body({ b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4 }, undefined), ['2', '10', 'b', 'a', '__proto__'])
+        assertStructurallySame(body('a😀', undefined), ['0', '1', '2'])
+        const input = /** @type {const} */ ({ a: 1 })
+        assert(body(input, undefined) !== body(input, undefined))
+        assertEq(runtime.static('Object.keys'), statics['Object.keys'])
     },
     // The two values `===` reads the other way, which `Object.is` exists
     // for, and none of the four predicates converting its argument, are the
@@ -274,13 +632,52 @@ export const proof = {
         assertEq(steps(body).join(), '')
         assertEq(JSON.stringify(body).includes('["()"'), true)
     },
+    // The operator's body, on the host: `"k" in o` for a key no prototype
+    // supplies is the host's own `in` — an enumerable own entry of an
+    // object, an array or a function, an own `undefined` included, and
+    // nothing else — on every such key and every sample that is no
+    // primitive, `length` among them, which an array and a function own
+    // without enumerating it and the body reads as the read does. Where a
+    // prototype would answer, which the parser refuses as a key, the body
+    // and the host part: `toString` of anything and `name` of a function
+    // are no entry here and found there.
+    in: () => {
+        const has = runtime.in
+        assertEq(has.length, 2)
+        /** @type {readonly string[]} */
+        const keys = ['x', '0', '1', '', 'in', 'if', 'hasOwnProperty_', '__proto', 'NaN', 'undefined', 'length']
+        /** @type {readonly unknown[]} */
+        const receivers = [
+            ...samples.filter(v => v !== null && typeof v === 'object' || typeof v === 'function'),
+            { x: 1 }, { x: undefined }, { '': 0, in: 0, if: 0, undefined: 0 }, { ['__proto__']: 1 }, [undefined], [, 1], { length: 0 },
+        ]
+        for (const self of receivers) {
+            for (const key of keys) { assertEq(has(key, self), key in /** @type {object} */ (self), [key, self]) }
+        }
+        assertEq(has('x', { x: undefined }), true)
+        assertEq(has('0', [undefined]), true)
+        assertEq(has('0', [, 1]), false)
+        assertEq(has('toString', {}), false)
+        assertEq(has('length', []), true)
+        assertEq(has('length', f), true)
+        assertEq(has('length', {}), false)
+        assertEq(has('name', f), false)
+        assertEq(has('__proto__', {}), false)
+        assertEq(has('__proto__', { ['__proto__']: 1 }), true)
+        // the body is the compiled EDAG's, no chain step in it, as `dot`'s
+        const compiled = /** @type {readonly unknown[]} */ (at(at(edag, 'runtime'), 'in'))
+        const [tag, length, , body] = compiled
+        assertEq(`${tag}/${length}`, '=>/2')
+        assertEq(steps(body).join(), '')
+    },
     // The core may not use what it defines, and the whole module is the
     // core: no body and no initializer holds a member call, an optional
     // chain or a static function the runtime defines — a native is reached
     // through an intrinsic, `slice` in `found` and `charCodeAt` in
-    // `codePointAt`, called as a function, and the native static
-    // `Object.entries` is the built-in itself at its own table entry, the
-    // one static node anywhere, so no body reads it — so the module can be
+    // `codePointAt`, called as a function. Native static bindings are read
+    // once: `Object.entries` is shared by its own table entry and the keys
+    // body, which calls that captured native and the shared map function
+    // directly. Neither needs a runtime lookup, so the module can be
     // evaluated with no runtime, and NaNVM can hold it as a value whose
     // bodies never name it (`../runtime/README.md`, "How NaNVM finds
     // it"). The intrinsic is there, as a node, where the member call was.
@@ -291,7 +688,8 @@ export const proof = {
         assertEq(staticNodes([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
         const natives = staticPaths.filter(isNative)
-        // the distinct static nodes: a body reading one writes a node of its own
+        // Only native static nodes are present, one binding per native even
+        // when a body captures the same binding as its static-table entry.
         assertEq([...new Set(staticNodes(edag))].map(node => node[0]).join(), natives.map(path => path.join('.')).join())
         for (const path of natives) {
             assertEq(JSON.stringify(at(at(edag, 'statics'), path.join('.'))), JSON.stringify([path.join('.')]))
@@ -300,6 +698,69 @@ export const proof = {
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        minBigint: () => { table['Math.min'](1n, 0) },
+        minBigintAfterNaN: () => { table['Math.min'](NaN, 1n) },
+        minBigintAfterInfinity: () => { table['Math.min'](-Infinity, 1n) },
+        minBigintLast: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            min(0, 0, 1n)
+        },
+        minBigintPrimitive: () => { table['Math.min']({ valueOf: () => 1n }, 0) },
+        minBigintPrimitiveAfterNaN: () => { table['Math.min'](NaN, { valueOf: () => 1n }) },
+        minBigintPrimitiveLast: () => {
+            const min = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.min'])
+            min(NaN, -Infinity, { valueOf: () => 1n })
+        },
+        minConversionAfterNaN: () => { table['Math.min'](NaN, { valueOf: () => { throw 'conversion' } }) },
+        minConversionAfterInfinity: () => { table['Math.min'](-Infinity, { valueOf: () => { throw 'conversion' } }) },
+        minNoPrimitive: () => { table['Math.min'](0, { valueOf: () => ({}), toString: () => [] }) },
+        maxBigint: () => { table['Math.max'](1n, 0) },
+        maxBigintAfterNaN: () => { table['Math.max'](NaN, 1n) },
+        maxBigintAfterInfinity: () => { table['Math.max'](Infinity, 1n) },
+        maxBigintLast: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            max(0, 0, 1n)
+        },
+        maxBigintPrimitive: () => { table['Math.max']({ valueOf: () => 1n }, 0) },
+        maxBigintPrimitiveAfterNaN: () => { table['Math.max'](NaN, { valueOf: () => 1n }) },
+        maxBigintPrimitiveLast: () => {
+            const max = /** @type {(...values: readonly unknown[]) => number} */ (statics['Math.max'])
+            max(NaN, Infinity, { valueOf: () => 1n })
+        },
+        maxConversionAfterNaN: () => { table['Math.max'](NaN, { valueOf: () => { throw 'conversion' } }) },
+        maxConversionAfterInfinity: () => { table['Math.max'](Infinity, { valueOf: () => { throw 'conversion' } }) },
+        maxNoPrimitive: () => { table['Math.max'](0, { valueOf: () => ({}), toString: () => [] }) },
+        sqrtBigint: () => { table['Math.sqrt'](1n, undefined) },
+        sqrtBigintPrimitive: () => { table['Math.sqrt']({ valueOf: () => 1n }, undefined) },
+        sqrtConversion: () => { table['Math.sqrt']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        sqrtNoPrimitive: () => { table['Math.sqrt']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        ceilBigint: () => { table['Math.ceil'](1n, undefined) },
+        ceilBigintPrimitive: () => { table['Math.ceil']({ valueOf: () => 1n }, undefined) },
+        ceilConversion: () => { table['Math.ceil']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        ceilNoPrimitive: () => { table['Math.ceil']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        imulBigintLeft: () => { table['Math.imul'](1n, 1) },
+        imulBigintRight: () => { table['Math.imul'](1, 1n) },
+        imulBigintPrimitiveLeft: () => { table['Math.imul']({ valueOf: () => 1n }, 1) },
+        imulBigintPrimitiveRight: () => { table['Math.imul'](1, { valueOf: () => 1n }) },
+        imulConversionLeft: () => { table['Math.imul']({ valueOf: () => { throw 'conversion' } }, 0) },
+        imulConversionRight: () => { table['Math.imul'](0, { valueOf: () => { throw 'conversion' } }) },
+        imulNoPrimitive: () => { table['Math.imul']({ valueOf: () => ({}), toString: () => [] }, 0) },
+        absBigint: () => { table['Math.abs'](1n, undefined) },
+        absBigintPrimitive: () => { table['Math.abs']({ valueOf: () => 1n }, undefined) },
+        absConversion: () => { table['Math.abs']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        absNoPrimitive: () => { table['Math.abs']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        floorBigint: () => { table['Math.floor'](1n, undefined) },
+        floorBigintPrimitive: () => { table['Math.floor']({ valueOf: () => 1n }, undefined) },
+        floorConversion: () => { table['Math.floor']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        floorNoPrimitive: () => { table['Math.floor']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        truncBigint: () => { table['Math.trunc'](1n, undefined) },
+        truncBigintPrimitive: () => { table['Math.trunc']({ valueOf: () => 1n }, undefined) },
+        truncConversion: () => { table['Math.trunc']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        truncNoPrimitive: () => { table['Math.trunc']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        log2Bigint: () => { statics['Math.log2'](1n) },
+        log2BigintPrimitive: () => { statics['Math.log2']({ valueOf: () => 1n }) },
+        log2Conversion: () => { statics['Math.log2']({ valueOf: () => { throw 'conversion' } }) },
+        log2NoPrimitive: () => { statics['Math.log2']({ valueOf: () => ({}), toString: () => [] }) },
         // The detached call `host` makes is a real one: a built-in that
         // builds with `this` as its constructor, which no static may be,
         // throws called so.
@@ -316,11 +777,22 @@ export const proof = {
         searchConversion: () => { member.startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
         // a nullish receiver is the executor's throw, before `dot` is asked
         nullishReceiver: () => { runtime.dot(null, 'x') },
+        // `in` throws on `null`, `undefined` and every primitive, as the
+        // host's `TypeError` does — a string's index too, which `hasEntry`
+        // alone would answer `true`, and is why the body is not the helper.
+        inNull: () => { runtime.in('x', null) },
+        inUndefined: () => { runtime.in('x', undefined) },
+        inString: () => { runtime.in('0', 'abc') },
+        inNumber: () => { runtime.in('x', 1) },
+        inBoolean: () => { runtime.in('x', true) },
+        inBigint: () => { runtime.in('x', 1n) },
         // `Object.fromEntries` of an entry that is not an object throws, as
         // the host's `TypeError` does…
         fromEntriesEntry: () => { statics['Object.fromEntries']([['a', 1], 2]) },
         // …and so does a value that is not an array, even one the host
         // iterates: the language admits no other iterable as entries.
         fromEntriesNotArray: () => { statics['Object.fromEntries']('') },
+        objectKeysNull: () => { table['Object.keys'](null, undefined) },
+        objectKeysUndefined: () => { table['Object.keys'](undefined, undefined) },
     },
-}
+})

@@ -2,7 +2,9 @@
 
 **Status:** implemented
 
-A string is JSON's, between double quotes or between single quotes:
+Both quote styles accept JSON escapes and braced Unicode escapes (`\u{…}`).
+A single-quoted string also accepts an
+escaped apostrophe, `\xHH` and `\v`:
 
 ```js
 export default ["hello!", 'hello!'];

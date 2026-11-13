@@ -13,17 +13,19 @@ whole one: a release author who writes what every other Markdown tool
 accepts is told no, and the reason is this parser rather than anything about
 the entry.
 
-Twelve constructs so far, each checked against GitHub's own renderer rather
+The constructs so far, each checked against GitHub's own renderer rather
 than argued from the spec:
 
 | written | GitHub reads | this subset |
 | --- | --- | --- |
-| `**see [details](u)**` | bold around a link | refused |
+| `**see [details](u)**` | bold around a link | read, the link's label holding text and code; a `!` before it, an image, refused |
 | `[**details**](u)` | a link whose words are bold | refused |
 | a two-backtick code span | one code span holding `x` | read as that span, one space stripped each side; three backticks refused |
-| a code span padded with spaces | `code` — one stripped each side | refused |
+| a code span padded with spaces | `code` — one stripped each side | read as that; a space at one end only is kept |
 | `a * b * c` | three words and two asterisks | refused, after the grammar matches it |
 | `` **`a` b** `` | bold holding code | read as that |
+| `**a *b* c**`, `**a *b***` | bold holding emphasis | read as that; emphasis opening bold (`***a* b**`) and two side by side refused |
+| `*a **b** c*`, `*a **b***` | emphasis holding bold | read as that where a space stands before the bold; bold opening emphasis (`***a** b*`), bold right after a word, and a word right after it refused |
 | `[x](a(b)c)` | a link to `a(b)c` | read as that, one level of parentheses deep; a deeper or unbalanced one refused |
 | `[x](u "t")` | a link to `u`, titled `t` | refused |
 | `[x](<u>)` | a link to `u` | refused |
@@ -51,10 +53,10 @@ the README renderer needed are now read as GitHub reads them or refused
 | `<br>`, `Array<T>` outside code | raw HTML | refused |
 | `<https://…>` | an autolink | read as the link it is |
 | a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
-| `~~a~~` | strikethrough (GitHub's extension) | refused; one `~` is text |
+| `~~a~~` | strikethrough (GitHub's extension) | read as that where both runs stand in the paragraph's own text, paired by GitHub's flanking rule; a single-tilde pair, one inside or across bold or emphasis, one inside another, three tildes or more, and a run that may open or close refused; a tilde that pairs with nothing is text |
 | a line ending in two spaces or a backslash | a hard line break | joined with a space; two spaces refused in a README |
-| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; refused in a README, but for `- - a`, a nested list there |
-| `  1. x`, `  # h` on a continuation | the same | prose |
+| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; in a README the heading is refused and the quote and lists are read as GitHub reads them |
+| `1. x`, `# h` indented on a continuation | the same | prose |
 
 The last two rows are the sharpest: an indented `- child` **is** refused, as a
 nested list, while the other markers at the same position are read as prose.
@@ -114,9 +116,13 @@ Take them in the order that a writer is likely to want them.
 - **Images and link titles**, if a release note is ever to carry either.
   Neither is asked for by `changelog/README.md`, so this is last.
 
-Emphasis inside emphasis is out of scope for all of it: CommonMark allows
-it, no entry has used it, and it is what makes the rule recursive rather
-than one level deep.
+Emphasis inside bold and bold inside emphasis are read, one level deep:
+documents stress a word in a bold sentence, `**… *be* …**`, and in an
+emphasised one, `*… **constrains** …*` (`strongRest` and `emAfterWord` in
+[the grammar](../module.f.mjs)). Any deeper nesting is out of scope for
+all of it: CommonMark allows it,
+no file has used it, and it is what makes the rule recursive rather than
+one level deep.
 
 ### Tasks
 

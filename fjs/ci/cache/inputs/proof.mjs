@@ -6,7 +6,7 @@
  */
 
 import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
-import { step } from '../../../effects/module.f.mjs'
+import { step } from '../../../effects/module.f.js'
 import { execFile } from '../../../effects/node/module.f.mjs'
 import { runNodeEffect } from '../../../effects/node/module.mjs'
 import { ascii } from '../../../ebnf/byte/module.f.mjs'

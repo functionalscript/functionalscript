@@ -7,13 +7,13 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { repository } from '../page/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 
 const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`)
 
@@ -90,6 +90,10 @@ const core = {
                 ['link', [['text', '#7']], pull('7')],
                 ['text', ')'],
             ]),
+        // A struck entry's references are its own, and linked too.
+        struck: () => assertStructurallySame(
+            linked([['del', [['text', 'Retired path (#123)']]]]),
+            [['del', [['text', 'Retired path ('], ['link', [['text', '#123']], pull('123')], ['text', ')']]]]),
         keepsAnExistingLink: () => assertStructurallySame(
             linked([['link', [['text', '#1553']], 'https://example.com/1553']]),
             [['link', [['text', '#1553']], 'https://example.com/1553']]),
@@ -149,6 +153,7 @@ const render = {
         code: () => assertStructurallySame(spanNode(['code', 'a']), ['code', 'a']),
         strong: () => assertStructurallySame(spanNode(['strong', [['text', 'a'], ['code', 'b']]]), ['strong', 'a', ['code', 'b']]),
         em: () => assertStructurallySame(spanNode(['em', [['text', 'a']]]), ['em', 'a']),
+        del: () => assertStructurallySame(spanNode(['del', [['strong', [['text', 'a']]]]]), ['del', ['strong', 'a']]),
         link: () => assertStructurallySame(
             spanNode(['link', [['text', 'a'], ['code', 'b']], 'u']), ['a', { href: 'u' }, 'a', ['code', 'b']]),
     },
@@ -161,9 +166,9 @@ const render = {
             const html = releasePage(local)(alone('0.41.0'))([[['code', 'a']]])
             assert(html.includes('<title>0.41.0 · FunctionalScript</title>'), html)
             assert(html.includes(
-                '<nav aria-label="Breadcrumb"><h1><a href="/index.html">root</a>'
+                '<nav aria-label="Breadcrumb"><a href="/index.html">root</a>'
                 + ' / <a href="/changelog/index.html">changelog</a>'
-                + ' / <span aria-current="page">0.41.0</span></h1></nav>'), html)
+                + ' / <span aria-current="page">0.41.0</span></nav><h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
             // Every page of the site carries the same language, stylesheet
             // and icons.
@@ -205,7 +210,7 @@ const render = {
             const html = releasePage(local)(
                 { version: '0.47.0', previous: '0.46.0', next: '0.48.0' })([[['text', 'x']]])
             assert(html.includes(
-                '<span aria-current="page">0.47.0</span></h1></nav><nav aria-label="Releases">'
+                '<span aria-current="page">0.47.0</span></nav><h1>0.47.0</h1><nav aria-label="Releases">'
                 + '<a href="/changelog/_0.46.0.html" rel="prev"><span aria-hidden="true">← </span>Previous: 0.46.0</a>'
                 + ' · '
                 + '<a href="/changelog/_0.48.0.html" rel="next">Next: 0.48.0<span aria-hidden="true"> →</span></a>'
@@ -242,9 +247,11 @@ const render = {
         title: () => {
             const html = indexPage(local)([])
             assert(html.includes('<title>Releases · FunctionalScript</title>'), html)
-            // The changelog is the page itself, so it is the breadcrumb's text.
+            // The changelog is the page itself, so it ends the breadcrumb and
+            // is the heading.
             assert(html.includes(
-                '<h1><a href="/index.html">root</a> / <span aria-current="page">changelog</span></h1>'), html)
+                '<nav aria-label="Breadcrumb"><a href="/index.html">root</a> / <span aria-current="page">changelog</span></nav>'
+                + '<h1>changelog</h1>'), html)
         },
         // The header says which build a preview is on every page, the
         // release index included.

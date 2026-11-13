@@ -9,7 +9,7 @@
  */
 
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
-import { dirent } from '../../../../effects/schema/module.f.mjs'
+import { dirent } from '../../../../effects/schema/module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

@@ -9,9 +9,21 @@
 import { _listing, _panes, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
+    deferredLoweringIsDisplayed: () => {
+        for (const source of ['export default +1;', 'export default (a,x)=>a[+x];', 'export default ()=>{return 1;const unused=+2;};']) {
+            const result = _panes(source)
+            assert(result[0] === 'error')
+            assertEq(result[1], 'unary + AST-to-FAST conversion is not implemented')
+            const html = htmlToString(demo.view(source))
+            assert(html.includes('unary + AST-to-FAST conversion is not implemented'), html)
+            assert(html.includes('data-result="error"'), html)
+            assert(!html.includes('<svg'), html)
+        }
+    },
     demo: {
         // Every example the parser accepts draws as both trees, and no node
         // of either is one the shapes cannot describe.
@@ -31,8 +43,8 @@ export const proof = {
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('<h3>Source AST</h3>') && html.includes('<h3>FAST</h3>'), html)
-            assertEq(html.split('<svg').length - 1, 2)
-            assertEq(html.split('<summary>As DataJS</summary>').length - 1, 2)
+            assertEq(occurrences('<svg')(html), 2)
+            assertEq(occurrences('<summary>As DataJS</summary>')(html), 2)
         },
         // One binding, one node: `a` is declared once and read twice.
         sharing: () => {

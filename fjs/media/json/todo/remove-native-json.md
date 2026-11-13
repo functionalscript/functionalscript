@@ -88,7 +88,7 @@ Two things that fell out of it, worth knowing before phase 2:
   `codePointListToString`. Wrapping one code point in a list to call the list
   version cost about half of the escape loop's time.
 - A FunctionalScript leaf is roughly 5× the host's on a serialize-heavy
-  benchmark (a 20k-key object: ~130 ms → ~700 ms end to end), which is what
+  benchmark (a 20k-key object: about 130 ms → about 700 ms end to end), which is what
   replacing a C++ builtin with an interpreted decode pipeline costs. That is
   the price of self-hosting, not a defect; if it ever becomes a real problem the
   generic fix is a faster `text/utf16` scan, not a special case in the
@@ -140,7 +140,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
       `fjs/types/bigfloat/todo/`, then implement `numberSerialize` on it.
 - [ ] Phase 3: migrate the write sites, row by row from the shape table.
 - [ ] Phase 4: indenting serializer; migrate `fjs/ci/module.f.mjs`.
-- [ ] Per phase: `tsc`, `fjs t`, `npm run cov`, and an explanation of the
+- [ ] Per phase: `tsc`, `fjs t`, `npm start cov node`, and an explanation of the
       behavior changes in the phase's PR. A `Changelog:` section is optional
       before 1.0. The [release policy after 1.0](../../../../todo/post-1.0-release-policy.md) remains undecided.
 
@@ -148,7 +148,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — the
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
-- [`fjs/text/utf16/module.f.mjs`](../../../text/utf16/module.f.mjs) — where the
+- [`fjs/text/utf16/module.f.js`](../../../text/utf16/module.f.js) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
 - [`fjs/js/string_escape/module.f.mjs`](../../../js/string_escape/module.f.mjs)
   — `stringLiteral`, the escaping `stringSerialize` wraps and the

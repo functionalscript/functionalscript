@@ -53,7 +53,7 @@ import type { Assert } from '../asserts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 import type { StringMap } from '../types/object/types.ts'
 import type { Marked } from '../text/marked/types.ts'
-import type { _primitive0List, _tag1List, tag0List } from './module.f.mjs'
+import type { _primitive0List, _tag1List, tag0List } from './module.f.js'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const =
@@ -80,7 +80,7 @@ export type Tuple = readonly Type[]
 
 export type Primitive0 = 'bigint' | 'boolean' | 'number' | 'string'
 
-// Written out rather than derived, so the literal list in `./module.f.mjs`
+// Written out rather than derived, so the literal list in `./module.f.js`
 // has to be pinned against it. `Tag0` below needs no such pin: it *is* its
 // list, read through `typeof`.
 //

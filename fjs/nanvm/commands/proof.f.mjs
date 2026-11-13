@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { generate, path } from './module.f.mjs'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 
 export const proof = {
     generate: () => {

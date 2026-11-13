@@ -59,8 +59,8 @@ export type BitOrder = {
     readonly front: (len: bigint) => (v: Vec) => bigint
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
     readonly popFront: PopFront<Vec>
-    readonly concat: Reduce
-    /** `concat`, or `null` when the result would be longer than `maxLength`. */
+    readonly concatVec: Reduce
+    /** `concatVec`, or `null` when the result would be longer than `maxLength`. */
     readonly tryConcat: (a: Vec) => (b: Vec) => Nullable<Vec>
     readonly tryListToVec: (list: List<Vec>) => Nullable<Vec>
     readonly listToVec: (list: List<Vec>) => Vec

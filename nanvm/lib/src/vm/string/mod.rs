@@ -6,6 +6,7 @@ pub(crate) mod code_unit;
 pub(crate) mod create;
 mod debug;
 mod from;
+mod from_char_code;
 mod index;
 mod member_access;
 mod partial_eq;

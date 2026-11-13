@@ -5,18 +5,14 @@
  *
  * @import { Access, All, Dirent, Engine, Env, Import, IoChannel, NodeProgramOptions, Readdir } from '../effects/node/types.ts'
  * @import { Effect } from '../effects/types.ts'
- * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { LoadedModule, ModuleMap, LoadModuleOperations } from './types.ts'
  */
 
 import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
-import { cmp as strCmp } from '../types/string/module.f.mjs'
-import { fromEntries } from '../types/object/module.f.mjs'
-import { unwrap } from '../types/result/module.f.js'
-import { mapStep, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { join, relativize, toPosix } from '../path/module.f.mjs'
-import { assert, assertEq } from '../asserts/module.f.js'
-import { virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { cmp as strCmp } from '../types/string/module.f.js'
+import { fromEntries } from '../types/object/module.f.js'
+import { mapStep, pureOk, resultStep, step } from '../effects/module.f.js'
+import { join, relativize, toPosix } from '../path/module.f.js'
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.
@@ -156,6 +152,35 @@ const loadFile = f =>
     resultStep(import_(f), r => pureOk([/** @type {const} */ ([f, r])]))
 
 /**
+ * Loads a discovered file list, preserving import failures and sorting the
+ * resulting map independently of filesystem enumeration order.
+ *
+ * @type {(files: readonly string[], prefix: string) => Effect<Access | Import | All, ModuleMap, IoChannel>}
+ */
+const loadFiles = (files, prefix) => {
+    const loaded = allOk(...files.map(loadFile))
+    return mapStep(loaded, entries => fromEntries(
+        entries
+            .flat()
+            .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
+            .toSorted(([a], [b]) => strCmp(a)(b))
+    ))
+}
+
+/**
+ * Loads authored FunctionalScript files immediately inside the actual working
+ * directory. Descendants and npm's inherited `INIT_CWD` do not select this
+ * single-directory native test suite.
+ *
+ * @type {() => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
+ */
+export const loadDirectoryModuleMap = () => {
+    const discovered = walk('.', (path, { name, isDirectory }) =>
+        isDirectory || name.startsWith('.') || !isAuthored(path) ? 'skip' : 'take')
+    return step(discovered, files => loadFiles(files, ''))
+}
+
+/**
  * Where discovery starts: `INIT_CWD`, the directory `npm run` was invoked
  * from, when the environment carries it, and `.` otherwise — a runner invoked
  * directly is already where its caller is. In POSIX form on every host, so
@@ -202,135 +227,7 @@ export const loadModuleMap = ({ env, engine }, select = shouldLoad) => {
     //       we should consider optimizing them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    const loaded = step(
+    return step(
         allFiles(s, path => supported(path) && select(path)),
-        files => allOk(...files.map(loadFile)))
-    return mapStep(
-        loaded,
-        entries => fromEntries(
-            entries
-                .flat()
-                .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
-                .toSorted(([a], [b]) => strCmp(a)(b))
-        ))
-}
-
-export const proof = {
-    selectiveDiscovery: () => {
-        /** @type {readonly string[]} */
-        const files = ['a.f.mjs', 'b.f.js', 'old.f.ts', 'old.f.mts',
-            'proof.mjs', 'proof.js', 'proof.ts', 'proof.mts', 'ordinary.mjs']
-        for (const select of [isAuthored, isHostProof]) {
-            /** @type {Dir} */
-            const root = fromEntries(files.map(path => [path, () => {
-                assert(select(path), path)
-                return {}
-            }]))
-            const [, result] = virtualAt(root)(loadModuleMap({ env: {}, engine: 'node' }, select))
-            const map = unwrap(result)
-            assertEq(Object.keys(map).join(','), files.filter(select).map(p => './' + p).toSorted().join(','))
-            for (const loaded of Object.values(map)) assert(loaded !== undefined && loaded[0] === 'ok', loaded)
-        }
-        const [, result] = virtualAt({ 'proof.mjs': [] })(loadModuleMap({
-            env: {}, engine: 'spidermonkey',
-        }, isHostProof))
-        assertEq(Object.keys(unwrap(result)).length, 0)
-        return undefined
-    },
-    allFilesFindsFunctionalScript: () => {
-        // Every FunctionalScript extension is discovered, so a module migrated
-        // from `.f.ts` to `.f.mjs` keeps its proofs. An ordinary `.mjs` is
-        // still skipped.
-        /** @type {Dir} */
-        const root = {
-            '.hidden.f.ts': [],
-            'a.f.ts': [],
-            'b.f.mjs': [],
-            'c.f.mts': [],
-            'd.mjs': [],
-        }
-        const [, result] = virtualAt(root)(allFiles('.', shouldLoad))
-        assertEq(unwrap(result).join(','), './a.f.ts,./b.f.mjs,./c.f.mts')
-        return undefined
-    },
-    allFilesSkipsNodeModules: () => {
-        // `node_modules` is skipped without descending into it, even though
-        // it contains a file that would otherwise match the predicate.
-        /** @type {Dir} */
-        const root = {
-            'node_modules': { 'pkg.f.ts': [] },
-            'a.f.ts': [],
-        }
-        const [, result] = virtualAt(root)(allFiles('.', shouldLoad))
-        assertEq(unwrap(result).join(','), './a.f.ts')
-        return undefined
-    },
-    loadModuleMapDefaultsToCwdWhenInitCwdUnset: () => {
-        // With no `INIT_CWD` (e.g. `fjs t` invoked outside `npm run`), `env`
-        // lookup returns `undefined` and discovery falls back to `.`, so
-        // every path keeps its own `./`-prefix instead of having one stripped.
-        /** @type {Dir} */
-        const root = { 'a.f.ts': () => ({}) }
-        const [, result] = virtualAt(root)(loadModuleMap({ env: {}, engine: 'node' }))
-        assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
-        return undefined
-    },
-    loadModuleMapReportsUnreadableRoot: () => {
-        // A directory that cannot be listed is no longer a panic. Discovery
-        // hands the failure back, and the program that asked for the map is
-        // the one that decides what a source tree it cannot read means — for
-        // `fjs t` that is a message on `stderr` and exit `1`.
-        const [, result] = virtualAt({})(loadModuleMap({ env: { INIT_CWD: 'missing' }, engine: 'node' }))
-        assert(result[0] === 'error', result)
-        return undefined
-    },
-    loadModuleMapRecordsUnimportableModule: () => {
-        // The half `readdir` does not cover: discovery lists the file, then
-        // the import of it fails. `'a.f.ts': []` is content rather than a
-        // module, so the virtual runner's `import` refuses it. The map still
-        // answers, with that file's entry an `error` and its neighbour loaded:
-        // one module that will not load does not hide the others.
-        const [, result] = virtualAt({ 'a.f.ts': [], 'b.f.ts': () => ({}) })(loadModuleMap({ env: {}, engine: 'node' }))
-        const map = unwrap(result)
-        const a = map['./a.f.ts']
-        assert(a !== undefined && a[0] === 'error', a)
-        const b = map['./b.f.ts']
-        assert(b !== undefined && b[0] === 'ok', b)
-        return undefined
-    },
-    loadModuleMapStripsInitCwdPrefix: () => {
-        // With `INIT_CWD` set (the normal `npm run` case), discovery starts
-        // from that subdirectory and each key is relativized against it, so
-        // keys are still `./`-relative to `INIT_CWD` rather than carrying it.
-        /** @type {Dir} */
-        const root = { 'sub': { 'a.f.ts': () => ({}) } }
-        const [, result] = virtualAt(root)(loadModuleMap({ env: { INIT_CWD: 'sub' }, engine: 'node' }))
-        assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
-        return undefined
-    },
-    shouldLoadOn: () => {
-        // The engines running the whole Node host load the impure proofs; any
-        // other loads authored modules only.
-        for (const engine of /** @type {const} */ (['node', 'deno', 'bun'])) {
-            assert(shouldLoadOn(engine)('proof.mjs'), engine)
-        }
-        assert(!shouldLoadOn('spidermonkey')('proof.mjs'))
-        assert(shouldLoadOn('spidermonkey')('a.f.mjs'))
-        assert(shouldLoadOn('spidermonkey')('a.f.js'))
-        // A retired spelling is FunctionalScript, but not what an engine
-        // without TypeScript can load.
-        assert(!shouldLoadOn('spidermonkey')('a.f.ts'))
-        return undefined
-    },
-    loadModuleMapLoadsAuthoredOnlyOffTheNodeHost: () => {
-        // Off Node, Deno, and Bun the impure proof is never imported, so it
-        // cannot fail the run; on Node it is loaded as before.
-        /** @type {Dir} */
-        const root = { 'a.f.mjs': () => ({}), 'proof.mjs': () => ({}) }
-        const keys = (/** @type {Engine} */ engine) =>
-            Object.keys(unwrap(virtualAt(root)(loadModuleMap({ env: {}, engine }))[1])).join(',')
-        assertEq(keys('spidermonkey'), './a.f.mjs')
-        assertEq(keys('node'), './a.f.mjs,./proof.mjs')
-        return undefined
-    },
+        files => loadFiles(files, prefix))
 }

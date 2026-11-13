@@ -2,16 +2,17 @@
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
  * @import { List } from './types.ts'
+ * @import { Transducer } from '../function/operator/types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent, tryFold, repeat } from './module.f.mjs'
-import { toArray } from './alt/module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent, tryFold, repeat, transduce, run, fromAccumulator } from './module.f.js'
+import { toArray } from './alt/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { addition, reduceToScan } from '../function/operator/module.f.js'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { addition, reduceToScan, nextStep, doneStep } from '../function/operator/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, listing, parse } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../result/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
@@ -178,6 +179,77 @@ const tryFoldTest = /** @type {const} */ ([
     },
 ])
 
+const transduceTest = /** @type {const} */ ({
+    emptyAndNull: () => {
+        /** @type {Transducer<number, null, number, null>} */
+        const machine = {
+            init: nextStep(null),
+            update: () => { throw 'empty input must not update' },
+            end: () => doneStep(null, [0]),
+        }
+        assertStructurallySame(toArray(transduce(machine)([])), [['done', [0], null]])
+        assertEq(run(machine)([]), null)
+    },
+    initiallyDone: () => {
+        /** @type {Transducer<number, null, number, null>} */
+        const machine = {
+            init: doneStep(null, [9]),
+            update: () => { throw 'initially done must not update' },
+            end: () => { throw 'initially done must not finalize again' },
+        }
+        const input = () => { throw 'initially done must not read input' }
+        assertStructurallySame(toArray(transduce(machine)(input)), [['done', [9], null]])
+        assertEq(run(machine)(input), null)
+    },
+    emitsAndFlushes: () => {
+        /** @type {Transducer<number, number, number, number>} */
+        const machine = {
+            init: nextStep(0, [0]),
+            update: (state, input) => nextStep(state + input, [input]),
+            end: state => doneStep(state, [state]),
+        }
+        assertStructurallySame(toArray(transduce(machine)([1, 2])), [
+            ['next', [0]], ['next', [1]], ['next', [2]], ['done', [3], 3],
+        ])
+        assertEq(run(machine)([1, 2]), 3)
+        assertStructurallySame(first(null)(transduce(machine)(() => { throw 'initial output precedes input' })), ['next', [0]])
+    },
+    stopsOnDone: () => {
+        /** @type {Transducer<number, number, number, number>} */
+        const machine = {
+            init: nextStep(0),
+            update: (state, input) => input === 2 ? doneStep(state + input, [99]) : nextStep(state + input),
+            end: () => { throw 'early completion must not finalize again' },
+        }
+        const input = /** @type {const} */ ({ first: 1, tail: { first: 2, tail: () => { throw 'early completion must not read the suffix' } } })
+        assertStructurallySame(toArray(transduce(machine)(input)), [['done', [99], 3]])
+        assertEq(run(machine)(input), 3)
+    },
+    silentAndResumed: () => {
+        /** @type {Transducer<number, number, never, number>} */
+        const machine = {
+            init: nextStep(0),
+            update: (state, input) => nextStep(state + input),
+            end: state => doneStep(state),
+        }
+        assertEq(run(machine)(repeat(1)(50_000)), 50_000)
+        const suspended = machine.update(0, 2)
+        assertEq(run({ ...machine, init: suspended })([3]), run(machine)([2, 3]))
+        assertEq(run(fromAccumulator(sumUpTo(10)))([1, 2]), 30)
+    },
+    emptyChunksAreInput: () => {
+        /** @type {Transducer<readonly number[], number, number, number>} */
+        const machine = {
+            init: nextStep(0),
+            update: (count, chunk) => nextStep(count + 1, chunk),
+            end: count => doneStep(count),
+        }
+        assertStructurallySame(toArray(transduce(machine)([[], [1, 2], []])), [
+            ['next', [1, 2]], ['done', [], 3],
+        ])
+    },
+})
+
 const reverseTest = [
     () => {
         const result = str(reverse([]))
@@ -277,7 +349,7 @@ const stress = () => ({
         let sequence = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
-        for (let i = 0; i < 5_000_000; ++i) {
+        for (let i = 0; i < 5_000_000; i += 1) {
             sequence = concat(sequence)([i])
         }
         const r = toArray(sequence)
@@ -286,7 +358,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 4_000_000 is too much
-        for (let i = 0; i < 2_000_000; ++i) {
+        for (let i = 0; i < 2_000_000; i += 1) {
             sequence = flat([sequence, [i]])
         }
         const r = toArray(sequence)
@@ -295,7 +367,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 4_000_000 is too much
-        for (let i = 0; i < 2_000_000; ++i) {
+        for (let i = 0; i < 2_000_000; i += 1) {
             sequence = flat([sequence, [i]])
         }
         const a = next(sequence)
@@ -304,7 +376,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 20_000_000 is too much
-        for (let i = 0; i < 10_000_000; ++i) {
+        for (let i = 0; i < 10_000_000; i += 1) {
             sequence = concat([i])(sequence)
         }
         const a = next(sequence)
@@ -313,7 +385,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 10_000_000 is too much
-        for (let i = 0; i < 5_000_000; ++i) {
+        for (let i = 0; i < 5_000_000; i += 1) {
             sequence = flat([[i], sequence])
         }
         const a = next(sequence)
@@ -368,6 +440,7 @@ export const proof = {
     additionTests,
     entries: entriesTest,
     tryFold: tryFoldTest,
+    transduce: transduceTest,
     reverse: reverseTest,
     zip: zipTest,
     logic,

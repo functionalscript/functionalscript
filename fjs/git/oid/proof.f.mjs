@@ -3,10 +3,10 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { empty, length, maxLengthBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { cycle, take } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
+import { empty, length, maxLengthBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
+import { cycle, take } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { commitPayload, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload, undefinedByte } from '../testlib.f.js'
 import { digestOf, hexText, isOidOf, of, ofWidth, oidAt, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
@@ -136,7 +136,7 @@ export const proof = {
     },
     throw: {
         nonByte: () => tryFromHex([0x100, 0x30]),
-        hole: () => tryFromHex(hole),
+        undefinedByte: () => tryFromHex(undefinedByte),
         // An id of the other width is refused, not handed to `f`, and so is
         // one a bit short of the width.
         otherWidth: () => ofWidth(20)(length)(vec(256n)(0n)),

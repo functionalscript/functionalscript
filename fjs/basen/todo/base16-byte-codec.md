@@ -5,13 +5,13 @@
 
 ### Problem
 
-The codec is [`fjs/basen/base16`](../base16/module.f.mjs): `encode` and
+The codec is [`fjs/basen/base16`](../base16/module.f.js): `encode` and
 `encodeCodePoints` spell a byte list in lowercase, and `decode` (either
 case), `decodeCodePoints` (either case, over code points) and `decodeLower`
 (lowercase only) read a continuous run of pairs back, or refuse it. A
 separator, a prefix or a width stays the caller's grammar, checked around the
 codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
-`hexBytes`, `fjs/zlib/testlib.f.mjs`'s `hex`, `fjs/git/refstore/name`'s
+`hexBytes`, `fjs/zlib/testlib.f.js`'s `hex`, `fjs/git/refstore/name`'s
 `nameForMessage` and `fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
 
 - [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
@@ -19,6 +19,14 @@ codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
   a time for a reason its doc gives, which the codec's byte lists do not
   respect, so it is not moved. Its writers, `hexOfByte` and the padding of
   the whole vector's spelling, are `encodeScalar`.
+- [`fjs/rust/demangle`](../../rust/demangle/module.f.mjs) — `utf8Nibbles`
+  reads a lowercase-hex byte list with `parseInt` over each pair, and
+  `uint` reads a hex run with the `BigInt` string constructor; the first
+  is `decodeLower`, odd count refused, and the second `hexDigitsValue`.
+  `integer62` and `punycodeDecode` there subtract letter offsets for a
+  base-62 and a base-36 digit, which `digitsValue` stops short of on
+  purpose; a digit value over the alphanumeric alphabet in `text/ascii`
+  would own both.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
   environment's string into code units and screens out anything above `0x7f`
   by hand, because `fjs/git/oid`'s reader takes bytes; the codec's `decode`
@@ -52,7 +60,7 @@ which reading the whole run as one `bigint` would not.
 The writing side has a sibling, a scalar spelled in fixed-width hex, and
 the codec covers it as `encodeScalar(width)(value)`: lowercase, padded to
 `width` and never cut to it. `hexLiteral` in
-[`fjs/media/rust`](../../media/rust/module.f.mjs), `byteLiteral` in
+[`fjs/media/rust`](../../media/rust/module.f.js), `byteLiteral` in
 `fjs/nanvm/expected`, `unicodeEscape` in `fjs/js/string_escape`,
 `pathByte` in `fjs/text/percent` (in capitals, over it), the `vdf`,
 `sign`, `hash` and `secp` demos, and `fjs/text/utf8`'s demo, one byte at
@@ -108,7 +116,7 @@ unit, surrogates included.
       [#2938](https://github.com/functionalscript/functionalscript/pull/2938).
 - [x] Decide whether a fixed-width hex formatter belongs beside it, and if
       so move the writers above onto it: it does, as `encodeScalar`.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

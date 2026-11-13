@@ -8,8 +8,7 @@ A loop ends at its closing `}`. Other statements end with `;`, or where
 JavaScript inserts one; a module that does not throw needs at least one export.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
-tokens, and this turns tokens into a `ResolvedModule`. Both layers are an LL(1)
-grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
+tokens, and this turns tokens into a `ResolvedModule`. Both layers use predictive grammars read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
 draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
@@ -34,6 +33,11 @@ sugar intersects those events with established bindings and the shared
 `isMutable` facts. Loop-local names remain separate resolved identities.
 Classic `for` header declarations are resolved in a scope surrounding the
 condition, step and body; the step is outside the body's nested lexical scope.
+The syntax AST retains an omitted named `let` initializer. Source admission
+supplies primitive `undefined` at that declaration's initialization point,
+using the existing binding plan. Reads after the declaration and before any
+later assignment see that value; reads before the declaration retain their
+existing refusal. `const` and destructuring declarations require initializers.
 `scope` records initialization, reads, writes,
 execution regions and ordinary source function boundaries. `bindings` is the
 result of one shared `analyzeBindings` pass after that complete scope exists;
@@ -53,6 +57,23 @@ Guard and loop lexical regions retain their owning source function target.
 They create no source capture boundary. An ordinary nested function does, even
 when it is called immediately. Whole-helper recognition retains its parameter
 and local facts before replacing the helper with an intrinsic operation.
+
+Ordinary conditionals may finish normally or return from their owning function,
+with an optional `else`.
+Their lexical arms retain declarations, assignments and complete source
+evidence; the first admitted profile joins at most one outer binding.
+Branch-local writes do not count toward that limit. The condition establishes
+its versions before either arm; sugar supplies unchanged versions for an
+absent `else` and resumes following work once on normal paths. An early return
+in a lexical arm retains its function target as a source statement, including
+through nested guards and switches. It supplies no normal join result and
+skips the following computation. An ordinary nested function keeps its own
+return owner. This statement-return context is separate from permission for
+an arm's final loop to complete normally; switch cases still require an exit.
+Explicit throws in this branch profile remain refused, while existing
+terminating guards keep their behavior. Generic branch syntax forms an AST
+before admission checks; ordinary function bodies still require an explicit
+terminator.
 
 Loop bodies and their conditional arms retain valued `return` and `throw` as
 source statements, including all syntax after them. A return names its owning
@@ -104,55 +125,68 @@ concern and adds no synthetic source reads.
 
 ```
 module ::= import* moduleStatement* last eof
-moduleStatement ::= const | let | while | forStatement | bodyNameStatement
+moduleStatement ::= const | let | while | forStatement | bodyNameStatement | newExpressionStatement
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
 const  ::= 'const' target '=' value end
-let    ::= 'let' target '=' value end
+let    ::= 'let' letBinding end
+letBinding ::= id [ '=' value ] | ( array | object ) '=' value
 target ::= id | array | object
 last   ::= 'export' ( 'default' value end | const moduleStatement* [ last ] )
          | 'throw' value end
 end    ::= [ ';' ]
 while  ::= 'while' '(' value ')' loopBlock
-value  ::= '-' unaryOperand tail | '~' unaryOperand tail
+value  ::= '+' unaryOperand tail | '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | template | array | object) access* powTail tail
+         | (primitive | template | array | object | newExpression) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue)
-body   ::= '-' unaryOperand tail | '~' unaryOperand tail
+body   ::= '+' unaryOperand tail | '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | template | array) access* powTail tail
+         | (primitive | template | array | newExpression) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue) | block
-unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
+unary  ::= '+' unaryOperand | '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | template | id | array | object) access* powTail
+         | (primitive | template | id | array | object | newExpression) access* powTail
          | '(' group
-unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
+unaryOperand ::= '+' unaryOperand | '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | template | id | array | object) access*
+         | (primitive | template | id | array | object | newExpression) access*
          | '(' groupOperand
+newExpression ::= 'new' constructorCallee '(' [ callArguments ] ')'
+newExpressionStatement ::= newExpression access* end
+constructorCallee ::= ( id | '(' value { ',' value } ')' | newExpression ) memberAccess*
+memberAccess ::= '.' id | '[' value ']'
+callArguments ::= ( value | '...' value ) [ ',' [ callArguments ] ]
 template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
-block  ::= '{' statement* terminator '}'
-statement ::= const | 'if' '(' value ')' block | let
-            | whileStatement | forStatement | bodyNameStatement
-terminator ::= 'return' value end | 'throw' value end
+block  ::= '{' blockContents '}'
+blockContents ::= simpleStatement* [ terminator | (whileStatement | forStatement) blockContents ]
+simpleStatement ::= const | ifStatement | let | bodyNameStatement | newExpressionStatement
+statement ::= const | ifStatement | let
+            | whileStatement | forStatement | bodyNameStatement | newExpressionStatement
+ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
+branchBlock ::= '{' statement* [ terminator ] '}'
+branchElse ::= branchBlock | ifStatement
+bareReturn ::= bare-return end
+terminator ::= 'return' value end | bareReturn | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
 caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | let | bodyNameStatement | whileStatement | forStatement
+loopStatement ::= const | let | bodyNameStatement | newExpressionStatement | whileStatement | forStatement
                 | loopIfStatement | 'break' end | 'continue' end
-                | 'return' value end | 'throw' value end | loopSwitch
+                | 'return' value end | bareReturn | 'throw' value end | loopSwitch
 loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
 loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
-forStatement ::= 'for' '(' [ forInitializer ] ';' [ value ] ';' [ nameExpression ] ')' loopBlock
-forInitializer ::= ( 'const' | 'let' ) target '=' value | nameExpression
+forStatement ::= 'for' '(' ( [ forInitializer ] ';' [ value ] ';' [ nameExpression ]
+                         | ( 'const' | 'let' ) target 'of' value ) ')' loopBlock
+forInitializer ::= 'const' target '=' value | 'let' letBinding | nameExpression
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
 nameExpression ::= id ( assignmentOperator value | <the rest of the value the name begins> )
@@ -185,12 +219,46 @@ optionalStep ::= id | '[' (string | number) ']' | '(' [ items(value) ] ')'
 array  ::= '[' [ items(value) ] ']'
 object ::= '{' [ items(entry) ] '}'
 entry  ::= '...' value | member
-member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
+member ::= id [ ':' value ] | string ':' value | number ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
 
-It is LL(1): one symbol of lookahead decides every choice, and the backend
-refuses a grammar where it would not, before any input.
+The syntax layer represents braced `for…of` declaration loops, including
+binding patterns. Its distinct `for-of` node retains the declaration,
+iterable expression and body. FunctionalScript admission resolves `const`/`let`
+headers with the existing name, pattern and capture rules, and records the
+iterable separately from each iteration's initialization and body events.
+Sugar materializes the source through spread, then lowers traversal through
+the existing structured loop state and scoped exits. Arrays and strings follow
+the [loop contract](../../../spec/control-flow/loops/README.md#forof);
+other values fail at runtime through spread. Classic `for` retains its existing
+representation. `of` remains an ordinary name outside the header separator.
+
+Constructor expressions with an argument list, `new Callee(arguments)`, also
+form a generic AST before admission. The `new` node retains the constructor
+expression, ordered arguments and original token. Constructor member access,
+grouped or nested constructors, and following member/call continuations keep
+JavaScript's precedence: `new ns.C()` constructs `ns.C`, while `new C().m()`
+calls a member of the constructed value. Argument parentheses are required in
+this syntax increment; `new C`, `new.target` and unparenthesized optional-chain
+constructor targets remain unsupported. FunctionalScript compilation refuses
+the node at `new`, without resolving or evaluating its constructor or arguments.
+This defines no constructor behavior or FAST/EDAG operation.
+Standalone expressions beginning with `new` also form syntax statements at
+module level and inside function or loop bodies. They retain the original
+`new` token and use the existing discarded-value statement shape, including
+following member and call steps, before the same admission refusal.
+
+Number literal object keys retain their numeric token, value and source
+location in the syntax AST. Admission routes `{ 0x70: value }` through the
+existing computed-key path for `{ [0x70]: value }`, yielding the same numeric
+key operand in FAST. Number literal keys in binding patterns similarly reuse
+the existing constant-key read. This adds no FAST/EDAG operation or runtime rule.
+
+The backend checks one-symbol choices before reading input. The source grammar
+explicitly prefers indexing continuations on `[` when they could also begin
+another statement. Other FIRST/FOLLOW conflicts and all FIRST/FIRST conflicts
+remain errors; see the backend’s [continuation policy](../../ebnf/ll1/README.md).
 
 A `(` opens an empty/rest-only function or a shared expression/parameter
 prefix. `afterValue` factors the comma, the closing parenthesis and the `=`
@@ -268,7 +336,7 @@ the repeat lists a value's own tail is, plus one reader for the two arms.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had
-([the record](../README.md#both-grammars-are-ll1) of all eight):
+([the record](../README.md#both-grammars-use-predictive-parsing) of all eight):
 
 - **Trivia is no symbol.** Whitespace, newlines and comments are not in the
   stream the grammar reads: `fjs/compiler/tokenizer` leaves them out and
@@ -329,21 +397,26 @@ the fold's:
   a key or the name after `.` may be one, so `const if = 1;` and
   `export default class;` are the fold's to refuse and `{ if: 1 }` is a
   member: a broken JavaScript program is a broken FunctionalScript program.
-  `typeof` opens a value, so the grammar keeps it out of `identifier`, the
-  reference rule, where it would conflict with its own prefix branch; a
+  `typeof` and `new` open values, so the grammar keeps them out of
+  `identifier`, the reference rule, where they would conflict with their
+  expression branches; a
   binding takes the wider `identifierName`, so `const typeof = 1;` still
-  reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
-- a reserved conversion global, `Number` or `String`, bound or referenced
-  anywhere but as the callee of `Number(x)` or `String(x)`
+  reaches the fold, and `{ typeof: 1 }`, `{ new: 1 }`, `a.typeof` and `a.new`
+  stay members;
+- a reserved conversion global, `Boolean`, `Number`, `String` or `BigInt`, bound or referenced
+  anywhere but as the callee of its conversion
   ([spec: number conversion](../../../spec/conversions/number/README.md),
-  [string conversion](../../../spec/conversions/string/README.md)) —
+  [string conversion](../../../spec/conversions/string/README.md),
+  [boolean conversion](../../../spec/conversions/boolean/README.md),
+  [bigint conversion](../../../spec/conversions/bigint/README.md)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope
   ever binding it. `Number()` is the literal `0`, and `String()` is the
-  empty-string literal. Multiple arguments and spreads are refused at the
-  callee with `Number takes one argument` or `String takes one argument`,
+  empty-string literal. `Boolean()` converts `undefined` through its common
+  runtime body; `BigInt()` is refused. Multiple arguments and spreads are refused at the
+  callee with the conversion name and `takes one argument`,
   by design: a conversion is an operator, with a fixed set of operands
   ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
   Guarded calls, by design too, standalone references, and namespace
@@ -430,7 +503,7 @@ the fold's:
   bare, distinct names as the intrinsic's `length` whose expression body
   is the one member call of the intrinsic's name on the first with the
   rest, `(s, a, b) => s.slice(a, b)` — the AST's `['slice']`, by the
-  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs)
+  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.js)
   and the helpers [`fjs/js/intrinsic`](../../js/intrinsic/module.f.js). A
   step from the shape is an ordinary function with an ordinary member call.
 
@@ -479,10 +552,10 @@ events and the shared binding facts; the parser creates no helper function or
 recursive call.
 
 The common sugar pass expands these records into normalized FAST regions,
-immutable definitions and explicit loop transfers. The grammar still requires
-function-body statements followed by a terminating `return`, `throw` or switch,
-and a module ends in exports or a throw. Source admission and ASI rules remain
-the same.
+immutable definitions and explicit loop transfers. Every syntax block retains
+one ordered list of written statements. Parsing does not classify terminal
+statements, insert implicit returns or discard unreachable code. Modules still
+end in exports or a throw; declaration and ASI checks remain source checks.
 
 `parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
@@ -513,6 +586,15 @@ mapping is typed from its rule; the one reader the two list mappings share is
 typed by the shape of a list node, as a reader of a combinator's scaffolding
 is. The nodes the mappings build, and the alphabet they return them in, are
 public types in `./types.ts`, as the rewrite set is.
+
+## Bare returns
+
+`return;` and `return` immediately before `}` retain a missing operand
+(`null`) in the syntax AST, along with the keyword, location and semicolon.
+Resolution supplies `undefined` for that explicit return. `symbolsOf` uses one
+following token to distinguish a bare return from a return with an operand;
+identifier positions accept either symbol so property names stay unchanged.
+An operand beginning on a new line retains its existing refusal.
 
 ## Required keywords are terminals of their own
 
@@ -591,3 +673,35 @@ is what the port removed. Every other expectation of the parser's proof —
 values, positions, the order errors are reported in, the syntax failure found
 before the unresolved name — was met unchanged, with the `;` added to its
 inputs.
+
+### Function completion belongs to FAST
+
+Empty bodies, normal fallthrough and statements after a return or throw retain
+their written AST shape. There is no `implicit-return` ending or terminal-loop
+syntax classification. All statements still undergo binding and capture checks.
+FAST normalization discards unreachable computations and adds an owning
+`return undefined` only on a normally completing function path. An `if` with
+terminal arms and a literal-true loop with no reachable owning break need no
+extra return. Breaks belonging to inner loops or switches do not end the outer
+loop. Bare returns preserve their missing operand until resolution.
+
+### Const declaration lists
+
+`const a=first,b=second;` retains one syntax statement. Its existing first
+`Const` record carries the optional `following` declarators in source order;
+single declarations keep their original AST shape. Source resolution expands
+the group into individual declarations in the same scope before resolving
+initializers. Commas provide separators between those declarations, while the
+last one retains the written semicolon or ASI boundary. Module, body, branch,
+switch, standalone and loop-body statements share this lowering, including
+named exports. Trailing commas, missing initializers and classic-for/let lists
+are outside this increment.
+
+Loose equality `==` and inequality `!=` retain their own binary AST nodes at the equality
+precedence level. Source binding checks remain active. AST-to-FAST conversion
+explicitly refuses both pending [lowering](../../../spec/todo/loose-equality.md).
+
+Braced `do { … } while (condition);` statements retain their written `do` tag,
+condition, body and optional semicolon in syntax AST. Resolved source uses the
+shared loop record with `postTest: true`. Body scope closes before the condition
+is resolved; control-flow lowering belongs to FAST conversion.

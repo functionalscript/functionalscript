@@ -2,6 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
+import { occurrences } from '../../../types/string/module.f.js'
 import { eventNameMarker, scopeIds, scopeMarker } from './module.f.mjs'
 
 export const proof = /** @type {const} */ ({
@@ -48,8 +49,8 @@ export const proof = /** @type {const} */ ({
             ['input', { type: 'text', name: 'text' }],
             ['button', { name: 'run' }, 'Run'],
         ]))
-        assertEq(html.split('name="demo-control:3:one:mode"').length - 1, 2)
-        assertEq(html.split('data-demo-event-name="mode"').length - 1, 2)
+        assertEq(occurrences('name="demo-control:3:one:mode"')(html), 2)
+        assertEq(occurrences('data-demo-event-name="mode"')(html), 2)
         assert(html.includes('<input type="radio">'))
         assert(html.includes('type="text" name="text"'))
         assert(html.includes('name="run"'))
@@ -63,9 +64,9 @@ export const proof = /** @type {const} */ ({
         ]
         const first = htmlToString(scopeIds('first')(view))
         const second = htmlToString(scopeIds('second')(view))
-        assertEq(first.split('name="demo-control:5:first:mode"').length - 1, 2)
-        assertEq(second.split('name="demo-control:6:second:mode"').length - 1, 2)
-        assertEq(first.split('data-demo-event-name="mode"').length - 1, 2)
+        assertEq(occurrences('name="demo-control:5:first:mode"')(first), 2)
+        assertEq(occurrences('name="demo-control:6:second:mode"')(second), 2)
+        assertEq(occurrences('data-demo-event-name="mode"')(first), 2)
         assert(first.includes('name="text"'))
         assert(!first.includes(' name="mode"'))
         assert(!second.includes(' name="mode"'))

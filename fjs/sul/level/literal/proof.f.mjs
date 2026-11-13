@@ -2,10 +2,10 @@
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  */
 
-import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { map, stateScan } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { map, stateScan } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import {
     emptyEncodeState,
     emptyPipelineState,
@@ -17,7 +17,7 @@ import {
     symbolToString,
     wordEqual,
     wordToString
-} from './module.f.mjs'
+} from './module.f.js'
 
 const tests = (/** @type {bigint} */ n) => {
     const { sum, decode, encode: push } = level(n)
@@ -764,7 +764,7 @@ export const proof = {
         // 4 L1 [0,0] words → 2 L2 [0,0] words → L3 [0,0] word → symbol 0
         // First 7 zero bits accumulate without emitting
         let s = emptyPipelineState
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 7; i += 1) {
             const [out, next] = pipelineStep(0n, s)
             assertEq(out, undefined)
             s = next
@@ -774,7 +774,7 @@ export const proof = {
         assertEq(out0, 0n)
         // state resets after emit: second batch of 8 zeros also emits 0
         let s3 = s2
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 7; i += 1) {
             const [, next] = pipelineStep(0n, s3)
             s3 = next
         }
@@ -782,7 +782,7 @@ export const proof = {
         assertEq(out1, 0n)
         // 8 ones emit a different symbol than 8 zeros
         let s4 = emptyPipelineState
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 7; i += 1) {
             const [, next] = pipelineStep(1n, s4)
             s4 = next
         }

@@ -45,7 +45,7 @@ The Bun adapter remains necessary for its nested-test behavior.
 - **`fjs t`**: applies FunctionalScript's expected-failure semantics directly.
 - **Node** and **Deno**: natively understand tests that are expected to fail.
 - **Bun**: has no equivalent native awareness, so the Bun adapter wraps the test to
-  emulate the behavior. It adds ` ...` to ordinary externally registered
+  emulate the behavior. It adds a space and `...` to ordinary externally registered
   tests and leaves expected-to-throw test names without that suffix; name
   formatting belongs to the adapter, not shared proof registration.
 - **Browser application**: applies the same FunctionalScript semantics inside the browser

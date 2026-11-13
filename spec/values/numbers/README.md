@@ -26,9 +26,23 @@ literals. A binary literal has no fraction or exponent. Missing digits,
 other digits or a word directly after the literal are errors. The `n`
 suffix gives an exact bigint at any width: `0B101n` is `5n`. Outputs write
 the value in decimal; unary negation also preserves `-0b0` as `-0`.
+An octal literal uses `0o` or `0O` followed by one or more digits `0`–`7`.
+`0o17` and `0O17` are `15`; `0o17n` and `0O17n` are the exact bigint `15n`.
+The existing radix rules apply: separators may occur between digits, and no
+fraction or exponent belongs to the literal. Numbers round to the nearest
+double; BigInts keep every digit. Unary negation preserves `-0o0` as `-0`.
+Missing digits, digits `8` or `9`, misplaced separators and an identifier
+immediately after a literal are errors. Legacy leading-zero spellings such
+as `017` and `08` remain rejected, as in strict JavaScript modules. JSON and
+DataJS retain their own numeric grammars.
+
+The language designer `sergey-shandar` approved explicit octal literals in the
+[working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019),
+under DESIGN.md §12.
+
 A single `_` may separate digits in decimal integer parts, fractions and
-exponents, and in binary or hexadecimal digits: `1_000`, `1.2_5e1_0`,
-`0b1010_0011`, `0xFF_FF`, and `1_000n`. Separators do not change the
+exponents, and in binary, octal or hexadecimal digits: `1_000`, `1.2_5e1_0`,
+`0b1010_0011`, `0o7_7`, `0xFF_FF`, and `1_000n`. Separators do not change the
 value. Leading, trailing or repeated separators, separators next to a
 radix prefix, decimal point, exponent marker or sign, or bigint suffix,
 and separators after a leading decimal zero are errors.

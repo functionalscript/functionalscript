@@ -60,8 +60,8 @@
  */
 
 import { readerOf } from '../common/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /** The reverse-order entries in member order, in one linear pass. */
 /** @type {(entries: _Entries) => ReadonlyArray<readonly [string, Unknown]>} */

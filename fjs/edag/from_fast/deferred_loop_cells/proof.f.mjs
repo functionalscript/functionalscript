@@ -186,13 +186,14 @@ export const proof = /** @type {const} */ ({
         assertEq(raw.target, target)
         assertEq(raw.parameters[0], argument)
         assertEq(raw.rest, rest)
-        assertEq(raw.self, self)
+        assert(raw.self !== null && raw.self !== self)
+        assertEq(raw.self.index, self.index)
         assertEq(raw.captures.length, 1)
         assertEq(raw.captures[0].binding, captured)
         let graph = fromFast(result(['function', fn]))
         /** @type {readonly Exp[]} */
         let graphs = [graph]
-        for (let index = 0; index < 6; ++index) { graph = fromFast(assertOk(toFast(graph))); graphs = [...graphs, graph] }
+        for (let index = 0; index < 6; index += 1) { graph = fromFast(assertOk(toFast(graph))); graphs = [...graphs, graph] }
         for (const later of graphs.slice(5)) { assertStructurallySame(flat(later), flat(graphs[4])) }
         for (const current of graphs) {
             assert(current instanceof Array && current[0] === '=>')

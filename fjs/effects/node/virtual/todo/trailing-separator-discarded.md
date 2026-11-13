@@ -6,7 +6,7 @@
 ### Problem
 
 Every operation here resolves its path with `parse`
-([`fjs/path`](../../../../path/module.f.mjs)), which drops the empty segment a
+([`fjs/path`](../../../../path/module.f.js)), which drops the empty segment a
 trailing separator leaves. A host does not: a trailing separator *requires* the
 final component to be a directory, and an open for writing of a directory is
 `EISDIR`.
@@ -76,5 +76,5 @@ separator. All three are decided by *where* the walk happens.
   an unservable path answers, the third of the three.
 - [no-name-length-limit](./no-name-length-limit.md) — how long a name may be,
   the fourth of this runner's path divergences and the mildest.
-- [`fjs/path`](../../../../path/module.f.mjs) — `parse`, which is lexical by
+- [`fjs/path`](../../../../path/module.f.js) — `parse`, which is lexical by
   design and should stay that way; this is about what a file system may ask of it.

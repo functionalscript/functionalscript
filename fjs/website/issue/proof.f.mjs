@@ -6,7 +6,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { header, isIssue, priorities, statuses } from './module.f.js'
 import { demo, everyPriority, everyStatus, shown } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /** @type {(priority: string, status: string) => string} */

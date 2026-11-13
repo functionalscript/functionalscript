@@ -45,8 +45,8 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { concat, flat } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, flat } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { startsWith, u32be } from '../bytes/module.f.js'
 import { oidAt } from '../oid/module.f.mjs'
 
@@ -271,7 +271,7 @@ const selected = (b, at, mask, count, k, value) => {
  * node 22, a delta of 5,000 one-byte inserts — a few kilobytes of pack, since
  * such a stream compresses to almost nothing — died with
  * `RangeError: Maximum call stack size exceeded`, where 3,000 answered. That is
- * the shape [`fjs/effects`](../../effects/module.f.mjs)' `walkStep` removes
+ * the shape [`fjs/effects`](../../effects/module.f.js)' `walkStep` removes
  * for a walk, and the same answer applies here: depth is constant in the
  * instruction count, so what the *loop* is bounded by is the target size the
  * header declares — a number the delta itself states, not one invented here. A

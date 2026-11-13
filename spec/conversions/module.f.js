@@ -14,4 +14,9 @@ const number = [
     ['Number conversion', 'const xs = [10, 20, 30];\nexport default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), xs[Number("2")]];', 'number-conversion'],
 ]
 
-export default { number, all: [...number] }
+/** @type {Examples} */
+const boolean = [
+    ['Boolean conversion', 'export default [Boolean(), Boolean(0), Boolean(""), Boolean("false"), Boolean([]), Boolean({}), Boolean(() => 1), Boolean({ valueOf: () => { throw 1; }, toString: () => { throw 2; } })];', 'boolean-conversion'],
+]
+
+export default { boolean, number, all: [...boolean, ...number] }

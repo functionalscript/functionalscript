@@ -56,6 +56,12 @@ force them eagerly.
 
 ## Enclosing-function returns
 
+A terminal loop ends its FAST block and has no normal completion. Its helper
+computation supplies the block's EDAG goal. If all completing paths return to
+the same owning function, their values become the helper result directly;
+there is no normal/return tag test or fabricated fallback. Multiple outward
+transfer kinds use an exhaustive dispatch over their actual outcomes.
+
 The [completion contract](./README.md#enclosing-function-returns) transports
 private normal/return/break/continue packets through generated helpers. Resolved
 target identities and lexical introduction order determine dispatch, independently
@@ -75,6 +81,30 @@ ownership. A transfer cannot escape an operand's locally owned loop chain.
 Standalone blocks never invent a source-function owner.
 
 ## Canonical root loops
+
+Before extracting loop helpers, [`loop/owning`](./loop/owning/module.f.mjs)
+preserves source-function self tail calls as transfers to an outer invocation
+loop. Fresh public inputs feed the original iteration bindings; defaults,
+destructuring, local declarations and capture snapshots run again for each
+invocation. Immutable self aliases name the same owner. Nested ordinary
+functions keep their own bodies and recursion owners.
+The normalized invocation uses a fresh self binding for that same function;
+loop parameters, region results and local declarations can therefore shadow
+their original identities without replacing the owning function.
+
+Completion transport relays an inner loop's invocation transfer back to this
+outer owner. Construction retains the producer's root identity across that
+transport, then restores a direct owning self call for shared tail-loop
+recovery. This avoids a function/helper call cycle that grows the host stack.
+A wholly tail-recursive invocation root is terminal and needs no invented
+normal result. JavaScript and Rust both lower the recovered recursion to
+`while`; ordinary non-tail recursion keeps its normal call semantics.
+
+This normalization follows memo lowering. Current source computed initializers
+are required; source lazy declarations are reference aliases. Genuine lazy
+FAST initializers use memo's private tail completion to carry evaluated
+arguments through getter helpers. Only the owning demand restores the direct
+self call, so invocation normalization sees it before loop-helper extraction.
 
 [Canonical invocation roots](./loop/root/README.md) reuse the enclosing function
 only for exact entry aliases, a matching invocation transition and one direct
@@ -162,7 +192,7 @@ One shared resolver derived from
 [`operations.property`](../operations/module.f.mjs) serves the existing call
 and the query:
 
-1. Perform [`read`](../value/property/module.f.mjs) first and propagate its
+1. Perform [`read`](../value/property/module.f.js) first and propagate its
    failure, including nullish-receiver and static-function `length` failures.
    The operation spells the already-converted string/number key with `String`.
 2. Retain exact stored-object own-property presence, even for a stored undefined
@@ -269,7 +299,7 @@ distinguish the following cases before target spelling:
 | Static-function `length` requiring a missing or failing runtime body | The full property read retains its failure before arguments. |
 | Runtime-only method bound, absent or failing; runtime override versus an own field | Existing guard result and own/runtime/native precedence, including noncallable runtime answers. |
 | Returning computed key or argument | Preserve the reached conversion/prefix and payload identity; skip remaining work. |
-| Continued optional regions and a closed `|!()` boundary | Preserve selected skips and later forced-call argument evaluation. |
+| Continued optional regions and a closed `\|!()` boundary | Preserve selected skips and later forced-call argument evaluation. |
 | Caller, iteration and initializer memo cells plus returned closures | Preserve selected updates, aliases, receiver captures and fresh invocation lifetimes. |
 | Invalid query tag/arity/key encoding and repeated graph conversions | Closed admission, metadata/sharing and stable canonical round trips. |
 
@@ -336,6 +366,11 @@ The construction proofs retain the delivered integration cases:
   shared normal joins, scoped completion dispatch and bounded join growth.
 - [Root matching](./loop/root/proof.f.mjs) pins positive and negative invocation
   forms, retained entry values, simultaneous transitions, rest recipes and arity.
+- [Owning-tail normalization](./loop/owning/proof.f.mjs),
+  [native JavaScript execution](../../compiler/serializer/value/owning_tail_calls.proof.mjs)
+  and the [Rust fixture](../../../nanvm/harness/fixtures/owning-self-tail-calls.mjs)
+  cover invocation ownership across terminal and ordinary loops, including
+  deep execution without recursive stack growth.
 - [Memo integration](./loop/memo/integration/proof.f.mjs),
   [initializer-owned cells](./initializer_loop_cells/proof.f.mjs),
   [deferred crossings](./deferred_loop_cells/proof.f.mjs) and

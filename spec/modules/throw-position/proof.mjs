@@ -8,11 +8,11 @@
  */
 
 import { hostProof } from '../../../fjs/compiler/refused_demo/host.mjs'
-import * as page from './demo.f.mjs'
+import { answer, sample as sampleText, suggestion } from './demo.f.mjs'
 
 /** What importing the sample answers: its default export, or what it threw. */
 const value = await import('./sample.mjs').then(
     module => module.default,
     thrown => `none: importing it throws ${thrown}`)
 
-export const proof = hostProof(import.meta.url, value, page)
+export const proof = hostProof(import.meta.url, value, { answer, sample: sampleText, suggestion })

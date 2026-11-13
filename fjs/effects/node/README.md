@@ -8,8 +8,8 @@ own APIs.
 
 ```js
 import { exitStep, readUtf8File } from './module.f.mjs'
-import { log } from '../common/module.f.mjs'
-import { mapStep, step } from '../module.f.mjs'
+import { log } from '../common/module.f.js'
+import { mapStep, step } from '../module.f.js'
 
 /** Prints how many lines a file has, counting line breaks as `wc -l` does. @type {import('./types.ts').NodeProgram} */
 export const main = ({ args }) => {
@@ -27,10 +27,10 @@ the end of the chain: `0` on success, and on failure the error printed to
 
 |Group           |Operations                                                                      |
 |----------------|--------------------------------------------------------------------------------|
-|files           |`readFile`, `readUtf8File`, `readWhole`, `writeFile`, `writeUtf8File`, `writeFiles`, `writeBytes`, `writeChunks`, `mkdir`, `readdir`, `rm`, `rmdir`, `rename`, `access`, `stat`, `open`, `fstat`, `pread`, `close`, `createExclusive`, `writeExclusive`|
+|files           |`readFile`, `readUtf8File`, `readWhole`, `writeFile`, `writeUtf8File`, `writeFiles`, `writeBytes`, `writeChunks`, `mkdir`, `readdir`, `rm`, `rmdir`, `rename`, `access`, `exists`, `stat`, `open`, `fstat`, `pread`, `close`, `createExclusive`, `writeExclusive`|
 |network         |`fetch`, `createServer`, `listen`, `forever`                                    |
-|processes       |`exec`, `spawn`, `childWait`                                                    |
-|other           |`inflate`, `now`, `resolveFileModule`, `test`                                   |
+|processes       |`exec`, `execFile`, `capture`, `spawn`, `childWait`                                                    |
+|other           |`inflate`, `now`, `availableParallelism`, `resolveFileModule`, `test`                                   |
 |from `common`   |`write`, `log`, `error`, `errorExit`, `read`, `readLine`, `sandbox`, `catch_`, `import_`, `all`, `allOk`, `both`, re-exported here|
 
 Every operation answers an `IoResult<T>`: the value, an `IoError` (the host's

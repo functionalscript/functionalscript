@@ -8,7 +8,7 @@ import {
     dirent, fileModule, ioChannel, ioError, makeDirectoryOptions, mkdir, notImplemented, nothing,
     operations, read, readdir, readdirOptions, readFile, resolveFileModule, rm, vec, write,
     writeBytes, writeFile,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /**
  * Whether `schema` admits `value`.

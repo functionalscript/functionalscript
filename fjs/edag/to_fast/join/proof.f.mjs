@@ -45,6 +45,330 @@ const evaluate = (block, parameter, argument) => {
 }
 
 export const proof = /** @type {const} */ ({
+    nestedExclusiveDemandsLocalizeDependentsBeforeTheirPrerequisites: () => {
+        const condition = id(0), first = id(1), second = id(2), third = id(3), checked = id(4), tag = id(5)
+        const observed = id(6), inner = id(7), chosen = id(8), capture = id(9)
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const allocation = /** @type {Value} */ (['array', [7]])
+        const call = /** @type {Value} */ (['()', ['function', { target: owner, parameters: [], rest: null, self: null,
+            captures: [{ binding: capture, value: ref(first) }], body: { statements: [], exit: ['return', owner, ['array', [ref(capture), ref(capture)]]] } }], []])
+        const expansion = /** @type {Value} */ (['array', [['...', ref(second)]]])
+        const before = result(['array', [ref(chosen), ref(observed)]], [
+            ['define', first, allocation, 'lazy'], ['define', second, call, 'lazy'], ['define', third, expansion, 'lazy'],
+            ['define', checked, ['.', ref(first), 0], 'required'],
+            ['if', [observed], ref(condition), result(undefined), {
+                statements: [
+                    ['define', tag, ['.', ref(second), 0], 'required'],
+                    ['if', [inner], ['===', ref(checked), 7], result(ref(third)), result(0)],
+                ], exit: ['yield', [ref(inner)]],
+            }],
+            ['define', chosen, selected(ref(condition), 0, ref(second)), 'required'],
+        ])
+        const after = _joinResults(before)
+        const established = after.statements[0]
+        assert(established[0] === 'define')
+        assertEq(established[1], first)
+        assertEq(established[2], allocation)
+        assertEq(established[3], 'required')
+        const outer = after.statements[2]
+        assert(outer[0] === 'if')
+        const invoked = outer[4].statements[0]
+        assert(invoked[0] === 'define')
+        assertEq(invoked[1], second)
+        assertEq(invoked[2], call)
+        assertEq(invoked[3], 'required')
+        const nested = outer[4].statements[2]
+        assert(nested[0] === 'if')
+        const expanded = nested[3].statements[0]
+        assert(expanded[0] === 'define')
+        assertEq(expanded[1], third)
+        assertEq(expanded[2], expansion)
+        assertEq(expanded[3], 'required')
+        for (const block of [before, after]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [0, undefined])
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [[[7], [7]], [[7], [7]]])
+        }
+    },
+    conditionalDependentsKeepSkippedInitializersUnevaluated: () => {
+        const condition = id(0), prerequisite = id(1), dependent = id(2)
+        const before = source(ref(condition), ['array', [selected(ref(condition), 7, 0), ref(dependent)]], normal(), normal(), [
+            ['define', prerequisite, fail('selected'), 'lazy'],
+            ['define', dependent, selected(ref(condition), ref(prerequisite), 0), 'lazy'],
+        ])
+        const after = _joinResults(before)
+        for (const block of [before, after]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [0, 0])
+            assertEq(assertError(evaluate(block, condition, true)), 'selected')
+        }
+    },
+    recursiveDemandsKeepTheOuterMemoAcrossLoopIterations: () => {
+        const condition = id(0), cell = id(1), step = id(2), previous = id(3), pair = id(4), chosen = id(5)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const deferred = /** @type {Statement} */ (['define', cell, ['array', [7]], 'lazy'])
+        const before = result(['array', [ref(chosen), ['===', ['.', ref(pair), 0], ['.', ref(pair), 1]]]], [
+            deferred,
+            ['loop', { target, parameters: [step, previous], initial: [0, null], results: [pair], body: {
+                statements: [['if', [], ['<', ref(step), 2], { statements: [], exit: ['continue', target, [['+', ref(step), 1], ref(cell)]] }, normal()]],
+                exit: ['break', target, [['array', [ref(previous), ref(cell)]]]],
+            } }],
+            ['if', [], ref(condition), normal(), normal()],
+            ['define', chosen, selected(ref(condition), 7, 0), 'required'],
+        ])
+        const after = _joinResults(before)
+        assertEq(after.statements[0], deferred)
+        for (const block of [before, after]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [7, true])
+        }
+    },
+    laterRecipeNameShadowsKeepTheirOwnDeclarationValues: () => {
+        const condition = id(0), cell = id(1), chosen = id(2), used = id(3)
+        const deferred = /** @type {Statement} */ (['define', cell, ['array', [9]], 'lazy'])
+        const shadow = /** @type {Statement} */ (['define', cell, 3, 'required'])
+        const consumer = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 7, 0), 'required'])
+        /** @type {readonly Block[]} */
+        const cases = [
+            result(['array', [ref(chosen), ref(cell)]], [deferred, shadow, ['if', [], ref(condition), normal(), normal()], consumer]),
+            result(['array', [ref(chosen), ref(used)]], [deferred, shadow, ['if', [used], ref(condition), result(ref(cell)), result(0)], consumer]),
+            result(ref(chosen), [['define', cell, selected(ref(condition), 7, 0), 'lazy'], shadow,
+                ['if', [], ref(condition), normal(), normal()], ['define', chosen, ref(cell), 'required']]),
+        ]
+        for (const [index, before] of cases.entries()) {
+            const after = _joinResults(before)
+            const expected = index === 2 ? 3 : [7, 3]
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(before, condition, true)))), expected)
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(after, condition, true)))), expected)
+        }
+    },
+    exclusiveRecoveryDoesNotAdvancePastEarlierTestOrArmWork: () => {
+        const condition = id(0), cell = id(1), local = id(2), chosen = id(3)
+        const deferred = /** @type {Statement} */ (['define', cell, fail('later'), 'lazy'])
+        const decision = /** @type {Statement} */ (['if', [], ref(condition), normal(), normal()])
+        const consumer = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 7, 0), 'required'])
+        /** @type {readonly Block[]} */
+        const cases = [
+            result(ref(chosen), [deferred, ['if', [], ['===', fail('earlier'), ref(cell)], normal(), normal()], decision, consumer]),
+            result(ref(chosen), [deferred, ['if', [], ref(condition), normal([
+                ['define', local, ['array', [fail('earlier'), ref(cell)]], 'required'],
+            ]), normal()], decision, consumer]),
+        ]
+        for (const [index, before] of cases.entries()) {
+            const after = _joinResults(before)
+            assert(after.statements.includes(deferred))
+            for (const block of [before, after]) {
+                assertEq(assertError(evaluate(block, condition, true)), 'earlier')
+                if (index === 1) { assertEq(assertOk(toData(assertOk(evaluate(block, condition, false)))), 0) }
+            }
+        }
+    },
+    adjacentRequiredInitializersKeepOneConditionallyDemandedRecipe: () => {
+        const condition = id(0), cell = id(1), chosen = id(2), kept = id(3), later = id(4)
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const call = /** @type {Value} */ (['()', ['function', { target: owner, parameters: [], rest: null, self: null, captures: [],
+            body: { statements: [], exit: ['return', owner, ['array', [7]]] } }], []])
+        const prefix = /** @type {Statement} */ (['define', kept, 3, 'required'])
+        const consumer = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 9, ref(cell)), 'required'])
+        const following = /** @type {Statement} */ (['define', later, ['array', [ref(chosen), ref(chosen)]], 'required'])
+        const branch = /** @type {Statement} */ (['if', [], ref(condition), normal(), normal([
+            ['if', [], ['===', ['.', ref(cell), 0], 0], { statements: [], exit: ['throw', 8] }, normal()],
+        ])])
+        const before = result(ref(later), [prefix, ['define', cell, call, 'lazy'], branch, consumer, following])
+        const after = _joinResults(before)
+        assertEq(after.statements.length, 4)
+        assertEq(after.statements[0], prefix)
+        assertEq(after.statements[3], following)
+        const joined = after.statements[1]
+        assert(joined[0] === 'if')
+        assertEq(joined[1].length, 1)
+        assertEq(joined[3].statements.length, 0)
+        const established = joined[4].statements[0]
+        assert(established[0] === 'define')
+        assertEq(established[1], cell)
+        assertEq(established[2], call)
+        assertEq(established[3], 'required')
+        for (const block of [before, after]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [9, 9])
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [[7], [7]])
+        }
+    },
+    requiredInitializerJoinsKeepAbruptOwnersAndExistingResults: () => {
+        const condition = id(0), kept = id(1), chosen = id(2)
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {readonly Exit[]} */
+        const exits = [['throw', 7], ['return', owner, 7], ['break', target, [7]], ['continue', target, [7]]]
+        for (const exit of exits) {
+            const left = /** @type {Block} */ ({ statements: [], exit })
+            const before = result(ref(chosen), [
+                ['if', [kept], ref(condition), left, { statements: [], exit: ['yield', [3]] }],
+                ['define', chosen, selected(ref(condition), fail('unreached'), 9), 'required'],
+            ])
+            const after = _joinResults(before)
+            const branch = after.statements[0]
+            assert(branch[0] === 'if')
+            assertEq(branch[1].length, 2)
+            assertEq(branch[1][0], kept)
+            assertStructurallySame(branch[3], left)
+            assertEq(branch[3].exit, exit)
+            assert(branch[4].exit[0] === 'yield')
+            assertEq(branch[4].exit[1].length, 2)
+        }
+    },
+    requiredInitializerJoinsKeepEarlierWorkAndInterveningScopes: () => {
+        const condition = id(0), other = id(0), local = id(1), chosen = id(2)
+        const call = /** @type {Value} */ (['()', ref(other), []])
+        const branch = /** @type {Statement} */ (['if', [], ref(condition), normal(), normal()])
+        /** @type {readonly Block[]} */
+        const cases = [
+            result(ref(chosen), [branch, ['define', chosen, selected(ref(other), 7), 'required']]),
+            result(ref(chosen), [branch, ['define', chosen, ['array', [call, selected(ref(condition), 7)]], 'required']]),
+            result(ref(chosen), [branch, ['define', local, call, 'lazy'], ['define', chosen, selected(ref(condition), ref(local), ref(local)), 'required']]),
+            result(ref(chosen), [branch, ['block', [], normal()], ['define', chosen, selected(ref(condition), 7), 'required']]),
+            result(ref(chosen), [['if', [local], ref(condition), { statements: [], exit: ['yield', [7]] }, { statements: [], exit: ['yield', [9]] }],
+                ['define', chosen, selected(ref(condition), ref(local), ref(local)), 'required']]),
+        ]
+        for (const before of cases) { assertStructurallySame(_joinResults(before), before) }
+    },
+    repeatedTestsKeepTheValueAfterAResultShadowsTheirBinding: () => {
+        const condition = id(0), chosen = id(1)
+        const prefix = /** @type {Statement} */ (['define', condition, true, 'required'])
+        const branch = /** @type {Statement} */ (['if', [condition], ref(condition), { statements: [], exit: ['yield', [false]] }, { statements: [], exit: ['yield', [true]] }])
+        const value = selected(ref(condition), 7, 9)
+        const terminal = result(value, [prefix, branch])
+        const initializer = result(ref(chosen), [prefix, branch, ['define', chosen, value, 'required']])
+        for (const before of [terminal, initializer]) {
+            const after = _joinResults(before)
+            assertStructurallySame(after, before)
+            assertEq(assertOk(toData(assertOk(evaluate(before, condition, false)))), 9)
+            assertEq(assertOk(toData(assertOk(evaluate(after, condition, false)))), 9)
+        }
+    },
+    selectedValuesAndDeferredCapturesKeepTheirOuterArmScope: () => {
+        const condition = id(0), outer = id(1), chosen = id(2), recipe = id(3), capture = id(4)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        /** @type {readonly Statement[]} */
+        const shadows = [
+            ['define', outer, 7, 'required'],
+            ['block', [outer], { statements: [], exit: ['yield', [7]] }],
+            ['if', [outer], true, result(7), result(8)],
+            ['loop', { target, parameters: [], initial: [], results: [outer], body: { statements: [], exit: ['break', target, [7]] } }],
+        ]
+        const closure = /** @type {Value} */ (['function', { target: owner, parameters: [], rest: null, self: null,
+            captures: [{ binding: capture, value: ref(outer) }], body: { statements: [], exit: ['return', owner, ref(capture)] } }])
+        for (const declaration of shadows) {
+            for (const deferred of [false, true]) {
+                const value = deferred ? ref(recipe) : ref(outer)
+                const prefix = /** @type {readonly Statement[]} */ ([['define', outer, 9, 'required'],
+                    ...deferred ? /** @type {readonly Statement[]} */ ([['define', recipe, ['array', [ref(outer)]], 'lazy']]) : []])
+                for (const left of [false, true]) {
+                    const branch = /** @type {Statement} */ (['if', [], ref(condition), left ? normal([declaration]) : normal(), left ? normal() : normal([declaration])])
+                    const choice = left ? selected(ref(condition), value, 0) : selected(ref(condition), 0, value)
+                    const terminal = result(choice, [...prefix, branch])
+                    const initializer = result(ref(chosen), [...prefix, branch, ['define', chosen, choice, 'required']])
+                    const deferredChoice = result(ref(chosen), [...prefix, ['define', chosen, choice, 'lazy'], branch])
+                    for (const before of [terminal, initializer, deferredChoice]) {
+                        const after = _joinResults(before)
+                        assertStructurallySame(after, before)
+                        const expected = deferred ? [9] : 9
+                        assertStructurallySame(assertOk(toData(assertOk(evaluate(before, condition, left)))), expected)
+                        assertStructurallySame(assertOk(toData(assertOk(evaluate(after, condition, left)))), expected)
+                    }
+                }
+            }
+        }
+        const before = result(['()', ref(chosen), []], [
+            ['define', outer, 9, 'required'],
+            ['if', [], ref(condition), normal([shadows[0]]), normal()],
+            ['define', chosen, selected(ref(condition), closure, closure), 'required'],
+        ])
+        const after = _joinResults(before)
+        assertStructurallySame(after, before)
+        assertEq(assertOk(toData(assertOk(evaluate(after, condition, true)))), 9)
+    },
+    localizedRecipesKeepTheBindingValuesAtTheirDeclaration: () => {
+        const condition = id(0), outer = id(1), recipe = id(2), chosen = id(3), used = id(4)
+        const deferred = /** @type {Statement} */ (['define', recipe, ['array', [ref(outer)]], 'lazy'])
+        const prefix = /** @type {Statement} */ (['define', outer, 9, 'required'])
+        const choice = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 7, 0), 'required'])
+        /** @type {readonly Block[]} */
+        const cases = [
+            result(['array', [ref(chosen), ref(recipe)]], [prefix, deferred,
+                ['if', [outer], ref(condition), result(3), result(4)], choice]),
+            result(['array', [ref(chosen), ref(recipe)]], [prefix, deferred, ['define', outer, 3, 'required'],
+                ['if', [], ref(condition), normal(), normal()], choice]),
+            result(['array', [ref(chosen), ref(used)]], [prefix, deferred,
+                ['if', [used], ref(condition), result(ref(recipe), [['define', outer, 3, 'required']]), result(0)], choice]),
+            result(['array', [ref(chosen), ref(used)]], [prefix, deferred, ['define', outer, 3, 'required'],
+                ['if', [used], ref(condition), result(ref(recipe)), result(0)], choice]),
+        ]
+        for (const before of cases) {
+            const after = _joinResults(before)
+            assertEq(after.statements[1], deferred)
+            for (const block of [before, after]) {
+                assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [7, [9]])
+            }
+        }
+    },
+    dependentRecipesDoNotCrossReboundPrefixValues: () => {
+        const condition = id(0), outer = id(1), selectedValue = id(2), dependent = id(3), chosen = id(4)
+        const prefix = /** @type {Statement} */ (['define', outer, 9, 'required'])
+        const recipe = /** @type {Statement} */ (['define', selectedValue, selected(ref(condition), 2, 3), 'lazy'])
+        const following = /** @type {Statement} */ (['define', dependent, ['array', [ref(selectedValue), ref(outer)]], 'lazy'])
+        const consumer = /** @type {Statement} */ (['define', chosen, ref(dependent), 'required'])
+        /** @type {readonly Block[]} */
+        const cases = [
+            result(ref(chosen), [prefix, recipe, following, ['if', [outer], ref(condition), result(4), result(5)], consumer]),
+            result(ref(chosen), [prefix, recipe, following, ['define', outer, 4, 'required'], ['if', [], ref(condition), normal(), normal()], consumer]),
+            result(ref(chosen), [prefix, ['define', selectedValue, selected(ref(condition), ref(outer), 3), 'lazy'],
+                ['define', outer, 4, 'required'], ['if', [], ref(condition), normal(), normal()], ['define', chosen, ref(selectedValue), 'required']]),
+            result(ref(chosen), [prefix, ['define', selectedValue, 11, 'required'], following, recipe,
+                ['if', [], ref(condition), normal(), normal()], consumer]),
+        ]
+        for (const [index, before] of cases.entries()) {
+            const after = _joinResults(before)
+            assertStructurallySame(after, before)
+            const expected = index === 2 ? 9 : [index === 3 ? 11 : 2, 9]
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(before, condition, true)))), expected)
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(after, condition, true)))), expected)
+        }
+    },
+    laterDeclarationsDoNotCaptureEarlierBindingReads: () => {
+        const condition = id(0), outer = id(1), chosen = id(2), earlier = id(3)
+        const prefix = /** @type {Statement} */ (['define', outer, 9, 'required'])
+        const deferred = /** @type {Statement} */ (['define', outer, 3, 'lazy'])
+        const consumer = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 7, 0), 'required'])
+        /** @type {readonly Block[]} */
+        const cases = [
+            result(['array', [ref(chosen), ref(earlier)]], [prefix,
+                ['if', [earlier], ref(condition), result(ref(outer)), result(0)], consumer, deferred]),
+            result(['array', [ref(chosen), ref(earlier)]], [prefix, ['define', earlier, ref(outer), 'required'], deferred,
+                ['if', [], ref(condition), normal(), normal()], consumer]),
+        ]
+        for (const before of cases) {
+            const after = _joinResults(before)
+            for (const block of [before, after]) {
+                assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [7, 9])
+            }
+            assert(after.statements.includes(deferred))
+        }
+    },
+    terminalLoopKeepsItsInternalNormalJoin: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const condition = id(0), parameter = id(1)
+        const branch = source(ref(condition), ['+', selected(ref(condition), 2, 3), ref(parameter)])
+        assert(branch.exit[0] === 'yield')
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', { target, parameters: [parameter], initial: [0], results: [],
+            body: { statements: branch.statements, exit: ['continue', target, branch.exit[1]] } }] }
+        const after = _joinResults(terminal)
+        assert(after.exit[0] === 'loop')
+        assertEq(after.statements.length, 0)
+        assertEq(after.exit[1].target, target)
+        const joined = after.exit[1].body.statements[0]
+        assert(joined[0] === 'if')
+        assertEq(joined[1].length, 1)
+        assertEq(after.exit[1].body.exit[0], 'continue')
+    },
     normalResultsRetainOneContinuationAndAllocation: () => {
         const condition = id(0), value = id(1), input = id(2)
         const allocation = /** @type {Value} */ (['array', [7]])

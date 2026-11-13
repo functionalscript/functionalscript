@@ -38,7 +38,7 @@
  * **Or by identity alone.** {@link identityAnalysis} merges nothing: every
  * node is its own entry, two nodes spelled alike are two entries, and the
  * shared entries are the nodes reached from more than one place — what
- * [`../sharing`](../sharing/module.f.mjs) counts for both writers, read here
+ * [`../sharing`](../sharing/module.f.js) counts for both writers, read here
  * through the table. That is the FunctionalScript writer's table, which
  * writes a shared node as one `const` and every other node where it
  * stands, so that the text keeps the sharing the graph has and adds none
@@ -72,11 +72,11 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
+import { isIndex, maxLength } from '../../types/function/length/module.f.js'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.mjs'
-import { sharedNodesOf } from '../sharing/module.f.mjs'
+import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.js'
+import { sharedNodesOf } from '../sharing/module.f.js'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
 const start = merges => ({ visited: new Map(), entries: [], problem: null, merges })
@@ -277,17 +277,30 @@ const handlers = {
     // until it has its row
     'Object.is': o0,
     'Object.entries': o0,
+    'Object.keys': o0,
+    'String.fromCharCode': o0,
     'Object.fromEntries': o0,
     'Number.isInteger': o0,
     'Number.isSafeInteger': o0,
     'Number.isNaN': o0,
     'Number.isFinite': o0,
+    'Math.log2': o0,
+    'Math.trunc': o0,
+    'Math.floor': o0,
+    'Math.abs': o0,
+    'Math.sqrt': o0,
+    'Math.ceil': o0,
+    'Math.imul': o0,
+    'Math.max': o0,
+    'Math.min': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
     '~': o1,
     String: o1,
     Number: o1,
+    BigInt: o1,
+    Boolean: o1,
     typeof: o1,
     throw: o1,
     '+': o12,
@@ -314,6 +327,12 @@ const handlers = {
     instanceof: scope => (state, [tag, a, c]) => {
         const [t, x] = walk(scope)(state, a)
         return [t, [tag, x, c]]
+    },
+    // A key spelling and one operand: the key is metadata too, carried
+    // across as the constructor name is, never walked.
+    in: scope => (state, [tag, key, a]) => {
+        const [t, x] = walk(scope)(state, a)
+        return [t, [tag, key, x]]
     },
     memberPresent: scope => (state, [tag, receiver, key]) => {
         const [t, base] = walk(scope)(state, receiver)
@@ -417,6 +436,8 @@ export const operandsOf = node => {
         // the constructor name is metadata, not an operand — and a string,
         // which the default arm below would list as a literal operand
         case 'instanceof': { return [node[1]] }
+        // the key is a spelling, not an operand, and a string likewise
+        case 'in': { return [node[2]] }
         default: {
             const [, ...operands] = node
             return operands

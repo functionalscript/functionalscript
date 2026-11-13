@@ -8,7 +8,7 @@ import { one as c } from '../../text/ascii/module.f.js'
 import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
-import { codePoints, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.mjs'
+import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.mjs'
 
 const { keys } = Object
 const { MAX_SAFE_INTEGER } = Number
@@ -36,12 +36,6 @@ const variantNotAnObject = ['variant', ['zero']]
 
 /** @type {unknown} */
 const variantString = ['variant', 'zero']
-
-/** @type {unknown} */
-const variantMap = ['variant', new Map([['zero', 'zero']])]
-
-/** @type {unknown} */
-const mapRule = new Map([['ok', 'x']])
 
 /** @type {unknown} */
 const constTrailing = ['const', 'x', 'extra']
@@ -136,19 +130,6 @@ export const proof = {
         assert(!isSymbol(Infinity))
         assert(!isSymbol(NaN))
     },
-    // One symbol per code point: an astral character is one, not the two
-    // UTF-16 units it occupies. A lone surrogate, high or low, is no code
-    // point and is refused rather than tagged into a negative symbol.
-    codePoints: {
-        text: () => {
-            assertStructurallySame(codePoints(''), [])
-            assertStructurallySame(codePoints('a😀'), [c('a'), 0x1_F600])
-        },
-        throw: {
-            loneHigh: () => codePoints('\uD800'),
-            loneLow: () => codePoints('a\uDC00'),
-        },
-    },
     // Each handler receives the payload without its tag.
     matchRule: {
         kinds: () => {
@@ -168,9 +149,6 @@ export const proof = {
             variantTrailing: () => showRule(/** @type {DataRule} */ (variantTrailing)),
             variantNotAnObject: () => showRule(/** @type {DataRule} */ (variantNotAnObject)),
             variantString: () => showRule(/** @type {DataRule} */ (variantString)),
-            // A `Map` is an object with no own string-keyed entries, and
-            // would read as an empty variant.
-            variantMap: () => showRule(/** @type {DataRule} */ (variantMap)),
         },
     },
     emptyTagMap: {
@@ -484,8 +462,6 @@ export const proof = {
             // that is no rule at all, are refused rather than lowered.
             unknownTag: () => toData(() => /** @type {readonly ['const', string]} */ (typo)),
             notARule: () => toData(/** @type {Rule} */ (notARule)),
-            // An object that is no plain record — a `Map` — is no variant.
-            mapRule: () => toData(/** @type {Rule} */ (mapRule)),
             // A field past a fixed arity in a hand-written info tuple is
             // refused where the tuple is read, since the data form's arity
             // check only ever sees what the lowering emitted.

@@ -9,6 +9,11 @@ The standalone function entry point requires normally completing capture
 values. A construction whose capture evaluation can transfer to its enclosing
 scope is prepared as a value in that containing region instead.
 
+A normalized terminal-loop exit keeps its lack of normal completion. Entry
+state is prepared before a terminal loop exit in the physical block; no
+returned value or failure is added afterward. Both target serializers consume
+that exit directly, and Rust spells it as a diverging `loop` expression.
+
 Required definitions remain ordered immutable definitions. A lazy definition
 becomes a memo declaration with private value and completion slots and a
 prepared initializer region. Its references become explicit demands. Each
@@ -17,7 +22,30 @@ iterations retain separate first-demand lifetimes. A failed initializer leaves
 the completion flag unset. Serializers implement that declared memo protocol;
 they do not decide where a value is established.
 
-Result blocks and conditionals use private result slots when their control
+An eligible function-level statement conditional with one result first becomes
+an [immutable parameterized continuation](./joins/README.md). Required prefix
+work stays in the function; only the normally reached suffix moves into the
+helper. Arm-local values enter through its parameter, established outer values
+through immutable captures, and early returns still leave the original
+function. The initial profile keeps lazy/control-bearing values, loop transfers,
+broader signatures and functions with a self binding in their existing plan.
+The latter restriction preserves existing self-tail recognition rather than
+hiding it inside a helper.
+
+Common JavaScript, Rust and FJS source preparation also [recovers canonical one-pass
+invocation joins](./one_pass/README.md). The loop's one whole result must be
+returned immediately by its function. The existing invocation resolver restores
+breaks as owning returns and entry aliases as ordered immutable snapshots;
+recovery completes only if the statement-join pass accepts the body. A restored
+backedge, existing self binding or unsupported control region retains the
+original loop. Genuine source loops keep their existing state and result plans.
+The source profile selects terminating guards with empty normal alternatives;
+broader inner decisions retain their invocation loop under the current grammar.
+Removing a region also requires every declaration moved to the function root
+to have a fresh binding identity there. A scope collision retains the original
+plan, including for false-arm declarations flattened by the direct join pass.
+
+Other result blocks and conditionals use private result slots when their control
 must remain in the containing statement flow. A return still exits its owning
 function, and a transfer still names its owning loop. Ordinary expression
 regions retain their value shape. When a child expression requires statements,
@@ -75,11 +103,20 @@ Returns and throws still exit their exact owner;
 ordinary nested function bodies do not supply an enclosing loop's break. The
 prepared region ends with an empty unreachable yield, so both serializers omit
 the unreachable suffix, including after unconditional tail loops.
-For source functions alone, a proven-unreachable empty completion receives a
-terminal return, satisfying the source block grammar after a diverging loop.
+For older statement-loop forms in source functions, a proven-unreachable empty
+completion receives a terminal return, satisfying the source block grammar.
 The last prepared `while` supplies its result alias so invocation-root
 reconstruction remains exact; otherwise the unreachable return uses `undefined`.
 A normally completing empty region retains its own signature.
+
+A normalized terminal loop is instead a block exit, `['loop', loop]`, with no
+normal successor or loop results. Preparation shares the ordinary loop-state
+lowering, retains entry values and private state slots before the exit, and
+keeps the final `['loop', target, body]` as the prepared exit. Writes in that
+body determine the prefix slots' mutability. This structural form receives no
+synthetic throw, empty yield or compatibility return. JavaScript renders a
+final `while (true)` and Rust a final `loop` expression; neither adds a suffix.
+The representation does not admit implicit source function returns.
 
 The canonical scalar loop produced for existing source tail recursion becomes
 a prepared `while`: its condition reads a fresh immutable snapshot of the
@@ -248,6 +285,25 @@ continue to write the existing result slot. Shared allocations, iteration
 captures, fresh rest and reached failure order remain in their lexical region.
 Default preparation, logical graph contracts and exact first-parse graph/text
 cycles are unchanged.
+
+After the established source plans, lexically admitted structured invocation
+loops can also retain normal decisions followed by one shared continuation.
+For every such one-result loop, multiple semantic inputs use the existing
+packed state/result slot and empty inputs use the existing private result slot
+when they can break normally. Nonreturning empty-input loops stay stateless;
+the body need not be a terminal tree. Single-input loops keep their shared
+scalar slot. Statement joins and their following work remain in their lexical
+region, and all transfer operands are established before any slot write.
+Immutable iteration snapshots preserve captures and fresh rest arrays.
+
+This extension changes source physical layout only. Default preparation and
+multiple-result loops keep independent result slots and their logical result
+signatures. It adds no storage-reuse optimization or source grammar. The
+established canonical profiles retain their fixed-point contracts; newly
+retained shared-continuation profiles do not yet have a general graph/text
+fixed point. Shared sequences established as ordinary bindings by common
+placement can reach source output, while remaining genuine lazy definitions
+retain the source admission pass's existing refusal.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation

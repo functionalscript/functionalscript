@@ -19,9 +19,9 @@
  * @import { OidBytes } from '../types.ts'
  */
 
-import { mapStep } from '../../effects/module.f.mjs'
+import { mapStep } from '../../effects/module.f.js'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
-import { under } from '../../path/module.f.mjs'
+import { under } from '../../path/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { map } from '../../types/nullable/module.f.js'
 import { lastBool, lastInt, lastValue, tryEntries, values } from '../config/module.f.js'

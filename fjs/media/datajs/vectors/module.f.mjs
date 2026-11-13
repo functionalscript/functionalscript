@@ -40,9 +40,11 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-import { decodeLower } from '../../../basen/base16/module.f.mjs'
+import { decodeLower } from '../../../basen/base16/module.f.js'
+import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
+import { pushAll } from '../../../types/stack_walk/module.f.js'
 
-const { is, keys } = Object
+const { keys } = Object
 
 /**
  * The bytes a `['hex', …]` document spells, or `null` where the string is
@@ -91,9 +93,9 @@ const at = (path, what) => `at ${path}: ${what}`
 
 /** @type {(value: Unknown) => string} */
 const show = value =>
-    is(value, -0) ? '-0' :
+    Object.is(value, -0) ? '-0' :
     typeof value === 'bigint' ? `${value}n` :
-    typeof value === 'string' ? JSON.stringify(value) :
+    typeof value === 'string' ? stringLiteral(value) :
     isArray(value) ? 'an array' :
     typeof value === 'object' && value !== null ? 'an object' :
     String(value)
@@ -121,11 +123,7 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
-        let result = stack
-        for (let i = expected.length - 1; i >= 0; i -= 1) {
-            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
-        }
-        return result
+        return pushAll(expected.map((e, i) => /** @type {const} */ ([`${path}[${i}]`, e, actual[i]])), stack)
     }
     if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
     const expectedKeys = keys(expected)
@@ -137,15 +135,10 @@ const children = (stack, path, expected, actual) => {
     // first member that is out of place; then the members, last pushed first
     for (let i = 0; i < expectedKeys.length; i += 1) {
         if (expectedKeys[i] !== actualKeys[i]) {
-            return at(path, `expected member ${i} to be ${JSON.stringify(expectedKeys[i])}, got ${JSON.stringify(actualKeys[i])}`)
+            return at(path, `expected member ${i} to be ${stringLiteral(expectedKeys[i])}, got ${stringLiteral(actualKeys[i])}`)
         }
     }
-    let result = stack
-    for (let i = expectedKeys.length - 1; i >= 0; i -= 1) {
-        const key = expectedKeys[i]
-        result = { top: [`${path}[${JSON.stringify(key)}]`, expected[key], actual[key]], rest: result }
-    }
-    return result
+    return pushAll(expectedKeys.map(key => /** @type {const} */ ([`${path}[${stringLiteral(key)}]`, expected[key], actual[key]])), stack)
 }
 
 /**
@@ -157,7 +150,7 @@ const children = (stack, path, expected, actual) => {
 const compare = ([stack, pairs], task) => {
     const [path, expected, actual] = task
     if (typeof expected !== 'object' || expected === null) {
-        return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
+        return Object.is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }
     if (typeof actual !== 'object' || actual === null) {
         return at(path, `expected ${show(expected)}, got ${show(actual)}`)

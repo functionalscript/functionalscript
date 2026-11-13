@@ -1,7 +1,7 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { htmlToString } from '../html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.js'
+import { error, unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
 import { bareUrl, entryTexts, proseSpans, tryParse, tryParseBlocks, tryParseEntry } from './module.f.mjs'
 
@@ -109,6 +109,45 @@ export const proof = {
         strongCode: () => assertStructurallySame(spans(`**${tick}O${tick} is ${tick}r${tick}**`),
             [['strong', [['code', 'O'], ['text', ' is '], ['code', 'r']]]]),
         emCode: () => assertStructurallySame(spans(`*a ${tick}b${tick}*`), [['em', [['text', 'a '], ['code', 'b']]]]),
+        // A body holds a link too, opening with it or after text, its label
+        // holding text and code.
+        strongLink: () => assertStructurallySame(spans(`**see [a ${tick}b${tick}](u)** and *[c](v) ${tick}d${tick}*`), [
+            ['strong', [['text', 'see '], ['link', [['text', 'a '], ['code', 'b']], 'u']]],
+            ['text', ' and '],
+            ['em', [['link', [['text', 'c']], 'v'], ['text', ' '], ['code', 'd']]],
+        ]),
+        // A plain link's label opens or closes with code, or holds it alone.
+        strongLinkLabels: () => assertStructurallySame(spans(`**[${tick}a${tick} b](u) [${tick}c${tick}](v)**`), [
+            ['strong', [['link', [['code', 'a'], ['text', ' b']], 'u'], ['text', ' '], ['link', [['code', 'c']], 'v']]],
+        ]),
+        // Bold holds emphasis between its runs, or right before it closes;
+        // the emphasis holds what a body holds.
+        strongEm: () => assertStructurallySame(spans('**a *b* c *d* e**'),
+            [['strong', [['text', 'a '], ['em', [['text', 'b']]], ['text', ' c '], ['em', [['text', 'd']]], ['text', ' e']]]]),
+        strongEmClosing: () => assertStructurallySame(spans('**a *b***'),
+            [['strong', [['text', 'a '], ['em', [['text', 'b']]]]]]),
+        strongEmSpans: () => assertStructurallySame(spans(`**a *${tick}b${tick} [c](u)* d**`),
+            [['strong', [['text', 'a '], ['em', [['code', 'b'], ['text', ' '], ['link', [['text', 'c']], 'u']]], ['text', ' d']]]]),
+        // Emphasis inside bold is checked as emphasis is, and against the
+        // spans beside it in the bold.
+        strongEmRefusals: () => {
+            const flanking = 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside'
+            assertEq(tryParseEntry('**a * b* c**')[1], 'bold or emphasis padded with a space')
+            assertEq(tryParseEntry('**a*(b)* c**')[1], flanking)
+            assertEq(tryParseEntry('**a *(b)*c**')[1], flanking)
+            // The bold's own closing run sees the emphasis's asterisk inside it.
+            assertEq(tryParseEntry('**a *b***c')[1], flanking)
+            assertEq(tryParseEntry('**a *<https://e.x>* c**')[1], 'an autolink inside bold or emphasis')
+            assertEq(tryParseEntry('**a *~b~* c**')[1], 'a single-tilde pair, which GitHub may read as strikethrough')
+            // Strikethrough may cross the emphasis.
+            assertEq(tryParseEntry('**~a *b* c~**')[1], 'a single-tilde pair, which GitHub may read as strikethrough')
+            assertStructurallySame(tryParseEntry('**a *![b](u)* c**'), error('an image inside bold or emphasis'))
+            assertStructurallySame(tryParseEntry('**a *b* ![c](u)**'), error('an image inside bold or emphasis'))
+            assertStructurallySame(tryParseEntry('**![a](u) *b***'), error('an image inside bold or emphasis'))
+            // Bold inside emphasis is no nesting this reads: the grammar
+            // matches three emphasis spans side by side, which are refused.
+            assertEq(tryParseEntry('*a**b**c*')[1], 'bold or emphasis side by side, which GitHub reads otherwise')
+        },
         // Two backticks open a span that may hold one, and the one space
         // each end carries is stripped, as CommonMark strips it.
         doubleCode: () => assertStructurallySame(spans(`a ${tick}${tick} f${tick}x${tick} ${tick}${tick}`),
@@ -118,11 +157,49 @@ export const proof = {
         // A body of spaces only keeps them all, as CommonMark keeps them.
         doubleCodeSpaces: () => assertStructurallySame(spans(`${tick}${tick}  ${tick}${tick}`), [['code', '  ']]),
         doubleCodeInALabel: () => assertStructurallySame(spans(`[${tick}${tick}a${tick}${tick}](u)`), [['link', [['code', 'a']], 'u']]),
+        // A single-backtick body keeps a space at one end, and loses one
+        // from each end where both have one, as CommonMark strips it.
+        codeSpaces: () => {
+            assertStructurallySame(spans(`the open ${tick}name: ${tick} write`), [['text', 'the open '], ['code', 'name: '], ['text', ' write']])
+            assertStructurallySame(spans(`${tick} a${tick}`), [['code', ' a']])
+            assertStructurallySame(spans(`${tick} a ${tick}`), [['code', 'a']])
+            assertStructurallySame(spans(`${tick}  a  ${tick}`), [['code', ' a ']])
+            // A body of spaces only keeps them all.
+            assertStructurallySame(spans(`${tick} ${tick}`), [['code', ' ']])
+        },
         // An asterisk with a space inside it is no delimiter on GitHub.
-        spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'bold or emphasis padded with a space'),
+        // An asterisk after a space in emphasis opens bold, so a space
+        // before the closing one stops the grammar.
+        spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'entry: unexpected symbol at 7'),
         paddedStrong: () => assertEq(tryParseEntry('** a**')[1], 'bold or emphasis padded with a space'),
-        paddedEm: () => assertEq(tryParseEntry(`*a ${tick}b${tick} *`)[1], 'bold or emphasis padded with a space'),
-        paddedAfterCode: () => assertEq(tryParseEntry(`*${tick}b${tick} *`)[1], 'bold or emphasis padded with a space'),
+        paddedEm: () => assertEq(tryParseEntry(`*a ${tick}b${tick} *`)[1], 'entry: unexpected symbol at 8'),
+        paddedAfterCode: () => assertEq(tryParseEntry(`*${tick}b${tick} *`)[1], 'entry: unexpected symbol at 6'),
+        leadingSpaceInEm: () => assertEq(tryParseEntry('* a*')[1], 'bold or emphasis padded with a space'),
+        // Emphasis holds bold, between its words or right before it closes,
+        // and the bold holds what a body holds.
+        emStrong: () => {
+            assertStructurallySame(spans('*a **b** c*'), [['em', [['text', 'a '], ['strong', [['text', 'b']]], ['text', ' c']]]])
+            assertStructurallySame(spans('*a **b***'), [['em', [['text', 'a '], ['strong', [['text', 'b']]]]]])
+            assertStructurallySame(spans(`*${tick}a${tick} [b](u) **${tick}c${tick} d** e*`), [['em', [
+                ['code', 'a'], ['text', ' '], ['link', [['text', 'b']], 'u'], ['text', ' '],
+                ['strong', [['code', 'c'], ['text', ' d']]], ['text', ' e'],
+            ]]])
+        },
+        // A word may follow a code span or a link directly.
+        emWordAfterASpan: () => assertStructurallySame(spans(`*(an ${tick}exp${tick}) [b](u)s*`),
+            [['em', [['text', '(an '], ['code', 'exp'], ['text', ') '], ['link', [['text', 'b']], 'u'], ['text', 's']]]]),
+        // Bold inside emphasis is checked as bold is.
+        emStrongRefusals: () => {
+            assertEq(tryParseEntry('*a ** b** c*')[1], 'bold or emphasis padded with a space')
+            assertEq(tryParseEntry('*a **b** (c)*d')[1], 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+            // Bold right after a word is no bold the grammar reads there:
+            // it matches emphasis side by side, which is refused.
+            assertEq(tryParseEntry('*a**b** c*')[1], 'bold or emphasis side by side, which GitHub reads otherwise')
+            // The emphasis's closing run sees the bold's asterisk inside it.
+            assertEq(tryParseEntry('*a **b***c')[1], 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+            assertStructurallySame(tryParseEntry('*a **![b](u)** c*'), error('an image inside bold or emphasis'))
+            assertStructurallySame(tryParseEntry('*a ![b](u) c*'), error('an image inside bold or emphasis'))
+        },
         em: () => assertStructurallySame(spans('*a*'), [['em', [['text', 'a']]]]),
         link: () => assertStructurallySame(spans('[a](b)'), [['link', [['text', 'a']], 'b']]),
         // A target is folded from two parts; the address is both, whole.
@@ -272,6 +349,8 @@ export const proof = {
             [['link', [['text', 'https://e.x']], 'https://e.x'], ['text', ' b']]),
         snakeCase: () => assertEq(proseRefusal('a_b and 9_x_é'), null),
         oneTilde: () => assertEq(proseRefusal('about ~100'), null),
+        // Whether tildes are strikethrough is the whole entry's question.
+        tildes: () => assertEq(proseRefusal('~~a~~'), null),
         colons: () => assertEq(proseRefusal('label: and :: and :two words:'), null),
         ampersand: () => assertEq(proseRefusal('a & b, a&; and &x y;'), null),
         ampersandAlone: () => assertEq(proseRefusal('a & b'), null),
@@ -279,7 +358,6 @@ export const proof = {
         refuses: {
             underscore: () => assertEq(proseRefusal('_a_'), 'an underscore that GitHub may read as emphasis at 0'),
             trailingUnderscore: () => assertEq(proseRefusal('a_'), 'an underscore that GitHub may read as emphasis at 1'),
-            tildes: () => assertEq(proseRefusal('~~a~~'), 'a tilde pair, which GitHub reads as strikethrough, at 0'),
             shortcode: () => assertEq(proseRefusal(':shipit:'), 'an emoji shortcode candidate at 0'),
             shortcodeAliases: () => {
                 for (const name of ['+1', '-1', 'non-potable_water', '100']) {
@@ -306,6 +384,12 @@ export const proof = {
             text: () => assertEq(tryParseEntry('_a_')[0], 'error'),
             strong: () => assertEq(tryParseEntry('**a_**')[0], 'error'),
             label: () => assertEq(tryParseEntry('[_a_](u)')[0], 'error'),
+            // A link inside bold is read as any link is.
+            labelInsideStrong: () => assertEq(tryParseEntry('**[_a_](u)**')[0], 'error'),
+            targetInsideStrong: () => assertStructurallySame(tryParseEntry('**[a](&amp;)**'), error('an entity in a link target')),
+            // After an `!`, GitHub reads an image, which bold does not hold here.
+            imageInsideStrong: () => assertStructurallySame(tryParseEntry('**a ![b](u)**'), error('an image inside bold or emphasis')),
+            imageInsideEm: () => assertStructurallySame(tryParseEntry('*a ![b](u)*'), error('an image inside bold or emphasis')),
             labelWithCode: () => assertStructurallySame(
                 spans(`[the ${tick}a${tick} file](u)`),
                 [['link', [['text', 'the '], ['code', 'a'], ['text', ' file']], 'u']]),
@@ -337,12 +421,65 @@ export const proof = {
             strong: () => assertEq(tryParseEntry('**a*b*')[0], 'error'),
             emAfterStrong: () => assertEq(tryParseEntry('**a***b*')[0], 'error'),
         },
+        // GitHub's strikethrough, read where both its runs are the entry's
+        // own text; every other tilde is text or refused.
+        strikethrough: {
+            read: () => assertStructurallySame(spans('a ~~b~~ c'), [['text', 'a '], ['del', [['text', 'b']]], ['text', ' c']]),
+            spans: () => assertStructurallySame(spans(`~~**b** ${tick}c${tick} [d](u)~~ e`), [
+                ['del', [['strong', [['text', 'b']]], ['text', ' '], ['code', 'c'], ['text', ' '], ['link', [['text', 'd']], 'u']]],
+                ['text', ' e'],
+            ]),
+            // Its runs may stand in two text runs, with spans between.
+            acrossTextRuns: () => assertStructurallySame(spans(`~~a ${tick}b${tick} c~~`),
+                [['del', [['text', 'a '], ['code', 'b'], ['text', ' c']]]]),
+            twice: () => assertStructurallySame(spans('~~a~~ and ~~b~~'),
+                [['del', [['text', 'a']]], ['text', ' and '], ['del', [['text', 'b']]]]),
+            // A run that opens nothing, closes nothing or is closed by
+            // nothing is the tilde it is.
+            about: () => assertStructurallySame(spans('about ~0.2 s and ~1.6 s'), [['text', 'about ~0.2 s and ~1.6 s']]),
+            unopened: () => assertStructurallySame(spans('a~ b'), [['text', 'a~ b']]),
+            spaced: () => assertStructurallySame(spans('a ~ b'), [['text', 'a ~ b']]),
+            unclosed: () => assertStructurallySame(spans('~~a'), [['text', '~~a']]),
+            // GitHub reads a bare URL as one link before its tildes.
+            inBareUrl: () => {
+                assertStructurallySame(spans('see https://e.x/~~a~~/b'), [['text', 'see '], ['link', [['text', 'https://e.x/~~a~~/b']], 'https://e.x/~~a~~/b']])
+                assertStructurallySame(spans('https://e.x/~a b'), [['link', [['text', 'https://e.x/~a']], 'https://e.x/~a'], ['text', ' b']])
+                // Its balanced parentheses are the link's, as `bareUrl` reads them.
+                assertStructurallySame(spans('https://e.x/(a~)'), [['link', [['text', 'https://e.x/(a~)']], 'https://e.x/(a~)']])
+                // A word GitHub reads as no link is refused as such.
+                assertEq(tryParseEntry('https://ex/~~a~~')[1], 'a bare URL, which GitHub reads as a link, at 0')
+                // A word with no scheme is no URL.
+                assertStructurallySame(spans('e.x/~~a~~'), [['text', 'e.x/'], ['del', [['text', 'a']]]])
+            },
+            // Bold beside it sees a tilde, which is punctuation.
+            besideBold: () => {
+                assertStructurallySame(spans('**a**~~b~~'), [['strong', [['text', 'a']]], ['del', [['text', 'b']]]])
+                assertStructurallySame(spans('~~a~~**b**'), [['del', [['text', 'a']]], ['strong', [['text', 'b']]]])
+            },
+            refuses: {
+                body: () => assertEq(tryParseEntry('~~a _b_~~')[1], 'an underscore that GitHub may read as emphasis at 2'),
+                unknownNeighbour: () => assertEq(tryParseEntry('~~a~~\u2014')[1], 'a tilde beside a character whose kind GitHub may read otherwise'),
+                threeTildes: () => assertEq(tryParseEntry('~~~a~~~')[1], 'a run of three or more tildes, which GitHub may read otherwise'),
+                bothWays: () => assertEq(tryParseEntry('a~~b~~c')[1], 'a tilde run that GitHub may read as opening or closing strikethrough'),
+                twoLengths: () => assertEq(tryParseEntry('~~a~ b')[1], 'tilde runs of two lengths, which GitHub may pair otherwise'),
+                single: () => assertEq(tryParseEntry('~a~')[1], 'a single-tilde pair, which GitHub may read as strikethrough'),
+                insideBold: () => assertEq(tryParseEntry('**~~a~~**')[1], 'strikethrough inside or across bold or emphasis'),
+                acrossBold: () => assertEq(tryParseEntry('~~a **b~~ c**')[1], 'strikethrough inside or across bold or emphasis'),
+                nested: () => assertEq(tryParseEntry('~~a ~~b~~ c~~')[1], 'strikethrough inside strikethrough'),
+                // GitHub cuts a tilde off a URL's end and reads it again.
+                bareUrlTail: () => {
+                    assertEq(tryParseEntry('~~see https://e.x~~')[1], 'a tilde at the end of a bare URL, which GitHub may read otherwise')
+                    assertEq(tryParseEntry('https://e.x/a~.')[1], 'a tilde at the end of a bare URL, which GitHub may read otherwise')
+                    assertEq(tryParseEntry('(https://e.x/a~)')[1], 'a tilde at the end of a bare URL, which GitHub may read otherwise')
+                },
+            },
+        },
         tildeAcrossSpans: {
             emphasis: () => assertEq(tryParseEntry('~*foo*~')[0], 'error'),
             strong: () => assertEq(tryParseEntry('~**foo**~')[0], 'error'),
             link: () => assertEq(tryParseEntry('~[foo](u)~')[0], 'error'),
             code: () => assertEq(tryParseEntry(`~${tick}foo${tick}~`)[0], 'error'),
-            double: () => assertEq(tryParseEntry('~~*foo*~~')[0], 'error'),
+            double: () => assertStructurallySame(spans('~~*foo*~~'), [['del', [['em', [['text', 'foo']]]]]]),
             label: () => assertEq(tryParseEntry(`[~${tick}foo${tick}~](u)`)[0], 'error'),
             insideStrong: () => assertEq(tryParseEntry(`**~${tick}x${tick}~**`)[0], 'error'),
             insideEmphasis: () => assertEq(tryParseEntry(`*~${tick}x${tick}~*`)[0], 'error'),
@@ -376,9 +513,39 @@ export const proof = {
         parenthesesInATarget: () => assertStructurallySame(blocks('[a](https://e.x/b_(c))\n'), [['paragraph', [['link', [['text', 'a']], 'https://e.x/b_(c)']]]]),
         heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
             [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', [['text', 'b']]]]]]),
+        // A quote's lines, each without its `>` and one space, are blocks
+        // of their own: a `>` alone is a blank line between two of them.
+        quote: () => assertStructurallySame(blocks('> a\n> b\n>\n> - c\n>   d\n>\n> ```js\n> x\n> ```\n'), [['quote', [
+            ['paragraph', [['text', 'a b']]],
+            ['list', false, [[['paragraph', [['text', 'c d']]]]]],
+            ['code', 'js', 'x\n'],
+        ]]]),
+        // Three or more of one of `-`, `*` and `_`, spaced or not, are a
+        // rule wherever a block starts; `- - -` is one, not a list.
+        thematicBreaks: () => assertStructurallySame(blocks('---\n\n***\n___ _\n* * *\n- - -\n# a\n---\n'),
+            [['rule'], ['rule'], ['rule'], ['rule'], ['rule'], ['heading', 1, [['text', 'a']]], ['rule']]),
+        // `***` and `___` end a paragraph; `---` there is refused below.
+        thematicBreakAfterAParagraph: () => assertStructurallySame(blocks('a\n***\nb\n_ _ _\n'),
+            [['paragraph', [['text', 'a']]], ['rule'], ['paragraph', [['text', 'b']]], ['rule']]),
+        // Text after the marks makes a list or a paragraph of the line.
+        notAThematicBreak: () => assertStructurallySame(blocks('- - a\n'), [['list', false, [[['list', false, [[['paragraph', [['text', 'a']]]]]]]]]]),
+        quoteWithoutASpace: () => assertStructurallySame(blocks('>a\n'), [['quote', [['paragraph', [['text', 'a']]]]]]),
+        emptyQuote: () => assertStructurallySame(blocks('>\n'), [['quote', []]]),
+        nestedQuote: () => assertStructurallySame(blocks('>> a\n> > b\n'), [['quote', [['quote', [['paragraph', [['text', 'a b']]]]]]]]),
+        // A quote ends a paragraph, and a blank line ends a quote.
+        quoteAfterAParagraph: () => assertStructurallySame(blocks('a\n> b\n\n> c\n'),
+            [['paragraph', [['text', 'a']]], ['quote', [['paragraph', [['text', 'b']]]]], ['quote', [['paragraph', [['text', 'c']]]]]]),
+        quoteInAnItem: () => assertStructurallySame(blocks('- a\n\n  > b\n'),
+            [['list', true, [[['paragraph', [['text', 'a']]], ['quote', [['paragraph', [['text', 'b']]]]]]]]]),
         // A numbered list starts at its first number; its items are a list's.
         olist: () => assertStructurallySame(blocks('3. a\n4. b\n   - c\n'),
             [['olist', 3, false, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]], ['list', false, [[['paragraph', [['text', 'c']]]]]]]]]]),
+        // A numbered list that starts at 1 ends the paragraph before it, as
+        // CommonMark reads it, and so in an item's text too.
+        olistAfterAParagraph: () => assertStructurallySame(blocks('Remaining:\n1. a\n2. b\n'),
+            [['paragraph', [['text', 'Remaining:']]], ['olist', 1, false, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
+        olistInAnItemsText: () => assertStructurallySame(blocks('- On POSIX:\n  1) a\n     b\n'),
+            [['list', false, [[['paragraph', [['text', 'On POSIX:']]], ['olist', 1, false, [[['paragraph', [['text', 'a b']]]]]]]]]]),
         olistParen: () => assertStructurallySame(blocks('1) a\n\n1) b\n'),
             [['olist', 1, true, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
         // Another delimiter ends the list, as GitHub starts another.
@@ -481,7 +648,8 @@ export const proof = {
             tableDelimiterWithoutAPipe: () => assertEq(refusal('|a|\n-\n'), 'line 1: a table'),
             emptyItem: () => assertEq(refusal('- \n'), 'line 1: a list item whose text does not follow its marker'),
             itemIndentedPastItsMarker: () => assertEq(refusal('-  a\n'), 'line 1: a list item whose text does not follow its marker'),
-            nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n'), 'line 4: a block quote'),
+            // A refusal inside a quote in an item names the line in the file.
+            nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n    >\n    > _d_\n'), 'line 6: an underscore that GitHub may read as emphasis at 0'),
             email: () => assertEq(refusal('mail a.b+c@x-y.example.org\n'), 'line 1: an email address, which GitHub reads as a link, at 10'),
             linkTargetEntity: () => assertEq(refusal('[x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in a link target'),
             imageSourceEntity: () => assertEq(refusal('![x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in an image source'),
@@ -517,7 +685,13 @@ export const proof = {
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
             // A tab reaches the fourth column, so the line is code on GitHub.
             tabIndent: () => assertEq(refusal('\ta\n'), 'line 1: a tab in an indent'),
-            quote: () => assertEq(refusal('> a\n'), 'line 1: a block quote'),
+            // GitHub continues a quote's paragraph on the line after it.
+            lazyQuote: () => assertEq(refusal('> a\nb\n'), 'line 2: a line right after a block quote, which GitHub may read as part of it'),
+            indentedQuote: () => assertEq(refusal(' > a\n'), 'line 1: an indented block quote'),
+            headingInAQuote: () => assertEq(refusal('> a\n>\n> # b\n'), 'line 3: a heading inside a block quote'),
+            quoteTab: () => assertEq(refusal('> a\n>\tb\n'), 'line 2: a tab after a block quote marker'),
+            // GitHub draws an alert as a box, not a quote.
+            alert: () => assertEq(refusal('> [!NOTE]\n> a\n')?.startsWith('line 1: entry: unexpected symbol'), true),
             table: () => assertEq(refusal('| a |\n'), 'line 1: a table'),
             tableUnderAHeader: () => assertEq(refusal('a | b\n--- | ---\n'), 'line 2: a table'),
             html: () => assertEq(refusal('<div>\n'), 'line 1: raw HTML'),
@@ -530,13 +704,18 @@ export const proof = {
             plusWord: () => assertEq(refusal('+a\n'), null),
             // A numbered item continuing a paragraph, which GitHub reads only from 1.
             numbered: () => assertEq(refusal('a\n2. b\n'), 'line 2: a numbered list'),
+            // An item with no text cannot interrupt a paragraph either.
+            numberedEmptyAfterParagraph: () => assertEq(refusal('a\n1. \n'), 'line 2: a numbered list'),
             numberedParen: () => assertEq(refusal('12)\n'), 'line 1: a numbered list'),
             numberedIndent: () => assertEq(refusal('1. a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
             numberedTab: () => assertEq(refusal('1.\titem'), 'line 1: a numbered list'),
             numberedParenTab: () => assertEq(refusal('12)\titem'), 'line 1: a numbered list'),
             numberedTabAfterParagraph: () => assertEq(refusal('text\n1.\titem'), 'line 2: a numbered list'),
             numberIsProse: () => assertEq(refusal('1.5 is a number\n\n2024 a\n\n12\n'), null),
-            thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
+            // Under a paragraph's line, `---` underlines a heading on GitHub.
+            setextDashes: () => assertEq(refusal('a\n---\n'), 'line 2: a thematic break or a heading underline'),
+            indentedThematicBreak: () => assertEq(refusal(' ---\n'), 'line 1: a thematic break or a heading underline'),
+            twoDashes: () => assertEq(refusal('--\n'), 'line 1: a thematic break or a heading underline'),
             setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),
             hardBreak: () => assertEq(refusal('a  \nb\n'), 'line 1: a hard line break'),
             hardBreakInAnItem: () => assertEq(refusal('- first  \n  second\n'), 'line 1: a hard line break'),

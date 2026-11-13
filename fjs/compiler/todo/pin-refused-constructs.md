@@ -52,13 +52,9 @@ behaviour, and a table of cases is one test.
 - [ ] Ask the language designer which **open** rows are permanent, and set
       their **Why**.
 - [ ] Pin the **open** rows that no proof pins.
-- [ ] Settle one possible gap: `0o7` is left out of the specification without
-      a stated reason, while `0b` and `0x` are accepted. State the reason, or
-      admit it, and then set its **Why**
-      ([design principles §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 
 ### Related
 
 - [Refused constructs](../../../spec/todo/refused-constructs.md), the register.
-- [The `in` decision](../../../spec/todo/2346-in-operator.md), whose refusal
-  proof is the model for the rest.
+- [The `in` record](../../../spec/todo/2346-in-operator.md), whose refusal
+  proof, now of the computed key alone, is the model for the rest.

@@ -139,7 +139,7 @@ which is refused as a read but accepted as a call) is an included page with a
      `◌` [namespace import](./2220-namespace-import.md)
 5. **Bindings**
    - `●` `const`; `●` sharing (a `const` used twice, a repeated expression)
-   - `●` [Destructuring](./2450-destructuring.md)
+   - `●` [Destructuring](../bindings/destructuring/README.md)
    - `●` [Variables](../bindings/variables/README.md): `let` and assignment
      ([normalization](../bindings/variables/README.md#normalization))
    - `◌` [Shadowing](./3150-shadowing.md),
@@ -150,8 +150,8 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Arithmetic, comparison, bitwise
    - `●` Lazy operators `&& || ??` and `?:`; `●` `!`
    - `●` `typeof`; `●` `instanceof`
-   - `◌` `==` `!=` (refused by design); `◌` [`in`](./2346-in-operator.md)
-     (refused); `◌` unary `+`, comma
+   - `●` `in`
+   - `◌` `==` `!=` (refused by design); `◌` unary `+`, comma
 7. **Conversions**
    - `●` `Number(...)`; `○` `String(...)`; `◌` other call shapes ([refused by design](../principles/README.md#operators-and-functions))
 8. **Property access**

@@ -55,10 +55,32 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 export const proof = {
+    postTestLoopSourceShape: () => {
+        const graph = sourceOf('export default c=>{do{}while(c);};')
+        const loop = nodeOf(graph, 'do...while')
+        assertStructurallySame(from(graph, loop).map(edge => [edge.label, edge.kind]), [['body', undefined], ['cond', 'lazy']])
+    },
+    terminalLoopFastHasNoInventedFailure: () => {
+        const graph = ofText('export default n=>{let i=n;while(true){if(i===0){return i;}i-=1;}};')
+        const loop = nodeOf(graph, 'loop')
+        assertStructurallySame(from(graph, loop).map(edge => edge.label), ['param 0', 'initial 0', 'body'])
+        assertEq(graph.nodes.some(node => node.label === 'throw'), false)
+        assertStructurallySame(from(graph, nodeOf(graph, 'continue')).map(edge => [edge.label, edge.to, edge.back]).slice(0, 1), [['to', loop, true]])
+    },
     terminalLoopSourceShape: () => {
         const graph = sourceOf('export default ()=>{while(true){return 1;}};')
-        const loop = nodeOf(graph, 'terminal while')
+        const loop = nodeOf(graph, 'while')
         assertStructurallySame(from(graph, loop).map(edge => [edge.label, edge.kind]), [['cond', undefined], ['body', 'lazy']])
+        // Separately supplied source exits retain their established display shape.
+        const shape = sourceGraph({ ...assertOk(parse('')('export default 0;')), body: { statements: [], exit: ['terminal-loop', {
+            target: { kind: 'loop', index: 0 }, events: [], condition: true,
+            body: { statements: [], exit: ['throw', 1] },
+        }] } })
+        assertEq(shape.nodes.some(node => node.label === 'terminal while'), true)
+        const switched = sourceGraph({ ...assertOk(parse('')('export default 0;')), body: {
+            statements: [], exit: ['switch', 1, [], { statements: [], exit: ['throw', 2] }],
+        } })
+        assertEq(switched.nodes.some(node => node.label === 'switch'), true)
     },
     /**
      * The shape against hand-built tuples in the EDAG's spelling, not source
@@ -324,8 +346,15 @@ export const proof = {
             assertEq(shape.label, 'instanceof Array')
             assertStructurallySame(shape.children, [['operand', ['a']]])
         },
+        // An entry check's key is a spelling in the label, not a child:
+        // the one edge is the operand's.
+        in: () => {
+            const shape = nodeShapeOf(['in', 'x', ['a']], 'expected a shape')
+            assertEq(shape.label, '"x" in')
+            assertStructurallySame(shape.children, [['operand', ['a']]])
+        },
         op1: () => {
-            for (const tag of ['String', 'Number', '!', '~', 'typeof']) {
+            for (const tag of ['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof']) {
                 const shape = nodeShapeOf([tag, ['a']], tag)
                 assertEq(shape.label, tag)
                 assertStructurallySame(shape.children, [['operand', ['a']]])
@@ -499,6 +528,8 @@ export const proof = {
         // place among the module's bindings, and then the names: a spread
         // copy first, then items by index and members by key.
         destructuring: () => {
+            const numeric = sourceOf('const {MAX_SAFE_INTEGER: max}=Number;export default max;')
+            assert(numeric.edges.some(edge => edge.label === String(Number.MAX_SAFE_INTEGER)))
             const g = sourceOf('const [p, { q }] = [1, { q: 2 }]; export default [p, q];')
             assertStructurallySame(from(g, nodeOf(g, 'initialize')).map(e => e.label), ['...=', '0[0]', '0[1]', '2.q', 'value'])
             assertStructurallySame(g.nodes.filter(n => n.kind === 'binding').map(n => n.label), ['$0', 'p', '$2', 'q'])

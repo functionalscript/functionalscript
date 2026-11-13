@@ -11,9 +11,9 @@
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
-import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
+import { isHelper, isStatic } from '../../../edag/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
 
 /** @type {() => BindingId} */
@@ -29,8 +29,7 @@ const operandContext = (owner, permitted) => ({ owner, operand: true, loops: per
 
 /** References and native leaves are bare callees; member lookup syntax must stay intact. @type {(source: Value, callee?: boolean) => _Value} */
 const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref' || source[0] === 'function'
-    || source[0] === 'array' || source[0] === 'object' || isStatic(source) || isIntrinsic(source)
-    || source[0] === 'entry' || source[0] === 'hasEntry') =>
+    || source[0] === 'array' || source[0] === 'object' || isStatic(source) || isHelper(source)) =>
     ({ statement: null, value: source, normal: true, callee })
 
 /** A reached spread uses the ordinary array expansion kernel in either FAST stage. @type {<V>(value: V) => readonly ['array', readonly [readonly ['...', V]]]} */
@@ -269,7 +268,7 @@ const valueTask = (source, destination, owner, permitted) => call(() => {
             ? { statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee }
             : plain(source, result.callee)))
     }
-    if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === '+' && source.length === 2
+    if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === 'in'
         || source[0] === ',' && source[1].length !== 0
         || source[0] === 'object'
         || source[0] === '()' || source[0] === 'array') {
@@ -309,6 +308,21 @@ const blockTask = (source, context, mode) => {
     const each = (index, statements, returns, lifted, changed) => call(() => {
         if (index === source.statements.length) {
             const exit = source.exit
+            if (exit[0] === 'loop') {
+                const loop = exit[1]
+                return bind(sequenceTask(loop.initial, context.owner, false, context.permitted), initial => {
+                    const next = initial.lifted
+                        ? initial.statements.reduce((/** @type {List<Statement>} */ tail, first) => ({ first, tail }), statements) : statements
+                    if (!initial.normal) { return finish(next, exit, false, true, true, true) }
+                    return bind(blockTask(loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), body => {
+                        /** @type {Exit} */
+                        const mapped = !initial.lifted && body.block === loop.body ? exit
+                            : ['loop', { ...loop, initial: initial.lifted ? initial.values : loop.initial, body: body.block }]
+                        return finish(next, mapped, false, returns || context.operand || initial.lifted || body.returns,
+                            lifted || initial.lifted || body.lifted, changed || mapped !== exit || initial.lifted)
+                    })
+                })
+            }
             if (context.operand && (exit[0] === 'return' && exit[1] !== context.owner
                 || (exit[0] === 'break' || exit[0] === 'continue') && !toArray(context.loops).includes(exit[1]))) {
                 throw 'a value region may return only to its owning function or transfer within its own loops'

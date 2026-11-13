@@ -17,21 +17,21 @@ import {
     assertEq,
     assertStructurallySame,
 } from '../../asserts/module.f.js'
-import { pure } from '../../effects/module.f.mjs'
-import { pureError } from '../../effects/module.f.mjs'
+import { pure } from '../../effects/module.f.js'
+import { pureError } from '../../effects/module.f.js'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
-import { sha256 } from '../../crypto/sha2/module.f.mjs'
+import { sha256 } from '../../crypto/sha2/module.f.js'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { vec8 } from '../../types/bit_vec/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vec8 } from '../../types/bit_vec/module.f.js'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { ok, error, unwrap as unwrapResult } from '../../types/result/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
-import { tryUtf8 } from '../../text/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
+import { tryUtf8 } from '../../text/module.f.js'
 import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
 import {
-    buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,
+    buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision, evoError, evoSummary,
 } from './module.f.mjs'
 
 const store = fileCas(sha256)('.')
@@ -127,6 +127,10 @@ const assertEvoError = (r, expected) =>
         ['expected an evo error containing', expected, r])
 
 export const proof = {
+    channelSummaries: () => {
+        assertEq(evoSummary(evoError('invalid revision')), 'invalid revision')
+        assertEq(evoSummary(['notImplemented', 'readBytes']), 'operation not implemented: readBytes')
+    },
     buildCacheEmptyStoreYieldsEmptyCache: () => {
         const [, cache] = virtualOk(emptyState)(buildCache(store))
         assertStructurallySame(cache, emptyCache)

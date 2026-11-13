@@ -2,6 +2,7 @@
  * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../js/ast/types.ts'
  * @import { Exp } from '../types.ts'
  * @import { Environment, Transfer } from './types.ts'
+ * @import { Runtime } from '../value/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
@@ -141,7 +142,7 @@ const collectingMemo = (value, limit = 3, selected = true) => {
 /** @type {(value: Value, ago?: number) => Value} */
 const collectedMemo = (value, ago = 0) => {
     let previous = value
-    for (let index = 0; index < ago; ++index) { previous = ['.', previous, 0] }
+    for (let index = 0; index < ago; index += 1) { previous = ['.', previous, 0] }
     return ['.', previous, 1]
 }
 
@@ -184,6 +185,19 @@ export const _collectingMemo = collectingMemo
 export const _collectedMemo = collectedMemo
 
 export const proof = {
+    unusedBooleanRetainsItsRuntimeCall: () => {
+        const converted = id(0)
+        const later = id(1)
+        const runtime = /** @type {Runtime} */ (['{}', [[':', 'Boolean', ['=>', 1, [], ['throw', 'Boolean runtime']]]]])
+        const ignored = fromFast(result(3, [['define', converted, ['Boolean', false], 'required']]))
+        assertEq(assertError(memo(assertOk(identityAnalysis(ignored)))({ args: [], runtime })), 'Boolean runtime')
+        assertEq(assertError(memo(assertOk(identityAnalysis(ignored)))({ args: [] })), 'no binding for the Boolean operator')
+        const beforeFailure = fromFast(result(3, [
+            ['define', converted, ['Boolean', false], 'required'],
+            ['define', later, ['block', { statements: [], exit: ['throw', 'later'] }], 'required'],
+        ]))
+        assertEq(assertError(memo(assertOk(identityAnalysis(beforeFailure)))({ args: [], runtime })), 'Boolean runtime')
+    },
     distinctThrownValuesRetainInitializationOrder: () => {
         const first = id(0), second = id(0)
         const initial = /** @type {Value} */ (['block', { statements: [], exit: ['throw', 1] }])
@@ -224,6 +238,7 @@ export const proof = {
             [['.', first, 'x'], [first], true],
             [['?:', first, second, 0], [first], true],
             [['instanceof', first, 'Array'], [first], true],
+            [['in', 'x', first], [first], true],
             [['!', first], [first], true],
             [['typeof', first], [first], true],
             [['===', first, second], [first, second], true],
@@ -294,7 +309,7 @@ export const proof = {
         assertEq(new Set(lowered.anchors).size, count)
         assert(graph instanceof Array && graph[0] === ',')
         assertEq(graph[1].length, count + 1)
-        for (let index = 0; index < count; ++index) {
+        for (let index = 0; index < count; index += 1) {
             assertEq(graph[1][index], lowered.anchors[index])
             assertStructurallySame(graph[1][index], ['[]', []])
         }
@@ -412,7 +427,7 @@ export const proof = {
         let left = 1
         /** @type {Value} */
         let right = 1
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const a = id(depth)
             const b = id(depth)
             left = ['block', result(['if', ref(a), result(1), result(ref(a))], [['define', a, left, 'required']])]
@@ -420,7 +435,7 @@ export const proof = {
         }
         let a = fromFast(result(left))
         let b = fromFast(result(right))
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             assert(a instanceof Array && a[0] === '?:')
             assert(b instanceof Array && b[0] === '?:')
             assert(a[1] === a[3])
@@ -1055,7 +1070,7 @@ export const proof = {
         const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         for (const depth of [2, 3]) {
             let inner = returningLoop(['===', ref(count), 1], ['array', [ref(count), 5]])
-            for (let level = 2; level < depth; ++level) {
+            for (let level = 2; level < depth; level += 1) {
                 const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
                 inner = /** @type {Loop} */ ({
                     target: loopTarget, parameters: [], initial: [], results: [],
@@ -1690,7 +1705,7 @@ export const proof = {
     sharedFunctionJoinDeepStatements: () => {
         /** @type {Block} */
         let nested = body(['yield', []])
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             nested = body(['yield', []], [['if', [], false, body(['return', target, 9]), nested]])
         }
         const fn = /** @type {FastFunction} */ ({
@@ -1700,7 +1715,7 @@ export const proof = {
         const graph = fromFast(result(['function', fn]))
         assert(graph instanceof Array && graph[0] === '=>')
         let exp = graph[3]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             assert(exp instanceof Array && exp[0] === '?:')
             assertEq(exp[1], false)
             assertEq(exp[2], 9)

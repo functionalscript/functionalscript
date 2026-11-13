@@ -5,7 +5,7 @@
  * **One line per code point**, because that is the unit UTF-8 works in: `h` is
  * one byte, `é` two, `€` three, `😀` four, and the lead byte's high bits say
  * which. Seeing them side by side is what the byte-format table in
- * `module.f.mjs` describes.
+ * `module.f.js` describes.
  *
  * **The bytes are shown in hex, and said to be**, because a reader can check
  * them: `printf '%s' 'hé€😀' | od -An -tx1` prints the same bytes in the same
@@ -30,11 +30,11 @@
  */
 
 import { codeMarker } from '../../website/style/module.f.js'
-import { fromCodePointList } from './module.f.mjs'
-import { stringToCodePointList } from '../utf16/module.f.mjs'
-import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { fromCodePointList } from './module.f.js'
+import { stringToCodePointList } from '../utf16/module.f.js'
+import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 import { textDemo, caption } from '../../website/demo/module.f.mjs'
 
 /** A byte's two hex digits. */

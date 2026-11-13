@@ -21,24 +21,39 @@
  *
  * @module
  *
+ * @import { Monoid } from '../../common/monoid/types.ts'
  * @import { PersistentSet } from './types.ts'
  */
 
-import { runs, step } from '../../common/monoid/module.f.mjs'
-import { flatMap, map, someBy } from '../list/module.f.mjs'
-import { toArray } from '../list/alt/module.f.mjs'
-import { sum } from '../number/module.f.mjs'
+import { runs, step } from '../../common/monoid/module.f.js'
+import { flatMap, map, someBy } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
+import { sum } from '../number/module.f.js'
 
 /** The set with nothing in it. @type {PersistentSet<never>} */
 export const empty = null
 
 /**
- * Pushes a run onto the stack, every run of the same size on the way merged
- * into it by the union of two disjoint `Set`s.
+ * The union of two disjoint `Set`s, under which a run weighs its size. One
+ * monoid serves every element type, since none of it reads an element.
+ *
+ * @type {Monoid<ReadonlySet<unknown>>}
+ */
+const union = {
+    identity: new Set(),
+    operation: a => b => new Set([...a, ...b]),
+    weight: s => s.size,
+}
+
+/**
+ * Pushes a run onto the stack, merging the two runs beneath it by
+ * {@link union} wherever the second is no larger than it. The step is built
+ * once, here, and the cast gives it back the element type that {@link union}
+ * does without.
  *
  * @type {<T>(run: ReadonlySet<T>) => (set: PersistentSet<T>) => PersistentSet<T>}
  */
-const carry = step(a => b => new Set([...a, ...b]))
+const carry = /** @type {<T>(run: ReadonlySet<T>) => (set: PersistentSet<T>) => PersistentSet<T>} */ (step(union))
 
 export const has =
     /**
@@ -54,7 +69,8 @@ export const add =
     /**
      * The set with the value in it: the same set where it already was, and
      * otherwise the value pushed onto the run stack as a one-element `Set`,
-     * carried like a binary counter.
+     * carried like a binary counter one push late, so the stack is at most
+     * twice the binary length of the size.
      *
      * @template T
      * @param {T} value

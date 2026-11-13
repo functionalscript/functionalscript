@@ -1,5 +1,5 @@
 /**
- * The proof of [`testlib.f.mjs`](./testlib.f.mjs)'s three functions.
+ * The proof of [`testlib.f.js`](./testlib.f.js)'s three functions.
  *
  * Beside the module rather than in a directory of its own, because the module
  * is a bare file: `fjs/git` holds the fixtures every reader here shares, and
@@ -15,7 +15,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { isNotFound } from '../effects/node/module.f.mjs'
-import { hexBytes, latin1, noFile } from './testlib.f.mjs'
+import { hexBytes, latin1, noFile } from './testlib.f.js'
 
 export const proof = {
     // What an in-memory host answers for a path it holds nothing at: the

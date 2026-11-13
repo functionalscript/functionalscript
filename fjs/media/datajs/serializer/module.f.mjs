@@ -77,13 +77,13 @@
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
-import { empty, flat } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
-import { cmp } from '../../../types/number/module.f.mjs'
+import { serialize as bigintSerialize } from '../../../types/bigint/module.f.js'
+import { empty, flat } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
+import { cmp } from '../../../types/number/module.f.js'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
-import { pushOk, walkFold } from '../../../types/stack_walk/module.f.mjs'
+import { pushOk, walkFold } from '../../../types/stack_walk/module.f.js'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
@@ -464,13 +464,20 @@ const spelled = chunks => chunks
  * name is declared before it is used, and then the exported value, the
  * leaves spelled here from the linked graph.
  *
- * @type {(graph: _Graph) => List<Chunk>}
+ * `unknownExport` writes an ordinary JavaScript module with an explicitly
+ * unknown default boundary, rather than a DataJS document. Its extra const
+ * follows the shared-node names, so it cannot shadow one of them.
+ *
+ * @type {(graph: _Graph, unknownExport?: boolean) => List<Chunk>}
  */
-const write = graph => {
+const write = (graph, unknownExport = false) => {
     const names = constNames(graph)
     const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
     const statements = [...names].map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[i], [';']]))
-    return flat([flat(statements), [keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])
+    const exported = unknownExport
+        ? flat([['\n/** @type {unknown} */\n', keyword('const'), ` $${names.size}=`], value(graph.root), [';'], [keyword('export'), ' ', keyword('default'), ` $${names.size};`]])
+        : flat([[keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])
+    return flat([flat(statements), exported])
 }
 
 /**
@@ -516,10 +523,23 @@ export const trySerialize = value => mapOk(chunkStrings)(_trySerialize(value))
  *
  * @type {(value: Unknown) => Result<List<Chunk>, string>}
  */
-export const _trySerialize = value => okThen(
+export const _trySerialize = value => tryDocument(write)(value)
+
+/** A validated graph written by the supplied document writer. @type {(write: (graph: _Graph) => List<Chunk>) => (value: Unknown) => Result<List<Chunk>, string>} */
+const tryDocument = write => value => okThen(
     /** @type {(step: _Step<Primitive>) => Result<List<Chunk>, string>} */
     (([walk, root]) => mapOk(write)(_link(toArray(walk.finished), root)))
 )(read(kept)(value))
+
+/**
+ * A shared-node JavaScript module exporting unknown rather than an inferred
+ * structural type. Used by the generated common-runtime EDAG, whose graph
+ * exceeds TypeScript's declaration serialization limit. This is ordinary
+ * JavaScript, not DataJS: its JSDoc annotation is outside DataJS's grammar.
+ *
+ * @type {(value: Unknown) => Result<string, string>}
+ */
+export const _tryUnknownStringify = value => mapOk(chunksText)(tryDocument(graph => write(graph, true))(value))
 
 /**
  * A value of the data model as the chunks of a tree document — JSON's

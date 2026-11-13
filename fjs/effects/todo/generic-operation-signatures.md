@@ -25,9 +25,9 @@ parameter and return types are fixed. A type parameter has nowhere to go in
 
 | Site | Cast |
 | --- | --- |
-| `create` in `fjs/effects/memory/module.f.mjs` | `<T>(value: T) => Effect<MemCreate, Key<T>>` |
-| `read` in `fjs/effects/memory/module.f.mjs` | `<T>(key: Key<T>) => Effect<MemRead, T>` |
-| `all` in `fjs/effects/common/module.f.mjs` | `<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O \| All, readonly Result<T, E>[], NotImplemented>` |
+| `create` in `fjs/effects/memory/module.f.js` | `<T>(value: T) => Effect<MemCreate, Key<T>>` |
+| `read` in `fjs/effects/memory/module.f.js` | `<T>(key: Key<T>) => Effect<MemRead, T>` |
+| `all` in `fjs/effects/common/module.f.js` | `<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O \| All, readonly Result<T, E>[], NotImplemented>` |
 
 The contrast is visible in one file: the non-generic constructors are written
 as `/** @type {Func<Stat>} */ const stat = do_('stat')` — an annotated

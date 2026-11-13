@@ -46,7 +46,7 @@ the shape of the decision does not change, only its answer.
       [`../proof.f.mjs`](../proof.f.mjs) and
       [`../../proof.f.mjs`](../../proof.f.mjs) (`fjsRoundTrip`), and keep a
       proof that a body needing a `const` is still a block.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

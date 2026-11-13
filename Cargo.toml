@@ -4,6 +4,5 @@ members = [
     "nanvm/lib",
     "nanvm/harness",
     "nanvm/effects-node",
-    "nanvm/demos",
-    "nanvm/demos/publish"
+    "nanvm/demos"
 ]

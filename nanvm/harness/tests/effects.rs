@@ -2,16 +2,16 @@
 //! loop of `nanvm-effects-node`: the pipeline from FunctionalScript source to
 //! a performed command, in one test.
 
-use nanvm_effects_node::{Native, run};
-use nanvm_harness::{fixtures::effect, runtime};
+use nanvm_effects_node::{Native, decode_result, run};
+use nanvm_harness::fixtures::effect;
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Array, Nullish, Object, ToAny, unstable::string_any},
+    vm::{Any, Nullish, ToAny},
 };
 
 /// An export of the compiled module, which is an effect.
 fn export(name: &str) -> Any<Naive> {
-    Object::try_from(effect::module::<Naive>(runtime()).unwrap())
+    nanvm_lib::vm::exports(effect::module::<Naive>)
         .unwrap()
         .own_property(&name.into())
         .unwrap()
@@ -39,38 +39,34 @@ fn a_language_throw_ends_the_run() {
     assert!(run(export("thrown"), |_, payload| Ok(payload)).is_err());
 }
 
-fn host() -> Native<std::io::Cursor<Vec<u8>>, Vec<u8>, Vec<u8>> {
-    Native::new(std::io::Cursor::new(Vec::new()), Vec::new(), Vec::new())
-}
-
 /// Two writes, the second reached through the first's continuation; the
 /// result holds the second's answer, `['ok', undefined]`.
 #[test]
 fn a_program_writes_to_the_console() {
-    let mut host = host();
+    let mut host = Native::buffered(&[]);
     let result = run(export("hello"), |command, payload| {
         host.perform(command, payload)
     })
     .unwrap();
     assert_eq!(host.stdout().as_slice(), b"hibye");
     assert!(host.stderr().is_empty());
-    let [tag, answer]: [Any<Naive>; 2] = Array::try_from(result).unwrap().try_into().unwrap();
-    assert_eq!(tag, string_any("ok"));
-    let answer: [Any<Naive>; 2] = Array::try_from(answer).unwrap().try_into().unwrap();
-    assert_eq!(answer, [string_any("ok"), Nullish::Undefined.to_any()]);
+    let answer = decode_result(result).unwrap().unwrap();
+    assert_eq!(
+        decode_result(answer).unwrap(),
+        Ok(Nullish::Undefined.to_any())
+    );
 }
 
 /// A command the host lacks is answered through the continuation as
 /// `['error', ['notImplemented', command]]`, and the program carries on.
 #[test]
 fn a_command_the_host_lacks() {
-    let mut host = host();
+    let mut host = Native::buffered(&[]);
     let result = run(export("missing"), |command, payload| {
         host.perform(command, payload)
     })
     .unwrap();
-    let [tag, answer]: [Any<Naive>; 2] = Array::try_from(result).unwrap().try_into().unwrap();
-    assert_eq!(tag, string_any("ok"));
+    let answer = decode_result(result).unwrap().unwrap();
     assert_eq!(
         answer.to_json(),
         Ok("[\"error\",[\"notImplemented\",\"fetch\"]]".into())

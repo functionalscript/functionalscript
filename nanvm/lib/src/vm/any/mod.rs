@@ -8,6 +8,8 @@ mod div;
 mod dot;
 mod from;
 mod get_iterator;
+#[cfg(test)]
+mod inspection_test;
 mod instanceof_;
 mod mul;
 mod neg;
@@ -29,7 +31,7 @@ pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{
-    IVm, Number, String, ToAny, Unpacked, boolean_coercion::BooleanCoercion, dispatch::Dispatch,
+    IVm, Number, String, ToAny, Unpacked, bigint_coercion::BigIntCoercion, dispatch::Dispatch,
     member_access::non_nullish_receiver, nullish::Nullish, number_coercion::NumberCoercion,
     numeric::Numeric, numeric_coercion, primitive_coercion::ToPrimitivePreferredType,
     primitive_dispatch::ViaPrimitive, string_coercion::StringCoercion,
@@ -65,18 +67,18 @@ impl<A: IVm> Any<A> {
         Nullish::Undefined.to_any()
     }
 
-    /// Whether `self` is `undefined` or `null`: `Unpacked::is_nullish` over
-    /// one unpack of a clone. A caller that already holds the `Unpacked` asks
-    /// it instead and keeps its single conversion.
+    /// Whether `self` is `undefined` or `null`, inspecting its borrowed
+    /// representation. A caller that already holds the `Unpacked` asks it
+    /// instead and keeps its single conversion.
     pub fn is_nullish(&self) -> bool {
-        Unpacked::from(self.clone()).is_nullish()
+        self.with_unpacked(Unpacked::is_nullish)
     }
 
     /// `None` for `undefined`, `Some(self)` for every other value, `null`
     /// included: the argument an optional parameter was passed, if it was
-    /// passed one. `Unpacked::is_undefined` over one unpack of a clone.
+    /// passed one. Borrows to inspect, then returns the owned value.
     pub fn defined(self) -> Option<Self> {
-        (!Unpacked::from(self.clone()).is_undefined()).then_some(self)
+        (!self.with_unpacked(Unpacked::is_undefined)).then_some(self)
     }
 
     /// Unary plus is nothing but coercion to number.
@@ -100,6 +102,14 @@ impl<A: IVm> Any<A> {
             Numeric::BigInt(b) => b.to_number(),
         }
         .to_any())
+    }
+
+    /// `BigInt(value)`: ordinary primitive conversion with the number hint,
+    /// then an exact integer conversion. This is an operator, not a value.
+    /// <https://tc39.es/ecma262/#sec-bigint-constructor>
+    pub fn bigint(self) -> Result<Any<A>, Any<A>> {
+        self.dispatch(ViaPrimitive(BigIntCoercion))
+            .map(ToAny::to_any)
     }
 
     /// `**`. Not a `core::ops` trait — Rust has no operator for
@@ -185,12 +195,8 @@ impl<A: IVm> Any<A> {
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
-    /// TODO: check and test.
-    pub fn is_nan(self) -> bool {
-        let Ok(n): Result<Number, _> = self.try_into() else {
-            return false;
-        };
-        n.is_nan()
+    pub fn is_nan(&self) -> bool {
+        self.with_unpacked(|v| matches!(v, Unpacked::Number(n) if n.is_nan()))
     }
 
     pub fn to_string(self) -> Result<String<A>, Any<A>> {
@@ -218,15 +224,15 @@ impl<A: IVm> Any<A> {
 
     /// Never fails, unlike `to_number`/`to_string`/`to_numeric` — `ToBoolean`
     /// inspects the operand's type directly and never calls `ToPrimitive`.
-    pub fn to_boolean(self) -> bool {
-        self.dispatch(BooleanCoercion)
+    pub fn to_boolean(&self) -> bool {
+        self.with_unpacked(Unpacked::to_boolean)
     }
 
     pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
         // https://tc39.es/ecma262/#sec-tonumeric
         // A function's primitive, its text, is a string and not a bigint, so
         // its `ToNumber` answers without converting it.
-        if let Unpacked::Function(_) = self.clone().into() {
+        if self.with_unpacked(|v| matches!(v, Unpacked::Function(_))) {
             return Ok(Numeric::Number(self.to_number()?));
         }
         numeric_coercion::to_numeric(self.to_primitive(Some(ToPrimitivePreferredType::Number))?)
@@ -234,6 +240,10 @@ impl<A: IVm> Any<A> {
 
     fn dispatch<T: Dispatch<A>>(self, o: T) -> T::Result {
         self.0.to_unpacked().dispatch(o)
+    }
+
+    pub(crate) fn with_unpacked<R>(&self, f: impl FnOnce(&Unpacked<A>) -> R) -> R {
+        self.0.with_unpacked(f)
     }
 }
 

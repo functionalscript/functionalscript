@@ -24,18 +24,18 @@
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, test } from '../effects/node/module.f.mjs'
-import { catch_, sandbox } from '../effects/common/module.f.mjs'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, ioError, test } from '../effects/node/module.f.mjs'
+import { catch_, sandbox } from '../effects/common/module.f.js'
 import {
     attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultStep, step,
     unreadableThrownValue, walkStep,
-} from '../effects/module.f.mjs'
-import { isAuthored, loadModuleMap } from '../dev/module.f.mjs'
+} from '../effects/module.f.js'
+import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.js'
-import { definedEntries } from '../types/object/module.f.mjs'
-import { concat } from '../types/list/module.f.mjs'
-import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.js'
+import { concat } from '../types/list/module.f.js'
+import { isIdentifier, isInteger } from '../js/identifier/module.f.js'
 import { stringLiteral } from '../js/string_escape/module.f.mjs'
 
 /**
@@ -141,13 +141,13 @@ export const parseTestSet = (throws, x) => {
                 const fn = /** @type {TestFn} */ (x)
                 return { fn, throws: throws || fn.name === 'throw' }
             }
-            break
+            return []
         }
         case 'object': {
             if (x !== null) {
                 return Object.entries(x)
             }
-            break
+            return []
         }
     }
     return []
@@ -201,7 +201,10 @@ const returnedTests = ([path, { throws }], value) =>
  * This is the correct model for Node `--test`, Bun, and Deno, where tests must
  * be declared upfront and the framework drives execution.
  *
- * @type {(ctx: TestContext, k: string, v: unknown) => Effect<Test | All | Await, void, NotImplemented>}
+ * Answers the number of initial proof leaves registered. Returned proof trees
+ * are registered later, when the native framework executes those leaves.
+ *
+ * @type {(ctx: TestContext, k: string, v: unknown) => Effect<Test | All | Await, number, NotImplemented>}
  */
 export const registerModule = (ctx, k, v) => {
     /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void, NotImplemented>} */
@@ -235,8 +238,8 @@ export const registerModule = (ctx, k, v) => {
         return test(ctx, name, throws, body)
     }
     const tests = collectTests([], false, v)
-    if (tests.length === 0) { return pureOk(undefined) }
-    return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
+    if (tests.length === 0) { return pureOk(0) }
+    return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => tests.length)
 }
 
 /**
@@ -341,7 +344,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // nested walk. Recursing instead left one continuation pending per
         // ancestor, so a leaf returning a deep enough chain of children died
         // with `RangeError` where the fan-out this replaced had not; see
-        // `../effects/module.f.mjs`'s `walkStep`.
+        // `../effects/module.f.js`'s `walkStep`.
         // A failure ends the run, but as a *value*: the walk carries it to the
         // summary, which describes what the run had already collected before
         // the channel gave out. Propagating it instead discarded exactly the
@@ -533,12 +536,14 @@ export const testAll = (reporter, select) => options =>
  * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
  *
- * @type {(ctx: TestContext) => (moduleMap: ModuleMap) => Effect<Test | All | Await, void, NotImplemented>}
+ * @type {(ctx: TestContext) => (moduleMap: ModuleMap) => Effect<Test | All | Await, number, NotImplemented>}
  */
 const registerModuleMap = ctx => moduleMap => {
     const modules = proofEntries(moduleMap)
-    if (modules.length === 0) { return pureOk(undefined) }
-    return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))), () => undefined)
+    if (modules.length === 0) { return pureOk(0) }
+    return mapStep(
+        allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))),
+        counts => counts.reduce((sum, count) => sum + count, 0))
 }
 
 /** @type {(k: string | null) => string} */
@@ -639,10 +644,22 @@ export const testResult = (file, path, r) => resultOf(testId(file, path), r)
  * it before the leaf ran — so this completes that line rather than repeating
  * it.
  *
- * @type {(r: TestResult, color: string, label: string) => string}
+ * @type {(r: TestResult, throws: boolean) => string}
  */
-const fmtResultEnd = ({ duration }, color, label) =>
-    `${color}${label}${reset}, ${terminalDuration(duration)}`
+const fmtResultEnd = ({ status, duration }, throws) => {
+    const passed = status === 'passed'
+    const label = passed ? `${fgGreen}ok` : `${fgRed}error`
+    return `${label}${reset}, ${terminalDuration(duration)}` + (passed && throws ? ' # EXPECTED TO THROW' : '')
+}
+
+/**
+ * A complete terminal result record, without a trailing newline. Independent
+ * records let concurrent consumers write each result in one operation while
+ * sharing the sequential reporter's status, style and duration formatting.
+ *
+ * @type {(t: TestResult, throws: boolean) => string}
+ */
+export const fmtResult = (t, throws) => `${t.name}: ${fmtResultEnd(t, throws)}`
 
 /**
  * The text of a value that may not want to be read. `String` runs user code, so
@@ -738,10 +755,7 @@ export const defaultReporter = options => {
         // for a second audience — `todo/tty-and-line-consumers.md` — not a
         // reason to reinstate it here.
         start: ({ name }) => out(`${name}: `),
-        result: (t, _r, throws) =>
-            t.status === 'passed'
-                ? csiLog(fmtResultEnd(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
-                : csiLog(fmtResultEnd(t, fgRed, 'error')),
+        result: (t, _r, throws) => csiLog(fmtResultEnd(t, throws)),
         // The details come before the counts, so the numbers a reader is
         // looking for are still the last thing on the screen.
         // A run that was abandoned gets its failures described and no counts:
@@ -790,4 +804,24 @@ export const register = (o, select) => {
     // one it must not. A success has no code of its own, which is exactly the
     // shape `exitStep` is for.
     return exitStep(registered)
+}
+
+/**
+ * Registers only the actual working directory's authored proofs. An empty
+ * suite is a failure, even when native test discovery would accept the entry
+ * itself as a successful file with no registered proof leaves.
+ *
+ * @type {NodeProgram}
+ */
+export const registerOne = options => {
+    const discovered = loadDirectoryModuleMap()
+    const registered = step(discovered, registerModuleMap(options.testContext))
+    const checked = step(registered, count => {
+        /** @type {Effect<never, void, IoChannel>} */
+        const result = count === 0
+            ? pureError(ioError({ message: 'No runnable proofs in the working directory' }))
+            : pureOk(undefined)
+        return result
+    })
+    return exitStep(checked)
 }

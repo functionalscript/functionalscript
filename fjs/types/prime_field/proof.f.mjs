@@ -1,7 +1,7 @@
-import { modSqrt, prime_field, sqrt } from './module.f.mjs'
+import { modSqrt, prime_field, sqrt } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     throw: {
         reciprocalZero: () => prime_field(7n).reciprocal(0n),
         sqrtBadPrime: () => sqrt(prime_field(5n)),
@@ -15,9 +15,9 @@ export const proof = {
                 assertEq(f.neg(0n), 0n)
                 assertEq(f.neg(1n), p - 1n)
             },
-            sub: () => {
-                assertEq(f.sub(10n)(4n), 6n)
-                assertEq(f.sub(11n)(14n), p - 3n)
+            subtract: () => {
+                assertEq(f.subtract(10n)(4n), 6n)
+                assertEq(f.subtract(11n)(14n), p - 3n)
             },
             add: () => {
                 assertEq(f.add(13n)(24n), 37n)
@@ -34,7 +34,7 @@ export const proof = {
                 let i = 1n
                 while (i < 10_000n) {
                     assertEq(f.mul(f.reciprocal(i))(i), 1n)
-                    ++i
+                    i += 1n
                 }
             },
             pow: () => {
@@ -45,7 +45,7 @@ export const proof = {
                     // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
                     // a^(p-1) % p = 1
                     assertEq(f.abs(f.pow(f.middle)(a)), 1n)
-                    assertEq(f.pow(f.sub(f.max)(1n))(a), f.reciprocal(a))
+                    assertEq(f.pow(f.subtract(f.max)(1n))(a), f.reciprocal(a))
                     assertEq(f.pow(f.max)(a), 1n)
                 }
                 // 0
@@ -85,14 +85,14 @@ export const proof = {
                 let i = 1n
                 while (i < 1_000n) {
                     test(i)
-                    ++i;
+                    i += 1n;
                 }
                 test(f.middle);
                 test(f.max);
             },
-            reduce: () => {
-                assertEq(f.reduce(13n), 13n)
-                assertEq(f.reduce(-1n), p - 1n)
+            mod: () => {
+                assertEq(f.mod(13n), 13n)
+                assertEq(f.mod(-1n), p - 1n)
             },
             quadRes: () => {
                 assert(f.quadRes(0n), 0n)
@@ -107,6 +107,7 @@ export const proof = {
                 const root = modSqrt(f)
                 assertEq(root(4n), 2n)
                 assertEq(f.pow2(root(2n)), 2n)
+                assertEq(f.pow2(root(3n)), f.neg(3n))
             },
             div: () => {
                 assertEq(f.div(6n)(2n), 3n)
@@ -128,4 +129,4 @@ export const proof = {
             },
         }
     }
-}
+})

@@ -36,7 +36,7 @@
  * the negation of the access and of the call, as JavaScript reads them,
  * rather than an access and a call on a negative literal — recognized is
  * not accepted, and the same is true of every operator token
- * `fjs/js/tokenizer` already carries that this layer does not admit, `==`,
+ * `fjs/js/tokenizer` already carries that this layer does not admit,
  * `++` among them. The four template chunk kinds keep their cooked
  * text, but only when their exact `source` spelling uses the accepted
  * escape subset.
@@ -54,7 +54,7 @@ import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
 import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../../js/keywords/module.f.js'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
-import { flat, stateScan } from '../../types/list/module.f.mjs'
+import { flat, stateScan } from '../../types/list/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // -- layer 3: the ModuleToken stream -------------------------------------------
@@ -72,7 +72,7 @@ export const _moduleTokenKinds = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
     '+', '*', '/', '%', '**',
-    '===', '!==', '>', '>=', '<', '<=',
+    '==', '!=', '===', '!==', '>', '>=', '<', '<=',
     '&', '|', '^', '~', '<<', '>>', '>>>',
     '!', '&&', '||', '??', '?', '?.',
     '+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=',
@@ -88,21 +88,20 @@ const moduleTokenKindSet = new Set(_moduleTokenKinds)
 /**
  * Whether a lexically valid JS template chunk uses FJS's spelling subset.
  * The shared lexer already validates escape digits and chunk boundaries, so
- * this only checks the policy: JSON escapes, escaped backticks and escaped
- * `${`, with raw CR/LF but no other C0 controls. Checking source preserves
- * the difference between `A` and `\x41` after both have cooked to `A`.
+ * this only checks the policy: JSON, hexadecimal and vertical-tab escapes,
+ * escaped backticks and escaped `${`, with raw CR/LF but no other C0 controls.
+ * Checking source preserves refusals such as identity escapes after cooking.
  *
  * @type {(source: string) => boolean}
  */
 const templateSourceAccepted = source => {
     let escaped = false
-    for (let i = 0; i < source.length; i++) {
+    for (let i = 0; i < source.length; i += 1) {
         const character = source[i]
         const cp = source.charCodeAt(i)
         if (escaped) {
-            const admitted = character === 'u' ? source[i + 1] !== '{'
-                : character === '$' ? source[i + 1] === '{'
-                : escapeToCodePoint(cp) !== null || character === '`'
+            const admitted = character === '$' ? source[i + 1] === '{'
+                : character === 'u' || character === 'x' || character === 'v' || escapeToCodePoint(cp) !== null || character === '`'
             if (!admitted) { return false }
             escaped = false
         } else if (character === '\\') {

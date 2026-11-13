@@ -1,6 +1,7 @@
-import { stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { stringToList } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { tokenize } from './module.f.mjs'
+import { parseSyntax } from '../parser/syntax/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { _line, _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
@@ -8,12 +9,48 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
+    equalityTokensRemainDistinct: () => {
+        const tokens = toArray(tokenize(stringToList('a==b===c!=d!==e'))('equality.f.js'))
+        assertEq(tokens.map(({ token }) => token.kind).join(' '), 'id == id === id != id !== id eof')
+        assertEq(tokens[1].metadata.column, 2)
+        assertEq(tokens[5].metadata.column, 9)
+    },
+    bracedUnicode: () => {
+        assertEq(parseSyntax(tokenize(stringToList('export default [\"\\u{1f600}\",`\\u{41}`];'))('unicode.f.js'))[0], 'ok')
+        for (const source of ["'\\u{1f600}'", '"\\u{1f600}"', '`\\u{1f600}`']) {
+            const tokens = toArray(tokenize(stringToList(source))('unicode.f.js'))
+            const first = tokens[0].token
+            assert(first.kind === 'string' || first.kind === 'noSubstitutionTemplate')
+            assertEq(first.value, '😀')
+            assertStructurallySame(tokens[0].metadata, { path: 'unicode.f.js', line: 1, column: 1 })
+        }
+        const chunks = toArray(tokenize(stringToList('`\\u{41}${1}\\u{42}${2}\\u{43}`'))(''))
+        assertEq(chunks.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join(''), 'ABC')
+        for (const source of ["'\\u{110000}'", '"\\u{}"', '`\\u{110000}`']) {
+            assertEq(toArray(tokenize(stringToList(source))(''))[0].token.kind, 'error')
+        }
+    },
+
     compoundAssignmentTokens: () => {
         const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
         for (const operator of operators) {
             const tokens = toArray(tokenize(stringToList(`value ${operator} 1`))('compound.f.js'))
             assertEq(tokens[1].token.kind, operator)
             assertStructurallySame(tokens[1].metadata, { path: 'compound.f.js', line: 1, column: 7 })
+        }
+    },
+    nulShorthandIsProhibited: () => {
+        for (const suffix of ['', 'a', ...'0123456789']) {
+            for (const [prefix, end] of [["'\\0", "'"], ["\"\\0", "\""], ["`\\0", "`"], ["`\\0", "${1}`"], ["`a${1}\\0", "${2}`"], ["`a${1}\\0", "`"]]) {
+                const source = prefix + suffix + end
+                const tokens = toArray(tokenize(stringToList(source))('nul.f.js'))
+                assert(tokens.some(({ token }) => token.kind === 'error'), source)
+            }
+        }
+        for (const [source, value] of [["'\\u0000a'", "\u0000a"], ["'\\x00a'", "\u0000a"], ["\"\\u0000a\"", "\u0000a"], ["`\\u0000a`", "\u0000a"], ["'\\\\0'", "\\0"]]) {
+            const tokens = toArray(tokenize(stringToList(source))('nul.f.js'))
+            assert(tokens[0].token.kind === 'string' || tokens[0].token.kind === 'noSubstitutionTemplate')
+            assertEq(tokens[0].token.value, value)
         }
     },
     templates: {
@@ -24,14 +61,31 @@ export const proof = {
             assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join('|'), 'a|b|c')
             assertEq(toArray(tokenize(stringToList('`\\` \\${x} \\n \\u0041`'))('')).map(({ token }) => token.kind).join(' '), 'noSubstitutionTemplate eof')
         },
+        hexadecimal: () => {
+            const source = /** @type {const} */ ('`\\x80${1}\\x81${2}\\xFf`')
+            const tokens = toArray(tokenize(stringToList(source))('hex.f.js'))
+            assertEq(tokens.map(({ token }) => token.kind).join(' '), 'templateHead number templateMiddle number templateTail eof')
+            assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join(''), '\u0080\u0081\u00ff')
+            assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.source] : []).join(''), '\\x80\\x81\\xFf')
+            assertEq(tokens[2].metadata.column, source.indexOf('}\\x81') + 1)
+        },
+        verticalTab: () => {
+            for (const source of ['`\\v`', '`\\v${1}\\v${2}\\v`']) {
+                const tokens = toArray(tokenize(stringToList(source))('vt.f.js'))
+                const chunks = tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token] : [])
+                assertEq(chunks.map(token => token.value).join(''), source.includes('${') ? '\u000b\u000b\u000b' : '\u000b')
+                assertEq(chunks.map(token => token.source).join(''), source.includes('${') ? '\\v\\v\\v' : '\\v')
+                assertEq(tokens[0].metadata.column, 1)
+            }
+        },
         refusedEscapes: () => {
             // Cooking must not turn a deferred spelling into an admitted one.
-            for (const spelling of ['\\x41', '\\v', '\\0', '\\u{41}', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\0']) {
+            for (const spelling of ['\\0', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\u0000']) {
                 const tokens = toArray(tokenize(stringToList('`' + spelling + '`'))('template.f.js'))
                 assertEq(tokens[0].token.kind, 'error', spelling)
                 assertStructurallySame(tokens[0].metadata, { path: 'template.f.js', line: 1, column: 1 }, spelling)
             }
-            const middle = toArray(tokenize(stringToList('`a${1}\\x41`'))(''))
+            const middle = toArray(tokenize(stringToList('`a${1}\\q`'))(''))
             assertEq(middle.map(({ token }) => token.kind).join(' '), 'templateHead number error eof')
             assertEq(middle[2].metadata.column, 6)
         },

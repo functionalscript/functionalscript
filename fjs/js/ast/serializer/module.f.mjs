@@ -13,15 +13,18 @@
  */
 
 import { operatorOperands } from '../module.f.mjs'
-import { isIdentifier } from '../../../js/identifier/module.f.mjs'
+import { isIdentifier } from '../../../js/identifier/module.f.js'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { next, reverse } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { next, reverse } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
-import { _name as symbol, _binding as declaration, _resolve as resolve } from '../../../compiler/serializer/names/module.f.mjs'
-import { _entryChunks, _hasEntryChunks, _intrinsicChunks } from './intrinsic/module.f.mjs'
+import { _name as symbol, _binding as declaration, _resolve as resolve } from './names/module.f.mjs'
+import { _helperChunks } from './intrinsic/module.f.mjs'
 import { _memberPresentChunks } from './member_present/module.f.mjs'
-import { isIntrinsic } from '../../../edag/module.f.mjs'
+import { isHelper } from '../../../edag/module.f.js'
+import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
+import { maxLength } from '../../../types/function/length/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 const keyword = tagged('keyword')
 
@@ -68,7 +71,8 @@ const scan = input => {
         } else if (task[0] === 'block') {
             const block = task[1]
             const exit = block.exit
-            children = [...block.statements.map(statement => /** @type {ScanTask} */ (['statement', statement])),
+            const statements = exit[0] === 'loop' ? [...block.statements, exit] : block.statements
+            children = [...statements.map(/** @returns {ScanTask} */ statement => ['statement', statement]),
                 ...exit[0] === 'yield' ? exit[1].map(value => /** @type {ScanTask} */ (['value', value]))
                     : exit[0] === 'return' ? [/** @type {ScanTask} */ (['value', exit[2]])]
                         : exit[0] === 'throw' ? [/** @type {ScanTask} */ (['value', exit[1]])] : []]
@@ -111,6 +115,9 @@ const contextFor = (ids, syntax, runtime, external) => {
     return { ids: [...new Set([...ids, ...captureAliases.flatMap(([, bindings]) => bindings)])], ...syntax, captureAliases, runtime, aliases: [], binding: null, external }
 }
 
+/** @type {(context: Context, fn: PreparedFunction) => readonly BindingId[]} */
+const captureLocals = (context, fn) => assertNotNullish(context.captureAliases.find(([owner]) => owner === fn))[1]
+
 /** @type {(context: Context, id: BindingId) => string} */
 const name = (context, id) => {
     let current = id
@@ -125,23 +132,31 @@ const name = (context, id) => {
 /** @type {(context: Context, id: BindingId) => string} */
 const declared = (context, id) => declaration(name(context, id))
 
+/**
+ * The writer's level of each binary operator of `compiler/ast`'s
+ * `eagerLayers`, the grammar's own ladder: the loosest layer, `|`, at `5`,
+ * above `?:` and the lazy operators, and each tighter layer one more, so an
+ * operator moved between layers moves in the writer too.
+ *
+ * @type {readonly (readonly [string, number])[]}
+ */
+const binaryLevels = eagerLayers.flatMap((layer, i) =>
+    Object.entries(layer).map(([, tag]) => /** @type {const} */ ([tag, 4 + eagerLayers.length - i])))
+
+/** The prefix operators' tags, as `compiler/ast`'s `prefixLayer` states them. @type {readonly string[]} */
+const prefixTags = Object.entries(prefixLayer).map(([, tag]) => tag)
+
 /** @type {(value: Value) => number} */
 const precedence = input => {
     const value = syntaxValue(input)
     if (!(value instanceof Array)) { return typeof value === 'number' && (value < 0 || Object.is(value, -0)) || typeof value === 'bigint' && value < 0n ? 14 : 16 }
     const op = value[0]
-    if (op === 'function' || op === 'entry' || op === 'hasEntry' || (value.length === 1 && isIntrinsic(value))) { return 1 }
+    if (op === 'function' || isHelper(value)) { return 1 }
     if (op === 'if' || op === '?:') { return 2 }
-    if (op === '|') { return 5 }
-    if (op === '^') { return 6 }
-    if (op === '&') { return 7 }
-    if (op === '===' || op === '!==') { return 8 }
-    if (op === '<' || op === '<=' || op === '>' || op === '>=' || op === 'instanceof') { return 9 }
-    if (op === '<<' || op === '>>' || op === '>>>') { return 10 }
-    if ((op === '+' || op === '-') && value.length === 3) { return 11 }
-    if (op === '*' || op === '/' || op === '%') { return 12 }
+    const binary = value.length === 3 ? binaryLevels.find(([tag]) => tag === op) : undefined
+    if (binary !== undefined) { return binary[1] }
     if (op === '**') { return 13 }
-    if (op === '+' || op === '-' || op === '~' || op === '!' || op === 'typeof') { return 14 }
+    if (prefixTags.includes(op)) { return 14 }
     return 16
 }
 
@@ -234,9 +249,7 @@ const optionalRegion = input => {
 const operatorText = (context, operator) => {
     if (operator.length === 1) {
         const path = `helper${context.values.indexOf(operator)}`
-        if (operator[0] === 'entry') { return taggedChunks(_entryChunks(path)) }
-        if (operator[0] === 'hasEntry') { return taggedChunks(_hasEntryChunks(path)) }
-        return isIntrinsic(operator) ? taggedChunks(_intrinsicChunks(operator[0])(path)) : operator[0]
+        return isHelper(operator) ? taggedChunks(_helperChunks(operator[0])(path)) : operator[0]
     }
     switch (operator[0]) {
         case 'array': { return `[${itemText(context, operator[1])}]` }
@@ -268,7 +281,7 @@ const operatorText = (context, operator) => {
         }
         case ',': { return `(${operator[1].map(value => expression(context, value)).join(',') || primitive(undefined)})` }
         case '?:': { return `${expression(context, operator[1], 3)}?${expression(context, operator[2])}:${expression(context, operator[3])}` }
-        case 'Number': case 'String': { return `${operator[0]}(${expression(context, operator[1])})` }
+        case 'Boolean': case 'BigInt': case 'Number': case 'String': { return `${operator[0]}(${expression(context, operator[1])})` }
         case 'typeof': { return `${keyword('typeof')} ${expression(context, operator[1], 14)}` }
         case '~': case '!': { return `${operator[0]}${expression(context, operator[1], 14)}` }
         case '+': case '-': {
@@ -281,13 +294,16 @@ const operatorText = (context, operator) => {
             return `${expression(context, operator[1], 11)}-${untagged(right).startsWith('-') ? ' ' : ''}${right}`
         }
         case 'instanceof': { return `${expression(context, operator[1], 9)} ${keyword('instanceof')} ${operator[2]}` }
+        // the key is a string literal, the one left operand the language
+        // admits; the right operand groups as `<`'s right operand would
+        case 'in': { return `${primitive(operator[1])} ${keyword('in')} ${expression(context, operator[2], 10)}` }
         default: {
             const level = precedence(operator)
             const [tag, left, right] = operator
             const leftText = expression(context, left, level + (tag === '**' ? 1 : 0))
             const leftValue = syntaxValue(left)
             const signedLeaf = typeof leftValue === 'number' && (leftValue < 0 || Object.is(leftValue, -0)) || typeof leftValue === 'bigint' && leftValue < 0n
-            const unary = leftValue instanceof Array && ['-', '+', '~', '!', 'typeof'].includes(leftValue[0]) && leftValue.length === 2
+            const unary = leftValue instanceof Array && prefixTags.includes(leftValue[0]) && leftValue.length === 2
             const l = tag === '**' && (signedLeaf || unary) ? `(${leftText})` : leftText
             const r = expression(context, right, level + (tag === '**' ? 0 : 1))
             return `${l}${tag}${r}`
@@ -336,19 +352,19 @@ const blockExpression = (context, input) => {
 /** @type {(context: Context, fn: PreparedFunction) => string} */
 const functionText = (context, fn) => {
     const references = fn.captures.flatMap(capture => capture.value instanceof Array && capture.value[0] === 'ref' ? [capture.value[1]] : [])
-    const captured = context.runtime && !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
+    const captured = !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
     const aliases = captured || context.external ? context.aliases : [
         ...context.aliases,
         ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]]))
             .filter(([binding, source]) => binding !== source),
     ]
-    const self = fn.self === null || context.binding === null || context.runtime ? [] : [/** @type {const} */ ([fn.self, context.binding])]
+    const self = fn.self === null || context.binding === null || context.runtime || captured ? [] : [/** @type {const} */ ([fn.self, context.binding])]
     let inner = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
     const params = [...fn.parameters.map(id => declared(inner, id)), ...fn.rest === null ? [] : [`...${declared(inner, fn.rest)}`]].join(',')
     let preface = ''
-    if (!context.runtime && fn.captures.length > 1) {
+    if (!context.runtime && !captured && fn.captures.length > 1) {
         const before = inner
-        const locals = /** @type {readonly [PreparedFunction, readonly BindingId[]]} */ (context.captureAliases.find(([owner]) => owner === fn))[1]
+        const locals = captureLocals(context, fn)
         inner = { ...inner, aliases: [...inner.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[index]]))] }
         preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, locals[index])}=${name(before, capture.binding)};`).join('')
     }
@@ -359,7 +375,16 @@ const functionText = (context, fn) => {
         ? `(${keyword('function')} ${declared(inner, fn.self)}(${params}){${preface}${blockText(inner, fn.body, 'return')}})`
         : `(${params})=>${body}`
     if (!captured || fn.captures.length === 0) { return lambda }
-    return `((${fn.captures.map(capture => declared(inner, capture.binding)).join(',')})=>(${lambda}))(${fn.captures.map(capture => expression(context, capture.value, 2)).join(',')})`
+    const input = !context.runtime && fn.captures.length > maxLength ? captureLocals(context, fn)[0] : null
+    const parameters = input === null ? fn.captures.map(capture => declared(inner, capture.binding)).join(',') : declared(inner, input)
+    const initialize = input === null ? '' : fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, capture.binding)}=${name(inner, input)}[${primitive(index)}];`).join('')
+    // Source recursion keeps the parser's direct const-arrow initializer.
+    const returned = !context.runtime && fn.self !== null
+        ? `${keyword('const')} ${declared(inner, fn.self)}=${lambda};${keyword('return')} ${name(inner, fn.self)};`
+        : `${keyword('return')} (${lambda});`
+    const wrapped = input !== null || !context.runtime && fn.self !== null ? `{${initialize}${returned}}` : `(${lambda})`
+    const argumentsText = fn.captures.map(capture => expression(context, capture.value, 2)).join(',')
+    return `((${parameters})=>${wrapped})(${input === null ? argumentsText : `[${argumentsText}]`})`
 }
 
 /** @type {(context: Context, statement: Statement) => string} */
@@ -373,7 +398,10 @@ const statementText = (context, statement) => {
             return `${keyword('const')} ${declared(context, memo.binding)}=(()=>{${keyword('let')} ${declared(context, memo.valueSlot)},${declared(context, memo.doneSlot)}=${primitive(false)};${keyword('return')}()=>{${keyword('if')}(!${name(context, memo.doneSlot)}){${name(context, memo.valueSlot)}=${blockExpression(context, memo.initializer)};${name(context, memo.doneSlot)}=${primitive(true)};}${keyword('return')} ${name(context, memo.valueSlot)};};})();`
         }
         case 'block': { return `{${blockText(context, statement[1], 'none')}}` }
-        case 'if': { return `${keyword('if')}(${expression(context, statement[1])}){${blockText(context, statement[2], 'none')}}${keyword('else')}{${blockText(context, statement[3], 'none')}}` }
+        case 'if': {
+            const otherwise = blockText(context, statement[3], 'none')
+            return `${keyword('if')}(${expression(context, statement[1])}){${blockText(context, statement[2], 'none')}}${otherwise === '' ? '' : `${keyword('else')}{${otherwise}}`}`
+        }
         case 'loop': { return `${context.runtime ? `L${context.loops.indexOf(statement[1])}:` : ''}${keyword('while')}(${primitive(true)}){${blockText(context, statement[2], 'none')}}` }
         case 'while': {
             const loop = statement[1]
@@ -398,6 +426,7 @@ const blockText = (outer, input, normal) => {
         case 'yield': { return `${before}${normal === 'none' || exit[1].length === 0 ? '' : `${normal === 'return' ? keyword('return') : `${keyword('export')} ${keyword('default')}`} ${expression(context, exit[1][0])};`}` }
         case 'return': { return `${before}${keyword('return')} ${expression(context, exit[2])};` }
         case 'throw': { return `${before}${keyword('throw')} ${expression(context, exit[1])};` }
+        case 'loop': { return `${before}${statementText(context, exit)}` }
         case 'break': case 'continue': { return `${before}${keyword(exit[0])}${context.runtime ? ` L${context.loops.indexOf(exit[1])}` : ''};` }
         default: { throw ['not an exit', exit] }
     }
@@ -422,6 +451,7 @@ export const stringify = (block, kind = 'module', runtime = false) => untagged(r
 
 /** A prepared module namespace becomes its original named exports. @type {(block: Block) => string} */
 export const renderModule = block => {
+    if (block.exit[0] === 'loop') { return render(block) }
     const context = contextFor(blockBindings(block), blockSyntax(block), false, false)
     const value = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]
     const entries = /** @type {Extract<Operator<Value>, readonly ['object', unknown]>} */ (value)[1]

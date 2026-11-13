@@ -25,7 +25,7 @@ declaration:
 | a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
 
 ```js
-import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
+import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.js'
 import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
 import { validate } from 'functionalscript/fjs/rtti/validate/module.f.mjs'
 
@@ -86,7 +86,7 @@ siblings there are single data structures and type-level helpers.
 ## Modules
 
 - `guide/` — the concept pages: what a schema means, one page per concept
-- `module.f.mjs` — schema construction: defines `Type`, `Info`, and schema builder values
+- `module.f.js` — schema construction: defines `Type`, `Info`, and schema builder values
 - `ts/types.ts` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
   (see `ts/README.md`)
 - `ts/module.f.mjs` — the runtime printer: a schema's TypeScript type as text,

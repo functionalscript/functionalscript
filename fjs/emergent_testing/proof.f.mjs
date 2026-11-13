@@ -12,18 +12,19 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.js'
+import { fgGreen, fgRed, reset } from '../text/sgr/module.f.mjs'
 import {
-    testAll, runEntries, zeroState, fmtPath, fmtImport, ghEscape,
+    testAll, runEntries, zeroState, fmtPath, fmtImport, fmtResult, ghEscape,
     registerModule, parseTestSet,
-    addResult, defaultReporter, defaultTest, formatDuration, main, register, testResult, zeroTotals,
+    addResult, defaultReporter, defaultTest, formatDuration, main, register, registerOne, testResult, text, zeroTotals,
 } from './module.f.mjs'
-import { run as mockRun } from '../effects/mock/module.f.mjs'
+import { run as mockRun, runAll } from '../effects/mock/module.f.js'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
-import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
+import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
-import { pureError, pureOk, step } from '../effects/module.f.mjs'
+import { pureError, pureOk, step, unreadableThrownValue } from '../effects/module.f.js'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:
@@ -282,6 +283,27 @@ export const namedExports = () => {
     assertEq(passEvents[0][2], '.a')
     assertEq(passEvents[1][2], '.b')
 }
+
+const resultId = /** @type {const} */ ({ module: 'a.f.mjs', path: '.proof', name: 'a.f.mjs.proof()' })
+
+const fmtResultProofs = /** @type {const} */ ({
+    passed: () => assertEq(
+        fmtResult({ ...resultId, status: 'passed', duration: 1.25 }, false),
+        `a.f.mjs.proof(): ${fgGreen}ok${reset}, 1.2500 ms`,
+    ),
+    failed: () => assertEq(
+        fmtResult({ ...resultId, status: 'failed', duration: 1_250 }, false),
+        `a.f.mjs.proof(): ${fgRed}error${reset}, 1.2500 s`,
+    ),
+    expectedThrow: () => assertEq(
+        fmtResult({ ...resultId, status: 'passed', duration: 0 }, true),
+        `a.f.mjs.proof(): ${fgGreen}ok${reset}, 0.0000 ms # EXPECTED TO THROW`,
+    ),
+    failedExpectedThrow: () => assertEq(
+        fmtResult({ ...resultId, status: 'failed', duration: 2 }, true),
+        `a.f.mjs.proof(): ${fgRed}error${reset}, 2.0000 ms`,
+    ),
+})
 
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
 export const defaultReporterOutput = () => {
@@ -624,20 +646,9 @@ export const githubReporterOutput = () => {
 export const reporterWriteFailure = () => {
     /** @typedef {All | Catch | Import | Readdir | Sandbox | Write} _FailOps */
     /** @type {RunInstance<_FailOps, undefined>} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_FailOps, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true, isDirectory: false }])],
         import: _path => s => [s, ok({ proof: { x: () => { } } })],
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [undefined, readonly unknown[]]} */([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
             [s, ok({ result: ok(f()), duration: 0 })],
         // Benign, like the virtual runner's: this proof is about a reporter
@@ -667,7 +678,8 @@ const registerNoopCtx = { test: (_n, _o, _f) => { throw 'registerNoopCtx is data
 /**
  * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
  * effect operations. Only the `test` op varies between call sites (whether it
- * invokes the registered callback), so `all`/`await` are shared here.
+ * invokes the registered callback), so `await` is shared here and `all` is
+ * `runAll`'s.
  *
  * `testOp` is the `test` op body for a `registerModule` mock; `runner` is
  * threaded in explicitly (rather than closed over) so it can recurse into
@@ -686,19 +698,8 @@ const makeRegisterRunner = testOp => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
         test: (ctx, name, xf, fn) => testOp(runner, ctx, name, xf, fn),
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         await: p => s => /** @type {const} */ ([s, ok([p])]),
     }))
     return runner
@@ -717,8 +718,9 @@ export const registerNamesAndExpectations = () => {
         throw: { a: () => { throw 'expected' } },
     })
 
-    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
+    const [names, count] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
     assertEq(names.length, 2)
+    assertEq(unwrap(count), 2)
     assertEq(names[0], 'import("./a.f.ts").proof.ok()')
     assertEq(names[1], 'import("./a.f.ts").proof.throw.a()')
 }
@@ -733,19 +735,8 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
         test: (ctx, _name, _xf, fn) => s => [runner(s)(fn(ctx))[0], ok(undefined)],
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         // The runner has no `await`, which is what the body's channel carries.
         await: _p => s => [s, error(['notImplemented', 'await'])],
     }))
@@ -785,8 +776,9 @@ export const registerThrowsWithoutThrowing = () => {
 // returns without invoking the mock's `test` op at all.
 export const registerEmptyProof = () => {
     const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => s => [[...s, name], ok(undefined)])
-    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}))
+    const [names, count] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}))
     assertEq(names.length, 0)
+    assertEq(unwrap(count), 0)
 }
 
 // register (the NodeProgram entry point) against an empty virtual root: no
@@ -811,27 +803,17 @@ export const registerEmptyModuleMap = () => {
  *     load: (path: string) => IoResult<Module>,
  *     invoke: boolean,
  *     select?: (path: string) => boolean,
+ *     single?: boolean,
  * ) => readonly (readonly [TestContext, string, boolean])[]}
  */
-const runRegister = (testContext, files, load, invoke, select) => {
+const runRegister = (testContext, files, load, invoke, select, single = false) => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {(readonly [TestContext, string, boolean])[]} */
     let calls = []
     /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok(files.map(name => ({ name, parentPath: '.', isFile: true, isDirectory: false })))],
         import: path => s => [s, load(path)],
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         await: p => s => [s, ok([p])],
         test: (ctx, name, xf, fn) => s => {
             if (invoke) { runner(s)(fn(ctx)) }
@@ -839,10 +821,48 @@ const runRegister = (testContext, files, load, invoke, select) => {
             return [s, ok(undefined)]
         },
     }))
-    runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
+    /** @type {NodeProgramOptions} */
+    const opts = {
         ...defaultNodeProgramOptions, env: {}, testContext,
-    }, select)))
+    }
+    runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (
+        single ? registerOne(opts) : register(opts, select)))
     return calls
+}
+
+/** Single-directory registration includes every authored sibling proof. */
+export const registerOneSiblings = () => {
+    /** @type {readonly string[]} */
+    const files = ['module.f.js', 'proof.f.mjs', 'split.proof.f.mjs', 'demo.f.mjs',
+        'proof.mjs', 'old.f.ts', 'ordinary.mjs']
+    const calls = runRegister(registerNoopCtx, files, path => {
+        assert(isAuthored(path), path)
+        return loadsOk()
+    }, false, undefined, true)
+    assertEq(calls.map(([, name]) => name).join(','), [
+        'import("./demo.f.mjs").proof.ok()',
+        'import("./module.f.js").proof.ok()',
+        'import("./proof.f.mjs").proof.ok()',
+        'import("./split.proof.f.mjs").proof.ok()',
+    ].join(','))
+}
+
+/** Missing and inert proof values cannot pass as a zero-test native suite. */
+export const registerOneRejectsEmpty = () => {
+    const [, emptyCode] = virtualAt({})(registerOne(options('elsewhere')))
+    assertEq(exitCode(emptyCode), 1)
+    for (const value of [undefined, {}, { data: 7 }, { takesArgument: (/** @type {number} */ x) => x }]) {
+        const [state, code] = virtualAt({ 'module.f.mjs': () => ({ proof: value }) })(registerOne(options('elsewhere')))
+        assertEq(exitCode(code), 1)
+        assert(state.stderr.includes('No runnable proofs'), state.stderr)
+    }
+}
+
+/** A failed import remains a failing registered proof, not an absent module. */
+export const registerOneLoadFailure = () => {
+    const calls = runRegister(registerNoopCtx, ['module.f.mjs'], loadFails, false, undefined, true)
+    assertEq(calls.length, 1)
+    assertEq(calls[0][1], 'import("./module.f.mjs").proof()')
 }
 
 /**
@@ -1121,13 +1141,31 @@ const returnedTreeReadFailure = () => {
     assertEq(state.aborted, null)
 }
 
+/** Failure to read or dispatch a thrown value has one stable description. */
+const textUnreadable = () => {
+    for (const refused of [false, true]) {
+        const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch, undefined>>[0]} */ ({
+            catch: _read => state => [state, refused
+                ? error(['notImplemented', 'catch'])
+                : ok(error('unreadable value'))],
+        }))
+        const [, result] = runner(undefined)(text(undefined))
+        assertEq(unwrap(result), unreadableThrownValue)
+    }
+}
+
 export const proof = {
+    textUnreadable,
+    registerOneSiblings,
+    registerOneRejectsEmpty,
+    registerOneLoadFailure,
     returnedTreeReadFailure,
     mainSelectsAuthoredOnly,
     registerSelectsProofClass,
     testResult: testResultProofs,
     runTotals: runTotalsProofs,
     formatDuration: formatDurationProofs,
+    fmtResult: fmtResultProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
         registeredLoadFailureThrows,

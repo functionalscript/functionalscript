@@ -32,7 +32,7 @@
  * of the file the zlib stream after it takes. The host's `inflate` refused bytes
  * after the end of a stream, so the window handed to it had to end exactly there
  * and the index closed it; the inflater here
- * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs)) knows where a stream
+ * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.js)) knows where a stream
  * ends, so the window is only an upper bound, and it is read in pieces of a
  * `Vec` each, however long the entry is. See `after` in
  * [`fjs/git/packidx`](../packidx/module.f.mjs); the last entry in a pack ends at
@@ -49,7 +49,7 @@
  *
  * **A delta chain is walked, not recursed.** Each link reads one entry, and a
  * delta's base is the next item of the same walk rather than a nested read, for
- * the reason [`fjs/effects`](../../effects/module.f.mjs)' `walkStep` loops and
+ * the reason [`fjs/effects`](../../effects/module.f.js)' `walkStep` loops and
  * [`fjs/git/walk`](../walk/module.f.mjs) repeats: a `Read` that answers values
  * resumes inside the caller, so a recursion costs a frame per link and a long
  * chain exhausts the stack. `--depth` is 50 by default and takes any number.
@@ -115,17 +115,19 @@
  * @import { Held } from './types.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
 import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { under } from '../../path/module.f.mjs'
-import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { concat } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { bytesOf, feedWithin, finish, malformed, sizeOf, start } from '../inflater/module.f.mjs'
+import { under } from '../../path/module.f.js'
+import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
+import { concat } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.mjs'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
 import { hexText, ofWidth, oidAt } from '../oid/module.f.mjs'
+
+const { init: [, , initialProgress], end: endInflate } = inflater
 
 /**
  * The bytes a read hands back, as a dense array to index into.
@@ -432,19 +434,13 @@ const advance = (idx, path, at, chain, e, data) => {
 }
 
 /**
- * How much of an entry one read takes: what a `Vec` holds, so that an entry of
- * any length is read in as few as it takes, and a small one in one.
- */
-const windowBytes = Number(maxLengthBytes)
-
-/**
  * The offsets of the windows that read `from` up to `end`, one read each. Lazy:
  * a pack file can be as long as a disk, and the index decides how far an entry
  * reaches, so no array of the offsets is built before the first read.
  *
  * @type {(from: number, end: number) => List<number>}
  */
-const windowsOf = (from, end) => () => from >= end ? null : { first: from, tail: windowsOf(from + windowBytes, end) }
+const windowsOf = (from, end) => () => from >= end ? null : { first: from, tail: windowsOf(from + maxVecBytes, end) }
 
 /**
  * The refusal of a stream that does not inflate, with what the inflater says: the
@@ -478,7 +474,7 @@ const inflateRefusal = (path, at) => ({ code, message }) =>
 const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
     const end = endOf(idx, oidBytes, packLength, at)
     if (end === null) { return entryRefusal(path, at)('is not where an entry begins') }
-    const firstBytes = Math.min(windowBytes, end - at)
+    const firstBytes = Math.min(maxVecBytes, end - at)
     const first = mapStep(readBytes(path, at, firstBytes), denseBytes)
     const refusal = inflateRefusal(path, at)
     return step(first, window => {
@@ -503,15 +499,15 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
             : next.size > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
             : pureOk(next)
         const read = step(
-            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(start)),
+            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(initialProgress)),
             opened => foldStep(
                 pureOk(windowsOf(at + firstBytes, end)),
                 opened,
                 offset => progress => step(
-                    readBytes(path, offset, Math.min(windowBytes, end - offset)),
+                    readBytes(path, offset, Math.min(maxVecBytes, end - offset)),
                     v => checked(feedWithin(e.size)(v)(progress)))))
         return step(read, progress => {
-            const done = finish(progress)
+            const [, , done] = endInflate(progress)
             return done[0] === 'error' ? refusal(done[1]) : advance(idx, path, at, chain, e, done[1])
         })
     })

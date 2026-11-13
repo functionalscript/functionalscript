@@ -21,16 +21,16 @@
  *
  * @module
  *
- * @import { Document, Entry, Inline } from '../../media/markdown/types.ts'
+ * @import { Document, Entry, Inline, Struck } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Release } from './types.ts'
  * @import { Build } from '../page/types.ts'
  */
 
-import { breadcrumb, changelogDir, pageTitle, repository, shell } from '../page/module.f.mjs'
-import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
-import { intersperse, mergeAdjacent } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { breadcrumb, changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
+import { cmp as versionCmp, tryParse } from '../../types/version/module.f.js'
+import { intersperse, mergeAdjacent } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { charIs, isDigit as isDigitCodePoint, lowerHexDigitValue } from '../../text/ascii/module.f.js'
 
 /** @type {(c: string) => boolean} */
@@ -140,13 +140,16 @@ const joinText = a => b => a[0] === 'text' && b[0] === 'text' ? ['text', `${a[1]
 export const _merged = spans => toArray(mergeAdjacent(joinText)(spans))
 
 /**
- * One entry with its references linked. Only `text` spans are scanned: a
+ * One entry with its references linked. Only `text` spans are scanned, and
+ * a strikethrough's, which is the entry's own text struck out: a
  * parenthesis inside code is code, and a link is already one.
  *
  * @type {(entry: Entry) => Entry}
  */
 export const linked = entry => _merged(entry.flatMap(
-    span => span[0] === 'text' ? _linked(span[1]) : [span]))
+    span => span[0] === 'text' ? _linked(span[1])
+        : span[0] === 'del' ? [['del', /** @type {readonly Struck[]} */ (linked(span[1]))]]
+        : [span]))
 
 /**
  * Whether a name is a version: three numbers separated by dots, which is
@@ -160,7 +163,7 @@ export const linked = entry => _merged(entry.flatMap(
  * is the plausible wrong value `DESIGN.md` §10 rules out.
  *
  * **A version is what {@link descending} can order.** The parts are
- * [`types/version`](../../types/version/module.f.mjs)'s `tryParse`, the same
+ * [`types/version`](../../types/version/module.f.js)'s `tryParse`, the same
  * definition its `cmp` refuses anything outside of, so a release admitted here
  * never makes the sort throw.
  *
@@ -177,7 +180,7 @@ export const isVersion = name => {
  * **Releases do not sort by their names.** `0.11.10` precedes `0.11.2` as
  * text and follows it as a version, and `0.1.608` lands nowhere sensible
  * among the `0.10.x` files at all. Every index that lists them has to
- * compare the numbers, which [`types/version`](../../types/version/module.f.mjs)
+ * compare the numbers, which [`types/version`](../../types/version/module.f.js)
  * does.
  *
  * @type {(versions: readonly string[]) => readonly string[]}
@@ -212,6 +215,7 @@ export const spanNode = span => {
     if (kind === 'code') { return ['code', span[1]] }
     if (kind === 'strong') { return ['strong', ...span[1].map(spanNode)] }
     if (kind === 'em') { return ['em', ...span[1].map(spanNode)] }
+    if (kind === 'del') { return ['del', ...span[1].map(spanNode)] }
     if (kind === 'link') { return ['a', { href: span[2] }, ...span[1].map(spanNode)] }
     return span[1]
 }
@@ -285,8 +289,13 @@ const neighbours = ({ previous, next }) => {
  *
  * @type {(build: Build) => (release: Release) => (document: Document) => string}
  */
-export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(['main',
+export const releasePage = build => release => document => shell(build)({
+    href: releaseHref(release.version),
+    title: pageTitle(release.version),
+    description: `What changed in FunctionalScript ${release.version}.`,
+})(['main',
     breadcrumb(`${changelogDir}/${release.version}`)(release.version),
+    ['h1', release.version],
     ...neighbours(release),
     ...(document.length === 0
         ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
@@ -303,8 +312,13 @@ export const releasePage = build => release => document => shell(build)(pageTitl
  *
  * @type {(build: Build) => (versions: readonly string[]) => string}
  */
-export const indexPage = build => versions => shell(build)(pageTitle('Releases'))(['main',
+export const indexPage = build => versions => shell(build)({
+    href: pageHref(changelogDir),
+    title: pageTitle('Releases'),
+    description: 'What changed in each release of FunctionalScript.',
+})(['main',
     breadcrumb(changelogDir)(changelogDir),
+    ['h1', changelogDir],
     // One link per line, so marked for the stylesheet's tap-target rule.
     ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
         /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],

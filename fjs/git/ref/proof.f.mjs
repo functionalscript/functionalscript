@@ -3,10 +3,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { toHex } from '../oid/module.f.mjs'
-import { latin1 } from '../testlib.f.mjs'
+import { latin1 } from '../testlib.f.js'
 import { tryLoose, tryPacked, tryPackedWithout, tryRef, writeLoose } from './module.f.mjs'
 
 const loose = tryLoose(20)
@@ -273,13 +273,13 @@ export const proof = {
     // against `rev-parse`, `symbolic-ref` or `show-ref`.
     nulTerminates: () => {
         // a loose ref: the id, then NUL, then anything
-        assertEq(hexOfLoose(`${a}\0junk`), a)
-        assertEq(hexOfLoose(`${a}\0\n`), a)
+        assertEq(hexOfLoose(`${a}\u0000junk`), a)
+        assertEq(hexOfLoose(`${a}\u0000\n`), a)
         // a symbolic ref: the target ends at the NUL, even mid-name
         for (const [file, target] of [
-            ['ref: refs/heads/master\0junk', 'refs/heads/master'],
-            ['ref: refs/heads/master\0\n', 'refs/heads/master'],
-            ['ref: refs/heads\0/master\n', 'refs/heads'],
+            ['ref: refs/heads/master\u0000junk', 'refs/heads/master'],
+            ['ref: refs/heads/master\u0000\n', 'refs/heads/master'],
+            ['ref: refs/heads\u0000/master\n', 'refs/heads'],
         ]) {
             const r = ref(latin1(file))
             assert(r !== null && r.kind === 'symbolic', file)
@@ -288,11 +288,11 @@ export const proof = {
         // a packed name ends at the NUL too, and the *next line is still
         // read* — so the NUL ends the field and not the file
         assertStructurallySame(
-            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} refs/heads/a\0junk\n${t} refs/heads/b\n`))).map(seen),
+            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} refs/heads/a\u0000junk\n${t} refs/heads/b\n`))).map(seen),
             [['refs/heads/a', a, ''], ['refs/heads/b', t, '']],
         )
         assertStructurallySame(
-            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} refs/heads/mas\0ter\n`))).map(seen),
+            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} refs/heads/mas\u0000ter\n`))).map(seen),
             [['refs/heads/mas', a, '']],
         )
     },
@@ -301,8 +301,8 @@ export const proof = {
     // Git refuses, while a space there would have been skipped. Folding NUL
     // into either set would accept both of these.
     nulIsNotSpace: () => {
-        assertEq(ref(latin1('ref:\0refs/heads/master\n')), null)
-        assertEq(packed(latin1(`${a}\0refs/heads/master\n`)), null)
+        assertEq(ref(latin1('ref:\u0000refs/heads/master\n')), null)
+        assertEq(packed(latin1(`${a}\u0000refs/heads/master\n`)), null)
     },
     // Whitespace before a NUL is not the whitespace that ends a target. Git
     // trims whitespace off the end of what it read and cuts the target at the
@@ -314,15 +314,15 @@ export const proof = {
     // `No such ref` rather than a ref at `refs/heads/master`.
     nulAfterSpace: () => {
         for (const w of [' ', '\t', '\r', '\n', '  ']) {
-            assertEq(ref(latin1(`ref: refs/heads/master${w}\0`)), null)
-            assertEq(ref(latin1(`ref: refs/heads/master${w}\0junk`)), null)
+            assertEq(ref(latin1(`ref: refs/heads/master${w}\u0000`)), null)
+            assertEq(ref(latin1(`ref: refs/heads/master${w}\u0000junk`)), null)
         }
         // Whitespace on the *other* side of the NUL is the trimmed kind, so
         // these still resolve — the rule is the order of the two steps and
         // not the presence of a space.
         for (const file of [
-            'ref: refs/heads/master\0 ',
-            'ref: refs/heads/master\0junk \n',
+            'ref: refs/heads/master\u0000 ',
+            'ref: refs/heads/master\u0000junk \n',
             'ref: refs/heads/master \n',
         ]) {
             const r = ref(latin1(file))
@@ -332,7 +332,7 @@ export const proof = {
         // `packed-refs` needs no rule of its own here: its name runs to the
         // NUL, so it already carries that whitespace and is already refused.
         // Measured: `show-ref` answers `bad ref refs/heads/p ` for this file.
-        assertEq(packed(latin1(`${a} refs/heads/p \0junk\n`)), null)
+        assertEq(packed(latin1(`${a} refs/heads/p \u0000junk\n`)), null)
     },
     // `tryPackedWithout` against the file Git writes. Each expectation below was
     // checked against Git 2.43.0 itself: on a repository of six branches, a
@@ -412,9 +412,9 @@ export const proof = {
         // A NUL ends the header, as the C string Git reads it as: the word
         // before it counts and nothing after it does. Measured, Git bisects
         // under the first two and scans under the third.
-        assertEq(answer(' sorted\0x ', disorder), 'unsorted')
-        assertEq(answer(' peeled sorted\0x ', disorder), 'unsorted')
-        assertEq(answer(' x\0 sorted ', disorder), 'removed')
+        assertEq(answer(' sorted\u0000x ', disorder), 'unsorted')
+        assertEq(answer(' peeled sorted\u0000x ', disorder), 'unsorted')
+        assertEq(answer(' x\u0000 sorted ', disorder), 'removed')
         // Sorted is non-decreasing: adjacent duplicates do not stop a bisection
         // finding the name, so they are no disorder.
         assertEq(answer(' sorted ', `${a} refs/heads/aaa\n${a} refs/heads/bbb\n${a} refs/heads/bbb\n`), 'removed')

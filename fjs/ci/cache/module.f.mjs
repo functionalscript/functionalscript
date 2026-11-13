@@ -16,32 +16,34 @@
  * @import { File, Manifest, Rung, Tree } from './types.ts'
  */
 
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { collectRead, casAddFile } from '../../cas/module.f.mjs'
 import { branchCas, snapshot } from '../../cas/git/module.f.mjs'
 import { exactArgs } from '../../cli/module.f.mjs'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, resultStep, step } from '../../effects/module.f.mjs'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, resultStep, step } from '../../effects/module.f.js'
 import { access, execFile, exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import { oidBytes } from '../../git/format/module.f.mjs'
 import { hexText, tryFromHexOf } from '../../git/oid/module.f.mjs'
 import { tryCommonDir } from '../../git/repo/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { join } from '../../path/module.f.mjs'
-import { stringToU8List } from '../../text/utf8/module.f.mjs'
-import { maxLengthBytes, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
-import * as pins from '../config/module.f.js'
+import { join } from '../../path/module.f.js'
+import { stringToU8List } from '../../text/utf8/module.f.js'
+import { u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.js'
+import { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime } from '../config/module.f.js'
 import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
 import { jobs } from '../self/module.f.mjs'
 import { select } from './inputs/module.f.js'
 import { main as publish } from './publish/module.f.mjs'
 
 const digest = computeSync(sha256)
-const chunks = u8ListToVecChunksMsb(Number(maxLengthBytes))
+
+/** All version pins contribute to the cache contract. @type {typeof import('../config/module.f.js')} */
+const pins = { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime }
 
 /** @type {(value: Unknown) => Vec} */
-const contentHash = value => digest(chunks(stringToU8List(stringifySorted(value))))
+const contentHash = value => digest(u8ListToMaxVecChunksMsb(stringToU8List(stringifySorted(value))))
 
 /** Canonical JSON's existing SHA-256 CAS identity, with no publication. @type {(value: Unknown) => string} */
 export const keyOf = value => vecToCBase32(contentHash(value))
@@ -105,10 +107,10 @@ const treeFile = (width, record) => {
 export const committedFiles = width => commit => {
     const listed = execFile('git', ['ls-tree', '-r', '-z', '--full-tree', hexText(commit), '--'])
     return step(listed, ({ stdout }) => {
-        if (stdout !== '' && !stdout.endsWith('\0')) {
+        if (stdout !== '' && !stdout.endsWith('\u0000')) {
             return refuse('ERR_CI_TREE')('unterminated git ls-tree output')
         }
-        return foldStep(pureOk(stdout.split('\0').slice(0, -1)), /** @type {readonly File[]} */ ([]), record => files =>
+        return foldStep(pureOk(stdout.split('\u0000').slice(0, -1)), /** @type {readonly File[]} */ ([]), record => files =>
             mapStep(treeFile(width, record), file => [...files, file]))
     })
 }

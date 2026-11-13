@@ -220,10 +220,10 @@ part of reviving this — not a requirement on it in the meantime.
   next parser as one symbol per token plus metadata.
 - [`fjs/ebnf/token_symbol`](../README.md) — registration-based mapping
   to replace after all callers/designs migrate.
-- [`fjs/text/module.f.mjs`](../../../text/module.f.mjs) — existing `tryUtf8` helper and
+- [`fjs/text/module.f.js`](../../../text/module.f.js) — existing `tryUtf8` helper and
   throwing `utf8` wrapper.
-- [`fjs/types/bit_vec/module.f.mjs`](../../../types/bit_vec/module.f.mjs) — signed
+- [`fjs/types/bit_vec/module.f.js`](../../../types/bit_vec/module.f.js) — signed
   length-bearing `Vec`, `maxLength`, `unpack`, and existing `fromSentinel`
   representation.
-- [`fjs/types/bigint/module.f.mjs`](../../../types/bigint/module.f.mjs) — defines the
+- [`fjs/types/bigint/module.f.js`](../../../types/bigint/module.f.js) — defines the
   cross-runtime bigint `maxLength` and documents Bun's exact-limit behavior.

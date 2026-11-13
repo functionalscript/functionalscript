@@ -9,12 +9,12 @@
 import { binaryKeys, census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
-import { commandsOf, runPure } from '../../../effects/module.f.mjs'
+import { commandsOf, runPure } from '../../../effects/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
+import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
-import { occurrences } from '../../../types/string/module.f.mjs'
+import { occurrences } from '../../../types/string/module.f.js'
 
 // The smallest persistent structure that shares: a sorted list whose
 // insert and remove copy the cells before the change and share the rest. A
@@ -155,6 +155,13 @@ export const proof = {
         },
     },
     graphOf: {
+        // Table ports span every value in the child subtree, recursively.
+        table: () => {
+            const g = graphOf(chain('table'))({ before: null, after: ofThree })
+            assertEq(g.table, true)
+            assertEq(JSON.stringify(g.nodes.map(node => node.rank)), '[0,1,2]')
+            assertEq(JSON.stringify(g.edges.filter(edge => typeof edge.to === 'number').map(edge => edge.span)), '[2,1]')
+        },
         // Inserting 0 in front builds one cell and shares the three after
         // it. Only the new list is drawn, with one arrow, into its root.
         sharesTheTail: () => {

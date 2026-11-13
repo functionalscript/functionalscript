@@ -27,7 +27,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { lf, space as sp } from '../../text/ascii/module.f.js'
-import { flat, flatMap, sameItems } from '../../types/list/module.f.mjs'
+import { flat, flatMap, sameItems } from '../../types/list/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 
 const key = repeatFrom1(not(set(' \n')))
@@ -271,10 +271,10 @@ const checked = bytes => {
 /**
  * @throws On a key the format cannot spell — empty, or holding SP or LF —
  * since {@link tryRead} would read what was written as a different header,
- * and on a key or a value holding a number that is no byte, or a hole. A
- * header comes from a read or from a caller that built one, and the type
- * cannot say which numbers it holds, so the writer checks: the key as an
- * array, since its bytes are looked at, the value as the list it is.
+ * and on a key or a value holding anything that is no byte. A header comes
+ * from a read or from a caller that built one, and the type cannot say
+ * which numbers it holds, so the writer checks: the key as an array,
+ * since its bytes are looked at, the value as the list it is.
  *
  * @type {(h: Header) => Bytes}
  */

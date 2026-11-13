@@ -2,7 +2,7 @@
  * @import { Job, Jobs, MetaStep, Step } from '../common/types.ts'
  */
 
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 import { node, rust as rustVersion } from '../config/module.f.js'
 import { test, uses } from '../common/module.f.mjs'
 import { commandPrefix } from '../environment/module.f.mjs'
@@ -99,7 +99,7 @@ export const miseJobs = (jobs, rust) => Object.fromEntries(definedEntries(jobs).
                 run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386',
                 shell: 'bash',
             }] : []),
-            ...(id === 'ubuntu-arm' ? [{ run: 'mise -E spidermonkey lock http:spidermonkey --platform linux-arm64', shell: 'bash' }, spiderMonkeyInstall.step] : []),
+            ...(id === 'spidermonkey' ? [{ run: 'mise -E spidermonkey lock http:spidermonkey --platform linux-arm64', shell: 'bash' }, spiderMonkeyInstall.step] : []),
             ...before.filter(step => step.run !== undefined).map(migratedStep),
             ...after.map(migratedStep),
         ],

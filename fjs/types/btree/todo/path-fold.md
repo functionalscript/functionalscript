@@ -11,7 +11,7 @@ dispatching on the child-slot index `i ∈ {0, 2, 4}`, then collapse a single-ch
 root with `collapseRoot`.
 
 ```js
-// fjs/types/btree/set/module.f.mjs — reduceOp
+// fjs/types/btree/set/module.f.js — reduceOp
 /** @type {<T>(i: PathItem<T>) => (a: Branch1<T> | Branch3<T>) => Branch1<T> | Branch3<T>} */
 const reduceOp = ([i, x]) => a => {
     switch (i) {
@@ -26,7 +26,7 @@ return collapseRoot(reduceBranch(f())(tail))
 ```
 
 ```js
-// fjs/types/btree/remove/module.f.mjs — reduceX
+// fjs/types/btree/remove/module.f.js — reduceX
 /** @type {<A, T>(ms: FixedArray<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms

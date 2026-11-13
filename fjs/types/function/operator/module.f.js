@@ -3,8 +3,39 @@
  *
  * @module
  *
- * @import { Addition, CascadeSteps, Fold, Reduce, Scan, StateScan, Unary } from './types.ts'
+ * @import { Addition, CascadeSteps, Fold, NextStep, Reduce, Scan, StateFold, StateScan, Terminal, Transducer, Unary } from './types.ts'
  */
+
+/** A continuing step, optionally emitting a chunk. @type {<S, O = never>(state: S, output?: readonly O[]) => NextStep<S, O>} */
+export const nextStep = (state, output = []) => ['next', output, state]
+
+/** A completed step, optionally flushing a chunk. @type {<A, O = never>(result: A, output?: readonly O[]) => Terminal<O, A>} */
+export const doneStep = (result, output = []) => ['done', output, result]
+
+/**
+ * Gives a simple value-only fold the common lifecycle. It emits no items and
+ * never completes before EOF; its final value is the terminal summary.
+ * @type {<I, S, A>(fold: StateFold<I, S, A>) => Omit<Transducer<I, S, never, A>, 'init' | 'update'> & { readonly init: NextStep<S>, readonly update: (state: S, input: I) => NextStep<S> }}
+ */
+export const fromStateFold = fold => ({
+    init: nextStep(fold.init),
+    update: (state, input) => nextStep(fold.update(state, input)),
+    end: state => doneStep(fold.end(state)),
+})
+
+/**
+ * Gives a per-input scan an explicit initial state and EOF flush. Scan steps
+ * emit arrays; `end` returns the final output chunk. The summary is `null`.
+ * @type {<I, S, O>(init: S, op: StateScan<I, S, readonly O[]>, end: (state: S) => readonly O[]) => Transducer<I, S, O, null>}
+ */
+export const fromStateScan = (init, op, end) => ({
+    init: nextStep(init),
+    update: (state, input) => {
+        const [output, following] = op(input, state)
+        return nextStep(following, output)
+    },
+    end: state => doneStep(null, end(state)),
+})
 
 /** @type {(separator: string) => Reduce<string>} */
 export const join = separator => value => prior =>

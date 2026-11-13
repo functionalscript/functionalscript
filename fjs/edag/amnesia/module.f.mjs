@@ -12,10 +12,10 @@
  * @import { Context } from './types.ts'
  */
 
-import { isArray } from '../../types/array/module.f.mjs'
+import { isArray } from '../../types/array/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { invokerWith, operation } from '../operations/module.f.mjs'
-import { settle } from '../value/call/module.f.mjs'
+import { settle } from '../value/call/module.f.js'
 
 /**
  * The invoker of an executor given `runtime`, its closure bodies walked

@@ -1,16 +1,24 @@
+mod abs;
 mod add;
 mod binary64;
+mod ceil;
 mod debug;
 mod div;
+mod floor;
 mod format;
 mod from;
+mod imul;
 mod int32_coercion;
+mod max;
+mod min;
 mod mul;
 mod neg;
 mod pow;
 mod rem;
+mod sqrt;
 mod sub;
 mod to_integer_or_infinity;
+mod trunc;
 
 /// A JavaScript number: an `f64` that holds one `NaN`.
 ///

@@ -4,15 +4,15 @@
 
 import { marked, parse, serialize, setProperty, stringify, stringifySorted } from './module.f.mjs'
 import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { sort } from '../../types/object/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../html/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
-import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { disagreement } from '../../js/marked/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
+import { concat } from '../../types/string/module.f.js'
 
 const { is } = Object
 

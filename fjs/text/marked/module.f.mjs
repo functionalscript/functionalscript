@@ -29,12 +29,13 @@
  * @import { Chunk, Marked, Run, Span, TokenKind } from './types.ts'
  */
 
-import { map, scan } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { map, scan } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { charIs } from '../ascii/module.f.js'
-import { isIdentifierPart, isIdentifierStart } from '../../js/identifier/module.f.mjs'
+import { isIdentifierPart, isIdentifierStart } from '../../js/identifier/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /**
  * The text the runs spell.
@@ -87,12 +88,12 @@ const nameStep = word => name => c => {
  * @type {(text: string) => Marked}
  */
 const nameRuns = text => {
-    const chars = Array.from(text)
+    const chars = [...text]
     const flags = toArray(scan(nameStep(false)(false))(chars))
-    const starts = flags.flatMap((flag, i) => i === 0 || flag !== flags[i - 1] ? [i] : [])
+    const starts = flags.flatMap((flag, i) => i === 0 || flag !== flags[Number(i - 1)] ? [i] : [])
     return starts.map((start, k) => {
-        const run = chars.slice(start, starts[k + 1]).join('')
-        return flags[start] ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run])
+        const run = chars.slice(start, starts[Number(k + 1)]).join('')
+        return flags[Number(start)] ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run])
     })
 }
 
@@ -171,7 +172,7 @@ const close = '\u0002'
 /**
  * A text that a producer composes as a string and resolves into runs at its
  * boundary: a run is `U+0001`, one letter for its kind, its text and
- * `U+0002`. It is the idiom `fjs/compiler/serializer/names` uses for symbolic
+ * `U+0002`. It is the idiom `fjs/js/ast/serializer/names` uses for symbolic
  * names, for a producer whose text is built by templates all through; the
  * public text a producer answers is never tagged, only its marked text is
  * resolved from it, and {@link untagged} gives the plain one.
@@ -184,7 +185,7 @@ const close = '\u0002'
  */
 export const tagged = kind => text => {
     assert(!text.includes(open) && !text.includes(close), ['a tagged text holding a marker', text])
-    return `${open}${kindCodes[kind]}${text}${close}`
+    return `${open}${entry(kindCodes, kind)}${text}${close}`
 }
 
 /** Kinds by their letter. @type {ReadonlyMap<string, TokenKind>} */
@@ -222,6 +223,22 @@ export const fromTagged = text => {
 export const untagged = text => toText(unwrap(fromTagged(text)))
 
 /**
+ * Marked text as tagged text: each run with a kind in its tag, each without
+ * one as it is. It is how runs cross a file, which carries text: a writer
+ * stores what a producer's marked entry point answers, and a reader turns it
+ * back with {@link fromTagged}. A run's text may hold neither marker, a
+ * plain run's no more than a tagged one's, as {@link tagged} asserts: a
+ * marker there would read back as a tag.
+ *
+ * @type {(marked: Marked) => string}
+ */
+export const toTagged = marked => marked.map(([text, kind]) => {
+    if (kind !== undefined) { return tagged(kind)(text) }
+    assert(!text.includes(open) && !text.includes(close), ['a tagged text holding a marker', text])
+    return text
+}).join('')
+
+/**
  * A text with spans beside it, as runs: the spans' text with their kind, the
  * gaps between them plain. Spans are in order and do not overlap, as LSP
  * semantic tokens are unless a client opts in; a span that is empty, out of
@@ -230,13 +247,13 @@ export const untagged = text => toText(unwrap(fromTagged(text)))
  * @type {(text: string) => (spans: readonly Span[]) => Result<Marked, string>}
  */
 export const fromSpans = text => spans => {
-    const symbols = Array.from(text)
+    const symbols = [...text]
     /** @type {(from: number, to: number) => readonly Run[]} */
     const plain = (from, to) => from < to ? [[symbols.slice(from, to).join('')]] : []
     /** @type {(i: number) => number} */
     const endBefore = i => {
         if (i === 0) { return 0 }
-        const { start, length } = spans[i - 1]
+        const { start, length } = spans[Number(i - 1)]
         return start + length
     }
     /** @type {(span: Span, i: number) => string | null} */

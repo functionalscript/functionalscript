@@ -50,9 +50,8 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
-import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
-import { arrayIndex } from '../../js/array_index/module.f.js'
+import { isArray as commonIsArray } from '../../types/array/module.f.js'
+import { isObject as commonIsObject } from '../../types/object/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /** Builds an error result with empty path and the given message. */
@@ -197,29 +196,24 @@ export const structSchemaEntries = rtti =>
  *
  * Bounded by what the value **carries** rather than by `length`: an index that
  * reads a value is an own enumerable property of the array, so enumerating its
- * own entries finds every one without materializing the range. Walking `0 … length - 1`
+ * own keys finds every one without materializing the range. Walking `0 … length - 1`
  * instead turned a `new Array(2 ** 32 - 1)` — which carries one own property,
  * `length` — into billions of iterations before any check could reject it.
  *
- * The own entries **are** the answer, already in the order wanted:
- * `Object.entries` follows `[[OwnPropertyKeys]]`, integer indices ascending
+ * The own keys **are** the answer, already in the order wanted:
+ * `Object.keys` follows `[[OwnPropertyKeys]]`, integer indices ascending
  * and without repeats,
  * so the walk is one linear pass and needs neither a dedup nor a sort. Adding
  * either made every `array(t)` read quadratic in its length: 829 ms at 40 000
  * elements against 3 ms at 1 000.
  *
- * No `in` test: a name reached this way is an own property of the value, so
- * the array reads at it by construction.
+ * DataJS arrays carry only positional keys below `length`. No `in` test:
+ * a name reached this way is an own property of the value, so the array
+ * reads at it by construction.
  *
  * @type {(value: ReadonlyArray<Unknown>) => readonly number[]}
  */
-const readIndices = value => {
-    const { length } = value
-    return Object.entries(value).flatMap(([k]) => {
-        const i = arrayIndex(k)
-        return i !== null && i < length ? [i] : []
-    })
-}
+const readIndices = value => Object.keys(value).map(v => Number(v))
 
 /**
  * The members of `value` that `declared` does not admit — every one the
@@ -227,8 +221,8 @@ const readIndices = value => {
  *
  * `declared` tests membership in a container schema's own keys, so for a
  * struct these are its undeclared own keys, and for a tuple they are the
- * positions past the prefix together with every own key that is no position
- * at all.
+ * positions past the prefix. The readers' DataJS input domain gives arrays
+ * only positional members.
  *
  * **A tuple's positions are read, not enumerated.** `length` is what says how
  * far an array reaches, and every own index below it is a member the `rest`
@@ -258,12 +252,9 @@ export const undeclaredMembers = (declared, value) => {
     if (!commonIsArray(value)) {
         return Object.entries(value).filter(([k]) => undeclared(k))
     }
-    return [
-        ...readIndices(value)
-            .filter(i => undeclared(String(i)))
-            .map(i => /** @type {const} */ ([String(i), value[Number(i)]])),
-        ...Object.entries(value).filter(([k]) => arrayIndex(k) === null && undeclared(k)),
-    ]
+    return readIndices(value)
+        .filter(i => undeclared(String(i)))
+        .map(i => /** @type {const} */ ([String(i), value[Number(i)]]))
 }
 
 /**
@@ -285,6 +276,8 @@ export const undeclaredMembers = (declared, value) => {
  * 0.5s here against a same-shaped value, for a question that is O(1) a key.
  *
  * `undeclaredMembers` stays for the `rest` readers, which need the pairs.
+ * DataJS arrays have only positional members, so their index walk settles
+ * the question without a separate search for named array properties.
  *
  * @type {(declared: (k: string) => boolean, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
  */
@@ -295,7 +288,6 @@ export const hasUndeclaredMember = (declared, value) => {
         return Object.keys(value).some(undeclared)
     }
     return readIndices(value).some(i => undeclared(String(i)))
-        || Object.keys(value).some(k => arrayIndex(k) === null && undeclared(k))
 }
 
 /**

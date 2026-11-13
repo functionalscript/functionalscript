@@ -244,11 +244,8 @@ impl<A: IVm> PropertyLambda<A> {
         runtime: &Any<A>,
         args: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Result<Any<A>, Any<A>> {
-        self.0.and_then(|m| {
-            m.resolve(runtime)
-                .and_then(|()| args())
-                .and_then(|a| m.call(runtime, a))
-        })
+        // A `Result`-sourced region is never skipped, so `end` is exact.
+        Region::from(self.0).call(runtime, args).end()
     }
     /// `|()` of an intrinsic's helper, `slice(s, a, b)`: the member call
     /// that asks no runtime, the own property else the native else the
@@ -336,38 +333,26 @@ impl<A: IVm> OptionPropertyLambda<A> {
         args: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Result<Any<A>, Any<A>> {
         match self.0 {
-            Region::Live(m) => m
-                .resolve(runtime)
-                .and_then(|()| args())
-                .and_then(|a| m.call(runtime, a)),
             Region::Skipped => args().and_then(|a| Any::undefined().call(a)),
-            Region::Thrown(e) => Err(e),
+            region => region.call(runtime, args).end(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::{identity, returns, rt};
     use crate::{
         naive::Naive,
-        vm::{Any, IVm, ToAny, ToArray, ToObject, error},
+        vm::{Any, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
     type Thunk = Box<dyn FnOnce() -> Result<Any<A>, Any<A>>>;
 
-    /// The runtime value a member's call step takes.
-    fn rt() -> Any<A> {
-        crate::vm::runtime::<A>().unwrap()
-    }
-
     /// A thunk that must not be forced.
     fn boom() -> Result<Any<A>, Any<A>> {
         Err("boom".into())
-    }
-    /// A function that answers its arguments, as the array it was given.
-    fn identity() -> Any<A> {
-        A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any()
     }
     /// A fresh arguments array, for a chain whose answer is not the array.
     fn args() -> Result<Any<A>, Any<A>> {
@@ -464,8 +449,7 @@ mod tests {
             identity().option_call(args).dot(key("length")).end(),
             Ok(1.0.to_any())
         );
-        let returns_object: Any<A> =
-            A::static_function(|_, _| Ok(object()), 0, [].to_array(), None).to_any();
+        let returns_object: Any<A> = returns(object());
         answers_arguments(|args| {
             returns_object
                 .option_call(|| Ok([].to_array().to_any()))
@@ -545,8 +529,7 @@ mod tests {
     /// fails a test.
     #[test]
     fn unguarded_steps_throw_on_nullish_current_value() {
-        let returns_undefined: Any<A> =
-            A::static_function(|_, _| Ok(Any::undefined()), 0, [].to_array(), None).to_any();
+        let returns_undefined: Any<A> = returns(Any::undefined());
         assert_eq!(
             returns_undefined.clone().option_call(args).call(boom).end(),
             Err("boom".into())

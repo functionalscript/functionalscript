@@ -9,8 +9,8 @@
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
  */
 
-import { concat, next, reverse } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, next, reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /**
  * Reassignment and nested references over the complete expanded source scope.
@@ -64,8 +64,8 @@ export const analyzeBindings = root => {
         let isMutable = false
         /** @type {List<FunctionTarget>} */
         let captures = null
-        while (cursor < grouped.length && grouped[cursor].position === position) {
-            const reference = grouped[cursor]
+        while (cursor < grouped.length && grouped[Number(cursor)].position === position) {
+            const reference = grouped[Number(cursor)]
             isMutable = isMutable || reference.write
             if (reference.scope !== owner) { captures = { first: reference.scope, tail: captures } }
             cursor += 1
@@ -162,12 +162,15 @@ export const mapOperator = map => operator => {
             return operator.length === 3 ? ['?.()', base, items] : ['?.()', base, items, mapStep(map, 1 + items.length)(operator[3])]
         }
         case 'instanceof': { return ['instanceof', map(operator[1], 0), operator[2]] }
+        case 'in': { return ['in', operator[1], map(operator[2], 0)] }
         case '?:': { return ['?:', map(operator[1], 0), map(operator[2], 1), map(operator[3], 2)] }
         case '+':
         case '-': { return operator.length === 2 ? [operator[0], map(operator[1], 0)] : [operator[0], map(operator[1], 0), map(operator[2], 1)] }
         case '~':
         case '!':
         case 'typeof':
+        case 'Boolean':
+        case 'BigInt':
         case 'Number':
         case 'String': { return [operator[0], map(operator[1], 0)] }
         default: { return [operator[0], map(operator[1], 0), map(operator[2], 1)] }
@@ -223,12 +226,15 @@ export const operatorOperands = operator => {
         case '?.': { return [operator[1], ...keyOperands(operator[2]), ...(operator.length === 4 ? continuation(operator[3]) : [])] }
         case '?.()': { return [operator[1], ...operator[2].map(operand), ...(operator.length === 4 ? continuation(operator[3]) : [])] }
         case 'instanceof': { return [operator[1]] }
+        case 'in': { return [operator[2]] }
         case '?:': { return [operator[1], operator[2], operator[3]] }
         case '+':
         case '-': { return operator.length === 2 ? [operator[1]] : [operator[1], operator[2]] }
         case '~':
         case '!':
         case 'typeof':
+        case 'Boolean':
+        case 'BigInt':
         case 'Number':
         case 'String': { return [operator[1]] }
         default: { return [operator[1], operator[2]] }

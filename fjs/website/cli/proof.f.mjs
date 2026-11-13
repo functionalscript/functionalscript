@@ -6,9 +6,9 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { helpReference } from '../../cli/module.f.mjs'
 import { commands } from '../../module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat } from '../../types/string/module.f.js'
 import { anchor, catalogue, cliPage, commandSection } from './module.f.mjs'
 
 const reference = { usage: 'fjs example', examples: ['fjs example'], note: 'Example note', docs: 'fjs/example/README.md' }
@@ -58,7 +58,7 @@ export const proof = {
             const entries = catalogue(commands)
             // Literal expectations make additions/removals and changed alias order visible.
             assertStructurallySame(entries.map(({ path, aliases }) => [path.join(' '), aliases]), [
-                ['test', ['t']], ['compile', ['c']], ['cas', ['s']],
+                ['test', ['t']], ['cov', []], ['deps', []], ['compile', ['c']], ['cas', ['s']],
                 ['cas add', ['s add']], ['cas get', ['s get']], ['cas list', ['s list']],
                 ['cas git', ['s git']],
                 ['cas git add', ['s git add']], ['cas git get', ['s git get']], ['cas git list', ['s git list']],
@@ -67,8 +67,8 @@ export const proof = {
                 ['web', ['w']], ['run', ['r']], ['help', ['h', '?']],
             ])
             assert(entries.every(({ usage, examples, docs }) => usage.length > 0 && examples.length > 0 && docs.startsWith('fjs/')), 'every command has usage, examples and docs')
-            const compile = commands[1]
-            const entry = entries[1]
+            const compile = commands[3]
+            const entry = entries[3]
             assertEq(entry.usage, compile.usage)
             assertStructurallySame(entry.examples, compile.examples)
             assertEq(entry.note, compile.note)
@@ -100,7 +100,7 @@ export const proof = {
     },
     page: () => {
         const html = cliPage(local)
-        assert(html.includes('<title>FunctionalScript CLI</title>'), html)
+        assert(html.includes('<title>CLI · FunctionalScript</title>'), html)
         assert(html.includes('<header>') && html.includes('href="/_main.css"'), html)
         assert(html.includes('npm install -g functionalscript'), html)
         assert(html.includes('npx functionalscript &lt;command&gt; [args]'), html)

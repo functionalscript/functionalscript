@@ -17,7 +17,7 @@
  */
 
 import { asyncPartialRun } from '../effects/module.mjs'
-import { commandsOf } from '../effects/module.f.mjs'
+import { commandsOf } from '../effects/module.f.js'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
@@ -25,7 +25,7 @@ import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.mjs'
-import { editOf } from './demo/mirror/module.f.mjs'
+import { editOf } from './demo/mirror/module.f.js'
 import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
 
 /**
@@ -448,15 +448,19 @@ const stepper = (root, demo) => {
     let queue = Promise.resolve()
     let pending = 0
     let revision = 0
-    // A reader edit not yet reported to `settled`.
+    // Steps, and whether a reader edit was among them, not yet reported to
+    // `settled`. A restore is not a step: its state came from the address bar.
+    let stepped = false
     let edited = false
-    /** @type {() => void} */
+    /** @type {(edited: boolean) => void} */
     let onSettled = () => {}
     const drain = () => {
         pending -= 1
-        if (pending === 0 && edited) {
+        if (pending === 0 && stepped) {
+            const reader = edited
+            stepped = false
             edited = false
-            onSettled()
+            onSettled(reader)
         }
     }
     let incremental = false
@@ -479,6 +483,7 @@ const stepper = (root, demo) => {
         if (!automatic && event.kind !== 'start') {
             revision += 1
         }
+        stepped = true
         if (!automatic && event.kind === 'input') { edited = true }
         const keepControls = automatic || incremental
         clearTimeout(scheduled)

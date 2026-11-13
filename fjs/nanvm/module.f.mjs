@@ -50,7 +50,7 @@
  * ```
  */
 
-import { fromValue, op1Id, op3Id } from '../edag/module.f.mjs'
+import { fromValue, op1Id, op3Id } from '../edag/module.f.js'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     callback as constructorsCallback, functionText, functionValue as constructorsFunctionValue, ref as constructorsRef,
@@ -145,6 +145,8 @@ export const groupKey = g =>
     // one key per constructor, `instanceof Array`, spelled as the source
     // is: the name is the group's, not the operand's
     : hasEntry(g, 'name') ? `${g.op} ${g.name}`
+    // and one per key, `in "x"`, the key the group's, as the source has it
+    : hasEntry(g, 'key') ? `${g.op} ${JSON.stringify(g.key)}`
     : g.op
 
 /**
@@ -175,8 +177,9 @@ export const casesOf = g => g.cases
  */
 export const arityOf = g => {
     if (hasEntry(g, 'arity')) { return g.arity }
-    // the constructor is a name, not an operand: one operand
-    if (hasEntry(g, 'name')) { return 1 }
+    // the constructor is a name, not an operand: one operand; and the key
+    // of an `in` is a spelling, not an operand: one operand
+    if (hasEntry(g, 'name') || hasEntry(g, 'key')) { return 1 }
     if (g.op === '&&' || g.op === '||' || g.op === '??') { return 2 }
     if (isOp1Id(g.op)[0] === 'ok') { return 1 }
     return isOp3Id(g.op)[0] === 'ok' ? 3 : 2
@@ -324,6 +327,8 @@ export const caseExp = shared => g => args => {
     const [a, b, c] = args.map(valuesExp(shared))
     // the constructor name is the group's, carried into the node as it is
     if (hasEntry(g, 'name')) { return ['instanceof', a, g.name] }
+    // and so is the key of an `in`
+    if (hasEntry(g, 'key')) { return ['in', g.key, a] }
     if (g.op === '&&' || g.op === '||' || g.op === '??') { return logicalExp(g.op, a, b) }
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
@@ -1187,6 +1192,71 @@ const instanceofArrayCases = [
 ]
 
 /**
+ * `"x" in o`, a key no prototype supplies: the enumerable own entry of an
+ * object, an array or a function — one holding `undefined` included — and
+ * a throw on `null`, `undefined` and every primitive, as JavaScript's
+ * `TypeError`. The answer is the runtime's body, `runtime.in`, which the
+ * Rust spelling calls through the runtime value (`fjs/js/runtime`,
+ * DESIGN.md §13), so these cases prove that path on both sides. A fresh
+ * boolean, so no identity concern, as `instanceof`.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const inKeyCases = [
+    { name: 'entry', args: [{ x: 1 }], expected: true },
+    { name: 'entryUndefined', args: [{ x: undefined }], expected: true },
+    { name: 'entryNull', args: [{ x: null }], expected: true },
+    { name: 'otherEntry', args: [{ y: 1 }], expected: false },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'emptyArray', args: [[]], expected: false },
+    { name: 'array', args: [[1, 2]], expected: false },
+    { name: 'function', args: [functionValue], expected: false },
+    { name: 'undefined', args: [undefined], expected: throws },
+    { name: 'null', args: [null], expected: throws },
+    { name: 'booleanTrue', args: [true], expected: throws },
+    { name: 'number', args: [2.3], expected: throws },
+    { name: 'string', args: ['x'], expected: throws },
+    { name: 'bigint', args: [5n], expected: throws },
+]
+
+/**
+ * `"length" in o`: the `length` an array and a function own without
+ * enumerating it, which the operator reads as the read does where
+ * `hasEntry` does not — the other case that makes the body more than the
+ * helper — an object's own `length` entry, and nothing of an object
+ * without one.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const inLengthCases = [
+    { name: 'emptyArray', args: [[]], expected: true },
+    { name: 'array', args: [[1, 2]], expected: true },
+    { name: 'function', args: [functionValue], expected: true },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'object', args: [{ a: 1 }], expected: false },
+    { name: 'arrayLikeObject', args: [{ length: 0 }], expected: true },
+    { name: 'string', args: ['abc'], expected: throws },
+    { name: 'undefined', args: [undefined], expected: throws },
+]
+
+/**
+ * `"0" in o`, an index-like key: an array's element and an object's entry
+ * under the string, and a throw on a string, whose code unit `hasEntry`
+ * alone would answer — the case that makes the body more than the helper.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const inIndexCases = [
+    { name: 'element', args: [[7]], expected: true },
+    { name: 'elementUndefined', args: [[undefined]], expected: true },
+    { name: 'emptyArray', args: [[]], expected: false },
+    { name: 'entry', args: [{ 0: 'a' }], expected: true },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'string', args: ['abc'], expected: throws },
+    { name: 'emptyString', args: [''], expected: throws },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -1568,8 +1638,41 @@ export const data = {
         { op: '?:', cases: ternaryCases },
         { op: 'typeof', cases: typeofCases },
         { op: 'instanceof', name: 'Array', cases: instanceofArrayCases },
+        { op: 'in', key: 'x', cases: inKeyCases },
+        { op: 'in', key: '0', cases: inIndexCases },
+        { op: 'in', key: 'length', cases: inLengthCases },
         { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
+        { op: 'BigInt', cases: [
+            { name: 'number', args: [42], expected: 42n },
+            { name: 'negativeZero', args: [-0], expected: 0n },
+            { name: 'largeNumber', args: [2 ** 100], expected: 2n ** 100n },
+            { name: 'bigint', args: [9_007_199_254_740_993n], expected: 9_007_199_254_740_993n },
+            { name: 'true', args: [true], expected: 1n },
+            { name: 'false', args: [false], expected: 0n },
+            { name: 'string', args: ['9007199254740993'], expected: 9_007_199_254_740_993n },
+            { name: 'empty', args: [''], expected: 0n },
+            { name: 'whitespace', args: [' \t\ufeff'], expected: 0n },
+            { name: 'signedDecimal', args: [' -0012 '], expected: -12n },
+            { name: 'hex', args: ['0xFF'], expected: 255n },
+            { name: 'octal', args: ['0O17'], expected: 15n },
+            { name: 'binary', args: ['0b101'], expected: 5n },
+            { name: 'array', args: [[7]], expected: 7n },
+            { name: 'emptyArray', args: [[]], expected: 0n },
+            { name: 'object', args: [{ valueOf: returns(12) }], expected: 12n },
+            { name: 'fallback', args: [{ valueOf: returns({}), toString: returns('13') }], expected: 13n },
+            { name: 'fraction', args: [1.5], expected: throws },
+            { name: 'nan', args: [NaN], expected: throws },
+            { name: 'infinity', args: [Infinity], expected: throws },
+            { name: 'null', args: [null], expected: throws },
+            { name: 'undefined', args: [undefined], expected: throws },
+            { name: 'invalidString', args: ['1.5'], expected: throws },
+            { name: 'exponent', args: ['1e3'], expected: throws },
+            { name: 'suffix', args: ['1n'], expected: throws },
+            { name: 'signedHex', args: ['-0x1'], expected: throws },
+            { name: 'separator', args: ['1_000'], expected: throws },
+            { name: 'plainObject', args: [{}], expected: throws },
+        ] },
         {
             // The `Number` cast, which is unary plus except that it converts
             // a bigint where `+` refuses one.

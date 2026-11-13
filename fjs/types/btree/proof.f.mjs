@@ -8,20 +8,20 @@
  * @import { RunInstance } from '../../effects/mock/types.ts'
  */
 
-import { values } from './module.f.mjs'
-import { cmp, occurrences } from '../string/module.f.mjs'
-import { next } from '../list/module.f.mjs'
-import { toArray } from '../list/alt/module.f.mjs'
+import { values } from './module.f.js'
+import { cmp, occurrences } from '../string/module.f.js'
+import { next } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
 import { value, find as findFind } from './find/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } from './demo.f.mjs'
-import { run as mockRun } from '../../effects/mock/module.f.mjs'
+import { run as mockRun } from '../../effects/mock/module.f.js'
 import { ok } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../result/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { set, squares } from './testlib.f.mjs'
+import { set, squares } from './testlib.f.js'
 import { max } from '../number/max/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
 
@@ -219,15 +219,21 @@ const demoProof = {
             const s = follow('Split a leaf')
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
-            // The new branch of five is its two keys, 60 and 80, and its
-            // three subtrees' edges from its top corner, middle and bottom
-            // corner, with no row named for any of them.
-            const { nodes, edges } = _graphOf(s.versions)
+            // The new branch of five is its two keys, 60 and 80, between
+            // its three subtrees' rows, each as many rows tall as its
+            // subtree has keys, with no row named for any of them.
+            const { nodes, edges, table } = _graphOf(s.versions)
+            assert(table === true, table)
             const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
             const node5 = assertNotNullish(nodes.find(n => JSON.stringify(keysOf(n.id)) === '["60","80"]'))
-            const out = edges.filter(e => e.from === node5.id && typeof e.to === 'number')
-            assertEq(JSON.stringify(out.map(e => [e.corner ?? null, e.label])), '[["top",""],["middle",""],["bottom",""]]')
+            const out = edges.filter(e => e.from === node5.id)
+            assertEq(JSON.stringify(out.map(e => typeof e.to === 'number' ? [e.span, e.label] : e.to.inline)), '[[1,""],"60",[1,""],"80",[1,""]]')
             assert(!h.includes('data-graph-edge-label="">Middle<'), h)
+            // Drawn as a table, every arrow runs straight across: each
+            // edge's path stays at the height it starts at.
+            const paths = h.split('" data-graph-edge=""').slice(0, -1).map(before => before.slice(before.lastIndexOf('d="M') + 'd="M'.length))
+            assert(paths.length > 1, h)
+            paths.forEach(d => assertEq(new Set(d.split(' L').map(point => point.split(',')[1])).size, 1))
         },
         // The split reaches the root, and the tree grows a level: the new
         // root is a rank further from the leaves than the old one.

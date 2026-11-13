@@ -6,7 +6,7 @@
 
 import { assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { initConfig } from '../testlib.f.mjs'
+import { initConfig } from '../testlib.f.js'
 import { lastBool, lastInt, lastValue, tryEntries, values } from './module.f.js'
 
 /**
@@ -95,10 +95,12 @@ const numbers = [
  * is none at all, `0x`, `0b` and `k` spell no number, a number too large
  * for the `int` Git reads it into is none either, and the conversion's whitespace comes off the
  * front alone, so a trailing space is read as a unit and found to be none.
+ * A unit is cased as ASCII: `'\u212a'`, the Kelvin sign, is no `k`, though
+ * `toLowerCase()` would make it one.
  *
  * @type {readonly string[]}
  */
-const noNumbers = ['08', '019', '0a', '1a', '0b1a', '0xg', '0x1h', '0x٤', '٤', '0x80000000', '0x', '0b', '0b2', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999', '1.5', '"1 "', '" "']
+const noNumbers = ['08', '019', '0a', '1a', '0b1a', '0xg', '0x1h', '0x٤', '٤', '0x80000000', '0x', '0b', '0b2', 'k', '-', '1kb', '1\u212a', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999', '1.5', '"1 "', '" "']
 
 export const proof = {
     // Every entry, in order, with its section: a tab before the key, the
@@ -191,22 +193,22 @@ export const proof = {
     // line's end would have dropped it. In a name a NUL is no key
     // character at all, so it is a bad config line.
     nul: () => {
-        assertEq(value('a\0b'), 'a')
-        assertEq(value('a   \0b'), 'a   ')
-        assertEq(value('\0b'), '')
-        assertEq(value('"a \0b"'), 'a ')
-        assertEq(value('a\0b   '), 'a')
-        assertEq(tryEntries('[c]\n\tx\0'), null)
-        assertEq(tryEntries('[c]\n\tx\0y = 1'), null)
-        assertEq(tryEntries('[c\0d]\n\tx = 1'), null)
+        assertEq(value('a\u0000b'), 'a')
+        assertEq(value('a   \u0000b'), 'a   ')
+        assertEq(value('\u0000b'), '')
+        assertEq(value('"a \u0000b"'), 'a ')
+        assertEq(value('a\u0000b   '), 'a')
+        assertEq(tryEntries('[c]\n\tx\u0000'), null)
+        assertEq(tryEntries('[c]\n\tx\u0000y = 1'), null)
+        assertEq(tryEntries('[c\u0000d]\n\tx = 1'), null)
         // A quoted subsection takes every character but a `\n`, so a NUL
         // there is no bad config line to Git: it truncates the whole
         // assembled name and leaves it with no key, which is a name an
         // entry cannot spell, so this refuses rather than misreads.
-        assertEq(tryEntries('[remote "o\0p"]\n\tx = 1'), null)
-        assertEq(tryEntries('[remote "\0o"]\n\tx = 1'), null)
+        assertEq(tryEntries('[remote "o\u0000p"]\n\tx = 1'), null)
+        assertEq(tryEntries('[remote "\u0000o"]\n\tx = 1'), null)
         assertStructurallySame(tryEntries('[remote "op"]\n\tx = 1'), [['remote.op', 'x', '1']])
-        assertEq(tryEntries('\0[c]\n\tx = 1'), null)
+        assertEq(tryEntries('\u0000[c]\n\tx = 1'), null)
     },
     // A value as Git's own parser reads it, a character at a time.
     value: () => {

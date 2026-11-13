@@ -2,11 +2,11 @@
  * @import { TNode } from '../types/types.ts'
  */
 
-import { nodeRemove } from './module.f.mjs'
-import { cmp } from '../../string/module.f.mjs'
-import { assertEq, assertNotNullish } from '../../../asserts/module.f.js'
+import { nodeRemove, remove as removeTree } from './module.f.js'
+import { cmp } from '../../string/module.f.js'
+import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
-import { expectedSquares38, set, squares } from '../testlib.f.mjs'
+import { expectedSquares38, set, squares } from '../testlib.f.js'
 
 /** @type {(node: TNode<string>) => (value: string) => TNode<string> | null} */
 const remove = node => value =>
@@ -445,8 +445,14 @@ const test3 = () => {
     ) { throw r }
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
+    remove: () => {
+        const tree = /** @type {const} */ ([['a'], 'b', ['c']])
+        assertStructurallySame(removeTree(cmp('b'))(tree), ['a', 'c'])
+        assertEq(removeTree(cmp('a'))(['a']), null)
+        assertEq(removeTree(cmp('a'))(null), null)
+    },
     test,
     test2,
     test3,
-}
+})

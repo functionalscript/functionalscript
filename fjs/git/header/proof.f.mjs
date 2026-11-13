@@ -4,10 +4,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { fromArrayLike } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { commitPayload, headerOnlyTagPayload, hole, latin1 } from '../testlib.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
+import { fromArrayLike } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { commitPayload, headerOnlyTagPayload, latin1, undefinedByte } from '../testlib.f.js'
 import { field, hasNulHeader, keyIs, optionalField, tryRead, tryReadAtLeast, valueAt, valuesOf, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
@@ -152,7 +152,7 @@ export const proof = {
     keyIsRefused: {
         throw: {
             nonByteAfterMismatch: () => keyIs([[0x78, 0x100], []], 'tree'),
-            hole: () => keyIs([hole, []], 'tree'),
+            undefinedByte: () => keyIs([undefinedByte, []], 'tree'),
             valuesOf: () => valuesOf({ headers: [[[0x78, 0x100], []]], message: null }, 'tree'),
         },
     },
@@ -160,10 +160,10 @@ export const proof = {
     // real commit, and one in the message is not a header's.
     hasNulHeader: () => {
         assert(!hasNulHeader(read(commitPayload)))
-        assert(!hasNulHeader(read(latin1('\n\0'))))
+        assert(!hasNulHeader(read(latin1('\n\u0000'))))
         assert(hasNulHeader(read([0x61, 0x20, 0, 0x0A, 0x0A])))
         assert(hasNulHeader(read([0x61, 0, 0x20, 0x78, 0x0A, 0x0A])))
-        assert(hasNulHeader(read(latin1('a x\nb y\n \0\n\n'))))
+        assert(hasNulHeader(read(latin1('a x\nb y\n \u0000\n\n'))))
     },
     // Every header of a key, in order, wherever it sits; none is none.
     valuesOf: () => {
@@ -250,9 +250,9 @@ export const proof = {
             nonByteInKey: () => toArray(write({ headers: [[[0x100], latin1('x')]], message: [] })),
             nonByteInValue: () => toArray(write({ headers: [[latin1('k'), [0x100]]], message: [] })),
             nonByteInMessage: () => write({ headers: [], message: [-1] }),
-            // A hole is met, not skipped.
-            holeInKey: () => toArray(write({ headers: [[hole, latin1('x')]], message: [] })),
-            holeInMessage: () => write({ headers: [], message: hole }),
+            // An undefined value is no byte, in a key or a message.
+            undefinedByteInKey: () => toArray(write({ headers: [[undefinedByte, latin1('x')]], message: [] })),
+            undefinedByteInMessage: () => write({ headers: [], message: undefinedByte }),
         },
     },
 }

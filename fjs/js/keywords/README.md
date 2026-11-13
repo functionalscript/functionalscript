@@ -12,7 +12,7 @@ which words are not identifiers.
 |`restrictedNames`        |`arguments` and `eval`, which strict mode forbids binding                                                            |
 |`literalWords`           |the words that spell a value: `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`                                |
 |`literalGlobals`         |the three of those that are globals rather than keywords: `undefined`, `NaN`, `Infinity`                             |
-|`reservedGlobals`        |`Array`, `Number`, `Object` and `String`: not keywords, but names a module may not bind or shadow                    |
+|`reservedGlobals`        |`Array`, `BigInt`, `Boolean`, `Number`, `Object` and `String`: names a module may not bind or shadow                 |
 |`keywords`, `isKeyword`  |the reserved words, the strict-mode words, the restricted names and the literal globals, sorted, and the test for one|
 |`isReservedGlobal`       |the test for a reserved global; never true for a keyword                                                             |
 

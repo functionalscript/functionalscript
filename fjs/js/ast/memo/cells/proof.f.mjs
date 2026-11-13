@@ -53,6 +53,50 @@ const recipeBlock = plan => {
 }
 
 export const proof = /** @type {const} */ ({
+    terminalLoopsRetainLazyInventoryAndReturnOwners: () => {
+        /** @type {Loop} */
+        const loop = { target, parameters: [], initial: [], results: [], body: body([], ['return', functionTarget, ['ref', a]]) }
+        const source = body([['define', a, ['array', [7]], 'lazy']], ['loop', loop])
+        assertEq(_hasReturn(['block', source], functionTarget), true)
+        const plan = planned(source, [], functionTarget)
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.cells[0].binding, a)
+        assert(plan.block.exit[0] === 'loop')
+        assertEq(plan.block.exit[1].results.length, 0)
+        assert(plan.loops.has(plan.block.exit[1]))
+    },
+    deferredTerminalLoopsKeepTheirConditionalPrerequisites: () => {
+        /** @type {Loop} */
+        const loop = { target, parameters: [], initial: [], results: [],
+            body: body([['define', known, ['ref', a], 'required']], ['throw', ['ref', known]]) }
+        /** @type {Value} */
+        const captured = ['function', { target: functionTarget, parameters: [], rest: null, self: null,
+            captures: [{ binding: known, value: ['ref', a] }], body: body([], ['return', functionTarget, ['ref', known]]) }]
+        /** @type {Value} */
+        const initializer = ['if', true, body([], ['loop', loop]), body([], ['yield', [captured]])]
+        const source = body([
+            ['define', a, ['array', [4]], 'lazy'], ['define', b, initializer, 'lazy'],
+        ], ['yield', [['ref', b]]])
+        const plan = planned(source)
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].initializer, initializer)
+    },
+    terminalRecipeReturnsKeepTheirFunctionOwner: () => {
+        /** @type {Value} */
+        const returned = ['block', body([], ['loop', { target, parameters: [], initial: [], results: [],
+            body: body([], ['return', functionTarget, 7]) }])]
+        const source = containing(reading(a), [['define', a, returned, 'lazy']])
+        const plan = memoCells(source, [], functionTarget, true)
+        assert(plan !== null)
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.cells[0].initializer, returned)
+        /** @type {Value} */
+        const initializer = ['block', body([['define', b, returned, 'lazy']], ['yield', [['ref', b]]])]
+        const recipe = recipeCells(initializer, { cells: [], definitions: new Map(), loops: new Set() }, new Map(), functionTarget)
+        assertEq(recipe.localCount, 1)
+        assertEq(recipe.layout.cells[0].binding, b)
+    },
     deferredReturnInventoryKeepsFunctionBoundaries: () => {
         const returned = body([], ['return', functionTarget, 7])
         const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -72,7 +116,7 @@ export const proof = /** @type {const} */ ({
         ])) { assertEq(_hasReturn(value, functionTarget), true) }
         /** @type {Value} */
         let deep = ['block', returned]
-        for (let depth = 0; depth < 20_000; ++depth) { deep = ['array', [deep]] }
+        for (let depth = 0; depth < 20_000; depth += 1) { deep = ['array', [deep]] }
         assertEq(_hasReturn(deep, functionTarget), true)
     },
     noCrossing: () => {
@@ -135,7 +179,7 @@ export const proof = /** @type {const} */ ({
     deepDeferredSelection: () => {
         /** @type {Value} */
         let initializer = ['block', body([['loop', reading(a)]], ['yield', [['ref', result]]])]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const local = /** @type {const} */ ({ index: depth })
             initializer = ['block', body([['define', local, initializer, 'lazy']], ['yield', [['ref', local]]])]
         }
@@ -505,7 +549,7 @@ export const proof = /** @type {const} */ ({
         for (const depth of [2, 3]) {
             const targets = Array.from({ length: depth }, () => /** @type {const} */ ({ kind: 'loop', index: 0 }))
             let sourceLoop = reading(b, targets[depth - 1])
-            for (let index = depth - 2; index >= 0; --index) {
+            for (let index = depth - 2; index >= 0; index -= 1) {
                 sourceLoop = loopOf(body([['loop', sourceLoop]], ['break', targets[index], [0]]), targets[index])
             }
             const plan = planned(containing(sourceLoop, [
@@ -522,7 +566,7 @@ export const proof = /** @type {const} */ ({
             assertEq(plan.loops.size, depth)
             const selected = [...plan.loops]
             let loop = loopsOf(plan.block)[0]
-            for (let index = 0; index < depth; ++index) {
+            for (let index = 0; index < depth; index += 1) {
                 assertEq(loop, selected[index])
                 assertEq(loop.target, targets[index])
                 if (index + 1 !== depth) { loop = loopsOf(loop.body)[0] }
@@ -908,7 +952,7 @@ export const proof = /** @type {const} */ ({
         const loop = reading(a)
         /** @type {Block} */
         let nested = body([['loop', loop]])
-        for (let depth = 0; depth < 20_000; ++depth) { nested = body([['block', [], nested]]) }
+        for (let depth = 0; depth < 20_000; depth += 1) { nested = body([['block', [], nested]]) }
         const plan = planned(body([['define', a, ['array', []], 'lazy'], ['block', [], nested]]))
         assertEq(plan.cells.length, 1)
         assertEq(plan.loops.size, 1)
@@ -1149,7 +1193,7 @@ export const proof = /** @type {const} */ ({
             const outer = planned(containing(reading(a)))
             /** @type {Value} */
             let value = ['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])]
-            for (let depth = 0; depth < 20_000; ++depth) { value = ['!', value] }
+            for (let depth = 0; depth < 20_000; depth += 1) { value = ['!', value] }
             assertEq(recipeCells(value, outer, new Map([[a, 0]])).localCount, 1)
         },
     },

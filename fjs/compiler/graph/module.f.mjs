@@ -83,7 +83,7 @@
  * @import { _Chain, _Child, _Definition, _DefinitionTask } from './private.ts'
  */
 
-import { intrinsicIds, staticIds } from '../../edag/module.f.mjs'
+import { helperIds, staticIds } from '../../edag/module.f.js'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { chunksText } from '../../text/marked/module.f.mjs'
 import { graphOf } from '../../website/demo/graph/module.f.mjs'
@@ -97,8 +97,9 @@ import { operatorOperands } from '../../js/ast/module.f.mjs'
 // for a flat list of strings simple enough to check against the type file
 // by eye. The static functions are the one group a later row grows, so
 // they are the EDAG's own list.
-const leaves = new Set(['entry', 'hasEntry', ...intrinsicIds, ...staticIds])
-const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
+/** @type {ReadonlySet<string>} */
+const leaves = new Set([...helperIds, ...staticIds])
+const op1 = new Set(['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
@@ -274,6 +275,9 @@ export const operatorShape = ({ array, object }) => other => {
         // an instance check: its one operand, and the constructor as part
         // of the label, a name the node carries rather than a child
         if (tag === 'instanceof') { return { kind: 'op', label: `instanceof ${exp[2]}`, children: [['operand', exp[1]]] } }
+        // an entry check: its key as part of the label, a spelling the
+        // node carries rather than a child, and its one operand
+        if (tag === 'in') { return { kind: 'op', label: `${JSON.stringify(exp[1])} in`, children: [['operand', exp[2]]] } }
         if (typeof tag === 'string' && op12.has(tag)) {
             return exp.length === 2
                 ? { kind: 'op', label: tag, children: [['operand', exp[1]]] }
@@ -334,6 +338,7 @@ const definitions = ({ parameters, body }) => {
     /** @type {(exit: Exit) => readonly _DefinitionTask[]} */
     const exit = e => {
         switch (e[0]) {
+            case 'loop': { return statement(e) }
             case 'yield': { return e[1].flatMap(value) }
             case 'continue':
             case 'break': { return e[2].flatMap(value) }
@@ -502,13 +507,14 @@ export const fastGraph = module => {
 /**
  * How a pattern's read spells where it reads from: `=` for the value it
  * binds, `n.key` or `n[i]` for a key of read `n`, a static function's
- * name, and `...` before a read that copies an iterable first.
+ * name or a namespace number, and `...` before a read that copies an iterable first.
  *
  * @type {(read: ExpansionPlan['reads'][number]) => string}
  */
 const readLabel = ({ source, spread }) => {
     const from = source === null ? '='
-        : source.length === 1 ? source[0]
+        : typeof source === 'number' ? String(source)
+            : source.length === 1 ? source[0]
             : typeof source[1] === 'number' ? `${source[0]}[${source[1]}]` : `${source[0]}.${source[1]}`
     return spread ? `...${from}` : from
 }
@@ -619,8 +625,9 @@ export const sourceGraph = module => {
             }
             case 'if': { return { kind: 'op', label: 'if', children: [['cond', exp[1]], ['then', exp[2], 'lazy'], ['else', exp[3], 'lazy']] } }
             case 'while': {
-                const { condition, body } = /** @type {SourceLoop} */ (exp[1])
-                return { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
+                const { condition, body, postTest } = /** @type {SourceLoop} */ (exp[1])
+                return postTest ? { kind: 'op', label: 'do...while', children: [['body', body], ['cond', condition, 'lazy']] }
+                    : { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
             }
             case 'terminal-loop': {
                 const { condition, body } = /** @type {SourceLoop} */ (exp[1])

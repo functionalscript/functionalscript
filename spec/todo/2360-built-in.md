@@ -23,10 +23,12 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
-([numbers](../values/numbers/README.md)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
+([numbers](../values/numbers/README.md)), `Boolean`, `Number`, `String` and
+`BigInt`, as their conversion operators, their
 words reserved ([number conversion](../conversions/number/README.md),
-[string conversion](../conversions/string/README.md)), and `Array`, as the
+[string conversion](../conversions/string/README.md),
+[bigint conversion](../conversions/bigint/README.md),
+[boolean conversion](../conversions/boolean/README.md)), and `Array`, as the
 right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
@@ -66,9 +68,14 @@ name not yet decided, or, where it says so, never admitted.
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
       its own. `Object.entries` is admitted too, native in every executor,
-      and `Object.fromEntries`, its body in the runtime (the records below)
+      and `Object.fromEntries` and `Object.keys`, their bodies in the runtime
+      (the records below)
 - [ ] `Function`
-- [ ] `Boolean`
+- [x] `Boolean` — the conversion operator `Boolean(value)`, implemented by
+      the common runtime body `value => !!value`. `Boolean()` supplies
+      `undefined`; the word cannot be bound or read as a function value.
+      See [boolean conversion](../conversions/boolean/README.md) and the
+      [approved proposal](https://github.com/functionalscript/functionalscript/blob/cb40112b480cb83ce55bfbb19ba07ddbe390e8c6/spec/todo/boolean-operator.md).
 - [ ] `Symbol`
 
 ##### `Object.entries` proposal and approval
@@ -120,7 +127,7 @@ executor answers `function entries() { [native code] }`: what ECMA-262
 requires of a built-in function
 ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
 a string with the syntax of a NativeFunction whose name is the built-in's
-[[InitialName]], `entries`. The grammar admits parameters; the text has
+`[[InitialName]]`, `entries`. The grammar admits parameters; the text has
 none, as most engines print it, V8's text exactly. The interpreter spells
 it, `staticText` in `fjs/edag`, from the static node, and NaNVM forms the
 same text from the built-in's name, `Function::text`. A text keeps
@@ -245,6 +252,43 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       page updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
+##### `Object.keys` proposal and approval
+
+**Status:** approved and implemented.
+
+**Problem.** Modules that need an object's keys use `Object.keys`, which was
+refused even though the language already had native `Object.entries` and a
+shared array `map` body.
+
+**Proposal.** Admit `Object.keys`, `Object["keys"]` and namespace destructuring
+such as `const { keys } = Object`, with the same first-class function behavior
+as the other statics: the EDAG node `['Object.keys']`, `length` 1, stable
+identity and `function keys() { [native code] }` as its function text. Return
+a fresh array of enumerable own string keys in JavaScript's order, including
+keys holding undefined; preserve array/string index enumeration, scalar and
+function inputs, nullish failure and ordinary extra-argument evaluation.
+
+**One body.** Project native entries through the shared array `map` body. The
+runtime captures native `Object.entries` once and calls the map body directly,
+so the implementation needs no member dispatch during bootstrap and adds no
+native primitive. FunctionalScript values have no accessors or proxies, so
+enumerating entry values before discarding them changes no observation.
+
+**Benefits.** Familiar JavaScript syntax and one semantic implementation,
+reusing the array mapper that every executor already shares.
+
+**Drawbacks.** It allocates entries whose values are discarded and uses the
+reference mapper's O(n²) immutable result accumulation. The spelling inside
+the runtime calls the typed map body directly because the current bootstrap
+does not dispatch member calls through its own runtime.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Object.keys` based on `.map`, in a new pull request, in
+[the working session](https://chatgpt.com/local/6af401d2-2f04-8191-9c7c-c4ddba48e03b).
+
+The runtime host proofs and the Object.keys harness fixtures hold the shared
+body, represented interpreters and generated NaNVM code to JavaScript.
+
 #### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
@@ -252,8 +296,9 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
       ([built-in static functions](../built-ins/static-functions/README.md),
-      the record below); the namespace's other members, its value
-      properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
+      the record below), plus the numeric constant `Number.MAX_SAFE_INTEGER`,
+      desugared to its value ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
+      the namespace's other members stay unticked, each
       an admission of its own. A module reading one of the four, through
       `const { isFinite } = Number` as well, needs no rewrite to compile;
       a module reading another member is rewritten when that member is
@@ -262,7 +307,12 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
-- [ ] `Math`
+- [x] `Math` — a reserved namespace admitting the static functions
+      `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
+      `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`; other members remain
+      separate admissions
+      ([built-in static functions](../built-ins/static-functions/README.md),
+      the approval below)
 - [ ] `Date`
 
 ##### Number predicates proposal and approval
@@ -297,8 +347,9 @@ reading one of the four needs no rewrite to compile.
 **Drawbacks.** Four more EDAG node kinds, each a tag every executor and
 writer has to read, unless they share one table of static names. The
 namespace grows to a member that is a number, `Number.MAX_SAFE_INTEGER`,
-which stays refused: a value property is a different admission from a
-function.
+which was refused at this step: a value property is a different admission
+from a function. It is now admitted by the separately approved
+[numeric-constant lowering](../built-ins/static-functions/README.md#numeric-constants).
 
 **Language-design approval.** **sergey-shandar** chose "all four Number
 predicates" when asked which function to admit next, in
@@ -312,13 +363,292 @@ spelling of one function, so modules call the built-in, and the runtime's
 proof checks each body against the host's. **sergey-shandar** proposed
 the move in the same session, after the admission.
 
+##### Math.log2 proposal and approval
+
+**Problem.** The compiler refused `Math.log2`, which the bigint utilities
+use to finish their integer logarithm. Rust provides `f64::log2`, but core
+WASM has no logarithm instruction.
+
+**Proposal.** Admit `Math.log2` as a static function and reserve `Math` as
+its closed namespace. One authored FunctionalScript body in the common
+runtime supplies conversion, exact special cases and the numerical
+operation for represented execution and Rust, and is available to the
+future WASM backend. Detached calls, destructuring, identity, function
+text and `length` retain the usual static-function contract.
+
+Use compatible native operations only when both Rust and core WASM
+provide them. If either lacks an operation, implement it in the common
+runtime and use that body in Rust too. Any supporting `Math` functions
+follow the same rule. WASM adds no third-party dependencies; later native
+substitutions may optimize the shared implementation.
+
+**Benefits.** Familiar JavaScript spelling and one implementation across
+backends, without an external WASM math library. Existing bigint callers
+retain their rounding corrections and exact integer contract.
+
+**Drawbacks.** Reserving `Math` affects existing bindings. The shared
+numerical kernel requires accuracy validation, and Rust initially uses it
+even though its standard library offers a native logarithm. General
+positive results are implementation-approximated, as ECMAScript specifies;
+the exact special cases and conversions are not approximate.
+
+**Language-design approval.** **sergey-shandar** explicitly requested the
+TODO PR and its stacked implementation, permitting any necessary supporting
+`Math` admissions under the rule above, in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.trunc proposal and approval
+
+**Problem.** The compiler refused `Math.trunc`, blocking the SHA-1 module's
+migration to `.f.js`.
+
+**Proposal.** Admit `Math.trunc` as a native static function, the EDAG node
+`['Math.trunc']`, with the ordinary static-value contract: detached and
+destructured calls, quoted property access, optional calls, stable identity,
+native function text and `length` of one. `Math` remains a closed namespace.
+
+Convert the first argument once with JavaScript `ToNumber`, then truncate
+toward zero. Preserve `NaN`, both infinities and both zeros; fractions
+between `-1` and zero produce `-0`. An omitted argument produces `NaN`.
+Bigints, including those returned by object conversion, and failed primitive
+conversion throw. Extra arguments are evaluated but are not converted.
+
+**Backend choice.** Both target languages provide the exact numeric operation:
+[Rust `f64::trunc`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.trunc)
+and [core WASM `f64.trunc`](https://webassembly.github.io/spec/core/exec/numerics.html#op-ftrunc).
+Use native bindings under the approved `Math` target rule above. JavaScript
+uses its native `Math.trunc`; represented execution applies its existing
+`ToNumber` conversion before native truncation; Rust uses `Any::to_number`
+and `Number::trunc`. A future WASM backend can use `f64.trunc` after the same
+conversion. No third-party WASM dependency or common numerical body is needed.
+
+**Benefits.** Familiar JavaScript spelling and exact native truncation on both
+targets, including signed zero, without an external math library.
+
+**Drawbacks.** Each executor needs a native binding that preserves conversion
+failures and special values. This admission does not admit other `Math` members.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.trunc` in a new PR, using native operations when both
+Rust and WASM provide them, in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.floor proposal and approval
+
+**Problem.** The compiler refused `Math.floor`, blocking the Rust-number
+serializer and Adler-32 dependency leaves.
+
+**Proposal.** Admit the native static value `Math.floor`, EDAG node
+`['Math.floor']`, with the existing static-function contract: quoted and
+destructured reads, detached and optional calls, stable identity, native text
+and `length` of one. Other `Math` members remain separate admissions.
+
+Convert the first argument once with JavaScript `ToNumber`, then round
+toward negative infinity: `Math.floor(-0.5)` and the smallest negative
+subnormal produce `-1`. Preserve both zeros, infinities and `NaN`.
+An omitted argument produces `NaN`; primitive or converted bigints and
+failed primitive conversion throw. Extra arguments are evaluated but are
+not converted.
+
+**Backend choice.** Both targets provide the numeric operation:
+[Rust `f64::floor`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.floor)
+and [core WASM `f64.floor`](https://webassembly.github.io/spec/core/exec/numerics.html#op-ffloor).
+Use native bindings under the approved target rule. The JavaScript runtime
+holds `Math.floor` itself; represented execution and Rust perform their
+existing `ToNumber` conversion before the native operation. A future WASM
+backend can use `f64.floor` after conversion, with no third-party dependency.
+
+**Benefits.** Familiar JavaScript spelling and exact native floor on both
+targets without another numerical implementation or dependency.
+
+**Drawbacks.** Each executor needs a binding that preserves conversion errors
+and special values. Rounding negative fractions must remain distinct from
+truncation toward zero.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.floor` in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.abs proposal and approval
+
+**Problem.** The compiler refused `Math.abs`, blocking the Rust-number
+serializer after its helper-order correction.
+
+**Proposal.** Admit the native static value `Math.abs`, EDAG node
+`['Math.abs']`, with ordinary quoted and destructured reads, detached and
+optional calls, stable identity, native function text and `length` of one.
+Other `Math` members remain separate admissions.
+
+Convert the first argument once with JavaScript `ToNumber`, then take its
+absolute value. Both zeros produce positive zero; negative infinity becomes
+positive infinity; finite magnitudes, including subnormals, are exact; `NaN`
+remains `NaN`. Missing arguments produce `NaN`. Primitive or converted
+bigints and failed primitive conversion throw. Extra arguments are evaluated
+but are not numerically converted.
+
+**Backend choice.** Both targets provide the numeric operation:
+[Rust `f64::abs`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.abs)
+and [core WASM `f64.abs`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fabs).
+Use native bindings under the approved target rule. The runtime table holds
+JavaScript's built-in itself; represented execution and Rust apply their
+existing `ToNumber` conversion before native absolute value. A future WASM
+backend can use `f64.abs` after conversion, without third-party dependencies.
+
+**Benefits.** Familiar JavaScript spelling and exact native absolute value
+on both targets, without another numerical implementation or dependency.
+
+**Drawbacks.** Each executor needs a binding that preserves conversion
+failures and returns positive zero for `-0`. This is a separate admission
+from other `Math` functions.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.abs` in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.sqrt, Math.ceil and Math.imul proposal and approval
+
+**Problem.** The compiler refused these three statics, blocking the
+`website/demo/secp`, `zlib/inflate` and `zlib/testlib` dependency leaves.
+
+**Proposal.** Admit the native static values `Math.sqrt`, `Math.ceil` and
+`Math.imul`, represented by nodes of those names. Preserve ordinary quoted and
+destructured reads, detached and optional calls, stable identity and native
+function text. `sqrt` and `ceil` have `length` one; `imul` has `length` two.
+Other `Math` members remain separate admissions.
+
+`sqrt` converts its first argument once with `ToNumber` and returns its
+non-negative square root. Preserve both zeros and positive infinity; negative
+numbers, including negative infinity, and `NaN` produce `NaN`.
+
+`ceil` converts its first argument once with `ToNumber` and rounds toward
+positive infinity. Preserve both zeros, infinities and `NaN`; a negative
+fraction between `-1` and zero produces `-0`.
+
+`imul` applies `ToUint32` to the first argument, then to the second, and returns
+the low 32 bits of their product interpreted as a signed 32-bit integer.
+Conversion truncates finite fractions toward zero and reduces integers modulo
+`2^32`; zeros, infinities and `NaN` convert to zero. The first conversion must
+finish before the second begins. An omitted argument converts through
+`undefined`, so `imul()` and `imul(x)` produce positive zero for a valid `x`.
+
+For all three, primitive or converted bigints and failed primitive conversion
+throw. Missing unary arguments produce `NaN`. All argument expressions are
+evaluated before invocation; extra arguments are not numerically converted.
+
+**Backend choice.** Both targets provide compatible numerical operations:
+[Rust `f64::sqrt`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.sqrt)
+and [core WASM `f64.sqrt`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fsqrt),
+[Rust `f64::ceil`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.ceil)
+and [core WASM `f64.ceil`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fceil),
+and [Rust `i32::wrapping_mul`](https://doc.rust-lang.org/stable/std/primitive.i32.html#method.wrapping_mul)
+and [core WASM `i32.mul`](https://webassembly.github.io/spec/core/exec/numerics.html#op-imul).
+Use native bindings under the approved target rule. The runtime table holds
+JavaScript's built-ins; represented execution and Rust use their existing
+conversions before the native operation. For `imul`, interpreting each operand's
+32 bits as signed before wrapping multiplication preserves the product bits.
+A future WASM backend can use these core instructions after the same
+conversions. No common numerical body or third-party dependency is needed.
+
+**Benefits.** Familiar JavaScript names and compatible native operations on
+both targets, without another numerical implementation or dependency.
+
+**Drawbacks.** Three more static bindings and their conversion contracts in
+each executor. `imul` must preserve operand-conversion order and wrapping
+semantics, and the unary bindings must preserve signed zero and special values.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+"Implement `Math.sqrt`, `Math.ceil` and `Math.imul` in a new PR" in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.max proposal and approval
+
+**Problem.** The compiler refused `Math.max`, the secp demo's next blocker
+after the square-root admission.
+
+**Proposal.** Admit the variadic native static value `Math.max`, represented
+by `['Math.max']`. Preserve quoted and destructured reads, detached and optional
+calls, stable identity, `length` two and `function max() { [native code] }`
+as its text. Other `Math` members remain separate admissions.
+
+Convert every argument once with `ToNumber`, from left to right, including
+arguments after `NaN` or positive infinity. Primitive or converted bigints and
+failed primitive conversion throw. All argument expressions are evaluated
+before invocation. No arguments return negative infinity; any converted `NaN`
+makes the result `NaN` after the remaining conversions succeed. Otherwise,
+return the greatest value. Positive zero wins a tie with negative zero in
+either order, while an input consisting only of negative zeros returns `-0`.
+
+**Backend choice.** Use
+[Rust `f64::max`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.max)
+with explicit `NaN` propagation and zero-tie correction, and
+[core WASM `f64.max`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fmax),
+under the approved target rule. Rust's stable `max` ignores a lone `NaN` and
+does not guarantee the required zero tie; `f64::maximum` is unstable on the
+pinned toolchain. The Rust binding corrects those cases around native `max`
+and folds from negative infinity, preserving conversion after a `NaN`.
+The runtime table holds JavaScript's built-in. A future WASM backend can
+fold core `f64.max` after the same argument conversions. No common numerical
+body or third-party dependency is needed.
+
+**Benefits.** Familiar JavaScript spelling, compatible native operations in
+both targets and progress on the secp demo's migration.
+
+**Drawbacks.** Another static binding and variadic conversion contract. Rust
+needs explicit special-value corrections to match JavaScript and core WASM.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.max` in the same PR in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.min proposal and approval
+
+**Problem.** The compiler refused `Math.min`, the inflater's next blocker
+after its numeric table indexes became explicit.
+
+**Proposal.** Admit the variadic native static value `Math.min`, represented
+by `['Math.min']`. Preserve quoted and destructured reads, detached and optional
+calls, stable identity, `length` two and `function min() { [native code] }`
+as its text. Other `Math` members remain separate admissions.
+
+Convert every argument once with `ToNumber`, from left to right, including
+arguments after `NaN` or negative infinity. Primitive or converted bigints and
+failed primitive conversion throw. All argument expressions are evaluated
+before invocation. No arguments return positive infinity; any converted `NaN`
+makes the result `NaN` after the remaining conversions succeed. Otherwise,
+return the least value. Negative zero wins a tie with positive zero in either
+order. An input consisting only of positive zeros returns `+0`, and one
+consisting only of negative zeros returns `-0`.
+
+**Backend choice.** Use
+[Rust `f64::min`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.min)
+with explicit `NaN` propagation and zero-tie correction, and
+[core WASM `f64.min`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fmin),
+under the approved target rule. Rust's stable `min` ignores a lone `NaN` and
+does not guarantee the required zero tie; `f64::minimum` is unstable on the
+pinned toolchain. Share `Math.max`'s variadic binding shape, correct the special
+values around native `min`, and fold from positive infinity without ending
+conversion early on `NaN`. The runtime table holds JavaScript's built-in.
+A future WASM backend can fold core `f64.min` after the same argument
+conversions. No common numerical body or third-party dependency is needed.
+
+**Benefits.** Familiar JavaScript spelling, compatible native operations in
+both targets and progress on the inflater's migration.
+
+**Drawbacks.** Another static binding and variadic conversion contract. Rust
+needs explicit special-value corrections to match JavaScript and core WASM.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+"Implement `Math.min` in the same PR" in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
 #### Text Processing
 
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
       ([string conversion](../conversions/string/README.md)). Namespace
-      members remain unrecognized; spreads, multiple arguments and guarded
-      calls are refused by design, the conversion being an operator
+      admits `String.fromCharCode` as a native static value; other members
+      remain unrecognized. For the conversion, spreads, multiple arguments
+      and guarded calls are refused by design, the conversion being an operator
       ([operators and functions](../principles/README.md#operators-and-functions))
 - [ ] `RegExp`
 
@@ -550,3 +880,34 @@ These instance methods mutate an array:
 - [ ] ! `sort`
 - [ ] ! `splice`
 - [ ] ! `unshift`
+
+### String.fromCharCode proposal and approval
+
+**Problem.** The shared runtime cannot construct arbitrary UTF-16 strings
+without a native operation or a large code-unit lookup table.
+
+**Proposal.** Admit `String.fromCharCode` as a native static value in every
+executor. Preserve JavaScript's variadic ToUint16 conversion, empty call,
+lone surrogates, function identity, native text and `length` of 1. Detached
+calls, including `const { fromCharCode } = String`, read no `this`.
+Other String statics remain prohibited.
+
+**Benefits.** JavaScript compatibility and a small string-construction
+primitive for shared runtime bodies, without a 65,536-entry table.
+
+**Drawbacks.** Every executor must bind another native static.
+
+**Owner approval.** Sergey Shandar requested native implementation and FJS
+admission, including detached calls and matching length, in
+[the working session](https://chatgpt.com/local/01a192f2-7904-77a6-a6a4-116d54ef3036).
+He explicitly approved the design in
+[the first approval](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548181784)
+and reaffirmed it after the independent-approval review in
+[the latest approval](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548413108):
+“The design is approved!” He then instructed the implementation session to
+address the comments using that approval.
+
+This change proceeds under that explicit task-owner instruction. Sergey is
+also the PR author; these links record owner authorization, not an approval
+by a different designer. The review's request for independent approval is
+[recorded here](https://github.com/functionalscript/functionalscript/pull/3501#pullrequestreview-5724682234).

@@ -1,8 +1,8 @@
 /** @import { Point } from '../../../crypto/secp/types.ts' */
 
 import { assert, assertEq, assertOk, assertError, assertNotNullish } from '../../../asserts/module.f.js'
-import { eq, curve } from '../../../crypto/secp/module.f.mjs'
-import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.mjs'
+import { eq, curve } from '../../../crypto/secp/module.f.js'
+import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.js'
 
 export const proof = {
     finite: () => {
@@ -39,12 +39,14 @@ export const proof = {
         assert(eq(negative(toy.g).result)([0n, 21n]))
         assertEq(negative(null).result, null)
         assertEq(addition(null, null).result, null)
-        for (let k = 0n; k <= 29n; ++k) {
+        for (let k = 0n; k <= 29n; k += 1n) {
             const frames = sequence(k)
             assertEq(frames.length, Number(k) + 1)
             frames.forEach((p, i) => assert(eq(p)(toy.mul(BigInt(i))(toy.g))))
         }
         assertEq(sequence(29n).at(-1), null)
+        assertEq(sequence(-1n).length, 0)
+        assertEq(sequence(-2n).length, 0)
         // The toy prime-order group has no finite y=0 point. Test the module
         // identity rule on a different nonsingular curve with such a point.
         const even = curve({ p: 7n, c: [0n, 6n], g: [0n, 0n], n: 2n })

@@ -5,14 +5,14 @@
 
 ### Problem
 
-[`fjs/types/list`](../list/module.f.mjs) is lazy: a `tail` may be a thunk or
+[`fjs/types/list`](../list/module.f.js) is lazy: a `tail` may be a thunk or
 a `Concat`. A walker that keeps a work stack wants a strict cons — a `first`
 and a `tail` that is a cons or `null`, nothing to force — and since `types`
 offers none, each walker declares its own. At `c162c3a`:
 
 ```ts
 // edag/from_fast/private.ts, edag/from_fast/control/private.ts,
-// edag/from_fast/loop/root/private.ts, and js/ast/prepare/private.ts as `_Link`
+// edag/from_fast/loop/root/private.ts, and js/ast/control/private.ts as `_Link`
 export type Link<T> = { readonly first: T; readonly tail: Link<T> | null }
 // types/stack_walk/types.ts, and monomorphic in media/datajs/vectors/private.ts,
 // compiler/parser/private.ts and js/ast/sugar/pattern/private.ts
@@ -23,7 +23,7 @@ and beside each type its "push an array, first element on top", also per
 module:
 
 ```js
-// edag/from_fast, edag/from_fast/control, js/ast/prepare — identical
+// edag/from_fast, edag/from_fast/control, js/ast/control — identical
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
 // edag/from_fast/loop/root, inline
 children.reduceRight((tail, block) => ({ first: ['enter', block], tail }), …)
@@ -48,10 +48,20 @@ exports.
 
 ### Tasks
 
-- [ ] Choose the spelling; export the type and `pushAll` from `fjs/types`.
-- [ ] `edag/from_fast` and its two children, `js/ast/prepare`,
-      `js/ast/sugar/pattern`, `media/datajs/vectors`, `compiler/parser` over
-      it, as each is next touched.
+- [x] Choose the spelling; export the type and `pushAll` from `fjs/types`:
+      `top`/`rest`, `Stack<F>` in `types/stack_walk/types.ts` and `pushAll`
+      in its module.
+- [x] `js/ast/sugar/pattern`, `media/datajs/vectors` and
+      `rust/serializer`'s `namesOf` over it.
+- [x] `js/ast/prepare` and its `one_pass`: the work stacks and `flows`'
+      result stack are `Stack`s pushed with `pushAll`, and `_Link` is gone.
+      `flows`' `children` and `entries`, which `toArray` reads, are typed as
+      the lazy `List` they are used as.
+- [ ] `edag/from_fast` and its two children, and `compiler/parser`, as each
+      is next touched.
+- [ ] `js/ast/control`'s `_Link`, whose work stacks are `Stack`s, but which
+      `memo/cells` also gives its `ancestors` and `owners`, and reads through
+      `toArray`: those become a `List`, the rest `Stack`.
 
 ### Related
 

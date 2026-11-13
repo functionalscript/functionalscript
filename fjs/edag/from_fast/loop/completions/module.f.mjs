@@ -13,7 +13,7 @@
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 
 /** @type {_Flow} */
 const noFlow = { returns: false, breaks: [], continues: [] }
@@ -49,17 +49,19 @@ const loopInventory = root => {
         work = tail
         if (task.kind === 'loop') {
             const info = /** @type {_LoopInfo} */ ({ loop: task.loop, id: count, ancestors: task.ancestors })
-            ++count
+            count += 1
             entries = { first: info, tail: entries }
             work = { first: { kind: 'block', block: task.loop.body, ancestors: { first: task.loop.target, tail: task.ancestors } }, tail: work }
             continue
         }
-        const tasks = task.block.statements.flatMap(statement => statement[0] === 'block'
+        const statements = task.block.statements.flatMap(statement => statement[0] === 'block'
             ? [/** @type {_InventoryTask} */ ({ kind: 'block', block: statement[2], ancestors: task.ancestors })]
             : statement[0] === 'if' ? [
                 /** @type {_InventoryTask} */ ({ kind: 'block', block: statement[3], ancestors: task.ancestors }),
                 /** @type {_InventoryTask} */ ({ kind: 'block', block: statement[4], ancestors: task.ancestors }),
             ] : statement[0] === 'loop' ? [/** @type {_InventoryTask} */ ({ kind: 'loop', loop: statement[1], ancestors: task.ancestors })] : [])
+        /** @type {readonly _InventoryTask[]} */
+        const tasks = [...statements, ...(task.block.exit[0] === 'loop' ? [/** @type {const} */ ({ kind: 'loop', loop: task.block.exit[1], ancestors: task.ancestors })] : [])]
         work = tasks.reduceRight((tail, first) => ({ first, tail }), work)
     }
     return toArray(entries).toReversed()
@@ -82,8 +84,9 @@ const transferCases = (info, flow, inventory) => inventory.flatMap(target => isA
 ] : [])
 
 /** @type {(block: Block, loops: boolean) => readonly Block[]} */
-const childrenOf = (block, loops) => block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]]
-    : statement[0] === 'if' ? [statement[3], statement[4]] : loops && statement[0] === 'loop' ? [statement[1].body] : [])
+const childrenOf = (block, loops) => [...block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]]
+    : statement[0] === 'if' ? [statement[3], statement[4]] : loops && statement[0] === 'loop' ? [statement[1].body] : []),
+    ...(loops && block.exit[0] === 'loop' ? [block.exit[1].body] : [])]
 
 /**
  * A postorder worklist is shared by function-local normalization and the
@@ -122,9 +125,9 @@ const walk = (root, loops, finish) => {
  * Only owning normal breaks, source returns and valid lexical escapes become
  * completion payloads. Nested loop bodies keep their own exit owner; foreign
  * or nonlexical targets remain raw for the graph constructor to refuse.
- * @type {(loop: Loop, target: FunctionTarget | null, cases: readonly _TransferCase[]) => Block}
+ * @type {(loop: Loop, target: FunctionTarget | null, cases: readonly _TransferCase[], direct?: boolean) => Block}
  */
-const encodedBody = (loop, target, cases) => walk(loop.body, false, (block, parts) => {
+const encodedBody = (loop, target, cases, direct = false) => walk(loop.body, false, (block, parts) => {
     let index = 0
     let changed = false
     /** @type {List<Statement>} */
@@ -133,11 +136,17 @@ const encodedBody = (loop, target, cases) => walk(loop.body, false, (block, part
         /** @type {Statement} */
         let mapped = statement
         if (statement[0] === 'block') {
-            const part = parts[index++]
+            const partIndex = index
+            index += 1
+            const part = parts[Number(partIndex)]
             if (part.block !== statement[2]) { changed = true; mapped = ['block', statement[1], part.block] }
         } else if (statement[0] === 'if') {
-            const then = parts[index++].block
-            const otherwise = parts[index++].block
+            const thenIndex = index
+            index += 1
+            const then = parts[Number(thenIndex)].block
+            const otherwiseIndex = index
+            index += 1
+            const otherwise = parts[Number(otherwiseIndex)].block
             if (then !== statement[3] || otherwise !== statement[4]) { changed = true; mapped = ['if', statement[1], statement[2], then, otherwise] }
         }
         reversed = { first: mapped, tail: reversed }
@@ -148,7 +157,7 @@ const encodedBody = (loop, target, cases) => walk(loop.body, false, (block, part
         return { block: { statements, exit: ['break', loop.target, [['array', ['normal', ['array', exit[2]]]]]] }, flow: noFlow }
     }
     if (exit[0] === 'return' && exit[1] === target) {
-        return { block: { statements, exit: ['break', loop.target, [['array', ['return', exit[2]]]]] }, flow: noFlow }
+        return { block: { statements, exit: ['break', loop.target, [direct ? exit[2] : ['array', ['return', exit[2]]]]] }, flow: noFlow }
     }
     if (exit[0] === 'break' || exit[0] === 'continue') {
         const found = cases.find(candidate => candidate.kind === exit[0] && candidate.info.loop.target === exit[1])
@@ -198,6 +207,34 @@ const completedLoop = (loop, target, returns, cases) => {
 }
 
 /**
+ * A terminal loop has no normal completion to dispatch. Return-only helpers
+ * carry the value directly; several outward exits use an exhaustive dispatch.
+ * The final known exit is the block's actual exit, without a normal fallback.
+ * @type {(loop: Loop, target: FunctionTarget | null, returns: boolean, cases: readonly _TransferCase[]) => Block}
+ */
+const completedTerminalLoop = (loop, target, returns, cases) => {
+    const completion = /** @type {const} */ ({ index: loop.target.index })
+    const direct = returns && cases.length === 0
+    /** @type {Loop} */
+    const wrapped = { ...loop, results: [completion], body: encodedBody(loop, target, cases, direct) }
+    if (direct) { return { statements: [['loop', wrapped]], exit: ['return', assertNotNullish(target), ['ref', completion]] } }
+    /** @type {readonly { readonly condition: Value; readonly exit: Exit }[]} */
+    const alternatives = [
+        ...returns ? [{ condition: /** @type {const} */ (['===', ['.', ['ref', completion], 0], 'return']),
+            exit: /** @type {const} */ (['return', assertNotNullish(target), ['.', ['ref', completion], 1]]) }] : [],
+        ...cases.map(candidate => ({ condition: transferGuard(completion, candidate), exit: transferBlock(completion, candidate).exit })),
+    ]
+    return {
+        statements: [['loop', wrapped], ...alternatives.slice(0, -1).map(({ condition, exit }) => {
+            /** @type {Statement} */
+            const statement = ['if', [], condition, { statements: [], exit }, { statements: [], exit: ['yield', []] }]
+            return statement
+        })],
+        exit: assertNotNullish(alternatives.at(-1)).exit,
+    }
+}
+
+/**
  * @type {(block: Block, target: FunctionTarget | null, root: Loop | null) => Block}
  */
 const completeBlock = (block, target, root) => {
@@ -213,19 +250,27 @@ const completeBlock = (block, target, root) => {
             /** @type {readonly Statement[]} */
             let added = [statement]
             if (statement[0] === 'block') {
-                const part = parts[index++]
+                const partIndex = index
+                index += 1
+                const part = parts[Number(partIndex)]
                 flow = mergeFlow(flow, part.flow)
                 if (part.block !== statement[2]) { changed = true; added = [['block', statement[1], part.block]] }
             } else if (statement[0] === 'if') {
-                const then = parts[index++]
-                const otherwise = parts[index++]
+                const thenIndex = index
+                index += 1
+                const then = parts[Number(thenIndex)]
+                const otherwiseIndex = index
+                index += 1
+                const otherwise = parts[Number(otherwiseIndex)]
                 flow = mergeFlow(mergeFlow(flow, then.flow), otherwise.flow)
                 if (then.block !== statement[3] || otherwise.block !== statement[4]) {
                     changed = true
                     added = [['if', statement[1], statement[2], then.block, otherwise.block]]
                 }
             } else if (statement[0] === 'loop') {
-                const part = parts[index++]
+                const partIndex = index
+                index += 1
+                const part = parts[Number(partIndex)]
                 const loop = part.block === statement[1].body ? statement[1] : { ...statement[1], body: part.block }
                 const outgoing = /** @type {_Flow} */ ({
                     returns: part.flow.returns,
@@ -242,7 +287,25 @@ const completeBlock = (block, target, root) => {
             }
             for (const first of added) { statements = { first, tail: statements } }
         }
-        return { block: changed ? { statements: toArray(statements).toReversed(), exit: block.exit } : block, flow }
+        let exit = block.exit
+        if (exit[0] === 'loop') {
+            const partIndex = index
+            index += 1
+            const part = parts[Number(partIndex)]
+            const loop = part.block === exit[1].body ? exit[1] : { ...exit[1], body: part.block }
+            /** @type {_Flow} */
+            const outgoing = { returns: part.flow.returns,
+                breaks: part.flow.breaks.filter(target => target !== loop.target), continues: part.flow.continues.filter(target => target !== loop.target) }
+            flow = mergeFlow(flow, outgoing)
+            const cases = transferCases(assertNotNullish(byTarget.get(loop.target)), outgoing, inventory)
+            if (outgoing.returns || cases.length !== 0) {
+                const completed = completedTerminalLoop(loop, target, outgoing.returns, cases)
+                for (const first of completed.statements) { statements = { first, tail: statements } }
+                exit = completed.exit
+                changed = true
+            } else if (loop !== exit[1]) { exit = ['loop', loop]; changed = true }
+        }
+        return { block: changed ? { statements: toArray(statements).toReversed(), exit } : block, flow }
     })
     return result.block
 }

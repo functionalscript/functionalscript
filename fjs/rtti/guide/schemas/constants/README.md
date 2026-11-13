@@ -37,7 +37,7 @@ value `-0` is refused by the schema `0` and accepted by the schema `-0`; type
 `or({ kind: 'circle', r: number }, { kind: 'square', side: number })` against
 `{"kind":"circle","r":1}`; change the kind to `"triangle"`, or give the
 circle a `side`, to see both readers refuse it. The lessons are defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
 ## Reference

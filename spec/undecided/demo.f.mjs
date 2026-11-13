@@ -9,7 +9,7 @@
  * pull request leaves this page in the same one, with nothing here to edit.
  *
  * **The verdicts are this build's compiler's**, as on a refused construct's
- * page ([`in`](../operators/in/README.md)): each sample is compiled in the
+ * page ([`==`](../operators/loose-equality/README.md)): each sample is compiled in the
  * page. A sample the compiler accepts, an open row with no sample, and a
  * sample whose row is no longer open are each shown as such, since each
  * means this page and the register disagree.
@@ -28,9 +28,9 @@
  * @import { OpenRow, State } from './types.ts'
  */
 
-import { mapStep, pureOk } from '../../fjs/effects/module.f.mjs'
+import { mapStep, pureOk } from '../../fjs/effects/module.f.js'
 import { tryParseBlocks } from '../../fjs/media/markdown/module.f.mjs'
-import { basename, parent } from '../../fjs/path/module.f.mjs'
+import { basename, parent } from '../../fjs/path/module.f.js'
 import { error, ok } from '../../fjs/types/result/module.f.js'
 import { compileAs, fetchFile, reportText } from '../../fjs/compiler/refused_demo/module.f.mjs'
 import { loadedView } from '../../fjs/nanvm/demos/page/module.f.mjs'
@@ -38,7 +38,7 @@ import { caption } from '../../fjs/website/demo/module.f.mjs'
 import { isTodoDir } from '../../fjs/website/module.f.mjs'
 import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.mjs'
 import { codeMarker, registerRowMarker, resultMarker, undecidedMarker } from '../../fjs/website/style/module.f.js'
-import { samples } from './samples.f.mjs'
+import { samples } from './samples.f.js'
 
 /** The register, from the repository's root. */
 export const registerPath = 'spec/todo/refused-constructs.md'
@@ -231,7 +231,7 @@ export const update = state => event => event.kind === 'start'
 
 /**
  * The page over `samples`, one module by open row ID: the page's own are
- * [`samples.f.mjs`](./samples.f.mjs), and a proof writes others.
+ * [`samples.f.js`](./samples.f.js), and a proof writes others.
  *
  * @type {(samples: StringMap<string>) => Demo<State, DemoEvent, FetchText>}
  */

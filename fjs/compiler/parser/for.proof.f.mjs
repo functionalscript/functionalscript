@@ -99,8 +99,8 @@ export const proof = {
             'export default ()=>{for(;;){return 1;break;}};',
             'export default ()=>{for(;false;){}};',
             'export default ()=>{for(;1;){}};',
-            'export default ()=>{for(;;){const inner=()=>{break;};}};',
-        ]) { assertError(parse('')(source)) }
+        ]) { assertOk(parse('')(source)) }
+        assertError(parse('')('export default ()=>{for(;;){const inner=()=>{break;};}};'))
     },
     callsRequiredWorkAndSkippedUpdates: () => {
         assertStructurallySame(result('const fail=()=>{throw 7;};for(;true;fail()){break;}export default 3;'), { default: 3 })
@@ -131,9 +131,8 @@ export const proof = {
             'for(let i=0;i<3;i+=1;){}export default 0;',
             'for(let i=0;i<3;i+=1)i+=1;export default 0;',
             'for(let i=0;i<3;i++){}export default 0;',
-            'for(const i of [0]){}export default 0;',
             'for(const i in {}){}export default 0;',
-            'for(let i;false;){}export default 0;',
+            'for(const i;false;){}export default 0;',
             'for(;;){return 1;}export default 0;',
             'for(;;){break label;}export default 0;',
             'for(;;){};export default 0;',

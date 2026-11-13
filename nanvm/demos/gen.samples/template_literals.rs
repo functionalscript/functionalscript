@@ -8,6 +8,6 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToObject};
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b524: Any<A> = _args.rest(0).to_any();
-        (((string_any("Hello, ") + ((Any::dot(_b524.clone(), f64_any(0x0000000000000000)).end())?.to_string().map(|v| v.to_any()))?)? + string_any(" world"))? + ((if Any::<A>::to_boolean((Any::gt((Any::dot(_b524.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)))?) { string_any("s") } else { string_any("") }).to_string().map(|v| v.to_any()))?)? + string_any("!")
+        (((string_any("Hello, ") + ((Any::dot(_b524.clone(), f64_any(0x0000000000000000)).end())?.to_string().map(|v| v.to_any()))?)? + string_any(" world"))? + ((if Any::<A>::to_boolean(&(Any::gt((Any::dot(_b524.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)))?) { string_any("s") } else { string_any("") }).to_string().map(|v| v.to_any()))?)? + string_any("!")
     }, 0, Array::default(), Some("(...$0)=>\"Hello, \"+String($0[0])+\" world\"+String($0[0]>1?\"s\":\"\")+\"!\"")).to_any())].to_object().to_any())
 }

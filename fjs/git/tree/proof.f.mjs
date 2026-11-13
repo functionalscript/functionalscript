@@ -4,11 +4,11 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { decode, encode } from '../../basen/base16/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { hole, latin1, modesTree, rootTree, sha256Tree } from '../testlib.f.mjs'
+import { decode, encode } from '../../basen/base16/module.f.js'
+import { codePointListToString } from '../../text/utf16/module.f.js'
+import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { latin1, modesTree, rootTree, sha256Tree, undefinedByte } from '../testlib.f.js'
 import { isSubtree, mode, tryRead, validate, write } from './module.f.mjs'
 
 const read20 = tryRead(20)
@@ -138,7 +138,7 @@ export const proof = {
     },
     // The other id width: 32 bytes, and 20 is then cut short.
     sha256: () => {
-        const payload = [...latin1('100644 a\0'), ...Array.from({ length: 32 }, () => 0xAB)]
+        const payload = [...latin1('100644 a\u0000'), ...Array.from({ length: 32 }, () => 0xAB)]
         const [e] = tryRead(32)(payload) ?? []
         assert(e !== undefined)
         assertStructurallySame(u8ArrayMsb(e.oid), Array.from({ length: 32 }, () => 0xAB))
@@ -149,13 +149,13 @@ export const proof = {
     refused: () => {
         const id = Array.from({ length: 20 }, () => 1)
         for (const payload of [
-            [...latin1('100644 a\0'), ...id.slice(1)],       // id cut short
-            [...latin1('100644 a\0'), ...id, 0x31],          // bytes after the last entry
+            [...latin1('100644 a\u0000'), ...id.slice(1)],       // id cut short
+            [...latin1('100644 a\u0000'), ...id, 0x31],          // bytes after the last entry
             [...latin1('100644 a'), ...id],                  // no NUL
-            [...latin1('100644a\0'), ...id],                 // no SP
-            [...latin1('100648 a\0'), ...id],                // not octal
-            [...latin1(' a\0'), ...id],                      // no mode
-            [...latin1('100644 \0'), ...id],                 // empty name
+            [...latin1('100644a\u0000'), ...id],                 // no SP
+            [...latin1('100648 a\u0000'), ...id],                // not octal
+            [...latin1(' a\u0000'), ...id],                      // no mode
+            [...latin1('100644 \u0000'), ...id],                 // empty name
         ]) {
             assertEq(read20(payload), null)
         }
@@ -210,13 +210,13 @@ export const proof = {
             emptyMode: () => toArray(write20([{ mode: [], name: latin1('a'), oid: oid(idA) }])),
             notOctal: () => toArray(write20([entry('100648', 'a', idA)])),
             emptyName: () => toArray(write20([{ mode: latin1('100644'), name: [], oid: oid(idA) }])),
-            nulInName: () => toArray(write20([entry('100644', 'a\0b', idA)])),
+            nulInName: () => toArray(write20([entry('100644', 'a\u0000b', idA)])),
             shortId: () => toArray(write20([entry('100644', 'a', '00'.repeat(19))])),
             wideId: () => toArray(write20([entry('100644', 'a', '00'.repeat(32))])),
             nonByteInName: () => toArray(write20([{ mode: latin1('100644'), name: [0x100], oid: oid(idA) }])),
-            holeInName: () => toArray(write20([{ mode: latin1('100644'), name: hole, oid: oid(idA) }])),
+            undefinedByteInName: () => toArray(write20([{ mode: latin1('100644'), name: undefinedByte, oid: oid(idA) }])),
             modeOfNonOctal: () => mode(entry('9', 'a', idA)),
-            readHole: () => read20(hole),
+            readUndefinedByte: () => read20(undefinedByte),
         },
     },
 }

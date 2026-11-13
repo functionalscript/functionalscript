@@ -13,15 +13,15 @@
  * @import { Stack } from '../../types/stack_walk/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { intrinsicLength, isIntrinsic, isStatic, staticText } from '../../edag/module.f.mjs'
+import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
-import { _entryText, _hasEntryText, _intrinsicText } from '../../compiler/serializer/function_text/module.f.mjs'
-import { _resolve } from '../../compiler/serializer/names/module.f.mjs'
-import { walk } from '../../types/stack_walk/module.f.mjs'
-import { toArray as listToArray } from '../../types/list/alt/module.f.mjs'
+import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
+import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
+import { pushAll, walk } from '../../types/stack_walk/module.f.js'
+import { toArray as listToArray } from '../../types/list/alt/module.f.js'
 
 const kw = tagged('keyword')
 
@@ -98,8 +98,9 @@ export const op1Rust = {
     '-': a => `<Any<A> as core::ops::Neg>::neg(${a})`,
     '!': a => `<Any<A> as core::ops::Not>::not(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
-    typeof: a => `Any::typeof_(${a})`,
+    typeof: a => `Any::typeof_(&${a})`,
     Number: a => `Any::number(${a})`,
+    BigInt: a => `Any::bigint(${a})`,
     String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
     // The `Result` every operation answers, its `Err` arm: the thrown value
     // is the operand, and the enclosing `?` or function carries it out.
@@ -319,7 +320,7 @@ const binding = (s, id) => /** @type {string} */ (/** @type {_Names} */ (s.names
 const loopLabel = (s, target) => /** @type {string} */ (/** @type {_Names} */ (s.names).loops.get(target))
 
 /** A Rust block from target statement lines. @type {(parts: readonly string[]) => string} */
-export const braced = parts => parts.length === 1 ? `{ ${parts[0]} }` : `{
+export const braced = parts => parts.length === 0 ? '{}' : parts.length === 1 ? `{ ${parts[0]} }` : `{
 ${parts.flatMap(p => p.split('\n')).map(p => `${indent}${p}`).join('\n')}
 }`
 
@@ -330,7 +331,7 @@ const pure = result => v => result ? `Ok(${v})` : v
 const fallible = result => v => result ? v : `(${v})?`
 
 /** Pin the VM parameter even when a condition is only a primitive literal. @type {(value: string) => string} */
-const truth = value => `Any::<A>::to_boolean(${value})`
+const truth = value => `Any::<A>::to_boolean(&${value})`
 
 /** Map's SameValueZero keys need a separate identity for IEEE negative zero. */
 const negativeZero = {}
@@ -479,18 +480,34 @@ const operation = (s, n, result) => {
     const tag = n[0]
     if (isStatic([tag])) {
         if (s.runtime !== null) { return map1(fallible(result))(ok(cat([unstable('static_read'), `(&${s.runtime}, ${str(unwrap(stringLiteral(tag)))})`]))) }
-        if (tag !== 'Object.entries') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
+        if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs' && tag !== 'Math.sqrt' && tag !== 'Math.ceil' && tag !== 'Math.imul' && tag !== 'Math.max' && tag !== 'Math.min') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
+        if (tag === 'String.fromCharCode') {
+            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+        }
+        if (tag === 'Math.trunc' || tag === 'Math.floor' || tag === 'Math.abs' || tag === 'Math.sqrt' || tag === 'Math.ceil') {
+            const method = tag.slice(5)
+            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', argRead(0), `.to_number().map(|v| v.${method}().to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+        }
+        if (tag === 'Math.imul') {
+            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', argRead(0), '.to_number().and_then(|a| ', argRead(1), `.to_number().map(|b| a.imul(b).to_any())), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+        }
+        if (tag === 'Math.max' || tag === 'Math.min') {
+            const method = tag.slice(5)
+            const initial = tag === 'Math.min' ? 'INFINITY' : 'NEG_INFINITY'
+            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| _args.into_iter().try_fold(', vm('Number'), `::from(f64::${initial}), |current, value| value.to_number().map(|value| current.${method}(value))).map(|value| value.to_any()), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+        }
         return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
     }
-    if (tag === 'entry' || tag === 'hasEntry') {
-        const text = helperText(tag === 'entry' ? _entryText('helper') : _hasEntryText('helper'))
-        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', tag === 'entry' ? 'Any::entry(' : 'Any::has_entry(', argRead(0), ', ', argRead(1), tag === 'entry' ? ')' : ').map(|v| v.to_any())', ', ', num('2'), ', ', vm('Array'), `::default(), ${represented(text)})`, toAny])))
-    }
-    if (isIntrinsic([tag])) {
-        const id = /** @type {import('../../edag/types.ts').IntrinsicId} */ (tag)
-        const length = intrinsicLength(id)
+    if (isHelper([tag])) {
+        // the arity and the text are the helper table's; only the native
+        // body is this writer's own
+        const id = /** @type {import('../../edag/types.ts').HelperId} */ (tag)
+        const length = helperLength(id)
         const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
-        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, ')), ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_intrinsicText(id)('helper')))})`, toAny])))
+        const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
+            : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
+            : ['Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
+        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_helperText(id)('helper')))})`, toAny])))
     }
     switch (tag) {
         case 'array': { return array(s, n[1], result) }
@@ -506,7 +523,21 @@ const operation = (s, n, result) => {
                 : map2((v, args) => `Any::option_call(${v}, ${args})`)(expression(s, n[1], false), argumentThunk(s, /** @type {readonly (Value | readonly ['...', Value])[]} */ (n[2])))
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
-        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        // the naive spelling: the runtime's `in` body called with the key
+        // and the value, which a VM may substitute natively (DESIGN.md §13)
+        case 'in': {
+            if (s.runtime === null) { return error(['an in operator with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(flat(map1(v => cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('in'), ').end())?, [', stringCall('string_any')(n[1]), `, ${v}]`, toArray, toAny, ')']))(expression(s, n[2], false))))
+        }
+        // Boolean is the shared `!!value` body. The tuple evaluates its
+        // operand before lookup, with both outside the new bindings' scope.
+        case 'Boolean': {
+            if (s.runtime === null) { return error(['a Boolean operator with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(flat(map1(v => cat(['{ ', kw('let'), ' (boolean_value, boolean_body) = (', v,
+                `, (Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('Boolean'), ').end())?); ',
+                'Any::call(boolean_body, [boolean_value]', toArray, toAny, ') }']))(expression(s, n[1], false))))
+        }
         case ',': {
             const values = n[1]
             return values.length === 0 ? map1(pure(result))(primitiveExpr(undefined))
@@ -538,6 +569,9 @@ const memo = (s, m) => map1((/** @type {readonly string[]} */ body) => [
 /** A prepared instruction has exactly one Rust spelling. @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statement = (s, st) => ok(/** @type {Printed<readonly string[]>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[10].get(st)))
 
+/** A statement loop and a terminal loop share their lexical target and body. @type {(s: _Context, loop: readonly ['loop', LoopTarget, Block]) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+const loopText = (s, loop) => map1(parts => [`'${loopLabel(s, loop[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, loop[2], false))
+
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
     switch (st[0]) {
@@ -545,8 +579,8 @@ const statementReady = (s, st) => {
         case 'write': { return map1(text => [`${binding(s, st[1])} = ${text};`])(expression(s, st[2], false)) }
         case 'memo': { return memo(s, st[1]) }
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
-        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
-        case 'loop': { return map1(parts => [`'${loopLabel(s, st[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, st[2], false)) }
+        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)}${no.length === 0 ? '' : ` ${kw('else')} ${braced(no)}`}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
+        case 'loop': { return loopText(s, st) }
         // `'while'`, the one statement left: `children` refuses any other
         default: {
             const w = st[1]
@@ -597,9 +631,10 @@ const blockReady = (s, b, result, functionBody, valueBlock) => {
     /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */
     const end = exit[0] === 'yield'
         ? exit[1].length === 0 ? ok(code([])) : map1(text => [text])(expression(s, exit[1][0], result))
-        : exit[0] === 'continue' || exit[0] === 'break' ? ok(code([`${kw(exit[0])} '${loopLabel(s, exit[1])};`]))
-            : exit[0] === 'throw' ? map1(text => [result ? `Err(${text})` : valueBlock ? `(Err::<Any<A>, Any<A>>(${text}))?` : `${kw('return')} Err(${text});`])(expression(s, exit[1], false))
-                : map1(text => [functionBody ? text : `${kw('return')} ${text};`])(expression(s, exit[2], true))
+        : exit[0] === 'loop' ? loopText(s, exit)
+            : exit[0] === 'continue' || exit[0] === 'break' ? ok(code([`${kw(exit[0])} '${loopLabel(s, exit[1])};`]))
+                : exit[0] === 'throw' ? map1(text => [result ? `Err(${text})` : valueBlock ? `(Err::<Any<A>, Any<A>>(${text}))?` : `${kw('return')} Err(${text});`])(expression(s, exit[1], false))
+                    : map1(text => [functionBody ? text : `${kw('return')} ${text};`])(expression(s, exit[2], true))
     return map2((parts, last) => [...parts.flat(), ...last])(all(region.statements.map(st => statement(s, st))), end)
 }
 
@@ -608,6 +643,9 @@ const valueTask = (context, value, result = false) => ({ kind: 'value', context,
 
 /** One region spelling request, retaining its transfer context. @type {(context: _Context, b: Block, result?: boolean, functionBody?: boolean, valueBlock?: boolean) => _Task} */
 const blockTask = (context, b, result = false, functionBody = false, valueBlock = false) => ({ kind: 'block', context, block: b, result, functionBody, valueBlock })
+
+/** @type {(context: _Context, loop: readonly ['loop', LoopTarget, Block]) => readonly _Task[]} */
+const loopTasks = (context, loop) => [blockTask(context, loop[2])]
 
 /** @type {(context: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => _Task} */
 const stepTask = (context, step, property, member) => ({ kind: 'steps', context, step, property, member })
@@ -635,6 +673,7 @@ const operationTasks = (context, n, result) => {
         case '.': case '?.': { return [valueTask(context, n[1]), ...keyTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }
+        case 'in': { return [valueTask(context, n[2])] }
         case ',': { return n[1].map((v, i) => valueTask(context, v, i === n[1].length - 1 && result)) }
         case '?:': { return [valueTask(context, n[1]), ...thunkTasks(context, n[2]), ...thunkTasks(context, n[3])] }
         default: { return n.length === 2 ? [valueTask(context, n[1])] : [valueTask(context, n[1]), valueTask(context, n[2])] }
@@ -666,7 +705,7 @@ const children = task => {
             const exit = region.exit
             const end = exit[0] === 'yield' ? exit[1].length === 0 ? [] : [valueTask(s, exit[1][0], task.result)]
                 : exit[0] === 'return' ? [valueTask(s, exit[2], true)]
-                    : exit[0] === 'throw' ? [valueTask(s, exit[1])] : []
+                    : exit[0] === 'throw' ? [valueTask(s, exit[1])] : exit[0] === 'loop' ? loopTasks(s, exit) : []
             return [...region.statements.map(statement => /** @type {_Task} */ ({ kind: 'statement', context: s, statement })), ...end]
         }
         case 'statement': {
@@ -676,7 +715,7 @@ const children = task => {
                 case 'memo': { return [blockTask(s, st[1].initializer, false, false, true)] }
                 case 'block': { return [blockTask(s, st[1])] }
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
-                case 'loop': { return [blockTask(s, st[2])] }
+                case 'loop': { return loopTasks(s, st) }
                 case 'while': { return [valueTask(s, st[1].initial), valueTask(s, st[1].condition), blockTask(s, st[1].body)] }
                 default: { throw ['not a statement', st] }
             }
@@ -757,7 +796,7 @@ const instructionLoops = task => {
     }
     if (task.kind !== 'block') { return [] }
     const exit = flattened(task.block).exit
-    return exit[0] === 'continue' || exit[0] === 'break' ? [exit[1]] : []
+    return exit[0] === 'continue' || exit[0] === 'break' || exit[0] === 'loop' ? [exit[1]] : []
 }
 
 /** Debug indices keep familiar spellings; equal indices never alias identities. @type {<T extends { readonly index: number }>(ids: readonly T[], prefix: string) => ReadonlyMap<T, string>} */
@@ -783,7 +822,7 @@ const namesOf = root => {
         const { top, rest } = pending
         bindings = { first: instructionBindings(top), tail: bindings }
         loops = { first: instructionLoops(top), tail: loops }
-        pending = children(top).toReversed().reduce((/** @type {Stack<_Task>} */ stack, task) => ({ top: task, rest: stack }), rest)
+        pending = pushAll(children(top), rest)
     }
     return {
         bindings: identityNames([...new Set(listToArray(bindings).toReversed().flat())], '_b'),

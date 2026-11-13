@@ -1,6 +1,6 @@
-import { chunkRun, chunkStrings, fromTagged, keyword, literal, tagged, textOfResult, untagged, withNames, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
+import { chunkRun, chunkStrings, fromTagged, keyword, literal, tagged, textOfResult, toTagged, untagged, withNames, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /** @type {(text: string) => (spans: readonly import('./types.ts').Span[]) => unknown} */
@@ -30,6 +30,20 @@ export const proof = {
             assertEq(JSON.stringify(unwrap(fromTagged('a b'))), '[["a b"]]')
             assertEq(JSON.stringify(unwrap(fromTagged(tagged('keyword')('let')))), '[["let","keyword"]]')
             assertEq(JSON.stringify(unwrap(fromTagged(`${tagged('keyword')('a')}${tagged('literal')('b')}`))), '[["a","keyword"],["b","literal"]]')
+        },
+        // Runs written as tagged text read back as the same runs.
+        toTagged: () => {
+            /** @type {import('./types.ts').Marked} */
+            const marked = [['let', 'keyword'], [' x = '], ['1', 'number'], [';']]
+            assertEq(toTagged(marked), `${tagged('keyword')('let')} x = ${tagged('number')('1')};`)
+            assertEq(JSON.stringify(unwrap(fromTagged(toTagged(marked)))), JSON.stringify(marked))
+        },
+        // A marker in a plain run would read back as a tag, so it is refused.
+        toTaggedRefusesAMarker: {
+            throw: {
+                open: () => toTagged([['\u0001kx']]),
+                close: () => toTagged([['x\u0002']]),
+            },
         },
         everyKind: () => {
             for (const kind of /** @type {const} */ (['keyword', 'literal', 'string', 'number', 'comment', 'operator', 'identifier'])) {

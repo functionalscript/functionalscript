@@ -64,7 +64,7 @@ meets the rest.
 The demo on this page runs the *Tuple vs rest* lesson: `[1,"a","b"]` is
 refused by `[number, string]` and accepted by `rest([number], string)`. Pick
 either schema to see its graph, its TypeScript type with the rest as a tail,
-its JSON Schema with `items`, and the two readers' answers. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+its JSON Schema with `items`, and the two readers' answers. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
@@ -77,7 +77,7 @@ its JSON Schema with `items`, and the two readers' answers. The lesson is define
 
 ## Where it is implemented
 
-`rest` and `open` in [`module.f.mjs`](../../../module.f.mjs); `restContainerRead`
+`rest` and `open` in [`module.f.js`](../../../module.f.js); `restContainerRead`
 in [`common`](../../../common/module.f.mjs); the rest's normalization in
 [`data`](../../../data/module.f.mjs); `RestTs` in
 [`ts/types.ts`](../../../ts/types.ts).

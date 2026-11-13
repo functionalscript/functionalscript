@@ -65,7 +65,7 @@ export const fromRegistry = <O extends Operation>(
 Define argument schemas as RTTI:
 
 ```ts
-import { string, number, option, or } from '../../rtti/module.f.mjs'
+import { string, number, option, or } from '../../rtti/module.f.js'
 
 const addArgs = { a: number, b: number } as const
 const greetArgs = { name: string, greeting: or(option, string) } as const
@@ -144,7 +144,7 @@ const headTool = toolEntry(
 Both renderers are required. The error one is what pins the handler to a
 particular error channel, so a fallible call added upstream becomes a compile
 error at the tool that has to say what the new failure reads like — the reason
-`unwrapStep` (`fjs/effects/module.f.mjs`) asks for its `summary`.
+`unwrapStep` (`fjs/effects/module.f.js`) asks for its `summary`.
 
 A tool whose chain goes on after the call succeeds uses `toolStep` instead: the
 failure is the same `isError` result, and the `ok` value goes to a continuation

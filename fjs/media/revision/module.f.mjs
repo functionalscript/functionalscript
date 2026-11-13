@@ -22,13 +22,13 @@
  * @import { HashEntry, LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
-import { array, number, open, option, or, string } from '../../rtti/module.f.mjs'
-import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
+import { array, number, open, option, or, string } from '../../rtti/module.f.js'
+import { cBase32ToVec } from '../../basen/cbase32/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { jsonDialect } from '../module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
-import { entries, find, flat, map } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
+import { entries, find, flat, map } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
@@ -61,7 +61,7 @@ export const hash = string
  * schema needs twice over: a `const` cannot reference itself in its own
  * initializer at all, and naming the recursive position is also what keeps
  * declaration emit from inlining the structure and giving up at depth (see
- * `fjs/AGENTS.md` §3.2 and `../json/rtti/module.f.mjs`).
+ * `fjs/AGENTS.md` §3.2 and `../json/rtti/module.f.js`).
  *
  * Like `hash`, this is `string` at the structural level; cbase32 decodability
  * of every direct value, at every depth, is enforced by

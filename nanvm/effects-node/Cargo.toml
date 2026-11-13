@@ -5,3 +5,8 @@ edition = "2024"
 
 [dependencies]
 nanvm-lib = { path = "../lib" }
+
+[features]
+# The support this crate's tests use, for another crate's tests: `Scratch`
+# and `decode_result`. Never a runtime dependency.
+test-support = []

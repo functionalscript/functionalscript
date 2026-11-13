@@ -47,10 +47,9 @@ fn lookup<A: IVm, const N: usize>(
 }
 
 /// `Array.prototype`'s.
-fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
+fn array<A: IVm>() -> [(&'static str, Method<A>); 21] {
     [
         ("at", array_at),
-        ("concat", array_concat),
         ("every", array_every),
         ("filter", array_filter),
         ("find", array_find),
@@ -63,7 +62,6 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
         ("indexOf", array_index_of),
         ("join", array_join),
         ("lastIndexOf", array_last_index_of),
-        ("map", array_map),
         ("reduce", array_reduce),
         ("reduceRight", array_reduce_right),
         ("slice", array_slice),
@@ -73,14 +71,6 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
         ("toSpliced", array_to_spliced),
         ("with", array_with),
     ]
-}
-
-/// The `i`-th argument if the call passed one, `undefined` included, and
-/// `None` if it did not: for the few built-ins whose answer depends on
-/// whether an argument is there, not only on its value — `lastIndexOf(x)`
-/// searches from the end, `lastIndexOf(x, undefined)` from `0`.
-pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
-    (i < args.length()).then(|| args[i].clone())
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
@@ -160,11 +150,6 @@ fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
     Ok(index_or_minus_one(found))
 }
 
-/// `Array.prototype.concat`, `vm/array/concat.rs`: every argument an item.
-fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    Array::try_from(receiver)?.concat(args).to_any_result()
-}
-
 /// `Array.prototype.slice`, `vm/array/slice.rs`.
 fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
@@ -182,7 +167,7 @@ fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, An
 /// as present or not.
 fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .to_spliced(present(&args, 0), present(&args, 1), args.rest(2))
+        .to_spliced(args.present(0), args.present(1), args.rest(2))
         .to_any_result()
 }
 
@@ -239,12 +224,6 @@ fn array_find_last_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any
     Ok(index_or_minus_one(a.find_last_index(&f)?))
 }
 
-/// `Array.prototype.map`, `vm/array/map.rs`.
-fn array_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let (a, f) = with_callback(receiver, &args)?;
-    a.map(&f).to_any_result()
-}
-
 /// `Array.prototype.filter`, `vm/array/filter.rs`.
 fn array_filter<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
@@ -256,13 +235,13 @@ fn array_filter<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<
 /// `[].reduce(f, undefined)` answers `undefined`.
 fn array_reduce<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    a.reduce(&f, present(&args, 1))
+    a.reduce(&f, args.present(1))
 }
 
 /// `Array.prototype.reduceRight`, `vm/array/reduce.rs`.
 fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    a.reduce_right(&f, present(&args, 1))
+    a.reduce_right(&f, args.present(1))
 }
 
 /// `Array.prototype.flat`, `vm/array/flat.rs`: the depth `1` when absent or
@@ -323,23 +302,20 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
 /// the three whose position is read only when passed.
 fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.last_index_of(&args.argument(0), present(&args, 1))?;
+    let found = Array::try_from(receiver)?.last_index_of(&args.argument(0), args.present(1))?;
     Ok(index_or_minus_one(found))
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::{identity, no_args, returns, rt, throws};
     use crate::{
+        common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, BigInt, Function, IVm, ToAny, ToArray, ToObject, error},
+        vm::{Any, Array, BigInt, Function, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
-
-    /// The runtime value a call step takes.
-    fn rt() -> Any<A> {
-        crate::vm::runtime::<A>().unwrap()
-    }
 
     fn to_string_with(receiver: Any<A>, radix: Any<A>) -> Result<Any<A>, Any<A>> {
         receiver
@@ -376,9 +352,6 @@ mod tests {
         );
     }
 
-    fn no_args() -> Result<Any<A>, Any<A>> {
-        Ok([].to_array().to_any())
-    }
     fn to_string(receiver: Any<A>) -> Result<Any<A>, Any<A>> {
         receiver.dot("toString".into()).end_call(&rt(), no_args)
     }
@@ -397,8 +370,7 @@ mod tests {
             to_string([1.0.to_any(), "b".into()].to_array().to_any()),
             Ok("1,b".into())
         );
-        let f: Any<A> =
-            A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f: Any<A> = returns(1.0.to_any());
         // refused: a function without text
         assert_eq!(to_string(f), Err(error::function_text()));
     }
@@ -411,7 +383,7 @@ mod tests {
         // With fewer than two elements a function separator is never read:
         // `[].join(f)` is `""` and `[1].join(f)` is `"1"`, as in JavaScript.
         // A separator's own `toString` is still called, for its throws.
-        let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let g = || returns(1.0.to_any());
         let joined = |a: Any<A>| {
             a.dot("join".into())
                 .end_call(&rt(), || Ok([g()].to_array().to_any()))
@@ -436,7 +408,7 @@ mod tests {
             .to_any();
         // An element's own `toString` is still called, for its throws.
         assert_eq!(join_with(own_inside), Ok("".into()));
-        let boom = A::static_function(|_, _| Err("boom".into()), 0, [].to_array(), None).to_any();
+        let boom = throws("boom".into());
         let throwing_inside: Any<A> = [[("toString".into(), boom)].to_object().to_any()]
             .to_array()
             .to_any();
@@ -449,7 +421,7 @@ mod tests {
                 .end_call(&rt(), || Ok([own].to_array().to_any())),
             Ok("".into())
         );
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f = || returns(1.0.to_any());
         let join = |a: Any<A>, separator: Any<A>| {
             a.dot("join".into())
                 .end_call(&rt(), || Ok([separator].to_array().to_any()))
@@ -467,8 +439,7 @@ mod tests {
     /// `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
     #[test]
     fn slice_calls_an_own_value_of() {
-        let f: Any<A> =
-            A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f: Any<A> = returns(1.0.to_any());
         let start: Any<A> = [("valueOf".into(), f)].to_object().to_any();
         let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
         let sliced = a
@@ -528,6 +499,99 @@ mod tests {
         );
     }
 
+    /// `map` has no native fallback: the common runtime supplies its body,
+    /// which passes each value, its index and the original receiver to the
+    /// callback, retaining the receiver's identity.
+    #[test]
+    fn array_map_uses_the_common_runtime() {
+        let values: Array<A> = [10.0.to_any(), 20.0.to_any()].to_array();
+        let receiver = values.clone().to_any();
+        let key: Any<A> = "map".into();
+        assert!(super::method::<A>(&receiver, &key).is_none());
+        assert!(
+            receiver
+                .clone()
+                .dot(key.clone())
+                .end_call(&Any::undefined(), || Ok([identity()].to_array().to_any()))
+                .is_err()
+        );
+        let mapped = receiver
+            .clone()
+            .dot(key)
+            .end_call(&rt(), || Ok([identity()].to_array().to_any()))
+            .unwrap();
+        let mapped = Array::try_from(mapped).unwrap();
+        assert_eq!(mapped.length(), 2);
+        for index in 0..2 {
+            let args = Array::try_from(mapped[index].clone()).unwrap();
+            assert_eq!(args.length(), 3);
+            assert_eq!(args[0], values[index]);
+            assert_eq!(args[1], f64::from(index).to_any());
+            assert_eq!(args[2], receiver);
+        }
+    }
+
+    /// Array and string concatenation have no native fallback. The common
+    /// body spreads arrays once, retains their elements and converts string
+    /// arguments through the ordinary String operation.
+    #[test]
+    fn concat_uses_the_common_runtime() {
+        let child: Any<A> = [].to_object().to_any();
+        let values: Array<A> = [child.clone(), 1.0.to_any()].to_array();
+        let receiver = values.clone().to_any();
+        let key: Any<A> = "concat".into();
+        for value in [receiver.clone(), "x".into()] {
+            assert!(super::method::<A>(&value, &key).is_none());
+            assert!(
+                value
+                    .dot(key.clone())
+                    .end_call(&Any::undefined(), no_args)
+                    .is_err()
+            );
+        }
+        let copied = receiver
+            .clone()
+            .dot(key.clone())
+            .end_call(&rt(), no_args)
+            .unwrap();
+        assert_ne!(copied, receiver);
+        assert_eq!(Array::try_from(copied).unwrap()[0], child);
+        let nested = [3.0.to_any()].to_array().to_any();
+        let joined = receiver
+            .dot(key.clone())
+            .end_call(&rt(), || {
+                Ok([
+                    [2.0.to_any(), nested.clone()].to_array().to_any(),
+                    child.clone(),
+                    Any::undefined(),
+                ]
+                .to_array()
+                .to_any())
+            })
+            .unwrap();
+        let joined = Array::try_from(joined).unwrap();
+        assert_eq!(joined.length(), 6);
+        assert_eq!(joined[0], child);
+        assert_eq!(joined[2], 2.0.to_any());
+        assert_eq!(joined[3], nested);
+        assert_eq!(joined[4], child);
+        assert_eq!(joined[5], Any::undefined());
+
+        let text: Any<A> = "x".into();
+        assert_eq!(
+            text.clone().dot(key.clone()).end_call(&rt(), no_args),
+            Ok(text.clone())
+        );
+        assert_eq!(
+            text.dot(key).end_call(&rt(), || {
+                Ok([1.0.to_any(), Nullish::Null.to_any(), Any::undefined()]
+                    .to_array()
+                    .to_any())
+            }),
+            Ok("x1nullundefined".into())
+        );
+    }
+
     /// A receiver of each type the completeness table names.
     fn receiver(type_: &str) -> Any<A> {
         match type_ {
@@ -537,9 +601,7 @@ mod tests {
             "Number" => 0.0.to_any(),
             "Boolean" => true.to_any(),
             "BigInt" => BigInt::<A>::from(0i64).to_any(),
-            "Function" => {
-                A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
-            }
+            "Function" => returns(1.0.to_any()),
             _ => panic!("no receiver of type {type_}"),
         }
     }

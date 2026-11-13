@@ -26,17 +26,33 @@
  * parse as garbage; recognise code first and the remainder is balanced in
  * all 789.
  *
- * **`strong` and `em` hold text and code**, as a link's label does: a
- * README sets a name in bold as `` **`Object` is a reserved word** ``. Neither
- * holds a link or another emphasis, so neither carries {@link Inline}: a
- * nested shape would be a generality no file uses, and the parser would owe
- * it a meaning.
+ * **`strong` and `em` hold {@link Emphasised} spans**: text and code, as a
+ * link's label does, and links. A README sets a name in bold as
+ * `` **`Object` is a reserved word** `` and links from bold as
+ * `**[capl.md](./capl.md)**`. **Each may also hold the other, one level
+ * deep**: bold holds emphasis ({@link Bolded}), as a file stresses a word
+ * in a bold sentence, `**… *be* …**`, and emphasis holds bold
+ * ({@link Italicised}), `*… **constrains** …*`; neither holds itself. So
+ * neither carries {@link Inline}: a deeper shape would be a generality no
+ * file uses, and the parser would owe it a meaning.
  */
-export type Inline =
+export type Inline = Struck | readonly ['del', readonly Struck[]]
+
+/**
+ * One span a strikethrough may hold: any {@link Inline} span but another
+ * strikethrough.
+ *
+ * **Strikethrough is GitHub's `~~text~~`, read in a paragraph's own
+ * text**: a file strikes out a task that was settled, `~~**Build the
+ * string in blocks.**~~`, and holds bold, code and links inside it. It is
+ * read only where its two tilde runs stand outside any other span; inside
+ * bold or emphasis, or across one, it is refused, as is one inside another.
+ */
+export type Struck =
     | readonly ['text', string]
     | readonly ['code', string]
-    | readonly ['strong', readonly Label[]]
-    | readonly ['em', readonly Label[]]
+    | readonly ['strong', readonly Bolded[]]
+    | readonly ['em', readonly Italicised[]]
     | readonly ['link', readonly LinkLabel[], string]
     | Image
 
@@ -46,6 +62,25 @@ export type Inline =
  * in the tree holds emphasis or another link, and none may.
  */
 export type Label = readonly ['text', string] | readonly ['code', string]
+
+/**
+ * One span of a bold or emphasised body: text, code, or a link whose label
+ * holds text and code. An image, which a `!` before a link would make, is
+ * refused there.
+ */
+export type Emphasised = Label | readonly ['link', readonly Label[], string]
+
+/**
+ * One span of a bold body: an {@link Emphasised} span, or emphasis holding
+ * them.
+ */
+export type Bolded = Emphasised | readonly ['em', readonly Emphasised[]]
+
+/**
+ * One span of an emphasised body: an {@link Emphasised} span, or bold
+ * holding them.
+ */
+export type Italicised = Emphasised | readonly ['strong', readonly Emphasised[]]
 
 /**
  * An image: its alternative text, then its source. GitHub reads `![alt](u)`
@@ -104,9 +139,12 @@ export type Align = 'left' | 'center' | 'right' | null
  * a checkbox before its first paragraph, which always follows the `task`.
  * **A table is GitHub's**: a header row, a delimiter row giving each
  * column's alignment, and body rows, every row's cells being inline spans.
+ * **A block quote holds blocks**, as a list item does: the lines of the
+ * quote, each without its `>`, read as a README's own, but for a heading.
+ * **A thematic break is a `rule`**, a line of three or more `-`, `*` or `_`.
  *
- * What a README may hold and these cannot express — a block quote, raw
- * HTML — is refused by the reader rather than written as something else, so
+ * What a README may hold and these cannot express — raw HTML, a GitHub
+ * alert — is refused by the reader rather than written as something else, so
  * the README stays a link to GitHub.
  */
 export type Block =
@@ -117,6 +155,8 @@ export type Block =
     | readonly ['olist', number, boolean, readonly Blocks[]]
     | readonly ['table', readonly Align[], readonly Entry[], readonly (readonly Entry[])[]]
     | readonly ['task', boolean]
+    | readonly ['quote', Blocks]
+    | readonly ['rule']
 
 /** A README as its blocks, in order. */
 export type Blocks = readonly Block[]

@@ -7,8 +7,8 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { rustdocHead } from '../cargo-doc/module.f.mjs'
 import { rustdocStylesheet } from '../style/module.f.js'
 import { main } from './module.f.mjs'
@@ -34,7 +34,7 @@ export const proof = {
     writes: () => {
         const [root, code] = run(funding)
         assertEq(code, 0)
-        assertEq(textOf(root, '_rustdoc-head.html'), rustdocHead)
+        assertEq(textOf(root, '_rustdoc-head.html'), rustdocHead({ commit: null, branch: null, funding: [] }))
         assert(textOf(root, '_rustdoc-header.html').startsWith('<header><nav aria-label="Site">'))
         assert(textOf(root, '_rustdoc-footer.html').includes('<a href="https://example.com/">Support'))
         assertEq(textOf(root, '_rustdoc.css'), rustdocStylesheet)

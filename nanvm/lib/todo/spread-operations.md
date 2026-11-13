@@ -51,7 +51,7 @@ The names are not symmetric because the semantics are not:
 
 - **`get_iterator` is a general protocol, not a spread rule.** Array spread,
   call spread and array destructuring, `const [a, b] = x`
-  ([destructuring](../../../spec/todo/2450-destructuring.md)), all start with
+  ([destructuring](../../../spec/bindings/destructuring/README.md)), all start with
   `GetIterator`, so the operation takes the spec's name.
 - **`object_spread` is spread-specific.** `Object.entries` throws on `null`
   and `undefined`, where `{...null}` is `{}`. Object rest destructuring,
@@ -191,9 +191,9 @@ produces part of a string, not for this one alone.
       array, string and empty cases ([`vm/object_spread.rs`](../src/vm/object_spread.rs),
       [`vm/any/object_spread.rs`](../src/vm/any/object_spread.rs)).
 - [x] Rust tests for every case above, including:
-      - a surrogate pair and a lone surrogate;
-      - an object with a duplicate key and with array-index keys out of order;
-      - the four examples in the problem statement.
+  - a surrogate pair and a lone surrogate;
+  - an object with a duplicate key and with array-index keys out of order;
+  - the four examples in the problem statement.
 - [x] Spell `['...', exp]` in [`fjs/edag/rust`](../../../fjs/edag/rust/module.f.mjs)
       as an array item and a call's argument, through `get_iterator` and
       `spread_array`/`spread_call` in

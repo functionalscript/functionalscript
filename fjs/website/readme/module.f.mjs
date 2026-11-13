@@ -27,7 +27,8 @@
  *
  * **A code fence in a language the site can read is coloured.** Its text
  * goes through the tokenizer the demos colour a typed example with
- * ([`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
+ * ([`js/marked`](../../js/marked/module.f.mjs), drawn by
+ * [`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
  * fence through the same tokenizer with TypeScript's own keywords, so the
  * colours are the demos' and the text is the fence's, character for
  * character. A fence in any other language, or one the tokenizer refuses,
@@ -42,14 +43,14 @@
  */
 
 import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
-import { basename, concat as pathConcat, escapes, normalize, parent } from '../../path/module.f.mjs'
+import { basename, concat as pathConcat, escapes, normalize, parent } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
 import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
 import { flowchartSvg } from '../mermaid/module.f.mjs'
 import { codeBlock } from '../demo/code/module.f.js'
-import { at } from '../../types/object/module.f.mjs'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const { length: reservedIdCount } = reservedIds
 
@@ -110,7 +111,7 @@ export const resolveHref = commit => isPage => dir => href => {
 }
 
 /** A span's words, as a heading's anchor is made of them. @type {(span: Inline | Label) => string} */
-const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 'em'
+const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 'em' || span[0] === 'del'
     ? span[1].map(words).join('')
     : span[1]
 
@@ -203,7 +204,7 @@ export const anchors = blocks => {
         let n = 0
         // A suffixed anchor another heading already has is skipped, as
         // GitHub's slugger skips it: `A`, `A-1`, `A` are `a`, `a-1`, `a-2`.
-        while (used.includes(n === 0 ? id : `${id}-${n}`)) { n++ }
+        while (used.includes(n === 0 ? id : `${id}-${n}`)) { n += 1 }
         used = [...used, n === 0 ? id : `${id}-${n}`]
     }
     return used.slice(reservedIdCount)
@@ -230,8 +231,8 @@ const highlighters = {
  * @type {(language: string) => (text: string) => readonly Node[]}
  */
 const fenceNodes = language => text => {
-    const colour = at(language.toLowerCase())(highlighters)
-    return colour === null ? [text] : colour(text)
+    const colour = entry(highlighters, language.toLowerCase())
+    return colour === undefined ? [text] : colour(text)
 }
 
 /** A label's span as a node: code, or its text. @type {(label: Label) => Node} */
@@ -250,22 +251,27 @@ const imageNode = ([, alt, src]) => src.toLowerCase().startsWith('https://')
     ? ok(['img', { src, alt }])
     : error(`an image whose source is not an https address: ${src}`)
 
-/** Whether a heading shows an image. @type {(spans: readonly Inline[]) => boolean} */
-const hasImage = spans => spans.some(span => span[0] === 'image' || (span[0] === 'link' && span[1].some(l => l[0] === 'image')))
+/** Whether a heading shows an image, struck out or not. @type {(spans: readonly Inline[]) => boolean} */
+const hasImage = spans => spans.some(span => span[0] === 'image'
+    || (span[0] === 'link' && span[1].some(l => l[0] === 'image'))
+    || (span[0] === 'del' && hasImage(span[1])))
 
 /**
  * A README as the elements of its page, or the first link it cannot place.
  *
- * **A heading is one level below the README's own.** The page's `h1` is its
- * breadcrumb, and its sections are `h2`, so the README's title is an `h2`
- * beside them and its sections `h3`; an `h6` stays an `h6`.
+ * **A heading is at the README's own level.** The README's title is the
+ * page's `h1`, and its sections are `h2`, beside the sections the page adds
+ * itself. A second `#` title is refused: it would be a second `h1`, a page
+ * with two topics, and demoting it to an `h2` would set it beside the
+ * sections it was written above.
  *
  * **A list item is its blocks**, in a `ul`, or an `ol` for a numbered
  * list, and in a tight list a paragraph is its bare
  * text, as GitHub writes it: `<li>text</li>` where a loose list has
  * `<li><p>text</p></li>`. A task item's checkbox is a disabled `input`
  * opening its first paragraph, and its `li` is a `task-list-item`, as
- * GitHub writes both. A table column's alignment is its cells' `align`.
+ * GitHub writes both. A table column's alignment is its cells' `align`. A
+ * block quote is a `blockquote` of its blocks, and a thematic break an `hr`.
  *
  * @type {(href: (href: string) => Result<string, string>) => (blocks: Blocks) => Result<readonly Element[], string>}
  */
@@ -276,13 +282,18 @@ export const readmeNodes = href => blocks => {
         // An image's words are not its alternative text in GitHub's anchor.
         if (block[0] === 'heading' && hasImage(block[2])) { return error('an image in a heading, whose anchor GitHub may make otherwise') }
     }
+    if (blocks.filter(block => block[0] === 'heading' && block[1] === 1).length > 1) {
+        return error('a second `#` title, which would give the page a second heading')
+    }
     const ids = anchors(blocks)
     /** @type {(span: Inline) => Result<Node, string>} */
     const node = span => {
         const kind = span[0]
         if (kind === 'code') { return ok(['code', span[1]]) }
-        if (kind === 'strong') { return ok(['strong', ...span[1].map(labelNode)]) }
-        if (kind === 'em') { return ok(['em', ...span[1].map(labelNode)]) }
+        if (kind === 'strong' || kind === 'em' || kind === 'del') {
+            const inner = nodes(span[1])
+            return inner[0] === 'error' ? inner : ok([kind, ...inner[1]])
+        }
         if (kind === 'image') { return imageNode(span) }
         if (kind === 'link') {
             const target = href(span[2])
@@ -367,6 +378,17 @@ export const readmeNodes = href => blocks => {
                     : b[1] === 1 ? ['ol', ...items] : ['ol', { start: String(b[1]) }, ...items]]
                 continue
             }
+            if (b[0] === 'rule') {
+                out = [...out, ['hr']]
+                continue
+            }
+            // A quote's paragraphs are each a `p`, whatever holds the quote.
+            if (b[0] === 'quote') {
+                const n = blockNodes(false)(b[1])
+                if (n[0] === 'error') { return n }
+                out = [...out, ['blockquote', ...n[1]]]
+                continue
+            }
             if (b[0] === 'table') {
                 const head = row('th', b[1])(b[2])
                 if (head[0] === 'error') { return head }
@@ -383,8 +405,8 @@ export const readmeNodes = href => blocks => {
             const n = nodes(b[0] === 'heading' ? b[2] : b[1])
             if (n[0] === 'error') { return n }
             if (b[0] === 'heading') {
-                out = [...out, linkedHeading(Math.min(b[1] + 1, 6), ids[heading], b[2].map(words).join(''), n[1])]
-                heading++
+                out = [...out, linkedHeading(b[1], ids[heading], b[2].map(words).join(''), n[1])]
+                heading += 1
                 continue
             }
             const text = [...checkbox, ...n[1]]

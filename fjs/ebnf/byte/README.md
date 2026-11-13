@@ -12,7 +12,7 @@ consumer, [`fjs/git`](../../git/README.md).
   as a dense array of bytes with anything else refused, a hole included; and
   `byteLength`, the same check as a count that walks a list once and never
   holds it. The alphabet's
-  membership is [`fjs/types/number`](../../types/number/module.f.mjs)'s
+  membership is [`fjs/types/number`](../../types/number/module.f.js)'s
   `isByte`, the one byte predicate `fjs/types/bit_vec` refuses with too;
 - `types.ts` — `Byte`, the metadata of a byte.
 
@@ -34,7 +34,7 @@ So this module gives a byte grammar terminals of its own — `byte`, the
 universe; `not`, its complement; `bytes(...)`, one of the bytes given, the
 spelling for a byte above `0x7F` — and one reading of the input, `symbols`,
 one `Meta<Byte>` per byte with one shared metadata record, in the shape of
-[`../utf16`](../utf16/module.f.mjs).
+[`../utf16`](../utf16/module.f.js).
 
 ## What `byteParser` refuses, and what it cannot
 

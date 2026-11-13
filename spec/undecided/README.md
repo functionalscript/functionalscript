@@ -9,7 +9,7 @@ compiler prints for each.
 
 The [refused constructs](../todo/refused-constructs.md) register gives every
 refusal a **Why**: **design** when it is meant to last, as for
-[`in`](../operators/in/README.md); **planned** when a record proposes
+[`==`](../operators/loose-equality/README.md); **planned** when a record proposes
 admitting it; and **open** when only the whitelist refuses it. This page is
 the open rows, the ones still waiting for a language designer's decision.
 
@@ -19,7 +19,7 @@ The demo fetches the register and keeps its open rows, so it lists what the
 register says on this build, with nothing here to keep in step. For each row it
 shows the register's construct and the record it names, if any, and compiles a
 small module that writes the construct, from
-[`samples.f.mjs`](./samples.f.mjs), named after the row's ID. It says so when
+[`samples.f.js`](./samples.f.js), named after the row's ID. It says so when
 the compiler accepts a sample, when an open row has no sample, or when a
 sample's row is no longer open, since each means the page and the register no
 longer agree.
@@ -33,7 +33,7 @@ asks: a refusal that moves, or changes its message, fails it.
 The pull request that decides a row changes its **Why** in the register, and
 the row leaves this page with it. The same pull request removes the row's
 sample here, and the construct gets a page of its own: a refused construct's
-page, like [`in`](../operators/in/README.md), when it stays out, or the
+page, like [`==`](../operators/loose-equality/README.md), when it stays out, or the
 feature's page in the specification when it comes in.
 
 ## Reference

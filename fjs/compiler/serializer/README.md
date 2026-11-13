@@ -43,6 +43,14 @@ coordinator. It performs no second graph-placement or tail-eligibility analysis.
 The detailed [source loop contract](../../edag/to_fast/source/loops/README.md)
 owns their exact admission, evaluation regions, fallback and graph normalization.
 
+Canonical one-pass invocation joins also use common preparation's
+[immutable continuation](../../js/ast/prepare/one_pass/README.md). Empty
+alternatives render as guards accepted by the existing FJS parser. The supplied
+`K(z)` and nested `m` cases support source parsing, execution and reserialization;
+this semantic contract does not require graph/hash equality. Genuine loop
+profiles retain their existing state/result plans. Inner decisions outside the
+terminating-guard subset retain their invocation loop under the current grammar.
+
 Those profiles cover empty and multiple semantic inputs, observed rest, required
 normal-arm work, conditional results and transitions, mixed completion and
 continuation, and selected explicit throws. Common preparation retains exact

@@ -22,8 +22,9 @@
  *   followed by the identifier `abc`, and the layer above the tokens
  *   refuses the two for standing side by side, as that record says.
  *
- * A string is JSON's, or JSON's spelled between single quotes
- * ({@link string}). Decimal and hexadecimal digits reuse JSON's rules;
+ * Quoted strings add braced Unicode escapes to JSON's; single quotes admit delimiter,
+ * vertical-tab and two-digit hexadecimal escapes ({@link string}). Decimal
+ * and hexadecimal digits reuse JSON's rules;
  * JavaScript's digit runs add optional separators between digits. A
  * line comment stops before its newline, which is the next token; the
  * classical grammar swallowed it and split it back out below the
@@ -41,10 +42,10 @@
  */
 
 import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
-import { digit, escape, hex, string as jsonString, uint } from '../json/module.f.mjs'
+import { digit, escape, hex, uint } from '../json/module.f.mjs'
 
 /** Every symbol of the alphabet: a code point. */
-const any = range(`\0${unicodeMax}`)
+const any = range(`\u0000${unicodeMax}`)
 
 /** One whitespace symbol; a run of them is a run of tokens. */
 export const ws = set(' \t')
@@ -97,19 +98,28 @@ const idStart = /**@type {const}*/({
 const idChar = /**@type {const}*/({ ...idStart, digit })
 
 /** JSON's escape: the backslash, then a simple escape's character or `u`. */
-const [backslash, { c: simple, u: unicode }] = escape
+const [backslash, { c: simple }] = escape
+
+/** Unicode code unit or code point; the decoder checks the code-point range. */
+export const unicodeEscape = /** @type {const} */ (['u', {
+    braced: ['{', hex, repeatFrom0(hex), '}'],
+    fixed: [hex, hex, hex, hex],
+}])
+
+/** Common quoted-string escapes, sharing Unicode syntax with templates. */
+export const stringEscape = /** @type {const} */ ([backslash, { c: simple, u: unicodeEscape }])
 
 /**
- * An escape inside a single-quoted string: JSON's, whose simple escapes
- * gain `\'` — the one character the delimiter makes necessary to escape,
- * as `\"` is inside `"…"`. The rest of JavaScript's escapes are not
- * FunctionalScript's (`spec/todo/2460-js-string-literals.md`).
+ * An escape inside a single-quoted string: JSON's, plus the delimiter
+ * `\'`, the vertical tab `\v`, and exactly two hexadecimal digits
+ * after `\x`. Other JavaScript escapes remain separate proposals
+ * (`spec/todo/2460-js-string-literals.md`).
  */
-const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'")), u: unicode }])
+const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'v")), u: unicodeEscape, x: ['x', hex, hex] }])
 
 /**
- * A string between single quotes: JSON's string with the delimiters
- * swapped, so a `"` stands for itself and a `'` is escaped.
+ * A string between single quotes: a `"` stands for itself and a `'` is
+ * escaped, with the escapes described by `singleQuoteEscape`.
  */
 const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
     c: remove(range(` ${unicodeMax}`), set("'\\")),
@@ -117,11 +127,17 @@ const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
 }), "'"])
 
 /**
- * A string: JSON's, between double quotes, or the same between single
- * quotes. Both denote the value their characters and escapes spell; which
+ * A double-quoted or single-quoted string, with fixed-width or braced Unicode
+ * escapes. Both denote
+ * the value their characters and escapes spell; which
  * quote was used is a spelling, and the token does not keep it.
  */
-export const string = /**@type {const}*/({ double: jsonString, single: singleQuoted })
+const doubleQuoted = /** @type {const} */ (['"', repeatFrom0({
+    c: remove(range(` ${unicodeMax}`), set('"\\')),
+    escape: stringEscape,
+}), '"'])
+
+export const string = /**@type {const}*/({ double: doubleQuoted, single: singleQuoted })
 
 /**
  * A template escape. Unlike ordinary strings, templates recognize JavaScript's
@@ -130,10 +146,7 @@ export const string = /**@type {const}*/({ double: jsonString, single: singleQuo
  * refused here, and `\0`'s following character is checked while decoding.
  */
 export const templateEscape = /**@type {const}*/(['\\', {
-    unicode: ['u', {
-        braced: ['{', hex, repeatFrom0(hex), '}'],
-        fixed: [hex, hex, hex, hex],
-    }],
+    unicode: unicodeEscape,
     hex: ['x', hex, hex],
     other: remove(any, set('ux123456789')),
 }])
@@ -190,7 +203,8 @@ const int = (prefix, d) => [set(prefix), d, intTail(d), option('n')]
 /**
  * A number: an unsigned integer, then either the bigint suffix or
  * an optional fraction and exponent; or, after a leading `0`, `x` or
- * `X`, hexadecimal digits, or `b` or `B`, binary digits, and an optional bigint suffix
+ * `X`, hexadecimal digits, `b` or `B`, binary digits, or `o` or `O`, octal
+ * digits, and an optional bigint suffix
  * ([numbers](../../../../spec/values/numbers/README.md)). A hexadecimal literal
  * has no fraction and no exponent, so an `e` after `0x` is a digit. The
  * sign is an operator token.
@@ -199,6 +213,7 @@ export const number = /**@type {const}*/({
     zero: [uint[0], {
         hex: int('xX', hex),
         binary: int('bB', set('01')),
+        octal: int('oO', set('01234567')),
         bigint: 'n',
         real: optionFloatSuffix,
     }],

@@ -756,7 +756,7 @@ asks.** A cell is a `first` and a `tail` behind an `Effect`
 ([`../../list/types.ts`](../../list/types.ts)): a consumer that stops pulling
 tells the producer nothing, because there is no cell left in which to tell it.
 Nor is the effect layer's `finally` the missing piece — `finallyStep` in
-[`../../module.f.mjs`](../../module.f.mjs) is `resultStep` plus a policy, which
+[`../../module.f.js`](../../module.f.js) is `resultStep` plus a policy, which
 is exactly what it is *for a composer that is still on the stack for both
 halves*. A pumped body is the other shape. When the pump gives up,
 nothing that knows a handle exists is on the stack to be given a chance.

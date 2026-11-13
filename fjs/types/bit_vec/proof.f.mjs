@@ -5,11 +5,11 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { mask } from '../bigint/module.f.mjs'
+import { mask } from '../bigint/module.f.js'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
-import { repeat as listRepeat } from '../list/module.f.mjs'
-import { toArray } from '../list/alt/module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, maxVecBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ListToMaxVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes, unpack, unpackedUint, isVec } from './module.f.js'
+import { repeat as listRepeat } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
 
 /** @type {(a: bigint) => Vec} */
 const unsafeVec = a => asNominal(a)
@@ -66,17 +66,23 @@ const removeFront = e => r0 => r1 => () => {
 }
 
 /** @type {(e: BitOrder) => (r: Vec) => () => void} */
-const concat = e => r => () => {
+const concatVec = e => r => () => {
     const u8 = vec(8n)
     const a = u8(0x45n) // -0xC5n
     assertEq(a, unsafeVec(-0xC5n))
     const b = u8(0x89n) // 0x89n
     assertEq(b, unsafeVec(0x89n))
-    const ab = e.concat(a)(b) // 0x8945n
+    const ab = e.concatVec(a)(b) // 0x8945n
     assertEq(ab, r)
 }
 
 export const proof = {
+    representation: () => {
+        const vector = vec(8n)(0x53n)
+        assertEq(unpackedUint(unpack(vector)), 0x53n)
+        assertEq(isVec(vector), true)
+        assertEq(isVec(0x53), false)
+    },
     fromSentinel: () => {
         // Two data bytes; the leading 0x1 nibble is the sentinel, stripped out.
         const v = fromSentinel(0x1_8950n)
@@ -130,13 +136,13 @@ export const proof = {
             assertEq2(msb.popFront(4n)(vector), [0xFn, asNominal(-0xDn)])
             assertEq2(msb.popFront(16n)(vector), [0xF500n, empty])
         },
-        concat: () => {
+        concatVec: () => {
             const u8 = vec(8n)
             const a = u8(0x45n) // -0xC5n
             const b = u8(0x89n) // 0x89n
 
-            assertEq(lsb.concat(a)(b), asNominal(0x8945n))
-            assertEq(msb.concat(a)(b), asNominal(-0xC589n))
+            assertEq(lsb.concatVec(a)(b), asNominal(0x8945n))
+            assertEq(msb.concatVec(a)(b), asNominal(-0xC589n))
         }
     },
     front: {
@@ -151,9 +157,9 @@ export const proof = {
         lsbm: removeFront(lsb)(asNominal(-0xB45n))(empty),
         msbm: removeFront(msb)(asNominal(-0xC56n))(empty),
     },
-    concat: {
-        lsbm: concat(lsb)(asNominal(0x8945n)),
-        msbm: concat(msb)(asNominal(-0xC589n)),
+    concatVec: {
+        lsbm: concatVec(lsb)(asNominal(0x8945n)),
+        msbm: concatVec(msb)(asNominal(-0xC589n)),
     },
     uintLsb: () => {
         /** @type {Vec} */
@@ -221,6 +227,9 @@ export const proof = {
             assertEq(maxLengthBytes, 131_072n)
             assert(isWholeBytesIn(maxLength))
         },
+        maxVecBytes: () => {
+            assertEq(maxVecBytes, 131_072)
+        },
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)
@@ -233,7 +242,7 @@ export const proof = {
         const vec8 = vec(8n)
         const a = vec8(0x345n)
         const b = vec8(0x789n)
-        const ab = lsb.concat(a)(b)
+        const ab = lsb.concatVec(a)(b)
         assertEq(ab, unsafeVec(0x8945n))
         const s = length(ab)
         assertEq(s, 16n)
@@ -377,7 +386,7 @@ export const proof = {
     },
     concat2: () => {
         const c = (/** @type {Vec} */ a) => (/** @type {Vec} */ b) => (/** @type {Vec} */ abx) => {
-            const ab = msb.concat(a)(b)
+            const ab = msb.concatVec(a)(b)
             const abLen = length(ab)
             const abxLen = length(abx)
             assertEq(abLen, abxLen)
@@ -480,14 +489,14 @@ export const proof = {
     tryConcat: () => {
         const a = vec(8n)(0x45n)
         const b = vec(8n)(0x89n)
-        // Within the cap it is `concat`.
-        assertEq(lsb.tryConcat(a)(b), lsb.concat(a)(b))
-        assertEq(msb.tryConcat(a)(b), msb.concat(a)(b))
+        // Within the cap it is `concatVec`.
+        assertEq(lsb.tryConcat(a)(b), lsb.concatVec(a)(b))
+        assertEq(msb.tryConcat(a)(b), msb.concatVec(a)(b))
         // Exactly `maxLength` is allowed; one bit past it is refused.
         const one = vec(1n)(1n)
         const full = vec(maxLength - 1n)(1n)
-        assertEq(lsb.tryConcat(full)(one), lsb.concat(full)(one))
-        assertEq(msb.tryConcat(full)(one), msb.concat(full)(one))
+        assertEq(lsb.tryConcat(full)(one), lsb.concatVec(full)(one))
+        assertEq(msb.tryConcat(full)(one), msb.concatVec(full)(one))
         assertEq(lsb.tryConcat(vec(maxLength)(1n))(one), null)
         assertEq(msb.tryConcat(one)(vec(maxLength)(1n)), null)
     },
@@ -496,29 +505,49 @@ export const proof = {
         const list = [vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(list), null)
         assertEq(msb.tryListToVec(list), null)
-        // Overflow is an absorbing element, so it survives every later
-        // combination: here the failed pair ends up on the left of the last
-        // one, and on the right in the two-element case above.
+        // The cap is on the total, so where the long vector stands among the
+        // short ones does not matter.
         /** @type {List<Vec>} */
-        const longer = [vec(maxLength)(1n), vec(1n)(1n), vec(1n)(1n)]
+        const longer = [vec(1n)(1n), vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(longer), null)
         assertEq(msb.tryListToVec(longer), null)
     },
     tryListToVecUnbounded: () => {
         // `List` includes `Thunk`, so an unbounded lazy list is a legal input —
         // and at 128 KiB, `maxLength` is an ordinary amount for a stream to
-        // exceed. Overflow being absorbing is what lets the fold answer instead
-        // of reading forever: each element here is half of `maxLength`, so the
-        // total crosses the cap at the third and the merge that sees it happens
-        // at the fourth. The rest of the list asserts it is never read.
+        // exceed. The cap is checked on the total as each vector arrives, so
+        // the walk stops at the vector that crosses it: each element here is
+        // half of `maxLength`, the third crosses, and the rest of the list
+        // asserts it is never read.
         const half = vec(maxLength / 2n)(1n)
         /** @type {(n: number) => List<Vec>} */
         const from = n => () => {
-            assert(n <= 8)
+            assert(n <= 3)
             return { first: half, tail: from(n + 1) }
         }
         assertEq(lsb.tryListToVec(from(1)), null)
         assertEq(msb.tryListToVec(from(1)), null)
+    },
+    // Empty vectors weigh nothing, so they never make the fold merge the runs
+    // beneath them; the cap does not wait for a merge. Two full vectors and
+    // then empties without end: the second full vector crosses the cap and
+    // the walk stops there, never reading an empty one. Within the cap, the
+    // empties concatenate to nothing, before, between and after.
+    tryListToVecEmptyTail: () => {
+        const full = vec(maxLength)(1n)
+        /** @type {List<Vec>} */
+        const empties = () => {
+            assert(false)
+            return { first: empty, tail: empties }
+        }
+        /** @type {List<Vec>} */
+        const list = { first: full, tail: { first: full, tail: empties } }
+        assertEq(lsb.tryListToVec(list), null)
+        assertEq(msb.tryListToVec(list), null)
+        const half = vec(maxLength / 2n)(1n)
+        assertEq(lsb.tryListToVec([empty, half, empty, half, empty]), lsb.concatVec(half)(half))
+        assertEq(msb.tryListToVec([empty, half, empty, half, empty]), msb.concatVec(half)(half))
+        assertEq(lsb.tryListToVec([half, empty, empty, half, vec(1n)(1n)]), null)
     },
     listToVecOverflow: {
         // Same oversized input, but through the throwing `listToVec` wrapper.
@@ -575,7 +604,7 @@ export const proof = {
             assertEq(toArray(u8ListToVecChunksMsb(3)([])).length, 0)
         },
         max: () => {
-            const chunks = toArray(u8ListToVecChunksMsb(Number(maxLengthBytes))(listRepeat(0x12)(131_073)))
+            const chunks = toArray(u8ListToMaxVecChunksMsb(listRepeat(0x12)(131_073)))
             assertEq(chunks.length, 2)
             assertEq(length(chunks[0]), maxLength)
             assertEq(chunks[1], vec8(0x12n))
@@ -583,7 +612,7 @@ export const proof = {
         throw: {
             zero: () => { u8ListToVecChunksMsb(0) },
             fraction: () => { u8ListToVecChunksMsb(1.5) },
-            overMax: () => { u8ListToVecChunksMsb(Number(maxLengthBytes) + 1) },
+            overMax: () => { u8ListToVecChunksMsb(maxVecBytes + 1) },
             notByte: () => { toArray(u8ListToVecChunksMsb(2)([1, 256])) },
         },
     },
@@ -671,7 +700,7 @@ export const proof = {
                 assertEq(length(last), 8n)
                 const tail = unpadMsb(last)
                 assert(tail !== null, 'the last block keeps its terminator')
-                assertEq(msb.concat(whole)(tail), v)
+                assertEq(msb.concatVec(whole)(tail), v)
             }
         },
         throw: {

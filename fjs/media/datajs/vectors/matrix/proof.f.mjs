@@ -8,14 +8,14 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { foldStep, mapStep, pureOk, step as ioStep } from '../../../../effects/module.f.mjs'
+import { foldStep, mapStep, pureOk, step as ioStep } from '../../../../effects/module.f.js'
 import { exitCode, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import {
     defaultNodeProgramOptions,
     emptyState,
     virtual,
 } from '../../../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../../../text/module.f.mjs'
+import { utf8 } from '../../../../text/module.f.js'
 import { toVec } from '../../../../types/uint8array/module.f.mjs'
 import { unwrap } from '../../../../types/result/module.f.js'
 import { tryStringify } from '../../serializer/module.f.mjs'

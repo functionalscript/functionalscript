@@ -91,14 +91,15 @@ what a grammar can and cannot do for the formats.
   raw bytes a tree entry holds and the hex text a header holds, and `of`,
   the id an object has at the repository's width: SHA-1 at 20 bytes,
   SHA-256 at 32.
-- [`inflater/`](inflater/module.f.mjs) — [`fjs/zlib/inflate`](../zlib/inflate/module.f.mjs),
+- [`inflater/`](inflater/module.f.mjs) — [`fjs/zlib/inflate`](../zlib/inflate/module.f.js),
   the pure inflater, fed the chunks a read gives, and what comes of it as the
   refusals the host's `inflate` effect used to give, so a caller that tells them
   apart by code is told nothing new.
 - [`loose/`](loose/module.f.mjs) — a loose object file read whole, inflated by
-  that and past its envelope. One of the two places a real repository meets the
-  decoder; [`packstore/`](packstore/module.f.mjs) below is the other, and is the
-  one a clone actually takes.
+  that and past its envelope, and written: the envelope as one stored zlib
+  stream, under a temporary name renamed into place. One of the two places a
+  real repository meets the decoder; [`packstore/`](packstore/module.f.mjs)
+  below is the other, and is the one a clone actually takes.
 - [`packstore/`](packstore/module.f.mjs) — the same for the other place an
   object lives: from an id to the object a pack below `objects/pack/` holds,
   through the `.idx` beside it. Two rules here are the effects' and not the
@@ -119,7 +120,7 @@ what a grammar can and cannot do for the formats.
   which read it as Git does: every assignment in order, the last one
   winning, and as Git's `int` or `bool` each assignment judged as the reader
   reaches it. What a key means is its reader's, not the grammar's.
-- [`alternates/`](alternates/module.f.mjs) — an `objects/info/alternates`
+- [`alternates/`](alternates/module.f.js) — an `objects/info/alternates`
   file as the object directories it names, decoded line shape by line shape
   as Git reads it: comments and blank lines skipped, a C-quoted line
   unquoted, a path ended at its first `NUL`, and a relative entry joined below
@@ -181,7 +182,7 @@ what a grammar can and cannot do for the formats.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
-- `testlib.f.mjs` — objects Git wrote, checked in as bytes and each
+- `testlib.f.js` — objects Git wrote, checked in as bytes and each
   carrying the id Git gave it: a signed merge commit of this repository
   and its root tree, and from a scratch repository a signed tag, a merge
   of one with the tag whole in `mergetag`, a tree with every mode, that
@@ -297,7 +298,7 @@ payload.
 | tree payload | SP, NUL, then `times(n)(byte)` | grammar, parameterized by the id width |
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
-| zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.mjs), fed chunks and read over the effects by [`inflater/`](inflater/module.f.mjs) |
+| zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.js), fed chunks and read over the effects by [`inflater/`](inflater/module.f.mjs) |
 | packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.mjs), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
@@ -479,7 +480,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. It used to bind at the host's
   `inflate`, which took a `Vec` and gave one, so an object was refused on either
-  side of its stream; the inflater here ([`fjs/zlib/inflate`](../zlib/inflate/module.f.mjs))
+  side of its stream; the inflater here ([`fjs/zlib/inflate`](../zlib/inflate/module.f.js))
   is fed chunks and answers chunks, so an object read whole — loose, or stored
   whole in a pack — is refused for no length: a blob of 300 000 bytes is read
   through three windows and answered as a list over the chunks it inflated to.

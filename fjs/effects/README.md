@@ -3,7 +3,7 @@
 `Effect<O, T, E>` ([`./types.ts`](./types.ts)) is a `Pure` thunk yielding
 `Result<T, E>` or a `Do` node: the failure is part of the representation, not a
 wrapper around it. One type, one module —
-[`./module.f.mjs`](./module.f.mjs) holds the representation, its interpreters
+[`./module.f.js`](./module.f.js) holds the representation, its interpreters
 and the combinators alike.
 
 ## Start here
@@ -28,8 +28,8 @@ without a `try`.
  * @import { DemoAsk as Ask, Effect } from './types.ts'
  * @import { MemOperationMap } from './mock/types.ts'
  */
-import { catchStep, do_, pureOk, step } from './module.f.mjs'
-import { run } from './mock/module.f.mjs'
+import { catchStep, do_, pureOk, step } from './module.f.js'
+import { run } from './mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 
 // An operation: a command name, called like a function, returning an Effect.
@@ -72,6 +72,7 @@ be watched happening.
 |`resultStep(e, f)`               |either, with the whole `Result` |handle both branches explicitly                    |
 |`attemptStep(e)`                 |none; answers the `Result`      |carry an outcome on as a value                     |
 |`finallyStep(e, f)`              |either, keeping `e`'s answer    |clean up whatever happened                         |
+|`compensateStep(e, cleanup)`     |`error`, keeping `e`'s error    |undo what a failed `e` left behind                 |
 |`foldStep`, `forEachStep`, `walkStep`|each item, stopping at an error|loop over a list without growing the stack       |
 |`pureOk(v)`, `pureError(e)`      |                                |lift a value or an error into an effect            |
 |`do_(command)`                   |                                |declare an operation                               |
@@ -80,7 +81,7 @@ be watched happening.
 
 |Module                                  |Holds                                                                       |
 |----------------------------------------|----------------------------------------------------------------------------|
-|[`.`](./module.f.mjs)                   |the `Effect` type, the combinators above, and the matchers runners use      |
+|[`.`](./module.f.js)                   |the `Effect` type, the combinators above, and the matchers runners use      |
 |[`common`](./common/README.md)          |operations any host can have: the console, `sandbox`, `catch`, `import`, `all`|
 |[`node`](./node/README.md)              |Node operations (files, network, processes) and the `NodeProgram` type       |
 |[`browser`](./browser/README.md)        |the browser page's operations: `fetchText`, `instantiate`, `jsHeapSize`      |
@@ -144,7 +145,7 @@ from exceptions or Rust's `?`, without giving it exceptions.
 
 ## The vocabulary
 
-Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
+Three branch-aware operations, in [`./module.f.js`](./module.f.js):
 
 - `step` — continue on `ok`, propagate the error. The normal path.
 - `catchStep` — continue on `error`, preserve the success value. The error path.
@@ -166,7 +167,7 @@ fails there rather than at some future call site.
 
 The composition API and the representation share one module: `pure`, `do_`,
 `match`, `partialMatch` and `runPure` sit beside `step` and the rest in
-[`./module.f.mjs`](./module.f.mjs). They were split while that module also
+[`./module.f.js`](./module.f.js). They were split while that module also
 exported `Result`-blind twins of `step`, `mapStep`, `history`, `historyStep`,
 `foldStep` and `forEachStep`, since the names collided. The twins are gone, and
 so is the split.
@@ -199,6 +200,13 @@ policy had repeated, on the principle that a derivable form earns a name by
 being canonical vocabulary, and added once two consumers in `fjs/git/refstore`
 — a lock held across a delete, and the directories made for one — had each
 written it out by hand.
+
+`compensateStep` is its error-branch sibling: `catchStep` plus the same
+policy, run `cleanup` only where `e` failed, drop the cleanup's answer and
+fail with `e`'s error. It was named once four sites in three modules — a
+partial file removed in `fjs/effects/node`, a staged object in `fjs/git/loose`,
+a lock in `fjs/git/refstore/write` — had each spelled it out with the same
+paragraph about which error the caller needs to hear.
 
 ### `pureOk` / `pureError`, not `ok` / `error`
 

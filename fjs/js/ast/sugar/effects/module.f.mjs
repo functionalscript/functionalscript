@@ -5,15 +5,18 @@
  *
  * @module
  * @import { BindingId, FunctionTarget, Operator } from '../../types.ts'
- * @import { SourceBlock, SourceValue } from '../source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceValue } from '../source.ts'
  * @import { List } from '../../../../types/list/types.ts'
  * @import { Task } from '../../task/types.ts'
  */
 
 import { operatorOperands } from '../../module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.js'
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
+
+/** Pattern reads evaluate their own defaults in structural source order. @type {(plan: ExpansionPlan) => readonly SourceValue[]} */
+const defaults = plan => plan.reads.flatMap(read => read.default === undefined ? [] : [read.default.value])
 
 /**
  * @param {SourceValue | SourceBlock} root
@@ -35,7 +38,7 @@ export const writes = (root, functions) => {
         let own = []
         let opaque = false
         if (node instanceof Array) {
-            if (node[0] === 'function') { children = [...node[1].parameters.flatMap(parameter => parameter.default === null ? [] : [parameter.default.value]), node[1].body]; opaque = true }
+            if (node[0] === 'function') { children = [...node[1].parameters.flatMap(parameter => [...(parameter.default === null ? [] : [parameter.default.value]), ...defaults(parameter.plan)]), node[1].body]; opaque = true }
             else if (node[0] === 'block') { children = [node[1]] }
             else if (node[0] !== 'ref') {
                 children = operatorOperands(/** @type {Operator<SourceValue>} */ (node))
@@ -45,10 +48,11 @@ export const writes = (root, functions) => {
             const block = /** @type {SourceBlock} */ (node)
             for (const statement of block.statements) {
                 if (statement[0] === 'write' || statement[0] === 'compound-write') { own = [...own, statement[1]] }
-                children = [...children, ...(statement[0] === 'initialize' || statement[0] === 'write' ? [statement[2]]
+                children = [...children, ...(statement[0] === 'initialize' ? [statement[2], ...defaults(statement[1])] : statement[0] === 'write' ? [statement[2]]
                     : statement[0] === 'compound-write' ? [statement[3]]
                     : statement[0] === 'if' ? [statement[1], statement[2], statement[3]]
                     : statement[0] === 'while' ? [statement[1].condition, statement[1].body, ...(statement[1].step === undefined ? [] : [statement[1].step])]
+                    : statement[0] === 'for-of' ? [statement[1].source, statement[1].body]
                     : statement[0] === 'switch' ? [statement[1].discriminant, ...statement[1].cases.flatMap(arm => [...arm.labels, arm.body]), statement[1].otherwise]
                     : statement[0] === 'return' ? [statement[2]] : statement[0] === 'throw' ? [statement[1]] : [])]
             }

@@ -9,7 +9,7 @@ postfix updates remain open
 
 The compiler admits variable assignment and binary operations, but refuses
 their compound spellings. `repeat` in
-[`fjs/common/monoid`](../../fjs/common/monoid/module.f.mjs) uses `ni >>= 1n`:
+[`fjs/common/monoid`](../../fjs/common/monoid/module.f.js) uses `ni >>= 1n`:
 the equivalent `ni = ni >> 1n` expresses the same immutable state transition.
 The refusal adds a source rewrite without protecting purity or binding safety.
 
@@ -165,6 +165,10 @@ statement-only positions.
 
 ### Further increments
 
-Prefix and postfix `++` and `--` remain at priority 3 in this issue's original
-operator breakdown; compound assignment was priority 2. Their proposal and
-approval are separate from the compound-assignment scope above.
+Prefix and postfix `++` are deferred to the low-priority
+[common-runtime increment proposal](./increment-common-runtime.md), which
+records why the `i = i + 1` implementation was withdrawn and the pitfalls a
+JavaScript-compatible implementation must address. `++` remains refused.
+
+Prefix and postfix `--` remain separate work. Approval of compound
+assignments above does not cover update operators.

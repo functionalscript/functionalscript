@@ -10,13 +10,13 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
-import { decode } from '../../../basen/base16/module.f.mjs'
+import { decode } from '../../../basen/base16/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
-import { units } from '../../../ebnf/utf16/module.f.mjs'
+import { units } from '../../../ebnf/utf16/module.f.js'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.mjs'
-import { isObject } from '../../../types/object/module.f.mjs'
+import { isObject } from '../../../types/object/module.f.js'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 

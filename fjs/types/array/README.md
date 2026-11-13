@@ -1,6 +1,6 @@
 # Array
 
-Helpers for readonly JavaScript arrays. [`module.f.mjs`](./module.f.mjs) holds
+Helpers for readonly JavaScript arrays. [`module.f.js`](./module.f.js) holds
 the functions, and [`types.ts`](./types.ts) the length-typed array types
 (`FixedArray<N, T>`, `BoundedArray`, `OfLength`, `OptionalTailArray`) and
 `Occurrences`.
@@ -10,7 +10,7 @@ one directly. This module is for what a list does not do: index, split and
 check length.
 
 ```js
-import { at, first, last, splitFirst, splitLast, tail } from './module.f.mjs'
+import { at, first, last, splitFirst, splitLast, tail } from './module.f.js'
 
 at(5)([1])            // null: past the end, not undefined
 first([7])            // 7
@@ -31,6 +31,7 @@ splitLast([1, 2])     // [[1], 2]
 |`isArray(v)`                     |whether `v` is an array                                                 |
 |`isFixedArray(n)(a)`             |whether `a` has length `n`, narrowing its type to `FixedArray<n, T>`    |
 |`repeat(n)(v)`                   |`n` copies of `v`, typed as `FixedArray<n, T>`                          |
+|`generate(n, f)`                 |a dense readonly array of `f(0)` through `f(n - 1)`                    |
 |`includes(a)(v)`                 |whether `a` holds `v`, narrowing `v` to `a`'s item type                 |
 |`dedup(a)`                       |the items without repeats, each at its first position                   |
 |`occurrences(names)`             |`indexOf` and `lastIndexOf` for every name, from one pass               |
@@ -50,8 +51,30 @@ guard does, so `const [x, y] = a` is then typed.
 a list is quadratic; `occurrences` builds both answers once.
 
 **`repeat` uses the concatenation monoid.** It repeats `[v]` with
-[`monoid.repeat`](../../common/monoid/module.f.mjs), using `[]` as the identity
-and array concatenation as the operation. Doubling takes O(log n)
+[`monoid.repeat`](../../common/monoid/repeat/module.f.js), using `[]` as the identity
+and array concatenation as the operation; `repeat` squares and never folds, so
+it asks for no weight. Doubling takes O(log n)
 concatenations and O(n) total element copying. Each call creates a fresh array;
 object elements keep the same reference. Finite nonpositive counts give `[]`,
 and positive fractional counts round up, preserving the list-based behavior.
+
+**`generate(n, f)` maps indices over a repeated placeholder array.** Its
+type is `<T>(n: number, f: (index: number) => T) => readonly T[]`. It calls
+`f` once per index, in ascending order, with just that index. Stored
+`undefined` values are entries, not holes. Zero, including negative zero,
+returns a fresh empty array without calling `f`; callback failures propagate.
+The length must be an integer from `0` through `0xffff_ffff`; other values
+throw before the callback runs. It does not round or coerce lengths.
+
+Both helpers are re-exported here. Compiler-compatible modules import
+[`generate`](./generate/module.f.js) or [`repeat`](./repeat/module.f.js)
+directly to avoid this module's other runtime dependencies:
+
+```js
+import { generate } from './generate/module.f.js'
+
+generate(4, i => i * i) // [0, 1, 4, 9]
+```
+
+For the `Array.from({ length: n }, ...)` replacement and its length
+conditions, see [CONVERTING.md rule 11](../../../doc/CONVERTING.md#11-arrayfrom-used-to-generate-by-index).

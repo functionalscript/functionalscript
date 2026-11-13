@@ -1,5 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { examples } from '../examples/module.f.js'
 import { parsed, stageDemo } from './module.f.mjs'
@@ -12,7 +13,7 @@ export const proof = {
         assert(shown.includes('<p>Shows the source.</p>'), shown)
         assert(shown.includes('<label for="stage">Source </label>'), shown)
         assert(shown.includes('<textarea id="stage" name="stage" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off">export default 1;</textarea>'), shown)
-        assertEq(shown.split('<option value=').length - 1, examples.length)
+        assertEq(occurrences('<option value=')(shown), examples.length)
         assert(shown.includes('<span data-token="keyword">export</span>'), shown)
         assert(shown.endsWith('<p>seen export default 1;</p></div>'), shown)
     },

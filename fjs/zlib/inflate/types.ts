@@ -5,7 +5,6 @@
  * @module
  */
 
-import type { Vec } from '../../types/bit_vec/types.ts'
 import type { Nullable } from '../../types/nullable/types.ts'
 import type { Codes } from '../huffman/types.ts'
 import type { Window } from '../window/types.ts'
@@ -40,11 +39,4 @@ export type State = {
     readonly window: Window
     /** The codes of the block of codes being read, in the phase `codes`. */
     readonly codes: Nullable<Codes>
-}
-
-/** What one chunk of input gave: the next state, and the output it made. */
-export type Output = {
-    readonly state: State
-    /** Whole-byte chunks, in order. */
-    readonly output: readonly Vec[]
 }

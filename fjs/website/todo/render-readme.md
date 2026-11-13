@@ -20,7 +20,7 @@ explains the module, and its page shows the file name.
 
 [`media/markdown`](../../media/markdown/module.f.mjs), over the grammar
 [`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs), reads a
-**release file**: a flat list of `- ` entries whose spans are text, code,
+**release file**: a flat list of `-` entries whose spans are text, code,
 bold, italic and links. Its types say what it cannot express — headings, code
 fences, numbered lists, nested lists, block quotes, tables, interior blank
 lines — and its block layer, `entryTexts`, refuses any line that is neither an
@@ -163,12 +163,20 @@ Every README has a heading, so today's reader renders none of them.
 - [x] Tables, every row opening with a pipe.
 - [x] Nested and loose lists.
 - [ ] Numbered lists.
+- [x] Block quotes, holding blocks of their own; a line right after one with
+      no `>`, which GitHub may read as its paragraph's, and a heading inside
+      one are refused.
+- [x] Thematic breaks, `---` and its `*` and `_` spellings, where a block
+      starts; under a paragraph's line, where GitHub reads a heading
+      underline, `---` stays refused.
 - [x] Code inside bold, and two-backtick code spans.
 - [x] GitHub task list items, `- [ ]` and `- [x]`, as disabled checkboxes.
 - [x] Images with an `https` source, alone and as a link's label (a
       badge), and one level of balanced parentheses in a link target: the
       repository's own `README.md` renders on the site's front page.
-- [ ] Links inside bold, and the other refusals in
+- [x] Links inside bold and emphasis, `**[capl.md](./capl.md)**`, each
+      checked as any link is.
+- [ ] The other refusals in
       [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
       the READMEs need.
 - [ ] Decide the prose face on the first rendered page.

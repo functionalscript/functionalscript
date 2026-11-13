@@ -30,6 +30,7 @@ for commands, aliases and copyable examples.
 |---------|-------------|---------------|
 | `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
 | `compile`| Compile a FunctionalScript module to JavaScript or JSON; with no arguments, check every `.f.js` | [compiler](compiler/README.md) |
+| `deps`   | Export syntax-AST module dependencies to `_deps.json` | [deps](deps/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
@@ -37,7 +38,7 @@ for commands, aliases and copyable examples.
 | `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
 | `help`   | Print available commands | |
 
-Each command also accepts a short alias (`fjs t` for `fjs test`, and so on).
+Some commands also accept a short alias (`fjs t` for `fjs test`, and so on).
 `fjs help` prints them; this documentation uses the full names throughout.
 
 ## `fjs compile` — compiling a module
@@ -122,10 +123,12 @@ fjs run <module> [args...]
 `fjs run` dynamically imports `<module>`, checks its `main` export with `isMain`
 and runs it through `dispatch`, both from [`cli`](cli/module.f.mjs):
 
-```ts
-isMain(v.main)
-    ? dispatch(v.main)({ ...options, args })
-    : errorExit(`${file}: not a program — no exported \`main\` function or command table`)
+```js
+const { main } = r[1]
+if (!isMain(main)) {
+    return errorExit(`${file}: not a program — no exported \`main\` function or command table`)
+}
+return dispatch(main)({ ...options, args })
 ```
 
 ### Convention: `export const main`
@@ -134,10 +137,11 @@ A module intended to be run with `fjs run` must export a named `main` constant
 of type `Main` (from [`cli/types.ts`](cli/types.ts)): either a `NodeProgram`
 or a `Commands` table. A program is the simple case:
 
-```ts
-import type { NodeProgram } from '../effects/node/types.ts'
+```js
+/** @import { NodeProgram } from '../effects/node/types.ts' */
 
-export const main: NodeProgram = options => {
+/** @type {NodeProgram} */
+export const main = options => {
     // options.args — command-line arguments passed after the module path
     ...
 }
@@ -147,11 +151,14 @@ A module whose interface is a set of subcommands exports the table itself, and
 `fjs run` routes the first argument to the command it names, with `help`
 listing them — no `dispatch` wrapper needed:
 
-```ts
-import type { NodeOp } from '../effects/node/types.ts'
-import type { Commands } from '../cli/types.ts'
+```js
+/**
+ * @import { NodeOp } from '../effects/node/types.ts'
+ * @import { Commands } from '../cli/types.ts'
+ */
 
-export const main: Commands<NodeOp> = [
+/** @type {Commands<NodeOp>} */
+export const main = [
     { names: ['hello'], description: 'Say hello', handler: options => { ... } },
 ]
 ```

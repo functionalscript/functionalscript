@@ -2,7 +2,8 @@
 
 **Priority:** P3
 **Status:** open — template chunks, nesting and escape provenance implemented;
-wider quoted-string escapes, regex tokens and source-position work remain
+single-quoted `\xHH` and `\v` admitted; wider quoted-string escapes, regex
+tokens and source-position work remain
 
 ### Problem
 
@@ -17,42 +18,43 @@ problem that blocked the old issue is gone with the module it was about.
 
 The JS token grammar in [`module.f.mjs`](../module.f.mjs) takes its quoted
 `string` rule from JSON: JSON's string between double quotes, or the same
-between single quotes with `\'` added
-([2460](../../../../../spec/todo/2460-js-string-literals.md)), and no other
-escape. Template chunks and nesting now read JavaScript escapes while
+between single quotes with `\'`, `\xHH` and `\v` added
+([2460](../../../../../spec/todo/2460-js-string-literals.md)). Template chunks
+and nesting now read JavaScript escapes while
 retaining the provenance that lets the compiler check its
 [FJS escape subset](../../../../../spec/values/template-literals/README.md). The
 remaining quoted-string spellings still stop the grammar and every reader of it:
 
 ```
 "const a = \"\\x41\""  => invalid token
-"const a = '\\x41'"    => invalid token
+"const a = '\\0'"      => invalid token
 ```
 
-Single quotes with JSON's escapes read since 2460 landed; the measurement
-below predates that and template support, when `'x'` and templates were
-`invalid token`s too.
+Single quotes with JSON's escapes read since 2460 landed, followed by the
+bounded `\xHH` and `\v` increment. The measurement below predates both and
+template support, when `'x'` and templates were `invalid token`s too.
 
-Measured over every `.mjs` under `fjs/` and `spec/` through
+The original measurement over every `.mjs` under `fjs/` and `spec/` through
 [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
 grammar's reader (it was `compiler/tokenizer`'s `tokenizeJs` when measured; the
-same code, moved): **nearly every module stops at an error token; a handful
-tokenize cleanly**, and they are the small ones and the data modules —
+same code, moved) found that **nearly every module stopped at an error token;
+a handful tokenized cleanly**. They were the small ones and the data modules —
 `effects/list`, `types/function`, `types/map`, `types/nominal`, `types/range`,
 `types/btree/types`, the two `compiler/examples` fixtures and the DataJS vector
 sets. The scanner this issue was first measured on had the same handful clean.
-The grammar does not accept its own source.
+This is a historical baseline, not the current failure count.
 
-Because the grammar stops at the first refused token, a source view built on
-it today would show nothing past the first unsupported escape, and a doc extractor
-reading `export const` out of the stream would see a fraction of a module.
+Because the grammar stops at the first refused token, a source view cannot
+read past an unsupported escape, and a doc extractor reading `export const`
+out of that stream sees only the part before it.
 
 ### This is a lexing change, not a language change
 
 The remaining quoted-string spellings are covered by
 [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md),
-which has accepted single quotes with JSON's escapes and defers the extra
-escapes. [Untagged template literals](../../../../../spec/values/template-literals/README.md)
+which accepts single quotes with JSON's escapes, `\'`, `\xHH` and `\v` and
+defers the remaining escapes. Double-quoted strings remain JSON's.
+[Untagged template literals](../../../../../spec/values/template-literals/README.md)
 are implemented with explicit `String` conversion and binary `+` lowering;
 that specification owns their deferred extra escapes and refusal of tagged
 forms. Any future common escape-set widening must be coordinated with quoted
@@ -73,11 +75,12 @@ tokenizer's refuses a number followed by a word, both of which a grammar
 reads without complaint.
 
 The remaining escape scope is **the rest of 2460's quoted-string lexical
-surface**: `\v`, `\0`, `\xHH`, `\u{...}`, literal control characters and line
-continuations, recognised but not accepted. These template spellings already
-read with their exact `source` spelling retained for compiler validation. Single
-quotes themselves are already recognised and accepted, since 2460; this issue
-widens what may stand inside them, as inside double quotes. Anything less
+surface**: `\0`, `\u{...}`, identity escapes, literal control characters and
+line continuations in either quote, plus `\v` and `\xHH` between double
+quotes. These are to be recognised without changing language admission.
+These template spellings already read with their exact `source` spelling
+retained for compiler validation. This issue widens lexical recognition
+inside both quotes. Anything less
 cannot satisfy this issue's own success check — see below.
 
 ### What the widening reaches, and what it does not
@@ -87,34 +90,24 @@ The grammar has three readers, and the widening reaches each differently.
 - [`compiler/tokenizer`](../../../../compiler/tokenizer/module.f.mjs), the compiler's.
   A spelling it reads that the language does not accept is one the compiler
   must still refuse, so the fold that classifies tokens gains the refusals
-  the grammar loses: a string with an escape outside JSON's table, `\u` and
-  its own quote escaped, in either quote — `'x'` itself is accepted since
-  2460 — and a template chunk outside the implemented escape subset are
-  errors *there*, at the token. That keeps the accepted language exactly
-  where it is, and it is the same place the fold already refuses `--`. The
-  compiler's proofs pin it. **It can refuse only if the spelling survives
-  the layer below it**, and today it does not: the fold there cooks a
-  string, so `"A"`, `'A'` and `"\x41"` would all arrive as one
-  `{ kind: 'string', value: 'A' }`. So `StringToken` gains two fields,
-  decided by the decoder that already reads each escape as it cooks the
-  value: `quote`, `"` or `'`, and `jsonEscapes`, true when every escape is
-  one of JSON's or the literal's own quote escaped and no raw control
-  character or line continuation occurs. A literal JSON's string grammar
-  accepts is `quote === '"' && jsonEscapes`, derived rather than stored. One
-  "is JSON" bit would not do: 2460 accepts `'A'` and refuses `"\x41"`, and
-  both are not JSON. Template kinds instead carry exact chunk `source` alongside
-  cooked `value`. The compiler checks that source against its accepted escape
-  subset, while general JS readers retain the wider token spelling. That is the
-  second of the two mechanisms
-  2460 offered, "recording which
-  sub-language each matched token stayed within", used on the *token* rather
-  than on the grammar, where the first mechanism already holds: the JS string
-  rule cannot be two LL(1) branches by dialect, since both begin with `"`,
-  and the two fields on the token are what the compiler's fold reads. The
-  fold accepts a string when `jsonEscapes` holds, of either quote. 2460's
-  single quotes landed before this widening, with a grammar that recognises
-  only what the language accepts, so the fields and the fold's check are this
-  widening's to add, as 2460 records.
+  the grammar loses. Double quotes must keep JSON's policy; single quotes
+  additionally admit `\'`, `\xHH` and `\v`. Everything else outside that
+  quote-specific policy is an error *there*, at the token, as is a template
+  chunk outside its implemented escape subset. The compiler's proofs pin
+  those boundaries. **It can refuse only if the spelling survives the layer
+  below it**, and today quoted strings retain only their cooked value:
+  `"A"`, `'A'` and `'\x41'` all become
+  `{ kind: 'string', value: 'A' }`. Wider quoted-string recognition therefore
+  needs provenance. The earlier proposal of `quote` and `jsonEscapes` fields
+  alone is insufficient after the single-quoted increment: `\xHH` and `\v`
+  are accepted there while other non-JSON escapes are not. The token must
+  also preserve enough source or escape classification to distinguish them;
+  choosing that representation remains part of this issue. JSON membership
+  can still be derived from a double quote and JSON-only content. Template
+  kinds already carry exact chunk `source` alongside cooked `value`, which
+  the compiler checks against its accepted escape subset. The quoted-string
+  grammar currently recognises only admitted spellings, so its provenance
+  and the corresponding compiler check land with the future widening.
 - [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
   JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
@@ -173,7 +166,7 @@ position, not in the grammar.
 Two fixtures the tree scan cannot see, because a wrong split there is not an
 error but a template that swallows the rest of the file as text: a
 substitution holding a block body — `map(c => { switch (c) { … } })`, as
-[`media/rust/module.f.mjs`](../../../../media/rust/module.f.mjs) once had —
+[`media/rust/module.f.js`](../../../../media/rust/module.f.js) once had —
 so its first `}` must stay an operator, and `` `${{ x: 1 }.x}` ``, an object
 literal as the whole substitution.
 
@@ -238,20 +231,20 @@ them to FunctionalScript.
 
 ### Quotes and templates alone do not reach zero
 
-Single quotes, landed with 2460, and templates still leave real modules
-failing, because quoted strings use the rest of the JS escape surface too.
-The quoted-string `escape` rule is JSON's table plus `\u`, and nothing else.
-The clearest case is
-[`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `rootTree`, which
-is ordinary data, not a test of escapes:
+Single quotes, including the bounded `\xHH` and `\v` increment, and templates
+still leave real modules failing, because quoted strings use the rest of the
+JS escape surface too. An example from the original measurement was
+[`git/testlib.f.mjs`](../../../../git/testlib.f.js)'s `rootTree`, which
+used ordinary data, not a test of escapes:
 
 ```js
 '40000 .cargo\0'+'\x51\x79\x05\x04\x01\x4d\xe6\x0f\x79\x54...'
 ```
 
-Every `\0` and every `\xNN` there stops the grammar today. By literal search
-across `.mjs` sources, `\x`, `\0`, `\v` and `\u{` each appear in a number of
-files, the first two in more than a dozen.
+At that measurement, every `\0` and `\xNN` there stopped the grammar.
+Single-quoted `\xNN` now reads; `\0` remains outside the grammar. Repository
+`module.f.mjs` sources that used `\0` have been normalized to `\u0000`, as
+recorded in [2460](../../../../../spec/todo/2460-js-string-literals.md).
 
 These are the same spellings
 [2460](../../../../../spec/todo/2460-js-string-literals.md) enumerates, and
@@ -357,10 +350,12 @@ the source view rests on.
       other quote content inside it. Landed with
       [2460](../../../../../spec/todo/2460-js-string-literals.md), JSON's
       escapes plus `\'`; the escape rule below widens it.
+- [x] Admit single-quoted `\xHH` and `\v`, as approved in 2460, without
+      widening double-quoted strings or template admission.
 - [ ] Take the two rules this grammar restates from `ebnf/lib/json` as
       parameters it exports: `optionFloatSuffix` differs from JSON's only in
-      its digits rule, and the single-quoted string is JSON's `string` with
-      the delimiter and escape swapped — `floatSuffix(digits)` and
+      its digits rule, and single-quoted strings share JSON's string structure
+      with a different delimiter and escape rule — `floatSuffix(digits)` and
       `quoted(delimiter, escape)`, JSON defining its own as the instances.
 - [ ] One escape rule for that string, **the listed escapes, otherwise the
       character itself**, plus line continuation — ECMAScript's rule, which
@@ -370,7 +365,7 @@ the source view rests on.
       change.
 - [ ] Fixtures for that rule, all failing when this was written; the first
       reads since 2460, whose `\'` it needs and nothing more:
-      [`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `mergePayload`
+      [`git/testlib.f.mjs`](../../../../git/testlib.f.js)'s `mergePayload`
       (`'Merge tag \'vt\''`), its `rootTree` (`\0` and `\xNN` in ordinary
       data),
       [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s
@@ -394,11 +389,12 @@ the source view rests on.
       escapes, raw controls and line continuations.
 - [ ] **Do not add rows to `simpleEscapes`** for any of it; the JS decoder is
       a layer above the shared table.
-- [ ] The compiler keeps refusing what it refused: `compiler/tokenizer`'s fold
-      turns a quoted string whose `jsonEscapes` is false into the error token
-      the grammar used to produce, with proofs. A single-quoted string with
-      JSON's escapes and `\'` stays accepted, as it is since 2460; the
-      remaining lexical widening does not change the accepted language.
+- [ ] The compiler keeps its quote-specific admission policy through token
+      provenance: double quotes accept JSON's escapes; single quotes also
+      accept `\'`, `\xHH` and `\v`. Other newly recognised spellings become
+      compiler error tokens, with proofs. The remaining lexical widening
+      does not change the accepted language; `jsonEscapes` alone cannot
+      express this policy.
 - [x] The compiler checks each template chunk's exact `source` and refuses
       spellings outside the specified FJS subset, even though the general JS
       tokenizer recognises them. Untagged templates with the subset stay accepted.
@@ -426,8 +422,8 @@ the source view rests on.
 - [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md) —
   the quoted-string spellings, as a language feature. Its lexical surface is what this
   issue recognises; whether FunctionalScript *accepts* those spellings is its
-  question, answered for single quotes (approved, with JSON's escapes plus the
-  literal's own quote) and deferred for the rest.
+  question, answered for single quotes (approved, with JSON's escapes plus
+  `\'`, `\xHH` and `\v`) and deferred for the remaining spellings.
 - [Template literals](../../../../../spec/values/template-literals/README.md) — the
   implemented substitution conversion, lowering and escape subset; widening
   lexical recognition does not change those semantics or admit tagged forms.

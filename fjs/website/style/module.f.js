@@ -93,6 +93,11 @@ export const captionMarker = 'data-caption'
  */
 export const codeMarker = 'data-code'
 
+/** The attribute of a drawing in text, whose lines keep their columns, shared with its stylesheet rule.
+ * @type {string}
+ */
+export const drawingMarker = 'data-drawing'
+
 /** The attribute of a highlighted field's wrapper, shared with its stylesheet rules.
  * @type {string}
  */
@@ -320,7 +325,16 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    column GitHub reads a rendered Markdown file in — so a page here is as wide
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
-main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 2.5rem }
+/* The breadcrumb is where the page sits, not what it is about: a small
+   muted line above the page's heading, which is the README's title or, on a
+   page without one, the directory's name. The space between the two is the
+   breadcrumb's alone, so the heading sits at the same place either way: a
+   README's title would otherwise bring the README's own margin and a
+   section heading's, which do not collapse into the breadcrumb's. */
+nav[aria-label="Breadcrumb"] { color: var(--muted); font-size: .875rem; margin-bottom: 1.25rem }
+nav[aria-label="Breadcrumb"] + h1, nav[aria-label="Breadcrumb"] + [data-readme] { margin-top: 0 }
+[data-readme] > [data-linked-heading]:first-child > h1 { margin-top: 0 }
 /* Keep the catalogue in a fixed left column and let desktop content fill
    the remaining width. The divider spans the content, independently of
    the sticky catalogue's height. Mobile navigation opens a drawer. */
@@ -518,21 +532,41 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
    renders exactly the word above. */
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
-/* Heading links preserve native anchors until clipboard controls are bound. */
-[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
-[data-linked-heading] > :is(h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
-[data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .25rem; font-size: .75rem; font-weight: normal }
-[data-permalink] > button, [data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: .375rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
+/* A heading's anchor sits in its left margin, as on GitHub, so the heading
+   text keeps the body's left edge. Where the reader can hover it shows while
+   the heading is hovered or the anchor focused; on a touch screen, where
+   nothing hovers, it is always shown. The page's gutters hold it. */
+[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; margin: 1.5rem 0 .75rem }
+[data-linked-heading] > :is(h1,h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
+[data-permalink] { display: inline-flex; vertical-align: middle; font-size: .75rem; font-weight: normal }
+[data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 1.75rem; height: 2rem; padding: .25rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
 [data-permalink] svg { width: 1.1875rem; height: 1.1875rem }
-[data-permalink] > button:hover, [data-permalink] > a:hover { color: var(--text) }
-[data-permalink] > button:focus-visible, [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
-[data-permalink] [hidden] { display: none }
-[data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
-[data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
-[data-permalink]:has(> [data-copy-demo-section]) { gap: .25rem }
-[data-permalink] > button[data-copy-demo] { width: auto; gap: .375rem; white-space: nowrap }
-[data-permalink] > button[data-copy-demo] > svg { flex-shrink: 0 }
-[data-permalink] > button:disabled { opacity: .45; cursor: default }
+[data-permalink] > a:hover { color: var(--text) }
+[data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
+/* A README heading's anchor leads the row and its negative margin takes it
+   out to the left — its 1.75rem and the row's .35rem gap — so it keeps the
+   row's baseline. */
+[data-linked-heading] > [data-permalink] { order: -1; margin-left: -2.1rem }
+/* A section's summary is one line of text, the disclosure triangle first;
+   its anchor is pinned to the left of that first line, the same gap from it
+   as a README heading's, so every anchor on a page lines up. */
+[data-section] > summary:has(> [data-permalink]) { position: relative }
+[data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: calc(100% + .35rem); top: 0; height: 1.5rem }
+@media (hover: hover) {
+    [data-heading-anchor] { opacity: 0 }
+    :is([data-linked-heading], [data-section] > summary):hover [data-heading-anchor], [data-heading-anchor]:focus-visible { opacity: 1 }
+}
+/* The gutters that hold the anchor, 2.1rem and some room: \`main\`'s own
+   padding, the directory layout's gap clear of the catalogue's divider, and
+   the narrow directory layout's padding beside the screen's edge. A directory
+   with an empty catalogue is one centred column at every width, so it keeps
+   that padding at every width: above 48rem its centring margin is too narrow
+   for the anchor until the window is about 67.5rem wide. */
+[data-directory-layout] { column-gap: 3rem }
+[data-directory-layout]:has(> [data-catalogue]:empty) > main { padding-inline: 1.5rem }
+@media (max-width: 48rem) {
+    [data-directory-layout] > main { padding-inline: 1.5rem }
+}
 [id] { scroll-margin-top: 1rem }
 
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
@@ -592,6 +626,10 @@ li:has(> [data-kind]) { list-style: none }
 [data-priority="P2"] { background-color: var(--value-bg); color: var(--value) }
 [data-priority="P3"] { border-color: var(--border) }
 [data-priority="P5"] { opacity: .6 }
+/* A file of the compiler demo that no import reaches: still editable and
+   removable, fainter, because the compiler does not read it. Its label says
+   so in words, so the fade is not the only sign. */
+[data-not-imported] { opacity: .6 }
 /* A directory with a demo anywhere under it carries a play mark after its
    name, so the marks are a trail from any page down to every demo below it.
    After the name rather than before: the icon in front is what the entry is,
@@ -683,6 +721,10 @@ rect[data-graph-trace] { fill: var(--graph-highlight-bg) }
 [data-graph-trace][data-graph-recursion] { stroke-dasharray: none }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
+/* A table, such as the B-tree's, is its nodes' outlines alone: its rows
+   line up across the whole drawing, so lines between a node's cells would
+   only cut it into pieces. */
+[data-graph-table] :is([data-graph-port], [data-graph-value]) { stroke: none }
 /* The versions demos draw a node's kind as its fill, so a value filling a
    row of one is left unfilled, or the tint would hide it. */
 [data-graph-in-kind="new"] [data-graph-value-alone],
@@ -844,13 +886,17 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    (render-readme's "prose face"). */
 [data-readme] { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; margin-block: 1.5rem; max-width: 60rem; overflow-wrap: break-word }
 [data-readme] > :first-child { margin-top: 0 }
-[data-readme] :is(h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
-[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
-[data-readme] h3 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
-[data-readme] h4 { font-size: 1.25em }
-[data-readme] h5 { font-size: 1em }
-[data-readme] h6 { color: var(--muted); font-size: .875em }
-[data-readme] :is(p, ul, pre, table) { margin: 0 0 1rem }
+[data-readme] :is(h1, h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
+[data-readme] h1 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
+[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
+[data-readme] h3 { font-size: 1.25em }
+[data-readme] h4 { font-size: 1em }
+[data-readme] h5 { font-size: .875em }
+[data-readme] h6 { color: var(--muted); font-size: .85em }
+[data-readme] :is(p, ul, pre, table, blockquote) { margin: 0 0 1rem }
+[data-readme] blockquote { border-left: .25em solid var(--border); color: var(--muted); padding: 0 1em }
+[data-readme] blockquote > :last-child { margin-bottom: 0 }
+[data-readme] hr { background: var(--border); border: 0; height: .25em; margin: 1.5rem 0 }
 [data-readme] ul { padding-left: 2em }
 [data-readme] li + li { margin-top: .25em }
 [data-readme] li > :is(p, pre) { margin-top: 1rem }
@@ -875,6 +921,11 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    the page. */
 [${codeMarker}], [${resultMarker}] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [${codeMarker}] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+/* A drawing in text — the merge tree of a fold — keeps its columns: a long
+   line scrolls sideways rather than wrapping, which would put a run under
+   the wrong values. It is an output box too, so it follows the box's rule
+   above, which it has to override at the same specificity. */
+[${drawingMarker}] { overflow-wrap: normal; overflow-x: auto; white-space: pre }
 /* Static reference controls appear only once their browser adapter is bound. */
 :is([data-cli], [data-readme]):not([data-copy-ready]) [data-copy] { display: none }
 [data-cli] section { border-top: 1px solid var(--border); margin-top: 2rem; padding-top: 1rem; scroll-margin-top: 1rem }
@@ -1023,6 +1074,15 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-demo-click]:focus-visible { outline: 3px solid currentColor; outline-offset: 3px }
 [data-demo-click][aria-disabled="true"], [data-demo-drag][aria-disabled="true"] { pointer-events: none; cursor: default }
 @media (max-width: 760px) { [data-secp-layout] { grid-template-columns: minmax(0, 1fr) } }
+/* Mental poker draws each player's lock in the player's own colour, in both
+   themes: Alice red, Bob green, Carol blue, so a box reads RGB. A removed
+   lock is the page's background. */
+[data-mp-lock-box] { vertical-align: middle }
+[data-mp-lock] { stroke: currentColor; stroke-width: .75 }
+[data-mp-lock="off"] { fill: var(--bg) }
+[data-mp-lock="0"] { fill: #d1495b }
+[data-mp-lock="1"] { fill: #3a9d23 }
+[data-mp-lock="2"] { fill: #2e86ab }
 
 [${signSchemeMarker}] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
 [${signSchemeMarker}] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }

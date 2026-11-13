@@ -143,24 +143,24 @@ accepted as-is, the same as `cp`.
       continuation, spelled against what `resultStep` actually passes —
       the `Result` tuple, not the hash:
 
-      ```js
-      const decoded = decodeInline(input)
-      if (decoded[0] === 'error') { return pureOk(errorResult(decoded[1])) }
-      const value = decoded[1]
-      return resultStep(writeBlob(c)(value), r =>
-          r[0] === 'error'
-              ? pureOk(errorResult('write'))
-              : resultStep(syncRevision(cacheKey)(r[1])(value),
-                  () => pureOk(okResult(vecToCBase32(r[1])))))
-      ```
+  ```js
+  const decoded = decodeInline(input)
+  if (decoded[0] === 'error') { return pureOk(errorResult(decoded[1])) }
+  const value = decoded[1]
+  return resultStep(writeBlob(c)(value), r =>
+      r[0] === 'error'
+          ? pureOk(errorResult('write'))
+          : resultStep(syncRevision(cacheKey)(r[1])(value),
+              () => pureOk(okResult(vecToCBase32(r[1])))))
+  ```
 
-      `value` is bound by the adapter from the shared decode, `r[1]` is
-      the hash from the shared write, and the shared layer takes no cache
-      key and no post-write hook. The CLI's `add` takes a file path and
-      stays on `casAddFile`, as the task above says: it composes neither
-      function, since it has no inline source to decode. The two are the
-      decomposition of an inline `add`, shared so that any transport
-      offering one — MCP today — spells it once.
+  `value` is bound by the adapter from the shared decode, `r[1]` is
+  the hash from the shared write, and the shared layer takes no cache
+  key and no post-write hook. The CLI's `add` takes a file path and
+  stays on `casAddFile`, as the task above says: it composes neither
+  function, since it has no inline source to decode. The two are the
+  decomposition of an inline `add`, shared so that any transport
+  offering one — MCP today — spells it once.
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 

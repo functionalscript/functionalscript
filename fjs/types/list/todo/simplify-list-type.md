@@ -74,5 +74,6 @@ mechanical change; the type-level part is caught by `tsc`.
 
 - [GitHub issue #256](https://github.com/functionalscript/functionalscript/issues/256)
   — the original report.
-- `fjs/types/list/module.f.mjs:22-47` — the current type; `:54`, `:62`,
-  `:279` — the `Concat` branches.
+- [`types.ts`](../types.ts) — the `List`, `Concat` and `NotLazy` shapes.
+- [`module.f.js`](../module.f.js) — the `Concat` branches in `next` and
+  `lengthList`.
