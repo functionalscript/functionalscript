@@ -302,7 +302,7 @@ step ([SESSION.md](../../doc/SESSION.md)):
 - [x] `compiler/parser`: recognize the body and emit the leaf. Prove renamed
   bindings, layouts, and bodies that depart from it by one step, which are
   ordinary functions refused where they use `WeakMap`.
-- [ ] `types/ref_map`: spell the pattern once, with its types and a proof of
+- [x] `types/ref_map`: spell the pattern once, with its types and a proof of
   the contract against a map copied on every set: aliases, equal-content
   distinct objects, arrays and functions, a `value` of `undefined`, a read
   answering the same map, primitive keys, older versions after later sets,
