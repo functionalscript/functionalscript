@@ -4,7 +4,10 @@ type RefMapNode = {
     readonly zero: RefMapNode,
     readonly one: RefMapNode,
 } | undefined
-const empty = (key: RefMapKey, value: unknown) => {
+type RefMap = (key: RefMapKey, value?: unknown) => RefMapResult
+type RefMapResult = readonly[unknown, RefMap]
+
+const empty: RefMap = (key: RefMapKey, value: unknown) => {
     const ids = new WeakMap<RefMapKey, bigint>()
     let next = 1n
     // A node is `{ value, zero, one }`; the path to an id is its bits, low first.
@@ -23,7 +26,7 @@ const empty = (key: RefMapKey, value: unknown) => {
             { value, zero: set(zero, i >> 1n, newValue), one }
     }
     const make = (root: RefMapNode) => {
-        const self = (key: RefMapKey, value: unknown) => {
+        const self: RefMap = (key: RefMapKey, value: unknown) => {
             const existing = ids.get(key)
             const old = existing === undefined ? undefined : get(root, existing)
             if (value === undefined) { return [old, self] }
