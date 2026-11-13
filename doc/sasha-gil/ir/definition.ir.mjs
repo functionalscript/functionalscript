@@ -396,6 +396,10 @@ export const check = module => {
                     // a literal that its module has to make is a constant, made once
                     if (env.lift) {
                         const name = showLit(t[2])
+                        // a literal's constant is named by its spelling, so a spelling has one type
+                        const known = literals.get(name)?.[0]
+                        known === undefined || same(known, type)
+                            || refuse(`the literal ${name} is made as ${known[1]}.${show(known)} and as ${type[1]}.${show(type)}, and this prototype names a literal by its spelling`)
                         literals.set(name, [type, ['lit', type, t[2]]])
                         return done(['constant', 'self', name], type)
                     }

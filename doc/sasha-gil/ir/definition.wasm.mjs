@@ -179,15 +179,21 @@ export const emit = (checked, exports) => {
                     const operand = type(t[1])
                     // a sealed sum may name its variants `true` and `false` as well, and it is no `bool`
                     if (isBool(operand) && isNot(t)) { return [[...as(t[1], operand), ['i32.eqz']], result] }
+                    // a local is matched where it is
+                    const here = t[1][0] === 'get'
                     if (isBool(operand)) {
-                        const arm = v => t[2].find(([variants]) => variants === null || variants.includes(v))[2]
-                        return [never([...as(t[1], operand), ['if', blockType(result)],
-                            ...framed({}, () => [...as(arm('true'), result), ['else'], ...as(arm('false'), result)]), ['end']]), result]
+                        // an arm that binds the operand reads it from a local
+                        const value = t[2].every(([, binder]) => binder === null) ? null : here ? env.get(t[1][1]).slots : alloc(operand, 'm')
+                        const arm = v => {
+                            const [, binder, body] = t[2].find(([variants]) => variants === null || variants.includes(v))
+                            return as(body, result, binder === null ? env : new Map(env).set(binder, { type: operand, slots: value }))
+                        }
+                        const test = value === null || here ? as(t[1], operand) : [...as(t[1], operand), ...set(value), ...value.map(s => ['local.get', s])]
+                        return [never([...test, ['if', blockType(result)], ...framed({}, () => [...arm('true'), ['else'], ...arm('false')]), ['end']]), result]
                     }
                     // a sealed sum: the module's `kind`, and a branch
                     const { variants: tags, kind } = decl(operand)
-                    // a local is matched where it is, and a tag that is read once stays on the stack
-                    const here = t[1][0] === 'get'
+                    // a tag that is read once stays on the stack
                     const value = here ? env.get(t[1][1]).slots : alloc(operand, 'm')
                     const tests = t[2].flatMap(([variants]) => variants ?? []).length
                     const tag = tests === 1 ? null : alloc(['int', 0n, BigInt(tags.length - 1)], 'k')[0]

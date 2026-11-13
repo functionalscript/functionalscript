@@ -260,6 +260,12 @@ export const mistakes = [
 
 /** A second interface for an import that String has already, with another result. */
 const Twin = iface('Twin', { abi: 'fjs:l0', functions: { length: sig({ s: string }, u(40)) } })
+/** A second sealed type whose literals are made from the units of a string, as `any`'s strings are. */
+const Label = iface('Label', {
+    abi: 'x:label',
+    types: { label: { carrier: 'i64', variants: ['text', 'other'], copy: ['text', 'other'], literal: { text: { module: 'Label', name: 'make' } } } },
+})
+const label = only(sealed('Label', 'label'), 'text')
 
 // a sum is carried as its tag, which holds no field, so `bool` is the only sum of a module's own
 const option = sum({ none: unit, some: product({ x: u(8) }) })
@@ -289,4 +295,9 @@ export const refusals = [
     }],
     ['a sum of its own whose variant holds a field', withConstants({}, { identity: fn({ v: option }, option, ({ v }) => v) })],
     ['a sum with the variants of bool whose false holds a field', withConstants({}, { identity: fn({ v: flagged }, flagged, ({ v }) => v) })],
+    // the constant `typeNames` makes the string 'object', and a literal's constant is named by its spelling
+    ['two literals of different types with one spelling', {
+        ...withConstants({}, { spelled: fn({}, label, () => lit(label, 'object')) }),
+        imports: { ...sample.imports, Label },
+    }],
 ]
