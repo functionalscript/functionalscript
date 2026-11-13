@@ -55,6 +55,7 @@ export const proof = {
         ordinary(`${source.replace('const empty', 'let empty')}export default empty\n`)
         ordinary(`${source.replace('let next = 1n', 'let next = 2n')}export default empty\n`)
         ordinary(`${source.replaceAll('root', 'Number')}export default empty\n`)
+        ordinary(`${source.replaceAll('root', 'if')}export default empty\n`)
         ordinary(`const WeakMap = 1\n${source}export default empty\n`)
         ordinary(`export default WeakMap => {\n${source}return empty\n}\n`)
     },

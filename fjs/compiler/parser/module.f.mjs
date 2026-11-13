@@ -1483,9 +1483,10 @@ const refMapFunction = (scope, node, self) => {
     if (boundNames(node).map(nameOf).some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
     for (const block of blocks(node)) {
         for (const [index, [tag, statement]] of block.entries()) {
-            const next = /** @type {{ readonly start: ModuleTokenWithMetadata, readonly first?: ModuleTokenWithMetadata | null }} */ (statement)
+            // every `return` of the map has a value, so its first token is there
+            const next = /** @type {{ readonly start: ModuleTokenWithMetadata, readonly first: ModuleTokenWithMetadata }} */ (statement)
             if (unterminated(index === 0 ? null : /** @type {{ readonly start: ModuleTokenWithMetadata }} */ (block[index - 1][1]), next)) { return error(unexpectedToken(next.start)) }
-            if (tag === 'return' && brokenLine({ first: next.first ?? null })) { return error(unexpectedToken(assertNotNullish(next.first))) }
+            if (tag === 'return' && brokenLine(next)) { return error(unexpectedToken(next.first)) }
         }
     }
     /** @type {ValueRefMap} */
