@@ -7,9 +7,10 @@ and the emitter writes WASM from the typed form, with no text between the
 stages.
 
 It is built in vertical slices, from the least risky to the most
-([todo/slices.md](./todo/slices.md)). This directory holds the first two:
-typed code written by hand, and the same code lowered from normalized FAST
-([`from_fast`](./from_fast/README.md)). Neither has imports yet.
+([todo/slices.md](./todo/slices.md)). This directory holds the first
+three: typed code written by hand, the same code lowered from normalized
+FAST ([`from_fast`](./from_fast/README.md)), and values of unknown kind,
+read through [the interfaces of L0](./l0/module.f.mjs).
 
 ## Map of this directory
 
@@ -21,6 +22,8 @@ typed code written by hand, and the same code lowered from normalized FAST
 |[`print`](./print/module.f.mjs)        |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.mjs)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)   |the lowering from normalized FAST, with the types from a table         |
+|[`l0`](./l0/module.f.mjs)              |the interfaces of L0 as data, and `any`, the type that they seal       |
+|[`l0/host`](./l0/host/module.f.js)     |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
 
 ```js
 import { unwrap } from '../types/result/module.f.js'
@@ -48,13 +51,34 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `mul`, `div`, `neg`, `abs`, `sqrt`, `eq`, `lt` and `le` of floats; and
   `float` of an integer within ±2^53.
 
+## What the third slice adds
+
+- **A sealed type**: `any`, a value of unknown kind, which the interface
+  `Any` of [L0](./l0/module.f.mjs) seals, and `only(any, ...kinds)`, a
+  value of some of its nine kinds. A module may write a sealed type only
+  where it imports the interface that names it.
+- **Imports**: interfaces, by name, each of them data: the ABI that binds
+  it, `fjs:l0`, the sealed types that it names, with their variants, the
+  function that answers a value's tag and the WASM value that carries it,
+  and the signatures of its functions. A `call` of an imported interface's
+  function reads a value through it.
+- **Terms**: a `match` of a sealed type, whose arms take kinds and may name
+  the operand at those kinds; `trap`, of type `never`, where L0 would trap;
+  and `cast`, an arm for some kinds and a trap for the others.
+- **Every value of `any` is borrowed**: a parameter, an arm's name for its
+  operand, and a `let` of one. No function, of the module or of an
+  interface, may give one, since its caller would own it, so nothing has to
+  release one. Counting values is a later slice.
+
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): a
-product with fields, a sum other than `bool` and `never`, a name for an
-arm's operand, a call of another module, a range wider than a word, a
-division of integers, integers mixed with floats, and a term of type `never`
-where a value is used.
+product with fields, a sum other than `bool`, `never` and the sealed types,
+a name for the operand of a `bool`'s arm, a call of an interface that the
+module does not import, a range wider than a word, a division of integers,
+integers mixed with floats, a term of type `never` where a value is used, a
+literal of a sealed type, and a function or a call that gives a value of
+one.
 
 ## Values in WASM
 
@@ -63,7 +87,14 @@ read as unsigned where it holds no negative integer. Arithmetic runs in the
 wider word of its operands and its result, which is exact because the
 checker's range of the result fits its word; a comparison runs in the word
 that both operands fit, signed where one may be negative. A float is an
-`f64` and a `bool` an `i32`. The [emitter's](./wasm/module.f.mjs) module
+`f64` and a `bool` an `i32`.
+
+A value of `any` is an `i64`, the carrier that its interface names; on a
+JavaScript host it is a handle that [the host](./l0/host/module.f.js) maps
+to a value. Each function of an imported interface is one WASM import, of
+the interface's ABI by the function's name. A `match` of `any` asks for the
+tag once and tests it with an `if` for each arm but the last, and a `trap`
+is an `unreachable`. The [emitter's](./wasm/module.f.mjs) module
 documentation has the rest.
 
 ## Proofs
@@ -72,7 +103,10 @@ Each module's `proof.f.mjs` holds its golden texts and every refusal, over
 the hand-written modules of [`testlib.f.mjs`](./testlib.f.mjs).
 [`wasm/proof.mjs`](./wasm/proof.mjs) runs those modules on the host's
 WebAssembly engine and compares every exported function with a JavaScript
-twin on the same inputs, the edges of each type included.
+twin on the same inputs, the edges of each type included. A function of
+`any` runs over [the host](./l0/host/module.f.js), on a value of every
+kind, and its twin reads the value with the L0 view; a trap of WASM is a
+throw of the twin.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
 FunctionalScript functions lowered from their text, and their twins are the
-functions themselves.
+functions themselves, L1's `toBoolean` among them.

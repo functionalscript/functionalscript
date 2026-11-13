@@ -5,7 +5,7 @@
  * writes them, split into the modules of
  * [modular-l0.md](../../../doc/sasha-gil/wasm/modular-l0.md). A host binds
  * all of them to the `fjs:l0` imports, which
- * [`host`](./host/module.f.mjs) provides on a JavaScript host.
+ * [`host`](./host/module.f.js) provides on a JavaScript host.
  *
  * - **`any` is sealed by Any.** Its variants are the nine kinds in the order
  *   of the tags that `kind` answers, which are the
@@ -34,23 +34,31 @@ import { bool, f64c, int, only, sealed, signature, u } from '../module.f.mjs'
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
 
+/** The kinds of `any`, in the order of their tags. */
+export const kinds = ['undefined', 'null', 'boolean', 'number', 'string', 'bigint', 'array', 'object', 'function']
+
 /** A length: L0's `i32` that is never negative. */
 const index = u(31)
 
 /** The interface that seals `any`. @type {Interface} */
 const anyInterface = {
     abi: 'fjs:l0',
-    types: [['any', {
-        variants: ['undefined', 'null', 'boolean', 'number', 'string', 'bigint', 'array', 'object', 'function'],
-        kind: 'kind',
-        carrier: 'i64',
-    }]],
+    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64' }]],
     functions: [
         ['kind', signature([['v', any]], int(0n, 8n))],
         ['to_f64', signature([['v', only(any, 'number')]], f64c)],
         ['to_bool', signature([['v', only(any, 'boolean')]], bool)],
     ],
 }
+
+/**
+ * The modules of L0 that have a `length`, each with the name of its
+ * parameter and the kinds that it takes: a string's, a bigint's, a
+ * container's and a function's.
+ *
+ * @type {readonly (readonly [module: string, param: string, kinds: readonly string[]])[]}
+ */
+export const lengths = [['String', 's', ['string']], ['BigInt', 'b', ['bigint']], ['Containers', 'c', ['array', 'object']], ['Functions', 'f', ['function']]]
 
 /** An interface whose one function is the `length` of some kinds. @type {(param: string, kinds: readonly string[]) => Interface} */
 const lengthOf = (param, kinds) => ({
@@ -60,10 +68,4 @@ const lengthOf = (param, kinds) => ({
 })
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
-export const l0 = [
-    ['Any', anyInterface],
-    ['String', lengthOf('s', ['string'])],
-    ['BigInt', lengthOf('b', ['bigint'])],
-    ['Containers', lengthOf('c', ['array', 'object'])],
-    ['Functions', lengthOf('f', ['function'])],
-]
+export const l0 = [['Any', anyInterface], ...lengths.map(([module, param, ks]) => /** @type {const} */ ([module, lengthOf(param, ks)]))]

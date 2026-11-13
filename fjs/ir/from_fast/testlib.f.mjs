@@ -1,37 +1,47 @@
 /**
  * What the proofs of the lowering share: the normalized FAST of a module's
- * text, as the compiler makes it, and the signatures of
- * [`sample.f.js`](./sample.f.js), which FAST does not have.
+ * text, as the compiler makes it, with its imports, and the signatures of
+ * [`sample.f.js`](./sample.f.js) and of L1's `toBoolean`, which FAST does
+ * not have.
  *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { AstImport } from '../../compiler/ast/types.ts'
  * @import { Block } from '../../js/ast/types.ts'
  * @import { Signature } from '../types.ts'
  */
 
-import { error } from '../../types/result/module.f.js'
+import { error, ok } from '../../types/result/module.f.js'
 import { tryUnresolved } from '../../compiler/edag/module.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
 import { toFast } from '../../edag/to_fast/module.f.mjs'
+import { any } from '../l0/module.f.mjs'
 import { bool, f64, i, int, signature, u } from '../module.f.mjs'
 
 /**
- * The normalized FAST of a module's text: parsed, lowered to the EDAG and
- * converted back, which is what [`definition.fast.mjs`](../../../doc/sasha-gil/ir/definition.fast.mjs)
- * prints. A module that imports is refused here, where its imports are
- * still a list, since FAST reads each as a binding that nothing defines.
+ * The normalized FAST of a module's text and its imports: parsed, lowered
+ * to the EDAG and converted back, which is what
+ * [`definition.fast.mjs`](../../../doc/sasha-gil/ir/definition.fast.mjs)
+ * prints. FAST reads import `i` from the arguments of the module, and
+ * `imports[i]` says what it is.
  *
- * @type {(text: string) => Result<Block, string>}
+ * @type {(text: string) => Result<{ readonly fast: Block, readonly imports: readonly AstImport[] }, string>}
  */
-export const fastOf = text => {
+export const sourceOf = text => {
     const ast = parse('')(text)
     if (ast[0] === 'error') { return error(`parse: ${ast[1].message}`) }
     const unresolved = tryUnresolved(ast[1])
-    return unresolved[0] === 'error' ? unresolved
-        : unresolved[1].imports.length !== 0 ? error('an import is not in this slice')
-        : toFast(unresolved[1].edag)
+    if (unresolved[0] === 'error') { return unresolved }
+    const fast = toFast(unresolved[1].edag)
+    return fast[0] === 'error' ? fast : ok({ fast: fast[1], imports: unresolved[1].imports })
 }
+
+/** The specifier by which L1 imports the L0 view. */
+export const view = '../l0/module.f.js'
+
+/** The signature of L1's `toBoolean`, the one function of L1 that the third slice lowers. @type {Readonly<Record<string, Signature>>} */
+export const l1 = { toBoolean: signature([['v', any]], bool) }
 
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
 const b2 = /** @type {const} */ ([['a', bool], ['b', bool]])

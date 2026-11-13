@@ -20,7 +20,7 @@ import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { corners, samples, unknown } from '../testlib.f.mjs'
-import { edges, product, run } from './testlib.mjs'
+import { edges, held, product, run } from './testlib.mjs'
 
 // values
 
@@ -32,12 +32,6 @@ const num = v => (assert(typeof v === 'number', v), v)
 
 /** @type {(v: _Value) => boolean} */
 const bit = v => (assert(typeof v === 'boolean', v), v)
-
-/** The value that a value of `any` holds. @type {(v: _Value) => unknown} */
-const held = v => {
-    assert(typeof v === 'object', v)
-    return v.any
-}
 
 // twins
 

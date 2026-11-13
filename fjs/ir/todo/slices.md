@@ -27,9 +27,10 @@ and refuses everything outside the slice, so that the next slice only adds.
 - **Where.** `fjs/ir` holds the IR's data, its checker and its printer.
   `fjs/ir/wasm` holds the emitter, which writes the AST of
   [`fjs/media/wasm`](../../media/wasm/README.md), so that module's writer
-  makes the bytes. `fjs/ir/from_fast` will hold the lowering from
-  normalized FAST, as [`fjs/edag/from_fast`](../../edag/from_fast/README.md)
-  holds the one to EDAG.
+  makes the bytes. `fjs/ir/from_fast` holds the lowering from normalized
+  FAST, as [`fjs/edag/from_fast`](../../edag/from_fast/README.md) holds the
+  one to EDAG, and `fjs/ir/l0` the interfaces of L0 and a JavaScript host
+  for them.
 - **What the IR is.** definition.md, with ir-design.md as its history and
   type-system.md as the reference for what the core leaves out, as
   definition.md's open question 1 recommends. `br` is the only transfer, as
@@ -56,9 +57,12 @@ and refuses everything outside the slice, so that the next slice only adds.
   FAST has none. Normalized FAST is assumed, as definition.md's open
   question 2 recommends, until the compiler owner's view settles it. The
   [README](../from_fast/README.md) has what it lowers.
-- [ ] **Values of unknown type, read only.** Borrowed `any` parameters, the
+- [x] **Values of unknown type, read only.** Borrowed `any` parameters, the
   interfaces of L0 as data, a JavaScript host for the `fjs:l0` imports,
-  casts and conversions. Subject: L1's `toBoolean`.
+  casts and conversions. Subject: L1's `toBoolean`, lowered from L1's own
+  text. The [README](../README.md#what-the-third-slice-adds) has what it
+  adds, and [`from_fast`](../from_fast/README.md#the-l0-view) how the
+  lowering reads the L0 view.
 - [ ] **Loops.** Loop parameters, lifted loop functions and an exact `f64`
   counter. Subjects: `stringEquals` and `stringLess`.
 - [ ] **Functions that are not exported, and native rows.** Parameter types

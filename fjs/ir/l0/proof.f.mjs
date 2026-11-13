@@ -1,17 +1,18 @@
 import { assertEq, assertOk } from '../../asserts/module.f.js'
-import { BIGINT, NUMBER } from '../../wasm/runtime/l0/module.f.js'
+import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, kind as viewKind } from '../../wasm/runtime/l0/module.f.js'
 import { check } from '../check/module.f.mjs'
 import { show } from '../print/module.f.mjs'
-import { any, l0 } from './module.f.mjs'
+import { any, kinds, l0 } from './module.f.mjs'
 
 export const proof = {
     // The variants of `any` are the L0 view's kinds in the order of its tags, which `kind` answers.
     variants: () => {
         const [, { types: [[name, { variants, kind, carrier }]], functions }] = l0[0]
         assertEq(name, 'any')
-        assertEq(variants.join(), 'undefined,null,boolean,number,string,bigint,array,object,function')
-        assertEq(variants.indexOf('number'), NUMBER)
-        assertEq(variants.indexOf('bigint'), BIGINT)
+        assertEq(variants, kinds)
+        assertEq(kinds.join(), 'undefined,null,boolean,number,string,bigint,array,object,function')
+        assertEq([UNDEFINED, NULL, BOOLEAN, NUMBER, STRING, BIGINT, ARRAY, OBJECT, FUNCTION].join(), '0,1,2,3,4,5,6,7,8')
+        assertEq([undefined, null, true, 1, '', 1n, [], {}, () => 0].map(viewKind).join(), '0,1,2,3,4,5,6,7,8')
         assertEq(`${kind} ${carrier} ${functions.map(([k]) => k).join()}`, 'kind i64 kind,to_f64,to_bool')
     },
     // Every parameter of an L0 function narrows `any` to the kinds that the function takes.

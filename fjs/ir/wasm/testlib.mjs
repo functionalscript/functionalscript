@@ -28,6 +28,12 @@ import { emit } from './module.f.mjs'
 /** @type {(v: _Value) => v is _Any} */
 const isAny = v => typeof v === 'object'
 
+/** The FunctionalScript value that a value of `any` holds, for a twin. @type {(v: _Value) => unknown} */
+export const held = v => {
+    assert(isAny(v), v)
+    return v.any
+}
+
 /** A value as the JavaScript API takes it for a parameter of `t`. @type {(t: Type, v: _Value) => unknown} */
 const toHost = (t, v) =>
     typeof v === 'boolean' ? (v ? 1 : 0)
