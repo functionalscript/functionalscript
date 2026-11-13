@@ -148,8 +148,14 @@ const exponentOf = a => {
 /** The one `NaN` this writer spells: the quiet `NaN` with an empty payload. @type {bigint} */
 const canonicalNan = 0x7ff8_0000_0000_0000n
 
-/** @type {(v: number) => bigint} */
-const bitsOf = v => {
+/**
+ * The IEEE 754 binary64 bits of a number, as a `bigint`: what
+ * {@link f64Bits} spells, and what a WebAssembly `f64.const` holds. Every
+ * `NaN` is {@link canonicalNan}.
+ *
+ * @type {(v: number) => bigint}
+ */
+export const bitsOf = v => {
     if (Number.isNaN(v)) { return canonicalNan }
     const sign = v < 0 || isNegativeZero(v) ? 1n << 63n : 0n
     const a = Math.abs(v)
