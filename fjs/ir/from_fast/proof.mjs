@@ -8,7 +8,7 @@
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
- * @import { _Twin, _Value } from '../wasm/private.ts'
+ * @import { _Twin, _Value } from '../wasm/types.ts'
  */
 
 import { readFileSync } from 'node:fs'

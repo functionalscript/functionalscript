@@ -11,7 +11,7 @@
  * [`testlib.mjs`](./testlib.mjs) does it.
  *
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { _Twin, _Value } from './private.ts'
+ * @import { _Twin, _Value } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'

@@ -30,12 +30,3 @@ export type _Code = {
     readonly code: Expr
     readonly locals: readonly (readonly [name: string, type: ValType])[]
 }
-
-/**
- * A value of the IR on the host, as the host proof passes it: an integer as
- * a `bigint`, a float as a `number`, and a `bool` as a `boolean`.
- */
-export type _Value = bigint | number | boolean
-
-/** A function's JavaScript twin, on its arguments in their order. */
-export type _Twin = (xs: readonly _Value[]) => _Value
