@@ -6,7 +6,7 @@
 
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Expr, ValType } from '../../media/wasm/types.ts'
-import type { Type } from '../types.ts'
+import type { Type, Typed } from '../types.ts'
 
 /** A function of the module: its index and its parameters' types. */
 export type _Callee = readonly [index: number, params: readonly Type[]]
@@ -30,6 +30,9 @@ export type _Code = {
     readonly code: Expr
     readonly locals: readonly (readonly [name: string, type: ValType])[]
 }
+
+/** Emit one typed term in its current scope. */
+export type _EmitTerm = (env: _Env, term: Typed) => _Code
 
 /**
  * A value of the IR on the host, as the host proof passes it: an integer as

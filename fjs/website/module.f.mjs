@@ -5,7 +5,7 @@
  *
  * **Discovery is part of the program, not a script beside it.** Which modules
  * a browser can link is decided by reading their source, which
- * [`./browser-source`](./browser-source/module.f.mjs) answers, and reading a
+ * [`./browser-source`](./browser-source/module.f.js) answers, and reading a
  * tree is `readdir` and `readFile` — two operations that already existed. So
  * the whole generator is one effect, and a proof drives it against
  * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a site
@@ -59,7 +59,7 @@
 import { codePoints } from '../text/ascii/module.f.js'
 import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.mjs'
 import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
-import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
+import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.js'
 import { basename, concat as pathConcat, parent } from '../path/module.f.js'
 import { resolve } from '../path/import/module.f.js'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.js'

@@ -17,7 +17,7 @@ code written by hand, with no FAST and no imports.
 |[`types.ts`](./types.ts)               |the data: types, terms, functions, modules, and the checker's answer   |
 |[`.`](./module.f.js)                  |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.mjs)        |the checker: a type for every term, or the module refused with a reason|
-|[`print`](./print/module.f.mjs)        |the IR as text, for review and golden proofs                           |
+|[`print`](./print/module.f.js)        |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.mjs)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 
 ```js

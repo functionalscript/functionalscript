@@ -32,9 +32,6 @@ const showInt = ([, lo, hi]) => {
         : `int(${lo}, ${hi})`
 }
 
-/** @type {(parts: Parts) => string} */
-const showParts = parts => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
-
 /**
  * A type as text: `unit`, `never` and `bool` by their names, a product as
  * its fields in braces, and any other sum as `sum({ … })`.
@@ -42,6 +39,8 @@ const showParts = parts => parts.map(([name, t]) => `${name}: ${show(t)}`).join(
  * @type {(t: Type) => string}
  */
 export const show = t => {
+    /** @type {(parts: Parts) => string} */
+    const showParts = parts => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
     switch (t[0]) {
         case 'int': { return showInt(t) }
         case 'f64': case 'f64c': { return t[0] }
@@ -69,6 +68,15 @@ const showLit = (type, value) => {
     const plain = type[0] === 'int' ? type[1] === value && type[2] === value : type[0] === 'f64c'
     return plain ? text : `${text} as ${show(type)}`
 }
+
+/** @type {(module: string, name: string) => string} */
+const callee = (module, name) => module === 'self' ? name : `${module}.${name}`
+
+/** @type {(label: string) => string} */
+const transfer = label => label === 'return' ? 'return' : `br ${label}`
+
+/** Whether a `match` is an `if_`: its arms are `true`, then `false`, and name nothing. @type {(arms: readonly ArmOf<Term>[]) => boolean} */
+const isIf = arms => equal(arms.map(([variants, binder]) => [variants, binder]), [[['true'], null], [['false'], null]])
 
 /**
  * A term on one line, or `null` where a part of it needs lines of its own:
@@ -109,26 +117,16 @@ const flat = t => {
     }
 }
 
-/** @type {(module: string, name: string) => string} */
-const callee = (module, name) => module === 'self' ? name : `${module}.${name}`
-
-/** @type {(label: string) => string} */
-const transfer = label => label === 'return' ? 'return' : `br ${label}`
-
-/** Whether a `match` is an `if_`: its arms are `true`, then `false`, and name nothing. @type {(arms: readonly ArmOf<Term>[]) => boolean} */
-const isIf = arms => equal(arms.map(([variants, binder]) => [variants, binder]), [[['true'], null], [['false'], null]])
-
-/** A head, then a term: on the same line where it fits there, else on lines of their own below. @type {(pad: string, head: string, x: Term) => readonly string[]} */
-const headed = (pad, head, x) => {
-    const text = flat(x)
-    return text === null ? [`${pad}${head}`, ...lines(x, `${pad}    `)] : [`${pad}${head} ${text}`]
-}
-
 /** Lines, with a comma after the last where more follows. @type {(ls: readonly string[], more: boolean) => readonly string[]} */
 const comma = (ls, more) => more ? [...ls.slice(0, -1), `${ls.at(-1)},`] : ls
 
 /** @type {(t: Term, pad: string) => readonly string[]} */
 const lines = (t, pad) => {
+    /** A head, then a term: on the same line where it fits there, else on lines of their own below. @type {(pad: string, head: string, x: Term) => readonly string[]} */
+    const headed = (pad, head, x) => {
+        const text = flat(x)
+        return text === null ? [`${pad}${head}`, ...lines(x, `${pad}    `)] : [`${pad}${head} ${text}`]
+    }
     const inner = `${pad}    `
     /** @type {(head: string, x: Term) => readonly string[]} */
     const after = (head, x) => headed(pad, head, x)

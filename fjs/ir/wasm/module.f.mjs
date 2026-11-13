@@ -37,7 +37,7 @@
  * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
  * @import { Checked, FunctionOf, Int, OpName, Type, Typed } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { _Callee, _Code, _Env } from './private.ts'
+ * @import { _Callee, _Code, _EmitTerm, _Env } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -127,30 +127,6 @@ const convert = t => width(t) === 32
     ? (signed(t) ? ['f64.convert_i32_s'] : ['f64.convert_i32_u'])
     : signed(t) ? ['f64.convert_i64_s'] : ['f64.convert_i64_u']
 
-/**
- * An operator: its operands, each made a value of the word that it runs in,
- * then its instruction, and a wrap where its result's word is narrower.
- *
- * @type {(env: _Env, type: Type, name: OpName, args: readonly Typed[]) => _Code}
- */
-const operator = (env, type, name, args) => {
-    const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
-    const own = args.map(x => /** @type {const} */ ([x, x[0]]))
-    if (ints.length === 0) { return sequence(env, own, [float(name)]) }
-    if (name === 'float') { return sequence(env, own, [convert(ints[0])]) }
-    /** The operands as values of `bits`. @type {(bits: 32 | 64) => readonly (readonly [Typed, Type])[]} */
-    const inWord = bits => args.map((x, k) => [x, word(ints[k], bits)])
-    if (name === 'eq' || name === 'lt' || name === 'le') {
-        const { bits, signed: isSigned } = assertNotNullish(compareIn(ints[0], ints[1]))
-        return sequence(env, inWord(bits), [integer(name, bits, isSigned)])
-    }
-    const words = [type, ...ints].map(t => carrier(t)[0])
-    const bits = words.includes('i64') ? 64 : 32
-    /** @type {Expr} */
-    const wrap = bits === 64 && words[0] === 'i32' ? [['i32.wrap_i64']] : []
-    return sequence(env, inWord(bits), [integer(name, bits, false), ...wrap])
-}
-
 // terms
 
 /** @type {(code: Expr) => _Code} */
@@ -161,11 +137,11 @@ const just = code => ({ code, locals: [] })
  * written in `to`'s word, and any other term is widened to it. Its locals
  * come after `taken` more.
  *
- * @type {(env: _Env, taken: number, x: Typed, to: Type) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, taken: number, x: Typed, to: Type) => _Code}
  */
-const valueOf = (env, taken, [type, t], to) => {
+const valueOf = (emitTerm, env, taken, [type, t], to) => {
     if (t[0] === 'lit') { return just([literal(to, t[2])]) }
-    const c = term({ ...env, next: env.next + taken }, [type, t])
+    const c = emitTerm({ ...env, next: env.next + taken }, [type, t])
     return { code: [...c.code, ...widen(type, to)], locals: c.locals }
 }
 
@@ -173,20 +149,44 @@ const valueOf = (env, taken, [type, t], to) => {
  * Terms in their order, each as a value of the type beside it, then
  * `after`. Each term's locals follow those of the terms before it.
  *
- * @type {(env: _Env, parts: readonly (readonly [Typed, Type])[], after: Expr) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, parts: readonly (readonly [Typed, Type])[], after: Expr) => _Code}
  */
-const sequence = (env, parts, after) => {
+const sequence = (emitTerm, env, parts, after) => {
     const all = parts.reduce((done, [x, to]) => {
-        const c = valueOf(env, done.locals.length, x, to)
+        const c = valueOf(emitTerm, env, done.locals.length, x, to)
         return { code: [...done.code, ...c.code], locals: [...done.locals, ...c.locals] }
     }, just([]))
     return { code: [...all.code, ...after], locals: all.locals }
 }
 
+/**
+ * An operator: its operands, each made a value of the word that it runs in,
+ * then its instruction, and a wrap where its result's word is narrower.
+ *
+ * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, name: OpName, args: readonly Typed[]) => _Code}
+ */
+const operator = (emitTerm, env, type, name, args) => {
+    const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
+    const own = args.map(x => /** @type {const} */ ([x, x[0]]))
+    if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
+    if (name === 'float') { return sequence(emitTerm, env, own, [convert(ints[0])]) }
+    /** The operands as values of `bits`. @type {(bits: 32 | 64) => readonly (readonly [Typed, Type])[]} */
+    const inWord = bits => args.map((x, k) => [x, word(ints[k], bits)])
+    if (name === 'eq' || name === 'lt' || name === 'le') {
+        const { bits, signed: isSigned } = assertNotNullish(compareIn(ints[0], ints[1]))
+        return sequence(emitTerm, env, inWord(bits), [integer(name, bits, isSigned)])
+    }
+    const words = [type, ...ints].map(t => carrier(t)[0])
+    const bits = words.includes('i64') ? 64 : 32
+    /** @type {Expr} */
+    const wrap = bits === 64 && words[0] === 'i32' ? [['i32.wrap_i64']] : []
+    return sequence(emitTerm, env, inWord(bits), [integer(name, bits, false), ...wrap])
+}
+
 /** @type {(env: _Env) => _Env} */
 const deeper = env => ({ ...env, depth: env.depth + 1 })
 
-/** @type {(env: _Env, t: Typed) => _Code} */
+/** @type {_EmitTerm} */
 const term = (env, [type, t]) => {
     switch (t[0]) {
         case 'lit': { return just([literal(type, t[2])]) }
@@ -205,27 +205,27 @@ const term = (env, [type, t]) => {
                 locals: [...v.locals, ...holds.map(h => /** @type {const} */ ([name, h])), ...b.locals],
             }
         }
-        case 'op': { return operator(env, type, t[1], t[2]) }
+        case 'op': { return operator(term, env, type, t[1], t[2]) }
         case 'call': {
             const [, , name, args] = t
             const [index, params] = assertNotNullish(at(name)(env.functions))
-            return sequence(env, args.map((x, k) => [x, params[k]]), [['call', index], ...afterNever(type)])
+            return sequence(term, env, args.map((x, k) => [x, params[k]]), [['call', index], ...afterNever(type)])
         }
         case 'make': { return just([]) }
         case 'variant': {
             const [, sum, name, payload] = t
-            return sequence(env, [[payload, payload[0]]], [['i32.const', sum[1].findIndex(([k]) => k === name)]])
+            return sequence(term, env, [[payload, payload[0]]], [['i32.const', sum[1].findIndex(([k]) => k === name)]])
         }
         case 'match': {
             const [, operand, arms] = t
             const c = term(env, operand)
             if (arms.length === 1) {
-                const b = valueOf(env, c.locals.length, arms[0][1], type)
+                const b = valueOf(term, env, c.locals.length, arms[0][1], type)
                 return { code: [...c.code, ['drop'], ...b.code], locals: [...c.locals, ...b.locals] }
             }
             const [[, yes], [, no]] = arms[0][0].includes('true') ? arms : [arms[1], arms[0]]
-            const a = valueOf(deeper(env), c.locals.length, yes, type)
-            const b = valueOf(deeper(env), c.locals.length + a.locals.length, no, type)
+            const a = valueOf(term, deeper(env), c.locals.length, yes, type)
+            const b = valueOf(term, deeper(env), c.locals.length + a.locals.length, no, type)
             return {
                 code: [...c.code, ['if', blockType(type)], ...a.code, ['else'], ...b.code, ['end'], ...afterNever(type)],
                 locals: [...c.locals, ...a.locals, ...b.locals],
@@ -233,7 +233,7 @@ const term = (env, [type, t]) => {
         }
         case 'block': {
             const [, label, , body] = t
-            const b = valueOf(deeper({ ...env, labels: setReplace(label)(/** @type {const} */ ([env.depth, type]))(env.labels) }), 0, body, type)
+            const b = valueOf(term, deeper({ ...env, labels: setReplace(label)(/** @type {const} */ ([env.depth, type]))(env.labels) }), 0, body, type)
             return { code: [['block', blockType(type)], ...b.code, ['end'], ...afterNever(type)], locals: b.locals }
         }
         default: {
@@ -241,7 +241,7 @@ const term = (env, [type, t]) => {
             const [depth, target] = assertNotNullish(at(label)(env.labels))
             /** @type {Instruction} */
             const leave = label === 'return' ? ['return'] : ['br', env.depth - depth - 1]
-            return sequence(env, [[value, target]], [leave])
+            return sequence(term, env, [[value, target]], [leave])
         }
     }
 }
@@ -270,7 +270,7 @@ const same = (a, b) => equal(a.params, b.params) && equal(a.results, b.results)
  *
  * @type {(functions: OrderedMap<_Callee>, f: FunctionOf<Typed>) => _Code}
  */
-const code = (functions, { params, result, body }) => valueOf({
+const code = (functions, { params, result, body }) => valueOf(term, {
     locals: fromEntries(params.map(([name], k) => [name, k])),
     labels: setReplace('return')(/** @type {const} */ ([-1, result]))(empty),
     depth: 0,
