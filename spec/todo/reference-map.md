@@ -116,6 +116,21 @@ ordinary call on a function value. A native map that hashes on addresses must
 retain its keys, which this body does not, so that an address cannot be reused
 while its key is in a map.
 
+### Serialization
+
+Running the source on a JavaScript engine, a map is a closure, and it cannot
+be serialized there, as no function can. An EDAG executor holds the map as a
+native value and can serialize it as the calls that rebuild it: the empty map,
+then one set per key with the key's current value. That uses the existing
+[function representation](../design/serialization.md) and its sharing, which
+keeps a key the same reference as its other uses in the graph, and adds no
+format.
+
+The sets are written in the order the keys were first set. Each map is built
+from the one before it, so that order follows from the program and not from
+the order an executor evaluates in. A native map therefore retains its keys
+and their first-set order, neither of which a call can observe.
+
 ### Several bodies, one instruction
 
 Because the contract has no labels, bodies are interchangeable, and the
@@ -169,7 +184,6 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
 - What the other observations of the function answer: `String(m)` under the
   [function-source exception](../principles/README.md#function-source-representation-exception)
   or a refusal, and `m.length`.
-- Serialization of a map: refuse it, since the entries have no order.
 - How the EDAG and its JavaScript interpreters represent the native callable.
 
 ### Tasks
@@ -183,11 +197,12 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
   [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md);
   a body that departs from an admitted one is refused where it uses `WeakMap`.
 - [ ] Implement the native map in the EDAG interpreters and NaNVM, retaining
-  keys.
+  keys and their first-set order, and serialize it as its rebuilding calls.
 - [ ] Prove agreement with the copy-on-set reference across executors:
   aliases, equal-content distinct objects, arrays and functions, a `value` of
-  `undefined`, a read answering the same map, primitive keys, older versions after later sets, and two
-  families that share keys.
+  `undefined`, a read answering the same map, primitive keys, older versions after later sets, two
+  families that share keys, and a serialized map read back with its keys
+  still shared.
 - [ ] Spell the pattern once in a standard module, document it with an
   example that keeps its data in an ordinary container under keys the map
   assigns, and fold the behavior into the specification.
