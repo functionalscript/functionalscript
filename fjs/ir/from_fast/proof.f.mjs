@@ -9,18 +9,16 @@ import { print } from '../print/module.f.mjs'
 import { lower } from './module.f.mjs'
 import { fastOf } from './testlib.f.mjs'
 
-/** @typedef {Readonly<Record<string, Signature>>} Signatures */
-
-/** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Signatures} */
+/** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
 
 const fa = only([['a', f64]], f64)
 const fab = only([['a', f64], ['b', f64]], f64)
 
-/** The IR that the lowering makes of normalized FAST, printed. @type {(signatures: Signatures, fast: Block) => string} */
+/** The IR that the lowering makes of normalized FAST, printed. @type {(signatures: Readonly<Record<string, Signature>>, fast: Block) => string} */
 const ir = (signatures, fast) => print(assertOk(lower(signatures)(fast)))
 
-/** The reason that the lowering gives for refusing normalized FAST. @type {(signatures: Signatures, fast: Block) => string} */
+/** The reason that the lowering gives for refusing normalized FAST. @type {(signatures: Readonly<Record<string, Signature>>, fast: Block) => string} */
 const why = (signatures, fast) => assertError(lower(signatures)(fast))
 
 /** The normalized FAST of a module's text. @type {(text: string) => Block} */
