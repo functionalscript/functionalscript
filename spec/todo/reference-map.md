@@ -1,7 +1,7 @@
 ## Add a reference map pattern
 
 **Priority:** P4
-**Status:** open — design approved; the decisions below remain open
+**Status:** wip — design approved; implementation is a stack of pull requests
 
 This replaces the earlier `id` proposal, which returned a bigint label for a
 reference. The direction comes from the
@@ -244,39 +244,37 @@ so a map after a set is a new kind of evaluated value.
 - The WASM runtime keeps its own helper bodies and is out of scope: it refuses
   the map until a `todo/` of its own takes it.
 
-### Open decisions
+### Decisions
 
-The first is decided; each of the others has a proposal and is not.
+The language designer, **sergey-shandar**, approved the feature, which
+[DESIGN §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+requires before implementation, writing
+["I approve the design."](https://github.com/functionalscript/functionalscript/pull/3805#issuecomment-6860283737)
+on the pull request that files this proposal, and accepted the rest in the
+[working session](https://claude.ai/code/session_01Q2nX9uV9wfr4V8NeiJ3xb4):
 
-1. **Approval** of the feature, which
-   [DESIGN §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-   requires before implementation. **Approved:** the language designer,
-   **sergey-shandar**, wrote
-   ["I approve the design."](https://github.com/functionalscript/functionalscript/pull/3805#issuecomment-6860283737)
-   on the pull request that files this proposal.
-2. **The evaluated value of a map with state.** Proposed: `['refMap', index,
-   sets]`, an index for lookup and the list of sets for serialization.
-3. **How the body is recognized.** It is about 35 lines, where `entry` is two
-   statements. Proposed: one matcher that compares the parsed function with a
-   canonical tree up to a consistent renaming of bindings, so that a further
-   admitted body is one more tree.
-4. **The other observations of the function.** Proposed: `m.length` is 2, and
-   `String(m)` is one canonical text for every map, under the
-   [function-source exception](../principles/README.md#function-source-representation-exception).
-5. **Names.** Proposed: the leaf `refMap`, the module `fjs/types/ref_map`, and
-   its export `empty`.
-6. **Whether the open P1 of
-   [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
-   comes first.** It asks for the boundary before a pattern instruction ships;
-   the proposed matcher works on the same parsed syntax `entry` is matched on
-   today.
+- **The evaluated value of a map with state** is `['refMap', index, sets]`:
+  an index for lookup and the list of sets for serialization.
+- **The body is recognized by one matcher** that compares the parsed function
+  with a canonical tree up to a consistent renaming of bindings. The body is
+  about 35 lines, where `entry` is two statements; a further admitted body is
+  one more tree.
+- **The other observations of the function:** `m.length` is 2, and
+  `String(m)` is one canonical text for every map, under the
+  [function-source exception](../principles/README.md#function-source-representation-exception).
+- **Names:** the leaf `refMap`, the module `fjs/types/ref_map`, and its export
+  `empty`.
+- **The open P1 of
+  [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
+  does not come first.** The matcher works on the same parsed syntax `entry`
+  is matched on today.
 
 ### Tasks
 
 A stack of pull requests on the one that files this proposal, each taking one
 step ([SESSION.md](../../doc/SESSION.md)):
 
-- [ ] Settle the remaining open decisions and record them here.
+- [x] Settle the open decisions and record them here.
 - [ ] `edag`: add the `refMap` leaf — its id, types and schemas, and every
   hand-written tag list. Every executor and the Rust output refuse it; the
   JavaScript serializer writes the canonical body. No source reaches it yet.
