@@ -22,8 +22,8 @@ reference map**. A reference map is a function, an existing value type:
 
 ```ts
 type RefMapKey = object | Function
-type RefMap<T> = (key: RefMapKey, value?: T) =>
-    readonly [T | undefined, RefMap<T>]
+type RefMap = (key: RefMapKey, value?: unknown) => RefMapResult
+type RefMapResult = readonly [unknown, RefMap]
 ```
 
 Every call answers the value `key` has in the map it is called on, and the
@@ -67,21 +67,31 @@ The reference body, checked on Node against a map copied on every set over
 200 000 random operations across 50 live versions:
 
 ```js
+/** @type {RefMap} */
 const empty = (key, value) => {
+    /** @type {WeakMap<RefMapKey, bigint>} */
     const ids = new WeakMap()
     let next = 1n
     // A node is `{ value, zero, one }`; the path to an id is its bits, low first.
-    const get = (node, i) =>
-        node === undefined ? undefined :
-        i === 1n ? node.value :
-        get(i & 1n ? node.one : node.zero, i >> 1n)
-    const set = (node, i, v) => {
-        const { value, zero, one } = node ?? {}
-        return i === 1n ? { value: v, zero, one } :
-            i & 1n ? { value, zero, one: set(one, i >> 1n, v) } :
-            { value, zero: set(zero, i >> 1n, v), one }
+    /** @type {(node: RefMapNode, i: bigint) => unknown} */
+    const get = (node, i) => {
+        while (true) {
+            if (node === undefined) { return undefined }
+            if (i === 1n) { return node.value }
+            node = i & 1n ? node.one : node.zero
+            i >>= 1n
+        }
     }
+    /** @type {(node: RefMapNode, i: bigint, newValue: unknown) => RefMapNode} */
+    const set = (node, i, newValue) => {
+        const { value, zero, one } = node ?? {}
+        return i === 1n ? { value: newValue, zero, one } :
+            i & 1n ? { value, zero, one: set(one, i >> 1n, newValue) } :
+            { value, zero: set(zero, i >> 1n, newValue), one }
+    }
+    /** @type {(root: RefMapNode) => RefMap} */
     const make = root => {
+        /** @type {RefMap} */
         const self = (key, value) => {
             const existing = ids.get(key)
             const old = existing === undefined ? undefined : get(root, existing)
@@ -94,6 +104,16 @@ const empty = (key, value) => {
     }
     return make(undefined)(key, value)
 }
+```
+
+Its nodes have this type:
+
+```ts
+type RefMapNode = {
+    readonly value: unknown
+    readonly zero: RefMapNode
+    readonly one: RefMapNode
+} | undefined
 ```
 
 The empty map holds no state: each call starts a family of maps with its own
@@ -149,8 +169,9 @@ reference on every successful result, primitives included, and keep the
 [failure is one outcome](../principles/README.md#failure-is-one-outcome).
 
 Start with the body above: it is the simplest, having no limit and no guard.
-On Node 22 with one million distinct keys it takes about 2.2 s for the sets
-and 1.1 s for the reads. Bodies with other id arithmetic or storage were
+On Node 22 with one million distinct keys it takes 2.5–2.8 s for the sets
+and 1.1–1.2 s for the reads; the loop in `get` reads about 20% faster than
+recursion. Bodies with other id arithmetic or storage were
 measured under an earlier interface that took a flag in place of the optional
 value, where the bigint body took 2.3–2.4 s and 1.1–1.3 s:
 
@@ -193,8 +214,6 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
 
 ### Open decisions
 
-- How the empty map is typed: `RefMap<T>` is invariant in `T`, so one value
-  cannot be a `RefMap<T>` for every `T` without a cast or `any`.
 - What the other observations of the function answer: `String(m)` under the
   [function-source exception](../principles/README.md#function-source-representation-exception)
   or a refusal, and `m.length`.
