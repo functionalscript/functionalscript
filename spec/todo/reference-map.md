@@ -120,13 +120,19 @@ while its key is in a map.
 
 Running the source on a JavaScript engine, a map is a closure, and it cannot
 be serialized there, as no function can. An EDAG executor holds the map as a
-native value and can serialize it as the calls that rebuild it: the empty map,
-then one set per key with the key's current value. That uses the existing
-[function representation](../design/serialization.md) and its sharing, which
-keeps a key the same reference as its other uses in the graph, and adds no
-format.
+native value and can serialize it as the expression that rebuilds it, a fold
+of its entries over the empty map:
 
-The sets are written in the order the keys were first set. Each map is built
+```js
+[[key0, value0], [key1, value1]].reduce((m, [k, v]) => m(k, v)[1], empty)
+```
+
+The entries are ordinary data, one per key with the key's current value. That
+uses the existing [function representation](../design/serialization.md) and
+its sharing, which keeps a key the same reference as its other uses in the
+graph, and adds no format.
+
+The entries are written in the order the keys were first set. Each map is built
 from the one before it, so that order follows from the program and not from
 the order an executor evaluates in. A native map therefore retains its keys
 and their first-set order, neither of which a call can observe.
@@ -197,7 +203,7 @@ breaks the bound, and it accepts primitive keys, which the contract refuses.
   [statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md);
   a body that departs from an admitted one is refused where it uses `WeakMap`.
 - [ ] Implement the native map in the EDAG interpreters and NaNVM, retaining
-  keys and their first-set order, and serialize it as its rebuilding calls.
+  keys and their first-set order, and serialize it as the fold that rebuilds it.
 - [ ] Prove agreement with the copy-on-set reference across executors:
   aliases, equal-content distinct objects, arrays and functions, a `value` of
   `undefined`, a read answering the same map, primitive keys, older versions after later sets, two
