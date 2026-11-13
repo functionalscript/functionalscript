@@ -47,10 +47,10 @@ and refuses everything outside the slice, so that the next slice only adds.
 
 ### Tasks
 
-- [ ] **Typed code, written by hand.** Floats, `bool` and integer ranges in
+- [x] **Typed code, written by hand.** Floats, `bool` and integer ranges in
   one word; `lit`, `get`, `let`, `op`, `call`, `variant` and `match` of a
   `bool`, `block` and `br`; the checker, the printer and the emitter. No
-  FAST and no imports.
+  FAST and no imports. The [README](../README.md) has what it admits.
 - [ ] **The first lowering.** The same part of the language from normalized
   FAST, with each function's parameter types given to the lowering, since
   FAST has none. It needs the compiler owner's view on reading normalized
