@@ -40,6 +40,11 @@ resulting map:
 - A primitive is never a key: reading one answers `undefined`, and setting one
   fails.
 - There is nothing else: no iteration and no size.
+- A call takes at most `O(log n)` steps on every map, an older one included,
+  where `n` is the number of distinct keys set since the empty map. This
+  bound is the point of the feature and part of its contract: with it a
+  program can store and find references in its own containers in
+  `O(log n)`, which `===` alone does not allow.
 
 The result has one shape whatever the arguments, so a computed `value` that
 happens to be `undefined` gives a set that changes nothing, not a result of
@@ -112,8 +117,9 @@ while its key is in a map.
 Because the contract has no labels, bodies are interchangeable, and the
 compiler can admit more than one and lower them all to the same native map. A
 body is then only a choice of JavaScript performance. Each must agree with the
-reference on every successful result, primitives included; limits may differ,
-since [failure is one outcome](../principles/README.md#failure-is-one-outcome).
+reference on every successful result, primitives included, and keep the
+`O(log n)` bound; limits may differ, since
+[failure is one outcome](../principles/README.md#failure-is-one-outcome).
 
 Start with the body above: it is the simplest, having no limit and no guard.
 On Node 22 with one million distinct keys it takes about 2.2 s for the sets
@@ -126,14 +132,14 @@ value, where the bigint body took 2.3–2.4 s and 1.1–1.3 s:
 | double ids, `%` and `/` | about 1.7 s | about 0.8 s | 2⁵³ ids |
 | int32 ids, `&` and `>>` | 1.4–1.6 s | 0.6–0.8 s | 2³¹ ids, needs a guard |
 | int32 ids, 16-way trie | 1.1–1.3 s | 0.3–0.4 s | more code |
-| one `Map` with undo records | about 0.4 s | — | linear use only |
+| one `Map` with undo records | about 0.4 s | — | not admissible |
 
 The counter counts every distinct key ever set in a family, collected keys
 included: 20 million short-lived keys set on one base map left the heap at
 4 MB, so a bounded counter is reachable without exhausting memory. The undo
 body mutates one `Map` in place and makes an older version replay the changes
-between it and the newest, so its cost is the distance between versions, and
-it accepts primitive keys, which the contract refuses.
+between it and the newest, so its cost is the distance between versions, which
+breaks the bound, and it accepts primitive keys, which the contract refuses.
 
 ### Alternatives not pursued
 
