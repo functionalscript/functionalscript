@@ -6,11 +6,16 @@
  * It reads the types that the checker answered, and they alone decide what it
  * writes:
  *
- * - **A value is one WASM value, or none.** A range is an `i32` where it fits
- *   32 bits and an `i64` where it does not, unsigned where it holds no
+ * - **A scalar is one WASM value.** A range is an `i32` where it fits 32
+ *   bits and an `i64` where it does not, unsigned where it holds no
  *   negative integer and two's complement where it does. A float is an
- *   `f64`, and a `bool` an `i32`, `0` for `false` and `1` for `true`. `unit`
- *   and `never` are no value.
+ *   `f64`, and a `bool` an `i32`, `0` for `false` and `1` for `true`.
+ * - **A product is its fields' values**, in their order, and `unit` and
+ *   `never` are no value. A local of a product is a local for each, named
+ *   for its field: `r.i`. A `match`, a `block` or a `loop` of more than one
+ *   value has a type of its own in the type section, as WASM's multi-value
+ *   blocks do, and `field` of a term that is no local keeps the field's
+ *   values in locals named for it while it drops the rest.
  * - **Integer arithmetic is the word's, and exact.** `add`, `sub` and `mul`
  *   run in the wider of the words of their operands and their result, and
  *   wrap to 32 bits where the result's word is narrower. A word's arithmetic
@@ -22,7 +27,9 @@
  *   an argument or the value of a `br`, and where an arm or a body meets its
  *   `match`, `block` or function. An `i32` that stands for a value of an
  *   `i64` range is extended by its own signedness, and a literal is written
- *   in the wider word.
+ *   in the wider word. A `make` writes each field as a value of the wider
+ *   field, and any other product is kept in locals named `widen` and read
+ *   back field by field.
  * - **A sealed type is its carrier**, the WASM value that its interface
  *   names: `any` is an `i64`. A function of an interface is an import of
  *   the interface's `abi` by the function's name, so the functions that
@@ -33,9 +40,10 @@
  *   `block`, a `loop` or a `call` is `never`, an `unreachable` follows it,
  *   so that the code after it validates: WASM knows that nothing follows a
  *   `br`, and not that nothing follows these.
- * - **A `loop` is a `loop`, and its parameters are locals.** Their first
- *   values are set before it, and a `br` to it computes every next value
- *   before it sets any, then branches back to its start.
+ * - **A `loop` is a `loop`, and its parameters are locals**, as many as
+ *   their values. Their first values are set before it, and a `br` to it
+ *   computes every next value before it sets any, then branches back to its
+ *   start.
  * - **`trunc_sat` is the word's saturating truncation**, `trunc_sat_f64_s`
  *   or `trunc_sat_f64_u` of the range's word by its signedness, then a
  *   `select` for each bound of the range that lies inside the word, through
@@ -53,7 +61,7 @@
  * @module
  *
  * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
- * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed } from '../types.ts'
+ * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedTerm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { _Callee, _Code, _Env, _Target } from './private.ts'
  */
@@ -70,22 +78,39 @@ const definition = (interfaces, [, module, name]) =>
     assertNotNullish(assertNotNullish(at(module)(interfaces)).types.find(([k]) => k === name))[1]
 
 /**
- * The WASM values that hold a value of `t`: one, or none for `unit` and
- * `never`. A sealed type's is the one its interface names.
+ * The scalars that a value of `t` is, each named and typed, in the order of
+ * their WASM values: a product's are its fields', each named `name.k`, and
+ * `unit` and `never` have none.
  *
- * @type {(interfaces: OrderedMap<Interface>, t: Type) => readonly ValType[]}
+ * @type {(name: string, t: Type) => readonly (readonly [string, Type])[]}
  */
-const carrier = (interfaces, t) =>
-    t[0] === 'int' ? [fits(32)(t) ? 'i32' : 'i64']
-    : t[0] === 'f64' || t[0] === 'f64c' ? ['f64']
-    : t[0] === 'sum' && t[1].length > 0 ? ['i32']
-    : t[0] === 'sealed' ? [definition(interfaces, t).carrier]
-    : []
+const scalars = (name, t) =>
+    t[0] === 'product' ? t[1].flatMap(([k, x]) => scalars(`${name}.${k}`, x))
+    : t[0] === 'sum' && t[1].length === 0 ? []
+    : [[name, t]]
 
-/** @type {(env: _Env, t: Type) => BlockType} */
+/** The WASM value of a scalar. A sealed type's is the one its interface names. @type {(interfaces: OrderedMap<Interface>, t: Type) => ValType} */
+const scalar = (interfaces, t) =>
+    t[0] === 'int' ? (fits(32)(t) ? 'i32' : 'i64')
+    : t[0] === 'f64' || t[0] === 'f64c' ? 'f64'
+    : t[0] === 'sealed' ? definition(interfaces, t).carrier
+    : 'i32'
+
+/** The locals that hold a value of `t`, named for the parts they hold. @type {(interfaces: OrderedMap<Interface>, name: string, t: Type) => _Code['locals']} */
+const localsOf = (interfaces, name, t) => scalars(name, t).map(([k, x]) => [k, scalar(interfaces, x)])
+
+/** The WASM values that hold a value of `t`, in their order. @type {(interfaces: OrderedMap<Interface>, t: Type) => readonly ValType[]} */
+const carrier = (interfaces, t) => localsOf(interfaces, '', t).map(([, x]) => x)
+
+/** @type {(a: FuncType, b: FuncType) => boolean} */
+const same = (a, b) => equal(a.params, b.params) && equal(a.results, b.results)
+
+/** A block's type: no value, one, or the type of the type section that gives them all. @type {(env: _Env, t: Type) => BlockType} */
 const blockType = (env, t) => {
     const c = carrier(env.interfaces, t)
-    return c.length === 0 ? null : c[0]
+    /** @type {FuncType} */
+    const results = { params: [], results: c }
+    return c.length === 0 ? null : c.length === 1 ? c[0] : env.types.findIndex(x => same(x, results))
 }
 
 /** The bits of a range's word. @type {(t: Int) => 32 | 64} */
@@ -218,16 +243,41 @@ const operator = (env, type, name, args) => {
 const just = code => ({ code, locals: [] })
 
 /**
+ * The values of a term of `from` on the stack as those of `to`, a type that
+ * holds it: each scalar widened to its own, through locals named `widen`
+ * where a product has more than one value and one of them is extended.
+ *
+ * @type {(env: _Env, from: Type, to: Type) => _Code}
+ */
+const widenAll = (env, from, to) => {
+    const wide = scalars('', to)
+    const each = scalars('', from).map(([, x], k) => widen(x, wide[k][1]))
+    if (each.length < 2 || each.every(x => x.length === 0)) { return just(each.flat()) }
+    const kept = localsOf(env.interfaces, 'widen', from)
+    return {
+        code: [...kept.map((_, k) => /** @type {Instruction} */ (['local.set', env.next + k])).reverse(), ...each.flatMap((w, k) => [/** @type {Instruction} */ (['local.get', env.next + k]), ...w])],
+        locals: kept,
+    }
+}
+
+/**
  * A term as a value of `to`, a type that holds the term's: a literal is
- * written in `to`'s word, and any other term is widened to it. Its locals
- * come after `taken` more.
+ * written in `to`'s word, a `make` writes each field as a value of `to`'s,
+ * and any other term is widened to it. Its locals come after `taken` more.
  *
  * @type {(env: _Env, taken: number, x: Typed, to: Type) => _Code}
  */
 const valueOf = (env, taken, [type, t], to) => {
+    const here = { ...env, next: env.next + taken }
     if (t[0] === 'lit') { return just([literal(to, t[2])]) }
-    const c = term({ ...env, next: env.next + taken }, [type, t])
-    return { code: [...c.code, ...widen(type, to)], locals: c.locals }
+    if (t[0] === 'make') {
+        // The checker types a `make` as a product, which only a product of the same fields holds.
+        assert(to[0] === 'product', to)
+        return sequence(here, t[1].map(([, x], j) => /** @type {const} */ ([x, to[1][j][1]])), [])
+    }
+    const c = term(here, [type, t])
+    const w = widenAll({ ...here, next: here.next + c.locals.length }, type, to)
+    return { code: [...c.code, ...w.code], locals: [...c.locals, ...w.locals] }
 }
 
 /**
@@ -250,11 +300,45 @@ const deeper = env => ({ ...env, depth: env.depth + 1 })
 /** The labels of `env` and `label`, which names a structure at `env`'s depth. @type {(env: _Env, label: string, target: _Target) => _Env['labels']} */
 const labelled = (env, label, target) => setReplace(label)(/** @type {const} */ ([env.depth, target]))(env.labels)
 
-/** The value on the top of the stack into a parameter's local. @type {(slot: readonly [number, Type]) => Instruction} */
-const setOne = ([slot]) => ['local.set', slot]
+/** The values on the stack, the last on top, each into its parameter's locals, from the parameter's first. @type {(env: _Env, slots: readonly (readonly [number, Type])[]) => Expr} */
+const setAll = (env, slots) => slots.flatMap(([slot, t]) => carrier(env.interfaces, t).map((_, k) => /** @type {Instruction} */ (['local.set', slot + k]))).reverse()
 
-/** The values on the stack, the last on top, each into its parameter's local. @type {(slots: readonly (readonly [number, Type])[]) => Expr} */
-const setAll = slots => slots.map(setOne).reverse()
+/**
+ * A field of a product: of a local, its own locals; of any other term, the
+ * term's values, the field's kept in locals named for it, where values come
+ * before it, while the rest are dropped.
+ *
+ * @type {(env: _Env, type: Type, e: Typed, name: string) => _Code}
+ */
+const fieldOf = (env, type, e, name) => {
+    const [of, x] = e
+    // The checker reads a field of a product only.
+    assert(of[0] === 'product', of)
+    const k = of[1].findIndex(([f]) => f === name)
+    const all = carrier(env.interfaces, of)
+    const start = of[1].slice(0, k).flatMap(([, f]) => carrier(env.interfaces, f)).length
+    const own = localsOf(env.interfaces, name, type)
+    if (x[0] === 'get') {
+        const index = own.length === 0 ? 0 : assertNotNullish(at(x[1])(env.locals))
+        return just(own.map((_, j) => ['local.get', index + start + j]))
+    }
+    const c = term(env, e)
+    /** @type {Expr} */
+    const later = all.slice(start + own.length).map(() => ['drop'])
+    if (start === 0) { return { code: [...c.code, ...later], locals: c.locals } }
+    const slot = env.next + c.locals.length
+    /** @type {Expr} */
+    const earlier = all.slice(0, start).map(() => ['drop'])
+    return {
+        code: [
+            ...c.code, ...later,
+            ...own.map((_, j) => /** @type {Instruction} */ (['local.set', slot + j])).reverse(),
+            ...earlier,
+            ...own.map((_, j) => /** @type {Instruction} */ (['local.get', slot + j])),
+        ],
+        locals: [...c.locals, ...own],
+    }
+}
 
 /**
  * A `match` of a sealed type. A `get` is read from its local, and any other
@@ -309,19 +393,23 @@ const sealedMatch = (env, type, operand, arms) => {
 const term = (env, [type, t]) => {
     switch (t[0]) {
         case 'lit': { return just([literal(type, t[2])]) }
-        case 'get': { return just(carrier(env.interfaces, type).length === 0 ? [] : [['local.get', assertNotNullish(at(t[1])(env.locals))]]) }
+        case 'get': {
+            const holds = carrier(env.interfaces, type)
+            const index = holds.length === 0 ? 0 : assertNotNullish(at(t[1])(env.locals))
+            return just(holds.map((_, k) => ['local.get', index + k]))
+        }
         case 'let': {
             const [, name, value, body] = t
-            const holds = carrier(env.interfaces, value[0])
+            const holds = localsOf(env.interfaces, name, value[0])
             const v = term(env, value)
             const index = env.next + v.locals.length
             /** @type {Expr} */
-            const set = holds.length === 0 ? [] : [['local.set', index]]
+            const set = holds.map((_, k) => /** @type {Instruction} */ (['local.set', index + k])).reverse()
             const locals = holds.length === 0 ? env.locals : setReplace(name)(index)(env.locals)
             const b = term({ ...env, locals, next: index + holds.length }, body)
             return {
                 code: [...v.code, ...set, ...b.code],
-                locals: [...v.locals, ...holds.map(h => /** @type {const} */ ([name, h])), ...b.locals],
+                locals: [...v.locals, ...holds, ...b.locals],
             }
         }
         case 'op': { return operator(env, type, t[1], t[2]) }
@@ -330,7 +418,8 @@ const term = (env, [type, t]) => {
             const [index, params] = assertNotNullish(at(name)(module === 'self' ? env.functions : assertNotNullish(at(module)(env.imports))))
             return sequence(env, args.map((x, k) => [x, params[k]]), [['call', index], ...afterNever(type)])
         }
-        case 'make': { return just([]) }
+        case 'make': { return sequence(env, t[1].map(([, x]) => /** @type {const} */ ([x, x[0]])), []) }
+        case 'field': { return fieldOf(env, type, t[1], t[2]) }
         case 'variant': {
             const [, sum, name, payload] = t
             return sequence(env, [[payload, payload[0]]], [['i32.const', sum[1].findIndex(([k]) => k === name)]])
@@ -359,15 +448,16 @@ const term = (env, [type, t]) => {
         case 'loop': {
             const [, label, params, body] = t
             const firsts = sequence(env, params.map(([, x, first]) => /** @type {const} */ ([first, x])), [])
+            const own = params.map(([k, x]) => localsOf(env.interfaces, k, x))
             const base = env.next + firsts.locals.length
             /** @type {readonly (readonly [number, Type])[]} */
-            const slots = params.map(([, x], j) => [base + j, x])
-            const locals = params.reduce((ls, [k], j) => setReplace(k)(base + j)(ls), env.locals)
-            const inner = deeper({ ...env, locals, next: base + params.length, labels: labelled(env, label, ['loop', slots]) })
+            const slots = params.map(([, x], j) => [base + own.slice(0, j).flat().length, x])
+            const locals = params.reduce((ls, [k], j) => setReplace(k)(slots[j][0])(ls), env.locals)
+            const inner = deeper({ ...env, locals, next: base + own.flat().length, labels: labelled(env, label, ['loop', slots]) })
             const b = valueOf(inner, 0, body, type)
             return {
-                code: [...firsts.code, ...setAll(slots), ['loop', blockType(env, type)], ...b.code, ['end'], ...afterNever(type)],
-                locals: [...firsts.locals, ...params.map(([k, x]) => /** @type {const} */ ([k, carrier(env.interfaces, x)[0]])), ...b.locals],
+                code: [...firsts.code, ...setAll(env, slots), ['loop', blockType(env, type)], ...b.code, ['end'], ...afterNever(type)],
+                locals: [...firsts.locals, ...own.flat(), ...b.locals],
             }
         }
         case 'br': {
@@ -379,13 +469,41 @@ const term = (env, [type, t]) => {
             // The checker takes a `br` to a loop only with a `make` of the loop's parameters.
             const v = value[1]
             assert(v[0] === 'make', v)
-            return sequence(env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][j][1]])), [...setAll(target[1]), leave])
+            return sequence(env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][j][1]])), [...setAll(env, target[1]), leave])
         }
         default: { return just([['unreachable']]) }
     }
 }
 
 // functions and modules
+
+/** The typed terms that a term holds, in their order. @type {(t: TypedTerm) => readonly Typed[]} */
+const inside = t => {
+    switch (t[0]) {
+        case 'let': { return [t[2], t[3]] }
+        case 'op': { return t[2] }
+        case 'call': { return t[3] }
+        case 'make': { return t[1].map(([, x]) => x) }
+        case 'field': { return [t[1]] }
+        case 'variant': case 'block': { return [t[3]] }
+        case 'match': { return [t[1], ...t[2].map(([, , x]) => x)] }
+        case 'loop': { return [...t[2].map(([, , x]) => x), t[3]] }
+        case 'br': { return [t[2]] }
+        default: { return [] }
+    }
+}
+
+/**
+ * The block types that a term needs in the type section: the results of
+ * each `match`, `block` and `loop` in it that has more than one value.
+ *
+ * @type {(interfaces: OrderedMap<Interface>, x: Typed) => readonly FuncType[]}
+ */
+const blockTypes = (interfaces, [type, t]) => {
+    const results = carrier(interfaces, type)
+    const own = results.length > 1 && (t[0] === 'match' || t[0] === 'block' || t[0] === 'loop') ? [{ params: [], results }] : []
+    return [...own, ...inside(t).flatMap(x => blockTypes(interfaces, x))]
+}
 
 /** Locals as the binary groups them: a run of one type at a time. @type {(types: readonly ValType[]) => Locals} */
 const runs = types => {
@@ -403,24 +521,26 @@ const signature = (interfaces, { params, result }) => ({
     results: carrier(interfaces, result),
 })
 
-/** @type {(a: FuncType, b: FuncType) => boolean} */
-const same = (a, b) => equal(a.params, b.params) && equal(a.results, b.results)
-
 /** A callee, by its index and its signature. @type {(index: number, s: Signature) => _Callee} */
 const callee = (index, { params }) => [index, params.map(([, t]) => t)]
 
 /**
  * A checked module as a WASM module: an import for each function of each
  * interface that it imports, then a function each of its own, in their
- * order, a type for each distinct signature, the exports by their names,
- * and a name section for the functions and their locals.
+ * order, a type for each distinct signature and then for each distinct
+ * block type of more than one value, the exports by their names, and a
+ * name section for the functions and their locals.
  *
  * @type {(m: Checked) => WasmModule}
  */
 export const emit = m => {
     const interfaces = fromEntries(m.imports)
     const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([name, s]) => ({ module, abi, name, s })))
-    const signatures = [...imported.map(({ s }) => signature(interfaces, s)), ...m.functions.map(([, f]) => signature(interfaces, f))]
+    const signatures = [
+        ...imported.map(({ s }) => signature(interfaces, s)),
+        ...m.functions.map(([, f]) => signature(interfaces, f)),
+        ...m.functions.flatMap(([, f]) => blockTypes(interfaces, f.body)),
+    ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[k])))
     const imports = fromEntries(m.imports.map(([module]) => /** @type {const} */ ([
@@ -437,6 +557,7 @@ export const emit = m => {
         functions,
         imports,
         interfaces,
+        types,
     }, 0, body, result))
     return {
         types,

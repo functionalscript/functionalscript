@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Product, Sealed, Signature, Sum, Term, Type } from './types.ts'
+ * @import { ArmOf, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, Signature, Sum, Term, Type } from './types.ts'
  */
 
 // types
@@ -27,8 +27,11 @@ export const f64 = ['f64']
 /** @type {F64c} */
 export const f64c = ['f64c']
 
+/** A product of fields in their order. @type {(fields: Parts) => Product} */
+export const product = fields => ['product', fields]
+
 /** The product with no field. @type {Product} */
-export const unit = ['product', []]
+export const unit = product([])
 
 /** The sum with no variant, the type of a term that gives no value. @type {Sum} */
 export const never = ['sum', []]
@@ -132,6 +135,9 @@ export const call = (module, name, args) => ['call', module, name, args]
 
 /** A product from its fields. @type {(fields: readonly (readonly [string, Term])[]) => Term} */
 export const make = fields => ['make', fields]
+
+/** A field of a product, by its name. @type {(e: Term, name: string) => Term} */
+export const field = (e, name) => ['field', e, name]
 
 /** A value of a sum: a variant and its payload. @type {(type: Type, name: string, payload: Term) => Term} */
 export const variant = (type, name, payload) => ['variant', type, name, payload]

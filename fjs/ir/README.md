@@ -8,22 +8,26 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md)). This directory holds the first
-four: typed code written by hand, the same code lowered from normalized
+five: typed code written by hand, the same code lowered from normalized
 FAST ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
-through [the interfaces of L0](./l0/module.f.mjs), and loops.
+through [the interfaces of L0](./l0/module.f.mjs), loops, and functions
+that a module does not export, with records and
+[L1's native rows](./native/module.f.mjs).
 
 ## Map of this directory
 
-|Module                                 |Holds                                                                  |
-|---------------------------------------|-----------------------------------------------------------------------|
-|[`types.ts`](./types.ts)               |the data: types, terms, functions, modules, and the checker's answer   |
-|[`.`](./module.f.mjs)                  |the constructors, and the facts about types that the stages share      |
-|[`check`](./check/module.f.mjs)        |the checker: a type for every term, or the module refused with a reason|
-|[`print`](./print/module.f.mjs)        |the IR as text, for review and golden proofs                           |
-|[`wasm`](./wasm/module.f.mjs)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
-|[`from_fast`](./from_fast/README.md)   |the lowering from normalized FAST, with the types from a table         |
-|[`l0`](./l0/module.f.mjs)              |the interfaces of L0 as data, and `any`, the type that they seal       |
-|[`l0/host`](./l0/host/module.f.js)     |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
+|Module                                    |Holds                                                                  |
+|------------------------------------------|-----------------------------------------------------------------------|
+|[`types.ts`](./types.ts)                  |the data: types, terms, functions, modules, and the checker's answer   |
+|[`.`](./module.f.mjs)                     |the constructors, and the facts about types that the stages share      |
+|[`check`](./check/module.f.mjs)           |the checker: a type for every term, or the module refused with a reason|
+|[`print`](./print/module.f.mjs)           |the IR as text, for review and golden proofs                           |
+|[`wasm`](./wasm/module.f.mjs)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
+|[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
+|[`l0`](./l0/module.f.mjs)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
+|[`l0/host`](./l0/host/module.f.js)        |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
+|[`native`](./native/module.f.mjs)         |the interface of L1's native rows as data, `Native`                    |
+|[`native/host`](./native/host/module.f.js)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
 ```js
 import { unwrap } from '../types/result/module.f.js'
@@ -87,10 +91,32 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   [the interfaces of L0](./l0/module.f.mjs) and
   [the host](./l0/host/module.f.js).
 
+## What the fifth slice adds
+
+- **Products with fields**: `product(fields)`, a record of fields in their
+  order, which `make` gives and `field(e, name)` reads, printed
+  `{ i: 0.0, value: 0.0 }` and `r.value`. A record stays in its function:
+  it may be a local, a loop's parameter, or the value of a `match`, a
+  `block` or a `loop`, but no signature, of the module or of an interface,
+  names one. A product is a subtype of another of the same fields, in the
+  same order, each a subtype, and two join field by field.
+- **L1's native rows**: [the interface `Native`](./native/module.f.mjs),
+  of the ABI `fjs:l1-native`, whose functions are typed by what their
+  bodies check: `bigintEquals` takes two values of `any.only(bigint)`, and
+  `numberRemainder`, the row of `%`, two floats. Its
+  [host](./native/host/module.f.js) calls
+  [L1's own rows](../wasm/runtime/l1/native/module.f.js), which gain
+  `numberRemainder`.
+- **`Any.same`**: whether two arrays, objects or functions are the same
+  value, in [the interfaces of L0](./l0/module.f.mjs) and
+  [the host](./l0/host/module.f.js).
+
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): a
-product with fields, a sum other than `bool`, `never` and the sealed types,
+product in a signature, or whose fields hold no value, a product that names
+a field twice, a field that a product does not have, a sum other than
+`bool`, `never` and the sealed types,
 a name for the operand of a `bool`'s arm, a call of an interface that the
 module does not import, a range wider than a word, a division of integers,
 integers mixed with floats, a term of type `never` where a value is used, a
@@ -115,6 +141,12 @@ the interface's ABI by the function's name. A `match` of `any` asks for the
 tag once and tests it with an `if` for each arm but the last, and a `trap`
 is an `unreachable`.
 
+A record is its fields' WASM values in order: a local of a record is a
+local for each field, and a term of one leaves each field's value on the
+stack, so a `match`, a `block` or a `loop` of a record has a multi-value
+type, of WASM 2.0. A field of a local reads that local, and a field of
+any other term drops the values after it and those before it.
+
 A loop's parameters are locals: their first values are set before a WASM
 `loop`, and a `br` to it sets them all from its fields, then branches to
 the loop's start. `trunc_sat` is the saturating truncation of the range's
@@ -129,10 +161,10 @@ the hand-written modules of [`testlib.f.mjs`](./testlib.f.mjs).
 [`wasm/proof.mjs`](./wasm/proof.mjs) runs those modules on the host's
 WebAssembly engine and compares every exported function with a JavaScript
 twin on the same inputs, the edges of each type included. A function of
-`any` runs over [the host](./l0/host/module.f.js), on a value of every
+`any` runs over [the hosts](./l0/host/module.f.js), on a value of every
 kind, and its twin reads the value with the L0 view; a trap of WASM is a
 throw of the twin.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
 FunctionalScript functions lowered from their text, and their twins are the
-functions themselves, L1's `toBoolean`, `stringEquals` and `stringLess`
-among them.
+functions themselves, L1's `toBoolean`, `stringEquals`, `stringLess`,
+`strictEquals` and `stringIndex` among them.

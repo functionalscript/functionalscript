@@ -9,8 +9,8 @@
  * its parameters' types and compared with a JavaScript twin, which computes
  * the same in exact integers and IEEE doubles, as
  * [`testlib.mjs`](./testlib.mjs) does it. The twins of the functions over
- * values of unknown kind are L1's own `toBoolean`, `stringEquals` and
- * `stringLess`, and the functions of the
+ * values of unknown kind are L1's own `toBoolean`, `stringEquals`,
+ * `stringLess` and `stringIndex`, and the functions of the
  * [L0 view](../../wasm/runtime/l0/module.f.js) that they read. Where a
  * function loops as often as its argument says, or reads a float as an
  * integer, its inputs are chosen: small counts, and the floats beside each
@@ -22,10 +22,10 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
-import { stringEquals, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
+import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any } from '../l0/module.f.mjs'
-import { corners, loops, samples, unknown } from '../testlib.f.mjs'
-import { edges, held, product, run } from './testlib.mjs'
+import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { edges, held, product, run, spellings } from './testlib.mjs'
 
 // values
 
@@ -72,6 +72,34 @@ const triangle = x => {
         s = t
     }
     return s
+}
+
+/** The `x`-th Fibonacci number, counted up in floats: `0` where `x` is not above `0`. @type {(x: number) => number} */
+const fib = x => {
+    let a = 0
+    let b = 1
+    let k = 0
+    while (k < x) {
+        const c = a + b
+        a = b
+        b = c
+        k = k + 1
+    }
+    return a
+}
+
+/** The Fibonacci number that `steps` reaches, counted down from `x`, as `factorial` counts. @type {(x: number) => number} */
+const steps = x => {
+    let k = x
+    let lo = 0
+    let hi = 1
+    while (0 < k) {
+        const c = lo + hi
+        lo = hi
+        hi = c
+        k = k - 1
+    }
+    return lo
 }
 
 /** The integer that a float holds exactly, in `lo` to `hi`; a throw for any other float. @type {(lo: number, hi: number) => (x: number) => bigint} */
@@ -161,10 +189,21 @@ const twins = {
     toI64: saturated(-(1n << 63n), (1n << 63n) - 1n),
     toWide: saturated(10n, 1n << 40n),
     toNegative: saturated(-(1n << 40n), -3n),
+    stringIndex: ([s]) => stringIndex(held(s)),
+    midpoint: ([a, b]) => (num(a) + num(b)) / 2,
+    fib: ([x]) => fib(num(x)),
+    choose: ([k, x, y]) => bit(k) ? int(x) : int(y),
+    middle: ([k, x]) => bit(k) ? 2 : -num(x),
+    widened: ([, y]) => int(y),
+    nested: ([x]) => num(x) * num(x) - num(x),
+    steps: ([x]) => steps(num(x)),
+    describe: ([v]) => typeof held(v) === 'number' ? asNumber(held(v)) : 0,
+    kindOfFirst: ([v]) => BigInt(kind(held(v))),
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
 const texts = ['', 'a', 'ab', 'ac', 'b', 'ba', '\uffff', '\u{1F600}', [], 0, undefined].map(v => ({ any: v }))
+
 
 /** Small counts, which loops end on, beside the floats that end a loop at once. */
 const counts = [0, -0, 1, 2, 2.5, 3, 5, 10, -1, -Infinity, NaN, 5e-324]
@@ -204,6 +243,9 @@ const inputs = {
     toI64: each(bounds),
     toWide: each(bounds),
     toNegative: each(bounds),
+    stringIndex: each(spellings),
+    fib: each([...counts, 20, 78.5]),
+    steps: each(counts),
 }
 
 export const proof = {
@@ -211,4 +253,5 @@ export const proof = {
     corners: () => run(corners, twins, inputs),
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),
+    records: () => run(records, twins, inputs),
 }
