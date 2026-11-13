@@ -4,7 +4,7 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { builtInIdentifier, f64Bits, i64Literal, snakeCase, stringLiteral, u64WordItems, u64Words, utf16Literal, utf16Units } from './module.f.js'
+import { bitsOf, builtInIdentifier, f64Bits, i64Literal, snakeCase, stringLiteral, u64WordItems, u64Words, utf16Literal, utf16Units } from './module.f.js'
 
 export const proof = {
     // the items the literals list, for a printer that marks each one
@@ -47,6 +47,12 @@ export const proof = {
         // the string itself.
         assertStructurallySame(stringLiteral('a\ud800b'), error('a\ud800b'))
         assertStructurallySame(stringLiteral('\udc00'), error('\udc00'))
+    },
+    bitsOf: () => {
+        // The bits themselves, which `f64Bits` spells in hex.
+        assertEq(bitsOf(1), 0x3ff0_0000_0000_0000n)
+        assertEq(bitsOf(-0), 0x8000_0000_0000_0000n)
+        assertEq(bitsOf(-NaN), 0x7ff8_0000_0000_0000n)
     },
     f64Bits: () => {
         // One spelling for every number, its own bits: the values a decimal
