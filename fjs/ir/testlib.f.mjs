@@ -3,9 +3,10 @@
  * constructors of [`module.f.mjs`](./module.f.mjs): `samples`, functions
  * of the kind that the first slice is for, among them one for each integer
  * instruction that the emitter writes, `corners`, the forms that the
- * emitter handles once each, and `unknown`, functions over values of
- * unknown kind, as the third slice reads them. The
- * [host proof](./wasm/proof.mjs) runs all three against JavaScript twins.
+ * emitter handles once each, `unknown`, functions over values of unknown
+ * kind, as the third slice reads them, and `loops`, the fourth slice's.
+ * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
+ * twins.
  *
  * Data only, so no proof of its own: what each module is, is checked
  * wherever it is read.
@@ -15,8 +16,9 @@
 
 import { any, l0 } from './l0/module.f.mjs'
 import {
-    abs, add, block, bool, br, call, cast, div, eq, f64, f64c, false_, float, fn, get, i, if_, int, le, let_,
-    lit, lt, make, match, mul, n, ne, neg, never, not, only, return_, sqrt, sub, trap, true_, u, variant,
+    abs, add, block, bool, br, call, cast, div, eq, exact, f64, f64c, false_, float, fn, get, i, if_, int, le, let_,
+    lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, return_, sqrt, sub, trap, true_, trunc_sat,
+    u, variant,
 } from './module.f.mjs'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -143,4 +145,76 @@ export const unknown = {
         ['falsy', fn([['v', any]], bool, v => not(call('self', 'toBoolean', [v])))],
     ],
     exports: ['toBoolean', 'kindOf', 'isNumber', 'size', 'tag', 'number', 'fail', 'falsy'],
+}
+
+/** A string. */
+const string = only(any, 'string')
+
+/** String's `unit` of `s` at the index that the float `i` holds exactly, which is bound to `name`. @type {(s: Term, i: Term, name: string) => Term} */
+const unitAt = (s, i, name) => exact(u(31), i, name, k => call('String', 'unit', [s, k]))
+
+/**
+ * Loops: L1's `stringEquals` and `stringLess` by hand, each counter a float
+ * as FAST has it, read as an index through `exact`, and the forms that the
+ * emitter writes once each for a loop: two parameters, which a `br` sets at
+ * once, a loop in a loop that repeats the outer one, a parameter of `any`,
+ * `exact` of a term and of a literal, and `trunc_sat` to each kind of word
+ * and bound.
+ *
+ * @type {Module}
+ */
+export const loops = {
+    imports: l0,
+    functions: [
+        ['stringEquals', fn([['a', any], ['b', any]], bool, (a, b) =>
+            cast(string, a, 'a.string', sa =>
+            let_('n', float(lengthOf('String')(sa)), length =>
+            cast(string, b, 'b.string', sb =>
+            if_(eq(length, float(lengthOf('String')(sb))),
+                loop('L', [['i', f64, c(0)]], i =>
+                    if_(lt(i, length),
+                        if_(eq(unitAt(sa, i, 'i.a'), unitAt(sb, i, 'i.b')), next('L', [['i', add(i, c(1))]]), false_),
+                        true_)),
+                false_)))))],
+        ['stringLess', fn([['a', any], ['b', any]], bool, (a, b) =>
+            cast(string, a, 'a.string', sa =>
+            let_('na', float(lengthOf('String')(sa)), na =>
+            cast(string, b, 'b.string', sb =>
+            let_('nb', float(lengthOf('String')(sb)), nb =>
+            loop('L', [['i', f64, c(0)]], i =>
+                if_(lt(i, na),
+                    if_(lt(i, nb),
+                        let_('x', unitAt(sa, i, 'i.a'), x =>
+                        let_('y', unitAt(sb, i, 'i.b'), y =>
+                        if_(eq(x, y), next('L', [['i', add(i, c(1))]]), lt(x, y)))),
+                        false_),
+                    lt(na, nb))))))))],
+        ['factorial', fn([['x', f64]], f64, x =>
+            loop('L', [['k', f64, x], ['acc', f64, c(1)]], (k, acc) =>
+                if_(lt(c(0), k), next('L', [['k', sub(k, c(1))], ['acc', mul(acc, k)]]), acc)))],
+        ['triangle', fn([['x', f64]], f64, x =>
+            loop('Outer', [['i', f64, c(0)], ['s', f64, c(0)]], (i, s) =>
+                if_(lt(i, x),
+                    loop('Inner', [['j', f64, c(0)], ['t', f64, s]], (j, t) =>
+                        if_(lt(j, i), next('Inner', [['j', add(j, c(1))], ['t', add(t, c(1))]]), next('Outer', [['i', add(i, c(1))], ['s', t]]))),
+                    s)))],
+        ['kindAfter', fn([['v', any], ['x', f64]], int(0n, 8n), (v, x) =>
+            loop('L', [['w', any, v], ['k', f64, x]], (w, k) =>
+                if_(lt(c(0), k), next('L', [['w', w], ['k', sub(k, c(1))]]), kindOf(w))))],
+        ['index', fn([['x', f64]], u(31), x => exact(u(31), x, 'k', k => k))],
+        ['indexOfSum', fn([['x', f64]], u(31), x => exact(u(31), add(x, c(1)), 'k', k => k))],
+        ['three', fn([], u(31), () => exact(u(31), c(3), 'k', k => k))],
+        ['toU31', fn([['x', f64]], u(31), x => trunc_sat(u(31), x))],
+        ['toI32', fn([['x', f64]], i(32), x => trunc_sat(i(32), x))],
+        ['toU32', fn([['x', f64]], u(32), x => trunc_sat(u(32), x))],
+        ['toSmall', fn([['x', f64]], int(-5n, 300n), x => trunc_sat(int(-5n, 300n), x))],
+        ['toU64', fn([['x', f64]], u(64), x => trunc_sat(u(64), x))],
+        ['toI64', fn([['x', f64]], i(64), x => trunc_sat(i(64), x))],
+        ['toWide', fn([['x', f64]], int(10n, 1n << 40n), x => trunc_sat(int(10n, 1n << 40n), x))],
+        ['toNegative', fn([['x', f64]], int(-(1n << 40n), -3n), x => trunc_sat(int(-(1n << 40n), -3n), x))],
+    ],
+    exports: [
+        'stringEquals', 'stringLess', 'factorial', 'triangle', 'kindAfter', 'index', 'indexOfSum', 'three',
+        'toU31', 'toI32', 'toU32', 'toSmall', 'toU64', 'toI64', 'toWide', 'toNegative',
+    ],
 }

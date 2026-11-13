@@ -43,11 +43,14 @@ export type Sealed = readonly ['sealed', module: string, name: string, only: rea
 
 export type Type = Int | F64 | F64c | Product | Sum | Sealed
 
-/** The operators of the first slice, each typed by its operands. */
+/**
+ * The operators of the slices so far, each typed by its operands but
+ * `trunc_sat`, whose type is the range that it saturates to.
+ */
 export type OpName =
     | 'add' | 'sub' | 'mul' | 'div' | 'neg' | 'abs' | 'sqrt'
     | 'eq' | 'lt' | 'le'
-    | 'float'
+    | 'float' | 'trunc_sat'
 
 /** A `match` arm: the variants it takes, `null` for the rest; a name for the operand there; its body. */
 export type ArmOf<T> = readonly [variants: readonly string[] | null, binder: string | null, body: T]
@@ -61,7 +64,8 @@ export type Get = readonly ['get', string]
 /** A value bound to a name in a body. */
 export type Let = readonly ['let', string, Term, Term]
 
-export type Op = readonly ['op', OpName, readonly Term[]]
+/** An operator and its operands, and for `trunc_sat` alone, the range that it saturates to. */
+export type Op = readonly ['op', OpName, readonly Term[], target?: Int]
 
 /** A function of a module, `self` for the module itself. */
 export type Call = readonly ['call', module: string, name: string, args: readonly Term[]]
@@ -78,13 +82,23 @@ export type Match = readonly ['match', Term, readonly ArmOf<Term>[]]
 /** A region that a `br` to its label leaves with a value of its type. */
 export type Block = readonly ['block', string, Type, Term]
 
+/** A parameter of a loop: its name, its type, and the term of its first value. */
+export type LoopParamOf<T> = readonly [name: string, type: Type, first: T]
+
+/**
+ * A region that a `br` to its label repeats, with a `make` of the next
+ * values of its parameters, each a local of the body. Its value is its
+ * body's.
+ */
+export type Loop = readonly ['loop', string, readonly LoopParamOf<Term>[], Term]
+
 /** The one transfer. To the label `return`, it leaves the function. */
 export type Br = readonly ['br', string, Term]
 
 /** A failure at a named point. It gives no value, and the reason is for whoever reads a failed proof. */
 export type Trap = readonly ['trap', reason: string]
 
-export type Term = Lit | Get | Let | Op | Call | Make | Variant | Match | Block | Br | Trap
+export type Term = Lit | Get | Let | Op | Call | Make | Variant | Match | Block | Loop | Br | Trap
 
 /** A term as the checker answers it: its type, then the term with its parts typed. */
 export type Typed = readonly [Type, TypedTerm]
@@ -105,6 +119,7 @@ export type TypedTerm =
     | readonly ['variant', Sum, string, Typed]
     | readonly ['match', Typed, readonly TypedArm[]]
     | readonly ['block', string, Type, Typed]
+    | readonly ['loop', string, readonly LoopParamOf<Typed>[], Typed]
     | readonly ['br', string, Typed]
     | Trap
 
