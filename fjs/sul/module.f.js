@@ -39,7 +39,7 @@ const prepend = (tail, first) => ({ first, tail })
  */
 const literalFrom = (symbol, ps, i) => {
     if (i === levels.length) { return [i, symbol, ps] }
-    const [out, next] = levels[i].encode(symbol, ps[i])
+    const [out, next] = levels[Number(i)].encode(symbol, ps[Number(i)])
     const nextPs = withLevel(ps, i, next)
     return out === undefined ? [i, undefined, nextPs] : literalFrom(out, nextPs, i + 1)
 }
@@ -75,7 +75,7 @@ export const encode =
                 const [, [newStorage, newStack]] = step(id, [storage, []])
                 return [0, id, newStorage, [...stacks, newStack]]
             }
-            const [out, [newStorage, newStack]] = step(id, [storage, stacks[index]])
+            const [out, [newStorage, newStack]] = step(id, [storage, stacks[Number(index)]])
             const newStacks = [...stacks.slice(0, index), newStack, ...stacks.slice(index + 1)]
             if (out === undefined) { return [0, undefined, newStorage, newStacks] }
             const [height, finalId, s, st] = cascadeFrom(out, newStorage, newStacks, index + 1)

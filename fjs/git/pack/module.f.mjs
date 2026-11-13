@@ -2,7 +2,7 @@
  * A packfile's framing, and the delta instructions inside one.
  *
  * A pack is length-framed throughout, so this is a decoder in the
- * [`fjs/asn.1`](../../asn.1/module.f.mjs) style rather than a grammar over
+ * [`fjs/asn.1`](../../asn.1/module.f.js) style rather than a grammar over
  * the byte alphabet. It has no effects and does not walk the file: an entry's
  * payload is a zlib stream, and nothing can say where one entry ends without
  * inflating it, so walking belongs to the reader that has `inflate` and this

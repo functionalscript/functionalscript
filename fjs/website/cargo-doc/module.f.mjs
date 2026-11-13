@@ -23,7 +23,7 @@
  * @import { Funding } from '../funding/types.ts'
  */
 
-import { element } from '../../media/html/module.f.mjs'
+import { element } from '../../media/html/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 import { footer, header, pageTitle, shell, siteDescription, siteMeta, urlMeta } from '../page/module.f.mjs'
 import { byteLength, msb, uint, vec } from '../../types/bit_vec/module.f.js'

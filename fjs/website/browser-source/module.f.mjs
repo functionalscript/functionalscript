@@ -11,7 +11,7 @@
  * @module
  */
 
-import { specifierKind } from '../../path/import/module.f.mjs'
+import { specifierKind } from '../../path/import/module.f.js'
 import { isIdentifierPart } from '../../js/identifier/module.f.js'
 import { charIs } from '../../text/ascii/module.f.js'
 

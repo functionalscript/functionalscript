@@ -31,7 +31,7 @@ plausible wrong module ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-can
 ### Proposal
 
 Every FJS host follows one convention, written once. The package lookup is
-FunctionalScript, shared the way [`fjs/path/import`](../fjs/path/import/module.f.mjs)'s
+FunctionalScript, shared the way [`fjs/path/import`](../fjs/path/import/module.f.js)'s
 specifier rules are, and composed over the file effects the hosts already have.
 No host implements package logic, and `resolveFileModule` stays a file-path
 effect. Native's resolver is generated from that FJS source, never a

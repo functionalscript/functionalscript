@@ -3,7 +3,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { add, block, bool, br, call, f64, f64c, fn, get, i, if_, int, let_, lit, make, match, n, never, true_, u, unit, variant } from '../module.f.mjs'
+import { add, block, bool, br, call, f64, f64c, fn, get, i, if_, int, let_, lit, make, match, n, never, true_, u, unit, variant } from '../module.f.js'
 import { corners, samples } from '../testlib.f.mjs'
 import { print, show } from './module.f.mjs'
 

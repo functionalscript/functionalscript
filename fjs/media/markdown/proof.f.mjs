@@ -1,6 +1,6 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { runPure } from '../../effects/module.f.js'
-import { htmlToString } from '../html/module.f.mjs'
+import { htmlToString } from '../html/module.f.js'
 import { error, unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
 import { bareUrl, entryTexts, proseSpans, tryParse, tryParseBlocks, tryParseEntry } from './module.f.mjs'

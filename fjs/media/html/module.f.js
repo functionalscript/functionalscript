@@ -66,15 +66,9 @@ const escapeTable = /** @type {const} */ ({
 
 /** @type {(code: number) => string} */
 const escapeCharCode = code =>
-    escapeTable[code] ?? codeUnitToString(code)
+    escapeTable[Number(code)] ?? codeUnitToString(code)
 
 const escape = compose(stringToList)(map(escapeCharCode))
-
-/** @type {(n: Node) => List<string>} */
-const node = n =>
-    typeof n === 'string' ? escape(n) : element(n)
-
-const nodes = flatMap(node)
 
 /** @type {(n: Node) => string} */
 const raw = n =>
@@ -244,6 +238,9 @@ export const pageRefusal = e => {
  * @type {(e: Element) => List<string>}
  */
 export const element = e => {
+    /** @type {(n: Node) => List<string>} */
+    const node = n => typeof n === 'string' ? escape(n) : element(n)
+    const nodes = flatMap(node)
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
     if (isVoidTag(tag)) {

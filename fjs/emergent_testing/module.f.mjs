@@ -23,7 +23,7 @@
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
  */
 
-import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
+import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.js'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, ioError, test } from '../effects/node/module.f.mjs'
 import { catch_, sandbox } from '../effects/common/module.f.js'
 import {

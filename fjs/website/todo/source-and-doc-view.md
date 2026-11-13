@@ -80,7 +80,7 @@ at the site's own view, and GitHub can stay as a second link.
 - `fjs/website/source-view/module.f.mjs` — pure: `(source: string) => Node`
   for the highlighted source, and `(source: string) => Node` for the docs,
   both built from one `tokenize` call and rendered with
-  [`media/html`](../../media/html/module.f.mjs). Its `proof.f.mjs` covers a
+  [`media/html`](../../media/html/module.f.js). Its `proof.f.mjs` covers a
   module with a `@module` block, an export with JSDoc, an export without, and a
   comment that is not JSDoc.
 - The page emits `<pre data-source="./module.f.mjs">`, a `<section

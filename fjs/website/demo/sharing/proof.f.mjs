@@ -1,7 +1,7 @@
 /** @import { Fields, Inputs, Sharing } from './types.ts' */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.js'
 import { queryLimit, defaultsOf, validateInputs, decodeQuery, restoreInputs, encodeQuery, textSharing, recordSharing, withInputs, sharingStatus, earlyInputCapture } from './module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { pureOk } from '../../../effects/module.f.js'

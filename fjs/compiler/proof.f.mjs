@@ -36,7 +36,7 @@ import { compiled, compiledProgram, _writtenProgram, demo, outputs } from './dem
 import { disagreement } from '../js/marked/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
 import { encodeQuery } from '../website/demo/sharing/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.js'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'

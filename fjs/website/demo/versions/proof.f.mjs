@@ -7,7 +7,7 @@
  */
 
 import { binaryKeys, census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.mjs'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.js'
 import { graphSvg } from '../graph/module.f.mjs'
 import { commandsOf, runPure } from '../../../effects/module.f.js'
 import { ok } from '../../../types/result/module.f.js'

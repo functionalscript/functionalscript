@@ -24,7 +24,7 @@ import { _astOf, demo } from './demo.f.mjs'
 import { textOfResult } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../js/marked/module.f.mjs'
 import { examples } from '../examples/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { isObject } from '../../types/object/module.f.js'
 

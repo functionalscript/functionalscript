@@ -30,7 +30,7 @@
 
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, int, never, unit } from '../module.f.mjs'
+import { bool, compareIn, equal, f64, f64c, fits, int, never, unit } from '../module.f.js'
 import { show } from '../print/module.f.mjs'
 
 // types

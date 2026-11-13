@@ -21,7 +21,7 @@ import { demo } from './demo.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { unreadableThrownValue } from '../../effects/module.f.js'
 import { commonOperationMap } from '../../effects/common/module.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /**

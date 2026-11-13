@@ -5,7 +5,7 @@
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'
-import type { SupportedRecord } from './types.ts'
+import type { Record, SupportedRecord } from './types.ts'
 
 /** The top three bits of a tag's first byte: class and constructed flag. */
 export type _ClassPc =
@@ -38,7 +38,7 @@ export type _Records = {
  */
 export type _Codecs = {
     readonly [K in keyof _Records]: {
-        readonly encode: (value: _Records[K][1]) => Vec
-        readonly decode: (v: Vec) => _Records[K]
+        readonly encode: (value: _Records[K][1], encode: (record: Record) => Vec) => Vec
+        readonly decode: (v: Vec, decode: (v: Vec) => readonly [Record, Vec]) => _Records[K]
     }
 }

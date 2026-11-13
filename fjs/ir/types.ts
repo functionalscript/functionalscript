@@ -5,7 +5,7 @@
  *
  * **Types and terms are tuples**, a tag first, so a module is plain data
  * that any producer can write: the lowering from FAST, or a person through
- * the constructors of [`module.f.mjs`](./module.f.mjs). A name is a string
+ * the constructors of [`module.f.js`](./module.f.js). A name is a string
  * that binds where it is introduced, so the IR prints as it is.
  *
  * **The checker answers a term with its type.** A `Typed` is a type and the

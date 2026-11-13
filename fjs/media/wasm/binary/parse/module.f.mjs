@@ -29,6 +29,7 @@
 import { error, ok } from '../../../../types/result/module.f.js'
 import { reverse } from '../../../../types/list/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
+import { entry, hasEntry } from '../../../../types/object/entry/module.f.js'
 import { fromU8List } from '../../../../text/utf8/module.f.js'
 import { afterPrefix, prefix, single } from '../../instruction/module.f.js'
 
@@ -56,7 +57,7 @@ const then = (p, f) => (b, i) => {
 const map = (p, f) => then(p, a => pure(f(a)))
 
 /** @type {_Read<number>} */
-const byte = (b, i) => i < b.length ? ok([b[i], i + 1]) : fail(i, 'unexpected end')
+const byte = (b, i) => i < b.length ? ok([b[Number(i)], i + 1]) : fail(i, 'unexpected end')
 
 /**
  * `n` bytes.
@@ -79,7 +80,7 @@ const leb = (bits, signed) => (b, i) => {
     while (true) {
         if (j - i === maxBytes) { return fail(i, 'integer representation too long') }
         if (j >= b.length) { return fail(j, 'unexpected end') }
-        const x = b[j]
+        const x = b[Number(j)]
         j = j + 1
         v = v | (BigInt(x & 0x7f) << shift)
         shift = shift + 7n
@@ -150,7 +151,7 @@ const tag = (what, table) => (b, i) => {
     const r = byte(b, i)
     if (r[0] === 'error') { return r }
     const [x, j] = r[1]
-    return x in table ? ok([table[x], j]) : fail(i, `unsupported ${what} 0x${x.toString(16)}`)
+    return hasEntry(table, x) ? ok([table[Number(x)], j]) : fail(i, `unsupported ${what} 0x${x.toString(16)}`)
 }
 
 // types
@@ -189,8 +190,8 @@ const globalType = then(valType, type => map(tag('mutability', { 0: false, 1: tr
 
 /** @type {_Read<BlockType>} */
 const blockType = (b, i) =>
-    b[i] === 0x40 ? ok([null, i + 1])
-    : b[i] in valTypes ? valType(b, i)
+    b[Number(i)] === 0x40 ? ok([null, i + 1])
+    : hasEntry(valTypes, b[Number(i)]) ? valType(b, i)
     : then(s33, x => x < 0n ? () => fail(i, 'malformed block type') : pure(Number(x)))(b, i)
 
 /** @type {{ readonly [K in Kind]: _Read<Immediates[K]> }} */
@@ -219,14 +220,13 @@ const instruction = (b, i) => {
     const sub = code === prefix ? u32(b, j) : ok(/** @type {const} */ ([code, j]))
     if (sub[0] === 'error') { return sub }
     const [index, k] = sub[1]
-    const row = (code === prefix ? afterPrefix : single)[index]
+    const row = (code === prefix ? afterPrefix : single)[Number(index)]
     if (row === undefined) {
         return fail(i, `unknown opcode 0x${code === prefix ? `fc ${index}` : code.toString(16)}`)
     }
     const [, mnemonic, kind] = row
-    /** @type {_Read<readonly unknown[]>} */
-    const read = immediates[kind]
-    // `immediates[kind]` reads the immediates of the row's kind, so the tuple
+    const read = /** @type {_Read<readonly unknown[]>} */ (entry(immediates, kind))
+    // `entry(immediates, kind)` reads the immediates of the row's kind, so the tuple
     // is one of the row's instructions.
     return map(read, x => /** @type {Instruction} */ (/** @type {unknown} */ ([mnemonic, ...x])))(b, k)
 }
@@ -376,7 +376,7 @@ const nameIds = /** @type {const} */ ([
 
 /** @type {_Read<NameSubsection>} */
 const nameSubsection = then(byte, id => then(u32, size => {
-    const key = nameIds[id]
+    const key = nameIds[Number(id)]
     return sized('name subsection', key === 'module' ? map(name, x => /** @type {NameSubsection} */ (['module', x]))
         : key === 'local' || key === 'label' || key === 'field' ? map(indirectNameMap, x => /** @type {NameSubsection} */ ([key, x]))
         : key === undefined ? map(bytes(size), x => /** @type {NameSubsection} */ (['unknown', id, x]))
@@ -452,8 +452,8 @@ const empty = {
 export const parse = b => {
     const magic = [0x00, 0x61, 0x73, 0x6d]
     const version = [0x01, 0x00, 0x00, 0x00]
-    if (magic.some((x, k) => b[k] !== x)) { return fail(0, 'not a WebAssembly module') }
-    if (version.some((x, k) => b[4 + k] !== x)) { return fail(4, 'unsupported WebAssembly version') }
+    if (magic.some((x, k) => b[Number(k)] !== x)) { return fail(0, 'not a WebAssembly module') }
+    if (version.some((x, k) => b[Number(4 + k)] !== x)) { return fail(4, 'unsupported WebAssembly version') }
     let sections = empty
     /** @type {List<Custom>} */
     let customs = null
@@ -462,7 +462,7 @@ export const parse = b => {
     let rank = -1
     let i = 8
     while (i < b.length) {
-        const id = b[i]
+        const id = b[Number(i)]
         const size = u32(b, i + 1)
         if (size[0] === 'error') { return size }
         const [n, start] = size[1]
@@ -473,7 +473,7 @@ export const parse = b => {
             i = r[1][1]
             continue
         }
-        const section = known[id]
+        const section = known[Number(id)]
         if (section === undefined) { return fail(i, `unknown section id ${id}`) }
         const next = order.indexOf(id)
         if (next <= rank) { return fail(i, `${section[0]} section out of order`) }
@@ -493,7 +493,7 @@ export const parse = b => {
     }
     return ok({
         ...rest,
-        functions: funcs.map((type, k) => ({ type, ...code[k] })),
+        functions: funcs.map((type, k) => ({ type, ...code[Number(k)] })),
         customs: toArray(reverse(customs)),
     })
 }

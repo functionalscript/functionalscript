@@ -36,7 +36,7 @@ import { once } from 'node:events'
 import { test as registerTest } from 'node:test'
 
 import { normalize, toPosix } from '../../path/module.f.js'
-import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
+import { decode as decodeImportPath } from '../../path/import/module.f.js'
 import { asyncRunAll, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../common/module.mjs'
@@ -51,7 +51,7 @@ import { definedEntries } from '../../types/object/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
-import { _orderDirents } from './virtual/readdir/module.f.mjs'
+import { _orderDirents } from './virtual/readdir/module.f.js'
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types

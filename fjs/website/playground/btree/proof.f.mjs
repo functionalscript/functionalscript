@@ -13,7 +13,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { commandsOf } from '../../../effects/module.f.js'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 

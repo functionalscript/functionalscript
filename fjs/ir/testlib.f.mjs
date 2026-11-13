@@ -1,6 +1,6 @@
 /**
  * Modules that the proofs under `fjs/ir` share, written by hand in the
- * constructors of [`module.f.mjs`](./module.f.mjs): `samples`, functions
+ * constructors of [`module.f.js`](./module.f.js): `samples`, functions
  * of the kind that the first slice is for, among them one for each integer
  * instruction that the emitter writes, and `corners`, the forms that the
  * emitter handles once each. The [host proof](./wasm/proof.mjs) runs
@@ -15,7 +15,7 @@
 import {
     abs, add, block, bool, br, call, div, eq, f64, f64c, false_, float, fn, i, if_, int, le, let_,
     lit, lt, make, match, mul, n, ne, neg, never, not, return_, sqrt, sub, true_, u, variant,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
 const far = 1n << 40n

@@ -17,7 +17,7 @@
  * @import { ArmOf, Fn, Int, Module, Parts, Term, Type } from '../types.ts'
  */
 
-import { bool, equal, never, unit } from '../module.f.mjs'
+import { bool, equal, never, unit } from '../module.f.js'
 
 // types
 

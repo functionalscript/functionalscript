@@ -8,6 +8,7 @@ import { stringToCodePointList } from '../../../../text/utf16/module.f.js'
 import { fromCodePointList } from '../../../../text/utf8/module.f.js'
 import { isValidCodePoint } from '../../../../text/code_point/module.f.js'
 import { map, next } from '../../../../types/list/module.f.js'
+import { entry } from '../../../../types/object/entry/module.f.js'
 
 /**
  * Node path conversion replaces each lone UTF-16 surrogate with U+FFFD.
@@ -62,8 +63,10 @@ export const _orderDirents = (entries, parentComponents) => entries.toSorted((a,
     const depth = left.length - right.length
     if (depth !== 0) { return depth }
     for (let i = 0; i < left.length; i += 1) {
-        const difference = _compareNames(left[i], right[i])
+        const difference = _compareNames(left[Number(i)], right[Number(i)])
         if (difference !== 0) { return difference }
     }
-    return _compareNames(a.name, b.name)
+    const leftName = /** @type {string} */ (entry(a, 'name'))
+    const rightName = /** @type {string} */ (entry(b, 'name'))
+    return _compareNames(leftName, rightName)
 })

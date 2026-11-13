@@ -2,7 +2,7 @@
  * @import { Element } from './types.ts'
  */
 
-import { foldElement, htmlToString, htmlUtf8, isRawText, isVoidTag, mapElement, pageRefusal, parseElement, rawTextContent, scriptRefusal, textContent } from "./module.f.mjs"
+import { foldElement, htmlToString, htmlUtf8, isRawText, isVoidTag, mapElement, pageRefusal, parseElement, rawTextContent, scriptRefusal, textContent } from "./module.f.js"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 

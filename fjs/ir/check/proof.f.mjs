@@ -6,7 +6,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import {
     add, block, bool, br, call, div, eq, f64, f64c, float, fn, get, i, if_, int, let_, lit, lt, make,
     match, mul, n, neg, never, return_, true_, u, unit, variant,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { show } from '../print/module.f.mjs'
 import { corners, samples } from '../testlib.f.mjs'
 import { check } from './module.f.mjs'

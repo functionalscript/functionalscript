@@ -44,7 +44,7 @@ export const bool = ['sum', [['false', unit], ['true', unit]]]
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const equal = (a, b) => a instanceof Array && b instanceof Array
-    ? a.length === b.length && a.every((x, k) => equal(x, b[k]))
+    ? a.length === b.length && a.every((x, k) => equal(x, b[Number(k)]))
     : a === b
 
 /**

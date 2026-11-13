@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`fjs/path/import`](../module.f.mjs)'s `decode` turns some relative
+[`fjs/path/import`](../module.f.js)'s `decode` turns some relative
 specifiers into rooted paths. At `c40966b`:
 
 - `decode('.//x')` is `/x`
@@ -48,6 +48,6 @@ keeping it is what roots the path.
 
 ### Related
 
-- [`specifierKind`](../module.f.mjs) is the one classifier a
+- [`specifierKind`](../module.f.js) is the one classifier a
   specifier's kind comes from. This issue is a case
   where the kind changes after folding.

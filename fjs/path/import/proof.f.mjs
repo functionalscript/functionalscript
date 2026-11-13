@@ -1,4 +1,4 @@
-import { resolve, decode, specifierKind } from './module.f.mjs'
+import { resolve, decode, specifierKind } from './module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

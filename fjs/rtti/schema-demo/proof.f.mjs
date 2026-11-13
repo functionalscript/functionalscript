@@ -12,7 +12,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { array, number, open, or, record, rest, string } from '../module.f.js'
 import { demo, examples } from '../demo.f.mjs'
 import { _compare, _graphOf, _marked, _outputsOf, _readersOf, schemaDemo } from './module.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { _crossings, graphSvg } from '../../website/demo/graph/module.f.mjs'

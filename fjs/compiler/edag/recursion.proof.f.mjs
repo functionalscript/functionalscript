@@ -9,7 +9,7 @@
 
 import { graphOfText } from './demo.f.mjs'
 import { _crossings, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'

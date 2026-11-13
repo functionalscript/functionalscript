@@ -94,6 +94,6 @@ const str = isTTY => isTTY ? s => s : stripSgr
  * @type {(std: Std) => (stream: WriteConsoles) => Console}
  */
 export const csiWrite = std => stream => {
-    const toStr = str(std[stream].isTTY)
+    const toStr = str((stream === 'stdout' ? std.stdout : std.stderr).isTTY)
     return s => write(stream, utf8(toStr(s)))
 }

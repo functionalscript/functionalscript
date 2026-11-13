@@ -15,7 +15,7 @@ code written by hand, with no FAST and no imports.
 |Module                                 |Holds                                                                  |
 |---------------------------------------|-----------------------------------------------------------------------|
 |[`types.ts`](./types.ts)               |the data: types, terms, functions, modules, and the checker's answer   |
-|[`.`](./module.f.mjs)                  |the constructors, and the facts about types that the stages share      |
+|[`.`](./module.f.js)                  |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.mjs)        |the checker: a type for every term, or the module refused with a reason|
 |[`print`](./print/module.f.mjs)        |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.mjs)          |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
@@ -23,7 +23,7 @@ code written by hand, with no FAST and no imports.
 ```js
 import { unwrap } from '../types/result/module.f.js'
 import { write } from '../media/wasm/binary/write/module.f.mjs'
-import { f64, fn, if_, lt } from './module.f.mjs'
+import { f64, fn, if_, lt } from './module.f.js'
 import { check } from './check/module.f.mjs'
 import { emit } from './wasm/module.f.mjs'
 
@@ -40,7 +40,7 @@ const bytes = write(emit(unwrap(check({ functions: [['max', max]], exports: ['ma
 - **Terms**: `lit`, `get`, `let`, `op`, a `call` of a function of the same
   module, `make` with no field, a `variant` of `bool`, a `match` of a `bool`
   whose arms name no operand, `block` and `br`. The derived forms of
-  [`module.f.mjs`](./module.f.mjs) (`if_`, `not`, `ne`, `return_`) are these.
+  [`module.f.js`](./module.f.js) (`if_`, `not`, `ne`, `return_`) are these.
 - **Operators**: `add`, `sub`, `mul`, `eq`, `lt` and `le` of two integers,
   each exact, its result's range found by interval arithmetic; `add`, `sub`,
   `mul`, `div`, `neg`, `abs`, `sqrt`, `eq`, `lt` and `le` of floats; and

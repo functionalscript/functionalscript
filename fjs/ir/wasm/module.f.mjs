@@ -16,7 +16,7 @@
  *   wrap to 32 bits where the result's word is narrower. A word's arithmetic
  *   is modulo its size, and the checker's range of the result fits the
  *   result's word, so the bits are those of the exact result.
- * - **A comparison runs in the word that [`compareIn`](../module.f.mjs)
+ * - **A comparison runs in the word that [`compareIn`](../module.f.js)
  *   picks**, signed where an operand may be negative.
  * - **A value widens where it meets a wider type**: where it is an operand,
  *   an argument or the value of a `br`, and where an arm or a body meets its
@@ -43,7 +43,7 @@
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { bitsOf } from '../../media/rust/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { compareIn, equal, fits, i, never, u } from '../module.f.mjs'
+import { compareIn, equal, fits, i, never, u } from '../module.f.js'
 
 // values
 

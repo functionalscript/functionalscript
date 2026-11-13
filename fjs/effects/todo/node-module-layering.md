@@ -32,7 +32,7 @@ itself cleanly. Two concrete symptoms:
    infrastructure, not node-specific I/O — a separate design question)"*. This
    issue is that design question.
 
-2. **`fjs/text/sgr/module.f.mjs:13`** — an ANSI SGR module imports `write`,
+2. **`fjs/text/sgr/module.f.js:13`** — an ANSI SGR module imports `write`,
    `Write`, `WriteConsoles` and `NodeProgramOptions` from the Node module;
    `fjs/emergent_testing/module.f.mjs:16-29` imports names from it, of which
    only `Env`/`NodeProgram`/`NodeProgramOptions` are Node-specific.
@@ -197,7 +197,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   shared browser report rather than the Node `Test` effect.
 - **The console move must also narrow `csiWrite`, or symptom 2 survives it.**
   Moving `write`/`Write`/`WriteConsoles` alone does **not** free
-  `fjs/text/sgr/module.f.mjs` from `effects/node`, because `csiWrite` (`:96-99`)
+  `fjs/text/sgr/module.f.js` from `effects/node`, because `csiWrite` (`:96-99`)
   takes the whole `NodeProgramOptions` record and destructures a single field
   out of it:
 
@@ -217,7 +217,7 @@ Judgement calls worth deciding explicitly rather than by accident:
 
   export type Std = RequiredMap<WriteConsoles, { readonly isTTY: boolean }>
 
-  // fjs/text/sgr/module.f.mjs
+  // fjs/text/sgr/module.f.js
   export const csiWrite = (std: Std) => (stream: WriteConsoles) => …
   ```
 
@@ -410,7 +410,7 @@ the kind of smuggled break this section exists to avoid.
   the `fold-stream-combinator` issue; it needs no change from this one.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
   future Playwright adapter and browser-side test report.
-- `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.mjs:13`,
+- `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.js:13`,
   `fjs/emergent_testing/module.f.mjs:16-29` — importers that reach into the Node
   module for non-Node things.
 - [group-fjs-subdirectories-by-concern](../../todo/group-fjs-subdirectories-by-concern.md)

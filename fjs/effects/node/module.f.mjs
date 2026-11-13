@@ -48,7 +48,7 @@ import {
     compensateStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.js'
 import { normalize, parent } from '../../path/module.f.js'
-import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
+import { resolve as resolveImportPath } from '../../path/import/module.f.js'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in

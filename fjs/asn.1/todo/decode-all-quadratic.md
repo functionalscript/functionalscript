@@ -6,7 +6,7 @@
 
 ### Problem
 
-`decodeAll` (`fjs/asn.1/module.f.mjs`) drains a bit vector by repeatedly
+`decodeAll` (`fjs/asn.1/module.f.js`) drains a bit vector by repeatedly
 applying `step` until it's empty. It backs `decodeSequence` / `decodeSet` and
 the arcs after the first byte of `decodeObjectIdentifier`. Two independent
 O(n) costs stacked per iteration:

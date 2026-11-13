@@ -9,7 +9,7 @@ import { demo, parseSize, work } from './demo.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { error, ok, unwrap } from '../result/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import {
     sum,
     abs,

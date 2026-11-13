@@ -3,7 +3,7 @@
  * `.pack` beside it.
  *
  * A pack is length-framed rather than delimiter-framed, so this is a decoder
- * in the [`fjs/asn.1`](../../asn.1/module.f.mjs) style and not a grammar over
+ * in the [`fjs/asn.1`](../../asn.1/module.f.js) style and not a grammar over
  * the byte alphabet like the ref files and the object headers. It reads a
  * whole file and refuses one whose tables do not add up to its length.
  *
