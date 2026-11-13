@@ -1,8 +1,8 @@
 /**
  * What the proofs of the lowering share: the normalized FAST of a module's
  * text, as the compiler makes it, with its imports, and the signatures of
- * [`sample.f.js`](./sample.f.js) and of L1's `toBoolean`, which FAST does
- * not have.
+ * [`sample.f.js`](./sample.f.js) and of the functions of L1 that the
+ * lowering reads, which FAST does not have.
  *
  * @module
  *
@@ -40,8 +40,14 @@ export const sourceOf = text => {
 /** The specifier by which L1 imports the L0 view. */
 export const view = '../l0/module.f.js'
 
-/** The signature of L1's `toBoolean`, the one function of L1 that the third slice lowers. @type {Readonly<Record<string, Signature>>} */
-export const l1 = { toBoolean: signature([['v', any]], bool) }
+const any2 = /** @type {const} */ ([['a', any], ['b', any]])
+
+/** The signatures of the functions of L1 that the slices lower so far: the third slice's `toBoolean`, and the fourth's string comparisons. @type {Readonly<Record<string, Signature>>} */
+export const l1 = {
+    toBoolean: signature([['v', any]], bool),
+    stringEquals: signature(any2, bool),
+    stringLess: signature(any2, bool),
+}
 
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
 const b2 = /** @type {const} */ ([['a', bool], ['b', bool]])

@@ -19,10 +19,13 @@
  *   a string's UTF-16 units, a bigint's words, the items of an array or the
  *   properties of an object, and a function's declared parameters. All of
  *   them are the one `length` import.
+ * - **A string's unit is String's `unit`**, which L0 names so and
+ *   modular-l0.md's memo calls `at`: the UTF-16 unit at an index of
+ *   `u(31)`, which traps at or past the end, as the view's `unit` throws.
  *
- * These are the parts of L0 that [the third slice](../todo/slices.md) reads,
- * and every parameter borrows. A function that gives a value of `any`, which
- * its caller would own, joins with the slice that counts values.
+ * These are the parts of L0 that [the slices](../todo/slices.md) read so
+ * far, and every parameter borrows. A function that gives a value of `any`,
+ * which its caller would own, joins with the slice that counts values.
  *
  * @module
  *
@@ -60,12 +63,23 @@ const anyInterface = {
  */
 export const lengths = [['String', 's', ['string']], ['BigInt', 'b', ['bigint']], ['Containers', 'c', ['array', 'object']], ['Functions', 'f', ['function']]]
 
-/** An interface whose one function is the `length` of some kinds. @type {(param: string, kinds: readonly string[]) => Interface} */
-const lengthOf = (param, kinds) => ({
+/** An interface whose functions are the `length` of some kinds, then `more`. @type {(param: string, kinds: readonly string[], more: Interface['functions']) => Interface} */
+const lengthOf = (param, kinds, more) => ({
     abi: 'fjs:l0',
     types: [],
-    functions: [['length', signature([[param, only(any, ...kinds)]], index)]],
+    functions: [['length', signature([[param, only(any, ...kinds)]], index)], ...more],
 })
 
+/**
+ * String's functions besides its `length`: `unit`, the UTF-16 unit of a
+ * string at an index, which traps where the index is not before the end.
+ *
+ * @type {Interface['functions']}
+ */
+const strings = [['unit', signature([['s', only(any, 'string')], ['i', index]], u(16))]]
+
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
-export const l0 = [['Any', anyInterface], ...lengths.map(([module, param, ks]) => /** @type {const} */ ([module, lengthOf(param, ks)]))]
+export const l0 = [
+    ['Any', anyInterface],
+    ...lengths.map(([module, param, ks]) => /** @type {const} */ ([module, lengthOf(param, ks, module === 'String' ? strings : [])])),
+]

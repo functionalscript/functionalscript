@@ -8,8 +8,9 @@
  *   throws.
  * - **Each import is the [L0 view](../../../wasm/runtime/l0/module.f.js)'s
  *   function**, on the value that the handle names: `kind` is its `kind`,
- *   `to_f64` its `asNumber`, `to_bool` its `asBoolean`, and `length` its
- *   `length`. Where L0 traps, the view throws, and so does the import.
+ *   `to_f64` its `asNumber`, `to_bool` its `asBoolean`, `length` its
+ *   `length`, and `unit` its `unit`. Where L0 traps, the view throws, and so
+ *   does the import.
  *
  * A host proof makes one table per call of an exported function: the
  * values of its arguments of `any`, whose handles it passes.
@@ -19,7 +20,7 @@
  * @import { Host } from './types.ts'
  */
 
-import { asBoolean, asNumber, kind, length } from '../../../wasm/runtime/l0/module.f.js'
+import { asBoolean, asNumber, kind, length, unit } from '../../../wasm/runtime/l0/module.f.js'
 
 /**
  * The `fjs:l0` imports over a table of values.
@@ -37,5 +38,6 @@ export const host = values => {
         to_f64: h => asNumber(value(h)),
         to_bool: h => asBoolean(value(h)) ? 1 : 0,
         length: h => length(value(h)),
+        unit: (h, i) => unit(value(h), i),
     }
 }

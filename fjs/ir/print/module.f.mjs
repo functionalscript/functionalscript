@@ -1,7 +1,7 @@
 /**
  * The code IR as text, the way a review reads it: a function per paragraph,
- * a `let`, a `block` and a `match` over lines of their own, and every other
- * term on one line where its parts fit there. An `if_` whose parts fit is
+ * a `let`, a `block`, a `loop` and a `match` over lines of their own, and
+ * every other term on one line where its parts fit there. An `if_` whose parts fit is
  * on one line too, and an `else` that is an `if_` continues it.
  *
  * ```text
@@ -91,22 +91,22 @@ const showTrap = reason => {
 
 /**
  * A term on one line, or `null` where a part of it needs lines of its own:
- * a `let`, a `block`, a `match` other than an `if_`, and an `if_` whose
- * `then` is a `match`, since `if a then if b then c else d else e` reads
- * as nothing.
+ * a `let`, a `block`, a `loop`, a `match` other than an `if_`, and an
+ * `if_` whose `then` is a `match`, since `if a then if b then c else d
+ * else e` reads as nothing.
  *
  * @type {(t: Term) => string | null}
  */
 const flat = t => {
-    /** @type {(head: string, parts: readonly Term[]) => string | null} */
-    const apply = (head, parts) => {
+    /** @type {(head: string, parts: readonly Term[], lead?: readonly string[]) => string | null} */
+    const apply = (head, parts, lead = []) => {
         const texts = parts.map(flat)
-        return texts.includes(null) ? null : `${head}(${texts.join(', ')})`
+        return texts.includes(null) ? null : `${head}(${[...lead, ...texts].join(', ')})`
     }
     switch (t[0]) {
         case 'lit': { return showLit(t[1], t[2]) }
         case 'get': { return t[1] }
-        case 'op': { return apply(t[1], t[2]) }
+        case 'op': { return apply(t[1], t[2], target(t[3])) }
         case 'call': { return apply(callee(t[1], t[2]), t[3]) }
         case 'make': {
             const texts = t[1].map(([k, x]) => [k, flat(x)])
@@ -127,6 +127,26 @@ const flat = t => {
         case 'trap': { return showTrap(t[1]) }
         default: { return null }
     }
+}
+
+/** The range that `trunc_sat` saturates to, as the first of its parts, and nothing for any other operator. @type {(t: Int | undefined) => readonly string[]} */
+const target = t => t === undefined ? [] : [show(t)]
+
+/**
+ * A loop's parameters, each with its type and its first value: on the line
+ * of the label where every first value fits there, else a parameter to a
+ * line, and a first value that needs lines below it.
+ *
+ * @type {(pad: string, label: string, params: readonly (readonly [string, Type, Term])[]) => readonly string[]}
+ */
+const loopHead = (pad, label, params) => {
+    const heads = params.map(([k, x]) => `${k}: ${show(x)} =`)
+    const firsts = params.map(([, , first]) => flat(first))
+    return !firsts.includes(null) ? [`${pad}loop ${label} (${heads.map((h, j) => `${h} ${firsts[j]}`).join(', ')})`] : [
+        `${pad}loop ${label} (`,
+        ...params.flatMap(([, , first], j) => comma(headed(`${pad}    `, heads[j], first), j < params.length - 1)),
+        `${pad})`,
+    ]
 }
 
 /** @type {(module: string, name: string) => string} */
@@ -152,11 +172,12 @@ const lines = (t, pad) => {
     const inner = `${pad}    `
     /** @type {(head: string, x: Term) => readonly string[]} */
     const after = (head, x) => headed(pad, head, x)
-    /** An application on one line, or its parts on lines of their own, separated by commas. @type {(head: string, parts: readonly Term[]) => readonly string[]} */
-    const apply = (head, parts) => {
+    /** An application on one line, or its parts on lines of their own, separated by commas. @type {(head: string, parts: readonly Term[], lead?: readonly string[]) => readonly string[]} */
+    const apply = (head, parts, lead = []) => {
         const texts = parts.map(flat)
-        return !texts.includes(null) ? [`${pad}${head}(${texts.join(', ')})`] : [
+        return !texts.includes(null) ? [`${pad}${head}(${[...lead, ...texts].join(', ')})`] : [
             `${pad}${head}(`,
+            ...lead.map(x => `${inner}${x},`),
             ...parts.flatMap((x, k) => comma(lines(x, inner), k < parts.length - 1)),
             `${pad})`,
         ]
@@ -168,7 +189,7 @@ const lines = (t, pad) => {
             const [, name, e, body] = t
             return [...after(`let ${name} =`, e), ...lines(body, pad)]
         }
-        case 'op': { return apply(t[1], t[2]) }
+        case 'op': { return apply(t[1], t[2], target(t[3])) }
         case 'call': { return apply(callee(t[1], t[2]), t[3]) }
         case 'make': {
             const one = flat(t)
@@ -192,6 +213,7 @@ const lines = (t, pad) => {
             ])]
         }
         case 'block': { return [`${pad}block ${t[1]}: ${show(t[2])}`, ...lines(t[3], inner)] }
+        case 'loop': { return [...loopHead(pad, t[1], t[2]), ...lines(t[3], inner)] }
         case 'br': { return after(transfer(t[1]), t[2]) }
         default: { return [`${pad}${showTrap(t[1])}`] }
     }

@@ -8,9 +8,9 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md)). This directory holds the first
-three: typed code written by hand, the same code lowered from normalized
-FAST ([`from_fast`](./from_fast/README.md)), and values of unknown kind,
-read through [the interfaces of L0](./l0/module.f.mjs).
+four: typed code written by hand, the same code lowered from normalized
+FAST ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
+through [the interfaces of L0](./l0/module.f.mjs), and loops.
 
 ## Map of this directory
 
@@ -70,6 +70,23 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   interface, may give one, since its caller would own it, so nothing has to
   release one. Counting values is a later slice.
 
+## What the fourth slice adds
+
+- **`loop`**: a label, parameters, each a local with its type and its
+  first value, and a body, whose value is the loop's. A `br` to the loop's
+  label gives a `make` with a field for each parameter, in their order: it
+  sets them all, and the body runs again. `next(label, fields)` writes that
+  `br`.
+- **`trunc_sat`**, an operator from a float to an integer range that it
+  names, as WASM truncates with saturation: towards zero, NaN to `0`, and a
+  float past the range to its nearer end. `exact(T, x, name, body)` reads
+  with it the integer that a float holds, and traps (`'inexact'`) where the
+  float holds no integer of `T`, as L0 checks an index.
+- **String's `unit`**: the UTF-16 unit of a string at an index of
+  `u(31)`, which traps at or past the end, in
+  [the interfaces of L0](./l0/module.f.mjs) and
+  [the host](./l0/host/module.f.js).
+
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): a
@@ -77,8 +94,10 @@ product with fields, a sum other than `bool`, `never` and the sealed types,
 a name for the operand of a `bool`'s arm, a call of an interface that the
 module does not import, a range wider than a word, a division of integers,
 integers mixed with floats, a term of type `never` where a value is used, a
-literal of a sealed type, and a function or a call that gives a value of
-one.
+literal of a sealed type, a function or a call that gives a value of one,
+an interface that names a type or a function twice, a `br` to a loop that
+does not give each of its parameters, in their order, and a `trunc_sat` of
+anything but one float, or without the range that it saturates to.
 
 ## Values in WASM
 
@@ -94,7 +113,13 @@ JavaScript host it is a handle that [the host](./l0/host/module.f.js) maps
 to a value. Each function of an imported interface is one WASM import, of
 the interface's ABI by the function's name. A `match` of `any` asks for the
 tag once and tests it with an `if` for each arm but the last, and a `trap`
-is an `unreachable`. The [emitter's](./wasm/module.f.mjs) module
+is an `unreachable`.
+
+A loop's parameters are locals: their first values are set before a WASM
+`loop`, and a `br` to it sets them all from its fields, then branches to
+the loop's start. `trunc_sat` is the saturating truncation of the range's
+word, signed or unsigned, then clamped to the range's ends where they lie
+inside the word's. The [emitter's](./wasm/module.f.mjs) module
 documentation has the rest.
 
 ## Proofs
@@ -109,4 +134,5 @@ kind, and its twin reads the value with the L0 view; a trap of WASM is a
 throw of the twin.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
 FunctionalScript functions lowered from their text, and their twins are the
-functions themselves, L1's `toBoolean` among them.
+functions themselves, L1's `toBoolean`, `stringEquals` and `stringLess`
+among them.

@@ -1,12 +1,12 @@
 /**
- * @import { Int } from './types.ts'
+ * @import { Int, Term } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
-    abs, add, block, bool, br, call, cast, compareIn, div, eq, equal, f64, f64c, false_, fits, float, fn, get,
-    i, if_, int, le, let_, lit, lt, make, match, mul, n, ne, neg, never, not, only, return_, sealed, signature,
-    sqrt, sub, trap, true_, u, unit, variant,
+    abs, add, block, bool, br, call, cast, compareIn, div, eq, equal, exact, f64, f64c, false_, fits, float, fn,
+    get, i, if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, return_,
+    sealed, signature, sqrt, sub, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.mjs'
 
 export const proof = {
@@ -88,6 +88,23 @@ export const proof = {
         assert(equal(not(get('b')), if_(get('b'), false_, true_)))
         assert(equal(ne(get('a'), get('b')), not(eq(get('a'), get('b')))))
         assert(equal(return_(n(1n)), br('return', n(1n))))
+    },
+    loop: () => {
+        // The body is a term, or a function of the parameters' locals in their order.
+        assert(equal(loop('l', [['i', f64, n(0n)]], get('i')), ['loop', 'l', [['i', f64, n(0n)]], get('i')]))
+        const params = /** @type {const} */ ([['i', f64, n(0n)], ['s', f64, n(1n)]])
+        assert(equal(loop('l', params, (i, s) => add(i, s)), ['loop', 'l', params, add(get('i'), get('s'))]))
+        assert(equal(next('l', [['i', n(1n)]]), br('l', make([['i', n(1n)]]))))
+        // `trunc_sat` is the one operator that names a range.
+        assert(equal(trunc_sat(u(8), get('x')), ['op', 'trunc_sat', [get('x')], u(8)]))
+    },
+    exact: () => {
+        /** The test of a float `y` that `exact` writes. @type {(y: Term) => Term} */
+        const test = y => let_('k', trunc_sat(u(8), y), if_(eq(float(get('k')), y), get('k'), trap('inexact')))
+        // A local or a literal is read where it stands, twice; any other float is bound first.
+        assert(equal(exact(u(8), get('x'), 'k', k => k), test(get('x'))))
+        assert(equal(exact(u(8), lit(f64c, 3), 'k', k => k), test(lit(f64c, 3))))
+        assert(equal(exact(u(8), add(get('x'), get('y')), 'k', k => k), let_('k.float', add(get('x'), get('y')), test(get('k.float')))))
     },
     fn: () => {
         const params = /** @type {const} */ ([['a', f64], ['b', f64]])
