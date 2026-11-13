@@ -13,7 +13,7 @@ export type RefMapKey = object | Function
 
 /**
  * A reference map
- * ([proposal](../../../spec/todo/reference-map.md)): a call answers the
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): a call answers the
  * value `key` has in the map it is called on, and the resulting map.
  * `m(key)` is `[current, m]`, the same map; `m(key, value)` is
  * `[previous, m1]`, a new map with `key` set to `value`, `m` unchanged. A

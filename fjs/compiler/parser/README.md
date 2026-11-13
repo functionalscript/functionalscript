@@ -500,7 +500,7 @@ the fold's:
   as every function is, where `Object` is refused as the reserved word it
   is;
 - the empty reference map, matched whole as well
-  ([proposal](../../../spec/todo/reference-map.md)), by another means, since
+  ([reference map](../../../spec/built-ins/reference-map/README.md)), by another means, since
   its body is some thirty lines where a helper's is two statements:
   [`./ref_map`](./ref_map/module.f.mjs) holds the canonical body as source,
   parses it with this grammar, and a function is the map where its syntax

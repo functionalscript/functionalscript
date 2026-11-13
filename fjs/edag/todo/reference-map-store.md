@@ -5,7 +5,7 @@
 
 ### Problem
 
-A [reference map](../../../spec/todo/reference-map.md) promises a call in
+A [reference map](../../../spec/built-ins/reference-map/README.md) promises a call in
 `O(log n)` steps. The interpreters answer the EDAG's `['refMap']` with the
 runtime's map ([`../../js/ref_map`](../../js/ref_map/module.f.js)), which is
 ordinary FunctionalScript: a list of pairs searched with `===`. Every answer
@@ -28,7 +28,7 @@ from one.
 - How a map's table is found again from the map's value, and rebuilt from its
   pairs where there is none.
 - Whether a map written out after it was used is then written as the fold over
-  the empty map that the proposal describes, where it is written today as the
+  the empty map that the design record describes, where it is written today as the
   runtime's function with its pairs.
 
 ### Tasks
@@ -41,6 +41,6 @@ from one.
 
 ### Related
 
-- [Reference map](../../../spec/todo/reference-map.md) — the proposal.
+- [Reference map](../../../spec/built-ins/reference-map/README.md) — the page, and its [design record](../../../spec/design/object-identity.md#reference-map).
 - [`fjs/js/ref_map`](../../js/ref_map/module.f.js) — the map the interpreters
   use today.

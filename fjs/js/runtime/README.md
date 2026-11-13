@@ -37,7 +37,7 @@ native table. The proposal and the steps still to take are
 
 `runtime.refMap` answers a new empty reference map
 ([`../ref_map`](../ref_map/module.f.js),
-[proposal](../../../spec/todo/reference-map.md)): the map written in
+[reference map](../../../spec/built-ins/reference-map/README.md)): the map written in
 FunctionalScript alone, a list of pairs searched with `===`, which an
 executor with no map of its own answers the EDAG's `['refMap']` with,
 calling it wherever the node is established.

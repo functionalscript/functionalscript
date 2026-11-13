@@ -911,7 +911,7 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * ([spec: why two helpers](../../spec/property-access/entries/README.md#why-two-helpers)).
  *
  * `refMap` is the empty reference map
- * ([proposal](../../spec/todo/reference-map.md)), as a value: a function of
+ * ([reference map](../../spec/built-ins/reference-map/README.md)), as a value: a function of
  * `length` `2`, fresh where it is established as `entry` is, whose call
  * `['()', ['refMap'], [key, value]]` reads a reference key or answers a new
  * map with the key set. An interpreter answers it with a new map of the

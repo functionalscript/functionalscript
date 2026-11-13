@@ -1,6 +1,6 @@
 /**
  * The empty reference map as the parser recognizes it
- * ([proposal](../../../../spec/todo/reference-map.md)): one function,
+ * ([reference map](../../../../spec/built-ins/reference-map/README.md)): one function,
  * whole, compared with the canonical body as a syntax tree, up to a
  * consistent renaming of what it binds and to its layout. The body is too
  * long to match statement by statement as the `entry` helper is, so it is

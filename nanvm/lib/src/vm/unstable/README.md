@@ -39,7 +39,7 @@ propagates conversion failure at that position. `property_item` takes the
 established VM string directly, for both literal and computed keys.
 
 `ref_map` is the reference map of `fjs/types/ref_map`
-([proposal](../../../../../spec/todo/reference-map.md)): a new empty map, a
+([reference map](../../../../../spec/built-ins/reference-map/README.md)): a new empty map, a
 function, which a compiled module spells where it establishes the map. A map
 keeps its entries in its frame, in a trie over each key's address, so a call
 takes a number of steps bounded by the address's width where the runtime's
