@@ -1,7 +1,7 @@
 ## Add a reference map pattern
 
 **Priority:** P4
-**Status:** open — proposal; not approved for implementation
+**Status:** open — design approved; the decisions below remain open
 
 This replaces the earlier `id` proposal, which returned a bigint label for a
 reference. The direction comes from the
@@ -102,7 +102,7 @@ const empty = (key, value) => {
         }
         return self
     }
-    return make(undefined)(key, value)
+    return value === undefined ? [undefined, empty] : make(undefined)(key, value)
 }
 ```
 
@@ -116,8 +116,9 @@ type RefMapNode = {
 } | undefined
 ```
 
-The empty map holds no state: each call starts a family of maps with its own
-`WeakMap` and counter. The ids are sequential, so a plain binary trie over
+The empty map holds no state: a read of it answers the empty map itself, as
+a read of any map does, and each set on it starts a family of maps with its
+own `WeakMap` and counter. The ids are sequential, so a plain binary trie over
 their bits stays balanced and needs no rebalancing. The ids never leave the
 closure.
 
@@ -158,6 +159,13 @@ serialized graph. An entry whose key appears nowhere else in that graph is
 left out, since nothing could pass that key to the map once it is read back.
 A native map therefore retains its keys, which no call can observe, and
 records no order.
+
+A map is a function, so which map it is can be observed with `===` and by
+using it as a key. A map met twice in the graph is written once and shared, as
+any function is. A map other than the empty one is always written with at
+least one set, so that reading it back makes a new map: where none of its
+entries is left, it is written as one set of a key made for the purpose,
+`empty({}, 0)[1]`, which nothing else can hold.
 
 ### Several bodies, one instruction
 
@@ -238,11 +246,14 @@ so a map after a set is a new kind of evaluated value.
 
 ### Open decisions
 
-Each has a proposal; none is decided.
+The first is decided; each of the others has a proposal and is not.
 
-1. **Approval** of the feature by the language designer, with its link, as
+1. **Approval** of the feature, which
    [DESIGN §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-   requires before implementation.
+   requires before implementation. **Approved:** the language designer,
+   **sergey-shandar**, wrote
+   ["I approve the design."](https://github.com/functionalscript/functionalscript/pull/3805#issuecomment-6860283737)
+   on the pull request that files this proposal.
 2. **The evaluated value of a map with state.** Proposed: `['refMap', index,
    sets]`, an index for lookup and the list of sets for serialization.
 3. **How the body is recognized.** It is about 35 lines, where `entry` is two
@@ -265,7 +276,7 @@ Each has a proposal; none is decided.
 A stack of pull requests on the one that files this proposal, each taking one
 step ([SESSION.md](../../doc/SESSION.md)):
 
-- [ ] Settle the open decisions and record them here.
+- [ ] Settle the remaining open decisions and record them here.
 - [ ] `edag`: add the `refMap` leaf — its id, types and schemas, and every
   hand-written tag list. Every executor and the Rust output refuse it; the
   JavaScript serializer writes the canonical body. No source reaches it yet.
@@ -276,12 +287,15 @@ step ([SESSION.md](../../doc/SESSION.md)):
   the contract against a map copied on every set: aliases, equal-content
   distinct objects, arrays and functions, a `value` of `undefined`, a read
   answering the same map, primitive keys, older versions after later sets,
-  and two families that share keys.
+  two families that share keys, and a read of the empty map answering the
+  empty map.
 - [ ] `edag`: evaluate maps in the shared evaluator, for both interpreters —
   the value, calls, `length`, equality and text — and prove the same cases.
 - [ ] `compiler/serializer`: write a map as the fold that rebuilds it, entries
   in the order of their keys' positions and unreachable keys left out; prove
-  that a map read back keeps its keys shared.
+  that a map read back keeps its keys shared, and that a map none of
+  whose keys is reachable is read back as a map of its own, not as the empty
+  one.
 - [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
   keys, within the `O(log n)` bound.
 - [ ] `rust/serializer`: emit the map, with harness fixtures and demos.
