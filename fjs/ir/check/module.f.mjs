@@ -440,17 +440,23 @@ const unsigned = (env, { params, result }) => {
 }
 
 /**
- * Why a module may not import an interface, or `null` where it may: each of
- * its sealed types names its variants once each, its signatures have types
- * that a module may write, and the tag of each sealed type comes from a
- * function of the interface that takes the type and answers
- * `int(0, n - 1)`, one tag for each of its `n` variants.
+ * Why a module may not import an interface, or `null` where it may: it
+ * names each of its types and its functions once, since a call and a sealed
+ * type find them by their names, each of its sealed types names its
+ * variants once each, its signatures have types that a module may write,
+ * and the tag of each sealed type comes from a function of the interface
+ * that takes the type and answers `int(0, n - 1)`, one tag for each of its
+ * `n` variants.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
 const checkInterface = imports => ([name, { types, functions }]) => {
     /** @type {_Env} */
     const env = { name, locals: empty, labels: empty, functions: empty, imports }
+    const typeNames = types.map(([k]) => k)
+    const type = typeNames.find((k, j) => typeNames.indexOf(k) !== j)
+    const functionNames = functions.map(([k]) => k)
+    const named = functionNames.find((k, j) => functionNames.indexOf(k) !== j)
     const twice = types.find(([, { variants }]) => variants.some((v, k) => variants.indexOf(v) !== k))
     const why = functions.flatMap(([, { params, result }]) => [...params.map(([, t]) => t), result]).map(t => unsupported(env, t)).find(x => x !== null)
     /** @type {(entry: readonly [string, SealedDef]) => boolean} */
@@ -459,7 +465,9 @@ const checkInterface = imports => ([name, { types, functions }]) => {
         return f !== undefined && equal(f.params.map(([, t]) => t), [['sealed', name, type, null]]) && equal(f.result, int(0n, BigInt(variants.length - 1)))
     }
     const untagged = types.find(entry => !tagged(entry))
-    return twice !== undefined ? `${name}: ${twice[0]} names a variant twice`
+    return type !== undefined ? `${name}: two types are named ${type}`
+        : named !== undefined ? `${name}: two functions are named ${named}`
+        : twice !== undefined ? `${name}: ${twice[0]} names a variant twice`
         : typeof why === 'string' ? `${name}: ${why}`
         : untagged !== undefined ? `${name}: ${untagged[1].kind} does not answer the tag of ${untagged[0]}, one for each of its variants`
         : null

@@ -218,6 +218,10 @@ export const proof = {
         assertEq(why({ imports: [...l0, l0[0]], functions: [], exports: [] }), 'Any is imported twice')
         assertEq(why({ imports: [['self', l0[0][1]]], functions: [], exports: [] }), 'self is the module itself, so no interface has that name')
         assertEq(why(importing({ abi: 'test', types: [['t', { variants: ['a', 'a'], kind: 'k', carrier: 'i32' }]], functions: [] })), 'Bad: t names a variant twice')
+        // A call and a sealed type find a function and a type by its name, so the interface names each once.
+        assertEq(why(importing({ abi: 'test', types: [], functions: [['f', signature([['x', f64]], f64)], ['f', signature([['x', bool]], f64)]] })), 'Bad: two functions are named f')
+        const s = /** @type {const} */ (['s', { variants: ['a'], kind: 'k', carrier: 'i32' }])
+        assertEq(why(importing({ abi: 'test', types: [s, ['s', { ...s[1], carrier: 'i64' }]], functions: [] })), 'Bad: two types are named s')
         assertEq(why(importing({ abi: 'test', types: [], functions: [['f', signature([['x', unit]], f64)]] })), 'Bad: unit is not in this slice')
         /** An interface of `t`, of two variants, and a function `k`. @type {(params: readonly Param[], result: Type) => Interface} */
         const tagged = (params, result) => ({ abi: 'test', types: [['t', { variants: ['a', 'b'], kind: 'k', carrier: 'i32' }]], functions: [['k', signature(params, result)]] })
