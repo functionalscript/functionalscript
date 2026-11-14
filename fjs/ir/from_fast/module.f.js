@@ -63,6 +63,11 @@
  *   so the builder, which is linear, is never left behind. An item is a
  *   value of `any`: a number or a boolean is refused, and so are a spread
  *   and an array in a module lowered without the runtime.
+ * - **A read of an array at a number key is L1's `get` for that case**:
+ *   the item where the key is an index of the array, an integer from `0`
+ *   up to its length, and `undefined` where it is anything else. A
+ *   receiver of another kind is refused, since `get` throws for it or reads
+ *   it by a string.
  * - **The checker types the terms** that the lowering makes, so that the
  *   operand's type picks the operator where JavaScript has one for two
  *   types: `-x` is `neg` of a float and `0n - x` of an integer, `===` of two
@@ -807,6 +812,28 @@ const arrayOf = (lowerValue, scope, items) => {
 }
 
 /**
+ * A read of an array at a number key, `a[0]` or `a[Number(k)]`, by L1's `get` rules
+ * for that case: the receiver, then the key, each lowered where it stands as
+ * the arguments of a call are; then the item where the key is an index of
+ * one, an integer from `0` up to the array's length, `-0` reading `0`, and
+ * `undefined` where it is anything else. The receiver holds an array alone:
+ * `get` of any other kind throws or reads by a string, which is not in this
+ * slice.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, receiver: Value, key: Value) => Result<Term, string>}
+ */
+const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope, [receiver, key], (s, [a, k]) => {
+    // The receiver is a term that does nothing, which was typed where it was
+    // lowered; the key is a float, since it is a number or `Number` of one.
+    const t = assertOk(typeOf(s.ir)(a))
+    const held = t[0] === 'sealed' ? t[3] : null
+    const undefined_ = constant('Any', 'undefined')
+    const base = a[0] === 'get' ? a[1] : 'array'
+    return !isAny(t) || held === null || held.length !== 1 || held[0] !== 'array' ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
+        : ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
+})
+
+/**
  * A call of a function of the module, of a static function that is an
  * operator, of a function of the L0 view or of L1's native rows, or of a
  * function that the function defines or that the module does not export,
@@ -935,8 +962,9 @@ const value = (scope, v) => {
             const key = v[2]
             const m = scope.imported(v)
             return m !== null ? named(scope, m)
-                : v.length !== 3 || typeof key !== 'string' ? no('a member read of anything but a name is not in this slice')
-                : unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
+                : v.length !== 3 ? no('a member read with a further step, such as a call of the member, is not in this slice')
+                : typeof key === 'string' ? unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
+                : indexed(value, scope, v[1], key)
         }
         case '<': { return binary(value, scope, lt, v[1], v[2]) }
         case '<=': { return binary(value, scope, le, v[1], v[2]) }
