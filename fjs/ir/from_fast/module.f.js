@@ -270,13 +270,13 @@ const loopTerm = (lowerValue, lowerBlock, scope, { target, parameters, initial, 
     const { ir, bindings, depth, loops } = scope
     const label = `L${loops.length}`
     /** @type {readonly LoopParamOf<Term>[]} */
-    const params = firsts[1].map((x, j) => [`#${depth + j}`, wide[1][j], x])
+    const params = firsts[1].map((x, j) => [`#${depth + j}`, wide[1][Number(j)], x])
     const names = params.map(([k]) => k)
     /** @type {_Scope} */
     const inner = {
         ...scope,
         ir: { ...ir, locals: [...ir.locals, ...params.map(([k, t]) => /** @type {const} */ ([k, t]))] },
-        bindings: [...bindings, ...parameters.map((b, j) => /** @type {const} */ ([b, ['local', names[j]]]))],
+        bindings: [...bindings, ...parameters.map((b, j) => /** @type {const} */ ([b, ['local', names[Number(j)]]]))],
         depth: depth + params.length,
         loops: [[target, label, names], ...loops],
     }
@@ -346,7 +346,7 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
             // A continue stands in the body of its loop, in the same function.
             const [, label, params] = assertNotNullish(scope.loops.find(([t]) => t === target))
             const xs = values(lowerValue, scope, vs)
-            return xs[0] === 'error' ? xs : ok(next(label, params.map((k, j) => /** @type {const} */ ([k, xs[1][j]]))))
+            return xs[0] === 'error' ? xs : ok(next(label, params.map((k, j) => /** @type {const} */ ([k, xs[1][Number(j)]]))))
         }
         case 'break': {
             const [, target, vs] = exit
@@ -398,8 +398,8 @@ const inline = (lowerValue, scope, f, args, resolve) => {
     /** The parameters from the `j`-th on, standing for their arguments, around the body. @type {(s: _Scope, j: number) => Result<Term, string>} */
     const from = (s, j) => {
         if (j === args.length) { return block(lowerValue, s, f.body, ['return']) }
-        const b = f.parameters[j]
-        const x = args[j]
+        const b = f.parameters[Number(j)]
+        const x = args[Number(j)]
         return x[0] === 'get' ? from(standsFor(s, b, ['local', x[1]]), j + 1)
             : isPure(x) ? from(standsFor(s, b, ['term', x]), j + 1)
             : bindTerm(s, x, (t, name) => from(standsFor(t, b, ['local', name]), j + 1))
@@ -471,9 +471,9 @@ const paramsOf = (module, name) => {
  */
 const castCall = (scope, module, name, params, args) => {
     const j = args.findIndex(x => !isPure(x))
-    if (j >= 0) { return bindTerm(scope, args[j], (s, k) => castCall(s, module, name, params, args.map((x, i) => i === j ? get(k) : x))) }
+    if (j >= 0) { return bindTerm(scope, args[Number(j)], (s, k) => castCall(s, module, name, params, args.map((x, i) => i === j ? get(k) : x))) }
     const needs = args.flatMap((x, k) => {
-        const p = params[k][1]
+        const p = params[Number(k)][1]
         const t = x[0] === 'get' ? scope.ir.locals.find(([v]) => v === x[1])?.[1] : undefined
         if (p[0] !== 'sealed' || p[3] === null || t === undefined || t[0] !== 'sealed' || x[0] !== 'get') { return [] }
         const held = t[3] ?? kinds
@@ -764,7 +764,7 @@ const lowerFn = ({ functions, imports }, capture) => ([name, f, { params, result
     if (captured[0] === 'error') { return captured }
     /** @type {readonly (readonly [BindingId, _Meaning])[]} */
     const bindings = [
-        ...f.parameters.map((b, k) => /** @type {const} */ ([b, ['local', params[k][0]]])),
+        ...f.parameters.map((b, k) => /** @type {const} */ ([b, ['local', params[Number(k)][0]]])),
         ...(f.self === null ? [] : [/** @type {const} */ ([f.self, ['function', name]])]),
         ...captured[1],
     ]
@@ -787,7 +787,7 @@ const imported = (source, imports, args, v) => {
     if (!(slot instanceof Array) || slot[0] !== '.' || slot.length !== 3 || typeof slot[2] !== 'number') { return null }
     const from = slot[1]
     if (!(from instanceof Array) || from[0] !== 'ref' || !args(from[1])) { return null }
-    const m = imports[slot[2]]
+    const m = imports[Number(slot[2])]
     const origin = m === undefined || m.json ? null : source(m.specifier)
     return m === undefined ? ['refused', `no import ${slot[2]}`]
         : origin === null ? ['refused', `an import of ${m.specifier} is not in this slice`]

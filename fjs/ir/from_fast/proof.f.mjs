@@ -9,7 +9,7 @@ import { any, l0 } from '../l0/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
-import { lower } from './module.f.mjs'
+import { lower } from './module.f.js'
 import { runtime, sourceOf } from './testlib.f.mjs'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */

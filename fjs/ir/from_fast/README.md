@@ -17,7 +17,7 @@ recommends, and as the owner chose to assume on 2026-11-13.
 import { unwrap } from '../../types/result/module.f.js'
 import { check } from '../check/module.f.js'
 import { f64, signature } from '../module.f.js'
-import { lower } from './module.f.mjs'
+import { lower } from './module.f.js'
 import { sourceOf } from './testlib.f.mjs'
 
 const { fast, imports } = unwrap(sourceOf('export const max = (a, b) => a < b ? b : a'))
