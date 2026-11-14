@@ -1,6 +1,6 @@
 /**
  * The reference map as the runtime defines it
- * ([proposal](../../../spec/todo/reference-map.md)): the body an executor
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): the body an executor
  * with no map of its own answers the EDAG's `['refMap']` with, written in
  * FunctionalScript alone, as the runtime's other bodies are. It keeps the
  * contract of [`fjs/types/ref_map`](../../types/ref_map/module.f.js) in

@@ -74,7 +74,7 @@ export const _hasEntryChunks = path => {
 
 /**
  * The empty reference map's text, the one spelling of `['refMap']`
- * ([proposal](../../../../../spec/todo/reference-map.md)), as
+ * ([reference map](../../../../../spec/built-ins/reference-map/README.md)), as
  * {@link _entryText} is of `['entry']`. The body names itself, so that a
  * read of the empty map answers the empty map, and a helper is written
  * wherever a value stands, so the text binds that name itself: a `const`

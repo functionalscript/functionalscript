@@ -1,6 +1,6 @@
 /**
  * The proof of the parser's recognition of the empty reference map
- * ([proposal](../../../spec/todo/reference-map.md)): the canonical body of
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): the canonical body of
  * `./ref_map`, whole, as the initializer of a `const` it reads as itself,
  * is the AST's `['refMap']`; anything else is an ordinary function, in
  * which `new` is refused as everywhere.
