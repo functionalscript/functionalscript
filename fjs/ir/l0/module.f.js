@@ -16,6 +16,14 @@
  *   module imports as immutable globals that the host makes
  *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).
  *   A module borrows each, and nothing drops one.
+ * - **A string literal is made by String's `make_string`** from its UTF-16
+ *   units in memory
+ *   ([L0 design §7](../../../doc/sasha-gil/wasm/l0-design.md#7-strings-utf-16-units-in-l0)),
+ *   once, by the module's start function
+ *   ([§6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)).
+ *   It is no function of String's interface, since its arguments, an
+ *   address and a length, are no values of the IR: `any` names it as the
+ *   maker of its literals, and only the emitter calls it.
  * - **The casts' targets are the arguments.** `to_f64` takes a number and
  *   `to_bool` a boolean, so passing a value of unknown kind is a type error,
  *   and a module narrows its value with a `match` first. So does `same`,
@@ -56,8 +64,8 @@ const index = u(31)
 /** A value that L0's `same` takes: an array, an object or a function. */
 const reference = only(any, 'array', 'object', 'function')
 
-/** A string. */
-const string = only(any, 'string')
+/** A string, the type of a string literal. */
+export const string = only(any, 'string')
 
 /** A boolean. */
 const boolean = only(any, 'boolean')
@@ -65,7 +73,7 @@ const boolean = only(any, 'boolean')
 /** The interface that seals `any`. @type {Interface} */
 const anyInterface = {
     abi: 'fjs:l0',
-    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64', dup: 'dup', drop: 'drop' }]],
+    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64', dup: 'dup', drop: 'drop', literal: { variant: 'string', module: 'String', member: 'make_string' } }]],
     constants: [['undefined', only(any, 'undefined')], ['null', only(any, 'null')], ['true', boolean], ['false', boolean]],
     functions: [
         ['kind', signature([['v', any]], int(0n, 8n))],

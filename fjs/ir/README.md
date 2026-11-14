@@ -14,10 +14,10 @@ code written by hand, the same code lowered from normalized FAST
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
 module does not export, with records and
 [L1's native rows](./native/module.f.js), owned values written by hand
-(6a), the lifetime pass, which writes them (6b), and constants, which a
-module's `init` evaluates (6c). Next is the rest of counted values
-(`typeOf`), as stacked PRs in that roadmap: string literals, which the
-start function builds (6d), then array literals (6e, 6f).
+(6a), the lifetime pass, which writes them (6b), constants, which a
+module's `init` evaluates (6c), and string literals, which its start
+function makes (6d). Next is the rest of counted values (`typeOf`), as
+stacked PRs in that roadmap: array literals (6e, 6f).
 
 ## Map of this directory
 
@@ -197,6 +197,39 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `bool` and of strings run against JavaScript, and so do the random
   comparison's programs of constants.
 
+## What 6d adds
+
+- **String literals** (`lit(string, 'abc')`, printed `"abc"`): a literal
+  of a sealed type whose interface names the function that makes its
+  literals, of the one variant that the function makes. Any's `any` names
+  String's `make_string`, so a string literal is `any.only(string)`
+  ([L0 design §7](../../doc/sasha-gil/wasm/l0-design.md#7-strings-utf-16-units-in-l0)).
+  `make_string` is no function of String's interface, since an address
+  and a length are no values of the IR: only the emitter calls it. A
+  literal is borrowed, as a constant is, and nothing drops it, so the
+  lifetime pass copies one that a term takes over.
+- **The start function**
+  ([L0 design §6](../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)):
+  a module with string literals makes each once, for its type and its
+  spelling, into a global of its own, from its UTF-16 units in a data
+  segment, before `init` and before any call. Making a literal cannot
+  throw, so WASM's start function, which has no way to report a throw, is
+  enough for it.
+- **The memory that the loader makes**
+  ([L0 design §5](../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+  the module imports it and `data_base`, where its data segments start,
+  and says in its `fjs.layout` section how many bytes they need. The
+  [counting host](./l0/host/count/module.mjs) makes the memory from that
+  section, with `data_base` past bytes that it keeps, and makes a cell for
+  each literal; what the start function made it then keeps, as it does
+  what `init` made.
+- **The lowering of a string**: with the runtime, a string of FAST is a
+  [literal](./from_fast/README.md#the-l0-view), and a definition of the
+  module that holds one is the literal where a function reads it.
+  Five FunctionalScript functions that read literals, among them the
+  empty string, a unit past ASCII and a pair of surrogates, run against
+  JavaScript, and so do the random comparison's programs of literals.
+
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): a
@@ -206,7 +239,14 @@ a field twice, a field that a product does not have, a sum other than
 a name for the operand of a `bool`'s arm, a call of an interface that the
 module does not import, a range wider than a word, a division of integers,
 integers mixed with floats, a term of type `never` where a value is used, a
-literal of a sealed type, an `own` parameter of a type that is not sealed,
+literal of a sealed type whose interface makes none, that is not a string,
+or whose type is not the one that the interface makes, a string literal in
+a module that does not import the interface that makes it, an interface
+whose literals hold none of their type's variants, a constant that one
+ABI imports by the name of a function, or of a constant whose global holds
+another WASM value, a constant or a function named `memory` or `data_base`
+in the ABI of an interface that makes literals, an `own` parameter of a
+type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
 whose owned stage does not consume each owned value once on every path, a
 value of a linear type that the lifetime pass would have to copy or drop,
@@ -246,6 +286,14 @@ functions, and one of the module a mutable global, zero until `init` sets
 it. `init` takes nothing and answers nothing, and only a module with
 constants has it.
 
+A string literal is a mutable global of `any` too, which the module's
+start function sets once from the literal's UTF-16 units, the low byte of
+each first, by `make_string`, imported after the interfaces' functions. A
+data segment at `data_base` holds the units of every literal, in the
+memory that the loader makes: the module imports both, from the maker's
+ABI, and only a module with string literals has them, the start function
+and the `fjs.layout` section.
+
 A loop's parameters are locals: their first values are set before a WASM
 `loop`, and a `br` to it sets them all from its fields, then branches to
 the loop's start. `trunc_sat` is the saturating truncation of the range's
@@ -262,9 +310,9 @@ WebAssembly engine and compares every exported function with a JavaScript
 twin on the same inputs, the edges of each type included. A function of
 `any` runs over [the hosts](./l0/host/module.f.js), on a value of every
 kind, and its twin reads the value with the L0 view; a trap of WASM is a
-throw of the twin. A module with constants is instantiated, its `init`
-called, and then each function, which must leave every cell as `init`
-left it.
+throw of the twin. A module with string literals makes them as it is
+instantiated, a module with constants then has its `init` called, and
+then each function, which must leave every cell as they left it.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
 FunctionalScript functions lowered from their text, and their twins are the
 functions themselves, L1's `toBoolean`, `stringEquals`, `stringLess`,

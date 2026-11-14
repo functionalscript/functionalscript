@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
-import { any, l0 } from '../l0/module.f.js'
+import { any, l0, string } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, cast, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
     match, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
@@ -319,7 +319,7 @@ export const proof = {
         assertEq(why(overL0([['v', only(any, 'null', 'null')]], f64, one_)), 'f: any.only(null, null) names null twice')
         // Returning a borrowed parameter as an owned result is refused by the owned stage.
         assertEq(why(overL0(p, any, v)), 'f: the result is borrowed, and its caller would own it')
-        assertEq(why(overL0(p, f64, lit(any, 1n))), 'f: a literal of any is a constant, which is not in this slice')
+        assertEq(why(overL0(p, f64, lit(any, 1n))), 'f: 1 is not a literal of any')
         assertEq(why(overL0(p, f64, add(v, v))), 'f: add of any and any: an operator takes integers or floats')
         // A call of an interface takes its arguments at the kinds of its parameters.
         assertEq(why(overL0(p, f64, call('Any', 'to_f64', [v]))), "f: Any.to_f64's v is any.only(number), not any")
@@ -339,6 +339,36 @@ export const proof = {
         assertEq(why(overL0([...p, ['o', sealed('Other', 'x')]], f64, match(v, [[['number'], 'x', get('x')], [null, null, get('o')]]), [['Other', other]])),
             'f: match: its arms are any.only(number), x, which no one type holds')
         assertEq(why(overL0([['o', sealed('Other', 'x')]], f64, call('Any', 'kind', [get('o')]), [['Other', other]])), "f: Any.kind's v is any, not x")
+    },
+    // A string literal is a value of the type whose interface makes it, of the one variant that it makes.
+    literals: () => {
+        assertEq(kindsOf([], lit(string, 'abc')), 'any.only(string)')
+        assertEq(bodyType(overL0([], u(31), call('String', 'length', [lit(string, '')]))), 'u(31)')
+        assertEq(why(overL0([], f64, lit(any, 'a'))), 'f: a string literal is any.only(string), not any')
+        assertEq(why(overL0([], f64, lit(only(any, 'number'), 'a'))), 'f: a string literal is any.only(string), not any.only(number)')
+        assertEq(why(overL0([], f64, lit(f64, 'a'))), 'f: "a" is not a literal of f64')
+        // A type whose interface names no maker has no literals, and the maker's module is one that the module imports.
+        const other = /** @type {Interface} */ ({ abi: 'test', types: [['x', { variants: ['a'], kind: 'k', carrier: 'i32' }]], functions: [['k', signature([['x', sealed('Other', 'x')]], int(0n, 0n))]] })
+        assertEq(why(overL0([], f64, lit(sealed('Other', 'x'), 'a'), [['Other', other]])), 'f: x has no literals')
+        assertEq(why({ imports: l0.filter(([k]) => k !== 'String'), functions: [['f', fn([], bool, let_('s', lit(string, 'a'), () => true_))]], exports: [] }),
+            'f: String makes the literals of any, and the module does not import String')
+        // The variant of an interface's literals is one of its type's variants.
+        const making = /** @type {(variant: string) => Interface} */ (variant => ({
+            abi: 'test:label',
+            types: [['label', { variants: ['text', 'other'], kind: 'k', carrier: 'i32', literal: { variant, module: 'Label', member: 'make' } }]],
+            functions: [['k', signature([['l', sealed('Label', 'label')]], int(0n, 1n))]],
+        }))
+        assertEq(why({ imports: [...l0, ['Label', making('none')]], functions: [], exports: [] }), "Label: label's literals hold none, which is none of its variants")
+        // The maker is an import of its interface's ABI, and that ABI's memory and data_base are the loader's.
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['memory', f64]], functions: [] })),
+            'the constant Bad.memory is the import memory of fjs:l0, which the loader gives a module that makes literals')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], functions: [['data_base', signature([], f64)]] })),
+            'the function Bad.data_base is the import data_base of fjs:l0, which the loader gives a module that makes literals')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['make_string', f64]], functions: [] })),
+            'the constant Bad.make_string and the function String.make_string are both the import make_string of fjs:l0')
+        assertOk(check(importing({ abi: 'test:bad', types: [], constants: [['memory', f64]], functions: [['data_base', signature([], f64)]] })))
+        // Two interfaces may make literals of one spelling, each of its own type.
+        assertOk(check({ imports: [...l0, ['Label', making('text')]], functions: [['f', fn([], bool, let_('l', lit(only(sealed('Label', 'label'), 'text'), 'a'), () => true_))]], exports: [] }))
     },
     // The plain stage reads a value of a sealed type as often as it needs: `checkPlain` types it, and `check` refuses what it leaves over.
     plain: () => {

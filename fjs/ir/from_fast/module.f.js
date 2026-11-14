@@ -107,7 +107,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
-import { any, kinds, l0, lengths } from '../l0/module.f.js'
+import { any, kinds, l0, lengths, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, trap, true_, u,
@@ -812,9 +812,9 @@ const swapped = (lowerValue, scope, f, a, b) => {
 
 /**
  * A primitive as a term: a number is a float literal, a bigint the range
- * that holds it alone, a boolean a `bool`, and `undefined` and `null` are
- * Any's constants, which a module lowered without the runtime does not
- * import.
+ * that holds it alone, a boolean a `bool`, a string a literal of `any` that
+ * String makes, and `undefined` and `null` are Any's constants. A module
+ * lowered without the runtime imports neither.
  *
  * @type {(imports: Module['imports'], v: Primitive) => Result<Term, string>}
  */
@@ -822,7 +822,10 @@ const primitive = (imports, v) => {
     if (typeof v === 'number') { return ok(lit(f64c, v)) }
     if (typeof v === 'bigint') { return ok(n(v)) }
     if (typeof v === 'boolean') { return ok(v ? true_ : false_) }
-    if (typeof v === 'string') { return error('a string is not in this slice') }
+    if (typeof v === 'string') {
+        return imports.some(([k]) => k === 'String') ? ok(lit(string, v))
+            : error('a string is a literal that String makes, which a module lowered without the runtime does not import')
+    }
     const name = v === null ? 'null' : 'undefined'
     return imports.some(([k]) => k === 'Any') ? ok(constant('Any', name))
         : error(`${name} is a constant of Any, which a module lowered without the runtime does not import`)

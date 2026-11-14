@@ -21,10 +21,16 @@ const string = only(any, 'string')
 /** @type {Sealed} */
 const res = sealed('Lin', 'res')
 
-/** A linear type, which nothing copies or drops: `open` makes a value of it, `peek` borrows one and `close` owns one, and `it` is a constant of it. @type {readonly [string, Interface]} */
+/**
+ * A linear type, which nothing copies or drops: `open` makes a value of it,
+ * `peek` borrows one and `close` owns one, `it` is a constant of it, and
+ * its interface makes its literals.
+ *
+ * @type {readonly [string, Interface]}
+ */
 const linear = ['Lin', {
     abi: 'test:lin',
-    types: [['res', { variants: ['res'], kind: 'kind', carrier: 'i64' }]],
+    types: [['res', { variants: ['res'], kind: 'kind', carrier: 'i64', literal: { variant: 'res', module: 'Lin', member: 'make' } }]],
     constants: [['it', res]],
     functions: [
         ['kind', signature([['r', res]], int(0n, 0n))],
@@ -368,6 +374,35 @@ export const proof = {
             'fn p() -> f64 =',
             '    Lin.peek(Lin.it)',
         ]),
+        // A string literal is a borrow, as a constant is: a term that takes one over takes a dup of it, and one that reads it
+        // reads it as it is. A let owns its value, so it takes a dup of one.
+        literals: () => constantsGolden(withConstants([
+            ['s', { type: string, value: lit(string, 'a') }],
+        ], [
+            ['f', fn([], string, lit(string, 'abc'))],
+            ['g', fn([], u(31), length(lit(string, '')))],
+            ['h', fn([], string, let_('t', lit(string, 'é'), t => concat(t, t)))],
+            ['k', fn([], string, let_('t', lit(string, '😀'), t => t))],
+        ]), [
+            'const s: any.only(string) =',
+            '    Any.dup("a")',
+            '',
+            'fn f() -> any.only(string) =',
+            '    Any.dup("abc")',
+            '',
+            'fn g() -> u(31) =',
+            '    String.length("")',
+            '',
+            'fn h() -> any.only(string) =',
+            '    let t = Any.dup("é")',
+            '    let $0 = String.concat(t, t)',
+            '    let $1 = Any.drop(t)',
+            '    $0',
+            '',
+            'fn k() -> any.only(string) =',
+            '    let t = Any.dup("😀")',
+            '    t',
+        ]),
         linear: () => golden(module_([], f64, let_('r', open, r => let_('x', peek(r), x => let_('d', close(r), () => x)))), [
             'fn f() -> f64 =',
             '    let r = Lin.open()',
@@ -406,6 +441,8 @@ export const proof = {
             body: () => refused(module_([], f64, loop('L', [['i', f64, one]], () => left('r'))), leftOver('r')),
             br: () => refused(module_([], f64, block('L', f64, br('L', left('r')))), leftOver('r')),
         },
+        // A literal of a linear type, which a term takes over.
+        literal: () => refused(module_([], only(res, 'res'), lit(only(res, 'res'), 'x')), 'f: a copy of "x" is needed, and res.only(res) is linear: nothing copies it'),
         // A constant of a linear type, which a term takes over, and a constant's term that leaves a value of one over.
         constant: () => refused(withConstants([], [['f', fn([], res, constant('Lin', 'it'))]]), 'f: a copy of Lin.it is needed, and res is linear: nothing copies it'),
         constantLeft: () => refused(withConstants([['k', { type: f64, value: left('r') }]]), 'k: r is left over, and res is linear: nothing drops it'),

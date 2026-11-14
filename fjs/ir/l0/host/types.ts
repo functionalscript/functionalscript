@@ -32,9 +32,14 @@ export type View = {
  * immutable global of the handle of a cell that the host keeps, the view's
  * readers, `dup` and `drop`, which count a cell, and `from_unit`, `concat`,
  * `substring` and `item`, which make a cell that the caller owns and answer
- * its handle.
+ * its handle. The memory that the host makes holds a module's data
+ * segments at `data_base`, from which `make_string` makes a cell of a
+ * string of the UTF-16 units at an address.
  */
 export type Imports = {
+    readonly memory: WebAssembly.Memory
+    readonly data_base: WebAssembly.Global
+    readonly make_string: (ptr: number, len: number) => bigint
     readonly undefined: WebAssembly.Global
     readonly null: WebAssembly.Global
     readonly true: WebAssembly.Global

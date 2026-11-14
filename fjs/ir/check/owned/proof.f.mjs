@@ -6,14 +6,12 @@
  */
 
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
-import { any, l0 } from '../../l0/module.f.js'
+import { any, l0, string } from '../../l0/module.f.js'
 import {
     add, block, bool, br, call, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, next, only, own, return_, trap, true_, u, unit,
     variant,
 } from '../../module.f.js'
 import { check } from '../module.f.js'
-
-const string = only(any, 'string')
 
 /** A module of one function `f` over L0, and any more functions before it. @type {(params: readonly Param[], result: Type, body: Term, more?: Module['functions']) => Module} */
 const overL0 = (params, result, body, more = []) => ({
@@ -129,6 +127,12 @@ export const proof = {
             ['g', fn([], u(31), length(self('a')))],
             ['h', fn([], f64, self('x'))],
         ])),
+        // A string literal is a borrow, as a constant is: a term passes it on, and a function answers a dup of it.
+        literals: () => fine(withConstants([['a', { type: string, value: dup(lit(string, 'a')) }]], [
+            ['f', fn([], string, concat(lit(string, 'a'), lit(string, '')))],
+            ['g', fn([], u(31), let_('s', lit(string, 'abc'), s => length(s)))],
+            ['h', fn([], string, dup(lit(string, 'a')))],
+        ])),
         // A call that never returns, and terms that never complete, end the paths they are on.
         never: () => fine(overL0([['x', f64]], f64, call('self', 'g', [get('x')]), [['g', fn([['x', f64]], ['sum', []], trap('g'))]])),
         stuck: {
@@ -149,6 +153,10 @@ export const proof = {
         // A constant owns its value, which a borrow is not, and its term leaves nothing over.
         constantBorrowed: () => assertEq(why(withConstants([['k', { type: only(any, 'null'), value: constant('Any', 'null') }]])), 'k: the value is borrowed, and the constant would own it'),
         constantLeft: () => assertEq(why(withConstants([['k', { type: f64, value: leak(one) }]])), 'k: s is left over'),
+        // Nothing owns a string literal: not a constant, not the caller, not a drop.
+        literalBorrowed: () => assertEq(why(withConstants([['k', { type: string, value: lit(string, 'a') }]])), 'k: the value is borrowed, and the constant would own it'),
+        literalResult: () => assertEq(why(overL0([], string, lit(string, 'a'))), 'f: the result is borrowed, and its caller would own it'),
+        literalDropped: () => assertEq(why(overL0([], unit, drop(lit(string, 'a')))), "f: Any.drop's v is own, and its argument is borrowed"),
         // A function that answers a constant answers a borrow.
         constantResult: () => assertEq(
             why(withConstants([['a', { type: string, value: fromUnit(letterA) }]], [['f', fn([], string, self('a'))]])),

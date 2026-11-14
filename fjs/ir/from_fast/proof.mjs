@@ -18,7 +18,9 @@
  * leaves every cell of the host as it found it. So do the functions of
  * [`constants.f.js`](./constants.f.js), which read the module's other
  * definitions: each call comes after `init`, which evaluates them, and
- * leaves every cell as `init` left it.
+ * leaves every cell as `init` left it. So do the functions of
+ * [`literals.f.js`](./literals.f.js), which read string literals that the
+ * module's start function makes.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -38,8 +40,10 @@ import { lower } from './module.f.js'
 import * as sample from './sample.f.js'
 import * as strings from './strings.f.js'
 import * as constants from './constants.f.js'
+import * as literals from './literals.f.js'
 import {
-    constants as constantSignatures, helpers as helperSignatures, l1, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
+    constants as constantSignatures, helpers as helperSignatures, l1, literals as literalSignatures, runtime, signatures, sourceOf,
+    strings as stringSignatures, stringsRuntime,
 } from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
@@ -62,6 +66,9 @@ const fromStrings = () => assertOk(lifetime(fromText(new URL('./strings.f.js', i
 
 /** The owned stage of the module that the lowering makes of the constants' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
 const fromConstants = () => assertOk(lifetime(fromText(new URL('./constants.f.js', import.meta.url), constantSignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of the literals' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromLiterals = () => assertOk(lifetime(fromText(new URL('./literals.f.js', import.meta.url), literalSignatures, stringsRuntime)))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -134,6 +141,15 @@ const constantTwins = {
     narrow: ([x]) => constants.narrow(float64(x)),
     dashed: ([v]) => ({ any: constants.dashed(held(v)) }),
     numberOrUndefined: ([v]) => ({ any: constants.numberOrUndefined(held(v)) }),
+}
+
+/** The functions that read string literals, on values as the host holds them. @type {StringMap<_Twin>} */
+const literalTwins = {
+    greet: ([v]) => ({ any: literals.greet(held(v)) }),
+    empty: () => ({ any: literals.empty() }),
+    units: () => literals.units(),
+    surrogate: ([i]) => literals.surrogate(float64(i)),
+    hello: ([s]) => ({ any: literals.hello(held(s)) }),
 }
 
 /** The string helpers, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
@@ -886,6 +902,51 @@ export const proof = {
     },
     // Each call comes after `init`, on cells that the host then keeps, the constants' among them, and leaves them as it found them.
     constantsRun: () => run(fromConstants(), constantTwins, {}),
+    // A string literal is a borrow: a function that answers one answers a dup of it.
+    literals: () => {
+        const m = fromLiterals()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'fn empty() -> any.only(string) =',
+            '    Any.dup("")',
+            '',
+            'fn greet(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 4.0)',
+            '    then',
+            '        let #0 = String.concat("hello", ", ")',
+            '        let $0 =',
+            '            match v',
+            '              string as v.string =>',
+            '                String.concat(#0, v.string)',
+            '              else =>',
+            "                trap('not string')",
+            '        let $1 = Any.drop(#0)',
+            '        $0',
+            '    else',
+            '        Any.dup("hello")',
+            '',
+            'fn hello(s: any) -> any.only(string) =',
+            '    match s',
+            '      string as s.string =>',
+            '        String.concat("hello", s.string)',
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'fn surrogate(i: f64) -> f64 =',
+            '    float(',
+            '        let i.index = trunc_sat(u(31), i)',
+            '        if eq(float(i.index), i) then String.unit("😀", i.index) else trap(\'inexact\')',
+            '    )',
+            '',
+            'fn units() -> f64 =',
+            '    add(float(String.length("café")), float(String.length("😀")))',
+            '',
+            'export empty, greet, hello, surrogate, units',
+            '',
+        ].join('\n'))
+    },
+    // The start function makes the literals, which the host then keeps, and each call leaves the cells as it found them.
+    literalsRun: () => run(fromLiterals(), literalTwins, {}),
     l1Run: () => run(fromL1(), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),
