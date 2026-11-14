@@ -38,7 +38,7 @@ it stays.
 
 **The stream fold is being hand-written separately.** The *EOF → finalize;
 chunk → fold and recurse* skeleton appears in six places — `detectStream`
-(`fjs/media/type/module.f.mjs`), `collectRead` and `contentKey`
+(`fjs/media/type/module.f.js`), `collectRead` and `contentKey`
 (`fjs/cas/module.f.js`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
 (`fjs/effects/node/module.f.js`) and `fileCas.write`'s inner loop
 (`fjs/cas/module.f.js`). That is `foldStep` over a stream. The *error item →

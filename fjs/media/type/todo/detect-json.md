@@ -9,7 +9,7 @@
 The MCP server classifies stored content by content-sniffing, not by any
 stored type: `cas_get` folds the read stream through the `fjs/media/type` detector
 (`detectStream`) and reports `{ length, mime_type, type }`. The detector's
-`finish` in `fjs/media/type/module.f.mjs` produces a three-way verdict:
+`finish` in `fjs/media/type/module.f.js` produces a three-way verdict:
 
 1. magic-byte hit (PNG/JPEG/GIF/WebP/PDF/ZIP) → `base64` + the detected mime;
 2. whole-blob-valid UTF-8 text → `text` + `text/plain`;
@@ -204,7 +204,7 @@ exactly the path `cas_get` uses.
       or feeding only one container path through the factor — and every other
       detector case listed above passes all of those while deeply nested blobs
       get the wrong MIME verdict.
-- [ ] Update `fjs/media/type/module.f.mjs` module doc (recognised-types table) and the
+- [ ] Update `fjs/media/type/module.f.js` module doc (recognised-types table) and the
       `cas_get` output section in `fjs/mcp/cas/module.f.mjs` to list
       `application/json`.
 - [ ] `tsc` clean; `fjs t` green with both branches of the JSON verdict
@@ -212,7 +212,7 @@ exactly the path `cas_get` uses.
 
 ### Related
 
-- `fjs/media/type/module.f.mjs` — `finish`, where the text→JSON refinement
+- `fjs/media/type/module.f.js` — `finish`, where the text→JSON refinement
   lands, and `utf8Step`, the UTF-8 factor beside which the JSON factor runs.
 - [streaming-recognizer](../../json/todo/streaming-recognizer.md) — **blocks
   this**; the payload-free, O(depth) validity recognizer `A_json` wraps.

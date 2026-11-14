@@ -51,7 +51,7 @@ import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
     isDirectory, isNotFound, listen, log, maxPort, open, plainTextResponse, readChunks, releaseHandle, stat,
 } from '../effects/node/module.f.js'
-import { detectPath } from '../media/type/module.f.mjs'
+import { detectPath } from '../media/type/module.f.js'
 import { escapes, join, parse } from '../path/module.f.js'
 import { isDigits } from '../text/ascii/module.f.js'
 import { percentDecode, percentEncodePath } from '../text/percent/module.f.js'
