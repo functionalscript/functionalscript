@@ -35,7 +35,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
- * @import { _Env, _Label } from './private.ts'
+ * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
 import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
@@ -129,23 +129,23 @@ const sub = (env, a, b) => isNever(a)
         : a[0] === 'product' && b[0] === 'product' ? sameFields(a, b) && a[1].every(([, x], j) => sub(env, x, b[1][j][1]))
         : (a[0] === 'f64c' && b[0] === 'f64') || equal(a, b))
 
-/** The narrowest type that holds both, or `null` where none does. @type {(env: _Env, a: Type, b: Type) => Type | null} */
+/** The product of the joins of two products' fields, or `null` where two fields have none. @type {(joinTypes: _Join, env: _Env, a: Product, b: Product) => Type | null} */
+const joinFields = (joinTypes, env, a, b) => {
+    const fields = a[1].flatMap(([k, x], j) => {
+        const y = joinTypes(env, x, b[1][j][1])
+        return y === null ? [] : [/** @type {const} */ ([k, y])]
+    })
+    return fields.length === a[1].length ? product(fields) : null
+}
+
+/** The narrowest type that holds both, or `null` where none does. @type {_Join} */
 const join = (env, a, b) =>
     sub(env, a, b) ? b
     : sub(env, b, a) ? a
     : a[0] === 'int' && b[0] === 'int' ? int(a[1] < b[1] ? a[1] : b[1], a[2] > b[2] ? a[2] : b[2])
     : a[0] === 'sealed' && b[0] === 'sealed' && a[1] === b[1] && a[2] === b[2] ? narrowed(env, a, [...kinds(env, a), ...kinds(env, b)])
-    : a[0] === 'product' && b[0] === 'product' && sameFields(a, b) ? joinFields(env, a, b)
+    : a[0] === 'product' && b[0] === 'product' && sameFields(a, b) ? joinFields(join, env, a, b)
     : null
-
-/** The product of the joins of two products' fields, or `null` where two fields have none. @type {(env: _Env, a: Product, b: Product) => Type | null} */
-const joinFields = (env, a, b) => {
-    const fields = a[1].flatMap(([k, x], j) => {
-        const y = join(env, x, b[1][j][1])
-        return y === null ? [] : [/** @type {const} */ ([k, y])]
-    })
-    return fields.length === a[1].length ? product(fields) : null
-}
 
 /** The narrowest type that holds every type of a list, or `null` where none does. @type {(env: _Env, types: readonly Type[]) => Type | null} */
 const joinAll = (env, [a, ...rest]) => {
@@ -278,7 +278,70 @@ const callee = (env, module, name) => {
         : ok(f[1])
 }
 
-/** @type {(env: _Env, t: Term) => Result<Typed, string>} */
+/** A term that gives a value, which a `never` does not. @type {(checkTerm: _CheckTerm, env: _Env, t: Term) => Result<Typed, string>} */
+const value = (checkTerm, env, t) => {
+    const r = checkTerm(env, t)
+    return r[0] === 'ok' && isNever(r[1][0]) ? error(`${env.name}: a ${t[0]} that gives no value stands where a value is used`) : r
+}
+
+/** @type {(checkTerm: _CheckTerm, env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
+const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, t)))
+
+/** A label bound to what it names. @type {(label: string, l: _Label) => (labels: OrderedMap<_Label>) => OrderedMap<_Label>} */
+const label_ = (label, l) => setReplace(label)(l)
+
+/**
+ * A `loop`: parameters of distinct names, none in scope, of types that a
+ * local may hold and that hold a value, each first value of its
+ * parameter's type, typed where the loop stands; then the body, which sees
+ * the parameters and the label. The loop's type is its body's, which a
+ * local may hold, as the type of every term may.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly (readonly [string, Type, Term])[], body: Term) => Result<Typed, string>}
+ */
+const loopTerm = (checkTerm, env, label, params, body) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${env.name}: ${message}`)
+    const names = params.map(([k]) => k)
+    const twice = names.find((k, j) => names.indexOf(k) !== j)
+    const bound = names.find(k => at(k)(env.locals) !== null)
+    const why = params.map(([, x]) => unheld(env, x)).find(x => x !== null)
+    const empty = params.find(([, x]) => isNever(x))
+    if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
+    if (twice !== undefined) { return no(`loop ${label} has two parameters named ${twice}`) }
+    if (bound !== undefined) { return no(`${bound} is bound twice`) }
+    if (typeof why === 'string') { return no(why) }
+    if (empty !== undefined) { return no(`${empty[0]} is never, so loop ${label} never starts`) }
+    const firsts = values(checkTerm, env, params.map(([, , first]) => first))
+    if (firsts[0] === 'error') { return firsts }
+    const wrong = firsts[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
+    if (wrong >= 0) { return no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(firsts[1][wrong][0])}`) }
+    /** @type {readonly Param[]} */
+    const parts = params.map(([k, x]) => [k, x])
+    const locals = parts.reduce((ls, [k, x]) => setReplace(k)(x)(ls), env.locals)
+    const b = checkTerm({ ...env, locals, labels: label_(label, ['loop', parts])(env.labels) }, body)
+    return b[0] === 'error' ? b : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][j]])), b[1]]])
+}
+
+/**
+ * A `br` that repeats a loop: a `make` of the loop's parameters, by their
+ * names in their order, each of its parameter's type.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly Param[], e: Term) => Result<Typed, string>}
+ */
+const repeat = (checkTerm, env, label, params, e) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${env.name}: ${message}`)
+    const names = params.map(([k]) => k)
+    if (e[0] !== 'make' || !equal(e[1].map(([k]) => k), names)) { return no(`br ${label} takes { ${names.join(', ')} }, the loop's parameters in their order`) }
+    const fields = values(checkTerm, env, e[1].map(([, x]) => x))
+    if (fields[0] === 'error') { return fields }
+    const wrong = fields[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
+    return wrong >= 0 ? no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(fields[1][wrong][0])}`)
+        : ok([never, ['br', label, [['product', params], ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][j]]))]]]])
+}
+
+/** @type {_CheckTerm} */
 const term = (env, t) => {
     /** @type {(message: string) => Result<Typed, string>} */
     const no = message => error(`${env.name}: ${message}`)
@@ -299,14 +362,14 @@ const term = (env, t) => {
         case 'let': {
             const [, name, e, body] = t
             if (at(name)(env.locals) !== null) { return no(`${name} is bound twice`) }
-            const v = value(env, e)
+            const v = value(term, env, e)
             if (v[0] === 'error') { return v }
             const b = term({ ...env, locals: setReplace(name)(v[1][0])(env.locals) }, body)
             return b[0] === 'error' ? b : ok([b[1][0], ['let', name, v[1], b[1]]])
         }
         case 'op': {
             const [, name, xs, target] = t
-            const args = values(env, xs)
+            const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
             const types = args[1].map(([x]) => x)
             const type = name === 'trunc_sat' ? truncType(env, target, types)
@@ -322,7 +385,7 @@ const term = (env, t) => {
             const full = module === 'self' ? name : `${module}.${name}`
             if (result[0] === 'sealed') { return no(`${full} gives ${show(result)}, which its caller would own: not in this slice`) }
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
-            const args = values(env, xs)
+            const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
             const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
             return wrong < 0 ? ok([result, ['call', module, name, args[1]]])
@@ -332,13 +395,13 @@ const term = (env, t) => {
             const names = t[1].map(([k]) => k)
             const twice = names.find((k, j) => names.indexOf(k) !== j)
             if (twice !== undefined) { return no(`a product names ${twice} twice`) }
-            const fields = values(env, t[1].map(([, x]) => x))
+            const fields = values(term, env, t[1].map(([, x]) => x))
             if (fields[0] === 'error') { return fields }
             return ok([product(fields[1].map(([x], j) => [names[j], x])), ['make', fields[1].map((x, j) => /** @type {const} */ ([names[j], x]))]])
         }
         case 'field': {
             const [, e, name] = t
-            const v = value(env, e)
+            const v = value(term, env, e)
             if (v[0] === 'error') { return v }
             const [of] = v[1]
             const part = of[0] === 'product' ? of[1].find(([k]) => k === name) : undefined
@@ -351,14 +414,14 @@ const term = (env, t) => {
             if (!equal(type, bool)) { return no(`a variant of ${show(type)}: the one sum of this slice is bool`) }
             const part = bool[1].find(([k]) => k === name)
             if (part === undefined) { return no(`bool has no variant ${name}`) }
-            const p = value(env, payload)
+            const p = value(term, env, payload)
             if (p[0] === 'error') { return p }
             return sub(env, p[1][0], part[1]) ? ok([bool, ['variant', bool, name, p[1]]])
                 : no(`${name} holds ${show(part[1])}, not ${show(p[1][0])}`)
         }
         case 'match': {
             const [, e, arms] = t
-            const operand = value(env, e)
+            const operand = value(term, env, e)
             if (operand[0] === 'error') { return operand }
             const [of] = operand[1]
             /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term]) => Result<Typed, string>} */
@@ -391,13 +454,13 @@ const term = (env, t) => {
             return sub(env, b[1][0], type) ? ok([type, ['block', label, type, b[1]]])
                 : no(`block ${label} is ${show(type)}, and its body is ${show(b[1][0])}`)
         }
-        case 'loop': { return loopTerm(env, t[1], t[2], t[3]) }
+        case 'loop': { return loopTerm(term, env, t[1], t[2], t[3]) }
         case 'br': {
             const [, label, e] = t
             const target = at(label)(env.labels)
             if (target === null) { return no(`no label ${label}`) }
-            if (target[0] === 'loop') { return repeat(env, label, target[1], e) }
-            const v = value(env, e)
+            if (target[0] === 'loop') { return repeat(term, env, label, target[1], e) }
+            const v = value(term, env, e)
             if (v[0] === 'error') { return v }
             return sub(env, v[1][0], target[1]) ? ok([never, ['br', label, v[1]]])
                 : no(`${label} takes ${show(target[1])}, not ${show(v[1][0])}`)
@@ -405,69 +468,6 @@ const term = (env, t) => {
         default: { return ok([never, t]) }
     }
 }
-
-/** A label bound to what it names. @type {(label: string, l: _Label) => (labels: OrderedMap<_Label>) => OrderedMap<_Label>} */
-const label_ = (label, l) => setReplace(label)(l)
-
-/**
- * A `loop`: parameters of distinct names, none in scope, of types that a
- * local may hold and that hold a value, each first value of its
- * parameter's type, typed where the loop stands; then the body, which sees
- * the parameters and the label. The loop's type is its body's, which a
- * local may hold, as the type of every term may.
- *
- * @type {(env: _Env, label: string, params: readonly (readonly [string, Type, Term])[], body: Term) => Result<Typed, string>}
- */
-const loopTerm = (env, label, params, body) => {
-    /** @type {(message: string) => Result<Typed, string>} */
-    const no = message => error(`${env.name}: ${message}`)
-    const names = params.map(([k]) => k)
-    const twice = names.find((k, j) => names.indexOf(k) !== j)
-    const bound = names.find(k => at(k)(env.locals) !== null)
-    const why = params.map(([, x]) => unheld(env, x)).find(x => x !== null)
-    const empty = params.find(([, x]) => isNever(x))
-    if (at(label)(env.labels) !== null) { return no(`the label ${label} is in scope already`) }
-    if (twice !== undefined) { return no(`loop ${label} has two parameters named ${twice}`) }
-    if (bound !== undefined) { return no(`${bound} is bound twice`) }
-    if (typeof why === 'string') { return no(why) }
-    if (empty !== undefined) { return no(`${empty[0]} is never, so loop ${label} never starts`) }
-    const firsts = values(env, params.map(([, , first]) => first))
-    if (firsts[0] === 'error') { return firsts }
-    const wrong = firsts[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
-    if (wrong >= 0) { return no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(firsts[1][wrong][0])}`) }
-    /** @type {readonly Param[]} */
-    const parts = params.map(([k, x]) => [k, x])
-    const locals = parts.reduce((ls, [k, x]) => setReplace(k)(x)(ls), env.locals)
-    const b = term({ ...env, locals, labels: label_(label, ['loop', parts])(env.labels) }, body)
-    return b[0] === 'error' ? b : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][j]])), b[1]]])
-}
-
-/**
- * A `br` that repeats a loop: a `make` of the loop's parameters, by their
- * names in their order, each of its parameter's type.
- *
- * @type {(env: _Env, label: string, params: readonly Param[], e: Term) => Result<Typed, string>}
- */
-const repeat = (env, label, params, e) => {
-    /** @type {(message: string) => Result<Typed, string>} */
-    const no = message => error(`${env.name}: ${message}`)
-    const names = params.map(([k]) => k)
-    if (e[0] !== 'make' || !equal(e[1].map(([k]) => k), names)) { return no(`br ${label} takes { ${names.join(', ')} }, the loop's parameters in their order`) }
-    const fields = values(env, e[1].map(([, x]) => x))
-    if (fields[0] === 'error') { return fields }
-    const wrong = fields[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
-    return wrong >= 0 ? no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(fields[1][wrong][0])}`)
-        : ok([never, ['br', label, [['product', params], ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][j]]))]]]])
-}
-
-/** A term that gives a value, which a `never` does not. @type {(env: _Env, t: Term) => Result<Typed, string>} */
-const value = (env, t) => {
-    const r = term(env, t)
-    return r[0] === 'ok' && isNever(r[1][0]) ? error(`${env.name}: a ${t[0]} that gives no value stands where a value is used`) : r
-}
-
-/** @type {(env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
-const values = (env, ts) => okList(ts.map(t => value(env, t)))
 
 // functions and modules
 

@@ -68,13 +68,13 @@ const publish = (root, squashFirst, { env }) => {
         return step(commit, commit => git(['update-ref', 'refs/heads/build-cache', commit]))
     }
 
-    /** Push normally, fetching and squashing after rejection, up to the push limit. @type {(directory: string, remaining: number) => Effect<Subprocess | ExecFile, 0, IoChannel>} */
-    const retryPush = (directory, remaining) => {
+    /** Push normally, fetching and squashing after rejection, up to the push limit. @type {(directory: string, remaining: number, afterRejection: (directory: string, remaining: number) => Effect<Subprocess | ExecFile, 0, IoChannel>) => Effect<Subprocess | ExecFile, 0, IoChannel>} */
+    const retryPush = (directory, remaining, afterRejection) => {
         // Network operations use the source checkout's checkout-scoped credentials.
         const pushed = attemptStep(git(['push', 'origin', 'build-cache']))
         return step(pushed, result => result[0] === 'ok'
             ? pureOk(0)
-            : remaining === 1 ? pureError(result[1]) : reconcile(directory, remaining - 1))
+            : remaining === 1 ? pureError(result[1]) : afterRejection(directory, remaining - 1))
     }
 
     /** Combine concurrent immutable paths without recording a merge parent. @type {(directory: string, remaining: number) => Effect<Subprocess | ExecFile, 0, IoChannel>} */
@@ -83,15 +83,15 @@ const publish = (root, squashFirst, { env }) => {
         const merged = step(fetched, () => git(['-C', directory, 'merge', '--squash', '--allow-unrelated-histories', 'refs/remotes/origin/build-cache']))
         const same = step(merged, () => gitTest(['-C', directory, 'diff', '--cached', '--quiet', 'refs/remotes/origin/build-cache', '--']))
         const committed = step(same, same => same ? pureOk(false) : mapStep(squash(directory), () => true))
-        return step(committed, changed => changed ? retryPush(directory, remaining) : pureOk(0))
+        return step(committed, changed => changed ? retryPush(directory, remaining, reconcile) : pureOk(0))
     }
 
     /** Owns the temporary worktree's lifetime, including failed squash merges. @type {(directory: string) => Effect<Subprocess | ExecFile, 0, IoChannel>} */
     const publishInWorktree = directory => {
         const created = git(['worktree', 'add', directory, 'build-cache'])
         const committed = squashFirst
-            ? step(squash(directory), () => retryPush(directory, pushAttempts))
-            : retryPush(directory, pushAttempts)
+            ? step(squash(directory), () => retryPush(directory, pushAttempts, reconcile))
+            : retryPush(directory, pushAttempts, reconcile)
         return step(created, () => finallyStep(
             committed,
             () => git(['worktree', 'remove', '--force', directory])))

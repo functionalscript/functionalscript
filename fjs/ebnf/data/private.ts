@@ -5,6 +5,7 @@
  */
 
 import type { StringSet } from '../../types/string_set/types.ts'
+import type { Rule as FRule } from '../types.ts'
 import type { RuleNameMap, RuleSet } from './types.ts'
 
 /**
@@ -20,3 +21,6 @@ export type _State = {
 
 /** One lowering step: the extended memo and what the step produced. */
 export type _Lowered<T> = readonly [_State, T]
+
+/** The recursive lowering step passed to its module-scope helpers. */
+export type _Lower = (state: _State, hint: string, fr: FRule) => _Lowered<string>

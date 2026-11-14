@@ -125,7 +125,7 @@ what a grammar can and cannot do for the formats.
   as Git reads it: comments and blank lines skipped, a C-quoted line
   unquoted, a path ended at its first `NUL`, and a relative entry joined below
   the `objects/` directory holding the file.
-- [`format/`](format/module.f.mjs) — the repository format a `config`
+- [`format/`](format/module.f.js) — the repository format a `config`
   declares and the id width that follows, read through
   [`config/`](config/module.f.js)'s readers: `extensions.objectFormat`
   absent is SHA-1, `sha256` under `repositoryformatversion = 1` is SHA-256,
@@ -174,7 +174,7 @@ what a grammar can and cannot do for the formats.
   plus 6 for a commit — since that is what the headers each needs cost at
   their shortest, and nothing shorter could have held them.
 
-- [`repo/`](repo/module.f.mjs) — from a worktree to the repository
+- [`repo/`](repo/module.f.js) — from a worktree to the repository
   directory that holds its objects: `.git` is the repository, or a file
   whose `gitdir:` line names one, and that directory is the repository
   unless its `commondir` names another. One rule for a `git init` worktree,

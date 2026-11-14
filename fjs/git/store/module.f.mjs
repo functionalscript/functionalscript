@@ -17,7 +17,7 @@
  * decodes it — see {@link objectsDirs}, which walks them, and
  * {@link readIn}, which reads over the list. The caller gives the common
  * directory, `.git` for a main worktree; finding it from a worktree of any
- * kind is [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir`.
+ * kind is [`fjs/git/repo`](../repo/module.f.js)'s `tryCommonDir`.
  * Walking from a commit to the blob a path names is
  * [`fjs/git/walk`](../walk/module.f.mjs), over this reader or any other.
  *

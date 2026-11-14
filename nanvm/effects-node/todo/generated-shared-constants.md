@@ -22,7 +22,7 @@ In [`src/files.rs`](../src/files.rs): `MAX_FILE_SIZE_BYTES` (`maxLengthBytes`),
 catches a drift after the fact, and only where it has a case.
 
 The repository already generates the command set for this crate:
-[`fjs/nanvm/commands`](../../../fjs/nanvm/commands/module.f.mjs) writes
+[`fjs/nanvm/commands`](../../../fjs/nanvm/commands/module.f.js) writes
 [`src/gen.commands.rs`](../src/gen.commands.rs) from `nodeCommands` so the
 set is "printed from there rather than written twice". The constants beside
 the commands are the same kind of fact and are not printed.

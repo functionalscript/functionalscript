@@ -36,6 +36,11 @@ Neither `runAll` nor `partialRun`, where `commands` includes `all`, takes a
 handler for `all`: they run its effects in turn through the runner itself,
 threading the state, so a mock never writes that fold.
 
+`partialRun` also accepts transitions written as `(state, run) => …`: the second
+argument is the same runner `partialRun` returned, for performing nested effects.
+State-only handlers still work. The operation map, matcher, and runner are built
+once and reused by later calls, including nested `all` and handler calls.
+
 A proof asserts on both halves of the answer: the final state says what the
 program did, and the `Result` what it answered. The demo on
 [`fjs/effects`](../README.md)'s page is a mock run whose state is the trace of

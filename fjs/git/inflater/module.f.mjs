@@ -139,6 +139,14 @@ export const inflater = /** @type {const} */ ({
 export const inflateAll = run(inflater)
 
 /**
+ * The bytes of output chunks, as the list of numbers the rest of Git's readers
+ * take: lazy, so nothing is copied, and as long as the output is.
+ *
+ * @type {(output: List<Vec>) => Bytes}
+ */
+export const bytesOf = output => flat(map(u8ListMsb)(output))
+
+/**
  * The stream held whole as chunks, inflated as long as its output is within
  * what `limitOf` allows. `limitOf` is asked once, when the output first holds
  * `head` bytes, with those bytes (all of the output, if the stream ends sooner
@@ -168,14 +176,6 @@ export const inflateWithin = (head, limitOf) => chunks => {
     }
     return finish(progress)
 }
-
-/**
- * The bytes of output chunks, as the list of numbers the rest of Git's readers
- * take: lazy, so nothing is copied, and as long as the output is.
- *
- * @type {(output: List<Vec>) => Bytes}
- */
-export const bytesOf = output => flat(map(u8ListMsb)(output))
 
 /**
  * How many bytes the output chunks hold.

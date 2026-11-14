@@ -31,7 +31,7 @@ export const path = 'nanvm/effects-node/src/gen.commands.rs'
  */
 export const generate = () => [
     generatedHeader(
-        '`npm run gen` from `fjs/nanvm/commands/module.f.mjs`',
+        '`npm run gen` from `fjs/nanvm/commands/module.f.js`',
         '`nodeCommands` in `fjs/effects/node/module.f.js` is the source'),
     '',
     unwrap(constSlice(

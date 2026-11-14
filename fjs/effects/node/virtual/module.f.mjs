@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
+ * @import { PartialMemOperationMap, PartialMemOperationMapWithRunner, RunInstance } from '../../mock/types.ts'
  * @import { MemoryState } from '../../memory/types.ts'
  * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, Overrun, RequestBody, RequestListener, SandboxResult, Server, Underrun, _Gate } from '../types.ts'
  * @import { Effect, IoChannel, Operation } from '../../types.ts'
@@ -141,6 +141,52 @@ const okVoid = ok(undefined)
  * @type {(message: string) => Error<IoError>}
  */
 const fail = message => error(ioError({ message }))
+
+/** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
+const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
+
+/** What a POSIX host answers for a path that descends through a name which is
+ * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
+const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
+
+/** A name that is already taken, mirroring `EEXIST`: an exclusive create of an
+ * existing name, or a `mkdir` of one — see {@link mkdirOp}. */
+const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
+
+/**
+ * An empty path names nothing, and `parse` cannot say so: it collapses `''` to
+ * the same empty segment list `.` gives, and `.` is the root. A host answers
+ * `ENOENT` for `''` wherever it answers something else for `.`, so this asks
+ * the question `parse` throws away — before the answer can depend on it.
+ * {@link statOp}, {@link exclusive} and {@link mkdir} are its users.
+ *
+ * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
+ */
+const emptyPathIsAbsent = op => path => path === '' ? state => [state, enoent] : op(path)
+
+/**
+ * What the entry `p` names is, for {@link openOp} — the entity itself, since a
+ * handle records what it opened rather than what kind of thing that was. It is
+ * also what {@link mirrorsToHandles} re-reads after a write, so the two ends of a
+ * handle's life read the name the same way.
+ *
+ * It answers where {@link statPath} answers and refuses where that refuses, and
+ * for the same reasons: a directory arrives as an empty remaining path because
+ * `operation` has already descended into it, a name that is absent is `ENOENT`,
+ * and more than one segment left over means the name before them exists with
+ * nothing under it, which POSIX calls `ENOTDIR`. Both were measured through
+ * `open` itself on Darwin with Node 26.8.1 — an absent name is `ENOENT`, a path
+ * through a regular file is `ENOTDIR`, and a directory opens successfully.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => IoResult<_Entity>}
+ */
+const openEntity = (dir, path) => {
+    if (path.length === 0) { return ok(dir) }
+    const entry = entryOf(dir, path[0])
+    if (entry === undefined) { return enoent }
+    if (path.length !== 1) { return enotdir }
+    return ok(entry)
+}
 
 // ── A handle follows its file ─────────────────────────────────────────────────
 //
@@ -288,24 +334,6 @@ const mkdirOp = recursive => (dir, path) => {
  * @type {(recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
  */
 const mkdir = recursive => emptyPathIsAbsent(operation(mkdirOp(recursive)))
-
-/** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
-const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
-
-/**
- * An empty path names nothing, and `parse` cannot say so: it collapses `''` to
- * the same empty segment list `.` gives, and `.` is the root. A host answers
- * `ENOENT` for `''` wherever it answers something else for `.`, so this asks
- * the question `parse` throws away — before the answer can depend on it.
- * {@link statOp}, {@link exclusive} and {@link mkdir} are its users.
- *
- * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
- */
-const emptyPathIsAbsent = op => path => path === '' ? state => [state, enoent] : op(path)
-
-/** What a POSIX host answers for a path that descends through a name which is
- * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
-const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
 /** What a host answers for `rmdir` of a directory that holds anything. */
 const enotempty = error(ioError({ code: 'ENOTEMPTY', message: 'directory not empty' }))
@@ -798,10 +826,6 @@ const directory = ok({ size: 0, isFile: false, isDirectory: true })
 const fileSizeBytes = chunks =>
     chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
 
-/** A name that is already taken, mirroring `EEXIST`: an exclusive create of an
- * existing name, or a `mkdir` of one — see {@link mkdirOp}. */
-const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
-
 /**
  * `O_CREAT|O_EXCL` on a name, creating it with `chunks` where it is free. Both
  * exclusive operations are this: `createExclusive` with no chunks, and
@@ -929,30 +953,6 @@ const statOp = emptyPathIsAbsent(statPath)
 // per chunk could join two files into one correctly-sized body. What keeps the
 // contents current instead is the writing end, decorated above
 // ("A handle follows its file").
-
-/**
- * What the entry `p` names is, for {@link openOp} — the entity itself, since a
- * handle records what it opened rather than what kind of thing that was. It is
- * also what {@link mirrorsToHandles} re-reads after a write, so the two ends of a
- * handle's life read the name the same way.
- *
- * It answers where {@link statPath} answers and refuses where that refuses, and
- * for the same reasons: a directory arrives as an empty remaining path because
- * `operation` has already descended into it, a name that is absent is `ENOENT`,
- * and more than one segment left over means the name before them exists with
- * nothing under it, which POSIX calls `ENOTDIR`. Both were measured through
- * `open` itself on Darwin with Node 26.8.1 — an absent name is `ENOENT`, a path
- * through a regular file is `ENOTDIR`, and a directory opens successfully.
- *
- * @type {(dir: Dir, path: readonly string[]) => IoResult<_Entity>}
- */
-const openEntity = (dir, path) => {
-    if (path.length === 0) { return ok(dir) }
-    const entry = entryOf(dir, path[0])
-    if (entry === undefined) { return enoent }
-    if (path.length !== 1) { return enotdir }
-    return ok(entry)
-}
 
 /**
  * Opens `path`, recording what it held and the name it held it under.
@@ -1240,15 +1240,15 @@ const createServer = listener => state => {
  * body and answered it. A runner that cannot model a body the host delivers cannot
  * be proven against for it.
  *
- * @type {(bound: Nullable<number>) => (state: State, e: EffectList<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
+ * @type {(run: RunInstance<NodeOp, State>, bound: Nullable<number>) => (state: State, e: EffectList<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
  */
-const pump = bound => (state, e, written, body) => {
+const pump = (run, bound) => (state, e, written, body) => {
     let s = state
     let cursor = e
     let count = written
     let chunks = body
     while (true) {
-        const [next, cell] = virtual(s)(cursor)
+        const [next, cell] = run(s)(cursor)
         s = next
         const step = pumpCell(bound, count, cell)
         if (step[0] === 'stop') { return [s, chunks, step[1]] }
@@ -1283,9 +1283,9 @@ const pump = bound => (state, e, written, body) => {
  * line that goes out. A listener's own `204` rewritten to `500` carries its
  * refusal on a `GET`, which is the host's answer too.
  *
- * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: EffectList<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ * @type {(run: RunInstance<NodeOp, State>, gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: EffectList<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
  */
-const recordResponse = (gate, method) => (state, status, headers, body) => {
+const recordResponse = (run, gate, method) => (state, status, headers, body) => {
     if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
     if (gate[0] !== 'pump') {
         const refused = runnerResponse(refusedStatus, refusalMessage(gate))
@@ -1295,7 +1295,7 @@ const recordResponse = (gate, method) => (state, status, headers, body) => {
             failure: null,
         }]
     }
-    const [next, chunks, failure] = pump(gate[1])(state, body, 0, [])
+    const [next, chunks, failure] = pump(run, gate[1])(state, body, 0, [])
     return [next, { status, headers, body: chunks, failure }]
 }
 
@@ -1308,16 +1308,17 @@ const recordResponse = (gate, method) => (state, status, headers, body) => {
  * that {@link State.handles} is empty once the request is over, which is the leak
  * itself rather than a report of it.
  *
- * @type {(listener: _VirtualListener) => (state: State, request: IncomingMessage) => State}
+ * @type {(run: RunInstance<NodeOp, State>, listener: _VirtualListener) => (state: State, request: IncomingMessage) => State}
  */
-const answerRequest = listener => (state, request) => {
-    const [afterListener, answered] = virtual(state)(listener(request))
+const answerRequest = (run, listener) => (state, request) => {
+    const [afterListener, answered] = run(state)(listener(request))
     const { status, headers, body, release } = unwrap(answered)
     const [afterBody, recorded] = recordResponse(
+        run,
         responseGate(request.method, request.chunkedResponse, status, headers),
         request.method,
     )(afterListener, status, headers, body)
-    const [afterRelease] = virtual(afterBody)(release)
+    const [afterRelease] = run(afterBody)(release)
     return { ...afterRelease, responses: [...afterRelease.responses, recorded] }
 }
 
@@ -1353,9 +1354,9 @@ const answerRequest = listener => (state, request) => {
  * The listener comes out of the handle rather than out of the state, so which
  * server was asked to listen is the one that answers — see {@link createServer}.
  *
- * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
+ * @type {(server: Server, port: number, host: string) => (state: State, run: RunInstance<NodeOp, State>) => readonly[State, IoResult<void>]}
  */
-const listen = (server, port, host) => state => {
+const listen = (server, port, host) => (state, run) => {
     // Asked **first**, as the Node runner asks it: an empty host is refused
     // before anything else is looked at, including whether this server is
     // already listening. Node forms no opinion about `''` at all — it binds —
@@ -1405,7 +1406,7 @@ const listen = (server, port, host) => state => {
     }
     /** @type {State} */
     let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
-    const answer = answerRequest(listener)
+    const answer = answerRequest(run, listener)
     for (const queued of state.requests) {
         // The body's cursor is registered before the listener runs, because the
         // listener is what reads it — the same order the Node runner puts the
@@ -1429,13 +1430,11 @@ const onMemory = f => state => {
 }
 
 /**
- * Virtual operations, available for composing a runtime with additional
- * capabilities. `all` is not among them: `partialRun` answers it over the
- * runner a map is composed into, so its effects reach every handler there.
+ * Virtual operations that do not re-enter the runner.
  *
  * @satisfies {PartialMemOperationMap<NodeOp, State>}
  */
-export const virtualOperationMap = {
+const baseOperationMap = /** @type {const} */ ({
     memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
     memRead: key => onMemory(memoryOperationMap.memRead(key)),
     memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
@@ -1467,7 +1466,6 @@ export const virtualOperationMap = {
     pread: preadOp,
     close: closeOp,
     createServer,
-    listen,
     readRequestBytes,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
@@ -1495,7 +1493,15 @@ export const virtualOperationMap = {
             ? [state, ok(null)]
             : [{ ...state, stdin: rest }, ok(first)]
     },
-}
+})
+
+/**
+ * The interpreter supplies its runner to `listen` when it steps the transition,
+ * so the map and interpreter can be constructed once without a recursive binding.
+ *
+ * @satisfies {PartialMemOperationMapWithRunner<NodeOp, State>}
+ */
+const operationMap = /** @type {const} */ ({ ...baseOperationMap, listen })
 
 /**
  * The virtual runner.
@@ -1522,7 +1528,22 @@ export const virtualOperationMap = {
  *
  * @type {RunInstance<NodeOp, State>}
  */
-export const virtual = partialRun(nodeCommands)(virtualOperationMap)
+export const virtual = partialRun(nodeCommands)(operationMap)
+
+/**
+ * Virtual operations, available for composing a runtime with additional
+ * capabilities. `all` is not among them: `partialRun` answers it over the
+ * runner a map is composed into, so its effects reach every handler there.
+ *
+ * @satisfies {PartialMemOperationMap<NodeOp, State>}
+ */
+export const virtualOperationMap = /** @type {const} */ ({
+    ...baseOperationMap,
+    listen: (server, port, host) => {
+        const transition = listen(server, port, host)
+        return state => transition(state, virtual)
+    },
+})
 
 /**
  * The virtual runner over {@link emptyState} with `root` as its filesystem: the

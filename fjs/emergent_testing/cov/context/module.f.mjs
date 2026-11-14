@@ -14,7 +14,7 @@ import { parse } from '../../../media/json/module.f.mjs'
 import { join } from '../../../path/module.f.js'
 import { open } from '../cache/module.f.mjs'
 import { buildGraph, graphManifest, validateGraph } from '../manifest/module.f.mjs'
-import { openSync } from '../sync/module.f.mjs'
+import { openSync } from '../sync/module.f.js'
 
 /** @type {(options: NodeProgramOptions, synchronize: boolean, commands: readonly Command[]) => Effect<NodeOp, CoverageCache, IoChannel>} */
 export const openCoverageCache = (options, synchronize, commands) => {

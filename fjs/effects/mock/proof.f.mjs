@@ -1,6 +1,6 @@
 /**
  * @import { Commands, Effect, Func, NotImplemented } from '../types.ts'
- * @import { MemOperationMap, RunInstance } from './types.ts'
+ * @import { MemOperationMap, PartialMemOperationMapWithRunner, RunInstance } from './types.ts'
  * @import { _Add, _Sub } from './private.ts'
  * @import { All } from '../common/types.ts'
  */
@@ -73,6 +73,31 @@ export const proof = {
         },
     },
     partialRun: {
+        /** Nested transitions and later calls receive the same constructed runner. */
+        stableNestedRunner: () => {
+            /** @type {Commands<_Add | All>} */
+            const commands = ['add', 'all']
+            /** @type {PartialMemOperationMapWithRunner<_Add | All, readonly [number, unknown]>} */
+            const handlers = {
+                add: n => ([value, previous], run) => {
+                    if (previous !== null) { assertEq(run, previous) }
+                    return n === 0
+                        ? [[value, run], ok(value)]
+                        : run([value + 1, run])(add(n - 1))
+                },
+            }
+            /** @type {RunInstance<_Add | All, readonly [number, unknown]>} */
+            const runner = partialRun(commands)(handlers)
+            const [state, result] = runner([0, null])(all(add(2), add(1)))
+            assertEq(state[0], 3)
+            assertEq(state[1], runner)
+            const [a, b] = assertOk(result)
+            assertEq(assertOk(a), 2)
+            assertEq(assertOk(b), 3)
+            const [later, answer] = runner(state)(add(0))
+            assertEq(later[1], runner)
+            assertEq(assertOk(answer), 3)
+        },
         /** `all` among the commands is answered over the runner itself. */
         all: () => {
             const [s, r] = partialRun(/** @type {Commands<_Add | All>} */ (['add', 'all']))(adder)(10)(both)

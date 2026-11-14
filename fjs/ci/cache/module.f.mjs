@@ -24,9 +24,9 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, resultStep, step } from '../../effects/module.f.js'
 import { access, execFile, exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
-import { oidBytes } from '../../git/format/module.f.mjs'
+import { oidBytes } from '../../git/format/module.f.js'
 import { hexText, tryFromHexOf } from '../../git/oid/module.f.mjs'
-import { tryCommonDir } from '../../git/repo/module.f.mjs'
+import { tryCommonDir } from '../../git/repo/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { join } from '../../path/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.js'
@@ -35,7 +35,7 @@ import { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, types
 import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
 import { jobs } from '../self/module.f.mjs'
 import { select } from './inputs/module.f.js'
-import { main as publish } from './publish/module.f.mjs'
+import { main as publish } from './publish/module.f.js'
 
 const digest = computeSync(sha256)
 

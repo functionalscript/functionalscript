@@ -1355,7 +1355,7 @@ const resolvePending = (dirs, oidBytes, packed, found) => {
  * `rev-list`, measured — and it answers the same for a `HEAD` holding bytes
  * that are no ref. But this module is *given* a directory rather than finding
  * one, and whether a repository is there is what
- * [`fjs/git/repo`](../repo/module.f.mjs) and `fjs/git/store`'s `config` read
+ * [`fjs/git/repo`](../repo/module.f.js) and `fjs/git/store`'s `config` read
  * say. A `HEAD` that is there and is no ref *is* this function's business, and
  * refuses the listing the way a broken loose ref does.
  *
