@@ -119,6 +119,11 @@ pub mod object_rest_null_throws;
 pub mod object_rest_scopes;
 pub mod object_rest_undefined_throws;
 pub mod object_spread;
+pub mod object_values;
+pub mod object_values_extra_argument_throws;
+pub mod object_values_missing_throws;
+pub mod object_values_null_throws;
+pub mod object_values_undefined_throws;
 pub mod operators;
 pub mod optional;
 pub mod owning_self_tail_calls;
@@ -264,6 +269,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "object_rest_scopes", fixture: crate::fixtures::object_rest_scopes::module::<Naive>, expected: object_rest_scopes::module::<Naive>, json: object_rest_scopes::JSON, throws: object_rest_scopes::THROWS },
     crate::Case { name: "object_rest_undefined_throws", fixture: crate::fixtures::object_rest_undefined_throws::module::<Naive>, expected: object_rest_undefined_throws::module::<Naive>, json: object_rest_undefined_throws::JSON, throws: object_rest_undefined_throws::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
+    crate::Case { name: "object_values", fixture: crate::fixtures::object_values::module::<Naive>, expected: object_values::module::<Naive>, json: object_values::JSON, throws: object_values::THROWS },
+    crate::Case { name: "object_values_extra_argument_throws", fixture: crate::fixtures::object_values_extra_argument_throws::module::<Naive>, expected: object_values_extra_argument_throws::module::<Naive>, json: object_values_extra_argument_throws::JSON, throws: object_values_extra_argument_throws::THROWS },
+    crate::Case { name: "object_values_missing_throws", fixture: crate::fixtures::object_values_missing_throws::module::<Naive>, expected: object_values_missing_throws::module::<Naive>, json: object_values_missing_throws::JSON, throws: object_values_missing_throws::THROWS },
+    crate::Case { name: "object_values_null_throws", fixture: crate::fixtures::object_values_null_throws::module::<Naive>, expected: object_values_null_throws::module::<Naive>, json: object_values_null_throws::JSON, throws: object_values_null_throws::THROWS },
+    crate::Case { name: "object_values_undefined_throws", fixture: crate::fixtures::object_values_undefined_throws::module::<Naive>, expected: object_values_undefined_throws::module::<Naive>, json: object_values_undefined_throws::JSON, throws: object_values_undefined_throws::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
     crate::Case { name: "optional", fixture: crate::fixtures::optional::module::<Naive>, expected: optional::module::<Naive>, json: optional::JSON, throws: optional::THROWS },
     crate::Case { name: "owning_self_tail_calls", fixture: crate::fixtures::owning_self_tail_calls::module::<Naive>, expected: owning_self_tail_calls::module::<Naive>, json: owning_self_tail_calls::JSON, throws: owning_self_tail_calls::THROWS },

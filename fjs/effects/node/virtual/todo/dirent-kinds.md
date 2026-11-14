@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`../module.f.mjs`](../module.f.mjs)'s `readdir` derives its flags from one
+[`../module.f.js`](../module.f.js)'s `readdir` derives its flags from one
 question — `isFile = !isDir(content)`, `isDirectory = !isFile` — so this file
 system can only answer "file" or "directory". A host answers a third thing: a
 symbolic link, a FIFO, a device and a socket are all **neither**, which is the

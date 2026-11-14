@@ -779,7 +779,7 @@ releases its handle. The obligation is on the listener that opened something,
 which is the only party that knows what that was.
 
 **The virtual runner records what went out.** `listen` in
-[`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
+[`../virtual/module.f.js`](../virtual/module.f.js) can pump the body with the
 same `virtual(s)(...)` recursion it already uses to run the listener, and
 `State.responses` holds the materialized result:
 

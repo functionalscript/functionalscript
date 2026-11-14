@@ -3,7 +3,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { readUtf8File } from '../../effects/node/module.f.js'
 import { step } from '../../effects/module.f.js'
-import { emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { parseFromTokens } from '../../compiler/parser/module.f.mjs'
 import { tokenize } from '../../compiler/tokenizer/module.f.mjs'

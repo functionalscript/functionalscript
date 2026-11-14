@@ -56,7 +56,7 @@ import { map as arrayMap } from '../members/array/map/module.f.js'
 import { concat as arrayConcat } from '../members/array/concat/module.f.js'
 import { concat as stringConcat } from '../members/string/concat/module.f.js'
 
-/** The native enumerator, shared by its own static entry and the keys body. */
+/** The native enumerator, shared by its own static entry and the keys and values bodies. */
 const ownEntries = Object.entries
 
 /** An entry's key. @type {(pair: readonly [string, unknown]) => string} */
@@ -71,6 +71,18 @@ const keyOf = ([key]) => key
  * @param {{}} value
  */
 const keys = value => arrayMap(ownEntries(value), keyOf)
+
+/** An entry's value. @type {(pair: readonly [string, unknown]) => unknown} */
+const valueOfEntry = ([, value]) => value
+
+/**
+ * `Object.values`: enumerate once, then project the values through the shared
+ * array map body. Native entries supplies enumeration order and nullish
+ * failures; projection preserves undefined entries and reference identity.
+ *
+ * @param {{}} value
+ */
+const values = value => arrayMap(ownEntries(value), valueOfEntry)
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -353,6 +365,7 @@ export const statics = {
     'Object.is': is,
     'Object.entries': ownEntries,
     'Object.keys': keys,
+    'Object.values': values,
     'String.fromCharCode': String.fromCharCode,
     'Object.fromEntries': fromEntries,
     'Number.isInteger': isInteger,

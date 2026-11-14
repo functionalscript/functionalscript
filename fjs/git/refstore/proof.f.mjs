@@ -12,7 +12,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.js'
 import { run as mockRun } from '../../effects/mock/module.f.js'
-import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.js'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.js'
 import { maxLengthBytes, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'

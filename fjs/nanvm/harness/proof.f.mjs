@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { exitCode, readUtf8File } from '../../effects/node/module.f.js'
 import { step } from '../../effects/module.f.js'
-import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { fixturesDirectory as corpusDirectory } from '../corpus/module.f.js'
 import { directory, expectedDirectory, expectedModules, expectedModulesPath, fixtures, fixturesDirectory, generateAll, generateExpected, generateFixtures, main, modules, modulesPath, rustName } from './module.f.mjs'

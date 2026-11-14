@@ -741,6 +741,7 @@ pub const STATICS: &[&[&str]] = &[
     &["Object", "is"],
     &["Object", "entries"],
     &["Object", "keys"],
+    &["Object", "values"],
     &["String", "fromCharCode"],
     &["Object", "fromEntries"],
     &["Number", "isInteger"],

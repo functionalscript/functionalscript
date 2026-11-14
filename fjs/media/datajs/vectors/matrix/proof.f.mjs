@@ -14,7 +14,7 @@ import {
     defaultNodeProgramOptions,
     emptyState,
     virtual,
-} from '../../../../effects/node/virtual/module.f.mjs'
+} from '../../../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../../../text/module.f.js'
 import { u8ListToVecMsb } from '../../../../types/bit_vec/module.f.js'
 import { unwrap } from '../../../../types/result/module.f.js'

@@ -23,7 +23,7 @@ import { read } from '../edag/value/property/module.f.js'
 import { toData, compileCommands } from '../edag/value/to_unknown/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
-import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
+import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
 import { utf8 } from '../text/module.f.js'
 import { fromVec, utf8ToString } from '../text/utf8/module.f.js'
@@ -1549,6 +1549,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',
                 'Object.keys': 'ooooo',
+                'Object.values': 'xoooo',
                 'Optional chaining': 'xoooo',
                 'Optional chaining: a long chain': 'xxooo',
                 'The entry helper': 'xoooo',

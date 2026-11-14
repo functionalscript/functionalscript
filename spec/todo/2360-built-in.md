@@ -68,7 +68,7 @@ name not yet decided, or, where it says so, never admitted.
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
       its own. `Object.entries` is admitted too, native in every executor,
-      and `Object.fromEntries` and `Object.keys`, their bodies in the runtime
+      and `Object.fromEntries`, `Object.keys`, and `Object.values`, their bodies in the runtime
       (the records below)
 - [ ] `Function`
 - [x] `Boolean` — the conversion operator `Boolean(value)`, implemented by
@@ -289,35 +289,9 @@ implementation of `Object.keys` based on `.map`, in a new pull request, in
 The runtime host proofs and the Object.keys harness fixtures hold the shared
 body, represented interpreters and generated NaNVM code to JavaScript.
 
-#### Number and Math
-
-- [x] `Number` — the call `Number(exp)`, the conversion
-      ([number conversion](../conversions/number/README.md)), and the four
-      predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
-      and `Number.isFinite`, static functions
-      ([built-in static functions](../built-ins/static-functions/README.md),
-      the record below), plus the numeric constant `Number.MAX_SAFE_INTEGER`,
-      desugared to its value ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
-      the namespace's other members stay unticked, each
-      an admission of its own. A module reading one of the four, through
-      `const { isFinite } = Number` as well, needs no rewrite to compile;
-      a module reading another member is rewritten when that member is
-      admitted or equivalent code can use existing syntax
-- [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
-      importable function
-      [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
-      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
-- [x] `Math` — a reserved namespace admitting the static functions
-      `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-      `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`; other members remain
-      separate admissions
-      ([built-in static functions](../built-ins/static-functions/README.md),
-      the approval below)
-- [ ] `Date`
-
 ##### `Object.values` proposal and approval
 
-**Status:** approved; implementation pending.
+**Status:** approved and implemented.
 
 **Problem.** `Object.values` is refused even though the common runtime can
 derive it from admitted operations. It currently blocks compilation of the
@@ -343,8 +317,9 @@ conversion blocker, and reuse the same semantic body across JavaScript,
 represented execution, and NaNVM.
 
 **Drawbacks.** The initial implementation allocates an intermediate entries
-array as well as the result, just as `Object.keys` does. Admission adds one
-static id and requires the parser, runtime, serialization, corpus, and
+array as well as the result, just as `Object.keys` does. The shared mapper
+copies its immutable accumulator, so the reference body costs O(n²). Admission
+adds one static id and requires the parser, runtime, serialization, corpus, and
 specification inventories to stay consistent. Native substitution can be
 considered separately if measurements justify it.
 
@@ -356,10 +331,36 @@ This records the designer's direct request for the feature under DESIGN §12.
 **Tasks.**
 
 - [x] Record the proposal, benefits, drawbacks, and designer's request.
-- [ ] Add the common-runtime body and static admission.
-- [ ] Cover JavaScript parity, represented execution, and native/WASI results.
-- [ ] Regenerate affected outputs, update the specification and examples, and
+- [x] Add the common-runtime body and static admission.
+- [x] Cover JavaScript parity, represented execution, and native/WASI results.
+- [x] Regenerate affected outputs, update the specification and examples, and
       check newly compilable modules for `.f.js` promotion.
+
+#### Number and Math
+
+- [x] `Number` — the call `Number(exp)`, the conversion
+      ([number conversion](../conversions/number/README.md)), and the four
+      predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
+      and `Number.isFinite`, static functions
+      ([built-in static functions](../built-ins/static-functions/README.md),
+      the record below), plus the numeric constant `Number.MAX_SAFE_INTEGER`,
+      desugared to its value ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
+      the namespace's other members stay unticked, each
+      an admission of its own. A module reading one of the four, through
+      `const { isFinite } = Number` as well, needs no rewrite to compile;
+      a module reading another member is rewritten when that member is
+      admitted or equivalent code can use existing syntax
+- [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
+      importable function
+      [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
+      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
+- [x] `Math` — a reserved namespace admitting the static functions
+      `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
+      `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`; other members remain
+      separate admissions
+      ([built-in static functions](../built-ins/static-functions/README.md),
+      the approval below)
+- [ ] `Date`
 
 ##### Number predicates proposal and approval
 

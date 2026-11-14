@@ -361,14 +361,11 @@ import { isNegativeZero } from '../types/number/is_negative_zero/module.f.js'
 const sign = v => v < 0 || isNegativeZero(v) ? 1n : 0n       // accepted
 ```
 
-`Object.entries` is admitted as well, and kept as written the same way,
-`const { entries } = Object` included: what a module wrote on the host,
-enumerating an object, compiles. Every other member of the namespace is
-refused at the word (`reserved word`) — `Object.keys`, `Object.values`,
-`Object.fromEntries` — and is a change the conversion makes by hand until
-it is admitted on its own; `Object.keys(o)` is
-`Object.entries(o).map(([k]) => k)`, and `Object.values(o)` the second of
-each pair.
+`Object.entries`, `Object.keys`, `Object.values`, and `Object.fromEntries`
+are admitted as well and kept as written, including namespace destructuring
+such as `const { values } = Object`. Keys and values project native entries
+through the common runtime. Other members, such as `Object.assign`, remain
+refused at the word (`reserved word`) until admitted on their own.
 
 ## 7. A body that ends without `return`
 

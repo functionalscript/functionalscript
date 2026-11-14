@@ -13,7 +13,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { ioError } from '../../../effects/module.f.js'
 import { partialRun } from '../../../effects/mock/module.f.js'
 import { nodeCommands, readUtf8File } from '../../../effects/node/module.f.js'
-import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { open } from './module.f.mjs'

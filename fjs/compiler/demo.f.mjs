@@ -67,7 +67,7 @@
 
 import { toText } from '../text/marked/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.js'
-import { virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.mjs'

@@ -1,6 +1,7 @@
 /**
  * The proof of the parser's reading of the static functions the language
- * admits, `Object.is`, `Object.entries`, `Object.keys`, `Object.fromEntries` and the four
+ * admits, `Object.is`, `Object.entries`, `Object.keys`, `Object.values`,
+ * `Object.fromEntries` and the four
  * `Number` predicates
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)):
  * each a value, the AST's `['Object.is']`, in either key spelling of the
@@ -87,7 +88,7 @@ export const proof = {
         expectRefused('const { is, ...r } = Object; export default r;', 'object rest requires a value', 13)
         expectRefused('const { ...r } = Number; export default r;', 'object rest requires a value', 9)
         expectRefused('const { [k]: a } = Object; export default a;', 'computed key in a binding pattern not supported', 10)
-        expectRefused('const { values } = Object; export default 1;', 'prohibited property name', 9)
+        expectRefused('const { assign } = Object; export default 1;', 'reserved word', 20)
     },
     // The four `Number` predicates are read as `Object.is` is, in either
     // key spelling and through destructuring, beside the conversion `Number(x)`,
@@ -162,6 +163,29 @@ export const proof = {
         expectRefused('export default Object?.keys({});', 'reserved word', 16)
         expectRefused('export default [].keys;', 'prohibited property name', 19)
         expectRefused('const { keys } = Number; export default 1;', 'prohibited property name', 9)
+    },
+    // Values use the same static identity through aliases and namespace
+    // bindings, with ordinary argument and optional-call syntax.
+    values: () => {
+        for (const source of ['Object.values', 'Object["values"]', '(Object.values)']) {
+            expectModule(`export default ${source};`, exported('["Object.values"]'))
+        }
+        expectModule('export default Object.values({ a: 1 }, 2);',
+            exported('["()",["Object.values"],[["{}",[[":","a",1]]],2]]'))
+        expectModule('const { values, "values": v, values: { length } } = Object; export default [values, v, length];',
+            exported('["[]",[["Object.values"],["Object.values"],[".",["Object.values"],"length"]]]'))
+        expectModule('const { values: v = Object.keys } = Object; export default v;',
+            exported('["?:",["===",["Object.values"],["undefined"]],["Object.keys"],["Object.values"]]'))
+        expectModule('const values = Object.values; export default [values === Object.values, values({ a: 1 })];',
+            exported('["[]",[["===",["Object.values"],["Object.values"]],["()",["Object.values"],[["{}",[[":","a",1]]]]]]]'))
+        expectModule('export default x => { const { values: v } = Object; return v(x); };',
+            exported('["=>",1,[],["()",["Object.values"],[["arg",0]]]]'))
+        expectModule('export default Object["values"]?.({});',
+            exported('["?.()",["Object.values"],[["{}",[]]]]'))
+        expectRefused('export default Object?.values({});', 'reserved word', 16)
+        expectRefused('export default [].values;', 'prohibited property name', 19)
+        expectRefused('const { values } = []; export default 1;', 'prohibited property name', 9)
+        expectRefused('const { values } = Number; export default 1;', 'prohibited property name', 9)
     },
     // `Object.fromEntries` is read as `Object.entries` is, in either key
     // spelling and through destructuring; it is no prototype name, so over
@@ -299,8 +323,8 @@ export const proof = {
     // key, the word alone, any other pattern over it, and a binding of it.
     refused: () => {
         for (const source of [
-            'export default Object.values;',
-            'export default Object.values({});',
+            'export default Object.assign;',
+            'export default Object.assign({});',
             'export default Object[Number(0)];',
             'export default Object[0];',
             'export default Object;',

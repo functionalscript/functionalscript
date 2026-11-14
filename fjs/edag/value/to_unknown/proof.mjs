@@ -13,7 +13,7 @@ import { assert, assertEq, assertOk, assertError, assertStructurallySame } from 
 import { interpret, noRuntime } from '../../../compiler/transpiler/module.f.mjs'
 import { asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
 import { unreadableThrownValue } from '../../../effects/module.f.js'
-import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 import { compileCommands, toUnknown } from './module.f.mjs'

@@ -12,7 +12,7 @@ import { partialRun } from '../../mock/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.js'
-import { emptyState, virtualOperationMap } from './module.f.mjs'
+import { emptyState, virtualOperationMap } from './module.f.js'
 
 const endOfBody = empty()
 const holdsNothing = pureOk(null)

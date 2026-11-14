@@ -7,7 +7,7 @@
 import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.mjs'
 import { ciWorkflow, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.js'
-import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'

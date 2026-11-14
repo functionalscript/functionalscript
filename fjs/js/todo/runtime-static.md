@@ -149,7 +149,7 @@ first-class function as it is in JavaScript. Destructuring is sugar, so
 `const { is } = Object` is `const is = Object.is`, one entry, and the
 namespace is read nowhere else: an array pattern over it, or a member it
 does not admit, is refused at the word — but a key that is a prototype
-name, `values` or `toString`, is refused first, at the key, as in any
+name, such as `toString`, is refused first, at the key, as in any
 pattern (`prohibited property name`). A guarded spelling, `Object?.is`,
 never reaches the lowering: it is refused at the word, a namespace being no
 value to guard, as `String?.(x)` is, a conversion being no value either

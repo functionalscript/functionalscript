@@ -189,7 +189,7 @@ mod tests {
             .unwrap();
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
-        for id in ["Object.values", "Math.cbrt", "Object", "is", "toString", ""] {
+        for id in ["Object.assign", "Math.cbrt", "Object", "is", "toString", ""] {
             assert!(static_at(&rt, id).is_nullish(), "{id}");
         }
         let dot = at(&rt, "dot");
@@ -232,7 +232,7 @@ mod tests {
             static_read(&rt, "Object.keys").unwrap(),
             static_at(&rt, "Object.keys")
         );
-        for path in ["Object.values", "Math.cbrt", "Object", "Math"] {
+        for path in ["Object.assign", "Math.cbrt", "Object", "Math"] {
             assert_eq!(static_read(&rt, path), Err(error::no_static_function(path)));
         }
     }
@@ -277,6 +277,72 @@ mod tests {
         assert_eq!(
             static_read(&missing, "Object.keys"),
             Err(error::no_static_function("Object.keys"))
+        );
+    }
+
+    /// `Object.values` projects the shared entries in order into a fresh
+    /// array, retaining undefined entries and the identity of copied values.
+    /// Nullish inputs throw, and a missing runtime binding has no native fallback.
+    #[test]
+    fn object_values_uses_the_common_runtime() {
+        let rt: Any<A> = runtime::<A>().unwrap();
+        let values = static_read(&rt, "Object.values").unwrap();
+        assert_eq!(values, static_at(&rt, "Object.values"));
+        assert_eq!(values, static_read(&rt, "Object.values").unwrap());
+        assert_eq!(
+            values.clone().to_string(),
+            Ok("function values() { [native code] }".into())
+        );
+        assert_eq!(
+            Any::dot(values.clone(), "length".into()).end(),
+            Ok(1.0.to_any())
+        );
+        let child: Any<A> = [("held".into(), 7.0.to_any())].to_object().to_any();
+        let nested = [child.clone()].to_array().to_any();
+        let function = throws("must not call".into());
+        let input = [
+            ("b".into(), child.clone()),
+            ("10".into(), Any::undefined()),
+            ("2".into(), 2.0.to_any()),
+            ("__proto__".into(), nested.clone()),
+            ("last".into(), function.clone()),
+        ]
+        .to_object()
+        .to_any();
+        let result = values
+            .clone()
+            .call([input.clone()].to_array().to_any())
+            .unwrap();
+        assert_eq!(at(&result, "length"), 5.0.to_any());
+        assert_eq!(at(&result, "0"), 2.0.to_any());
+        assert_eq!(at(&result, "1"), Any::undefined());
+        assert_eq!(at(&result, "2"), child);
+        assert_eq!(at(&result, "3"), nested);
+        assert_eq!(at(&result, "4"), function);
+        assert_ne!(
+            result,
+            values.clone().call([input].to_array().to_any()).unwrap()
+        );
+        let first = values
+            .clone()
+            .call(["".into()].to_array().to_any())
+            .unwrap();
+        let second = values
+            .clone()
+            .call(["".into()].to_array().to_any())
+            .unwrap();
+        assert_ne!(first, second);
+        for input in [Nullish::Null.to_any(), Any::undefined()] {
+            assert!(values.clone().call([input].to_array().to_any()).is_err());
+        }
+        assert!(values.call([].to_array().to_any()).is_err());
+        assert!(static_read::<A>(&Any::undefined(), "Object.values").is_err());
+        let missing: Any<A> = [("static".into(), returns(Any::undefined()))]
+            .to_object()
+            .to_any();
+        assert_eq!(
+            static_read(&missing, "Object.values"),
+            Err(error::no_static_function("Object.values"))
         );
     }
 

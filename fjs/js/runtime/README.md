@@ -50,12 +50,13 @@ containers. The body calls no runtime operation, so it can run during runtime
 initialization. Each executor uses this body, and a missing binding is refused
 as `no binding for the Boolean operator`.
 
-`Object.keys` projects the keys from native `Object.entries` through the same
+`Object.keys` and `Object.values` project keys and values from native `Object.entries` through the same
 typed array `map` body that implements the member function. The runtime captures
 the entries function once and calls both functions directly, without a member
-lookup or a new native keys operation. Enumeration order and undefined-valued
-entries come from the existing primitive. The array mapper copies its immutable
-accumulator, so this reference body costs O(n²).
+lookup or a new native operation. Enumeration order and undefined-valued
+entries come from the existing primitive. Values retain their reference
+identity, and each call creates a fresh result array. The array mapper copies
+its immutable accumulator, so these reference bodies cost O(n²).
 
 `concat` dispatches to the typed array and string bodies in
 [`../members`](../members/module.f.js). An array call copies its receiver,
@@ -434,7 +435,7 @@ cycle:
   defines, and the whole module is the core, which the proof checks on the
   compiled EDAG — no chain step anywhere in it, and no static node but the
   natives the table lists as themselves. `Object.entries` is captured once,
-  shared with its table entry and called by the keys body; every executor
+  shared with its table entry and called by the keys and values bodies; every executor
   binds it without a runtime. This is what lets NaNVM hold the
   runtime as a value its bodies never name: the runtime printer prints the
   module with no runtime in scope, so a member call or a static read of a

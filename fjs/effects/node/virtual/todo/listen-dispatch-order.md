@@ -48,5 +48,5 @@ rather than folded into the pull request that found it.
 
 ### Related
 
-- `fjs/effects/node/virtual/module.f.mjs` — `listen`, and the absent `forever`.
+- `fjs/effects/node/virtual/module.f.js` — `listen`, and the absent `forever`.
 - [`fjs/web`](../../../../web/README.md) — "Proving it without a socket".

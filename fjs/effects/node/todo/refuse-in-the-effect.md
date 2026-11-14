@@ -15,7 +15,7 @@ once per runner instead:
 - **The read window.** `readBytes` and `pread` are raw `do_` operations.
   `windowRefusal` is exported so that the Node runner's `refuseWindow` in
   [`module.mjs`](../module.mjs) and the virtual runner's `window_` in
-  [`virtual/module.f.mjs`](../virtual/module.f.mjs) can each ask it; the
+  [`virtual/module.f.js`](../virtual/module.f.js) can each ask it; the
   native runner, which cannot import it, re-derives the whole check as
   `window_refusal` and `check_window` in
   [`nanvm/effects-node/src/files.rs`](../../../../nanvm/effects-node/src/files.rs),
@@ -68,7 +68,7 @@ ahead of the host.
 
 - [ ] `readBytes`, `pread` and `listen` as wrappers; their proofs cover the
       refusal branch once, in `fjs/effects/node`.
-- [ ] Remove the per-runner checks in `module.mjs`, `virtual/module.f.mjs`
+- [ ] Remove the per-runner checks in `module.mjs`, `virtual/module.f.js`
       and `nanvm/effects-node/src/{files,native}.rs`; the parity corpus
       still passes.
 - [ ] Rewrite `windowRefusal`'s and `emptyHostError`'s JSDoc: they are now

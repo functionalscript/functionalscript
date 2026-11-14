@@ -253,7 +253,7 @@ export type IntrinsicId = (typeof intrinsics)[number][0]
 export type HelperId = (typeof helpers)[number][0]
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
-export type StaticId = 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.keys' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite' | 'Math.log2' | 'Math.trunc' | 'Math.floor' | 'Math.abs' | 'Math.sqrt' | 'Math.ceil' | 'Math.imul' | 'Math.max' | 'Math.min'
+export type StaticId = 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.keys' | 'Object.values' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite' | 'Math.log2' | 'Math.trunc' | 'Math.floor' | 'Math.abs' | 'Math.sqrt' | 'Math.ceil' | 'Math.imul' | 'Math.max' | 'Math.min'
 
 /** A path's keys joined by `.`, the tag a static node carries for it. */
 type Joined<P> = P extends readonly [infer G extends string, infer N extends string] ? `${G}.${N}`

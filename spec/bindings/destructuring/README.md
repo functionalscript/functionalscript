@@ -147,7 +147,7 @@ use the same binding rules with either spelling.
   `const entries = Object.entries;` though `entries` is a prototype name.
   An array pattern over it, and a key it does not admit, are refused at
   the word (`reserved word`) — but a key it does not admit that is a
-  prototype name, `values` or `toString`, is refused first, at the key, as
+  prototype name, such as `toString`, is refused first, at the key, as
   in any pattern (`prohibited property name`). Object rest cannot copy a
   namespace: `{ is, ...rest } = Object` is refused because the namespace is
   not a runtime value.
