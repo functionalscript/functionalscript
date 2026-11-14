@@ -310,3 +310,6 @@ that leaves its function.
   of values of every kind, the same value and equal ones among them, and
   `stringIndex` on spellings of indices and on values of other kinds. The
   IR it makes of each is written out there.
+- [`random/`](./random/README.md) is a seeded host proof: a few hundred
+  random programs in what the slices lower, each against JavaScript. Prefer
+  `node --test` for it.
