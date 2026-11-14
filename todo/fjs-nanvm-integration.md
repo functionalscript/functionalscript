@@ -142,6 +142,21 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Leaf numeric indices after #3861
+
+**Status:** wip, stacked on #3861.
+
+At `3a26b55d8`, the leaf modules contain 35 computed reads whose indices are
+already numbers: graph references, array enumeration indices and traversal
+cursors. They occur in `edag/to_fast/source`, `edag/to_fast/tail`,
+`js/ast/loop/invariant`, `js/ast/loop/plain` and `js/ast/memo/cells`.
+Writing those indices as `Number(...)` preserves their values and gives the
+compiler the key form it admits.
+
+- [ ] Rewrite the numeric reads without changing traversal or binding identity.
+- [ ] Rename modules accepted whole to `.f.js` and update their references.
+- [ ] Verify scoped proofs, coverage, types, compilation and affected demos.
+
 #### Array rest lowering
 
 #3800 (`29a1645bc`) lowers array rest to a slice of the existing iterable
