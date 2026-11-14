@@ -758,7 +758,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   conversion occurs at the requested output boundary.
 - [`fjs/compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
-- [`fjs/media/datajs/serializer/module.f.mjs`](../../media/datajs/serializer/module.f.mjs)
+- [`fjs/media/datajs/serializer/module.f.js`](../../media/datajs/serializer/module.f.js)
   — the writer, where special-number handling lives.
 - [`../../media/json/serializer/module.f.js`](../../media/json/serializer/module.f.js)
   — shared JSON serialization primitives currently reused by DJS; DJS-specific number

@@ -39,7 +39,7 @@ shared node once, which writes it the same way.
 The direct graph writers and their `moduleOperand` helper have been retired.
 Common placement now belongs to
 [`edag/to_fast`](../../../edag/to_fast/README.md), and source representability
-belongs to its [`source` admission pass](../../../edag/to_fast/source/module.f.mjs).
+belongs to its [`source` admission pass](../../../edag/to_fast/source/module.f.js).
 The linked two-file fixture below remains the acceptance test for resolving this
 historical issue; a target serializer must not add graph placement to fix it.
 

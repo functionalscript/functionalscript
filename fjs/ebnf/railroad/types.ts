@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/ebnf/railroad/module.f.mjs`.
+ * Type-level API for `fjs/ebnf/railroad/module.f.js`.
  *
  * @module
  */

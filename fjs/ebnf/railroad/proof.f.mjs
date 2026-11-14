@@ -4,7 +4,7 @@
  * @import { Diagram } from '../../website/demo/railroad/types.ts'
  */
 
-import { branch, codePoints, tokens, toDiagrams } from './module.f.mjs'
+import { branch, codePoints, tokens, toDiagrams } from './module.f.js'
 import { encoding } from '../token_symbol/module.f.js'
 import { toData } from '../data/module.f.js'
 import { mapGet } from '../../types/map/module.f.js'
@@ -201,6 +201,19 @@ export const proof = {
                     ['', t('a')],
                     ['constructor', t('b')],
                 ])
+        },
+        // An untitled rule can be expanded twice along sibling paths;
+        // only ancestors of the current expansion belong to its path.
+        sharedUntitled: () => {
+            /** @type {RuleSet} */
+            const ruleSet = {
+                root: ['sequence', 'shared', 'shared'],
+                shared: ['sequence', 'letter', 'letter'],
+                letter: ['set', 0x61, 0x62],
+            }
+            assertStructurallySame(
+                toDiagrams(codePoints)(ruleSet)([['root', 'root']]),
+                [['root', ['sequence', [t('aa'), t('aa')]]]])
         },
     },
     throw: {

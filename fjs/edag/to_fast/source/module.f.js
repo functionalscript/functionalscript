@@ -93,10 +93,11 @@ const graphReason = (a, module) => {
             const head = node[0] === '?.()' ? null : keyReason(a, node[2], callStep(node[3]))
             if (head !== null) { return head }
             let lazy = node[0] !== '.'
+            const initialModule = !lazy && current.module
             /** @type {readonly { value: Operand, module: boolean }[]} */
             let children = [
                 { value: node[1], module: current.module },
-                ...(node[0] === '?.()' ? node[2].map(itemOperand) : keyValues(a, node[2])).map(value => ({ value, module: !lazy && current.module })),
+                ...(node[0] === '?.()' ? node[2].map(itemOperand) : keyValues(a, node[2])).map(value => ({ value, module: initialModule })),
             ]
             let step = node[3]
             while (step !== undefined) {
@@ -106,7 +107,8 @@ const graphReason = (a, module) => {
                     if (why !== null) { return why }
                 }
                 const values = step[0] === '|.' ? keyValues(a, step[1]) : step[1].map(itemOperand)
-                children = [...children, ...values.map(value => ({ value, module: !lazy && current.module }))]
+                const stepModule = !lazy && current.module
+                children = [...children, ...values.map(value => ({ value, module: stepModule }))]
                 step = step[2]
             }
             pending = [...children, ...rest]

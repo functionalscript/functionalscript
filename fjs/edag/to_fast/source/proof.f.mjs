@@ -12,7 +12,7 @@ import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
 import { fromAnalysis } from '../module.f.mjs'
 import { fromFast } from '../../from_fast/module.f.mjs'
-import { sourceReason } from './module.f.mjs'
+import { sourceReason } from './module.f.js'
 import { reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 

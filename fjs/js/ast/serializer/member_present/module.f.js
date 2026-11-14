@@ -8,7 +8,7 @@
  */
 
 import { members } from '../../../members/module.f.js'
-import { leafSerialize } from '../../../../media/datajs/serializer/module.f.mjs'
+import { leafSerialize } from '../../../../media/datajs/serializer/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { chunksText, keyword, literal } from '../../../../text/marked/module.f.js'
 import { _name as name, _binding as binding } from '../names/module.f.js'

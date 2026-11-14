@@ -55,6 +55,7 @@ import { hexDigitsValue } from '../../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../../text/utf16/module.f.js'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.js'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { eof } from '../../../ebnf/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
@@ -88,7 +89,8 @@ export const tagged = (id, key) => ({
         // `_Admits` leaves no member of the node's alphabet but this one to
         // carry `id`, so the assert has narrowed `meta` to it.
         const member = /** @type {_Member<O, Id>} */ (/** @type {unknown} */ (meta))
-        return member[key]
+        // `key` is present, including when its payload is null or undefined.
+        return /** @type {_Member<O, Id>[K]} */ (entry(member, key))
     },
 })
 
@@ -101,7 +103,7 @@ const textTag = tagged('text', 'value')
  *
  * @type {Tagged<Text, 'text', 'value'>['at']}
  */
-export const textAt = textTag.at
+export const textAt = assertNotNullish(entry(textTag, 'at'))
 
 /**
  * The pair of a value's symbol over the domain `P`: a thunk, since a value
@@ -195,9 +197,10 @@ const pair = key => value => [key, value]
  * @param {Ast<Entry<typeof string, JsonValue>, Utf16, Out<P>>} node
  * @returns {Result<readonly [string, ParseUnknown<P>], string>}
  */
-const entry = node => {
+const objectEntry = node => {
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
-    const { at } = jsonTag()
+    const tag = jsonTag()
+    const at = assertNotNullish(entry(tag, 'at'))
     const [key, v] = jsonEntry(node)
     return mapOk(pair(textAt(key)))(at(v))
 }
@@ -218,11 +221,13 @@ const toJson = node => {
     // leaf of that domain rather than the domain a generic constructor would
     // infer from the constant alone.
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
-    const { symbol, at } = jsonTag()
+    const tag = jsonTag()
+    const { symbol } = tag
+    const at = assertNotNullish(entry(tag, 'at'))
     /** @type {ValueCases<Ast<JsonValue, Utf16, Out<P>>, Ast<Entry<typeof string, JsonValue>, Utf16, Out<P>>, Ast<typeof string, Utf16, Out<P>>, Ast<typeof number, Utf16, Out<P>>, Meta<Json<P>>>} */
     const cases = {
         array: items => symbol(okList(items.map(at))),
-        object: entries => symbol(mapOk(fromEntries)(okList(entries.map(entry)))),
+        object: entries => symbol(mapOk(fromEntries)(okList(entries.map(objectEntry)))),
         string: node => symbol(ok(textAt(node))),
         number: node => symbol(at(node)),
         word: word => symbol(ok(word)),
@@ -245,7 +250,9 @@ export const mappings = policy => {
     /** @type {Mappings<Utf16, Out<P>>} */
     const map = mapping
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
-    const { symbol, at } = jsonTag()
+    const tag = jsonTag()
+    const { symbol } = tag
+    const at = assertNotNullish(entry(tag, 'at'))
     return [
         ...stringMappings,
         map(number, node => symbol(numberOf(policy)(node))),
@@ -288,7 +295,8 @@ export const syntaxError = text => at =>
 export const parse = policy => {
     const parseDocument = parser(document, mappings(policy))
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
-    const { at } = jsonTag()
+    const tag = jsonTag()
+    const at = assertNotNullish(entry(tag, 'at'))
     return text => {
         const match = parseDocument(units(text))
         return match[0] === 'error' ? error(syntaxError(text)(match[1])) : at(unmapped(match[1][0])[0])

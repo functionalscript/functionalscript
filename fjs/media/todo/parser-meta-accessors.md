@@ -12,7 +12,7 @@ reuse the datajs todos call out — but the accessor that reads what those
 shared mappings produce is copied byte-for-byte:
 
 ```js
-// fjs/media/json/parser/module.f.mjs            // fjs/media/datajs/parser/module.f.mjs
+// fjs/media/json/parser/module.f.js            // fjs/media/datajs/parser/module.f.mjs
 const textAt = node => {                          const textAt = node => {
     const { meta } = symbolAt(node)                   const { meta } = symbolAt(node)
     assert(meta.id === 'text')                        assert(meta.id === 'text')
@@ -41,7 +41,7 @@ which narrows to the whole member and leaves the field to the caller.
 
 ### Proposal
 
-Export `textAt` from `fjs/media/json/parser/module.f.mjs` beside
+Export `textAt` from `fjs/media/json/parser/module.f.js` beside
 `stringMappings` — it is the reader for a producer that module already
 publishes — and delete `datajs/parser`'s copy. For the tagged pair, one
 small helper **in the same module**, exported beside `textAt`:

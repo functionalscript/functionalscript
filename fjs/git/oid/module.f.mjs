@@ -20,10 +20,10 @@ import { assert } from '../../asserts/module.f.js'
 import { decodeCodePoints, encodeCodePoints } from '../../basen/base16/module.f.js'
 import { sha1 } from '../../crypto/sha1/module.f.js'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListToVecChunksMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
-import { write } from '../object/module.f.mjs'
+import { write } from '../object/module.f.js'
 
 /**
  * Reads an id from its hex spelling, or refuses it: a byte that is no hex
@@ -125,7 +125,7 @@ const chunks = u8ListToVecChunksMsb(chunkBytes)
 
 /**
  * The id Git gives an object, at the repository's width: the hash of
- * `<type> SP <size> NUL <payload>`, as [`fjs/git/object`](../object/module.f.mjs)'s
+ * `<type> SP <size> NUL <payload>`, as [`fjs/git/object`](../object/module.f.js)'s
  * `write` lays it out — SHA-1 at 20 bytes, the width of every repository
  * in use today, and SHA-256 at 32. The width is bound once, so a store
  * that hashes every object it reads chooses the hash once.

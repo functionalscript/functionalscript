@@ -24,7 +24,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.js'
 import {
     digitsValue, greaterThanSign as gt, hyphenMinus, isCanonicalDigits, isDigit, lessThanSign as lt, lf,

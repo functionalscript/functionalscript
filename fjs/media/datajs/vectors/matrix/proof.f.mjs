@@ -18,7 +18,7 @@ import {
 import { utf8 } from '../../../../text/module.f.js'
 import { u8ListToVecMsb } from '../../../../types/bit_vec/module.f.js'
 import { unwrap } from '../../../../types/result/module.f.js'
-import { tryStringify } from '../../serializer/module.f.mjs'
+import { tryStringify } from '../../serializer/module.f.js'
 import { check, corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
 
 /** A vector as the matrix reads one: an id and the class it covers. @type {(id: string, c: string) => { id: string, class: string }} */

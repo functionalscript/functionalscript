@@ -90,7 +90,7 @@ such a descent does on a cyclic input, since no reader has a visited-set today.
 
 DataJS documents denote acyclic graphs, but its writer does not establish a
 cycle-validation policy for these readers.
-[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)
+[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js)
 assumes a FunctionalScript value, despite its TypeScript `unknown` parameter.
 Such values are acyclic; cyclic host inputs are outside its contract, with
 undefined behavior. It still refuses functions, which FunctionalScript can

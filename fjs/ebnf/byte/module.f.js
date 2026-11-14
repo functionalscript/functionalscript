@@ -35,6 +35,7 @@ import { toData } from '../data/module.f.js'
 import { codePoints } from '../../text/utf16/module.f.js'
 import { parser } from '../ll1/module.f.js'
 import { mapEntries } from '../../types/map/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /** One past the last byte: the boundary a byte set never reaches past. */
 const byteEnd = /** @type {const} */ (0x100)
@@ -47,8 +48,6 @@ const byteEnd = /** @type {const} */ (0x100)
  */
 export const meta = { id: 'byte' }
 
-const { from } = Array
-
 /**
  * A list of numbers a caller means as bytes, as a dense array of them:
  * every position visited, so a hole in a sparse array is met as
@@ -60,7 +59,8 @@ const { from } = Array
  * @type {(input: List<number>) => readonly number[]}
  */
 export const byteArray = input => {
-    const a = from(toArray(input))
+    const source = toArray(input)
+    const a = generate(source.length, i => source[Number(i)])
     assert(a.every(isByte), ['not bytes', a])
     return a
 }

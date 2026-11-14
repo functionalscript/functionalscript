@@ -11,7 +11,7 @@ reconstructs a commit's signed payload from its headers and writes a
 commit back. This directory is the decoder, and this file is the record of
 what a grammar can and cannot do for the formats.
 
-- [`object/`](object/module.f.mjs) — the loose object envelope,
+- [`object/`](object/module.f.js) — the loose object envelope,
   `<type> SP <size> NUL`: a grammar up to the NUL, a reader that slices the
   payload and holds it to the size, and a writer.
 - [`header/`](header/module.f.mjs) — the header block a commit and a tag

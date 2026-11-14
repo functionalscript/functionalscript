@@ -10,7 +10,7 @@ import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { toFast } from '../../../to_fast/module.f.mjs'
 import { fromFast } from '../../module.f.mjs'
 import { rootLoopOf } from '../module.f.js'
-import { directInvocationRoot, invocationRootOf } from './module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from './module.f.js'
 import { _restTransition } from '../../../../js/ast/invocation/module.f.js'
 
 /** @type {(index: number) => BindingId} */

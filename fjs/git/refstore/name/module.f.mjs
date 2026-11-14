@@ -27,7 +27,7 @@
  */
 
 import { encode } from '../../../basen/base16/module.f.js'
-import { byteArray } from '../../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../../ebnf/byte/module.f.js'
 import { fromVec, stringToU8List } from '../../../text/utf8/module.f.js'
 import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { maxVecBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'

@@ -50,7 +50,7 @@ import { max } from '../../../types/number/max/module.f.js'
 import { sum } from '../../../types/number/module.f.js'
 import { toData } from '../../../ebnf/data/module.f.js'
 import { mapGet } from '../../../types/map/module.f.js'
-import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
+import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
 const boxHalf = 11

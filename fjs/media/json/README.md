@@ -5,7 +5,7 @@ Two codecs over one grammar and one reader:
 | Codec                              | Numeric leaves     | Entry point                                       |
 | ---------------------------------- | ------------------ | ------------------------------------------------- |
 | standard (`json.parse`/`stringify`) | `number`           | [`module.f.mjs`](./module.f.mjs)                   |
-| extended                            | `number \| bigint` | [`extended/module.f.mjs`](./extended/module.f.mjs) |
+| extended                            | `number \| bigint` | [`extended/module.f.js`](./extended/module.f.js) |
 
 ```text
 JSON text
@@ -21,7 +21,7 @@ parse(policy)             one rewrite set folded into the parse, one numeric pol
    +--> another policy    -> that codec's own domain
 ```
 
-The reader is [`parser/module.f.mjs`](./parser/module.f.mjs): a mapping per
+The reader is [`parser/module.f.js`](./parser/module.f.js): a mapping per
 rule of the grammar, folded by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) as
 it parses, so that the value is built where each node is and nesting depth
 stays on the machine's own stack. A parse that fails reports where; a number

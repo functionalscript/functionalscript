@@ -48,7 +48,7 @@ added it with the `vdf` demo's `parseHex` on it, and
 [#2938](https://github.com/functionalscript/functionalscript/pull/2938)
 moved the other readers that summed their own digits onto it:
 [`fjs/git/config`](../../git/config/module.f.js)'s `tryDigits`,
-[`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)'s
+[`fjs/media/json/parser`](../../media/json/parser/module.f.js)'s
 `escapeMapping`, [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s
 four-digit `\u` and two-digit `\x` escapes, and the `pow` demo's
 `parseNBits`. The tokenizer's braced `\u{…}` escape still reads a digit

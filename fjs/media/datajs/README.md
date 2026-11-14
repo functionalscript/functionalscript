@@ -27,7 +27,7 @@ The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
 `tryMarked` and `tryJsonMarked` keep the token kinds for display. The data
 value types are in [`types.ts`](./types.ts). The reader lives in
 [`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
-[`serializer/module.f.mjs`](./serializer/module.f.mjs). Neither owes
+[`serializer/module.f.js`](./serializer/module.f.js). Neither owes
 anything further: both issues are retired into this file, which keeps what
 they decided. The codec's proofs come from the conformance corpus,
 [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
@@ -124,7 +124,7 @@ The JSON writer encounters it too and refuses it under JSON's leaf rule.
 FunctionalScript value
    |
    v
-read                      serializer/module.f.mjs, one traversal: array elements or
+read                      serializer/module.f.js, one traversal: array elements or
    |                      Object.entries, reading every container once
    v
 link                      container references replaced by node indices, in post-order

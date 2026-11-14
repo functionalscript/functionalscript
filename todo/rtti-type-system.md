@@ -659,7 +659,7 @@ not apply here, and answering it needs no erasure rule.
 A FunctionalScript module compiles to an [EDAG](../fjs/edag/README.md), and
 source is serialized back **out of the graph**, by reference count, emitting
 only what is reachable —
-[`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs)
+[`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.js)
 already does exactly this for DataJS values, counting references, hoisting
 shared ones to `const $N`, and emitting nothing for what nothing points at. A
 schema imported and named only to be mentioned in `//: myType` annotations has

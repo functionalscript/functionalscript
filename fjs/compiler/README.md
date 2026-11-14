@@ -15,7 +15,7 @@ and `fjs/djs` emptied. Module interpretation uses
 [EDAG values](../edag/value/types.ts); data outputs convert explicitly to
 ordinary runtime data before serialization. `fjs compile` writes
 the language its output name declares: a `.data.js` document through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs) in
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.js) in
 normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
 from the linked graph, and a `.json` output that refuses what JSON cannot
 spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).

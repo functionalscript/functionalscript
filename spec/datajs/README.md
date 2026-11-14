@@ -87,7 +87,7 @@ is not correct UTF-8 and a leading BOM before the reader sees a unit, then
 handing on the code units those bytes denote. The corpus's byte-form vectors
 run through the second.
 The writer,
-[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.mjs),
+[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.js),
 writes [normalized form](#normalized-form), and `fjs compile` writes through
 it; the older `fjs/djs` serializer, whose `const c0` output was not a document
 of this format at all, is retired.

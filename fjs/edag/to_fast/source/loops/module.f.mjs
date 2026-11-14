@@ -10,7 +10,7 @@
  * @import { _Scope, _SourceTask as Task } from './private.ts'
  */
 
-import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.js'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
 import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.js'
 import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'

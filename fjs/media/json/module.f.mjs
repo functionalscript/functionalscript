@@ -10,7 +10,7 @@
  * [`./rtti/module.f.js`](./rtti/module.f.js).
  *
  * This is the standard, bigint-free codec: numbers are JavaScript `number`s.
- * [`./extended/module.f.mjs`](./extended/module.f.mjs) is the sibling codec
+ * [`./extended/module.f.js`](./extended/module.f.js) is the sibling codec
  * that keeps JSON's bare integer syntax as `bigint`. Both are numeric policies
  * over the same grammar and the same reader — see [`./README.md`](./README.md).
  *
@@ -25,7 +25,7 @@
  */
 
 import { next } from '../../types/list/module.f.js'
-import { parse as parseWith } from './parser/module.f.mjs'
+import { parse as parseWith } from './parser/module.f.js'
 import { sort } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { fromUndefined } from '../../types/nullable/module.f.js'

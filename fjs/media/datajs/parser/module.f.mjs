@@ -61,7 +61,7 @@ import { lexeme, units } from '../../../ebnf/utf16/module.f.js'
 import { fromU8List } from '../../../text/utf8/module.f.js'
 import { entry, valueCases } from '../../../ebnf/lib/json/module.f.js'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.js'
-import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.mjs'
+import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.js'
 
 const { fromEntries } = Object
 

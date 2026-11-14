@@ -22,7 +22,7 @@ import { corpus, main as matrix, modules as corpusModules } from '../../media/da
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
 import { main as demos, samples } from '../../nanvm/demos/module.f.mjs'
 import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
-import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
+import { tryStringify } from '../../media/datajs/serializer/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'

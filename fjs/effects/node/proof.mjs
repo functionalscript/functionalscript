@@ -44,7 +44,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { toVec } from '../../types/uint8array/module.mjs'
 import { utf8 } from '../../text/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
-import { write as writeEnvelope } from '../../git/object/module.f.mjs'
+import { write as writeEnvelope } from '../../git/object/module.f.js'
 import { tagLoose, tagPayload } from '../../git/testlib.f.js'
 import {
     availableParallelism, awaitIfPromise, both, capture, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,

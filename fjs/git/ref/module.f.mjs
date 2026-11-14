@@ -50,7 +50,7 @@
  * @import { Meta } from '../../ebnf/ast/types.ts'
  */
 
-import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.js'
 import { lf, space as traitSeparator } from '../../text/ascii/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'

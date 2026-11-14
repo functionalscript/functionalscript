@@ -142,7 +142,7 @@ A value JSON cannot spell is refused rather than approximated. This covers
 applies the same rules as `fjs compile`'s `.json` output, so the two agree on
 what JSON means: after `toData`, the tool's JSON step uses the already exported
 `tryJsonStringify` from
-[`media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs).
+[`media/datajs/serializer`](../../media/datajs/serializer/module.f.js).
 A named-only root projects to `undefined` for value output, as
 `projectBeforeMaterializing` proves, and JSON refuses it for the same reason.
 

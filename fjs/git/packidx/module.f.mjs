@@ -55,7 +55,7 @@
  * @import { Idx } from './types.ts'
  */
 
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.js'
 import { uint } from '../../types/bit_vec/module.f.js'
 import { bsearch, cmp } from '../../types/function/compare/module.f.js'
 import { take } from '../../types/list/module.f.js'

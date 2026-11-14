@@ -8,7 +8,7 @@
  * @import { Stack } from '../../../../types/stack_walk/types.ts'
  */
 
-import { directInvocationRoot, invocationRootOf } from '../../../../edag/from_fast/loop/root/module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from '../../../../edag/from_fast/loop/root/module.f.js'
 import { freeBindings } from '../../control/module.f.js'
 import { _freshAtRoot, _immutableJoin } from '../joins/module.f.js'
 import { pushAll } from '../../../../types/stack_walk/module.f.js'

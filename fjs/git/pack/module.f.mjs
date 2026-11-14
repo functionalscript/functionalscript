@@ -44,7 +44,7 @@
  * @import { Entry, PackHeader } from './types.ts'
  */
 
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.js'
 import { concat, flat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { startsWith, u32be } from '../bytes/module.f.js'
@@ -85,7 +85,7 @@ export const headerBytes = /** @type {const} */ (12)
  * and 5 is reserved, so both read as `undefined` and refuse the entry; 6 and
  * 7 are the two delta kinds and are not objects.
  *
- * A table of its own and not [`fjs/git/object`](../object/module.f.mjs)'s
+ * A table of its own and not [`fjs/git/object`](../object/module.f.js)'s
  * `tryType`, because the two read different encodings of the same
  * `ObjectType`: a pack entry's header carries a three-bit *code*, where an
  * envelope and a tag header spell the *name*. Going through a shared lookup

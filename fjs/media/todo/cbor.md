@@ -144,7 +144,7 @@ integer in `0..255`, and `-0` is not one. JavaScript's bit operations coerce
 `NaN` and `-0` to `0`, so a reader that skipped the check would decode
 `[NaN]` as the byte `0` and invalid input as a valid integer. A non-byte
 element **throws**, as in the other byte readers of this tree
-([`fjs/git/object`](../../git/object/module.f.mjs)'s `tryRead`, `@throws If an item
+([`fjs/git/object`](../../git/object/module.f.js)'s `tryRead`, `@throws If an item
 of the input is not a byte`): it is a caller's mistake and not data, so it is
 not a `Result` error; only bytes that are bytes and are not CBOR are. The `Vec`
 adapters (D1) refuse a `Vec` that is not whole bytes the same way.
