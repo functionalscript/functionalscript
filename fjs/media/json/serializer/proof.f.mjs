@@ -6,7 +6,7 @@ import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSe
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { sort } from '../../../types/object/module.f.js'
 import { chunksText } from '../../../text/marked/module.f.js'
-import { assertEq } from '../../../asserts/module.f.js'
+import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 
 /** @type {(value: number) => List<string>} */
 const hash = value => [`#${value}`]
@@ -30,30 +30,24 @@ const unchecked = value => /** @type {never} */ (value)
 export const proof = {
     arrayWrap: [
         () => {
-            const result = JSON.stringify(toArray(arrayWrap(null)))
-            assertEq(result, '["[","]"]')
+            assertStructurallySame(toArray(arrayWrap(null)), ['[', ']'])
         },
         () => {
-            const result = JSON.stringify(toArray(arrayWrap([['a','b']])))
-            assertEq(result, '["[","a","b","]"]')
+            assertStructurallySame(toArray(arrayWrap([['a', 'b']])), ['[', 'a', 'b', ']'])
         },
         () => {
-            const result = JSON.stringify(toArray(arrayWrap([['a'],['b']])))
-            assertEq(result, '["[","a",",","b","]"]')
+            assertStructurallySame(toArray(arrayWrap([['a'], ['b']])), ['[', 'a', ',', 'b', ']'])
         }
     ],
     objectWrap: [
         () => {
-            const result = JSON.stringify(toArray(objectWrap(null)))
-            assertEq(result, '["{","}"]')
+            assertStructurallySame(toArray(objectWrap(null)), ['{', '}'])
         },
         () => {
-            const result = JSON.stringify(toArray(objectWrap([['a','b']])))
-            assertEq(result, '["{","a","b","}"]')
+            assertStructurallySame(toArray(objectWrap([['a', 'b']])), ['{', 'a', 'b', '}'])
         },
         () => {
-            const result = JSON.stringify(toArray(objectWrap([['a'],['b']])))
-            assertEq(result, '["{","a",",","b","}"]')
+            assertStructurallySame(toArray(objectWrap([['a'], ['b']])), ['{', 'a', ',', 'b', '}'])
         }
     ],
     // The escaping itself is `stringLiteral`'s, proven in `fjs/js/string_escape`.
@@ -64,12 +58,34 @@ export const proof = {
     ],
     numberSerialize: [
         () => {
-            const result = JSON.stringify(toArray(numberSerialize(123)))
-            assertEq(result, '[["123","number"]]')
+            assertStructurallySame(toArray(numberSerialize(123)), [['123', 'number']])
         },
         () => {
-            const result = JSON.stringify(toArray(numberSerialize(10e20)))
-            assertEq(result, '[["1e+21","number"]]')
+            assertStructurallySame(toArray(numberSerialize(10e20)), [['1e+21', 'number']])
+        },
+        // Decimal/exponent thresholds, precision, and finite range endpoints.
+        () => {
+            /** @type {readonly (readonly [number, string])[]} */
+            const cases = [
+                [1e-7, '1e-7'],
+                [9.999999999999997e-7, '9.999999999999997e-7'],
+                [1e-6, '0.000001'],
+                [0.0000010000000000000002, '0.0000010000000000000002'],
+                [1e20, '100000000000000000000'],
+                [9.999999999999999e20, '999999999999999900000'],
+                [1e21, '1e+21'],
+                [-1e21, '-1e+21'],
+                [0.10000000000000002, '0.10000000000000002'],
+                [1_000_000_000_000_000_100, '1000000000000000100'],
+                [9_007_199_254_740_991, '9007199254740991'],
+                [9_007_199_254_740_992, '9007199254740992'],
+                [5e-324, '5e-324'],
+                [2.2250738585072014e-308, '2.2250738585072014e-308'],
+                [1.7976931348623157e308, '1.7976931348623157e+308'],
+            ]
+            for (const [value, text] of cases) {
+                assertStructurallySame(toArray(numberSerialize(value)), [[text, 'number']])
+            }
         },
         // `-0` keeps its sign, where `JSON.stringify` writes `0`; `0` stays `0`
         () => {
@@ -81,17 +97,15 @@ export const proof = {
             assertEq(chunksText(numberSerialize(NaN)), 'null')
             assertEq(chunksText(numberSerialize(Infinity)), 'null')
             assertEq(chunksText(numberSerialize(-Infinity)), 'null')
-            assertEq(JSON.stringify(toArray(numberSerialize(NaN))), '[["null","literal"]]')
+            assertStructurallySame(toArray(numberSerialize(NaN)), [['null', 'literal']])
         },
     ],
     boolSerialize: [
         () => {
-            const result = JSON.stringify(toArray(boolSerialize(false)))
-            assertEq(result, '[["false","literal"]]')
+            assertStructurallySame(toArray(boolSerialize(false)), [['false', 'literal']])
         },
         () => {
-            const result = JSON.stringify(toArray(boolSerialize(true)))
-            assertEq(result, '[["true","literal"]]')
+            assertStructurallySame(toArray(boolSerialize(true)), [['true', 'literal']])
         }
     ],
     leafSerialize: {
@@ -112,16 +126,16 @@ export const proof = {
         },
     },
     kinds: () => {
-        assertEq(JSON.stringify(toArray(stringSerialize('a'))), '[["\\"a\\"","string"]]')
-        assertEq(JSON.stringify(toArray(nullSerialize)), '[["null","literal"]]')
+        assertStructurallySame(toArray(stringSerialize('a')), [['"a"', 'string']])
+        assertStructurallySame(toArray(nullSerialize), [['null', 'literal']])
         // punctuation stays plain
-        assertEq(JSON.stringify(toArray(arrayWrap([nullSerialize]))), '["[",["null","literal"],"]"]')
+        assertStructurallySame(toArray(arrayWrap([nullSerialize])), ['[', ['null', 'literal'], ']'])
     },
     codec: () => {
         const { serialize, stringify, marked } = codec(plain)
         assertEq(stringify(sort)({ b: [1, null], a: 'x' }), '{"a":"x","b":[#1,null]}')
-        assertEq(JSON.stringify(toArray(serialize(sort)([true]))), '["[","true","]"]')
+        assertStructurallySame(toArray(serialize(sort)([true])), ['[', 'true', ']'])
         // the same walk as runs: the leaves with their kinds, the containers plain
-        assertEq(JSON.stringify(marked(sort)([true, 'x'])), '[["["],["true","literal"],[","],["\\"x\\"","string"],["]"]]')
+        assertStructurallySame(marked(sort)([true, 'x']), [['['], ['true', 'literal'], [','], ['"x"', 'string'], [']']])
     },
 }

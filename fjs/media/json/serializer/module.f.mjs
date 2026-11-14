@@ -37,8 +37,6 @@ import { compose, fn } from '../../../types/function/module.f.js'
 import { stringLiteral } from '../../../js/string_escape/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
-const jsonStringify = JSON.stringify
-
 const { is } = Object
 
 /**
@@ -67,7 +65,7 @@ export const stringSerialize
  * @type {(_: number) => List<Chunk>}
  */
 export const numberSerialize
-    = input => Number.isFinite(input) ? [[is(input, -0) ? '-0' : jsonStringify(input), 'number']] : nullSerialize
+    = input => Number.isFinite(input) ? [[is(input, -0) ? '-0' : String(input), 'number']] : nullSerialize
 
 /**
  * Shared serialized representation for `null`.
