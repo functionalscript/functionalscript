@@ -19,6 +19,10 @@
  *     fn length(s: any.only(string)) -> u(31)
  * ```
  *
+ * A parameter that the callee owns reads `own v: any`, and a counted sealed
+ * type names its counting functions after its tag's:
+ * `kind: kind, carrier: i64, dup: dup, drop: drop`.
+ *
  * The text is for people and for golden proofs. Nothing reads it back: the
  * IR passes from one stage to the next as data.
  *
@@ -231,7 +235,7 @@ const lines = (t, pad) => {
 }
 
 /** A signature after `fn` and its name. @type {(name: string, s: Signature) => string} */
-const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`
+const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`
 
 /** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
 const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]
@@ -239,9 +243,9 @@ const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '  
 /** An interface as its binding, its sealed types and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
 const showInterface = (name, { abi, types, functions }) => [
     `import ${name} from ${abi}`,
-    ...types.flatMap(([type, { variants, kind, carrier }]) => [
+    ...types.flatMap(([type, { variants, kind, carrier, dup, drop }]) => [
         `    type ${type} = ${variants.join(' | ')}`,
-        `        kind: ${kind}, carrier: ${carrier}`,
+        `        kind: ${kind}, carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}`,
     ]),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),
 ]

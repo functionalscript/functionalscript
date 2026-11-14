@@ -8,12 +8,14 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first five: typed code written by hand, the same
-code lowered from normalized FAST ([`from_fast`](./from_fast/README.md)),
-values of unknown kind, read through [the interfaces of L0](./l0/module.f.js),
-loops, and functions that a module does not export, with records and
-[L1's native rows](./native/module.f.js). Next is counted values (`typeOf`),
-as six stacked PRs in that roadmap.
+This directory holds the first five and the first PR of the sixth: typed
+code written by hand, the same code lowered from normalized FAST
+([`from_fast`](./from_fast/README.md)), values of unknown kind, read
+through [the interfaces of L0](./l0/module.f.js), loops, functions that a
+module does not export, with records and
+[L1's native rows](./native/module.f.js), and owned values written by hand
+(6a). Next is the rest of counted values (`typeOf`), as stacked PRs in that
+roadmap, the lifetime pass first.
 
 ## Map of this directory
 
@@ -22,11 +24,13 @@ as six stacked PRs in that roadmap.
 |[`types.ts`](./types.ts)                  |the data: types, terms, functions, modules, and the checker's answer   |
 |[`.`](./module.f.js)                     |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.js)           |the checker: a type for every term, or the module refused with a reason|
+|[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path    |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
-|[`l0/host`](./l0/host/module.f.js)        |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
+|[`l0/host`](./l0/host/module.f.js)        |the `fjs:l0` imports as the L0 view's functions, over handles          |
+|[`l0/host/count`](./l0/host/count/module.mjs)|a host of the `fjs:l0` imports that counts every value, for host proofs|
 |[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.f.js)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
@@ -73,7 +77,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **Every value of `any` is borrowed**: a parameter, an arm's name for its
   operand, and a `let` of one. No function, of the module or of an
   interface, may give one, since its caller would own it, so nothing has to
-  release one. Counting values is a later slice.
+  release one. 6a counts them, below.
 
 ## What the fourth slice adds
 
@@ -112,6 +116,25 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   value, in [the interfaces of L0](./l0/module.f.js) and
   [the host](./l0/host/module.f.js).
 
+## What 6a adds
+
+- **Owned values**: a function may answer a value of a sealed type, which
+  its caller owns, and a parameter written `own(name, type)` is one that
+  the callee owns, printed `own v: any`. `any` is counted: its interface
+  names `Any.dup`, which borrows a value and answers one of its type, and
+  `Any.drop`, which owns one and answers `unit`, as the checker requires of
+  a counted type. String's `from_unit` and `concat` answer an owned string.
+- **The owned-stage check** ([`check/owned`](./check/owned/module.f.js)),
+  run on every module that the checker takes: each owned value is consumed
+  once on every path, no borrow outlives the owned value that it leans on,
+  the arms of a `match` and the exits of a `block` agree, and a loop owns
+  or borrows each parameter as its first value is. A person writes the
+  owned stage until the lifetime pass does.
+- **A host that counts** ([`l0/host/count`](./l0/host/count/module.mjs)):
+  `dup` and `drop` count a cell, and `from_unit` and `concat` make one.
+  Every host proof of the emitter runs on it, and each call that completes
+  must leave its arguments' cells as it found them, and no other.
+
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): a
@@ -121,7 +144,9 @@ a field twice, a field that a product does not have, a sum other than
 a name for the operand of a `bool`'s arm, a call of an interface that the
 module does not import, a range wider than a word, a division of integers,
 integers mixed with floats, a term of type `never` where a value is used, a
-literal of a sealed type, a function or a call that gives a value of one,
+literal of a sealed type, an `own` parameter of a type that is not sealed,
+a counted type without both a `dup` and a `drop` of their shapes, a module
+whose owned stage does not consume each owned value once on every path,
 an interface that names a type or a function twice, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of
 anything but one float, or without the range that it saturates to.
