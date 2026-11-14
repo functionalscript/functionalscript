@@ -25,7 +25,7 @@ const reportedNow = () => resultMapStep(now(), r => ok({
     release: holdsNothing,
 }))
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     composedMapKeepsListenerRunner: () => {
         /** @type {number} */
         const clock = 123_456
@@ -49,4 +49,4 @@ export const proof = {
         assertEq(response.body.length, 1)
         assertEq(utf8ToString(chunk), String(clock))
     },
-}
+})
