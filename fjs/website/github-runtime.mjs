@@ -8,7 +8,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { parse } from '../rtti/parse/module.f.mjs'
+import { parse } from '../rtti/parse/module.f.js'
 import { assertNotNullish } from '../asserts/module.f.js'
 import { encode } from '../basen/base64url/module.f.js'
 import { toVec } from '../types/uint8array/module.mjs'

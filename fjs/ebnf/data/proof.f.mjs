@@ -9,6 +9,7 @@ import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
 import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.mjs'
+import { mapGet, size as mapSize } from '../../types/map/module.f.js'
 
 const { keys } = Object
 const { MAX_SAFE_INTEGER } = Number
@@ -99,7 +100,7 @@ const showRule = matchRule(show)
  *
  * @type {(names: RuleNameMap) => (rule: Rule) => string}
  */
-const nameOf = names => rule => assertNotNullish(names.get(rule))
+const nameOf = names => rule => assertNotNullish(mapGet(names, rule))
 
 /** @type {RuleVisitor<string | undefined>} */
 const stringBranch = {
@@ -278,7 +279,7 @@ export const proof = {
             const [ruleSet, entry, names] = toData(c('a'))
             assertEq(entry, '')
             assertStructurallySame(ruleSet, { '': one('a') })
-            assertEq(names.get(c('a')), '')
+            assertEq(mapGet(names, c('a')), '')
         },
         // EOF is the `null` rule, the one set with a negative boundary.
         eof: () => {
@@ -403,8 +404,40 @@ export const proof = {
                 '': ['sequence', '0', '0'],
                 0: ['set', c('0'), c('9') + 1],
             })
-            assertEq(names.get(digit), '0')
-            assertEq(names.size, 2)
+            assertEq(mapGet(names, digit), '0')
+            assertEq(mapSize(names), 2)
+        },
+        mixedRuleIdentityKeys: () => {
+            const tuple = /** @type {const} */ ([c('a')])
+            const otherTuple = /** @type {const} */ ([c('a')])
+            const variant = { item: c('a') }
+            const otherVariant = { item: c('a') }
+            const thunk = () => /** @type {const} */ (['const', c('b')])
+            const source = /** @type {const} */ ([0, '0', '', null, tuple, tuple, otherTuple, variant, variant, otherVariant, thunk, thunk])
+            const [ruleSet, entry, names] = toData(source)
+            const name = nameOf(names)
+            assertEq(name(source), '')
+            assertEq(name(source), entry)
+            assert(name(0) !== name('0'))
+            assert(name('') !== name(null))
+            assert(name(tuple) !== name(otherTuple))
+            assert(name(variant) !== name(otherVariant))
+            assertEq(mapGet(names, [c('a')]), undefined)
+            assertEq(mapGet(names, { item: c('a') }), undefined)
+            assertEq(mapGet(names, 'unseen'), undefined)
+            const sequence = ruleSet[entry]
+            assert(sequence[0] === 'sequence')
+            const [, ...items] = sequence
+            assertEq(name(0), items[0])
+            assertEq(name('0'), items[1])
+            assertEq(name(''), items[2])
+            assertEq(name(null), items[3])
+            assertEq(name(tuple), items[4])
+            assertEq(items[4], items[5])
+            assertEq(name(variant), items[7])
+            assertEq(items[7], items[8])
+            assertEq(name(thunk), items[10])
+            assertEq(items[10], items[11])
         },
         // A thunk may be named as `{}`'s prototype names things, and the
         // rule set and the identity map both read it as their own entry.
@@ -412,7 +445,7 @@ export const proof = {
             const constructor = () => /** @type {const} */ (['const', 'x'])
             const [ruleSet, entry, names] = toData(constructor)
             assertEq(entry, 'constructor')
-            assertEq(names.get(constructor), 'constructor')
+            assertEq(mapGet(names, constructor), 'constructor')
             assertStructurallySame(ruleSet, {
                 constructor: ['sequence', 'constructor.0'],
                 'constructor.0': one('x'),

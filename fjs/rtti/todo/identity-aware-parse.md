@@ -134,7 +134,7 @@ generic engine or as an edag-specific layer on top — isn't decided yet.
   — "The core invariant" and subject 1 (sharing is semantic), subject 4 (the contrasting
   case where identity is *not* observable), and "Validation" (the public-input threat
   model this DoS angle falls under).
-- [`../parse/module.f.mjs`](../parse/module.f.mjs) — today's identity-oblivious reader.
-- [`../validate/module.f.mjs`](../validate/module.f.mjs) — today's non-memoizing,
+- [`../parse/module.f.js`](../parse/module.f.js) — today's identity-oblivious reader.
+- [`../validate/module.f.js`](../validate/module.f.js) — today's non-memoizing,
   cycle-unsafe reader.
 - [`parse` and `validate`](../guide/readers/parse-and-validate/README.md) — the two schema-form readers.

@@ -1,5 +1,5 @@
 import { assert, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { parse } from '../../../parse/module.f.mjs'
+import { parse } from '../../../parse/module.f.js'
 import { number, option, or, string } from '../../../module.f.js'
 import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'

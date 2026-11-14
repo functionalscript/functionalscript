@@ -15,7 +15,7 @@ results as the node has children before calling the node's own `finish`.
   `facts` table;
 - `summaries` in [`fjs/edag/from_fast`](../../../../edag/from_fast/module.f.mjs),
   over its `children`;
-- `walk` in [`fjs/edag/from_fast/loop/completions`](../../../../edag/from_fast/loop/completions/module.f.mjs),
+- `walk` in [`fjs/edag/from_fast/loop/completions`](../../../../edag/from_fast/loop/completions/module.f.js),
   over `childrenOf`, driving `encodedBody` and `completeBlock`;
 - `aggregateBody` in [`fjs/edag/from_fast/loop`](../../../../edag/from_fast/loop/module.f.mjs),
   over the blocks of `block` and `if` statements.

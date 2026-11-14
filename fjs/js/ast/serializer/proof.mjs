@@ -9,7 +9,7 @@
 
 import { throws } from 'node:assert/strict'
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { untagged } from '../../../text/marked/module.f.mjs'
+import { untagged } from '../../../text/marked/module.f.js'
 import { functionStringify, renderModule, stringify } from './module.f.mjs'
 
 /** @type {(index: number) => BindingId} */

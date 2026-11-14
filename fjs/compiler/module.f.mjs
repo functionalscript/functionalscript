@@ -45,7 +45,7 @@ import { sort } from '../types/object/module.f.js'
 import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.js'
 import { error as errorLine, errorExit, exitStep, log, writeFiles } from '../effects/node/module.f.js'
 import { allFiles, sourceRoot } from '../dev/module.f.js'
-import { chunksText, toText } from '../text/marked/module.f.mjs'
+import { chunksText, toText } from '../text/marked/module.f.js'
 
 const { entries } = Object
 

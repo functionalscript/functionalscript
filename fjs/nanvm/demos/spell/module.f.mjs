@@ -21,7 +21,7 @@
  * @module
  */
 
-import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
+import { stringLiteral } from '../../../js/string_escape/module.f.js'
 
 const { entries } = Object
 const { isArray } = Array

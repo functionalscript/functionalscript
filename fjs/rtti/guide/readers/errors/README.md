@@ -63,4 +63,4 @@ quantity a number to see both accept it. The lesson is defined in
 ## Where it is implemented
 
 `ValidationError` in [`common/types.ts`](../../../common/types.ts); `verror`,
-`prependPath` and `orVisit` in [`common`](../../../common/module.f.mjs).
+`prependPath` and `orVisit` in [`common`](../../../common/module.f.js).

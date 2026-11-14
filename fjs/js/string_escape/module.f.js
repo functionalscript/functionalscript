@@ -32,6 +32,7 @@ import { map as nullableMap } from '../../types/nullable/module.f.js'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.js'
 import { errorMask } from '../../text/code_point/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import {
     backspace,
     cr,
@@ -80,19 +81,14 @@ export const optionalEscape = solidus
 /**
  * A code-point-keyed view over the pairs.
  *
- * A `Map` rather than a plain object, for two reasons. The JSON serializer
- * takes this path once per character it writes, and a `Map` keyed by number
- * never converts the key to a string. And an object's keys are not only its
- * own: a numeric property on `Object.prototype` — which this repository would
- * never write, but a host page can — would read back as a table entry and
- * silently mis-escape a character. A `Map` has no prototype chain to inherit
- * one from, so the lookup answers for the table and nothing else.
+ * The pairs become enumerable own entries. `entry` reads only those, so
+ * inherited numeric properties never become escapes.
  *
  * @type {(pairs: readonly (readonly [number, number])[]) => (key: number) => number | null}
  */
 const lookup = pairs => {
-    const map = new Map(pairs)
-    return key => map.get(key) ?? null
+    const table = Object.fromEntries(pairs)
+    return key => entry(table, key) ?? null
 }
 
 /**

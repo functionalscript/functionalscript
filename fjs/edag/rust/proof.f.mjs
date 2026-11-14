@@ -15,7 +15,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { mapOk, ok, unwrap } from '../../types/result/module.f.js'
 import { bindingLine, expExpr, expExprTagged, holdsFunction, needsRuntime, readsArgs, scopeTagged, statementsOf } from './module.f.mjs'
-import { fromTagged, untagged } from '../../text/marked/module.f.mjs'
+import { fromTagged, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords } from './unmarked/module.f.js'
 import { conditional } from '../testlib.f.js'
 

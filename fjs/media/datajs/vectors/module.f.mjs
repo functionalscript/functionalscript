@@ -41,7 +41,7 @@
  */
 
 import { decodeLower } from '../../../basen/base16/module.f.js'
-import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
+import { stringLiteral } from '../../../js/string_escape/module.f.js'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
 
 const { keys } = Object

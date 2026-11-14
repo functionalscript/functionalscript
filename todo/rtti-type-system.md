@@ -303,7 +303,7 @@ value coming *in* — from JSON, from a protocol frame".
 **`parse` is the boundary only where the schema names every part.** It
 constructs a fresh container, but `unknown` is `() => ok` and `ok` returns the
 value it was handed
-([`parse`](../fjs/rtti/parse/module.f.mjs)), so a value admitted through
+([`parse`](../fjs/rtti/parse/module.f.js)), so a value admitted through
 an `unknown` — the whole schema, or one field of a struct — comes back as the
 caller's own object, aliases intact. `parse(unknown)(obj)` *is* `obj`. So the
 advice "use `parse` and hold the result" holds for a schema with no `unknown`
@@ -591,12 +591,12 @@ that type" as two separate constraints.
 **Non-finite numbers and `-0`** are the third, and they are smaller only in
 how often they appear. The printer renders a numeric const as
 `isFinite(c) ? String(c) : 'number'`
-([`fjs/types/ts`](../fjs/types/ts/module.f.mjs), which
+([`fjs/types/ts`](../fjs/types/ts/module.f.js), which
 [`rtti/ts`](../fjs/rtti/ts/module.f.mjs) imports), so a `NaN`,
 `Infinity`, or `-Infinity` const becomes the type `number`, and `-0` becomes
 the literal `0`. Validation meanwhile uses `Object.is` **on purpose** — its doc
 comment says so, precisely to match `NaN` and to keep `+0` and `-0` distinct
-([`rtti/common`](../fjs/rtti/common/module.f.mjs)). So a `NaN` schema in
+([`rtti/common`](../fjs/rtti/common/module.f.js)). So a `NaN` schema in
 an exported input position admits any number and rejects all but one, and a
 `-0` schema admits `+0` and rejects it. TypeScript has no `NaN` literal type
 and does not distinguish `-0` from `0`, so this is inexpressible in the same
@@ -635,7 +635,7 @@ it as scoped to the object shapes TypeScript can name.
 | Piece | Where | State |
 | --- | --- | --- |
 | Schema constructors | [`fjs/rtti/module.f.js`](../fjs/rtti/module.f.js) | done |
-| Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.mjs), [`validate/`](../fjs/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
+| Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.js), [`validate/`](../fjs/rtti/validate/module.f.js) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
 | Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | JSON Schema emission | [`fjs/media/json/schema`](../fjs/media/json/schema/module.f.mjs) | done — `toJsonSchema` writes draft 2020-12 through the same data form, as an MCP tool's `inputSchema`; a second output of one schema, not a type-system piece |
@@ -794,7 +794,7 @@ Three of its features fall out of decisions already made:
   from a non-schema without either running it or having a meta-schema.**
 
 The transport is largely built. LSP is JSON-RPC 2.0, and
-[`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) already
+[`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.js) already
 implements the envelope, the standard error codes, and `dispatch`, with
 [`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.mjs) as a working stdio server
 to copy. Two pieces are genuinely new, and only one of them is small:
@@ -803,7 +803,7 @@ to copy. Two pieces are genuinely new, and only one of them is small:
   newline-delimited lines. Small.
 - **notification dispatch** — `dispatch` returns `null` for any message without
   an `id` and never reaches a handler
-  ([`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs)), which is correct for
+  ([`json_rpc`](../fjs/protocol/json_rpc/module.f.js)), which is correct for
   JSON-RPC responses and wrong for a language server: `textDocument/didOpen`
   and `didChange` are notifications, and they are how the server learns the
   buffer's contents. Copied as-is, hover, diagnostics and completion would all
@@ -903,8 +903,8 @@ gain, so the dependencies are stated instead:
 
   - **`unknown` — the printer matches the runtime; `Ts<>` is the narrow
     one.** Both readers implement the `unknown` case as `() => ok`
-    ([`validate`](../fjs/rtti/validate/module.f.mjs),
-    [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
+    ([`validate`](../fjs/rtti/validate/module.f.js),
+    [`parse`](../fjs/rtti/parse/module.f.js)), so the schema as
     *executed* accepts anything, functions and symbols included. The
     printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
     rtti's own `Unknown`, `Primitive | Array | Object`
@@ -953,8 +953,8 @@ gain, so the dependencies are stated instead:
   [primitives](../fjs/rtti/guide/schemas/primitives/README.md) page say any
   DataJS value; `Ts<>` excludes functions and
   symbols; the readers accept them
-  ([`validate`](../fjs/rtti/validate/module.f.mjs) and
-  [`parse`](../fjs/rtti/parse/module.f.mjs) both have
+  ([`validate`](../fjs/rtti/validate/module.f.js) and
+  [`parse`](../fjs/rtti/parse/module.f.js) both have
   `unknown: () => ok`); and the printer emits TypeScript's unrestricted
   `unknown`. Until one is chosen, an exported `unknown` has no settled
   published meaning — so **stage 11 cannot retire a declaration containing
@@ -1130,7 +1130,7 @@ gain, so the dependencies are stated instead:
   **no `parse`**, and no
   `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
   stabilize a `validate` call and cannot stabilize a `parse` one:
-  [`parse`](../fjs/rtti/parse/module.f.mjs) takes the thunk-form
+  [`parse`](../fjs/rtti/parse/module.f.js) takes the thunk-form
   `Type` and walks it, re-entering the thunk, while handing it the `Data`
   instead would change its signature. That is the reader this epic leans on
   hardest — stage 13's inbound remedy is "`parse` against a schema that
@@ -1222,7 +1222,7 @@ gain, so the dependencies are stated instead:
   **It needs the schema itself checked first, and nothing yet does that.**
   `visit` assumes its input already satisfies the static `Type` contract:
   an unrecognized tag falls through to `v.primitive0(tag)`
-  ([`rtti/common`](../fjs/rtti/common/module.f.mjs)), so a binding
+  ([`rtti/common`](../fjs/rtti/common/module.f.js)), so a binding
   whose value is `() => ['wat']` is reducible, callable, and behaves as a
   type that rejects everything — rather than producing the "that is not a
   schema" compile error stage 4 owes. An always-failing type is the worst
@@ -1405,7 +1405,7 @@ gain, so the dependencies are stated instead:
   compile-time fiction (`asNominal` is `identity`), so nothing in the value
   carries it and a generated `.d.ts` cannot recover it.
 - [ ] **10. A language server.** LSP over
-  [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
+  [`json_rpc`](../fjs/protocol/json_rpc/module.f.js) — diagnostics with
   spans, hover, go-to-definition, completion — so that removing JSDoc does
   not remove the editor experience. Must ship *before* stage 11, and can
   start once stage 5 produces its first real diagnostic — so it overlaps
@@ -1884,7 +1884,7 @@ splits around inference, so the runnable order is 668's representation half
 - [excluded-string-values](../fjs/rtti/todo/excluded-string-values.md) —
   `Type` has no negation, so a set like "any string but these" is unsayable.
   A gap in the eDSL of exactly the kind commitment 1 says gets closed there.
-- [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
+- [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.js) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
 - [error-message-specificity](../fjs/compiler/tokenizer/todo/error-message-specificity.md)

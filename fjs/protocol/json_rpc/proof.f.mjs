@@ -4,7 +4,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { ok, error } from '../../types/result/module.f.js'
-import { parse } from '../../rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     error as errorSchema,
@@ -19,7 +19,7 @@ import {
     response,
     errorResponseOf,
     successResponseOf,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** @type {(r: readonly [string, unknown]) => boolean} */
 const isOk = r => r[0] === 'ok'

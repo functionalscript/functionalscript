@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) owns the value-level operand table once, as
+[`module.f.mjs`](../module.f.js) owns the value-level operand table once, as
 `operatorOperands`, but the block and statement half of "what are this node's
 children" is re-spelled by every pass that walks FAST. The same two
 expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
@@ -59,7 +59,7 @@ does the same for the two serializers as a second step.
 
 - [x] `children` and `someBlock` (the preorder walk asking a predicate of
       each block) in `control`, beside `exitValues`, which stays there:
-      `js/ast/module.f.mjs` cannot import `control`, which imports it.
+      `js/ast/module.f.js` cannot import `control`, which imports it.
 - [x] `hasLoopTransfer` and `memo/cells`' `_hasReturn` over `someBlock`.
 - [x] `sugar`'s `references` (which collects rather than asks) over
       `children`, through `control`'s `foldNodes`, the preorder fold beside

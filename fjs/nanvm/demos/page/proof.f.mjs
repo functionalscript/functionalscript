@@ -13,7 +13,7 @@
  * @import { JsHeap, Runs, Sample, State } from './types.ts'
  */
 
-import { tagged } from '../../../text/marked/module.f.mjs'
+import { tagged } from '../../../text/marked/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'

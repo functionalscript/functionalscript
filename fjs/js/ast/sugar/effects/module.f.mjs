@@ -10,7 +10,7 @@
  * @import { Task } from '../../task/types.ts'
  */
 
-import { operatorOperands } from '../../module.f.mjs'
+import { operatorOperands } from '../../module.f.js'
 import { bind, call, done, run } from '../../task/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'

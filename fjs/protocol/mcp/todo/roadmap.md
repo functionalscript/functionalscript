@@ -12,7 +12,7 @@ minimal subset a tool server needs, and the rest of the protocol is unserved.
 
 What has landed, and where it is documented:
 
-- the JSON-RPC 2.0 envelope — `fjs/protocol/json_rpc/module.f.mjs`;
+- the JSON-RPC 2.0 envelope — `fjs/protocol/json_rpc/module.f.js`;
 - the lifecycle and capability state machine — `initialize`,
   `notifications/initialized`, `ping`, the not-initialized guard and
   capability-gated routing, with protocol-version negotiation — in `mcpStep`'s

@@ -13,7 +13,7 @@ producer ──writes──▶ Marked ──toText──▶ the file `fjs compil
 ```
 
 The type API is [`types.ts`](./types.ts); the code is
-[`module.f.mjs`](./module.f.mjs); the proofs are
+[`module.f.js`](./module.f.js); the proofs are
 [`proof.f.mjs`](./proof.f.mjs). Why the design is what it is, with the
 established practice it follows and the alternatives it rejected, is
 [§12](#12-design-record). The rest says what exists and how to use it.
@@ -102,7 +102,7 @@ A producer that builds its text from **lists of pieces** returns them as
 chunks. A piece it knows the kind of is a run; the rest are strings:
 
 ```js
-import { keyword, literal } from '../../text/marked/module.f.mjs'
+import { keyword, literal } from '../../text/marked/module.f.js'
 
 // `export default 1;`
 const chunks = [keyword('export'), ' ', keyword('default'), ' ', ['1', 'number'], ';']
@@ -154,7 +154,7 @@ A tag is `U+0001`, one letter for the kind, the text, and `U+0002`:
 | `identifier` | `i` | | | |
 
 ```js
-import { tagged, fromTagged, untagged } from '../../text/marked/module.f.mjs'
+import { tagged, fromTagged, untagged } from '../../text/marked/module.f.js'
 
 const kw = tagged('keyword')
 const text = `${kw('let')} x = ${tagged('number')('0x1')};`

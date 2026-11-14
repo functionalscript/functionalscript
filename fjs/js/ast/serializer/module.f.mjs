@@ -12,12 +12,12 @@
  * @import { _Context as Context, _Syntax as Syntax, _ScanTask as ScanTask, _Scan as Scan, _ExpressionTask as ExpressionTask } from './private.ts'
  */
 
-import { operatorOperands } from '../module.f.mjs'
+import { operatorOperands } from '../module.f.js'
 import { isIdentifier } from '../../../js/identifier/module.f.js'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { next, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
+import { chunkText, tagged, untagged } from '../../../text/marked/module.f.js'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from './names/module.f.mjs'
 import { _helperChunks } from './intrinsic/module.f.mjs'
 import { _memberPresentChunks } from './member_present/module.f.mjs'

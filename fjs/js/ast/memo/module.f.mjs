@@ -16,7 +16,7 @@
 
 import { concat, next } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { mapOperator, operatorOperands } from '../module.f.js'
 import { exitValues, freeBindings } from '../control/module.f.mjs'
 import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'

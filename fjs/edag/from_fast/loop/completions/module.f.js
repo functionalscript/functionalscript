@@ -14,6 +14,8 @@
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
+import { empty as noLoopTargets } from '../../../../types/ref_map/module.f.js'
+import { fromValues, values } from '../../../../types/set/module.f.js'
 
 /** @type {_Flow} */
 const noFlow = { returns: false, breaks: [], continues: [] }
@@ -28,8 +30,8 @@ const exitFlow = (exit, target) => ({
 /** @type {(left: _Flow, right: _Flow) => _Flow} */
 const mergeFlow = (left, right) => ({
     returns: left.returns || right.returns,
-    breaks: [...new Set([...left.breaks, ...right.breaks])],
-    continues: [...new Set([...left.continues, ...right.continues])],
+    breaks: values(fromValues([...left.breaks, ...right.breaks])),
+    continues: values(fromValues([...left.continues, ...right.continues])),
 })
 
 /**
@@ -239,7 +241,7 @@ const completedTerminalLoop = (loop, target, returns, cases) => {
  */
 const completeBlock = (block, target, root) => {
     const inventory = loopInventory(block)
-    const byTarget = new Map(inventory.map(info => [info.loop.target, info]))
+    const byTarget = inventory.reduce((map, info, i) => map(info.loop.target, i)[1], noLoopTargets)
     const result = walk(block, true, (block, parts) => {
         let index = 0
         let changed = false
@@ -278,7 +280,7 @@ const completeBlock = (block, target, root) => {
                     continues: part.flow.continues.filter(target => target !== loop.target),
                 })
                 flow = mergeFlow(flow, outgoing)
-                const info = assertNotNullish(byTarget.get(loop.target))
+                const info = assertNotNullish(inventory[Number(byTarget(loop.target)[0])])
                 const cases = transferCases(info, outgoing, inventory)
                 if ((outgoing.returns || cases.length !== 0) && statement[1] !== root) {
                     changed = true
@@ -287,25 +289,24 @@ const completeBlock = (block, target, root) => {
             }
             for (const first of added) { statements = { first, tail: statements } }
         }
-        let exit = block.exit
-        if (exit[0] === 'loop') {
-            const partIndex = index
-            index += 1
-            const part = parts[Number(partIndex)]
+        /** @type {{ readonly exit: Exit, readonly changed: boolean, readonly statements: List<Statement>, readonly flow: _Flow }} */
+        let ending = { exit: block.exit, changed, statements, flow }
+        if (ending.exit[0] === 'loop') {
+            const exit = ending.exit
+            const part = parts[Number(index)]
             const loop = part.block === exit[1].body ? exit[1] : { ...exit[1], body: part.block }
             /** @type {_Flow} */
             const outgoing = { returns: part.flow.returns,
                 breaks: part.flow.breaks.filter(target => target !== loop.target), continues: part.flow.continues.filter(target => target !== loop.target) }
-            flow = mergeFlow(flow, outgoing)
-            const cases = transferCases(assertNotNullish(byTarget.get(loop.target)), outgoing, inventory)
+            ending = { ...ending, flow: mergeFlow(ending.flow, outgoing) }
+            const cases = transferCases(assertNotNullish(inventory[Number(byTarget(loop.target)[0])]), outgoing, inventory)
             if (outgoing.returns || cases.length !== 0) {
                 const completed = completedTerminalLoop(loop, target, outgoing.returns, cases)
-                for (const first of completed.statements) { statements = { first, tail: statements } }
-                exit = completed.exit
-                changed = true
-            } else if (loop !== exit[1]) { exit = ['loop', loop]; changed = true }
+                for (const first of completed.statements) { ending = { ...ending, statements: { first, tail: ending.statements } } }
+                ending = { ...ending, exit: completed.exit, changed: true }
+            } else if (loop !== exit[1]) { ending = { ...ending, exit: ['loop', loop], changed: true } }
         }
-        return { block: changed ? { statements: toArray(statements).toReversed(), exit } : block, flow }
+        return { block: ending.changed ? { statements: toArray(ending.statements).toReversed(), exit: ending.exit } : block, flow: ending.flow }
     })
     return result.block
 }

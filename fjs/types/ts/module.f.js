@@ -9,8 +9,8 @@
  */
 
 import { serialize as bigintSerialize } from '../bigint/module.f.js'
-import { stringLiteral } from '../../js/string_escape/module.f.mjs'
-import { tagged, untagged } from '../../text/marked/module.f.mjs'
+import { stringLiteral } from '../../js/string_escape/module.f.js'
+import { tagged, untagged } from '../../text/marked/module.f.js'
 
 /**
  * Marks a piece of the output. The printers build their text by templates, so

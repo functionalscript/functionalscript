@@ -265,7 +265,7 @@ the JS rule once retires every enumeration above. Template decoding now uses
 that rule; quoted-string decoding remains in the tasks below.
 
 The decode side has the same split. `simpleEscapes` in
-[`js/string_escape`](../../../../js/string_escape/module.f.mjs) is shared with
+[`js/string_escape`](../../../../js/string_escape/module.f.js) is shared with
 [`media/json/serializer`](../../../../media/json/serializer/module.f.mjs)'s
 encoder, so an apostrophe row there would make the JSON serializer emit `\'`
 and produce invalid JSON. The JS rule's decoder — the listed escapes, else the

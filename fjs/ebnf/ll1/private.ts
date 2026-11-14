@@ -7,6 +7,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { RangeSet } from '../../types/range_set/types.ts'
 import type { Step } from '../../types/stack_walk/types.ts'
+import type { PersistentMap } from '../../types/map/types.ts'
 import type { FirstMap } from './types.ts'
 
 /**
@@ -29,7 +30,7 @@ export type _Follows = readonly (readonly [name: string, symbols: RangeSet])[]
 export type _Mapper = (children: never) => unknown
 
 /** The rewrite set keyed by rule name, as the machine folds it. */
-export type _Mappers = ReadonlyMap<string, _Mapper>
+export type _Mappers = PersistentMap<string, _Mapper>
 
 /**
  * A suspended sequence: `items[index]` is being matched, and `done` holds the

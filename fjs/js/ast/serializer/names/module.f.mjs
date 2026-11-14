@@ -22,7 +22,7 @@
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
-import { chunkText } from '../../../../text/marked/module.f.mjs'
+import { chunkText } from '../../../../text/marked/module.f.js'
 
 /** A reference to a binding identified by its rendering scope and slot. @type {(key: string) => string} */
 export const _name = key => `\u0000${key}\u0000`

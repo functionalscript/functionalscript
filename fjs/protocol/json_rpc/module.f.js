@@ -20,7 +20,7 @@
 
 import { entry } from '../../types/object/entry/module.f.js'
 import { number, open, string, or, option } from '../../rtti/module.f.js'
-import { parse } from '../../rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.js'
 import { unknown } from '../../media/json/rtti/module.f.js'
 
 export const jsonrpc = /** @type {const} */ ('2.0')

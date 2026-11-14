@@ -65,7 +65,7 @@
  * @import { File, Files } from './demo_files/types.ts'
  */
 
-import { toText } from '../text/marked/module.f.mjs'
+import { toText } from '../text/marked/module.f.js'
 import { codeBlock } from '../website/demo/code/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'

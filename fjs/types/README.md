@@ -87,8 +87,8 @@ easier to read.
 |[`btree`](./btree/)                |The persistent 2-3 B-tree that `ordered_map` and `string_set` are built on.               |
 |[`ordered_map`](./ordered_map/)    |A string-keyed map, traversed in key order.                                               |
 |[`string_set`](./string_set/)      |A set of strings, traversed in order.                                                     |
-|[`set`](./set/)                    |A persistent set with `Set`'s equality (objects by identity) and a logarithmic `add`.     |
-|[`map`](./map/)                    |`mapSet` and `mapDelete`: copy-on-write updates of a JavaScript `Map`.                    |
+|[`set`](./set/)                    |A persistent SameValueZero set with stable first-insertion order and deduplication.       |
+|[`map`](./map/)                    |Persistent mixed-key lookup, updates, deletion and insertion-ordered entries.              |
 |[`ref_map`](./ref_map/)            |The empty reference map: a reference found in `O(log n)`, which `===` alone cannot do.    |
 |[`sorted_list`](./sorted_list/)    |Merging, intersecting and searching sorted lists.                                         |
 |[`sorted_set`](./sorted_set/)      |A set held as a sorted array: `union`, `intersect`, `has`.                                |

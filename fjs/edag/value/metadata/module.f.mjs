@@ -20,9 +20,9 @@
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
-import { prependPath, verror } from '../../../rtti/common/module.f.mjs'
+import { prependPath, verror } from '../../../rtti/common/module.f.js'
 import { mapOk, ok } from '../../../types/result/module.f.js'
-import { add, empty, has } from '../../../types/set/module.f.mjs'
+import { add, empty, has } from '../../../types/set/module.f.js'
 
 /** @type {(values: Values, visited: _Visited) => Result<_Visited, ValidationError>} */
 const validateValues = (values, visited) => {

@@ -10,8 +10,8 @@ import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, asser
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.js'
 import { examples, lessons, projectSchemas } from './demo.f.mjs'
 import { _readersOf } from './schema-demo/module.f.mjs'
-import { parse } from './parse/module.f.mjs'
-import { validate } from './validate/module.f.mjs'
+import { parse } from './parse/module.f.js'
+import { validate } from './validate/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
 /** @type {StringMap<readonly unknown[]>} */

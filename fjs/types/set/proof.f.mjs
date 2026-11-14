@@ -1,113 +1,58 @@
-/**
- * @import { PersistentSet } from './types.ts'
- */
+/** @import { PersistentSet } from './types.ts' */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { add, empty, has, size, values } from './module.f.mjs'
+import { generate } from '../array/generate/module.f.js'
+import { add, empty, fromValues, has, size, values } from './module.f.js'
 
-/**
- * The run sizes, newest (top) first.
- *
- * @type {(set: PersistentSet<unknown>) => readonly number[]}
- */
-const sizes = set => set === null ? [] : [set.value.size, ...sizes(set.rest)]
-
-/** The set of the first `n` naturals, added in order. @type {(n: number) => PersistentSet<number>} */
-const naturals = n => Array.from({ length: n }, (_, i) => i).reduce((set, i) => add(i)(set), /** @type {PersistentSet<number>} */ (empty))
-
-/**
- * The layout invariant: every run holds a power of two of values, no run is
- * larger than the one beneath it, and the run two beneath is strictly larger,
- * so a size appears at most twice in a row and the stack is at most twice
- * the binary length of the set's size.
- *
- * @type {(set: PersistentSet<unknown>) => void}
- */
-const wellFormed = set => {
-    if (set === null) { return }
-    const { value, rest } = set
-    const { size } = value
-    assertEq(size & (size - 1), 0)
-    assert(rest === null || size <= rest.value.size, `run ${size}`)
-    assert(rest === null || rest.rest === null || size < rest.rest.value.size, `run ${size}`)
-    wellFormed(rest)
-}
-
-export const proof = {
+export const proof = /** @type {const} */ ({
     empty: () => {
         assertEq(size(empty), 0)
-        assertEq(has(1)(empty), false)
-        assertEq(values(empty).length, 0)
+        assert(!has(1)(empty))
+        assertStructurallySame(values(empty), [])
+        assert(fromValues([]) === empty)
     },
-    // Adding carries like a binary counter one push late: a value never
-    // merges on the add that brings it, so two runs of a size sit side by
-    // side until the next add merges them. A value added is a value held, at
-    // every size on the way.
-    carries: () => {
-        const one = add(0)(empty)
-        assertStructurallySame(sizes(one), [1])
-        const two = add(1)(one)
-        assertStructurallySame(sizes(two), [1, 1])
-        const three = add(2)(two)
-        assertStructurallySame(sizes(three), [1, 2])
-        const four = add(3)(three)
-        assertStructurallySame(sizes(four), [1, 1, 2])
-        const five = add(4)(four)
-        assertStructurallySame(sizes(five), [1, 2, 2])
-        const seven = add(6)(add(5)(five))
-        assertStructurallySame(sizes(seven), [1, 2, 4])
-        for (let n = 0; n <= 70; n += 1) {
-            const set = naturals(n)
-            wellFormed(set)
-            assertEq(size(set), n)
-            assertStructurallySame(values(set).toSorted((a, b) => a - b), Array.from({ length: n }, (_, i) => i))
-            for (let i = 0; i < n; i += 1) { assert(has(i)(set), `${i} in ${n}`) }
-            assert(!has(n)(set), `${n} not in ${n}`)
-        }
-    },
-    // Persistence: an add leaves the set it was given as it was.
-    persistent: () => {
-        const three = naturals(3)
-        const four = add(3)(three)
-        assertEq(size(three), 3)
-        assertEq(has(3)(three), false)
-        assertEq(has(3)(four), true)
-    },
-    // Adding what is already there is the same set, not a copy, so the
-    // layout stays as it was.
-    present: () => {
-        const set = naturals(5)
-        assert(add(2)(set) === set)
+    stableOrder: () => {
+        const set = fromValues([3, 1, 3, 2, 1, 4])
+        assertStructurallySame(values(set), [3, 1, 2, 4])
+        assertEq(size(set), 4)
+        assert(add(3)(set) === set)
         assert(add(4)(set) === set)
+        assertStructurallySame(values(add(0)(set)), [3, 1, 2, 4, 0])
     },
-    // `Set`'s equality: objects by identity, `NaN` equal to itself, `-0`
-    // equal to `0`.
+    persistent: () => {
+        const one = add(1)(empty)
+        const two = add(2)(one)
+        assertEq(size(one), 1)
+        assert(!has(2)(one))
+        assert(has(2)(two))
+        assertStructurallySame(values(one), [1])
+        assertStructurallySame(values(two), [1, 2])
+    },
     equality: () => {
-        const a = {}
-        /** @type {(value: unknown) => (set: PersistentSet<unknown>) => PersistentSet<unknown>} */
-        const put = add
-        /** @type {(value: unknown) => (set: PersistentSet<unknown>) => boolean} */
-        const holds = has
-        const set = put(NaN)(put(a)(put(0)(empty)))
-        assert(holds(a)(set))
-        assert(!holds({})(set))
-        assert(holds(NaN)(set))
-        assert(holds(-0)(set))
-        assert(put(-0)(set) === set)
+        const a = /** @type {const} */ ({ index: 1 })
+        const alike = /** @type {const} */ ({ index: 1 })
+        const array = /** @type {const} */ ([])
+        const fn = () => 1
+        /** @type {unknown} */
+        const absent = { index: 1 }
+        /** @type {readonly unknown[]} */
+        const input = [a, a, alike, array, fn, fn, undefined, null, false, true, 1, 1n, '1', NaN, NaN, -0, 0]
+        const set = fromValues(input)
+        assertEq(size(set), 13)
+        assertStructurallySame(values(set), [a, alike, array, fn, undefined, null, false, true, 1, 1n, '1', NaN, 0])
+        for (const value of input) { assert(has(value)(set)); assert(add(value)(set) === set) }
+        assert(!has(absent)(set))
+        assert(Object.is(values(set)[12], 0))
+        const zero = fromValues([-0, 0])
+        assertEq(size(zero), 1)
+        assert(Object.is(values(zero)[0], 0))
     },
-    // The add is a logarithm amortized, not the whole set: 20,000 adds are
-    // a few tens of milliseconds where copying the set each time is seconds.
-    // Pinned as the invariant at that size rather than as a timing.
     large: () => {
-        const n = 20_000
-        const set = naturals(n)
-        wellFormed(set)
-        assertEq(size(set), n)
-        // 20000 is `100111000100000` in binary; the late carry leaves some
-        // of its bits as two runs of the half size, and the ones that have
-        // not carried yet on top.
-        assertStructurallySame(sizes(set), [1, 1, 2, 4, 8, 16, 32, 32, 64, 128, 256, 512, 512, 1_024, 1_024, 2_048, 2_048, 4_096, 8_192])
-        assert(has(n - 1)(set))
-        assert(!has(n)(set))
+        const input = generate(20_000, i => i)
+        const set = fromValues([...input, ...input])
+        assertEq(size(set), input.length)
+        assertStructurallySame(values(set), input)
+        assert(has(19_999)(set))
+        assert(!has(20_000)(set))
     },
-}
+})

@@ -10,7 +10,7 @@
  * @import { _Selected } from './private.ts'
  */
 
-import { operatorOperands, mapOperator } from '../../../js/ast/module.f.mjs'
+import { operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
 import { exitValues, freeBindings } from '../../../js/ast/control/module.f.mjs'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'

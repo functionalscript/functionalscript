@@ -22,7 +22,7 @@ have different uses:
   its operational operand-demand order.
 - [`to_fast`](../to_fast/module.f.mjs) classifies operands for common placement,
   stopping at established bindings and respecting successful lazy paths.
-- [`js/ast`](../../js/ast/module.f.mjs) maps normalized value operands and chain
+- [`js/ast`](../../js/ast/module.f.js) maps normalized value operands and chain
   metadata without choosing evaluation regions.
 
 Whether a smaller shared core helper would simplify these consumers remains
