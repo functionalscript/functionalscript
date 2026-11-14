@@ -3,13 +3,14 @@
  * @import { Param, Signature, Type } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
+import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.mjs'
 import { any, l0 } from '../l0/module.f.js'
-import { bool, f64, i, signature, u } from '../module.f.js'
+import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
+import { native } from '../native/module.f.mjs'
 import { print } from '../print/module.f.js'
 import { lower } from './module.f.mjs'
-import { sourceOf, view } from './testlib.f.mjs'
+import { runtime, sourceOf } from './testlib.f.mjs'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
@@ -30,21 +31,27 @@ const fast = text => {
     return fast
 }
 
-/** What the lowering makes of a module's text, with its imports, over the L0 view `v`. @type {(signatures: Readonly<Record<string, Signature>>, text: string, v?: string | null) => ReturnType<ReturnType<typeof lower>>} */
-const over = (signatures, text, v = view) => {
+/** What the lowering makes of a module's text, with its imports, over the runtime `r`. @type {(signatures: Readonly<Record<string, Signature>>, text: string, r?: Parameters<typeof lower>[1]) => ReturnType<ReturnType<typeof lower>>} */
+const over = (signatures, text, r = runtime) => {
     const { fast, imports } = assertOk(sourceOf(text))
-    return lower(signatures, v)(fast, imports)
+    return lower(signatures, r)(fast, imports)
 }
 
-/** The IR of a module's text over the L0 view, printed without the interfaces of L0, which it imports. @type {(signatures: Readonly<Record<string, Signature>>, text: string) => string} */
+/** The IR of a module's text over the runtime, printed without the interfaces of L0 and of L1's native rows, which it imports. @type {(signatures: Readonly<Record<string, Signature>>, text: string) => string} */
 const irOver = (signatures, text) => {
     const m = assertOk(over(signatures, text))
-    assertEq(m.imports, l0)
+    assertStructurallySame(m.imports, [...l0, ['Native', native]])
     return print({ ...m, imports: [] })
 }
 
 /** The L0 view's names that the proofs of the view read. */
-const imports = "import { NUMBER, asBoolean, asNumber, asString, kind, length, unit } from '../l0/module.f.js'\n"
+const imports = "import { NUMBER, asBoolean, asNumber, asString, kind, length, same, unit } from '../l0/module.f.js'\n"
+
+/** L1's native rows that the proofs of the rows read, by the specifier by which L1 imports them. */
+const natives = "import { bigintAdd, bigintEquals, numberRemainder } from './native/module.f.js'\n"
+
+/** Why a module lowered without the runtime refuses `%`. */
+const noNative = "f: % of two floats calls L1's native rows, which a module lowered without the runtime does not import"
 
 // FAST written by hand, for the forms that no text makes today
 
@@ -135,9 +142,9 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(why(only([['a', f64], ['b', f64]], bool), fast('export const f = (a, b) => a % 2 > b')), 'f: % is not in this slice')
-        assertEq(why(only([['a', f64], ['b', f64]], bool), fast('export const f = (a, b) => a > b % 2')), 'f: % is not in this slice')
-        assertEq(why(only([['a', f64], ['b', f64]], bool), fast('export const f = (a, b) => a + 1 > b % 2')), 'f: % is not in this slice')
+        assertEq(why(only([['a', f64], ['b', f64]], bool), fast('export const f = (a, b) => a % 2 > b')), noNative)
+        assertEq(why(only([['a', f64], ['b', f64]], bool), fast('export const f = (a, b) => a > b % 2')), noNative)
+        assertEq(why(only([['a', f64], ['b', f64]], bool), fast('export const f = (a, b) => a + 1 > b % 2')), noNative)
         assertEq(ir(fa, fast('export const f = a => Math.sqrt(Math.abs(a))')), [
             'fn f(a: f64) -> f64 =',
             '    sqrt(abs(a))',
@@ -213,21 +220,21 @@ export const proof = {
     },
     refused: () => {
         const mixed = only([['a', f64], ['b', u(8)]], f64)
-        assertEq(why(fa, fast('export const f = a => a % 2')), 'f: % is not in this slice')
+        assertEq(why(fa, fast('export const f = a => a % 2')), noNative)
         assertEq(why(fa, fast('export const f = a => "s"')), 'f: a string is not in this slice')
         assertEq(why(fa, fast('export const f = a => null')), 'f: null is not in this slice')
         assertEq(why(fa, fast('export const f = a => undefined')), 'f: undefined is not in this slice')
         assertEq(why(fa, fast('export const f = a => { throw a }')), 'f: throw is not in this slice')
         assertEq(why(fa, fast('export const f = a => a < 0 ? "s" : a')), 'f: a string is not in this slice')
-        assertEq(why(fa, fast('export const f = a => a % 2 + 1')), 'f: % is not in this slice')
+        assertEq(why(fa, fast('export const f = a => a % 2 + 1')), noNative)
         // What the checker refuses in a part, the lowering refuses where it asks for the part's type.
         assertEq(why(mixed, fast('export const f = (a, b) => { const s = a + b; return s * s }')), 'f: add of f64 and u(8): the operands are integers or floats, not both')
         assertEq(why(mixed, fast('export const f = (a, b) => -(a + b)')), 'f: add of f64 and u(8): the operands are integers or floats, not both')
         assertEq(why(mixed, fast('export const f = (a, b) => (a + b) === 1')), 'f: add of f64 and u(8): the operands are integers or floats, not both')
-        assertEq(why(fa, fast('export const f = a => { const s = a % 2; return s * s }')), 'f: % is not in this slice')
-        assertEq(why(fa, fast('export const f = a => { const s = a + a; return s % 2 }')), 'f: % is not in this slice')
-        assertEq(why(fa, fast('export const f = a => -(a % 2)')), 'f: % is not in this slice')
-        assertEq(why(fa, fast('export const f = a => (a % 2) === 1')), 'f: % is not in this slice')
+        assertEq(why(fa, fast('export const f = a => { const s = a % 2; return s * s }')), noNative)
+        assertEq(why(fa, fast('export const f = a => { const s = a + a; return s % 2 }')), noNative)
+        assertEq(why(fa, fast('export const f = a => -(a % 2)')), noNative)
+        assertEq(why(fa, fast('export const f = a => (a % 2) === 1')), noNative)
         assertEq(why(only([['a', bool]], bool), fast('export const f = a => -a')), 'f: - of bool is not in this slice')
         assertEq(why(fa, fast('export const f = a => !a')), 'f: ! of f64 is not in this slice')
         assertEq(why(only([['a', bool]], f64), fast('export const f = a => Number(a)')), 'f: Number of bool is not in this slice')
@@ -268,7 +275,7 @@ export const proof = {
         ].join('\n'))
         assertEq(why(fa, fast('export const f = a => {\n    const g = b => b\n    return g\n}')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => [b => b]')), 'f: array is not in this slice')
-        assertEq(why(fa, fast('export const f = a => (b => b)(a, a)')), 'f: a function inside a function takes one argument, and its call gives 2')
+        assertEq(why(fa, fast('export const f = a => (b => b)(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
         /** A module whose `f` calls a function that it defines, `g`, on `a`. @type {(g: FastFunction) => Block} */
         const calling = g => module([['define', x, ['function', g], 'required']], ['()', ['ref', x], [['ref', a]]])
         const b = id(3)
@@ -282,12 +289,296 @@ export const proof = {
         ].join('\n'))
         assertEq(why(fa, calling({ ...g, rest: id(4) })), 'f: a rest parameter is not in this slice')
         assertEq(why(fa, module([['define', x, ['()', ['function', g], [['ref', a]]], 'required']], ['ref', x])), 'f: a call of a value is not in this slice')
-        assertEq(why(fa, calling({ ...g, self: id(4) })), 'f: a function inside a function that names itself is not in this slice')
+        assertEq(why(fa, calling({ ...g, self: id(4) })), 'f: a function that calls itself is not in this slice')
         assertEq(why(fa, calling({ ...g, captures: [{ binding: id(4), value: 1 }] })), 'f: a capture that is no binding of the function is not in this slice')
         assertEq(why(fa, calling({ ...g, captures: [{ binding: id(4), value: ['ref', id(99)] }] })), 'f: a capture that is no binding of the function is not in this slice')
         // Its `return` must end its body: one in an arm would leave the function that calls it.
         const early = blk([], ['return', target, ['if', ['<', ['ref', b], 0], blk([], ['return', target, 1]), yields(['ref', b])]])
-        assertEq(why(fa, calling({ ...g, body: early })), 'f: a return before the end of a function inside a function is not in this slice')
+        assertEq(why(fa, calling({ ...g, body: early })), 'f: a return before the end of a function that is inlined is not in this slice')
+    },
+    unexported: () => {
+        // A function that the module does not export is inlined at each call, typed by what the call gives.
+        assertEq(ir({ f: signature([['a', u(8)]], u(9)), h: fa.f }, fast('const g = x => x + x\nexport const f = a => g(a)\nexport const h = a => g(a)')), [
+            'fn f(a: u(8)) -> u(9) =',
+            '    add(a, a)',
+            '',
+            'fn h(a: f64) -> f64 =',
+            '    add(a, a)',
+            '',
+            'export f, h',
+            '',
+        ].join('\n'))
+        // Its captures are what the module's bindings are: a function that the module exports is called.
+        assertEq(ir({ f: fa.f, g: fa.f }, fast('export const g = a => a * 2\nconst h = x => g(x) + 1\nconst k = x => h(h(x))\nexport const f = a => k(a)')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = add(g(a), 1.0)',
+            '    add(g(#0), 1.0)',
+            '',
+            'fn g(a: f64) -> f64 =',
+            '    mul(a, 2.0)',
+            '',
+            'export f, g',
+            '',
+        ].join('\n'))
+        // A function that it defines is inlined inside it, and one that reads the L0 view reads it.
+        assertEq(ir(fa, fast('const g = x => {\n    const h = y => y * x\n    return h(x) + h(1)\n}\nexport const f = a => g(a + 1)')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = add(a, 1.0)',
+            '    add(mul(#0, #0), mul(1.0, #0))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', any]], f64), `${imports}const k = v => kind(v)\nexport const f = v => k(v) + k(v)`), [
+            'fn f(v: any) -> f64 =',
+            '    add(float(Any.kind(v)), float(Any.kind(v)))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // Normalized FAST makes a loop of a function that calls itself last; one that calls itself
+        // otherwise would be inlined forever.
+        assertEq(ir(fa, fast('const g = x => x < 1 ? x : g(x - 1)\nexport const f = a => g(a)')), [
+            'fn f(a: f64) -> f64 =',
+            '    loop L0 (#0: f64 = a)',
+            '        if lt(#0, 1.0) then #0 else br L0 { #0: sub(#0, 1.0) }',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, fast('const g = x => x < 1 ? x : 1 + g(x - 1)\nexport const f = a => g(a)')), 'f: a function that calls itself is not in this slice')
+        // So would two functions that call each other, which no text writes, since a module's
+        // functions read only what comes before them.
+        const [g, h, p, q, gc, hc, fc] = [10, 11, 12, 13, 14, 15, 16].map(id)
+        /** A function of `param` that calls what it captures, `capture`, which is `other`. @type {(param: BindingId, capture: BindingId, other: Value) => FastFunction} */
+        const relay = (param, capture, other) => ({
+            target, parameters: [param], rest: null, self: null, captures: [{ binding: capture, value: other }],
+            body: blk([], ['return', target, ['()', ['ref', capture], [['ref', param]]]]),
+        })
+        /** A module whose `f` calls `g`, which calls `h`, whose capture is `other`. @type {(other: Value) => Block} */
+        const relaying = other => exporting(
+            [['define', g, ['function', relay(p, hc, ['ref', h])], 'required'], ['define', h, ['function', relay(q, gc, other)], 'required']],
+            ['yield', [['object', [[':', 'f', ['function', fun(blk([], ['return', target, ['()', ['ref', fc], [['ref', a]]]]), [{ binding: fc, value: ['ref', g] }])]]]]]])
+        assertEq(why(fa, relaying(['ref', g])), 'f: a function that calls itself is not in this slice')
+        assertEq(why(fa, relaying(1)), 'f: a capture that is not a function of the module is not in this slice')
+        assertEq(why(fa, fast('const g = a => a\nexport const f = a => g')), 'f: a function as a value is not in this slice')
+        assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
+        assertEq(why(fa, fast('const k = [1]\nconst g = a => k\nexport const f = a => g(a)')), 'f: a module constant is not in this slice')
+        assertEq(why(fa, fast('export const g = a => a\nconst h = x => g(x)\nexport const f = a => h(a)')), 'f: g has no signature')
+    },
+    records: () => {
+        // An object literal is a record, a product of its keys in their order, which stays in its function.
+        assertEq(ir(fa, fast('export const f = a => {\n    const r = { x: a, y: a + 1 }\n    return r.x * r.y\n}')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = { x: a, y: add(a, 1.0) }',
+            '    mul(#0.x, #0.y)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(ir(fa, fast('export const f = a => {\n    const r = { p: { q: a + 1 } }\n    return r.p.q * r.p.q\n}')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = { p: { q: add(a, 1.0) } }',
+            '    mul(#0.p.q, #0.p.q)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A field of a local does nothing, so an operand that reads one is not bound first.
+        assertEq(ir(fa, fast('export const f = a => {\n    const r = { x: a * 2, y: a }\n    return r.x > 1 ? r.y : r.x\n}')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = { x: mul(a, 2.0), y: a }',
+            '    if lt(1.0, #0.x) then #0.y else #0.x',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A field of a record that is made where it is read, whose other fields do nothing, is the field's own term.
+        assertEq(ir(fa, fast('export const f = a => ({ x: a + 1, y: 2 }).x')), [
+            'fn f(a: f64) -> f64 =',
+            '    add(a, 1.0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(ir(fa, fast('const mid = (p, q) => ({ x: (p.x + q.x) / 2 })\nexport const f = a => mid({ x: a }, { x: 1 }).x')), [
+            'fn f(a: f64) -> f64 =',
+            '    div(add(a, 1.0), 2.0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(ir(fa, fast('export const f = a => ({ x: a, y: a + 1 }).x')), [
+            'fn f(a: f64) -> f64 =',
+            '    { x: a, y: add(a, 1.0) }.x',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A record may be the value of a branch, and a loop's parameter, each float widened to `f64`.
+        assertEq(ir(only([['a', f64], ['c', bool]], f64), fast('export const f = (a, c) => (c ? { x: a } : { x: 1 }).x')), [
+            'fn f(a: f64, c: bool) -> f64 =',
+            '    (if c then { x: a } else { x: 1.0 }).x',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(ir(fa, fast('export const f = a => {\n    let r = { i: 0, s: 0 }\n    while (r.i < a) { r = { i: r.i + 1, s: r.s + r.i } }\n    return r.s\n}')), [
+            'fn f(a: f64) -> f64 =',
+            '    (',
+            '        loop L0 (#0: { i: f64, s: f64 } = { i: 0.0, s: 0.0 })',
+            '            if lt(#0.i, a) then br L0 { #0: { i: add(#0.i, 1.0), s: add(#0.s, #0.i) } } else #0',
+            '    ).s',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, fast('export const f = a => {\n    let r = { i: 0n }\n    while (r.i < 5n) { r = { i: r.i + 1n } }\n    return a\n}')), 'f: a loop parameter of { i: int(0, 0) } is not in this slice')
+        // What a record does not hold.
+        const entry = 'f: an entry of an object that is not a name and its value is not in this slice'
+        assertEq(why(fa, fast('export const f = a => ({ [a]: 1 }).x')), entry)
+        assertEq(why(fa, fast('export const f = a => ({ 1: a }).x')), entry)
+        assertEq(why(fa, fast('export const f = a => {\n    const r = { x: a }\n    return ({ ...r }).x\n}')), entry)
+        assertEq(why(fa, fast('export const f = a => ({ x: "s" }).x')), 'f: a string is not in this slice')
+        assertEq(why(fa, fast('export const f = a => a.x')), 'f: .x of f64 is not in this slice')
+        assertEq(why(fa, fast('export const f = a => ({ x: a })[0]')), 'f: a member read of anything but a name is not in this slice')
+        assertEq(why(fa, fast('export const f = a => ({ x: a })?.x')), 'f: ?. is not in this slice')
+        assertEq(why(fa, fast('export const f = a => ({ x: a, x: 1 }).x')), 'f: a product names x twice')
+        assertEq(why(only([['a', f64], ['c', bool]], f64), fast('export const f = (a, c) => (c ? { x: a, y: 1 } : { y: 1, x: a }).x')), 'f: match: its arms are { x: f64, y: f64c }, { y: f64c, x: f64 }, which no one type holds')
+        // The checker refuses a record that leaves its function, and a field that it does not have.
+        assertEq(assertError(check(assertOk(lower(fa)(fast('export const f = a => ({ x: a })'))))), 'f: the body is { x: f64 }, not f64')
+        assertEq(assertError(check(assertOk(lower(fa)(fast('export const f = a => ({ x: a }).z'))))), 'f: { x: f64 } has no field z')
+    },
+    remainder: () => {
+        // `%` of two floats is L1's native row `numberRemainder`, which a module lowered over the
+        // runtime imports, since WASM has no instruction for it.
+        assertEq(irOver(fab, 'export const f = (a, b) => a % b'), [
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    Native.numberRemainder(a, b)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['n', f64]], bool), 'export const f = n => n % 1 === 0'), [
+            'fn f(n: f64) -> bool =',
+            '    eq(Native.numberRemainder(n, 1.0), 0.0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['a', f64], ['b', f64]], bool), 'export const f = (a, b) => a + 1 > b % 2'), [
+            'fn f(a: f64, b: f64) -> bool =',
+            '    let #0 = add(a, 1.0)',
+            '    lt(Native.numberRemainder(b, 2.0), #0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', any]], f64), `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) % length(s)\n}`), [
+            'fn f(v: any) -> f64 =',
+            '    match v',
+            '      string as v.string =>',
+            '        Native.numberRemainder(float(String.length(v.string)), float(String.length(v.string)))',
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(only([['a', u(8)], ['b', u(8)]], f64), 'export const f = (a, b) => a % b')), 'f: % of u(8) and u(8) is not in this slice')
+        assertEq(assertError(over(fa, 'export const f = a => a % "s"')), 'f: a string is not in this slice')
+        assertEq(assertError(over(fa, 'export const f = a => ({ x: a }).z % 2')), 'f: { x: f64 } has no field z')
+    },
+    native: () => {
+        const ab = only([['a', any], ['b', any]], bool)
+        // A native row of L1 is a call of the interface `Native`: an argument that is a local of
+        // other kinds too is cast to the kinds that the row takes, once where two arguments read it.
+        assertEq(irOver(ab, `${natives}export const f = (a, b) => bigintEquals(a, b)`), [
+            'fn f(a: any, b: any) -> bool =',
+            '    match a',
+            '      bigint as a.bigint =>',
+            '        match b',
+            '          bigint as b.bigint =>',
+            '            Native.bigintEquals(a.bigint, b.bigint)',
+            '          else =>',
+            "            trap('not bigint')",
+            '      else =>',
+            "        trap('not bigint')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(ab, `${natives}export const f = (a, b) => bigintEquals(a, a)`), [
+            'fn f(a: any, b: any) -> bool =',
+            '    match a',
+            '      bigint as a.bigint =>',
+            '        Native.bigintEquals(a.bigint, a.bigint)',
+            '      else =>',
+            "        trap('not bigint')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // JavaScript reads every argument before the row checks any, so an argument that does
+        // something is bound first; a local of the row's kinds alone is no cast.
+        assertEq(irOver(only([['a', any], ['b', any], ['c', bool]], bool), `${natives}export const f = (a, b, c) => bigintEquals(c ? a : b, a)`), [
+            'fn f(a: any, b: any, c: bool) -> bool =',
+            '    let #0 = if c then a else b',
+            '    match #0',
+            '      bigint as #0.bigint =>',
+            '        match a',
+            '          bigint as a.bigint =>',
+            '            Native.bigintEquals(#0.bigint, a.bigint)',
+            '          else =>',
+            "            trap('not bigint')",
+            '      else =>',
+            "        trap('not bigint')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['a', subset(any, 'bigint')], ['b', any]], bool), `${natives}export const f = (a, b) => bigintEquals(a, b)`), [
+            'fn f(a: any.only(bigint), b: any) -> bool =',
+            '    match b',
+            '      bigint as b.bigint =>',
+            '        Native.bigintEquals(a, b.bigint)',
+            '      else =>',
+            "        trap('not bigint')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(fab, `${natives}export const f = (a, b) => numberRemainder(a, b)`), [
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    Native.numberRemainder(a, b)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // L0's `same` is cast in the same way, to the kinds that it compares.
+        assertEq(irOver(ab, `${imports}export const f = (a, b) => same(a, b)`), [
+            'fn f(a: any, b: any) -> bool =',
+            '    match a',
+            '      array | object | function as a.same =>',
+            '        match b',
+            '          array | object | function as b.same =>',
+            '            Any.same(a.same, b.same)',
+            '          else =>',
+            "            trap('not array or object or function')",
+            '      else =>',
+            "        trap('not array or object or function')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // The checker refuses an argument that holds none of the kinds.
+        assertEq(assertError(check(assertOk(over(only([['a', subset(any, 'number')], ['b', any]], bool), `${natives}export const f = (a, b) => bigintEquals(a, b)`)))), "f: Native.bigintEquals's a is any.only(bigint), not any.only(number)")
+        assertEq(assertError(check(assertOk(over(ab, `${natives}export const f = (a, b) => bigintEquals(a, 1n)`)))), "f: Native.bigintEquals's b is any.only(bigint), not int(1, 1)")
+        assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintAdd(a, b)`)), "f: bigintAdd of L1's native rows is not in this slice")
+        assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals(a)`)), 'f: bigintEquals takes 2 arguments, not 1')
+        assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals`)), 'f: a function as a value is not in this slice')
+        assertEq(assertError(over(ab, `${imports}export const f = (a, b) => same(a)`)), 'f: same takes 2 arguments, not 1')
+        assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals(a, b)`, null)), 'f: an import of ./native/module.f.js is not in this slice')
     },
     loops: () => {
         // A loop's parameters are locals of their first values' types, a float widened to `f64`.
@@ -369,7 +660,7 @@ export const proof = {
             '    while (i < a) { s = s + i; i = i + 1 }',
             '    return s',
             '}',
-        ].join('\n'))), 'f: . is not in this slice')
+        ].join('\n'))), 'f: a member read of anything but a name is not in this slice')
         // No bound holds what a later round gives an integer.
         assertEq(why(fa, fast([
             'export const f = a => {',
@@ -487,7 +778,6 @@ export const proof = {
         assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), 'f: a module constant is not in this slice')
         assertEq(why({ k: fa.f }, fast('export const k = 2')), 'k: an export that is not a function is not in this slice')
         assertEq(why({ g: fa.f, h: fa.f }, fast('const f = a => a\nexport const g = f\nexport const h = f')), 'h exports the same function as g')
-        assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a)')), 'f: a function that the module does not export is not in this slice')
         assertEq(why(fa, fast('export const g = a => a\nexport const f = a => g(a)')), 'f: g has no signature')
         assertEq(why({ ...fa, g: fa.f }, fast('export const f = a => a')), 'g has a signature, and the module exports no function g')
         const f = /** @type {const} */ (['function', fun(yields(1))])
@@ -729,15 +1019,15 @@ export const proof = {
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(NUMBER)\n    return length(s) * length(s)\n}`)), 'f: asString of f64c is not in this slice')
         assertEq(assertError(over(fa, `${imports}export const f = a => {\n    const s = asString(a)\n    return length(s) * length(s)\n}`)), 'f: asString of f64 is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(...v)\n    return length(s) * length(s)\n}`)), 'f: a spread argument is not in this slice')
-        assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) % length(s)\n}`)), 'f: % is not in this slice')
+        assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * (length(s) * "x")\n}`)), 'f: a string is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v, v)`)), 'f: kind takes one argument, not 2')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1)`)), 'f: kind of f64c is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind`)), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v)`, null)), 'f: an import of ../l0/module.f.js is not in this slice')
         assertEq(assertError(over(fv, 'import g from "./g.f.js"\nexport const f = a => g(a)')), 'f: an import of ./g.f.js is not in this slice')
-        assertEq(assertError(over(fv, 'import d from "./d.json" with { type: "json" }\nexport const f = a => d', './d.json')), 'f: an import of ./d.json is not in this slice')
-        assertEq(assertError(lower(fv, view)(assertOk(sourceOf(`${imports}export const f = v => kind(v)`)).fast)), 'f: no import 4')
+        assertEq(assertError(over(fv, 'import d from "./d.json" with { type: "json" }\nexport const f = a => d', { ...runtime, l0: './d.json' })), 'f: an import of ./d.json is not in this slice')
+        assertEq(assertError(lower(fv, runtime)(assertOk(sourceOf(`${imports}export const f = v => kind(v)`)).fast)), 'f: no import 4')
         // Without the L0 view, the module imports no interface, so the checker finds none that names `any`.
         assertEq(assertError(check(assertOk(lower(fv)(fast('export const f = v => 1'))))), 'f: no interface Any')
     },

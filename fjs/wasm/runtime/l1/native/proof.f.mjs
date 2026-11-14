@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../../../../asserts/module.f.js'
 import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
-    bigintToString, numberToString, stringToNumber,
+    bigintToString, numberRemainder, numberToString, stringToNumber,
 } from './module.f.js'
 
 export const proof = {
@@ -10,6 +10,16 @@ export const proof = {
         assert(bigintEquals(0n, 0n))
         assert(bigintEquals(0x1_0000_0000_0000_0000n, 0x1_0000_0000_0000_0000n))
         assert(!bigintEquals(1n, -1n))
+    },
+    // `numberRemainder` is `%` on two numbers: the dividend's sign, and `NaN`
+    // for a zero divisor or an infinite dividend.
+    numberRemainder: () => {
+        assertEq(numberRemainder(5.5, 2), 1.5)
+        assertEq(numberRemainder(-5, 3), -2)
+        assert(Object.is(numberRemainder(-4, 2), -0))
+        assertEq(numberRemainder(3, -Infinity), 3)
+        assert(Number.isNaN(numberRemainder(1, 0)))
+        assert(Number.isNaN(numberRemainder(-Infinity, 1)))
     },
     // `numberToString` is `String` of a number, the shortest round trip.
     numberToString: () => {
@@ -65,6 +75,8 @@ export const proof = {
         bigintLessNoBigint: () => { bigintLess(1, '1') },
         bigintLessFirst: () => { bigintLess(true, 1n) },
         bigintLessSecond: () => { bigintLess(1n, null) },
+        numberRemainderFirst: () => { numberRemainder('1', 1) },
+        numberRemainderSecond: () => { numberRemainder(1, 1n) },
         numberToString: () => { numberToString('1') },
         stringToNumber: () => { stringToNumber(1) },
         bigintToString: () => { bigintToString(1) },

@@ -26,6 +26,7 @@ export type ValueSpread = readonly ['...', SourceValue]
 export type ValueStatic = readonly [StaticId]
 export type ValueEntryFunction = readonly ['entry']
 export type ValueHasEntryFunction = readonly ['hasEntry']
+export type ValueRefMap = readonly ['refMap']
 export type ValueIntrinsic = readonly [IntrinsicId]
 export type ValueAccess = _Access<SourceValue>
 export type ValueCall = _Call<SourceValue>

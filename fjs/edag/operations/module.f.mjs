@@ -36,7 +36,7 @@ import { toPrimitive, toString, toNumber } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { staticBody } from '../value/property/module.f.js'
 import { ownEntries } from '../value/entries/module.f.js'
-import { isIntrinsic, isStatic, noStatic } from '../module.f.js'
+import { isIntrinsic, isStatic, noRefMap, noStatic } from '../module.f.js'
 
 /**
  * The failure of an `in` node under an executor whose runtime has no
@@ -330,6 +330,9 @@ export const operation = evaluator => {
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
+            // the empty reference map: no executor holds one yet, so the
+            // read fails naming it rather than answer a function
+            case 'refMap': { return [state, error(noRefMap)] }
             // an intrinsic as a value: the node, fresh as `entry` is, its
             // call `intrinsicCall`'s; named here as the statics are below
             case 'slice': case 'charCodeAt': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }

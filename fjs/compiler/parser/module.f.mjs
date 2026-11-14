@@ -12,7 +12,7 @@
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { Assignment, BindingTarget, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, Import, Item, Key, Let, LoopSwitch, Module, Node, ParameterList, Statement, Step, ValueStatement, While, DoWhile, StandaloneLoopBlock } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueRefMap, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { declarations } from './declarations/module.f.js'
@@ -30,6 +30,7 @@ import { maxLength } from '../../types/function/length/module.f.js'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedAccess } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
+import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
@@ -1464,6 +1465,35 @@ const entryFunction = ([, list, body]) => {
     return ok(helper)
 }
 
+/**
+ * Recognize the empty reference map
+ * ([proposal](../../../spec/todo/reference-map.md)): the canonical body of
+ * [`./ref_map`](./ref_map/module.f.mjs) under any names, as the whole
+ * initializer of a `const`, whose name the body reads as itself.
+ * `WeakMap` is the global only where no scope binds the word. `null` for
+ * ordinary source resolution where the shape or the names differ; `new`
+ * and the rest are then refused in the usual way. A body that is the map
+ * is still held to JavaScript's line rules, statement by statement, since
+ * no ordinary resolution will read it.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self | null) => Result<ValueRefMap, ParseError> | null}
+ */
+const refMapFunction = (scope, node, self) => {
+    if (self === null || self[2] || !isRefMap(node, self[0]) || resolve(scope, 'WeakMap') !== null) { return null }
+    if (boundNames(node).map(nameOf).some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    for (const block of blocks(node)) {
+        for (const [index, [tag, statement]] of block.entries()) {
+            // every `return` of the map has a value, so its first token is there
+            const next = /** @type {{ readonly start: ModuleTokenWithMetadata, readonly first: ModuleTokenWithMetadata }} */ (statement)
+            if (unterminated(index === 0 ? null : /** @type {{ readonly start: ModuleTokenWithMetadata }} */ (block[index - 1][1]), next)) { return error(unexpectedToken(next.start)) }
+            if (tag === 'return' && brokenLine(next)) { return error(unexpectedToken(next.first)) }
+        }
+    }
+    /** @type {ValueRefMap} */
+    const helper = ['refMap']
+    return ok(helper)
+}
+
 /** Resolved reads inside the exact, capture-free helper forms matched above. @type {(node: Node, origins: _Scope['origins']) => readonly BindingEvent[]} */
 const templateReads = (node, origins) => {
     switch (node[0]) {
@@ -1512,6 +1542,20 @@ const templateScope = (scope, node) => {
 }
 
 /**
+ * The empty reference map's trace: its two parameters and its read of
+ * itself. What the body binds inside is the pattern's own and is not
+ * traced, since the function is one node with no body to resolve.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self) => _Scope}
+ */
+const refMapScope = (scope, node, self) => {
+    const { bindings, initialized, sourceOrigins } = assertOk(functionScope(node[1]))
+    /** @type {readonly BindingEvent[]} */
+    const events = [...initialized.map(id => /** @type {BindingEvent} */ (['initialize', id])), ['read', self[1]]]
+    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
+}
+
+/**
  * Enter an ordinary source function, or recognize an admitted whole-function
  * intrinsic. A named whole initializer retains the original declaration as
  * its self binding, unless a parameter or local shadows it.
@@ -1525,6 +1569,8 @@ const entered = (stack, scope, node, self) => {
     if (entry !== null) { return [stack, entry[0] === 'ok' ? templateScope(scope, node) : scope, entry] }
     const intrinsic = intrinsicFunction(node)
     if (intrinsic !== null) { return [stack, templateScope(scope, node), ok(intrinsic)] }
+    const refMap = refMapFunction(scope, node, self)
+    if (refMap !== null) { return [stack, refMap[0] === 'ok' ? refMapScope(scope, node, assertNotNullish(self)) : scope, refMap] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, parameters, rest, late } = bound

@@ -73,6 +73,9 @@ export type Call = readonly ['call', module: string, name: string, args: readonl
 /** A product, from its fields in their order. */
 export type Make = readonly ['make', readonly (readonly [string, Term])[]]
 
+/** A field of a product, by its name. */
+export type Field = readonly ['field', Term, string]
+
 /** A value of a sum: the variant's name and its payload. */
 export type Variant = readonly ['variant', Type, string, Term]
 
@@ -98,7 +101,7 @@ export type Br = readonly ['br', string, Term]
 /** A failure at a named point. It gives no value, and the reason is for whoever reads a failed proof. */
 export type Trap = readonly ['trap', reason: string]
 
-export type Term = Lit | Get | Let | Op | Call | Make | Variant | Match | Block | Loop | Br | Trap
+export type Term = Lit | Get | Let | Op | Call | Make | Field | Variant | Match | Block | Loop | Br | Trap
 
 /** A term as the checker answers it: its type, then the term with its parts typed. */
 export type Typed = readonly [Type, TypedTerm]
@@ -116,6 +119,7 @@ export type TypedTerm =
     | readonly ['op', OpName, readonly Typed[]]
     | readonly ['call', module: string, name: string, args: readonly Typed[]]
     | readonly ['make', readonly (readonly [string, Typed])[]]
+    | readonly ['field', Typed, string]
     | readonly ['variant', Sum, string, Typed]
     | readonly ['match', Typed, readonly TypedArm[]]
     | readonly ['block', string, Type, Typed]

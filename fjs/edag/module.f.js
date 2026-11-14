@@ -56,7 +56,7 @@ const intrinsicNames = intrinsicDefinitions.map(([id]) => id)
 
 const intrinsicIdSchema = or(...intrinsicNames)
 
-const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicIdSchema, staticIdSchema)
+const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'refMap', intrinsicIdSchema, staticIdSchema)
 
 const op1IdSchema = or('String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw')
 
@@ -782,6 +782,14 @@ export const staticText = id => nativeFunctionText(`${staticPath(id).at(-1)}`)
 export const noStatic = name => `no binding for the static ${name}`
 
 /**
+ * The failure of an executor asked for the empty reference map,
+ * `['refMap']`, before it can hold one: the node is in the vocabulary, and
+ * an executor without the map fails naming it, never answering a function
+ * that is not one.
+ */
+export const noRefMap = /** @type {const} */ ('no reference map in this executor')
+
+/**
  * The intrinsics: the member functions no body can define — the
  * primitives of `fjs/js/runtime/README.md`, under the code's word for
  * them, since `Primitive` is the EDAG's name for a literal value — which
@@ -817,14 +825,15 @@ export const isIntrinsic = node => node instanceof Array && node.length === 1 &&
 
 /**
  * The helpers: the function nodes that are not lambdas — `entry` and
- * `hasEntry`, the language's two entry helpers (see {@link op0Id}), and the
- * {@link intrinsics} — each with its `length`. Every question about the
+ * `hasEntry`, the language's two entry helpers (see {@link op0Id}),
+ * `refMap`, the empty reference map, and the {@link intrinsics} — each with
+ * its `length`. Every question about the
  * whole set (is this a helper, what is its arity, what is its text) asks
  * this one table instead of listing the tags again.
  */
-export const helpers = /** @type {const} */ ([['entry', 2], ['hasEntry', 2], ...intrinsics])
+export const helpers = /** @type {const} */ ([['entry', 2], ['hasEntry', 2], ['refMap', 2], ...intrinsics])
 
-/** The helpers' tags, {@link helpers}: `entry`, `hasEntry` and the intrinsics'. */
+/** The helpers' tags, {@link helpers}: `entry`, `hasEntry`, `refMap` and the intrinsics'. */
 export const helperIds = helpers.map(([id]) => id)
 
 /**
@@ -839,7 +848,8 @@ export const isHelper = node => node instanceof Array && node.length === 1 && he
 
 /**
  * The `length` of a helper, {@link helpers}: `2` for `entry` and
- * `hasEntry`, the receiver and the key; `3` for `slice`, the receiver and
+ * `hasEntry`, the receiver and the key; `2` for `refMap`, the key and the
+ * value; `3` for `slice`, the receiver and
  * the native's two positions; `2` for `charCodeAt`, the receiver and the
  * position.
  *
@@ -899,6 +909,13 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * `hasEntry` is the helper beside it, the presence as a boolean, `true`
  * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
  * ([spec: why two helpers](../../spec/property-access/entries/README.md#why-two-helpers)).
+ *
+ * `refMap` is the empty reference map
+ * ([proposal](../../spec/todo/reference-map.md)), as a value: a function of
+ * `length` `2`, fresh where it is established as `entry` is, whose call
+ * `['()', ['refMap'], [key, value]]` reads a reference key or answers a new
+ * map with the key set. The node is vocabulary only so far: no source
+ * reaches it, and every executor refuses it ({@link noRefMap}).
  *
  * The intrinsics, {@link intrinsicId}, are the helpers calling a member
  * function no body defines, `['slice']`.

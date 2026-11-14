@@ -3,13 +3,16 @@
  * text, lowered from its normalized FAST, checked and emitted, runs on the
  * host's WebAssembly engine against the functions of that module
  * themselves, on the edges of their parameters' types, as
- * [`testlib.mjs`](../wasm/testlib.mjs) runs a module. So do the functions
- * of [L1](../../wasm/runtime/l1/module.f.js) that the slices lower so far,
- * lowered from L1's text over the L0 view, against L1's own: `toBoolean` on
- * values of every kind, and `stringEquals` and `stringLess`, whose loops
- * read strings unit by unit, on pairs of strings and of other values. The
- * IR that the lowering makes of each is written out below, to read beside
- * the original.
+ * [`testlib.mjs`](../wasm/testlib.mjs) runs a module, and so does
+ * [`helpers.f.js`](./helpers.f.js), lowered over the runtime. So do the
+ * functions of [L1](../../wasm/runtime/l1/module.f.js) that the slices
+ * lower so far, lowered from L1's text over the runtime, against L1's own:
+ * `toBoolean` on values of every kind, `stringEquals` and `stringLess`,
+ * whose loops read strings unit by unit, on pairs of strings and of other
+ * values, `strictEquals` on pairs of values of every kind, and
+ * `stringIndex`, whose loop keeps a record, on spellings of indices and on
+ * values of other kinds. The IR that the lowering makes of each is written
+ * out below, to read beside the original.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -17,34 +20,73 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { assertEq, assertOk } from '../../asserts/module.f.js'
-import { stringEquals, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
+import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { strictEquals, stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
+import { l0 } from '../l0/module.f.js'
+import { native } from '../native/module.f.mjs'
 import { print } from '../print/module.f.js'
-import { edges, held, product, run } from '../wasm/testlib.mjs'
+import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
+import * as helpers from './helpers.f.js'
 import { lower } from './module.f.mjs'
 import * as sample from './sample.f.js'
-import { l1, signatures, sourceOf, view } from './testlib.f.mjs'
+import { helpers as helperSignatures, l1, runtime, signatures, sourceOf } from './testlib.f.mjs'
 
-/** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names. @type {(url: URL, table: Parameters<typeof lower>[0], v?: string | null) => Module} */
-const fromText = (url, table, v = null) => {
+/** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
+const fromText = (url, table, r = null) => {
     const { fast, imports } = assertOk(sourceOf(readFileSync(url, 'utf8')))
-    return assertOk(lower(table, v)(fast, imports))
+    return assertOk(lower(table, r)(fast, imports))
 }
 
 /** The module that the lowering makes of the sample's text. @type {() => Module} */
 const lowered = () => fromText(new URL('./sample.f.js', import.meta.url), signatures)
 
-/** The module that the lowering makes of L1's text, over the L0 view. @type {() => Module} */
-const fromL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1, view)
+/** The module that the lowering makes of L1's text, over the runtime. @type {() => Module} */
+const fromL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1, runtime)
 
-/** Each function of the sample, taking its arguments as a list. @type {StringMap<_Twin>} */
-const originals = Object.fromEntries(Object.entries(sample).map(([name, f]) => {
-    const g = /** @type {(...xs: readonly _Value[]) => _Value} */ (/** @type {unknown} */ (f))
+/** The module that the lowering makes of the helpers' text, over the runtime. @type {() => Module} */
+const fromHelpers = () => fromText(new URL('./helpers.f.js', import.meta.url), helperSignatures, runtime)
+
+/** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
+const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
+    const g = /** @type {(...xs: readonly _Value[]) => _Value} */ (f)
     return [name, /** @type {_Twin} */ (xs => g(...xs))]
 }))
 
 /** `pow` recurses `k` times, so the edges of `f64` do not suit `k`. @type {StringMap<readonly (readonly _Value[])[]>} */
 const inputs = { pow: product([edges(['f64']), [0, -0, 1, 2, 10, -1, 0.5, 3.5]]) }
+
+/**
+ * `gcd` loops until a remainder is `0`, which a NaN or an infinity never
+ * gives, so its inputs are finite: integers of both signs, and fractions
+ * that divide each other. `index` reads the bounds of an index beside the
+ * edges of `f64`.
+ *
+ * @type {StringMap<readonly (readonly _Value[])[]>}
+ */
+const helperInputs = {
+    gcd: product([[0, -0, 1, 2, 6, 9, 12, -4, 0.5, 1.5, 1e300], [0, 1, 4, 6, -9, 0.25, 1.5]]),
+    index: [...edges(['f64']), 4294967294, 4294967295, 4294967296, 4294967295.5, 1.5, -1].map(x => [x]),
+}
+
+/**
+ * Values for `strictEquals`: one of each kind, and of each kind two that
+ * differ, or that are equal but not the same value, or the same value
+ * twice: the two zeros and `NaN`, strings of the same units, bigints of
+ * the same value, and arrays, objects and functions, which only the same
+ * value equals.
+ *
+ * @type {readonly _Value[]}
+ */
+const anyValues = (() => {
+    const array = [1]
+    const object = { a: 1 }
+    /** @type {() => number} */
+    const f = () => 1
+    return [
+        undefined, null, false, true, 0, -0, NaN, 1, '', 'a', 'ab', 'a', 0n, 1n, -1n, 1n << 64n, 1n << 64n,
+        array, array, [1], object, object, { a: 1 }, f, f, () => 1,
+    ].map(any => ({ any }))
+})()
 
 /**
  * An operand of L1's string comparisons: a string of each length up to
@@ -159,7 +201,7 @@ export const proof = {
         'export atLeast, average, both, clamp, delta, differ, distance, early, either, greater, hypot, lessU64, magnitude, max, negate, notEqual, opposite, pow, product, safeDiv, same, sameBool, sign, square, sum, xor',
         '',
     ].join('\n')),
-    run: () => run(lowered(), originals, inputs),
+    run: () => run(lowered(), twinsOf(sample), inputs),
     l1: () => assertEq(print(fromL1()), [
         'import Any from fjs:l0',
         '    type any = undefined | null | boolean | number | string | bigint | array | object | function',
@@ -167,6 +209,7 @@ export const proof = {
         '    fn kind(v: any) -> int(0, 8)',
         '    fn to_f64(v: any.only(number)) -> f64c',
         '    fn to_bool(v: any.only(boolean)) -> bool',
+        '    fn same(a: any.only(array, object, function), b: any.only(array, object, function)) -> bool',
         '',
         'import String from fjs:l0',
         '    fn length(s: any.only(string)) -> u(31)',
@@ -180,6 +223,90 @@ export const proof = {
         '',
         'import Functions from fjs:l0',
         '    fn length(f: any.only(function)) -> u(31)',
+        '',
+        'import Native from fjs:l1-native',
+        '    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool',
+        '    fn numberRemainder(a: f64, b: f64) -> f64',
+        '',
+        'fn strictEquals(a: any, b: any) -> bool =',
+        '    let #0 = float(Any.kind(a))',
+        '    if if eq(#0, float(Any.kind(b))) then false else true',
+        '    then',
+        '        false',
+        '    else',
+        '        if eq(#0, 2.0)',
+        '        then',
+        '            if',
+        '                match a',
+        '                  boolean as a.boolean =>',
+        '                    Any.to_bool(a.boolean)',
+        '                  else =>',
+        "                    trap('not boolean')",
+        '            then',
+        '                match b',
+        '                  boolean as b.boolean =>',
+        '                    Any.to_bool(b.boolean)',
+        '                  else =>',
+        "                    trap('not boolean')",
+        '            else',
+        '                if',
+        '                    match b',
+        '                      boolean as b.boolean =>',
+        '                        Any.to_bool(b.boolean)',
+        '                      else =>',
+        "                        trap('not boolean')",
+        '                then',
+        '                    false',
+        '                else',
+        '                    true',
+        '        else',
+        '            if eq(#0, 3.0)',
+        '            then',
+        '                eq(',
+        '                    match a',
+        '                      number as a.number =>',
+        '                        Any.to_f64(a.number)',
+        '                      else =>',
+        "                        trap('not number'),",
+        '                    match b',
+        '                      number as b.number =>',
+        '                        Any.to_f64(b.number)',
+        '                      else =>',
+        "                        trap('not number')",
+        '                )',
+        '            else',
+        '                if eq(#0, 4.0)',
+        '                then',
+        '                    stringEquals(a, b)',
+        '                else',
+        '                    if eq(#0, 5.0)',
+        '                    then',
+        '                        match a',
+        '                          bigint as a.bigint =>',
+        '                            match b',
+        '                              bigint as b.bigint =>',
+        '                                Native.bigintEquals(a.bigint, b.bigint)',
+        '                              else =>',
+        "                                trap('not bigint')",
+        '                          else =>',
+        "                            trap('not bigint')",
+        '                    else',
+        '                        if',
+        '                            let #1 = eq(#0, 6.0)',
+        '                            let #2 = if #1 then #1 else eq(#0, 7.0)',
+        '                            if #2 then #2 else eq(#0, 8.0)',
+        '                        then',
+        '                            match a',
+        '                              array | object | function as a.same =>',
+        '                                match b',
+        '                                  array | object | function as b.same =>',
+        '                                    Any.same(a.same, b.same)',
+        '                                  else =>',
+        "                                    trap('not array or object or function')",
+        '                              else =>',
+        "                                trap('not array or object or function')",
+        '                        else',
+        '                            true',
         '',
         'fn stringEquals(a: any, b: any) -> bool =',
         '    match a',
@@ -219,6 +346,76 @@ export const proof = {
         "            trap('not string')",
         '      else =>',
         "        trap('not string')",
+        '',
+        'fn stringIndex(s: any) -> f64 =',
+        '    let #0 =',
+        '        float(',
+        '            match s',
+        '              string as s.string =>',
+        '                String.length(s.string)',
+        '              bigint as s.bigint =>',
+        '                BigInt.length(s.bigint)',
+        '              array | object as s.containers =>',
+        '                Containers.length(s.containers)',
+        '              function as s.functions =>',
+        '                Functions.length(s.functions)',
+        '              undefined | null | boolean | number =>',
+        "                trap('no length')",
+        '        )',
+        '    if',
+        '        let #1 = eq(#0, 0.0)',
+        '        if #1',
+        '        then',
+        '            #1',
+        '        else',
+        '            let #2 = lt(1.0, #0)',
+        '            if #2',
+        '            then',
+        '                eq(',
+        '                    float(',
+        '                        match s',
+        '                          string as s.string =>',
+        '                            let unit.index = trunc_sat(u(31), 0.0)',
+        "                            if eq(float(unit.index), 0.0) then String.unit(s.string, unit.index) else trap('inexact')",
+        '                          else =>',
+        "                            trap('not string')",
+        '                    ),',
+        '                    48.0',
+        '                )',
+        '            else',
+        '                #2',
+        '    then',
+        '        -1.0',
+        '    else',
+        '        (',
+        '            loop L0 (#1: { i: f64, value: f64 } = { i: 0.0, value: 0.0 })',
+        '                if',
+        '                    let #2 = lt(#1.i, #0)',
+        '                    if #2 then le(0.0, #1.value) else #2',
+        '                then',
+        '                    let #2 =',
+        '                        let #2 =',
+        '                            float(',
+        '                                match s',
+        '                                  string as s.string =>',
+        '                                    let unit.index.float = #1.i',
+        '                                    let unit.index = trunc_sat(u(31), unit.index.float)',
+        "                                    if eq(float(unit.index), unit.index.float) then String.unit(s.string, unit.index) else trap('inexact')",
+        '                                  else =>',
+        "                                    trap('not string')",
+        '                            )',
+        '                        if',
+        '                            let #3 = le(48.0, #2)',
+        '                            if #3 then le(#2, 57.0) else #3',
+        '                        then',
+        '                            sub(#2, 48.0)',
+        '                        else',
+        '                            -1.0',
+        '                    let #3 = if lt(#2, 0.0) then -1.0 else add(mul(#1.value, 10.0), #2)',
+        '                    br L0 { #1: { i: add(#1.i, 1.0), value: if lt(4294967295.0, #3) then -1.0 else #3 } }',
+        '                else',
+        '                    #1',
+        '        ).value',
         '',
         'fn stringLess(a: any, b: any) -> bool =',
         '    match a',
@@ -325,12 +522,71 @@ export const proof = {
         '                let #2 = if #1 then #1 else eq(#0, 7.0)',
         '                if #2 then #2 else eq(#0, 8.0)',
         '',
-        'export stringEquals, stringLess, toBoolean',
+        'export strictEquals, stringEquals, stringIndex, stringLess, toBoolean',
         '',
     ].join('\n')),
+    helpers: () => {
+        const m = fromHelpers()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'fn doubleBoth(a: u(8), b: u(16)) -> i(18) =',
+            '    sub(add(a, a), add(b, b))',
+            '',
+            'fn gcd(a: f64, b: f64) -> f64 =',
+            '    (',
+            '        loop L0 (#0: { x: f64, y: f64 } = { x: a, y: b })',
+            '            if if eq(#0.y, 0.0) then false else true then br L0 { #0: { x: #0.y, y: Native.numberRemainder(#0.x, #0.y) } } else #0',
+            '    ).x',
+            '',
+            'fn index(n: f64) -> f64 =',
+            '    if',
+            '        let #0 = eq(Native.numberRemainder(n, 1.0), 0.0)',
+            '        let #1 = if #0 then le(0.0, n) else #0',
+            '        if #1 then le(n, 4294967295.0) else #1',
+            '    then',
+            '        n',
+            '    else',
+            '        -1.0',
+            '',
+            'fn middle(a: f64, b: f64, c: f64, d: f64) -> f64 =',
+            '    let #0 = { x: div(add(a, c), 2.0), y: div(add(b, d), 2.0) }',
+            '    mul(#0.x, #0.y)',
+            '',
+            'fn mod3(a: f64) -> f64 =',
+            '    remainder(a, 3.0)',
+            '',
+            'fn quadruple(x: f64) -> f64 =',
+            '    sub(',
+            '        let #0 = add(x, x)',
+            '        add(#0, #0),',
+            '        x',
+            '    )',
+            '',
+            'fn remainder(a: f64, b: f64) -> f64 =',
+            '    Native.numberRemainder(a, b)',
+            '',
+            'fn sumOfTwice(a: f64, b: f64) -> f64 =',
+            '    add(',
+            '        add(a, a),',
+            '        let #0 = add(b, 1.0)',
+            '        add(#0, #0)',
+            '    )',
+            '',
+            'export doubleBoth, gcd, index, middle, mod3, quadruple, remainder, sumOfTwice',
+            '',
+        ].join('\n'))
+    },
+    helpersRun: () => run(fromHelpers(), twinsOf(helpers), helperInputs),
     l1Run: () => run(fromL1(), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),
         stringLess: ([a, b]) => stringLess(held(a), held(b)),
-    }, { stringEquals: pairs, stringLess: pairs }),
+        strictEquals: ([a, b]) => strictEquals(held(a), held(b)),
+        stringIndex: ([s]) => stringIndex(held(s)),
+    }, {
+        stringEquals: pairs,
+        stringLess: pairs,
+        strictEquals: product([anyValues, anyValues]),
+        stringIndex: [...spellings, ...[[], ['a'], {}, 1, 0n, undefined].map(any => ({ any }))].map(s => [s]),
+    }),
 }
