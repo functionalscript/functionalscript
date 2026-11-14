@@ -17,7 +17,10 @@
  * - **A local moves at its last use** where its context takes the value
  *   over: an `own` argument, a `let`, a loop's first or next value, a
  *   function's result or a region's value. Any other such use, and such a
- *   use of a borrow, is a `dup` of it, and a use that borrows lends it.
+ *   use of a borrow, is a `dup` of it, and a use that borrows lends it. A
+ *   `match` lends what its operand reads to each arm that names the
+ *   operand, and only to those, so the arms of an `if` may move what its
+ *   condition read.
  * - **A `let` owns its value, a loop its parameters and a function its
  *   result**, where they are of a sealed type.
  * - **A product borrows.** One that holds a sealed value leans on the
@@ -360,9 +363,11 @@ const letStep = (go, env, x, e, body, mode, owned, live, n) => {
 }
 
 /**
- * A `match`: its operand lent to the arms, whose names borrow it, so that
- * no arm moves a local that it reads; then each arm, from what the operand
- * leaves, and each arm that completes drops what another consumed.
+ * A `match`: its operand lent to each arm that names it, whose name borrows
+ * it, so that such an arm moves no local that the operand reads; then each
+ * arm, from what the operand leaves, and each arm that completes drops what
+ * another consumed. An arm that names no operand borrows nothing of it, so
+ * it may move what the operand read, as the arms of an `if` do.
  *
  * @type {(go: _Go, env: _Env, mode: _Mode, operand: Typed, arms: readonly TypedArm[], owned: readonly string[], live: readonly string[], n: number) => Result<_Step, string>}
  */
@@ -377,7 +382,7 @@ const matchStep = (go, env, mode, operand, arms, owned, live, n) => {
         if (acc[0] === 'error') { return acc }
         const [done, m] = acc[1]
         const [, binder, body] = arm
-        const r = go(binder === null ? env : bind(env, binder, ['borrow']), body, mode, from, inside, m)
+        const r = binder === null ? go(env, body, mode, from, live, m) : go(bind(env, binder, ['borrow']), body, mode, from, inside, m)
         return r[0] === 'error' ? r : ok([[...done, [arm, r[1]]], r[1].n])
     }
     const walked = arms.reduce(walk, ok([[], n1]))
