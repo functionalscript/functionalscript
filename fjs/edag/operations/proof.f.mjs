@@ -15,7 +15,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { invokerWith, noBoolean, noIn, operation, staticCall } from './module.f.mjs'
 import { read } from '../value/property/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
-import { noStatic, staticIds, staticPath } from '../module.f.js'
+import { noRefMap, noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
 import { settle } from '../value/call/module.f.js'
@@ -527,6 +527,9 @@ export const proof = /** @type {const} */ ({
         eq(['()', ['hasEntry'], [object, 1]], false)
         eq(['()', ['hasEntry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], true)
         failure(['()', ['hasEntry'], [null, 'a']])
+        // the empty reference map is vocabulary only: its read is refused
+        failure(['refMap'], noRefMap)
+        failure(['()', ['refMap'], [object]], noRefMap)
         eq(['()', ['slice'], ['abc', 1]], 'bc')
         eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 7]]]], 1]], 7)
         failure(['()', ['slice'], [null, 1]])

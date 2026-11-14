@@ -2,14 +2,17 @@
  * What the host proofs of the emitter share: they compile a module of the IR
  * on the host's WebAssembly engine, call every function it exports on the
  * edges of its parameters' types, and compare each answer with a twin's,
- * which computes the same in JavaScript.
+ * which computes the same in JavaScript. Inputs that more than one proof
+ * reads are here too: the edges of each type, and spellings of indices.
  *
  * The values cross as the WebAssembly JavaScript API passes them: an `i32` as
  * a `number` and an `i64` as a `bigint`, both read as two's complement, so a
  * value of an unsigned range comes back by its bits, and a `bool` as `0` or
  * `1`. A value of `any` is a handle that the [host](../l0/host/module.f.js)
- * of the `fjs:l0` imports reads: each call has a host of its own, whose
- * table holds the call's values of `any` in the order of the parameters.
+ * of the `fjs:l0` imports reads, and so does the
+ * [host](../native/host/module.f.js) of the `fjs:l1-native` imports: each
+ * call has hosts of its own, whose table holds the call's values of `any`
+ * in the order of the parameters.
  *
  * @module
  *
@@ -23,6 +26,7 @@ import { write } from '../../media/wasm/binary/write/module.f.mjs'
 import { check } from '../check/module.f.mjs'
 import { host } from '../l0/host/module.f.js'
 import { fits } from '../module.f.js'
+import { host as nativeHost } from '../native/host/module.f.js'
 import { emit } from './module.f.js'
 
 /** @type {(v: _Value) => v is _Any} */
@@ -104,6 +108,18 @@ export const product = lists => lists.reduce(
     (done, list) => done.flatMap(xs => list.map(v => [...xs, v])),
     [[]])
 
+/**
+ * Strings for `stringIndex`: the decimal spellings of indices, the greatest
+ * and the least past it, leading zeros, signs, spaces, fractions, letters,
+ * and digits of other scripts, which spell no index.
+ *
+ * @type {readonly _Value[]}
+ */
+export const spellings = [
+    '', '0', '7', '00', '01', '10', '42', '4294967295', '4294967296', '99999999999', '12a', 'a1', ' 1', '1 ', '-1', '+1',
+    '1.5', '1e3', '\u0663', '/', ':',
+].map(v => ({ any: v }))
+
 /** What a call answers, or that it threw. @type {(f: () => _Value) => readonly ['ok', _Value] | readonly ['threw']} */
 const attempt = f => {
     try {
@@ -134,7 +150,7 @@ export const run = (m, twins, inputs) => {
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': host(values) })
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': host(values), 'fjs:l1-native': nativeHost(values) })
             const f = exports[name]
             assert(typeof f === 'function', name)
             const args = xs.map((v, k) => isAny(v) ? BigInt(xs.slice(0, k).filter(isAny).length) : toHost(params[k][1], v))

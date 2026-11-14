@@ -88,6 +88,7 @@ export const proof = {
         /** @type {readonly (readonly [Node, readonly Operand[]])[]} */
         const cases = [
             [['undefined'], []], [['args'], []], [['rest'], []],
+            [['entry'], []], [['hasEntry'], []], [['refMap'], []],
             [['arg', 2], []], [['frame', 3], []],
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
@@ -356,6 +357,8 @@ export const proof = {
         // the `entry` helper mints a function, as `=>` does: two are two
         assertEq(nodesOf(['[]', [['entry'], ['entry']]]).length, 3)
         assertEq(nodesOf(['[]', [['hasEntry'], ['hasEntry']]]).length, 3)
+        // and so does the empty reference map: written twice, two maps
+        assertEq(nodesOf(['[]', [['refMap'], ['refMap']]]).length, 3)
         // and so does an intrinsic's helper
         assertEq(nodesOf(['[]', [['slice'], ['slice']]]).length, 3)
     },

@@ -96,7 +96,8 @@ const empty = (key, value) => {
             const existing = ids.get(key)
             const old = existing === undefined ? undefined : get(root, existing)
             if (value === undefined) { return [old, self] }
-            const i = existing ?? next++
+            const i = existing ?? next
+            if (existing === undefined) { next += 1n }
             ids.set(key, i)
             return [old, make(set(root, i, value))]
         }
@@ -237,10 +238,10 @@ so a map after a set is a new kind of evaluated value.
   text)`, so a native function can hold a map in `frame` and return another.
   It needs a reference's identity as a number, which the VM interface may not
   offer yet.
-- The parser already parses loops, `let`, assignments and call statements, and
-  parses `new` before refusing it. Whether it parses every construct of the
-  body, a captured `let` assigned from a nested function among them, is not
-  yet checked.
+- The parser's grammar reads the whole body, `new` and a captured `let`
+  assigned from a nested function included, with one exception: `next++` as
+  an operand. The body therefore counts in a statement of its own,
+  `if (existing === undefined) { next += 1n }`.
 - The WASM runtime keeps its own helper bodies and is out of scope: it refuses
   the map until a `todo/` of its own takes it.
 
@@ -259,7 +260,10 @@ on the pull request that files this proposal, and accepted the rest in the
   for every map. The body is therefore a declaration that refers to its own
   name, where `entry` is an anonymous arrow: recognition matches the
   declaration and resolves the name to the function, the EDAG's `self`, and
-  the serializer writes it as a named binding. Two shapes that avoid the name
+  the serializer writes it as a named binding: a `const` inside an arrow
+  called at once, `(()=>{const $0=($1,$2)=>{…};return $0;})()`, the form it
+  gives every function that refers to itself, so that the text stands
+  wherever a value does. Two shapes that avoid the name
   were considered and not taken: a factory, `refMap()` answering a new empty
   map, which replaces the one value with a call; and a read of `empty`
   answering a new map each time, which makes `empty(key)[1] === empty` false
@@ -291,13 +295,14 @@ A stack of pull requests on the one that files this proposal, each taking one
 step ([SESSION.md](../../doc/SESSION.md)):
 
 - [x] Settle the open decisions and record them here.
-- [ ] `edag`: add the `refMap` leaf — its id, types and schemas, and every
-  hand-written tag list, unmergeable as `entry` is. Every executor and the Rust output refuse it; the
-  JavaScript serializer writes the canonical body. No source reaches it yet.
-- [ ] `compiler/parser`: recognize the body and emit the leaf. Prove renamed
+- [x] `edag`: add the `refMap` leaf — its id, types and schemas, and every
+  hand-written tag list, unmergeable as `entry` is. Every executor and the
+  Rust output refuse it; the JavaScript serializer writes the canonical body.
+  No source reaches it yet.
+- [x] `compiler/parser`: recognize the body and emit the leaf. Prove renamed
   bindings, layouts, and bodies that depart from it by one step, which are
   ordinary functions refused where they use `WeakMap`.
-- [ ] `types/ref_map`: spell the pattern once, with its types and a proof of
+- [x] `types/ref_map`: spell the pattern once, with its types and a proof of
   the contract against a map copied on every set: aliases, equal-content
   distinct objects, arrays and functions, a `value` of `undefined`, a read
   answering the same map, primitive keys, older versions after later sets,

@@ -488,6 +488,8 @@ export const proof = {
         unknownPrimitive: () => valueTagged(/** @type {never} */ ({}), options),
         unknownStatement: () => scope({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }, options),
         unsupportedStaticWithoutRuntime: () => unwrap(valueTagged(['Object.is'], { ...options, runtime: null })),
+        // NaNVM holds no reference map yet
+        referenceMap: () => unwrap(valueTagged(['refMap'], options)),
         memberWithoutRuntime: () => unwrap(valueTagged(['.', ['array', []], 'slice', ['|()', []]], { ...options, runtime: null })),
     },
 }

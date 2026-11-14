@@ -13,7 +13,10 @@
  *   carries it.
  * - **The casts' targets are the arguments.** `to_f64` takes a number and
  *   `to_bool` a boolean, so passing a value of unknown kind is a type error,
- *   and a module narrows its value with a `match` first.
+ *   and a module narrows its value with a `match` first. So does `same`,
+ *   reference identity
+ *   ([L0 design §14](../../../doc/sasha-gil/wasm/l0-design.md#14-identity-same-is-reference-identity-and-a-runtime-may-merge-equal-values)),
+ *   which takes two arrays, objects or functions.
  * - **`length` is one function per module**
  *   ([L0 design §18](../../../doc/sasha-gil/wasm/l0-design.md#18-what-length-item-and-key-mean-for-each-kind)):
  *   a string's UTF-16 units, a bigint's words, the items of an array or the
@@ -43,6 +46,9 @@ export const kinds = ['undefined', 'null', 'boolean', 'number', 'string', 'bigin
 /** A length: L0's `i32` that is never negative. */
 const index = u(31)
 
+/** A value that L0's `same` takes: an array, an object or a function. */
+const reference = only(any, 'array', 'object', 'function')
+
 /** The interface that seals `any`. @type {Interface} */
 const anyInterface = {
     abi: 'fjs:l0',
@@ -51,6 +57,7 @@ const anyInterface = {
         ['kind', signature([['v', any]], int(0n, 8n))],
         ['to_f64', signature([['v', only(any, 'number')]], f64c)],
         ['to_bool', signature([['v', only(any, 'boolean')]], bool)],
+        ['same', signature([['a', reference], ['b', reference]], bool)],
     ],
 }
 

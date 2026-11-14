@@ -5,11 +5,12 @@
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, cast, div, eq, f64, f64c, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
-    match, mul, n, neg, never, next, only, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit, variant,
+    add, block, bool, br, call, cast, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
+    match, mul, n, neg, never, next, only, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
+    variant,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { corners, loops, samples, unknown } from '../testlib.f.mjs'
+import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { check, typeOf } from './module.f.mjs'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -71,6 +72,9 @@ export const proof = {
         assertEq(why(one([['a', int(1n, 0n)]], f64, one_)), 'f: int(1, 0) is empty')
         assertEq(why(one([], int(-1n, 0xffff_ffff_ffff_ffffn), n(1n))), 'f: int(-1, 18446744073709551615) needs more than one word')
         assertEq(why(one([['a', unit]], f64, one_)), 'f: unit is not in this slice')
+        // A product stays in its function.
+        assertEq(why(one([['r', product([['a', f64]])]], f64, one_)), 'f: { a: f64 } is not in this slice')
+        assertEq(why(one([], product([['a', f64]]), make([['a', one_]]))), 'f: { a: f64 } is not in this slice')
         assertEq(why(one([['a', f64], ['a', f64]], f64, one_)), 'f: two parameters are named a')
         assertEq(why(one([['a', never]], f64, one_)), 'f: a is never, so no call reaches the function')
         assertEq(why(one([['x', f64]], bool, x)), 'f: the body is f64, not bool')
@@ -120,7 +124,55 @@ export const proof = {
         assertEq(why(g(call('self', 'f', [y]))), 'f: no local y')
         assertEq(why(g(call('self', 'f', [one_]))), "f: f's a is bool, not f64c")
     },
-    make: () => assertEq(why(one([], f64, make([['a', n(1n)]]))), 'f: a product with fields is not in this slice'),
+    products: () => {
+        const p = /** @type {const} */ ([['x', f64], ['b', bool]])
+        const b = get('b')
+        const r = make([['a', x], ['b', b]])
+        /** The type of a term where `x` and `b` stand. @type {(t: Term) => string} */
+        const typeAt = t => show(assertOk(typeOf({ name: 'f', locals: p, result: f64, functions: [], imports: [] })(t)))
+        /** The reason that the checker gives for refusing `f` of `x` and `b`, whose body is `t`. @type {(t: Term) => string} */
+        const refused = t => why(one(p, f64, t))
+        // A product is its fields, in their order, and `field` reads one.
+        assertEq(typeAt(r), '{ a: f64, b: bool }')
+        assertEq(typeAt(make([])), 'unit')
+        assertEq(typeAt(make([['p', r], ['u', make([])], ['c', one_]])), '{ p: { a: f64, b: bool }, u: unit, c: f64c }')
+        assertEq(typeAt(field(field(make([['p', r]]), 'p'), 'b')), 'bool')
+        assertEq(typeAt(let_('r', r, field(get('r'), 'a'))), 'f64')
+        // A product passes where a product of the same fields, each as wide, goes, and two meet field by field.
+        assertEq(typeAt(block('l', product([['a', f64], ['u', unit]]), make([['a', one_], ['u', make([])]]))), '{ a: f64, u: unit }')
+        assertEq(typeAt(if_(b, make([['a', n(1n)]]), make([['a', n(2n)]]))), '{ a: int(1, 2) }')
+        assertEq(typeAt(if_(b, make([['a', one_]]), make([['a', x]]))), '{ a: f64 }')
+        assertEq(typeAt(loop('l', [['r', product([['k', f64]]), make([['k', one_]])]], s =>
+            if_(lt(field(s, 'k'), x), next('l', [['r', make([['k', add(field(s, 'k'), one_)]])]]), s))), '{ k: f64 }')
+        // What a product may not be.
+        assertEq(refused(make([['a', one_], ['a', one_]])), 'f: a product names a twice')
+        assertEq(refused(make([['a', y]])), 'f: no local y')
+        assertEq(refused(make([['a', trap('no')]])), 'f: a trap that gives no value stands where a value is used')
+        assertEq(refused(field(one_, 'a')), 'f: field a of f64c, which is no product')
+        assertEq(refused(field(r, 'c')), 'f: { a: f64, b: bool } has no field c')
+        assertEq(refused(field(y, 'a')), 'f: no local y')
+        assertEq(refused(field(return_(one_), 'a')), 'f: a br that gives no value stands where a value is used')
+        assertEq(refused(block('l', product([['a', never]]), trap('no'))), 'f: { a: never } holds no value, since its field a is never')
+        assertEq(refused(block('l', product([['a', f64], ['a', f64]]), trap('no'))), 'f: { a: f64, a: f64 } has two fields named a')
+        assertEq(refused(block('l', product([['s', ['sum', [['x', unit]]]]]), trap('no'))), 'f: sum({ x: unit }) is not in this slice')
+        assertEq(refused(block('l', product([['a', f64], ['b', bool]]), make([['b', true_], ['a', one_]]))),
+            'f: block l is { a: f64, b: bool }, and its body is { b: bool, a: f64c }')
+        assertEq(refused(block('l', product([['a', f64c]]), make([['a', x]]))), 'f: block l is { a: f64c }, and its body is { a: f64 }')
+        assertEq(refused(if_(b, make([['a', one_]]), make([['a', true_]]))), 'f: match: its arms are { a: f64c }, { a: bool }, which no one type holds')
+        assertEq(refused(if_(b, make([['a', one_]]), make([['c', one_]]))), 'f: match: its arms are { a: f64c }, { c: f64c }, which no one type holds')
+        assertEq(refused(if_(b, make([['a', n(-1n)]]), make([['a', lit(u(64), 1n)]]))), 'f: match: int(-1, 18446744073709551615) needs more than one word')
+        assertEq(refused(match(r, [[null, null, one_]])), 'f: a match of { a: f64, b: bool } is not in this slice')
+        assertEq(refused(add(r, r)), 'f: add of { a: f64, b: bool } and { a: f64, b: bool }: an operator takes integers or floats')
+        assertEq(refused(call('self', 'f', [r, b])), "f: f's x is f64, not { a: f64, b: bool }")
+        assertEq(refused(loop('l', [['r', product([['k', never]]), trap('no')]], one_)), 'f: { k: never } holds no value, since its field k is never')
+    },
+    records: () => {
+        const { functions } = assertOk(check(records))
+        assertEq(functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '), [
+            'stringIndex: f64', 'midpoint: f64', 'fib: f64', 'choose: u(64)', 'middle: f64', 'widened: u(64)', 'nested: f64',
+            'steps: f64', 'describe: f64c', 'kindOfFirst: int(0, 8)',
+        ].join(', '))
+    },
     variant: () => {
         assertEq(why(one([], bool, variant(['sum', [['a', unit]]], 'a', make([])))), 'f: a variant of sum({ a: unit }): the one sum of this slice is bool')
         assertEq(why(one([], bool, variant(bool, 'maybe', make([])))), 'f: bool has no variant maybe')
@@ -148,7 +200,7 @@ export const proof = {
     block: () => {
         assertEq(why(one([], f64, block('l', f64, block('l', f64, one_)))), 'f: the label l is in scope already')
         assertEq(why(one([], f64, block('return', f64, one_))), 'f: the label return is in scope already')
-        assertEq(why(one([], f64, block('l', unit, make([])))), 'f: unit is not in this slice')
+        assertEq(why(one([], f64, block('l', unit, make([])))), 'f: the body is unit, not f64')
         assertEq(why(one([], f64, block('l', f64, y))), 'f: no local y')
         assertEq(why(one([], f64, block('l', bool, one_))), 'f: block l is bool, and its body is f64c')
     },
@@ -230,9 +282,11 @@ export const proof = {
         assertEq(why(importing(tagged([['x', f64]], u(1)))), untagged)
         assertEq(why(importing(tagged([['x', t]], int(0n, 2n)))), untagged)
         assertEq(assertOk(check(importing(tagged([['x', t]], u(1))))).imports.length, 6)
-        // The scope of a term passes the same rules.
-        const scope = { name: 'f', locals: /** @type {const} */ ([['a', unit]]), result: f64, functions: [], imports: [] }
-        assertEq(assertError(typeOf(scope)(one_)), 'f: unit is not in this slice')
+        // The scope of a term passes the same rules: a local may be a product, and a function's result may not.
+        const scope = { name: 'f', locals: /** @type {const} */ ([['a', product([['s', ['sum', [['x', unit]]]]])]]), result: f64, functions: [], imports: [] }
+        assertEq(assertError(typeOf(scope)(one_)), 'f: sum({ x: unit }) is not in this slice')
+        assertEq(show(assertOk(typeOf({ ...scope, locals: [['a', unit]] })(get('a')))), 'unit')
+        assertEq(assertError(typeOf({ ...scope, locals: [], result: unit })(one_)), 'f: unit is not in this slice')
         assertEq(assertError(typeOf({ ...scope, locals: [], functions: [['g', signature([['b', unit]], f64)]] })(one_)), 'g: unit is not in this slice')
     },
     loops: () => {
@@ -256,14 +310,14 @@ export const proof = {
         assertEq(why(looping([], loop('l', [], one_))), 'f: the label l is in scope already')
         assertEq(why(looping([['k', f64, one_], ['k', f64, one_]], one_)), 'f: loop l has two parameters named k')
         assertEq(why(looping([['x', f64, one_]], one_)), 'f: x is bound twice')
-        assertEq(why(looping([['k', unit, make([])]], one_)), 'f: unit is not in this slice')
+        assertEq(why(looping([['k', ['sum', [['x', unit]]], make([])]], one_)), 'f: sum({ x: unit }) is not in this slice')
         assertEq(why(looping([['k', never, trap('no')]], one_)), 'f: k is never, so loop l never starts')
         // The first values are typed where the loop stands, and the body where the parameters are.
         assertEq(why(looping([['k', f64, y]], one_)), 'f: no local y')
         assertEq(why(looping([['k', f64, true_]], one_)), 'f: k of loop l is f64, not bool')
         assertEq(why(looping([['k', f64, get('k')]], one_)), 'f: no local k')
         assertEq(why(looping([], y)), 'f: no local y')
-        assertEq(why(looping([], make([]))), 'f: loop l: unit is not in this slice')
+        assertEq(why(looping([], make([]))), 'f: the body is unit, not f64')
         assertEq(why(one(p, f64, let_('r', loop('l', [['k', f64, one_]], k => k), get('k')))), 'f: no local k')
         assertEq(why(one(p, f64, let_('r', loop('l', [], one_), next('l', [])))), 'f: no label l')
         // A `br` to a loop gives each of its parameters, by name, in their order.
