@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
+ * @import { PartialMemOperationMap, PartialMemOperationMapWithRunner, RunInstance } from '../../mock/types.ts'
  * @import { MemoryState } from '../../memory/types.ts'
  * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, Overrun, RequestBody, RequestListener, SandboxResult, Server, Underrun, _Gate } from '../types.ts'
  * @import { Effect, IoChannel, Operation } from '../../types.ts'
@@ -1362,9 +1362,9 @@ const answerRequest = (run, listener) => (state, request) => {
  * The listener comes out of the handle rather than out of the state, so which
  * server was asked to listen is the one that answers — see {@link createServer}.
  *
- * @type {(run: RunInstance<NodeOp, State>) => (server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
+ * @type {(server: Server, port: number, host: string) => (state: State, run: RunInstance<NodeOp, State>) => readonly[State, IoResult<void>]}
  */
-const listen = run => (server, port, host) => state => {
+const listen = (server, port, host) => (state, run) => {
     // Asked **first**, as the Node runner asks it: an empty host is refused
     // before anything else is looked at, including whether this server is
     // already listening. Node forms no opinion about `''` at all — it binds —
@@ -1505,10 +1505,12 @@ const baseOperationMap = {
 }
 
 /**
- * The handlers with nested listener effects bound to their runner.
- * @param {RunInstance<NodeOp, State>} run
+ * The interpreter supplies its runner to `listen` when it steps the transition,
+ * so the map and interpreter can be constructed once without a recursive binding.
+ *
+ * @satisfies {PartialMemOperationMapWithRunner<NodeOp, State>}
  */
-const operationsOver = run => ({ ...baseOperationMap, listen: listen(run) })
+const operationMap = { ...baseOperationMap, listen }
 
 /**
  * The virtual runner.
@@ -1535,8 +1537,7 @@ const operationsOver = run => ({ ...baseOperationMap, listen: listen(run) })
  *
  * @type {RunInstance<NodeOp, State>}
  */
-export const virtual = state => effect =>
-    partialRun(nodeCommands)(operationsOver(virtual))(state)(effect)
+export const virtual = partialRun(nodeCommands)(operationMap)
 
 /**
  * Virtual operations, available for composing a runtime with additional
@@ -1545,7 +1546,13 @@ export const virtual = state => effect =>
  *
  * @satisfies {PartialMemOperationMap<NodeOp, State>}
  */
-export const virtualOperationMap = operationsOver(virtual)
+export const virtualOperationMap = {
+    ...baseOperationMap,
+    listen: (server, port, host) => {
+        const transition = listen(server, port, host)
+        return state => transition(state, virtual)
+    },
+}
 
 /**
  * The virtual runner over {@link emptyState} with `root` as its filesystem: the
