@@ -153,6 +153,18 @@ export const proof = {
             '        let $1 = Any.drop(v)',
             '        $0',
         ]),
+        // An arm that names no operand borrows nothing of it, so it moves what the operand read: here the arms of an if, whose condition reads s.
+        condition: () => golden(module_([['a', string]], string, let_('s', concat(a, a), s => if_(lt(lit(u(31), 2n), length(s)), s, a))), [
+            'fn f(a: any.only(string)) -> any.only(string) =',
+            '    let s = String.concat(a, a)',
+            '    if lt(2 as u(31), String.length(s))',
+            '    then',
+            '        s',
+            '    else',
+            '        let $0 = Any.dup(a)',
+            '        let $1 = Any.drop(s)',
+            '        $0',
+        ]),
         // A temporary that a call only borrows gets a name, which its scope drops, and so does every argument before it that does something.
         temporaries: () => golden(module_([['c', u(16)], ['x', f64]], f64, call('self', 'g', [add(x, one), fromUnit(c), x]), [['g', fn([['y', f64], ['s', string], ['z', f64]], f64, get('y'))]]), [
             'fn g(y: f64, s: any.only(string), z: f64) -> f64 =',

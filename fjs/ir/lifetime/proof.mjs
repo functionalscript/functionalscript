@@ -51,6 +51,9 @@ const float64 = v => {
 /** `s`, doubled while `i < k`, one more each time. @type {(s: string, i: number, k: number) => string} */
 const doubled = (s, i, k) => i < k ? doubled(s + s, i + 1, k) : s
 
+/** `s`, doubled while it is shorter than `k`. @type {(s: string, k: number) => string} */
+const grown = (s, k) => s.length < k ? grown(s + s, k) : s
+
 /**
  * `f` of a checked module, called on a counting host of no cells, and the
  * cells alive after it, as text: each handle and its count.
@@ -94,6 +97,12 @@ export const proof = {
             if_(lt(i, k), let_('t', concat(s, s), t => next('L', [['s', t], ['i', add(i, one)]])), s)))),
         { f: ([s, n]) => ({ any: doubled(text(s) + text(s), 1, float64(n)) }) },
         { f: product([edges(string), counts]) }),
+    // A loop whose condition reads the string that it owns gives that string as its value, moved.
+    grows: () => run(
+        owned(module_([['c', u(16)], ['k', f64]], string, loop('L', [['s', string, fromUnit(c)]], s =>
+            if_(lt(float(length(s)), k), next('L', [['s', concat(s, s)]]), s)))),
+        { f: ([unit, n]) => ({ any: grown(String.fromCharCode(Number(unit)), float64(n)) }) },
+        { f: product([[0x61n], counts]) }),
     // A path that leaves the function early drops what it owns first.
     early: () => run(
         owned(module_([['a', string], ['b', bool]], f64, let_('t', concat(a, a), t =>
