@@ -14,6 +14,7 @@
 
 import { number, open, or, string } from '../../rtti/module.f.js'
 import { parse } from '../../rtti/parse/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 
 /**
@@ -146,9 +147,11 @@ const loopbackHosts = /** @type {const} */ (['localhost', '127.0.0.1', '[::1]'])
  *
  * @type {(url: CallbackUrl) => boolean}
  */
-export const validCallback = ({ protocol, hostname, pathname, search, hash, username, password }) =>
-    (protocol === 'https:' || (protocol === 'http:' && loopbackHosts.some(host => host === hostname)))
-    && pathname === callbackPath && search === '' && hash === '' && username === '' && password === ''
+export const validCallback = url => {
+    const { protocol, hostname, pathname, hash, username, password } = url
+    return (protocol === 'https:' || (protocol === 'http:' && loopbackHosts.some(host => host === hostname)))
+        && pathname === callbackPath && entry(url, 'search') === '' && hash === '' && username === '' && password === ''
+}
 
 /** The bindings a configured Worker needs, named in its 503 body. */
 const bindingNames = /** @type {const} */ (['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI'])

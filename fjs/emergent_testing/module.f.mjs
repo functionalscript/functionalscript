@@ -37,6 +37,8 @@ import { definedEntries } from '../types/object/module.f.js'
 import { concat } from '../types/list/module.f.js'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.js'
 import { stringLiteral } from '../js/string_escape/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
 
 /**
  * The empty {@link RunTotals}: what a run's totals are before any leaf lands.
@@ -124,11 +126,8 @@ const terminalDuration = formatDuration(4)
  *
  * - Zero-argument functions become a `TestEntry`; the `throws` flag is set if
  *   `throws` is already `true` (i.e. a `throw` key appears in the ancestor path).
- *   The canonical way to declare a throw-test is structural: nest it under a
- *   `throw` property key. The secondary `fn.name === 'throw'` check is a legacy
- *   path that only fires when a function is extracted from a `throw` key and
- *   placed under a different key; that pattern is engine-dependent (unreliable on
- *   Bun) and is not a supported authoring style.
+ *   Declare a throw-test structurally: nest it under a `throw` property key.
+ *   An alias inherits the expectation from its own position in the tree.
  * - Non-null objects become an array of `[key, value]` pairs to recurse into.
  * - All other values (including functions with parameters) produce an empty array.
  *
@@ -139,7 +138,7 @@ export const parseTestSet = (throws, x) => {
         case 'function': {
             if (x.length === 0) {
                 const fn = /** @type {TestFn} */ (x)
-                return { fn, throws: throws || fn.name === 'throw' }
+                return { fn, throws }
             }
             return []
         }
@@ -652,6 +651,9 @@ const fmtResultEnd = ({ status, duration }, throws) => {
     return `${label}${reset}, ${terminalDuration(duration)}` + (passed && throws ? ' # EXPECTED TO THROW' : '')
 }
 
+/** The required display name of an internally constructed test identity. @type {(id: TestId) => string} */
+const testName = id => assertNotNullish(entry(id, 'name'))
+
 /**
  * A complete terminal result record, without a trailing newline. Independent
  * records let concurrent consumers write each result in one operation while
@@ -659,7 +661,7 @@ const fmtResultEnd = ({ status, duration }, throws) => {
  *
  * @type {(t: TestResult, throws: boolean) => string}
  */
-export const fmtResult = (t, throws) => `${t.name}: ${fmtResultEnd(t, throws)}`
+export const fmtResult = (t, throws) => `${testName(t)}: ${fmtResultEnd(t, throws)}`
 
 /**
  * The text of a value that may not want to be read. `String` runs user code, so
@@ -727,12 +729,12 @@ export const defaultReporter = options => {
     /** @type {(f: TestFailure) => Effect<Write | Catch, void, NotImplemented>} */
     const detail = ({ t, error }) => step(text(error), described =>
         isGitHub
-            ? csiLog(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(described)}`)
+            ? csiLog(`::error file=${t.module},line=1,title=${ghEscape(testName(t))}::${ghEscape(described)}`)
             // `step`, so the value is attempted only when the line naming the
             // test it belongs to was written: two halves of one report, and
             // half of it is worse than none.
             : step(
-                csiLog(`${fgRed}${t.name}${reset}`),
+                csiLog(`${fgRed}${testName(t)}${reset}`),
                 () => csiLog(`${fgRed}${described}${reset}`)))
     return {
         // One line per leaf, opened before it runs and closed when it lands:
@@ -754,7 +756,7 @@ export const defaultReporter = options => {
         // consumer does want a record per event, and that is a second format
         // for a second audience — `todo/tty-and-line-consumers.md` — not a
         // reason to reinstate it here.
-        start: ({ name }) => out(`${name}: `),
+        start: id => out(`${testName(id)}: `),
         result: (t, _r, throws) => csiLog(fmtResultEnd(t, throws)),
         // The details come before the counts, so the numbers a reader is
         // looking for are still the last thing on the screen.

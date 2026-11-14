@@ -258,18 +258,24 @@ export const multipleFiles = () => {
     assertEq(fail, 0)
 }
 
-// a function literally named `throw` is a throwing test even when its key is not `throw`
-export const throwByFunctionName = () => {
-    // // `bun` calls the function `named` instead of `throw`
-    // const named = ({ throw: () => fail0() }).throw
-    const x = { throw: () => fail0() }
+// A function's inferred name does not change the expectation of its tree path.
+export const throwExpectationUsesStructuralKeys = () => {
+    const named = /** @type {const} */ ({ throw: () => fail0() })
+    const parsed = parseTestSet(false, named.throw)
+    assert(!(parsed instanceof Array))
+    assertEq(parsed.fn, named.throw)
+    assertEq(parsed.throws, false)
     const [events, exit] = run({
-        't.proof.f.ts': () => ({ proof: { here: x.throw } }),
+        't.proof.f.ts': () => ({ proof: { here: named.throw, throw: { alias: named.throw } } }),
     })
-    assertEq(exit, 0)
-    const passEvents = events.filter(e => e[0] === 'result')
-    assertEq(passEvents.length, 1)
-    assertEq(passEvents[0][2], '.here')
+    assertEq(exit, 1)
+    const results = events.filter(e => e[0] === 'result')
+    assertEq(results.length, 2)
+    assertEq(results[0][2], '.here')
+    assertEq(results[1][2], '.throw.alias')
+    assertEq(events[events.length - 1][0], 'summary')
+    assertEq(events[events.length - 1][1], 1)
+    assertEq(events[events.length - 1][2], 1)
 }
 
 // only the `proof` export is used; other module properties are ignored
@@ -1180,7 +1186,7 @@ export const proof = {
     arrayKeys,
     nonTestFilesSkipped,
     multipleFiles,
-    throwByFunctionName,
+    throwExpectationUsesStructuralKeys,
     namedExports,
     defaultReporterOutput,
     defaultReporterOutputLargeDuration,

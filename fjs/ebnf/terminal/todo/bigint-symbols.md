@@ -62,7 +62,7 @@ symbols only; parser backends preserve the logical one-time EOF behavior defined
 by the EOF task.
 
 The ordinary-symbol domain — today the open-above range set `[0]` in
-[`../../data`](../../data/module.f.mjs) — covers `0n .. 2^256 - 1n`; `eof` is
+[`../../data`](../../data/module.f.js) — covers `0n .. 2^256 - 1n`; `eof` is
 the singleton `-1n` set.
 
 This change expands the semantic terminal domain from `2^53` values to

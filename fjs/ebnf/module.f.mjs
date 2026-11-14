@@ -16,7 +16,7 @@
 
 import { assert } from "../asserts/module.f.js"
 import { unmapped } from "./ast/module.f.js"
-import { isRepeatBounds, isSymbol } from "./data/module.f.mjs"
+import { isRepeatBounds, isSymbol } from "./data/module.f.js"
 import { codePointListToString, codePointToString, codePoints } from "../text/utf16/module.f.js"
 import { maxCodePoint } from "../text/code_point/module.f.js"
 import { isFixedArray } from "../types/array/module.f.js"
