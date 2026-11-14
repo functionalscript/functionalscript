@@ -10,7 +10,7 @@
  * expansion; the exported schemas stay stable and accept the same values.
  *
  * Shape checks do not establish closed-graph validity or canonical metadata.
- * `metadata/module.f.mjs` checks evaluated object keys;
+ * `metadata/module.f.js` checks evaluated object keys;
  * `closure/module.f.mjs` checks body scopes, bindings and function lengths.
  * These helpers validate supplied FJS data at an explicit EDAG boundary;
  * VM constructors maintain the invariants directly. FJS data is acyclic by

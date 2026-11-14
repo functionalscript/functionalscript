@@ -90,5 +90,5 @@ element, binds both. The hosts import it; the worker passes `redirect:
 
 ### Related
 
-- [`github/module.f.mjs`](../github/module.f.mjs) — the login's pure half,
+- [`github/module.f.mjs`](../github/module.f.js) — the login's pure half,
   already out of `github-runtime.mjs`: its URLs, records and messages.

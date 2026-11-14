@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { validateMetadata } from './module.f.mjs'
+import { validateMetadata } from './module.f.js'
 
 /** @type {(value: EdagValue) => void} */
 const accept = value => { assertEq(Object.is(assertOk(validateMetadata(value)), value), true) }
