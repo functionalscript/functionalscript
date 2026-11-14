@@ -256,7 +256,7 @@ that.
 
 Do not answer this with a longer list, though. The list keeps acquiring rows —
 first `\'`, then the backtick, then `\$` for the escaped substitution opener
-in [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s `indentedPart` —
+in [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s `indentedPart` —
 because JavaScript does not have a list. Its rule is **the listed escapes,
 otherwise the character itself**: `\q` is `q`, `\$` is `$`. JSON's `escape`
 rule does the opposite and refuses, which is right for JSON and is why the JS
@@ -370,7 +370,7 @@ the source view rests on.
       data),
       [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s
       `unrenderable` (escaped backticks in a template), and
-      [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s
+      [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s
       `indentedPart`, which is `` `\${${reference}}` `` — an escaped substitution opener and a
       real substitution on one line, so it pins the two against each other.
 - [x] A template chunk rule, and the nesting context in the reader's scan

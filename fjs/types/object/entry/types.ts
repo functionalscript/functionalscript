@@ -14,7 +14,7 @@ import type { entry, hasEntry } from './module.f.js'
  * converted as the helper converts it, gives an unknown value. One
  * signature, not two overloads, so that the helper's body is typed by it.
  */
-export type EntryLookup = <T, K>(a: T, b: K) => (K extends keyof T ? T[K] : unknown) | undefined
+export type EntryLookup = <T, const K>(a: T, b: K) => (K extends keyof T ? T[K] : unknown) | undefined
 
 /**
  * The members of the union `T` that declare the key `K`, each as it is once

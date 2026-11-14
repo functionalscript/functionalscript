@@ -50,6 +50,8 @@ import { error, ok } from '../types/result/module.f.js'
 import { splitAt } from '../types/string/module.f.js'
 import { run as runStream } from '../effects/list/module.f.js'
 import { doneStep } from '../types/function/operator/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
 
 const split2 = splitAt(2)
 
@@ -90,8 +92,8 @@ export const unshard = relPath => cBase32ToVec(relPath.replaceAll('/', ''))
  * @type {(key: Vec) => string}
  */
 export const toPath = key => {
-    const { dir, name } = shard(key)
-    return join(dir, name)
+    const location = shard(key)
+    return join(location.dir, assertNotNullish(entry(location, 'name')))
 }
 
 /**
@@ -243,8 +245,10 @@ const gcStage = stageDir => {
     const swept = ioStep(
         listed,
         ([dirents, t]) => {
-            const expired = dirents.flatMap(d =>
-                d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
+            const expired = dirents.flatMap(d => {
+                const name = assertNotNullish(entry(d, 'name'))
+                return d.isFile && deadlineOf(name) < t ? [name] : []
+            })
             // Each `rm` recovers on its own, so one undeletable file does not
             // stop the sweep at the file before it.
             return forEachStep(
@@ -280,9 +284,9 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, Vec, IoChannel>} */
     const publish = (state, offset, curPath) => {
         const hash = sha2.end(state)[2]
-        const { dir, name } = shard(hash)
-        const dstDir = join(path, dir)
-        const dst = join(dstDir, name)
+        const location = shard(hash)
+        const dstDir = join(path, location.dir)
+        const dst = join(dstDir, assertNotNullish(entry(location, 'name')))
         // `resultStep` throughout, and that is the "ignores results" above
         // written in the type: each link runs whatever the previous one
         // answered, and only the closing `stat` decides the outcome.
@@ -389,9 +393,9 @@ export const fileCas = sha2 => path => {
                     ? pureOk([])
                     : ioMapStep(
                         readdir(storePrefix, { recursive: true }),
-                        r => r.flatMap(({ name, parentPath, isFile }) =>
-                            toOption(isFile
-                                ? unshard(join(normalize(parentPath).substring(normalizedStorePrefix.length), name))
+                        r => r.flatMap(d =>
+                            toOption(d.isFile
+                                ? unshard(join(normalize(d.parentPath).substring(normalizedStorePrefix.length), assertNotNullish(entry(d, 'name'))))
                                 : null)))),
         url: at
     }

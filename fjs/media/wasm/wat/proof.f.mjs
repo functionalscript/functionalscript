@@ -1,6 +1,6 @@
 /**
  * The expected texts are `wasmprinter`'s (0.262.0) for the binary
- * [`binary/write`](../binary/write/module.f.mjs) writes of each module,
+ * [`binary/write`](../binary/write/module.f.js) writes of each module,
  * so each proof holds the two printers to the same text.
  *
  * @import { Module } from '../types.ts'

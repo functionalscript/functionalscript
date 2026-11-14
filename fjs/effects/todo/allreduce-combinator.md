@@ -56,7 +56,7 @@ rewrote it with `allReduce`, and the sequential proof run
 decides the opposite: the proof traversal runs one leaf's whole chain before
 the next, deliberately, and fanning its modules back out would undo that
 decision. The combinator's consumers are the sites that *want* fan-out — the
-framework-registration path and `dev/module.f.mjs`'s file loading — and it
+framework-registration path and `dev/module.f.js`'s file loading — and it
 must not be applied to the traversal.
 
 ### Naming

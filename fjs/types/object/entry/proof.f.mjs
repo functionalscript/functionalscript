@@ -1,3 +1,8 @@
+/**
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Equal } from '../../ts/types.ts'
+ */
+
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from './module.f.js'
 
@@ -76,8 +81,12 @@ export const proof = {
     // holding `undefined` takes too, and the presence through `hasEntry`
     // where that matters.
     value: () => {
-        const o = { a: 1, u: undefined }
-        assertEq(entry(o, 'a') ?? 'fallback', 1)
+        const o = /** @type {const} */ ({ a: 1, u: undefined })
+        const read = entry(o, 'a')
+        /** @type {Assert<Equal<typeof read, 1 | undefined>>} */
+        const literalKeyKeepsItsFieldType = true
+        assert(literalKeyKeepsItsFieldType)
+        assertEq(read ?? 'fallback', 1)
         assertEq(entry(o, 'u') ?? 'fallback', 'fallback')
         assertEq(hasEntry(o, 'u') ? entry(o, 'u') : 'fallback', undefined)
         assertEq(entry(o, 'b') ?? 'fallback', 'fallback')

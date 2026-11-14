@@ -4,14 +4,14 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
+import { clean, generatedFiles, isGenerated, main } from './module.f.js'
 
 /** @type {Dir} */
 const root = {
     'gen.matrix.md': [],
     'gen.environment': { 'dependency.lock': [], 'manifest.toml': [] },
     'matrix.md': [],
-    'generate': { 'module.f.mjs': [] },
+    'generate': { 'module.f.js': [] },
     'regen.md': [],
     'src': {
         'gen.operators.rs': [],
@@ -58,7 +58,7 @@ export const proof = {
         assertStructurallySame(state.root, {
             'matrix.md': [],
             'gen.environment': {},
-            'generate': { 'module.f.mjs': [] },
+            'generate': { 'module.f.js': [] },
             'regen.md': [],
             'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} }, 'gen.environment': {} },
             '.git': { 'gen.pack': [] },

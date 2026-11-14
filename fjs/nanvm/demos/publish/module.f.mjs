@@ -7,7 +7,7 @@
  * directory first, and writes each sample's WAT beside it.
  *
  * **The module is copied as it was built**, its bytes unchanged: the page
- * instantiates what `cargo` wrote, not what [`binary/write`](../../../media/wasm/binary/write/module.f.mjs)
+ * instantiates what `cargo` wrote, not what [`binary/write`](../../../media/wasm/binary/write/module.f.js)
  * would write from it.
  *
  * **A sample's WAT holds only the functions Rust defines in its module**,

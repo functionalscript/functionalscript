@@ -15,7 +15,7 @@
     "test": "tsc && node ./fjs/module.mjs t",
     "start": "node ./fjs/module.mjs",
     "sm": "js --module ./fjs/spidermonkey.mjs --",
-    "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs",
+    "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.js",
     "gen": "node ./fjs/module.mjs r ./fjs/dev/gen/module.f.mjs",
     "lock-update": "mise lock && npm run gen && npm install && deno install && bun install && cargo update",
     "website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs",

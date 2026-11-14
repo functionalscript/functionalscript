@@ -20,7 +20,7 @@ import {
 import { pure } from '../../effects/module.f.js'
 import { pureError } from '../../effects/module.f.js'
 import { ioError } from '../../effects/node/module.f.js'
-import { fileCas } from '../module.f.mjs'
+import { fileCas } from '../module.f.js'
 import { sha256 } from '../../crypto/sha2/module.f.js'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { vec8 } from '../../types/bit_vec/module.f.js'

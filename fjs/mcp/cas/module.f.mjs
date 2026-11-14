@@ -3,7 +3,7 @@
  * operations onto MCP tools, so an agent that speaks MCP can store a blob and
  * get back its hash, fetch a blob by hash, and enumerate what is stored —
  * without shelling out to the `cas` CLI. The store itself
- * (`fjs/cas/module.f.mjs`) stays transport-agnostic; this is an additional
+ * (`fjs/cas/module.f.js`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. This registry is one of the tool sets
  * `fjs/mcp/module.f.mjs` composes into the FJS MCP server — see that module
  * for the full tool table (including `fjs/mcp/evo`'s `evo_*` tools) and the
@@ -136,7 +136,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
 } from '../../protocol/mcp/module.f.mjs'
-import { collectRead } from '../../cas/module.f.mjs'
+import { collectRead } from '../../cas/module.f.js'
 import { errorSummary } from '../../effects/node/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
 import { identity } from '../../types/function/module.f.js'

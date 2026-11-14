@@ -44,7 +44,7 @@ import { serialize as bigintSerialize } from '../types/bigint/module.f.js'
 import { sort } from '../types/object/module.f.js'
 import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.js'
 import { error as errorLine, errorExit, exitStep, log, writeFiles } from '../effects/node/module.f.js'
-import { allFiles, sourceRoot } from '../dev/module.f.mjs'
+import { allFiles, sourceRoot } from '../dev/module.f.js'
 import { chunksText, toText } from '../text/marked/module.f.mjs'
 
 const { entries } = Object

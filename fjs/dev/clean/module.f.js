@@ -23,7 +23,9 @@
 
 import { step } from '../../effects/module.f.js'
 import { allOk, exitStep, rm } from '../../effects/node/module.f.js'
-import { isThirdParty, walk } from '../module.f.mjs'
+import { isThirdParty, walk } from '../module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 /** Whether a file or directory name marks it generated. @type {(name: string) => boolean} */
 export const isGenerated = name => name.startsWith('gen.')
@@ -33,12 +35,15 @@ export const isGenerated = name => name.startsWith('gen.')
  * file is taken and a directory {@link isThirdParty} names is skipped, except
  * `.github`. `path` is relative to the scan root.
  *
- * @type {(path: string, entry: Dirent) => 'take' | 'descend' | 'skip'}
+ * @type {(path: string, dirent: Dirent) => 'take' | 'descend' | 'skip'}
  */
-const classify = (path, { name, isDirectory }) =>
-    path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
-    : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
-    : 'skip'
+const classify = (path, dirent) => {
+    const name = assertNotNullish(entry(dirent, 'name'))
+    const { isDirectory } = dirent
+    return path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
+        : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
+        : 'skip'
+}
 
 /**
  * The generated files under `root`. `walk` joins each name onto `root`, so the

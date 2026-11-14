@@ -7,7 +7,7 @@ import { assert, assertEq, todo } from '../asserts/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { fromEntries } from '../types/object/module.f.js'
-import { allFiles, isAuthored, isHostProof, isThirdParty, loadDirectoryModuleMap, loadModuleMap, shouldLoad, shouldLoadOn } from './module.f.mjs'
+import { allFiles, isAuthored, isHostProof, isThirdParty, loadDirectoryModuleMap, loadModuleMap, shouldLoad, shouldLoadOn } from './module.f.js'
 
 export const proof = {
     loadDirectoryModuleMap: () => {
@@ -68,7 +68,7 @@ export const proof = {
         assert(shouldLoad('foo.f.ts'))
         assert(shouldLoad('foo.f.mts'))
         assert(shouldLoad('bar.f.js'))
-        assert(shouldLoad('module.f.mjs'))
+        assert(shouldLoad('module.f.js'))
         assert(shouldLoad('proof.f.mts'))
         assert(shouldLoad('proof.f.mjs'))
         // Every impure JS/TS extension is loaded only under the `proof` name.

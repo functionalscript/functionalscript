@@ -31,6 +31,8 @@ import {
 } from '../../text/ascii/module.f.js'
 import { flat, flatMap, intersperse, map, mergeAdjacent } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -155,7 +157,7 @@ const checkReference = ([, name]) =>
 
 /** @type {(pattern: _OpenSetPattern) => Nullable<string>} */
 const checkPattern = ([, ...names]) => {
-    const { indexOf } = occurrences(names)
+    const indexOf = assertNotNullish(entry(occurrences(names), 'indexOf'))
     return findMap(
         /** @type {(name: string, index: number) => Nullable<string>} */
         (name, index) =>

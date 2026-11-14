@@ -6,7 +6,7 @@
 
 ### Problem
 
-`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`, the `read` method on the `FileCas`
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.js`, the `read` method on the `FileCas`
 returned by `fileCas`) streams the bytes stored at an address, chunk by chunk, without
 recomputing their hash, and the `cas get` command (`fjs/cas/cli/module.f.mjs`) pipes that
 stream straight to the output file via `writeFromStream`. If a blob was corrupted, truncated,

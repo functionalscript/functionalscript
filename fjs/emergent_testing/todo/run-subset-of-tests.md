@@ -29,7 +29,7 @@ test case, e.g. `fjs/types/list/proof.f.mjs` → `proof.map.empty`):
 
 - **module selection** — restrict which modules `loadModuleMap` loads, by
   passing a caller-supplied predicate into `allFiles`
-  (`fjs/dev/module.f.mjs` already takes one). Non-matching modules are never
+  (`fjs/dev/module.f.js` already takes one). Non-matching modules are never
   imported, so this is I/O-cheap, not just output filtering.
 - **test-case selection** — restrict which entries of a loaded proof tree
   run, by filtering the `[path, TestEntry]` pairs `collectTests` returns.
@@ -78,7 +78,7 @@ Open design questions to settle before implementing:
 - [GitHub issue #401](https://github.com/functionalscript/functionalscript/issues/401)
   — the original report.
 - `fjs/emergent_testing/module.f.mjs` — `main`, `collectTests`, `testAll`.
-- `fjs/dev/module.f.mjs` — `loadModuleMap` / `allFiles`; the predicate hook
+- `fjs/dev/module.f.js` — `loadModuleMap` / `allFiles`; the predicate hook
   this needs.
 - [211](./211-reporter-modes.md) — reporter modes; a filtered run's summary is a reporter
   concern.

@@ -3,7 +3,7 @@
  * and written to as Git writes a file.
  *
  * A branch's tree is a map from canonical CAS paths to immutable content —
- * `.cas/ab/cd/<rest>` for a key, the layout [`fjs/cas`](../module.f.mjs)'s
+ * `.cas/ab/cd/<rest>` for a key, the layout [`fjs/cas`](../module.f.js)'s
  * `toPath` spells and `unshard` reads back — so a commit of the branch *is*
  * a CAS snapshot. {@link snapshot} is one read through the existing
  * `Cas<O>` surface, pinned at the commit the branch is at when it is
@@ -93,7 +93,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { toOption } from '../../types/nullable/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { error } from '../../types/result/module.f.js'
-import { prefix, toPath, unshard, wholeByteMachine } from '../module.f.mjs'
+import { prefix, toPath, unshard, wholeByteMachine } from '../module.f.js'
 
 /**
  * The ref a branch is read at: `refs/heads/<branch>`, the local branch

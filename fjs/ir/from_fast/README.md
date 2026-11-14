@@ -15,7 +15,7 @@ recommends, and as the owner chose to assume on 2026-11-13.
 
 ```js
 import { unwrap } from '../../types/result/module.f.js'
-import { check } from '../check/module.f.mjs'
+import { check } from '../check/module.f.js'
 import { f64, signature } from '../module.f.js'
 import { lower } from './module.f.mjs'
 import { sourceOf } from './testlib.f.mjs'
@@ -218,7 +218,7 @@ as their division is.
 ## Operators
 
 Where JavaScript has one operator for two types, the operand's type picks
-the IR's: the lowering asks the [checker](../check/module.f.mjs) for it,
+the IR's: the lowering asks the [checker](../check/module.f.js) for it,
 with `typeOf`, in the scope where the term stands. FAST has no `&&`, `||`
 or `??`: they reach it as conditionals.
 
@@ -244,7 +244,7 @@ and its value, such as a spread, a member read of anything but a name,
 parameter, a spread argument, a statement of no result or of several, `%`
 of integers, or in a module lowered without the runtime, and every
 operator not in the table, such as `**` and the bitwise ones. The
-[checker](../check/module.f.mjs)
+[checker](../check/module.f.js)
 then refuses what the IR does not admit, such as a condition that is not a
 `bool`, integers mixed with floats, a division of integers, or a record
 that leaves its function.

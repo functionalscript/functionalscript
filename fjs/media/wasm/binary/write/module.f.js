@@ -17,6 +17,7 @@
  * @import { BlockType, Bytes, Custom, Data, Element, Export, Expr, FuncType, Global, GlobalType, Import, IndirectNameMap, Instruction, Limits, Module, NameMap, NameSubsection, RefType, SectionName, TableType, ValType } from '../../types.ts'
  */
 
+import { assertNotNullish } from '../../../../asserts/module.f.js'
 import { stringToU8List } from '../../../../text/utf8/module.f.js'
 import { generate } from '../../../../types/array/generate/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
@@ -145,21 +146,29 @@ const externKinds = { func: 0, table: 1, memory: 2, global: 3 }
 const externKind = kind => /** @type {number} */ (entry(externKinds, kind))
 
 /** @type {(x: Import) => Bytes} */
-const import_ = ({ module, name: n, desc }) => [
-    ...name(module),
-    ...name(n),
-    externKind(desc[0]),
-    ...(desc[0] === 'func' ? u32(desc[1])
-        : desc[0] === 'table' ? tableType(desc[1])
-        : desc[0] === 'memory' ? limits(desc[1])
-        : globalType(desc[1])),
-]
+const import_ = x => {
+    const { module, desc } = x
+    const n = assertNotNullish(entry(x, 'name'))
+    return [
+        ...name(module),
+        ...name(n),
+        externKind(desc[0]),
+        ...(desc[0] === 'func' ? u32(desc[1])
+            : desc[0] === 'table' ? tableType(desc[1])
+            : desc[0] === 'memory' ? limits(desc[1])
+            : globalType(desc[1])),
+    ]
+}
 
 /** @type {(x: Global) => Bytes} */
 const _globalDefinition = ({ type, init }) => [...globalType(type), ...expr(init)]
 
 /** @type {(x: Export) => Bytes} */
-const export_ = ({ name: n, kind, index }) => [...name(n), externKind(kind), ...u32(index)]
+const export_ = x => {
+    const { kind, index } = x
+    const n = assertNotNullish(entry(x, 'name'))
+    return [...name(n), externKind(kind), ...u32(index)]
+}
 
 /**
  * A segment, in the encoding whose flag bits say what it is: bit 0 passive or

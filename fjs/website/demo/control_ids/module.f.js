@@ -7,6 +7,7 @@
  */
 
 import { foldElement, mapElement } from '../../../media/html/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.js'
 
 /** @type {string} */
@@ -64,7 +65,8 @@ export const scopeIds = scope => {
                             : paintReferences.includes(name) ? paint(value) : value,
         ]
         return mapElement((tag, attributes) => {
-            const { type, name } = attributes
+            const { type } = attributes
+            const name = entry(attributes, 'name')
             const radio = tag.toLowerCase() === 'input' && type?.toLowerCase() === 'radio' && name !== undefined
             return [tag, {
                 ...fromEntries(definedEntries(attributes).map(attribute)),

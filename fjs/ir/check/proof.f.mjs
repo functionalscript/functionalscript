@@ -11,7 +11,7 @@ import {
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
 import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { check, typeOf } from './module.f.mjs'
+import { check, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
 const one = (params, result, body) => ({ imports: [], functions: [['f', fn(params, result, body)]], exports: [] })

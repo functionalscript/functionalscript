@@ -31,7 +31,7 @@ import {
     resultStep, step,
     unreadableThrownValue, walkStep,
 } from '../effects/module.f.js'
-import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.mjs'
+import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.js'
 import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'
 import { concat } from '../types/list/module.f.js'

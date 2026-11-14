@@ -12,7 +12,7 @@ ceiling. Every site in the repository today:
 | site | what it fans out |
 |-|-|
 | `emergent_testing/module.f.mjs` `registerModule` ×2, `registerModuleMap` | one module's sibling leaves, and the modules of a run, for the framework-registration path |
-| `dev/module.f.mjs` ×2 | files to load, and their imports |
+| `dev/module.f.js` ×2 | files to load, and their imports |
 
 They fail independently: a suite of a hundred thousand *modules* breaks the outer spread
 however few leaves each holds, and one module of a hundred thousand leaves breaks the inner
