@@ -85,11 +85,11 @@
 
 import { helperIds, staticIds } from '../../edag/module.f.js'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
-import { chunksText } from '../../text/marked/module.f.mjs'
+import { chunksText } from '../../text/marked/module.f.js'
 import { graphOf } from '../../website/demo/graph/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { operatorOperands } from '../../js/ast/module.f.mjs'
+import { operatorOperands } from '../../js/ast/module.f.js'
 
 // The operator tag groups `fjs/js/ast/types.ts` names, read here rather
 // than reconstructed from the compiler's own runtime schemas: a drawing is

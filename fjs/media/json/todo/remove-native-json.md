@@ -150,7 +150,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
 - [`fjs/text/utf16/module.f.js`](../../../text/utf16/module.f.js) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
-- [`fjs/js/string_escape/module.f.mjs`](../../../js/string_escape/module.f.mjs)
+- [`fjs/js/string_escape/module.f.js`](../../../js/string_escape/module.f.js)
   — `stringLiteral`, the escaping `stringSerialize` wraps and the
   source-text-quoting row's replacement.
 - [`fjs/types/object/structurally_same/README.md`](../../../types/object/structurally_same/README.md)

@@ -22,7 +22,7 @@ import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs
 import { tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { toText } from '../../../text/marked/module.f.mjs'
+import { toText } from '../../../text/marked/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
 import { tryMarked, tryStringify } from '../module.f.mjs'

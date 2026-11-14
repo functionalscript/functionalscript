@@ -68,6 +68,6 @@ defined in [`sample.f.js`](./sample.f.js), and the
 
 ## Where it is implemented
 
-[`parse`](../../../parse/module.f.mjs), [`validate`](../../../validate/module.f.mjs)
+[`parse`](../../../parse/module.f.js), [`validate`](../../../validate/module.f.js)
 and the data form's `validate` in [`data`](../../../data/module.f.mjs), over
-the shared kernel in [`common`](../../../common/module.f.mjs).
+the shared kernel in [`common`](../../../common/module.f.js).

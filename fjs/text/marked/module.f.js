@@ -24,6 +24,7 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Scan } from '../../types/function/operator/types.ts'
  * @import { Chunk, Marked, Run, Span, TokenKind } from './types.ts'
@@ -188,8 +189,8 @@ export const tagged = kind => text => {
     return `${open}${entry(kindCodes, kind)}${text}${close}`
 }
 
-/** Kinds by their letter. @type {ReadonlyMap<string, TokenKind>} */
-const kindsByCode = new Map(/** @type {readonly [string, TokenKind][]} */ (Object.entries(kindCodes).map(([kind, code]) => [code, kind])))
+/** Kinds by their letter. @type {StringMap<TokenKind>} */
+const kindsByCode = Object.fromEntries(/** @type {readonly [string, TokenKind][]} */ (Object.entries(kindCodes).map(([kind, code]) => [code, kind])))
 
 /**
  * The runs of a tagged text, or why it is not one: a tag left open, a kind
@@ -203,7 +204,7 @@ export const fromTagged = text => {
     if (head.includes(close)) { return error('a closing marker with no opening') }
     /** @type {(part: string) => Result<Marked, string>} */
     const run = part => {
-        const kind = kindsByCode.get(part.slice(0, 1))
+        const kind = entry(kindsByCode, part.slice(0, 1))
         if (kind === undefined) { return error(`a tag of no kind: ${part.slice(0, 1)}`) }
         const [inside, ...after] = part.slice(1).split(close)
         if (after.length !== 1) { return error(after.length === 0 ? 'a tag left open' : 'a closing marker with no opening') }

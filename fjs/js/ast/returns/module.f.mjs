@@ -12,7 +12,7 @@
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
 import { isHelper, isStatic } from '../../../edag/module.f.js'
-import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
 

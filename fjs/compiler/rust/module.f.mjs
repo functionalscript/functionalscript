@@ -42,7 +42,7 @@ import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.mjs'
 import { useLinesTagged } from '../../rust/serializer/module.f.mjs'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
-import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'
+import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.js'
 
 /**
  * The bound on the module's VM parameter: `IVm`, or `IStaticFunction` —

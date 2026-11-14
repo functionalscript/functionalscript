@@ -25,8 +25,8 @@ import { assoc, dedup } from '../../types/array/module.f.js'
 import { isIdentifier } from '../../js/identifier/module.f.js'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
-import { _taggedPrimitive as primitive, _taggedUnion as union, _taggedPrinter as tsPrinter } from '../../types/ts/module.f.mjs'
-import { fromTagged, tagged, untagged } from '../../text/marked/module.f.mjs'
+import { _taggedPrimitive as primitive, _taggedUnion as union, _taggedPrinter as tsPrinter } from '../../types/ts/module.f.js'
+import { fromTagged, tagged, untagged } from '../../text/marked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import {
     absentBit,

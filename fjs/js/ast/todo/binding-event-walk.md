@@ -7,7 +7,7 @@
 
 `BindingEvent` in [`types.ts`](../types.ts) is a three-variant tree: a
 `function` holds a child scope's events, a `region` holds nested events,
-and everything else is a leaf. [`module.f.mjs`](../module.f.mjs) owns the
+and everything else is a leaf. [`module.f.mjs`](../module.f.js) owns the
 type and walks it once, in `analyzeBindings`; [`sugar`](../sugar/module.f.mjs)
 walks it twice more, in `scopesOf` and `eventFacts`, and the three preorder
 loops differ only in what they collect:

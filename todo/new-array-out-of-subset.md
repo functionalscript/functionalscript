@@ -37,7 +37,7 @@ through; the one place the two differ is noted in it:
 | `fjs/sul/proof.f.mjs` | 1 (since replaced by `Array.from`) |
 | `fjs/git/refname/proof.f.mjs` | 1 |
 | `fjs/git/ref/proof.f.mjs` | 1 |
-| **`fjs/rtti/parse/module.f.mjs`** | **1** |
+| **`fjs/rtti/parse/module.f.js`** | **1** |
 
 The two `fjs/git` rows arrived after the survey: `isName` in `fjs/git/refname`
 and `packed` in `fjs/git/ref` are each proved to refuse `new Array(1)`, and
@@ -51,7 +51,7 @@ text of a vector proving DataJS rejects `new Array()`.
 things are tangled together.
 
 **A shipped module builds holes on purpose.** `tupleRebuild` in
-[`fjs/rtti/parse/module.f.mjs`](../fjs/rtti/parse/module.f.mjs) allocates with
+[`fjs/rtti/parse/module.f.js`](../fjs/rtti/parse/module.f.js) allocates with
 `new Array(n)` and writes with `Object.defineProperty` in a loop, so that
 "every index it never writes" stays a hole. Its own JSDoc states the rule and
 then works around it — "A hole is the one member shape no expression builds" —
@@ -116,7 +116,7 @@ module they live in.
 - [ ] **The exception, in writing. Everything else waits on this.** Does the
       subset admit a fresh, never-escaped array built with `new Array(n)` and
       written by index inside a `.f.mjs`?
-      [`fjs/rtti/parse/module.f.mjs`](../fjs/rtti/parse/module.f.mjs) asserts
+      [`fjs/rtti/parse/module.f.js`](../fjs/rtti/parse/module.f.js) asserts
       one and nothing grants it. Answer it in `spec/README.md` beside the
       no-elision rule and in `fjs/AGENTS.md` §3.1, saying also whether it
       covers `Object.defineProperty` and index assignment on an accumulator,

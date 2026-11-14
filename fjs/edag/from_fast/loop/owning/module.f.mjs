@@ -10,7 +10,7 @@
  * @import { _Context, _Result } from './private.ts'
  */
 
-import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
+import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.js'
 import { _invocationTransition, _isSelf } from '../../../../js/ast/invocation/module.f.js'
 import { _tailRegion } from '../../../../js/ast/invocation/tail/module.f.js'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.js'

@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.mjs'
+import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.js'
 
 export const proof = {
     bigintOperands: () => {

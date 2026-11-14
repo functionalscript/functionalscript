@@ -36,7 +36,7 @@
 import { permalink } from '../permalink/module.f.js'
 import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.mjs'
 import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.js'
-import { stringLiteral } from '../../js/string_escape/module.f.mjs'
+import { stringLiteral } from '../../js/string_escape/module.f.js'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
 import { htmlDocument, mapElement, parseElement, textContent } from '../../media/html/module.f.js'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.js'

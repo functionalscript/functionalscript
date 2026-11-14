@@ -22,7 +22,7 @@ import { run as mockRun, runAll } from '../effects/mock/module.f.js'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.js'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.js'
-import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
+import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { pureError, pureOk, step, unreadableThrownValue } from '../effects/module.f.js'
 

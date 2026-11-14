@@ -10,7 +10,7 @@
  */
 
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
-import { request } from '../../../../protocol/json_rpc/module.f.mjs'
+import { request } from '../../../../protocol/json_rpc/module.f.js'
 import { tool } from '../../../../protocol/mcp/module.f.mjs'
 import { casAddArgs } from '../../../../mcp/cas/module.f.mjs'
 import { evoAddArgs } from '../../../../mcp/evo/module.f.mjs'

@@ -26,6 +26,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { fromUndefined } from '../../types/nullable/module.f.js'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
+import { empty as emptyMap, mapGet, mapSet } from '../../types/map/module.f.js'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
 const { entries, fromEntries, keys, is: sameValue } = Object
@@ -264,7 +265,7 @@ const childHint = (parent, key) => parent === '' ? key : `${parent}.${key}`
 
 /** @type {(state: _State, name: string, fr: FRule) => _State} */
 const register = ({ names, taken, ruleSet }, name, fr) => ({
-    names: new Map([...names, [fr, name]]),
+    names: mapSet(names, fr, name),
     taken: stringSetAdd(name)(taken),
     ruleSet,
 })
@@ -399,16 +400,16 @@ const lowerThunk = (lowerRule, state, hint, fr) => {
  * @type {_Lower}
  */
 const lower = (state, hint, fr) => {
-    // The memo's `Map` keys by SameValueZero, so `-0` would find `0`'s rule
+    // The memo keys by SameValueZero, so `-0` would find `0`'s rule
     // and inherit it; it is refused before the lookup, as it is everywhere.
     assert(!sameValue(fr, -0), ['not a symbol', fr])
-    const known = state.names.get(fr)
+    const known = mapGet(state.names, fr)
     if (known !== undefined) { return [state, known] }
     return typeof fr === 'function' ? lowerThunk(lower, state, hint, fr) : lowerData(lower, state, hint, fr)
 }
 
 /** @type {RuleNameMap} */
-const noNames = new Map()
+const noNames = emptyMap
 
 /** @type {_State} */
 const initial = { names: noNames, taken: noStrings, ruleSet: {} }

@@ -22,7 +22,7 @@ import { functionStringify } from '../../js/ast/serializer/module.f.mjs'
 import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'
 import { operandsOf, visit } from '../sharing/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
-import { tagged, untagged } from '../../text/marked/module.f.mjs'
+import { tagged, untagged } from '../../text/marked/module.f.js'
 import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.mjs'
 
 /** No override to a function's canonical representation. @type {(e: Exp) => string | undefined} */

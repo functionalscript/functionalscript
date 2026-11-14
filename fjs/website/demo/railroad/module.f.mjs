@@ -49,6 +49,7 @@ import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { sum } from '../../../types/number/module.f.js'
 import { toData } from '../../../ebnf/data/module.f.mjs'
+import { mapGet } from '../../../types/map/module.f.js'
 import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
@@ -323,7 +324,7 @@ export const codePointGuide = 'Follow a track from left to right; a pill is text
 export const grammarDemo = ({ grammar, alphabet, description, guide, selections }) => {
     const [ruleSet, entry, names] = toData(grammar)
     /** @type {(rule: Rule) => string} */
-    const nameOf = rule => rule === grammar ? entry : assertNotNullish(names.get(rule))
+    const nameOf = rule => rule === grammar ? entry : assertNotNullish(mapGet(names, rule))
     /** @type {(selection: Selection) => readonly [string, string]} */
     const titled = ([title, rule, tag]) => [title, tag === undefined ? nameOf(rule) : branch(ruleSet)(nameOf(rule), tag)]
     return railroadDemo(`${description} ${guide}`)(toDiagrams(alphabet)(ruleSet)(selections.map(titled)))

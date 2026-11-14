@@ -37,7 +37,7 @@ import { min } from '../../../types/number/min/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { encodeScalar } from '../../../basen/base16/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { fromTagged, tagged, untagged } from '../../../text/marked/module.f.mjs'
+import { fromTagged, tagged, untagged } from '../../../text/marked/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { charIs, isDigit, isLatinLetter } from '../../../text/ascii/module.f.js'
 

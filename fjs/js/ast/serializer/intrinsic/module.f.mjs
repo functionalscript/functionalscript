@@ -3,7 +3,7 @@
  * @import { Chunk } from '../../../../text/marked/types.ts'
  */
 
-import { chunksText, keyword, literal } from '../../../../text/marked/module.f.mjs'
+import { chunksText, keyword, literal } from '../../../../text/marked/module.f.js'
 import { helperLength } from '../../../../edag/module.f.js'
 import { _name as name, _binding as binding, _arg as argName } from '../names/module.f.mjs'
 

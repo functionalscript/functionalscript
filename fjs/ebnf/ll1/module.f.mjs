@@ -39,6 +39,7 @@ import { contains as visiting, empty as noNames, set as visit } from '../../type
 import { _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
 import { min as minNumber } from '../../types/number/min/module.f.js'
 import { walkFold } from '../../types/stack_walk/module.f.js'
+import { empty as emptyMap, mapGet, mapHas, mapSet } from '../../types/map/module.f.js'
 
 const { keys, fromEntries } = Object
 const { isSafeInteger } = Number
@@ -255,7 +256,7 @@ const checkFollow = (ruleSet, first, nullable, names, greedy) => {
 }
 
 /** @type {_Mappers} */
-const noMappers = new Map()
+const noMappers = emptyMap
 
 /**
  * The rewrite set keyed by name, through the map `toData` returns, refused
@@ -269,10 +270,10 @@ const noMappers = new Map()
 const mappersOf = names => set => set.reduce(
     /** @type {(m: _Mappers, mapping: Mapping<unknown, unknown>) => _Mappers} */
     ((m, [rule, f]) => {
-        const name = names.get(rule)
+        const name = mapGet(names, rule)
         assert(name !== undefined, ['a rule the grammar does not hold', rule])
-        assert(!m.has(name), ['a rule mapped twice', name])
-        return new Map([...m, [name, f]])
+        assert(!mapHas(m, name), ['a rule mapped twice', name])
+        return mapSet(m, name, f)
     }),
     noMappers)
 
@@ -285,7 +286,7 @@ const mappersOf = names => set => set.reduce(
  * @type {(mappers: _Mappers) => (name: string, node: unknown) => unknown}
  */
 const emitBy = mappers => (name, node) => {
-    const f = mappers.get(name)
+    const f = mapGet(mappers, name)
     return f === undefined ? node : f(/** @type {never} */ (node))
 }
 

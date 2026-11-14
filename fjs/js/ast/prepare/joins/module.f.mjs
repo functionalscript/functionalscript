@@ -9,7 +9,7 @@
  * @import { List, NonEmpty } from '../../../../types/list/types.ts'
  */
 
-import { operatorOperands } from '../../module.f.mjs'
+import { operatorOperands } from '../../module.f.js'
 import { exitValues, freeBindings } from '../../control/module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.js'
 import { next } from '../../../../types/list/module.f.js'

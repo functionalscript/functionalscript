@@ -9,7 +9,7 @@ import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefi
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate, itemTagged, toRust } from './module.f.mjs'
-import { toText, untagged } from '../../text/marked/module.f.mjs'
+import { toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'

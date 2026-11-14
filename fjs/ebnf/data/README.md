@@ -241,8 +241,13 @@ them; a rule the entry cannot reach is dead, not wrong.
 ## The lowering: `toData`
 
 ```ts
-toData: (rule: Rule) => readonly [RuleSet, entry: string, names: ReadonlyMap<Rule, string>]
+toData: (rule: Rule) => readonly [RuleSet, entry: string, names: RuleNameMap]
 ```
+
+`RuleNameMap` is a `PersistentMap<Rule, string>` from
+[`types/map`](../../types/map/module.f.js). Read a rule's name with
+`mapGet(names, rule)` and enumerate the rule identities with `mapEntries(names)`.
+An empty-string name is present; only `undefined` means the rule was not met.
 
 The lowering is a transcription, and the first code that can tell a mistake
 from a grammar, so it validates what the constructors do not — a hand-written
@@ -280,7 +285,7 @@ tuple is the one way an unvalidated value reaches it:
   the bridge the transformer protocol keys on through `Entry.rule` and the
   "rule identity must survive" requirement: transformers attach to the rule
   the author wrote, and the item of a repeat transformer is the `rule` of
-  the `['repeat', min, max, rule]` info, whose name is `names.get(rule)`.
+  the `['repeat', min, max, rule]` info, whose name is `mapGet(names, rule)`.
 - **Nothing is derived and nothing is pruned.** Every rule emitted is
   reachable from the entry by construction, so the classical `detectRepeat`
   pass and the orphan pruning it needed do not exist here, and the classical

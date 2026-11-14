@@ -116,7 +116,7 @@ the printer drops the tail there and `Ts<>` does not.
 
 ## Remaining open problems
 
-The `as any` casts in `parse/module.f.mjs` cannot
+The `as any` casts in `parse/module.f.js` cannot
 be removed without language features TypeScript does not yet have:
 
 **Problem A — visitor rank-2 erasure.** `Visitor<R>` requires a uniform `R`

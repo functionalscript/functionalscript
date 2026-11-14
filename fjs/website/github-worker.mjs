@@ -9,7 +9,7 @@
  * @import { ExchangeFailure, WorkerEnv, WorkerHost } from './github/types.ts'
  */
 
-import { parse } from '../rtti/parse/module.f.mjs'
+import { parse } from '../rtti/parse/module.f.js'
 import { allowedCallbackOrigin, authPrefix, callbackPath, configPath, exchangeSchema, providerOutcome, tokenPath, validCallback, validExchange, workerConfig } from './github/module.f.mjs'
 
 const readExchange = parse(exchangeSchema)

@@ -28,7 +28,7 @@ import { read } from '../edag/value/property/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
 import { toData } from '../edag/value/to_unknown/module.f.mjs'
 import { ok } from '../types/result/module.f.js'
-import { validate } from '../rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.js'
 import {
     callback,
     callbackExp,

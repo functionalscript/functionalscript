@@ -28,7 +28,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { caption, textDemo } from '../../website/demo/module.f.mjs'
 import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { tokenize } from './module.f.mjs'
-import { stringLiteral } from '../string_escape/module.f.mjs'
+import { stringLiteral } from '../string_escape/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**

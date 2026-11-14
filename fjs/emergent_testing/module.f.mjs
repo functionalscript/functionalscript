@@ -36,7 +36,7 @@ import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'
 import { concat } from '../types/list/module.f.js'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.js'
-import { stringLiteral } from '../js/string_escape/module.f.mjs'
+import { stringLiteral } from '../js/string_escape/module.f.js'
 
 /**
  * The empty {@link RunTotals}: what a run's totals are before any leaf lands.

@@ -21,7 +21,7 @@ import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { entry } from '../../types/object/entry/module.f.js'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { array, string as rttiString } from '../../rtti/module.f.js'
-import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /**

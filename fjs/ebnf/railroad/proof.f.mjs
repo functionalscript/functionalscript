@@ -7,6 +7,7 @@
 import { branch, codePoints, tokens, toDiagrams } from './module.f.mjs'
 import { encoding } from '../token_symbol/module.f.js'
 import { toData } from '../data/module.f.mjs'
+import { mapGet } from '../../types/map/module.f.js'
 import { eof, join, option, range, rangeEncode, repeat, repeatFrom, repeatFrom0, repeatFrom1, set, times } from '../module.f.mjs'
 import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -160,25 +161,25 @@ export const proof = {
         literal: () => {
             const letter = set('a')
             const [ruleSet, entry, names] = toData([letter, letter])
-            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['letter', assertNotNullish(names.get(letter))]])
+            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['letter', assertNotNullish(mapGet(names, letter))]])
             assertStructurallySame(root, ['sequence', [['nonTerminal', 'letter'], ['nonTerminal', 'letter']]])
         },
         repeat: () => {
             const many = repeatFrom0(digit)
             const [ruleSet, entry, names] = toData([digit, many])
-            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['many', assertNotNullish(names.get(many))]])
+            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['many', assertNotNullish(mapGet(names, many))]])
             assertStructurallySame(root, ['sequence', [t('0 … 9'), ['nonTerminal', 'many']]])
         },
         separator: () => {
             const pair = [',', digit]
             const [ruleSet, entry, names] = toData([digit, repeatFrom0(pair)])
-            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['pair', assertNotNullish(names.get(pair))]])
+            const [[, root]] = toDiagrams(codePoints)(ruleSet)([['root', entry], ['pair', assertNotNullish(mapGet(names, pair))]])
             assertStructurallySame(root, ['sequence', [t('0 … 9'), ['choice', [skip, loop(['nonTerminal', 'pair'])]]]])
         },
         several: () => {
             const [ruleSet, entry, names] = toData([digit, digit])
             assertStructurallySame(
-                toDiagrams(codePoints)(ruleSet)([['pair', entry], ['digit', assertNotNullish(names.get(digit))]]),
+                toDiagrams(codePoints)(ruleSet)([['pair', entry], ['digit', assertNotNullish(mapGet(names, digit))]]),
                 [
                     ['pair', ['sequence', [['nonTerminal', 'digit'], ['nonTerminal', 'digit']]]],
                     ['digit', t('0 … 9')],
@@ -207,7 +208,7 @@ export const proof = {
         // Two rules under one title would be two diagrams behind one link.
         titleTwice: () => {
             const [ruleSet, , names] = toData(['a', 'b'])
-            toDiagrams(codePoints)(ruleSet)([['same', assertNotNullish(names.get('a'))], ['same', assertNotNullish(names.get('b'))]])
+            toDiagrams(codePoints)(ruleSet)([['same', assertNotNullish(mapGet(names, 'a'))], ['same', assertNotNullish(mapGet(names, 'b'))]])
         },
         notAVariant: () => {
             const [ruleSet, entry] = toData('a')

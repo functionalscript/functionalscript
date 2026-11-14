@@ -8,7 +8,7 @@ primitive. The comparison is `Object.is`, so the constant `NaN` admits `NaN`,
 and `0` and `-0` are two schemas with one value each.
 
 ```js
-import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
+import { parse } from 'functionalscript/fjs/rtti/parse/module.f.js'
 
 parse('circle')('circle')  // ['ok', 'circle']
 parse('circle')('square')  // ['error', …]
@@ -52,4 +52,4 @@ circle a `side`, to see both readers refuse it. The lessons are defined in
 ## Where it is implemented
 
 `Const` in [`types.ts`](../../../types.ts); the `Object.is` check in
-[`common`](../../../common/module.f.mjs).
+[`common`](../../../common/module.f.js).

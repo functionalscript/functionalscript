@@ -6,11 +6,11 @@
 ### Problem
 
 [`data`](../data/README.md)'s reader and the thunk readers
-([`validate`](../validate/module.f.mjs), [`parse`](../parse/module.f.mjs))
+([`validate`](../validate/module.f.js), [`parse`](../parse/module.f.js))
 disagree about values that are neither primitives nor arrays nor plain objects.
 The thunk readers guard object positions with `isObject`, which is
 `typeof value === 'object' && !isArray(value) && value !== null`
-([`common`](../common/module.f.mjs), via
+([`common`](../common/module.f.js), via
 [`fjs/types/object`](../../types/object/module.f.js)) — so a function or a symbol
 fails it. `data`'s `unionValidate` instead dispatches on primitives and arrays
 and lets **everything else** fall through to object validation:

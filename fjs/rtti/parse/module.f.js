@@ -40,12 +40,12 @@
  * not that the reader should keep it. Openness is what makes a parser
  * forward-compatible with an extended serialization format, so a schema read
  * against a wire format someone else may extend says `open`. The reader that
- * keeps every member is `../validate/module.f.mjs`.
+ * keeps every member is `../validate/module.f.js`.
  *
  * The error shape, path bookkeeping, primitive checks, schema recognition
- * (`visit`) and the container handlers come from `../common/module.f.mjs`.
+ * (`visit`) and the container handlers come from `../common/module.f.js`.
  * The handlers are one skeleton per container shape, shared with
- * `../validate/module.f.mjs` through `readerOf`, so the two readers read a
+ * `../validate/module.f.js` through `readerOf`, so the two readers read a
  * container in one order; `parse` supplies a collector of the parsed members,
  * and a rebuild per kind.
  *
@@ -59,7 +59,7 @@
  * @import { _Entries, _Rebuild } from './private.ts'
  */
 
-import { readerOf } from '../common/module.f.mjs'
+import { readerOf } from '../common/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 
@@ -86,7 +86,7 @@ const arrayRebuild = entries => inOrder(entries).map(([, v]) => v)
 const recordRebuild = entries => Object.fromEntries(inOrder(entries))
 
 /**
- * What `parse` brings to `readerOf` in `../common/module.f.mjs`: the parsed
+ * What `parse` brings to `readerOf` in `../common/module.f.js`: the parsed
  * members, consed on in reverse as they are read — an O(1) prepend, unlike
  * rebuilding an array on every member — and a rebuild per container kind. A
  * declared member that is absent is collected by nothing, so it leaves no

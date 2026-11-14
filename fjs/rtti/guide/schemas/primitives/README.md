@@ -38,4 +38,4 @@ bigint is to see both readers refuse it. The lesson is defined in [`sample.f.js`
 ## Where it is implemented
 
 The nullary schemas in [`module.f.js`](../../../module.f.js); the kind
-checks in [`common`](../../../common/module.f.mjs).
+checks in [`common`](../../../common/module.f.js).

@@ -9,7 +9,7 @@ The JSON-RPC request preamble — decode the envelope, answer a malformed one
 with `Invalid Request` (`id: null`), and split notifications
 (`id === undefined`) from requests — is spelled out twice.
 
-Pure `dispatch` (`fjs/protocol/json_rpc/module.f.mjs`):
+Pure `dispatch` (`fjs/protocol/json_rpc/module.f.js`):
 
 ```js
 const [t, message] = decodeRequest(value)
@@ -78,7 +78,7 @@ three-continuation indirection. Decide when a third consumer appears.
 
 ### Related
 
-- `errorResponseOf` / `successResponseOf` (`../module.f.mjs`) — the envelope
+- `errorResponseOf` / `successResponseOf` (`../module.f.js`) — the envelope
   *constructors*, exported from this module; this issue is the envelope
   *routing*. Complementary, and the skeleton below builds on them.
 - `validated`/`toolMethod` inside `mcpStep`

@@ -7,8 +7,8 @@
  * @import { Assert } from '../../asserts/types.ts'
  */
 
-import { validate } from './module.f.mjs'
-import { parse } from '../parse/module.f.mjs'
+import { validate } from './module.f.js'
+import { parse } from '../parse/module.f.js'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
@@ -278,7 +278,7 @@ export const proof = {
     // so an array may stop after any position from the last required one on.
     //
     // Every case runs against the `open` form too. A stated rest is a separate
-    // reader on all three — `restContainerRead` in `../common/module.f.mjs`
+    // reader on all three — `restContainerRead` in `../common/module.f.js`
     // for the schema-form two, and its own conversion in the data form — and
     // it widens *which values are members*, not which positions are required,
     // so it must answer these identically. The one case where opening does
@@ -829,7 +829,7 @@ export const proof = {
     // than the first bad member, and they report it identically. That
     // precedence is what lets a container be bounded before recursing, which
     // an `or` of two arities needs — see the comment on the gate in
-    // `./module.f.mjs`. Acceptance is untouched: a shape the gate rejects is
+    // `./module.f.js`. Acceptance is untouched: a shape the gate rejects is
     // one no walk could have accepted, which the differential against the
     // unbounded readers confirms. What the gate is *for* is counted by
     // {@link arityUnionVisitsEachOperandOnce}, not by these paths.

@@ -21,7 +21,7 @@ import {
     optionalEscape,
     simpleEscapes,
     stringLiteral,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /**
  * The escapes spelled out independently of the table, so the proof compares

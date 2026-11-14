@@ -10,7 +10,7 @@
  */
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
-import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
+import { isSpread, operatorOperands } from '../../../js/ast/module.f.js'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 

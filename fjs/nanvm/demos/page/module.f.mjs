@@ -50,7 +50,7 @@ import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
 import { highlight, render } from '../../../website/demo/highlight/module.f.mjs'
-import { fromTagged, toText } from '../../../text/marked/module.f.mjs'
+import { fromTagged, toText } from '../../../text/marked/module.f.js'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */

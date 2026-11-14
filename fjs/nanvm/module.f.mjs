@@ -51,7 +51,7 @@
  */
 
 import { fromValue, op1Id, op3Id } from '../edag/module.f.js'
-import { validate } from '../rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.js'
 import {
     callback as constructorsCallback, functionText, functionValue as constructorsFunctionValue, ref as constructorsRef,
     returns as constructorsReturns, throws as constructorsThrows, unreached as constructorsUnreached,

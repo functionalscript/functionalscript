@@ -432,7 +432,7 @@ Measured from base revision `6ff068a3f`, with shared JSON string quoting in
 [#3763](https://github.com/functionalscript/functionalscript/pull/3763).
 [`media/datajs/vectors`](../fjs/media/datajs/vectors/module.f.mjs) replaces
 its native `JSON.stringify` calls with
-[`js/string_escape`'s `stringLiteral`](../fjs/js/string_escape/module.f.mjs),
+[`js/string_escape`'s `stringLiteral`](../fjs/js/string_escape/module.f.js),
 the writer our JSON serializer already uses for strings. All four call sites
 quote strings: diagnostic values, member names and paths. The shared writer
 preserves their JSON spelling, including unpaired surrogates.
@@ -1262,7 +1262,7 @@ relative to `fjs/`.
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignment, `continue` and `'head' in head`; `while` over a parameter in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys |
-| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch` with fallthrough in `primitive`; `JSON.stringify` in `struct` and `primitive` |
+| `types/ts/module.f.js` | 24:29 | Default parameter in `printer` | `switch` with fallthrough in `primitive`; `JSON.stringify` in `struct` and `primitive` |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
 
@@ -1315,7 +1315,7 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys; the destructured `([k, v])` callback |
-| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `types/ts/module.f.js` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | The lexer's two loop variables, nested loops and guards in `read` |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
@@ -1368,7 +1368,7 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 22:7 | Destructuring `const { entries } = Object` | `Object.entries`: the language enumerates no keys; `new Map` with `has` and `get` besides |
-| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `types/ts/module.f.js` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | The lexer's two loop variables, nested loops and guards in `read` |
 | `website/cli/search/module.f.mjs` | 4:46 | `toLowerCase` in `matches`, a prohibited member call | Nothing else |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
@@ -1431,7 +1431,7 @@ names what it reached before the compiler refused again. Locations are
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, the imperative `next` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` | `Object.entries`: the language enumerates no keys; `Map` besides |
-| `types/ts/module.f.mjs` | 22:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `types/ts/module.f.js` | 22:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
 | `website/browser-source/module.f.mjs` | 54:5 | `let` in `read` | The `let`/`while` lexer in `read` |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 103:41 | Destructured parameter in `finishedNote` | Two more destructured parameters, `Number.isFinite`, `Math.min` |
@@ -1516,7 +1516,7 @@ large text templates or substantially rewrite the remaining modules.
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
-| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `types/ts/module.f.js` | 13:5 | Template literal in `complex` |
 | `website/browser-source/module.f.mjs` | 89:35 | Template literal assembling browser source |
 | `website/prs/load/module.f.mjs` | 28:5 | Template literal in `pageRequest` |
 | `website/style/module.f.mjs` | 110:27 | Template literal containing the stylesheet |
@@ -1572,7 +1572,7 @@ the file. Locations are `line:column`; paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
 | `types/result/module.f.mjs` | 111:5 | `for (const r of list)` in `okList` |
-| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `types/ts/module.f.js` | 13:5 | Template literal in `complex` |
 | `website/browser-source/module.f.mjs` | 89:35 | Template literal |
 | `website/demo/code/module.f.mjs` | 26:52 | `\0` escape |
 | `website/demo/examples/module.f.mjs` | 54:13 | `new Set(...)` |

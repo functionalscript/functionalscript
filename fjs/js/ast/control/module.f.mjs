@@ -13,7 +13,7 @@
  * @import { _Context as Context, _Link as Link, _Task as Task } from './private.ts'
  */
 
-import { operatorOperands } from '../module.f.mjs'
+import { operatorOperands } from '../module.f.js'
 
 /** @type {(tasks: readonly Task[], tail: Link<Task> | null) => Link<Task> | null} */
 const prepend = (tasks, tail) => tasks.reduceRight((tail, first) => ({ first, tail }), tail)

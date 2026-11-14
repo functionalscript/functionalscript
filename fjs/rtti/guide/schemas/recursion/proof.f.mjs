@@ -1,6 +1,6 @@
 import { assert, assertOk } from '../../../../asserts/module.f.js'
-import { parse } from '../../../parse/module.f.mjs'
-import { validate } from '../../../validate/module.f.mjs'
+import { parse } from '../../../parse/module.f.js'
+import { validate } from '../../../validate/module.f.js'
 import { string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'

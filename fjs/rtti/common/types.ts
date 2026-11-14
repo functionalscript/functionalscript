@@ -49,7 +49,7 @@ export type Visitor<R> = {
     /**
      * The nullary `option` schema — absence. A reader's handler *rejects*
      * normally: absence is decided by the container loop before dispatch
-     * (see `admitsAbsence` in `./module.f.mjs`), so a value that reaches a
+     * (see `admitsAbsence` in `./module.f.js`), so a value that reaches a
      * recursive reader is present by construction, and under `or(option, t)`
      * the `option` branch has to return an ordinary error for `t` to be
      * tried.
@@ -60,7 +60,7 @@ export type Visitor<R> = {
 /**
  * Reads what a container schema declares, as `[key, Type]` pairs — one per
  * container kind, since a `Tuple` is read by length and a `Struct` by
- * enumerable key. See `tupleSchemaEntries` in `./module.f.mjs` for why the two
+ * enumerable key. See `tupleSchemaEntries` in `./module.f.js` for why the two
  * readings are not interchangeable on a sparse array.
  */
 export type SchemaEntries<S extends ConstObject> =
@@ -91,7 +91,7 @@ export type ValidateE = (value: Unknown) => ResultE
 
 /**
  * What one schema-form reader brings to the container skeletons in
- * `./module.f.mjs`: the recursion into a member's schema, and what it
+ * `./module.f.js`: the recursion into a member's schema, and what it
  * collects from the members it reads. `validate` collects nothing and `parse`
  * the parsed members; the skeletons own the order the members are read in.
  */

@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { anchored, fromFast, lowerBlock, lowerValue } from './module.f.mjs'
-import { completeTransfers } from './loop/completions/module.f.mjs'
+import { completeTransfers } from './loop/completions/module.f.js'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { identityAnalysis } from '../analysis/module.f.mjs'
 import { memo } from '../memo/module.f.mjs'

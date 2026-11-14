@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse } from '../../rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.js'
 import { checks, checksSchema, platform, platformSchema, smartJobs } from './module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { installNode } from '../node/module.f.mjs'

@@ -10,9 +10,9 @@
  * @import { PersistentSet } from '../../types/set/types.ts'
  */
 
-import { isSpread } from '../../js/ast/module.f.mjs'
+import { isSpread } from '../../js/ast/module.f.js'
 import { eagerOperandsOf } from '../sharing/module.f.js'
-import { add, empty, has } from '../../types/set/module.f.mjs'
+import { add, empty, has } from '../../types/set/module.f.js'
 
 /** @type {(value: unknown) => (set: PersistentSet<unknown>) => boolean} */
 const known = has

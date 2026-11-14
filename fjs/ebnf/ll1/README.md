@@ -156,11 +156,11 @@ the mappings below it. Frames carry their own rule name for that, which is
 the whole change the fold made to the machine.
 
 **Keyed by identity**, through the `RuleNameMap` `toData` returns:
-`parser(rule, set)` translates each `[a, f]` to `[names.get(a), f]` at
+`parser(rule, set)` translates each `[a, f]` to `[mapGet(names, a), f]` at
 build time and refuses, before any input, where the machine refuses
 everything else — a rule the grammar does not hold, and a rule mapped
 twice. The second matters because the set is assembled from several
-sources; a `Map` built naively would let the later entry win, and the
+sources; updating the persistent map naively would let the later entry win, and the
 output would depend on assembly order. Three consequences, all to keep:
 
 - **Identity, not spelling.** The `RuleNameMap` is keyed by `===`, so a

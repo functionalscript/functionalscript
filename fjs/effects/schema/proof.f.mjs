@@ -3,7 +3,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { validate } from '../../rtti/validate/module.f.mjs'
+import { validate } from '../../rtti/validate/module.f.js'
 import {
     dirent, fileModule, ioChannel, ioError, makeDirectoryOptions, mkdir, notImplemented, nothing,
     operations, read, readdir, readdirOptions, readFile, resolveFileModule, rm, vec, write,

@@ -1,6 +1,6 @@
-import { printer, primitive, union, _taggedPrimitive, _taggedUnion, _taggedPrinter } from './module.f.mjs'
+import { printer, primitive, union, _taggedPrimitive, _taggedUnion, _taggedPrinter } from './module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
-import { fromTagged } from '../../text/marked/module.f.mjs'
+import { fromTagged } from '../../text/marked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 const ro = printer()

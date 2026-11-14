@@ -4,8 +4,8 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { parse } from '../../../parse/module.f.mjs'
-import { validate } from '../../../validate/module.f.mjs'
+import { parse } from '../../../parse/module.f.js'
+import { validate } from '../../../validate/module.f.js'
 import { toData, validate as dataValidate } from '../../../data/module.f.mjs'
 import { array, number, or, rest, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'

@@ -57,7 +57,7 @@ export type AbsentOr<T> = { readonly [absentKey]: T }
 
 /**
  * Whether the schema type admits **absence** — the type-level counterpart of
- * `admitsAbsence` in `../common/module.f.mjs`, and the predicate
+ * `admitsAbsence` in `../common/module.f.js`, and the predicate
  * {@link StructTs} and {@link TupleTs} decide optionality with. Structural
  * over the schema: it recurses through `or` — which does no flattening, so
  * `or(or(option, number), string)` needs the recursion — and reads a
@@ -206,8 +206,8 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * That is the same rule {@link StructTs} applies per key — a member is
  * required exactly when its set excludes **absence**, decided by
  * {@link _AdmitsAbsence} over the schema — so an array may stop at the last
- * required position, which is what `../parse/module.f.mjs` and
- * `../validate/module.f.mjs` accept. Under `exactOptionalPropertyTypes`
+ * required position, which is what `../parse/module.f.js` and
+ * `../validate/module.f.js` accept. Under `exactOptionalPropertyTypes`
  * (which this repository sets) the optional rendering is *exact*:
  * `readonly [1, number?]` rejects `[1, undefined]`, exactly as the readers
  * reject a present `undefined` under `or(option, number)`. Only the trailing

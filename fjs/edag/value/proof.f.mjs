@@ -6,8 +6,8 @@
  */
 
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
-import { validate } from '../../rtti/validate/module.f.mjs'
-import { parse } from '../../rtti/parse/module.f.mjs'
+import { validate } from '../../rtti/validate/module.f.js'
+import { parse } from '../../rtti/parse/module.f.js'
 import { toData, validate as dataValidate } from '../../rtti/data/module.f.mjs'
 import { exp } from '../module.f.js'
 import { _value, value, values, array, property, object, func } from './module.f.js'

@@ -56,7 +56,7 @@ import { items, variant } from '../../ebnf/ast/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../keywords/module.f.js'
-import { escapeToCodePoint } from '../string_escape/module.f.mjs'
+import { escapeToCodePoint } from '../string_escape/module.f.js'
 import {
     asterisk, cr, lf, one,
     reverseSolidus,

@@ -78,6 +78,6 @@ its JSON Schema with `items`, and the two readers' answers. The lesson is define
 ## Where it is implemented
 
 `rest` and `open` in [`module.f.js`](../../../module.f.js); `restContainerRead`
-in [`common`](../../../common/module.f.mjs); the rest's normalization in
+in [`common`](../../../common/module.f.js); the rest's normalization in
 [`data`](../../../data/module.f.mjs); `RestTs` in
 [`ts/types.ts`](../../../ts/types.ts).

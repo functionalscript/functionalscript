@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
+import { fromTagged, toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords } from '../../edag/rust/unmarked/module.f.js'
 import { bindingTagged, braced, op1Rust, scope, scopeTagged, useLines, useLinesTagged, valueTagged } from './module.f.mjs'
 

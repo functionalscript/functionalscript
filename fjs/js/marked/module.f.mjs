@@ -35,7 +35,7 @@ import { _positions, tokenize } from '../tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../keywords/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
-import { toText } from '../../text/marked/module.f.mjs'
+import { toText } from '../../text/marked/module.f.js'
 import { scan, stateScan } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 

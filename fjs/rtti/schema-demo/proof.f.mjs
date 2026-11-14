@@ -16,7 +16,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { _crossings, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { toText } from '../../text/marked/module.f.mjs'
+import { toText } from '../../text/marked/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 

@@ -1,7 +1,7 @@
 /** The wire contracts and every pending-login validation branch. */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse } from '../../rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.js'
 import { allowedCallbackOrigin, authorizeEndpoint, authorizeParams, callbackCode, callbackParams, isCallback, loginMessages, pending as pendingOf, redirectMatches, withStatus, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerOutcome, providerTokenSchema, tokenPath, tokenSchema, userSchema, validCallback, validExchange, validPending, validVerifier, workerConfig } from './module.f.mjs'
 
 const verifier = 'a'.repeat(43)

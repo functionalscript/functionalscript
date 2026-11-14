@@ -23,7 +23,7 @@ import {
     tupleSchemaEntries,
     undeclaredMembers,
     verror,
-} from './module.f.mjs'
+} from './module.f.js'
 import { array, number, option, or, record, rest, unknown } from '../module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
@@ -84,6 +84,15 @@ export const proof = {
         assert(hasUndeclaredMember(declaredTest([]), [1]))
         assert(!hasUndeclaredMember(declaredTest(['0']), [1]))
         assert(!hasUndeclaredMember(declaredTest([]), []))
+    },
+    declaredNames: () => {
+        const declared = declaredTest(['__proto__', 'constructor', '', '__proto__'])
+        assert(declared('__proto__'))
+        assert(declared('constructor'))
+        assert(declared(''))
+        assert(!declared('toString'))
+        assert(!declared('missing'))
+        assert(!declaredTest([])('__proto__'))
     },
     memberChecksAgree: () => {
         /** @type {readonly (readonly [readonly string[], ReadonlyArray<Unknown> | StringMap<Unknown>, readonly (readonly [string, Unknown])[]])[]} */
@@ -160,7 +169,7 @@ export const proof = {
         },
         // A hole is no member, so it meets no `rest` — which is why the array
         // kind also answers with its `length`; see `fits` in
-        // `../parse/module.f.mjs`.
+        // `../parse/module.f.js`.
         holeIsNoMember: () => assertEq(undeclaredMembers(declaredTest(['0']), [1, , 3]).length, 1),
         // The walk is bounded by what the value carries, not
         // by `length` — this one carries a single own property, `length`, so

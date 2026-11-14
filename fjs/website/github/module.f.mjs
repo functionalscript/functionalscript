@@ -13,7 +13,7 @@
  */
 
 import { number, open, or, string } from '../../rtti/module.f.js'
-import { parse } from '../../rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 
 /**

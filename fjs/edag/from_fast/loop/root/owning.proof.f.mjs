@@ -7,7 +7,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../analysis/module.f.mjs'
 import { fromFast } from '../../module.f.mjs'
-import { completeTransfers } from '../completions/module.f.mjs'
+import { completeTransfers } from '../completions/module.f.js'
 import { memo } from '../../../memo/module.f.mjs'
 import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { _invocationTransition } from '../../../../js/ast/invocation/module.f.js'
