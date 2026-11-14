@@ -18,7 +18,7 @@ its worked example). Its issue
 triage moved them to where the links above point, and the front-end design
 became `fjs/ebnf/README.md`.
 
-- `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
+- `module.f.js` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
 
 Grammar record carriers are plain objects built by FunctionalScript or a
@@ -273,14 +273,18 @@ tuple is the one way an unvalidated value reaches it:
   body — the variant `value` in [`../lib/json`](../lib/json/module.f.mjs)
   returns — is fresh per call and has no identity an author holds, so an
   author attaches to the thunk, which the map names.
-- **Names** come from a thunk's `.name` where it has one, and otherwise from
-  the rule it was reached from and the position it was reached at — a
-  branch's tag, an element's index, `item` under a repeat — as `value.array`
-  or `json.0`, with a counter where a name is taken. The path is what an
-  error naming the rule points at, so it is kept whole even where a shared
-  rule is first reached deep inside another. As today, only the returned
-  entry is part of the contract; a consumer matches by the entry, and reads
-  any other rule through `names`, never by a name read off the set.
+- **Names** follow the path at which a rule was first reached — a branch's
+  tag, an element's index, `item` under a repeat — as `choice.array` or
+  `0.item`, with a counter where a name is taken. The
+  root's hint is the empty string, for a thunk as for any other rule.
+  JavaScript's inferred function names play no part: FunctionalScript
+  functions [carry no observable name](../../../spec/functions/names-and-identity/README.md).
+  The path is what an error naming the rule points at, so it is kept whole
+  even where a shared rule is first reached deep inside another. Consumers
+  match by the returned entry and read any other rule through `names`, never
+  by guessing a generated name.
+  Diagram titles are supplied separately by the caller's selections, which
+  identify source rules and variant branches rather than generated names.
 - **`names`** maps every rule identity the lowering met to its name. That is
   the bridge the transformer protocol keys on through `Entry.rule` and the
   "rule identity must survive" requirement: transformers attach to the rule

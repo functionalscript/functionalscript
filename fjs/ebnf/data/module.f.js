@@ -365,7 +365,7 @@ const lowerData = (lowerRule, state, hint, dr) => {
  * @type {(lowerRule: _Lower, state: _State, hint: string, fr: Thunk) => _Lowered<string>}
  */
 const lowerThunk = (lowerRule, state, hint, fr) => {
-    const name = freshName(state.taken)(fr.name === '' ? hint : fr.name)
+    const name = freshName(state.taken)(hint)
     const registered = register(state, name, fr)
     const info = fr()
     // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
@@ -418,12 +418,12 @@ const initial = { names: noNames, taken: noStrings, ruleSet: {} }
  * Lowers a front-end rule into a rule set, validated, with its entry and the
  * map from every rule identity met to its name.
  *
- * A rule is named by its thunk's `.name` where it has one, and otherwise by
- * the rule it was reached from and the position it was reached at —
- * `value.array`, `json.0` — with a counter where a name is taken. Only the
- * returned entry is part of the contract; a consumer matches by it, never by
- * a name read off the set. Every rule emitted is reachable from the entry,
- * since the walk from the entry is the emission.
+ * A rule is named by the rule it was reached from and the position it was
+ * reached at — `choice.array`, `0.item` — with a counter where a name is
+ * taken. The root's hint is the empty string. Function names play no part:
+ * a consumer matches by the returned entry and reads other rules through
+ * the identity map, never by guessing generated names. Every rule emitted
+ * is reachable from the entry, since the walk from the entry is the emission.
  *
  * @type {(fr: FRule) => GrammarData}
  */

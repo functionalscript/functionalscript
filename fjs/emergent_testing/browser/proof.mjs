@@ -188,14 +188,14 @@ const run = proof => runBrowserProofs([['proof', proof]])
 const dataModule = body => `data:text/javascript,${encodeURIComponent(body)}`
 
 export const proof = {
-    namedThrow: async () => {
-        // A named method proves the legacy function-name branch without
-        // relying on an extracted anonymous arrow's inferred name, which Bun
-        // can replace with the variable name.
+    throwExpectationUsesStructuralKeys: async () => {
         const named = /** @type {const} */ ({ throw() { throw 'expected' } })
-        assertEq(named.throw.name, 'throw')
-        const report = await run({ extracted: named.throw })
-        assertEq(report.status, 'passed')
+        const report = await run({ extracted: named.throw, throw: { alias: named.throw } })
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.path, '.extracted')
+        assertEq(report.results[0]?.status, 'failed')
+        assertEq(report.results[1]?.path, '.throw.alias')
+        assertEq(report.results[1]?.status, 'passed')
     },
     path: async () => {
         const report = await run({ 'a.b': () => undefined })

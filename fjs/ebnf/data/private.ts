@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for the lowering in `./module.f.mjs`.
+ * Implementation-private types for the lowering in `./module.f.js`.
  *
  * @module
  */

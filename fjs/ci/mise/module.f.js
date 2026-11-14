@@ -3,6 +3,7 @@
  */
 
 import { definedEntries } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { node, rust as rustVersion } from '../config/module.f.js'
 import { test, uses } from '../common/module.f.js'
 import { commandPrefix } from '../environment/module.f.js'
@@ -42,7 +43,7 @@ const action = (step, name) => step.uses?.startsWith(`${name}@`) === true
 /** Setup-node remains only where the packed consumer deliberately leaves the environment. */
 /** @type {(step: Step) => boolean} */
 const replacedSetup = step => action(step, 'dtolnay/rust-toolchain')
-    || action(step, 'actions/setup-node') && step.with?.['package-manager-cache'] !== 'false'
+    || action(step, 'actions/setup-node') && entry(step, 'with')?.['package-manager-cache'] !== 'false'
 
 /**
  * Translate the assembler's existing checks without changing their commands.

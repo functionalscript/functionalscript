@@ -2,7 +2,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { jobTimeout, node } from '../config/module.f.js'
-import { miseDevelop, miseInstall, miseJobs, miseSteps, miseVersionStep, spiderMonkeyDevelop, spiderMonkeyInstall } from './module.f.mjs'
+import { miseDevelop, miseInstall, miseJobs, miseSteps, miseVersionStep, spiderMonkeyDevelop, spiderMonkeyInstall } from './module.f.js'
 
 /** @type {Job} */
 const source = {

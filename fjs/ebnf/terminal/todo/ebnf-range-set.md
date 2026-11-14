@@ -175,7 +175,7 @@ would make the algebra partial and every fold need a special case. Whether an
 empty *terminal* is legal in a grammar is the lowering's question, since it
 is the first code that can tell a terminal that matches nothing from one that
 was never meant to match — and the lowering answers it: `validate` in
-[`../../data`](../../data/module.f.mjs) refuses an empty set.
+[`../../data`](../../data/module.f.js) refuses an empty set.
 
 **A set holds ordinary symbols only; `eof` is not a set.** EOF is the `null`
 rule (**Amended**: it was the bare `-1`), with the no-leaf behaviour
@@ -350,7 +350,7 @@ justification is the API and the AST, which is where
 - [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) —
   the migration that reserved `ebnf/terminal/`, its worked example.
 - rule-visitor (retired; shipped as `matchRule` in
-  [`../../data`](../../data/module.f.mjs)) — discriminates the data
+  [`../../data`](../../data/module.f.js)) — discriminates the data
   `Rule`, so it waited on the same IR carrier decision and landed with it.
 - [`../../data`](../../data/README.md) — the carrier decision,
   and the lowering that validates a set as this issue requires.
