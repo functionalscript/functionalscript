@@ -16,7 +16,7 @@ import {
     virtual,
 } from '../../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../../text/module.f.mjs'
-import { toVec } from '../../../../types/uint8array/module.f.mjs'
+import { u8ListToVecMsb } from '../../../../types/bit_vec/module.f.mjs'
 import { unwrap } from '../../../../types/result/module.f.js'
 import { tryStringify } from '../../serializer/module.f.mjs'
 import { check, corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
@@ -127,7 +127,7 @@ const run = state => exitCode(virtual(state)(main(defaultNodeProgramOptions))[1]
  *
  * @type {(s: string) => Vec}
  */
-const bytes = s => toVec(new Uint8Array([...s].map(c => c.codePointAt(0) ?? 0)))
+const bytes = s => u8ListToVecMsb([...s].map(c => c.codePointAt(0) ?? 0))
 
 /** @type {string} */
 const name = 'is not a name the table can show as written'

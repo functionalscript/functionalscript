@@ -49,7 +49,7 @@ import { asBase, asNominal } from '../../types/nominal/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
-import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
+import { fromVec, toVec } from '../../types/uint8array/module.mjs'
 import { _orderDirents } from './virtual/readdir/module.f.mjs'
 
 /**

@@ -12,8 +12,7 @@ import { pureOk } from '../../../effects/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
-import { fromVec } from '../../../types/uint8array/module.f.mjs'
-import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { stdioTransport } from './module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
@@ -39,7 +38,7 @@ const echoStep = value => {
 
 // UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
 /** @type {(s: string) => readonly number[]} */
-const toBytes = s => [...fromVec(utf8(s))]
+const toBytes = s => u8ArrayMsb(utf8(s))
 
 // Run the transport with `step` over `input` fed to stdin one byte at a time;
 // return the final state. `input` is raw text so tests control newline framing.
