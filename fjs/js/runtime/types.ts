@@ -17,10 +17,10 @@ import type { StaticId } from '../../edag/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
 import type { member, runtime, statics } from './module.f.js'
 
-/** The runtime: table lookups `static` and `dot`, and operator bodies `in` and `Boolean`. */
+/** The runtime: table lookups `static` and `dot`, operator bodies `in` and `Boolean`, and the reference map's maker, `refMap`. */
 export type Runtime = typeof runtime
 
-type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'static'>>
+type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'refMap' | 'static'>>
 
 /** The Boolean conversion operator's body. */
 export type BooleanConversion = Runtime['Boolean']

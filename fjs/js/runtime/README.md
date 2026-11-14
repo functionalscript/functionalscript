@@ -1,8 +1,9 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-holds two tables and exports `runtime`, four functions an executor asks:
-two over the tables, and the bodies of the `in` and `Boolean` operators.
+holds two tables and exports `runtime`, five functions an executor asks:
+two over the tables, the bodies of the `in` and `Boolean` operators, and
+the maker of a reference map.
 The `member` table holds, by name, the member
 functions whose **body** is written, `startsWith`, `codePointAt`, `map` and `concat`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
@@ -33,6 +34,13 @@ of the statics is [`../todo/runtime-static.md`](../todo/runtime-static.md).
 A member name without a body is absent, and each VM answers it from its own
 native table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
+
+`runtime.refMap` answers a new empty reference map
+([`../ref_map`](../ref_map/module.f.js),
+[proposal](../../../spec/todo/reference-map.md)): the map written in
+FunctionalScript alone, a list of pairs searched with `===`, which an
+executor with no map of its own answers the EDAG's `['refMap']` with,
+calling it wherever the node is established.
 
 `runtime.Boolean` is `value => !!value`. Every `Boolean` conversion evaluates
 its operand and invokes this body, including the zero-argument spelling whose
