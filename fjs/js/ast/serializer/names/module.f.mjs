@@ -23,6 +23,7 @@
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 import { chunkText } from '../../../../text/marked/module.f.js'
+import { generate } from '../../../../types/array/generate/module.f.js'
 
 /** A reference to a binding identified by its rendering scope and slot. @type {(key: string) => string} */
 export const _name = key => `\u0000${key}\u0000`
@@ -51,7 +52,7 @@ export const _resolve = (chunks, reserved = [], external = []) => {
     ])]
     // At most reservedNames.size candidates can be occupied. Generate enough
     // numbers once, without recursion or copying an accumulated prefix.
-    const available = Array.from({ length: keys.length + reservedNames.size }, (_, n) => n)
+    const available = generate(keys.length + reservedNames.size, n => n)
         .filter(n => !reservedNames.has(`$${n}`))
     const numbers = new Map(keys.map((key, i) => [key, available[i]]))
     /** @type {(text: string) => string} */

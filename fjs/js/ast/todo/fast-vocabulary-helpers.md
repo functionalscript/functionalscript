@@ -12,7 +12,7 @@ re-spelled by the passes that need them, each in several modules:
 **A plain call of a member is a continued access.** `['()', ['.', base,
 key], args]` is the same computation as `['.', base, key, ['|()', args]]`,
 and the rewrite is written in `valueTask` and `_exposeOperands` of
-[`returns`](../returns/module.f.mjs), `prepareValue` of
+[`returns`](../returns/module.f.js), `prepareValue` of
 [`prepare`](../prepare/module.f.mjs), `sequencedOperator` of
 [`sugar`](../sugar/module.f.mjs) and `valueTask` of
 [`fjs/edag/from_fast`](../../../edag/from_fast/module.f.mjs); `guarded` in

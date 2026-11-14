@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.mjs'
-import { liftReturns } from '../../../js/ast/returns/module.f.mjs'
+import { liftReturns } from '../../../js/ast/returns/module.f.js'
 import { toFast } from '../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo } from '../proof.f.mjs'
 import { requiredFunction, escape, failed, mixed, evaluate, failure, runtimeReturning, throwingRuntime, flat } from '../member_returns/proof.f.mjs'

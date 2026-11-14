@@ -27,7 +27,7 @@
 import { isSpread, mapOperator, operatorOperands } from '../module.f.js'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
-import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
+import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'

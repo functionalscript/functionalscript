@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
 import { intrinsicIds, staticIds } from '../../../edag/module.f.js'
-import { _expandObjectSpread, _expandSpread, _exposeOperands, _forwardReturns, liftReturns, liftValueReturns } from './module.f.mjs'
+import { _expandObjectSpread, _expandSpread, _exposeOperands, _forwardReturns, liftReturns, liftValueReturns } from './module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
