@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { compare, rng } from './module.mjs'
+import { compare, rng, typedProgram } from './module.mjs'
 
 /** Typed programs and programs over `any` in one proof run. */
 const typedCount = 120
@@ -45,5 +45,18 @@ export const proof = {
         const out = compare(70, 20, 10)
         assert(out.wrong === null, out.wrong)
         assert(out.refused > 0, out)
+    },
+
+    /**
+     * Float edges list both zeros; a sample keeps `-0` (a `Set` would have
+     * dropped it beside `0`), so parameterized `-0` reaches the comparison.
+     */
+    negativeZeroInput: () => {
+        let found = false
+        for (let s = 0; s < 50 && !found; s += 1) {
+            const rows = typedProgram(rng(s)).inputs.f
+            found = rows !== undefined && rows.some(row => row.some(v => typeof v === 'number' && Object.is(v, -0)))
+        }
+        assert(found)
     },
 }

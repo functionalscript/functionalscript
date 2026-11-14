@@ -144,15 +144,27 @@ const intExpr = (rnd, names, depth) => {
  *
  * @type {(params: readonly (readonly [string, Type])[], rnd: _Rnd) => readonly (readonly _Value[])[]}
  */
+/**
+ * Values distinct by `Object.is`, so `0` and `-0` both stay. `Set` would
+ * merge them under SameValueZero.
+ *
+ * @type {(xs: readonly _Value[]) => readonly _Value[]}
+ */
+const distinct = xs => xs.filter((x, i) => xs.findIndex(y => Object.is(y, x)) === i)
+
 const typedInputs = (params, rnd) => {
     const lists = params.map(([, t]) => {
         const all = edges(t)
         if (all.length <= 4) { return all }
+        /** @type {_Value[]} */
         const chosen = [all[0], all[all.length - 1], all[Math.floor(all.length / 2)]]
+        // edges of a float list both zeros; keep -0 explicitly so a sample is not only +0
+        const neg0 = all.find(v => Object.is(v, -0))
+        if (neg0 !== undefined) { chosen.push(neg0) }
         while (chosen.length < 4) {
             chosen.push(pick(rnd, all))
         }
-        return [...new Set(chosen)]
+        return distinct(chosen)
     })
     /** @type {readonly (readonly _Value[])[]} */
     let rows = [[]]
