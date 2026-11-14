@@ -12,7 +12,7 @@
  * @import { BindingElement, BindingProperty, BindingTarget, Discard } from '../../../../compiler/parser/syntax/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
  * @import { PatternPlan, Policy } from './types.ts'
- * @import { Pending, Read, Source, Stack } from './private.ts'
+ * @import { Pending, Read, Stack } from './private.ts'
  */
 
 import { error, ok } from '../../../../types/result/module.f.js'
@@ -27,7 +27,7 @@ import { pushAll } from '../../../../types/stack_walk/module.f.js'
 const pushed = (rest, top) => ({ top, rest })
 
 /** @type {(pending: Stack, list: readonly BindingProperty[], parent: number | ModuleTokenWithMetadata) => Stack} */
-const properties = (pending, list, parent) => pushAll(list.map(property => ({ property, parent })), pending)
+const properties = (pending, list, parent) => pushed(pending, { properties: list, index: 0, parent, excluded: null })
 
 /**
  * One structural walk follows document order: a property key precedes its
@@ -51,17 +51,29 @@ export const planPattern = policy => (target, namespace) => {
         /** @type {Pending} */
         const item = pending.top
         pending = pending.rest
-        if (hasEntry(item, 'property')) {
-            const { property, parent } = item
-            if (property instanceof Array) { return error(policy.refused('rest', property[1])) }
+        if (hasEntry(item, 'properties')) {
+            const { properties: list, index, parent, excluded } = item
+            if (index === list.length) { continue }
+            const property = list[Number(index)]
+            if (property instanceof Array) {
+                if (property[3] !== undefined) { return error(policy.refused('restComma', property[3])) }
+                if (property[2][0] !== 'name') { return error(policy.refused('invalid', property[2][1])) }
+                if (typeof parent !== 'number') { return error(policy.refused('namespaceRest', property[1])) }
+                pending = pushed(pending, { target: property[2], source: ['object-rest', parent, toArray(reverse(excluded))] })
+                continue
+            }
             const { key, target: element } = property
             if (key instanceof Array) { return error(policy.refused('computed', key[2])) }
-            /** @type {Result<Source, ParseError>} */
-            const found = typeof parent === 'number'
-                ? (() => { const result = policy.key(key); return result[0] === 'error' ? result : ok(/** @type {const} */ ([parent, result[1]])) })()
-                : policy.namespaceMember(parent, key)
-            if (found[0] === 'error') { return found }
-            pending = pushed(pending, { target: element, source: found[1] })
+            if (typeof parent === 'number') {
+                const found = policy.key(key)
+                if (found[0] === 'error') { return found }
+                pending = pushed(pushed(pending, { ...item, index: index + 1, excluded: { first: String(found[1]), tail: excluded } }),
+                    { target: element, source: [parent, found[1]] })
+            } else {
+                const found = policy.namespaceMember(parent, key)
+                if (found[0] === 'error') { return found }
+                pending = pushed(pushed(pending, { ...item, index: index + 1 }), { target: element, source: found[1] })
+            }
             continue
         }
         if (hasEntry(item, 'element')) {

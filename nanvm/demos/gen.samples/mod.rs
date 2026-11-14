@@ -367,8 +367,8 @@ mod tests {
     #[test]
     fn destructuring() {
         let entry = crate::load(super::destructuring::module::<Naive>).unwrap();
-        crate::assert_call(&entry, 1.0, Ok("[1,2,[3],[3,4]]"));
-        crate::assert_call(&entry, 5.0, Ok("[5,10,[15],[3,4]]"));
+        crate::assert_call(&entry, 1.0, Ok("[1,2,{\"label\":\"value\"},[3],[3,4]]"));
+        crate::assert_call(&entry, 5.0, Ok("[5,10,{\"label\":\"value\"},[15],[3,4]]"));
     }
 
     #[test]

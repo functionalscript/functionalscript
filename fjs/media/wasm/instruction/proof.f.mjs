@@ -4,7 +4,7 @@
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { emptyModule } from '../testlib.f.js'
-import { parse } from '../binary/parse/module.f.mjs'
+import { parse } from '../binary/parse/module.f.js'
 import { write } from '../binary/write/module.f.js'
 import { afterPrefix, encoding, instructions, prefix, prefixed, single } from './module.f.js'
 

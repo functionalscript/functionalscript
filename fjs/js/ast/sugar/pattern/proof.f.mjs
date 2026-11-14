@@ -1,13 +1,14 @@
 /**
  * Structural expansion remains independent of source name and key policy.
  *
- * @import { BindingTarget } from '../../../../compiler/parser/syntax/types.ts'
+ * @import { BindingProperty, BindingTarget } from '../../../../compiler/parser/syntax/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
  * @import { Policy } from './types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { error, ok } from '../../../../types/result/module.f.js'
+import { generate } from '../../../../types/array/generate/module.f.js'
 import { planPattern } from './module.f.js'
 
 /** @type {(value: string, column?: number) => ModuleTokenWithMetadata} */
@@ -128,6 +129,53 @@ export const proof = {
         assertEq(member.ids.length, 1)
         assertEq(assertOk(plan(['object', opening, []], namespace)).ids.length, 0)
     },
+    objectRestExcludesSourceKeysAfterTheirBindings: () => {
+        const opening = token('opening')
+        const a = token('a')
+        const b = token('b')
+        const tail = token('tail')
+        const rest = token('rest')
+        const result = assertOk(plan(['object', opening, [
+            { key: token('7'), target: ['name', a] },
+            { key: token('7'), target: ['name', b] },
+            ['...', rest, ['name', tail]],
+        ]], null))
+        assertStructurallySame(result.reads, [
+            { source: null, spread: false },
+            { source: [0, 7], spread: false },
+            { source: [0, 7], spread: false },
+            { source: ['object-rest', 0, ['7', '7']], spread: false },
+        ])
+        assertStructurallySame(result.names, [[a, 1], [b, 2], [tail, 3]])
+        const alone = assertOk(plan(['object', opening, [['...', rest, ['name', tail]]]], null))
+        assertStructurallySame(alone.reads, [
+            { source: null, spread: false },
+            { source: ['object-rest', 0, []], spread: false },
+        ])
+    },
+    nestedObjectRestKeepsEachSourceAndDefaultOrder: () => {
+        const opening = token('opening')
+        const inside = token('inside')
+        const selected = token('selected')
+        const inner = token('inner')
+        const outer = token('outer')
+        const equals = token('=')
+        const result = assertOk(plan(['object', opening, [
+            { key: inside, target: ['object', opening, [
+                { key: selected, target: ['=', ['name', selected], equals, ['primitive', 5]] },
+                ['...', token('rest'), ['name', inner]],
+            ]] },
+            ['...', token('rest'), ['name', outer]],
+        ]], null))
+        assertStructurallySame(result.reads, [
+            { source: null, spread: false },
+            { source: [0, 'inside'], spread: false },
+            { source: [1, 'selected'], spread: false, default: { value: ['primitive', 5] } },
+            { source: ['object-rest', 1, ['selected']], spread: false },
+            { source: ['object-rest', 0, ['inside']], spread: false },
+        ])
+        assertStructurallySame(result.names, [[selected, 2], [inner, 3], [outer, 4]])
+    },
     structuralRefusals: () => {
         const opening = token('opening')
         const first = token('same', 2)
@@ -139,7 +187,9 @@ export const proof = {
         const name = /** @type {const} */ (['name', first])
         const comma = token('comma', 10)
         assertStructurallySame(assertError(plan(['array', opening, [['...', rest, name, comma]]], null)), { message: 'restComma', metadata: comma.metadata })
-        assertStructurallySame(assertError(plan(['object', opening, [['...', rest, name]]], null)), { message: 'rest', metadata: rest.metadata })
+        assertStructurallySame(assertError(plan(['object', opening, [['...', rest, name, comma]]], null)), { message: 'restComma', metadata: comma.metadata })
+        assertStructurallySame(assertError(plan(['object', opening, [['...', rest, ['array', opening, []]]]], null)), { message: 'invalid', metadata: opening.metadata })
+        assertStructurallySame(assertError(plan(['object', opening, [['...', rest, name]]], token('Object'))), { message: 'namespaceRest', metadata: rest.metadata })
         const computed = token('computed')
         assertStructurallySame(assertError(plan(['object', opening, [{ key: ['[]', ['primitive', 1], computed], target: name }]], null)), { message: 'computed', metadata: computed.metadata })
     },
@@ -152,6 +202,12 @@ export const proof = {
         assertStructurallySame(assertError(plan(['object', opening, [{ key: badKey, target }]], null)), { message: 'key policy', metadata: badKey.metadata })
         const namespace = token('Unknown')
         assertStructurallySame(assertError(plan(['object', opening, [{ key: token('member'), target }]], namespace)), { message: 'namespace policy', metadata: namespace.metadata })
+        // An earlier nested binding is checked before a later sibling key.
+        assertStructurallySame(assertError(plan(['object', opening, [
+            { key: token('first'), target: ['object', opening, [{ key: token('nested'), target: ['name', badName] }]] },
+            { key: badKey, target: ['name', token('later')] },
+            ['...', token('rest'), ['name', token('tail')]],
+        ]], null)), { message: 'name policy', metadata: badName.metadata })
     },
     deepPatterns: () => {
         const opening = token('opening')
@@ -162,5 +218,28 @@ export const proof = {
         assertEq(result.reads.length, 20_001)
         assertStructurallySame(result.reads[20_000], { source: [19_999, 0], spread: false })
         assertEq(result.names[0][1], 20_000)
+    },
+    deepAndWideObjectRestKeepsItsParentsAndKeyOrder: () => {
+        const opening = token('opening')
+        const tail = token('tail')
+        /** @type {BindingTarget} */
+        let nested = ['object', opening, [['...', token('rest'), ['name', tail]]]]
+        for (let depth = 0; depth < 20_000; depth += 1) {
+            nested = ['object', opening, [{ key: token('inside'), target: nested }]]
+        }
+        const deep = assertOk(plan(nested, null))
+        assertEq(deep.reads.length, 20_002)
+        assertStructurallySame(deep.reads[20_001], { source: ['object-rest', 20_000, []], spread: false })
+        const count = /** @type {const} */ (20_000)
+        const fields = generate(count, index => /** @type {BindingProperty} */ ({
+            key: token(`field${index}`), target: ['name', token(`local${index}`)],
+        }))
+        const wide = assertOk(plan(['object', opening, [...fields, ['...', token('rest'), ['name', tail]]]], null))
+        const source = wide.reads[Number(count + 1)].source
+        assert(source instanceof Array && source[0] === 'object-rest')
+        assertEq(source[1], 0)
+        assertEq(source[2].length, count)
+        assertEq(source[2][0], 'field0')
+        assertEq(source[2][Number(count - 1)], `field${count - 1}`)
     },
 }

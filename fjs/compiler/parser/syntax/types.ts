@@ -414,12 +414,13 @@ export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTo
  * A property of an object pattern: its key, as an access's — the token a
  * constant key is read from, or a computed key — and the target it binds,
  * the shorthand `{ a }` binding the key's own name; or a rest property,
- * `...target`, by its `...`, which the fold refuses for now
- * ([object rest](../../../../spec/todo/object-rest-destructuring.md)).
+ * `...target`, by its `...`. A following comma is retained only in this
+ * binding cover, for the fold to refuse without changing object-literal
+ * spread and trailing-comma syntax.
  */
 export type BindingProperty =
     | { readonly key: Key, readonly target: BindingTarget }
-    | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget]
+    | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget, ModuleTokenWithMetadata?]
 
 /**
  * A statement that is a value: a block's `return` or `throw`, and a

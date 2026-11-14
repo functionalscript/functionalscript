@@ -4,11 +4,17 @@ import type { BindingElement, BindingProperty, BindingTarget, Node } from '../..
 import type { ModuleTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
 import type { ExpansionPlan } from '../source.ts'
 import type { Stack as StackOf } from '../../../../types/stack_walk/types.ts'
+import type { List } from '../../../../types/list/types.ts'
 
 export type Source = ExpansionPlan['reads'][number]['source']
 export type Read = ExpansionPlan<Node>['reads'][number]
 export type Pending =
     | { readonly target: BindingTarget; readonly source: Source; readonly default?: { readonly value: Node } }
     | { readonly element: BindingElement; readonly source: readonly [number, number] }
-    | { readonly property: BindingProperty; readonly parent: number | ModuleTokenWithMetadata }
+    | {
+        readonly properties: readonly BindingProperty[]
+        readonly index: number
+        readonly parent: number | ModuleTokenWithMetadata
+        readonly excluded: List<string>
+    }
 export type Stack = StackOf<Pending>

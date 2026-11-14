@@ -84,7 +84,8 @@ export const proof = {
         expectModule('const {} = Object; export default 1;', "[\"{}\",[[\":\",\"default\",1]]]")
         // the pattern's own rules hold over the namespace too
         expectRefused('const { is, is } = Object; export default is;', 'duplicate id', 13)
-        expectRefused('const { is, ...r } = Object; export default r;', 'rest element not supported', 13)
+        expectRefused('const { is, ...r } = Object; export default r;', 'object rest requires a value', 13)
+        expectRefused('const { ...r } = Number; export default r;', 'object rest requires a value', 9)
         expectRefused('const { [k]: a } = Object; export default a;', 'computed key in a binding pattern not supported', 10)
         expectRefused('const { values } = Object; export default 1;', 'prohibited property name', 9)
     },
