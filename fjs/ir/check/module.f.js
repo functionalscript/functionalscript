@@ -581,6 +581,45 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
 }
 
 /**
+ * The WASM value of the global that holds a constant of `t`, as the emitter
+ * writes it: a range's word, an `f64` for a float, an `i32` for a `bool`,
+ * and a sealed type's carrier. `null` where `t` is a sealed type that no
+ * interface of the module defines, which the interface's checks refuse.
+ *
+ * @type {(env: _Env, t: Type) => string | null}
+ */
+const globalOf = (env, t) => {
+    if (t[0] !== 'sealed') { return t[0] === 'int' ? (fits(32)(t) ? 'i32' : 'i64') : isFloat(t) ? 'f64' : 'i32' }
+    const d = definition(env, t)
+    return d[0] === 'ok' ? d[1].carrier : null
+}
+
+/**
+ * Why two imports of the interfaces that a module imports would be one
+ * import of different values, or `null` where none would: a constant and a
+ * function, or two constants whose globals hold different WASM values,
+ * that are imported from one ABI by one name. A host gives one value for
+ * each name of an ABI, so it could bind only one of them. Two constants
+ * whose globals hold one WASM value share the host's global, whatever
+ * their types, as `f64` and `f64c` do, and two functions of one name share
+ * the host's function, as the four `length`s do.
+ *
+ * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
+ */
+const shared = (env, imports) => {
+    const fns = imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member])))
+    const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
+    const clash = cs.flatMap(([name, abi, member, w], j) => {
+        const f = fns.find(([, a, m]) => a === abi && m === member)
+        const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== null && w !== null && x !== w)
+        return f !== undefined ? [`the constant ${name} and the function ${f[0]} are both the import ${member} of ${abi}`]
+            : c !== undefined ? [`the constants ${c[0]}, a global of ${c[3]}, and ${name}, a global of ${w}, are both the import ${member} of ${abi}`]
+            : []
+    })
+    return clash[0] ?? null
+}
+
+/**
  * Why the checker may not type a term in an environment, or `null` where
  * it may: the interfaces and the signatures that the environment sees are
  * ones a module may have, the types of its locals are ones a local may
@@ -595,6 +634,7 @@ const unscoped = (env, imports, functions, locals, results) => {
     const names = functions.map(([name]) => name)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const iface = imports.map(checkInterface(env.imports)).find(x => x !== null)
+    const field = shared(env, imports)
     const signature = functions.map(([name, s]) => {
         const why = unsigned(env, s)
         return why === null ? null : `${name}: ${why}`
@@ -604,6 +644,7 @@ const unscoped = (env, imports, functions, locals, results) => {
         : imported !== undefined ? `${imported} is imported twice`
         : twice !== undefined ? `two functions are named ${twice}`
         : typeof iface === 'string' ? iface
+        : typeof field === 'string' ? field
         : typeof signature === 'string' ? signature
         : typeof local === 'string' ? `${assertNotNullish(entry(env, 'name'))}: ${local}`
         : null

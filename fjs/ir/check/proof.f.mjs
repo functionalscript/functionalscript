@@ -129,6 +129,24 @@ export const proof = {
         assertEq(why(constantsOf([['c', f64], ['c', f64]])), 'Bad: two constants are named c')
         assertEq(why(constantsOf([['c', product([['a', f64]])]])), 'Bad: c: { a: f64 } is not in this slice')
         assertEq(why(constantsOf([['c', never]])), 'Bad: c: a constant of never holds no value')
+        // A host gives one value for each name of an ABI, so a constant and a function, or two constants whose globals hold
+        // different WASM values, may not share one. Two constants whose globals hold one value share the host's global.
+        assertEq(why(importing({ abi: 'test:bad', types: [], constants: [['c', f64]], functions: [['c', signature([], f64)]] })), 'the constant Bad.c and the function Bad.c are both the import c of test:bad')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['kind', f64]], functions: [] })), 'the constant Bad.kind and the function Any.kind are both the import kind of fjs:l0')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['null', f64]], functions: [] })), 'the constants Any.null, a global of i64, and Bad.null, a global of f64, are both the import null of fjs:l0')
+        assertOk(check(importing({ abi: 'fjs:l0', types: [], constants: [['null', only(any, 'null')]], functions: [] })))
+        assertOk(check(importing({ abi: 'fjs:l0', types: [], constants: [['null', any]], functions: [] })))
+        /** A module that imports `c` of one ABI from two interfaces, as `a` and as `b`. @type {(a: Type, b: Type) => Module} */
+        const twice = (a, b) => ({
+            imports: [['A', { abi: 'test:c', types: [], constants: [['c', a]], functions: [] }], ['B', { abi: 'test:c', types: [], constants: [['c', b]], functions: [] }]],
+            functions: [],
+            exports: [],
+        })
+        assertOk(check(twice(f64c, f64)))
+        assertOk(check(twice(int(0n, 1n), bool)))
+        assertEq(why(twice(int(0n, 1n), u(64))), 'the constants A.c, a global of i32, and B.c, a global of i64, are both the import c of test:c')
+        // A sealed type that no interface defines is the interface's refusal.
+        assertEq(why(twice(sealed('Nope', 'x'), f64)), "A: c: no interface Nope")
         // typeOf reads the constants that a scope names, and a constant's term, which has no result, has no label.
         assertEq(show(assertOk(typeOf({ name: 'f', locals: [], functions: [], imports: l0, constants: [['k', f64]] })(self('k')))), 'f64')
         assertEq(show(assertOk(typeOf({ name: 'f', locals: [], result: f64, functions: [], imports: l0 })(constant('Any', 'null')))), 'any.only(null)')
