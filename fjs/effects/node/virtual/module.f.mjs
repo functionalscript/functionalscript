@@ -354,11 +354,12 @@ const einval = error(ioError({ code: 'EINVAL', message: 'invalid argument' }))
  * `readFile` and `readBytes` panic: their whole contract is to produce bytes,
  * a `JsModule` has none, and nothing in FunctionalScript catches a throw
  * ([`../../../AGENTS.md`](../../../AGENTS.md)), so it reaches a human as what
- * it is — a fixture pointing a read at a module.
+ * it is — a fixture pointing a read at a module. A one-element array keeps
+ * the diagnostic readable when a runner converts the thrown value to text.
  *
- * @type {(op: string) => (name: string) => Error<IoError>}
+ * @type {(op: string) => (name: string) => never}
  */
-const jsModuleUnsupported = op => name => { throw new Error(`'${name}' is a JsModule; ${op} not supported`) }
+const jsModuleUnsupported = op => name => { throw [`'${name}' is a JsModule; ${op} not supported`] }
 
 /**
  * What `writeBytes` answers for the same name, and it is deliberately a
