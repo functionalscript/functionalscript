@@ -60,7 +60,7 @@ Explicit comma roots retain their written order. Required definitions and memo
 declarations follow their dependencies rather than using graph indices as a
 global execution order. Total container and function constructions over already
 established operands can keep their prefix names. The shared
-[`demandsInOrder`](../demand/module.f.mjs) query proves each placement against
+[`demandsInOrder`](../demand/module.f.js) query proves each placement against
 the actual established values. Graph construction uses the same query to remove
 only ordered redundant anchors.
 

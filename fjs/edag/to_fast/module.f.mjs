@@ -23,7 +23,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { add, empty, has } from '../../types/set/module.f.js'
 import { at, setReplace } from '../../types/ordered_map/module.f.js'
 import { freeBindings } from '../../js/ast/control/module.f.mjs'
-import { demandsInOrder } from '../demand/module.f.mjs'
+import { demandsInOrder } from '../demand/module.f.js'
 import { _tailCalls } from './tail/module.f.mjs'
 import { _joinResults } from './join/module.f.mjs'
 

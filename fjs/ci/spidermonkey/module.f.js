@@ -3,7 +3,7 @@
  */
 
 import { spidermonkey } from '../config/module.f.js'
-import { environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
+import { environmentSteps, environmentVersionStep } from '../environment/module.f.js'
 
 /** Version check, compilation, then the FJS suite on a dedicated ARM Linux job.
  * @type {readonly MetaStep[]}

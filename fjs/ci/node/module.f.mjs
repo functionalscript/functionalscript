@@ -9,8 +9,8 @@
  */
 
 import { images, jobTimeout, node, typescript } from '../config/module.f.js'
-import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { environmentCommand, environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
+import { install, test, ubuntuArm, uses } from '../common/module.f.js'
+import { environmentCommand, environmentSteps, environmentVersionStep } from '../environment/module.f.js'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
 /**

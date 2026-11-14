@@ -6,7 +6,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { tryParse, tryParseBytes } from '../module.f.mjs'
-import { bytes, difference, isDocument } from './module.f.mjs'
+import { bytes, difference, isDocument } from './module.f.js'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.js'
 import reject from '../../../../spec/datajs/vectors/reject/data.f.js'
 

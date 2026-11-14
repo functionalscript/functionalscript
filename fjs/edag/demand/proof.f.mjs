@@ -3,7 +3,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { demandsInOrder, requiredPrefixLength } from './module.f.mjs'
+import { demandsInOrder, requiredPrefixLength } from './module.f.js'
 
 const first = /** @type {const} */ (['.', null, 'first'])
 const second = /** @type {const} */ (['.', null, 'second'])
