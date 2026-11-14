@@ -24,17 +24,26 @@ to round-trip `-0`, `NaN`, `Infinity`, and `-Infinity` is specified by
 needs it.
 That work must not silently redefine the standard JSON codec's policy here.
 
-The extended codec's decisions are settled and shipped (below). What remains
-open is the **standard** bigint-free codec, whose serializer still delegates
-finite-number spelling to the host's `JSON.stringify`.
+The extended codec's decisions are settled and shipped (below). The standard
+bigint-free codec's finite-number spelling is also implemented without native
+JSON calls. Its broader non-finite policy questions remain open.
 
 ### Settled and shipped: preserve negative zero
 
 The standard codec preserves `-0` through serialization and parsing:
-`numberSerialize` in [`../serializer/module.f.mjs`](../serializer/module.f.mjs)
+`numberSerialize` in [`../serializer/module.f.js`](../serializer/module.f.js)
 writes it as `-0`, and DataJS writes its finite numbers through that export.
 JSON and DataJS retain their separate non-finite spellings. The contract is
 documented in [`../README.md`](../README.md) and pinned by the JSON proofs.
+
+### Settled and shipped: finite-number spelling
+
+`numberSerialize` uses the admitted `String` builtin for finite numbers,
+with the explicit `-0` override above. This supplies ECMAScript's
+shortest-round-trip decimal spelling, including its decimal/exponent cutoffs.
+Proofs cover those cutoffs, precision and finite range endpoints. Replacing
+the native JSON call preserves the existing non-finite `null` behavior; it
+does not resolve whether that policy should change.
 
 ### Settled: extended codec
 
@@ -94,9 +103,8 @@ It does **not** owe native `JSON.stringify`'s bytes — that is the P5
 [native JSON compatibility](./native-json-compatibility.md) task. What is still
 undecided is:
 
-- what deterministic valid JSON spelling is used for finite `number` values,
-  now that `numberSerialize` still calls the host's `JSON.stringify`;
-- how programmatic `NaN` / infinities are handled;
+- whether to retain the current `null` serialization of programmatic `NaN`
+  and infinities;
 - whether a parsed `Infinity` is representable in `json.Unknown` at all, or
   should be normalized on the way out.
 
@@ -109,10 +117,9 @@ or adding a separate compatible API, is deliberately deferred to P5.
 - [ ] Choose the default FunctionalScript standard stringify policy for
       `NaN`, `Infinity`, and `-Infinity`; negative-zero preservation left
       their current behavior unchanged.
-- [ ] Define a deterministic finite-number serialization rule sufficient for the
-      FunctionalScript standard codec, without undoing negative-zero
-      preservation. Implementing it off the host's `JSON.stringify` is
-      [remove-native-json](./remove-native-json.md)'s phase 2.
+- [x] Use the admitted `String` builtin for finite-number spelling, preserving
+      the existing decimal/exponent notation and explicit negative zero;
+      [remove-native-json](./remove-native-json.md)'s phase 2 is complete.
 - [ ] Decide how a non-finite `number` parsed from valid text is represented or
       normalized in `json.Unknown`.
 - [ ] Add proof cases for every settled default behavior, including oversized
@@ -122,18 +129,18 @@ or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Related
 
-- [`numberSerialize`](../serializer/module.f.mjs) — the shipped `-0`
+- [`numberSerialize`](../serializer/module.f.js) — the shipped `-0`
   contract and the finite-number spelling shared with DataJS.
 - [`fjs/media/json/README.md`](../README.md) — the shipped codec architecture and
   the settled extended policy.
-- [Remove native JSON](./remove-native-json.md) — self-hosts serialization;
-  its phase 2 implements the finite-number rule decided here.
+- [Remove native JSON](./remove-native-json.md) — the shared serializer no
+  longer uses native JSON; remaining callers and indentation are still open.
 - [Standard/extended value transforms](./standard-transform.md) — reusable runtime
   conversions; they do not depend on native stringify compatibility.
 - [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up; does
   not block this investigation.
-- [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — current
-  primitive serialization implementation to replace/self-host.
+- [`fjs/media/json/serializer/module.f.js`](../serializer/module.f.js) — current
+  compiler-accepted primitive serialization implementation.
 - [`fjs/compiler/todo/compile-modules-to-edag.md`](../../../compiler/todo/compile-modules-to-edag.md)
   — owns DJS `.f.js` round-tripping of special number values needed by EDAG artifacts.
 - [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — shared JSON/DJS parser and

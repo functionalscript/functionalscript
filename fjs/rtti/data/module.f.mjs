@@ -20,7 +20,7 @@
  * @import { ResultE } from '../common/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionAlgebra, UnionSet, UnitName } from './types.ts'
- * @import { _Assumed, _Ctx, _Key, _Keyed, _NodeMap, _State, _Thunk } from './private.ts'
+ * @import { _Assumed, _CompareNode, _ConvertThunk, _Ctx, _Key, _Keyed, _KeyedSubset, _NodeMap, _NodeOf, _NodeRefs, _NodeValidate, _State, _Thunk } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
@@ -208,27 +208,27 @@ const cmpEntry = cmpValue => ([ak, av], [bk, bv]) => {
     return c !== 0 ? c : cmpValue(av, bv)
 }
 
-/** @type {(a: Node | undefined, b: Node | undefined) => number} */
-const cmpRest = (a, b) => {
+/** @type {(compare: _CompareNode) => (a: Node | undefined, b: Node | undefined) => number} */
+const cmpRest = compare => (a, b) => {
     if (a === undefined) { return b === undefined ? 0 : -1 }
     if (b === undefined) { return 1 }
-    return cmpNode(a, b)
+    return compare(a, b)
 }
 
-/** @type {(a: ArraySet, b: ArraySet) => number} */
-const cmpArraySet = (a, b) => {
-    const c = cmpList(cmpNode)(a.prefix, b.prefix)
-    return c !== 0 ? c : cmpRest(a.rest, b.rest)
+/** @type {(compare: _CompareNode) => (a: ArraySet, b: ArraySet) => number} */
+const cmpArraySetWith = compare => (a, b) => {
+    const c = cmpList(compare)(a.prefix, b.prefix)
+    return c !== 0 ? c : cmpRest(compare)(a.rest, b.rest)
 }
 
-/** @type {(a: ObjectSet, b: ObjectSet) => number} */
-const cmpObjectSet = (a, b) => {
-    const c = cmpList(cmpEntry(cmpNode))(definedEntries(a.props), definedEntries(b.props))
-    return c !== 0 ? c : cmpRest(a.rest, b.rest)
+/** @type {(compare: _CompareNode) => (a: ObjectSet, b: ObjectSet) => number} */
+const cmpObjectSetWith = compare => (a, b) => {
+    const c = cmpList(cmpEntry(compare))(definedEntries(a.props), definedEntries(b.props))
+    return c !== 0 ? c : cmpRest(compare)(a.rest, b.rest)
 }
 
-/** @type {(a: UnionSet, b: UnionSet) => number} */
-const cmpUnion = (a, b) => {
+/** @type {(compare: _CompareNode) => (a: UnionSet, b: UnionSet) => number} */
+const cmpUnionWith = compare => (a, b) => {
     const c0 = (a.unit ?? 0) - (b.unit ?? 0)
     if (c0 !== 0) { return c0 }
     const c1 = cmpKind(cmpNumber)(a.number, b.number)
@@ -237,8 +237,8 @@ const cmpUnion = (a, b) => {
     if (c2 !== 0) { return c2 }
     const c3 = cmpKind(cmpBigint)(a.bigint, b.bigint)
     if (c3 !== 0) { return c3 }
-    const c4 = cmpKind(cmpArraySet)(a.array, b.array)
-    return c4 !== 0 ? c4 : cmpKind(cmpObjectSet)(a.object, b.object)
+    const c4 = cmpKind(cmpArraySetWith(compare))(a.array, b.array)
+    return c4 !== 0 ? c4 : cmpKind(cmpObjectSetWith(compare))(a.object, b.object)
 }
 
 /**
@@ -250,8 +250,12 @@ const cmpNode = (a, b) => {
     const bs = typeof b === 'string'
     return typeof a === 'string' ?
         (bs ? cmpString(a, b) : 1) :
-        (bs ? -1 : cmpUnion(a, b))
+        (bs ? -1 : cmpUnionWith(cmpNode)(a, b))
 }
+
+const cmpArraySet = cmpArraySetWith(cmpNode)
+const cmpObjectSet = cmpObjectSetWith(cmpNode)
+const cmpUnion = cmpUnionWith(cmpNode)
 
 /**
  * Total order over the data form: negative, zero or positive, with zero
@@ -539,6 +543,13 @@ const kindSubset = le => (a, b) => {
 export const admitsAbsence = rules => n =>
     ((resolve(rules)(n).unit ?? 0) & absentBit) !== 0
 
+/** @type {(n: Node) => _Keyed} */
+const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
+
+/** @type {(compare: _KeyedSubset) => (ctx: _Ctx) => (assumed: _Assumed) => (a: Node, b: Node) => boolean} */
+const nodeSubsetWith = compare => ctx => assumed => (a, b) =>
+    compare(ctx)(assumed)(keyed(a), keyed(b))
+
 /**
  * Only the *longest* array each side admits is tested here — `pn` without a
  * `rest`, unbounded with one. The shortest needs no test of its own: a
@@ -560,10 +571,10 @@ export const admitsAbsence = rules => n =>
  * `p`'s own `rest` needs neither question, a rest carrying no absent bit
  * after normalization.
  *
- * @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ArraySet, q: ArraySet) => boolean}
+ * @type {(compare: _KeyedSubset) => (ctx: _Ctx) => (assumed: _Assumed) => (p: ArraySet, q: ArraySet) => boolean}
  */
-const arraySetSubset = ctx => assumed => (p, q) => {
-    const le = nodeSubset(ctx)(assumed)
+const arraySetSubsetWith = compare => ctx => assumed => (p, q) => {
+    const le = nodeSubsetWith(compare)(ctx)(assumed)
     const pn = p.prefix.length
     const qn = q.prefix.length
     const lengthOk = q.rest !== undefined
@@ -581,9 +592,6 @@ const arraySetSubset = ctx => assumed => (p, q) => {
                 || qAdmitsAbsenceAt(i)))
         && (p.rest === undefined || le(p.rest, assertNotNullish(q.rest)))
 }
-
-/** @type {(n: Node) => _Keyed} */
-const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
 
 /**
  * The set of values the pattern admits at key `k` when the key is **present**:
@@ -631,10 +639,10 @@ const objectMayOmit = rules => pattern => k => {
  * an object `q` rejects for a *missing* key, the second alone for a *present*
  * one.
  *
- * @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean}
+ * @type {(compare: _KeyedSubset) => (ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean}
  */
-const objectSetSubset = ctx => assumed => (p, q) => {
-    const le = keyedSubset(ctx)(assumed)
+const objectSetSubsetWith = compare => ctx => assumed => (p, q) => {
+    const le = compare(ctx)(assumed)
     const keys = dedup([
         ...definedEntries(p.props).map(([k]) => k),
         ...definedEntries(q.props).map(([k]) => k),
@@ -643,17 +651,17 @@ const objectSetSubset = ctx => assumed => (p, q) => {
             le(objectPresentSet(p)(k), objectPresentSet(q)(k))
             && (!objectMayOmit(ctx[0])(p)(k) || objectMayOmit(ctx[1])(q)(k)))
         // values at the keys declared by neither side, which both may omit
-        && (q.rest === undefined || nodeSubset(ctx)(assumed)(p.rest ?? unknown, q.rest))
+        && (q.rest === undefined || nodeSubsetWith(compare)(ctx)(assumed)(p.rest ?? unknown, q.rest))
 }
 
-/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: UnionSet, b: UnionSet) => boolean} */
-const unionSubset = ctx => assumed => (a, b) =>
+/** @type {(compare: _KeyedSubset) => (ctx: _Ctx) => (assumed: _Assumed) => (a: UnionSet, b: UnionSet) => boolean} */
+const unionSubset = compare => ctx => assumed => (a, b) =>
     ((a.unit ?? 0) & ~(b.unit ?? 0)) === 0
     && kindSubset(Object.is)(a.number, b.number)
     && kindSubset(strictEqual)(a.string, b.string)
     && kindSubset(strictEqual)(a.bigint, b.bigint)
-    && kindSubset(arraySetSubset(ctx)(assumed))(a.array, b.array)
-    && kindSubset(objectSetSubset(ctx)(assumed))(a.object, b.object)
+    && kindSubset(arraySetSubsetWith(compare)(ctx)(assumed))(a.array, b.array)
+    && kindSubset(objectSetSubsetWith(compare)(ctx)(assumed))(a.object, b.object)
 
 /** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: _Keyed, b: _Keyed) => boolean} */
 const keyedSubset = ctx => assumed => ([a, aKey], [b, bKey]) => {
@@ -663,12 +671,12 @@ const keyedSubset = ctx => assumed => ([a, aKey], [b, bKey]) => {
         if (inner !== undefined && entry(inner, bKey) === true) { return true }
         assumed1 = { ...assumed, [aKey]: inner === undefined ? { [bKey]: true } : { ...inner, [bKey]: true } }
     }
-    return unionSubset(ctx)(assumed1)(resolve(ctx[0])(a), resolve(ctx[1])(b))
+    return unionSubset(keyedSubset)(ctx)(assumed1)(resolve(ctx[0])(a), resolve(ctx[1])(b))
 }
 
-/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (a: Node, b: Node) => boolean} */
-const nodeSubset = ctx => assumed => (a, b) =>
-    keyedSubset(ctx)(assumed)(keyed(a), keyed(b))
+const nodeSubset = nodeSubsetWith(keyedSubset)
+const arraySetSubset = arraySetSubsetWith(keyedSubset)
+const objectSetSubset = objectSetSubsetWith(keyedSubset)
 
 /**
  * Sound subset test: `true` means every value of `a` is a value of `b`.
@@ -950,18 +958,6 @@ const primitiveUnion = p => {
 }
 
 /**
- * The union of a const container, memoized by identity.
- *
- * @type {(state: _State, c: ConstObject) => readonly [_State, UnionSet]}
- */
-const containerMemo = (state, c) => {
-    const done = assoc(c)(state.done)
-    if (done !== null) { return [state, done] }
-    const [state1, u] = containerUnion(state, c, never)
-    return [{ ...state1, done: [...state1.done, [c, u]] }, u]
-}
-
-/**
  * The union of a const container, with `rest` the set every member it does not
  * declare belongs to.
  *
@@ -972,9 +968,9 @@ const containerMemo = (state, c) => {
  * `rest: unknown`, a struct's absent `rest`) and {@link arraySet} /
  * {@link objectSet} normalize to.
  *
- * @type {(state: _State, c: ConstObject, rest: Node) => readonly [_State, UnionSet]}
+ * @type {(nodeOf: _NodeOf) => (state: _State, c: ConstObject, rest: Node) => readonly [_State, UnionSet]}
  */
-const containerUnion = (state, c, rest) => {
+const containerUnion = nodeOf => (state, c, rest) => {
     let s = state
     if (c instanceof Array) {
         /** @type {readonly Node[]} */
@@ -997,6 +993,18 @@ const containerUnion = (state, c, rest) => {
 }
 
 /**
+ * The union of a const container, memoized by identity.
+ *
+ * @type {(nodeOf: _NodeOf) => (state: _State, c: ConstObject) => readonly [_State, UnionSet]}
+ */
+const containerMemo = nodeOf => (state, c) => {
+    const done = assoc(c)(state.done)
+    if (done !== null) { return [state, done] }
+    const [state1, u] = containerUnion(nodeOf)(state, c, never)
+    return [{ ...state1, done: [...state1.done, [c, u]] }, u]
+}
+
+/**
  * The union of a `rest` schema. The container is walked here rather than
  * through {@link containerMemo}: that memo is keyed by the container's
  * identity alone, and the same object with two different rests is two
@@ -1004,17 +1012,17 @@ const containerUnion = (state, c, rest) => {
  * either way, so nothing is recomputed and a cycle through a `rest` still
  * closes.
  *
- * @type {(state: _State, c: ConstObject, r: Type) => readonly [_State, UnionSet]}
+ * @type {(nodeOf: _NodeOf) => (state: _State, c: ConstObject, r: Type) => readonly [_State, UnionSet]}
  */
-const restUnion = (state, c, r) => {
+const restUnion = nodeOf => (state, c, r) => {
     const [state1, restNode] = nodeOf(state)(r)
-    return containerUnion(state1, c, restNode)
+    return containerUnion(nodeOf)(state1, c, restNode)
 }
 
-/** @type {(state: _State, c: Const) => readonly [_State, UnionSet]} */
-const constUnion = (state, c) =>
+/** @type {(nodeOf: _NodeOf) => (state: _State, c: Const) => readonly [_State, UnionSet]} */
+const constUnion = nodeOf => (state, c) =>
     c !== null && typeof c === 'object'
-        ? containerMemo(state, c)
+        ? containerMemo(nodeOf)(state, c)
         : [state, primitiveUnion(c)]
 
 /**
@@ -1025,9 +1033,9 @@ const constUnion = (state, c) =>
  * on the recursion stack), or a named rule with its own merges pending — is
  * {@link defer}red instead of merged eagerly.
  *
- * @type {(state: _State, t: _Thunk, operands: readonly Type[]) => readonly [_State, UnionSet]}
+ * @type {(nodeOf: _NodeOf, convertThunk: _ConvertThunk) => (state: _State, t: _Thunk, operands: readonly Type[]) => readonly [_State, UnionSet]}
  */
-const orUnion = (state, t, operands) => {
+const orUnion = (nodeOf, convertThunk) => (state, t, operands) => {
     let s = state
     let result = never
     for (const op of operands) {
@@ -1037,7 +1045,7 @@ const orUnion = (state, t, operands) => {
             continue
         }
         if (typeof op !== 'function') {
-            const [s1, u] = containerMemo(s, op)
+            const [s1, u] = containerMemo(nodeOf)(s, op)
             s = s1
             result = merge(result, u)
             continue
@@ -1061,14 +1069,14 @@ const orUnion = (state, t, operands) => {
     return [s, result]
 }
 
-/** @type {(state: _State, t: _Thunk) => readonly [_State, UnionSet]} */
-const thunkUnion = (state, t) => {
+/** @type {(nodeOf: _NodeOf, convertThunk: _ConvertThunk) => _ConvertThunk} */
+const thunkUnion = (nodeOf, convertThunk) => (state, t) => {
     const [tag, ...rest] = t()
     switch (tag) {
         case 'const': {
             const [c] = rest
             assert(typeof c !== 'function', c)
-            return constUnion(state, c)
+            return constUnion(nodeOf)(state, c)
         }
         case 'boolean': { return [state, { unit: booleanBits }] }
         case 'number': { return [state, { number: true }] }
@@ -1091,19 +1099,19 @@ const thunkUnion = (state, t) => {
         case 'rest': {
             const [c, r] = rest
             assert(typeof c === 'object' && c !== null, c)
-            return restUnion(state, c, r)
+            return restUnion(nodeOf)(state, c, r)
         }
-        default: { return orUnion(state, t, rest) }
+        default: { return orUnion(nodeOf, convertThunk)(state, t, rest) }
     }
 }
 
 /**
  * Computes and memoizes the union of a thunk.
  *
- * @type {(state: _State, t: _Thunk) => readonly [_State, UnionSet]}
+ * @type {(nodeOf: _NodeOf) => _ConvertThunk}
  */
-const convertThunk = (state, t) => {
-    const [state1, u] = thunkUnion({ ...state, converting: [...state.converting, t] }, t)
+const convertThunk = nodeOf => (state, t) => {
+    const [state1, u] = thunkUnion(nodeOf, convertThunk(nodeOf))({ ...state, converting: [...state.converting, t] }, t)
     return [{
         ...state1,
         converting: state1.converting.filter(k => k !== t),
@@ -1122,7 +1130,7 @@ const nodeOf = state => t => {
         return [state, primitiveUnion(t)]
     }
     if (typeof t !== 'function') {
-        return containerMemo(state, t)
+        return containerMemo(nodeOf)(state, t)
     }
     const name = assoc(t)(state.names)
     if (name !== null) { return [state, name] }
@@ -1133,7 +1141,7 @@ const nodeOf = state => t => {
         const [state1, name1] = ensureName(state, t)
         return [state1, name1]
     }
-    const [state1] = convertThunk(state, t)
+    const [state1] = convertThunk(nodeOf)(state, t)
     return nodeOf(state1)(t)
 }
 
@@ -1161,19 +1169,16 @@ const fixpoint = state => {
     return done
 }
 
-/** @type {(n: Node) => readonly string[]} */
-const nodeRefs = n => typeof n === 'string' ? [n] : unionRefs(n)
+/** @type {(nodeRefs: _NodeRefs) => (rest: Node | undefined) => readonly string[]} */
+const restRefs = nodeRefs => rest => rest === undefined ? [] : nodeRefs(rest)
 
-/** @type {(rest: Node | undefined) => readonly string[]} */
-const restRefs = rest => rest === undefined ? [] : nodeRefs(rest)
+/** @type {(nodeRefs: _NodeRefs) => (p: ArraySet) => readonly string[]} */
+const arraySetRefs = nodeRefs => p => [...p.prefix.flatMap(nodeRefs), ...restRefs(nodeRefs)(p.rest)]
 
-/** @type {(p: ArraySet) => readonly string[]} */
-const arraySetRefs = p => [...p.prefix.flatMap(nodeRefs), ...restRefs(p.rest)]
-
-/** @type {(p: ObjectSet) => readonly string[]} */
-const objectSetRefs = p => [
+/** @type {(nodeRefs: _NodeRefs) => (p: ObjectSet) => readonly string[]} */
+const objectSetRefs = nodeRefs => p => [
     ...definedEntries(p.props).flatMap(([, v]) => nodeRefs(v)),
-    ...restRefs(p.rest),
+    ...restRefs(nodeRefs)(p.rest),
 ]
 
 /**
@@ -1190,8 +1195,13 @@ const noRefs = () => []
  */
 const kindRefs = f => kindFold({ absent: noRefs, whole: noRefs, members: list => list.flatMap(f) })
 
-/** @type {(u: UnionSet) => readonly string[]} */
-const unionRefs = u => [...kindRefs(arraySetRefs)(u.array), ...kindRefs(objectSetRefs)(u.object)]
+/** @type {(nodeRefs: _NodeRefs) => (u: UnionSet) => readonly string[]} */
+const unionRefsWith = nodeRefs => u => [...kindRefs(arraySetRefs(nodeRefs))(u.array), ...kindRefs(objectSetRefs(nodeRefs))(u.object)]
+
+/** @type {_NodeRefs} */
+const nodeRefs = n => typeof n === 'string' ? [n] : unionRefsWith(nodeRefs)(n)
+
+const unionRefs = unionRefsWith(nodeRefs)
 
 /**
  * All rule names reachable from `init` through rule bodies.
@@ -1333,9 +1343,9 @@ const setValidate =
      * @param {(p: P) => ReadonlyArray<readonly [string, Node]>} entriesOf
      * @param {(value: C, k: string) => Unknown} getItem
      * @param {(isDeclared: (k: string) => boolean, value: C, declared: number) => boolean} bare
-     * @returns {(rules: RuleSet) => (p: P) => (value: C) => ResultE}
+     * @returns {(nodeValidate: _NodeValidate) => (rules: RuleSet) => (p: P) => (value: C) => ResultE}
      */
-    (entriesOf, getItem, bare) => rules => p => value => {
+    (entriesOf, getItem, bare) => nodeValidate => rules => p => value => {
         const entries = entriesOf(p)
         const declared = eachEntry(
             entries,
@@ -1392,8 +1402,8 @@ const objectSetValidate = setValidate(
     () => true,
 )
 
-/** @type {(rules: RuleSet) => (u: UnionSet) => (value: Unknown) => ResultE} */
-const unionValidate = rules => u => value => {
+/** @type {(nodeValidate: _NodeValidate) => (rules: RuleSet) => (u: UnionSet) => (value: Unknown) => ResultE} */
+const unionValidate = nodeValidate => rules => u => value => {
     if (typeof value === 'number') { return checkValue(kindHas(Object.is)(u.number, value), value) }
     if (typeof value === 'string') { return checkValue(kindHas(strictEqual)(u.string, value), value) }
     if (typeof value === 'bigint') { return checkValue(kindHas(strictEqual)(u.bigint, value), value) }
@@ -1401,13 +1411,13 @@ const unionValidate = rules => u => value => {
         return checkValue(((u.unit ?? 0) & unitBit(value)) !== 0, value)
     }
     if (isArray(value)) {
-        return patternsValidate(u.array, arraySetValidate(rules), value)
+        return patternsValidate(u.array, arraySetValidate(nodeValidate)(rules), value)
     }
-    return patternsValidate(u.object, objectSetValidate(rules), value)
+    return patternsValidate(u.object, objectSetValidate(nodeValidate)(rules), value)
 }
 
-/** @type {(rules: RuleSet) => (n: Node) => (value: Unknown) => ResultE} */
-const nodeValidate = rules => n => unionValidate(rules)(resolve(rules)(n))
+/** @type {_NodeValidate} */
+const nodeValidate = rules => n => unionValidate(nodeValidate)(rules)(resolve(rules)(n))
 
 /**
  * Data-driven validation — the counterpart of `../validate` that consumes a

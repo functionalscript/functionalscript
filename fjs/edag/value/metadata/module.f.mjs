@@ -16,7 +16,7 @@
  * @import { ValidationError } from '../../../rtti/common/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { PersistentSet } from '../../../types/set/types.ts'
- * @import { _Node, _Visited } from './private.ts'
+ * @import { _Node, _Validate, _Visited } from './private.ts'
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
@@ -24,10 +24,10 @@ import { prependPath, verror } from '../../../rtti/common/module.f.js'
 import { mapOk, ok } from '../../../types/result/module.f.js'
 import { add, empty, has } from '../../../types/set/module.f.js'
 
-/** @type {(values: Values, visited: _Visited) => Result<_Visited, ValidationError>} */
-const validateValues = (values, visited) => {
+/** @type {(validate: _Validate, values: Values, visited: _Visited) => Result<_Visited, ValidationError>} */
+const validateValues = (validate, values, visited) => {
     for (let i = 0; i < values.length; i += 1) {
-        const r = validateValue(values[i], visited)
+        const r = validate(values[i], visited)
         const [kind, next] = r
         if (kind === 'error') { return prependPath(String(i), r) }
         visited = next
@@ -35,8 +35,8 @@ const validateValues = (values, visited) => {
     return ok(visited)
 }
 
-/** @type {(properties: readonly Property[], visited: _Visited) => Result<_Visited, ValidationError>} */
-const validateProperties = (properties, visited) => {
+/** @type {(validate: _Validate, properties: readonly Property[], visited: _Visited) => Result<_Visited, ValidationError>} */
+const validateProperties = (validate, properties, visited) => {
     /** @type {PersistentSet<string>} */
     let keys = empty
     let previousIndex = -1
@@ -55,7 +55,7 @@ const validateProperties = (properties, visited) => {
             }
             previousIndex = index
         }
-        const r = validateValue(value, visited)
+        const r = validate(value, visited)
         const [kind, next] = r
         if (kind === 'error') { return prependPath(String(i), prependPath('2', r)) }
         visited = next
@@ -65,20 +65,20 @@ const validateProperties = (properties, visited) => {
 
 /**
  * Checks a fresh node's evaluated object properties, leaving its body opaque.
- * @type {(value: _Node, visited: _Visited) => Result<_Visited, ValidationError>}
+ * @type {(validate: _Validate, value: _Node, visited: _Visited) => Result<_Visited, ValidationError>}
  */
-const validateNode = (value, visited) => {
+const validateNode = (validate, value, visited) => {
     switch (value[0]) {
         case '[]': {
-            const r = validateValues(value[1], visited)
+            const r = validateValues(validate, value[1], visited)
             return r[0] === 'error' ? prependPath('1', r) : r
         }
         case '{}': {
-            const r = validateProperties(value[1], visited)
+            const r = validateProperties(validate, value[1], visited)
             return r[0] === 'error' ? prependPath('1', r) : r
         }
         case '=>': {
-            const r = validateValues(value[2], visited)
+            const r = validateValues(validate, value[2], visited)
             return r[0] === 'error' ? prependPath('2', r) : r
         }
         default: { return ok(visited) }
@@ -87,11 +87,11 @@ const validateNode = (value, visited) => {
 
 /**
  * Remembers successfully checked nodes by identity, threading the set across siblings.
- * @type {(value: EdagValue, visited: _Visited) => Result<_Visited, ValidationError>}
+ * @type {_Validate}
  */
 const validateValue = (value, visited) => {
     if (!(value instanceof Array) || has(value)(visited)) { return ok(visited) }
-    return mapOk(add(value))(validateNode(value, visited))
+    return mapOk(add(value))(validateNode(validateValue, value, visited))
 }
 
 /** Checks evaluated object metadata only; requires shape-checked input. @type {(value: EdagValue) => Result<EdagValue, ValidationError>} */

@@ -32,7 +32,7 @@ import {
 } from './module.f.mjs'
 // The fold that counts results is the runners' shared one: a group's label
 // counts as the run does.
-import { addResult, zeroTotals } from '../module.f.mjs'
+import { addResult, zeroTotals } from '../module.f.js'
 // **One markup, two renderers.** What a report looks like is decided once, by
 // the pure views in `./module.f.mjs`: the runner's demo returns them for the
 // demo runtime to render, and this page turns the same views into nodes as

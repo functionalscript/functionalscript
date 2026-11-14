@@ -136,7 +136,7 @@ whole form, including `bigint` literal sets and `NaN`, `±Infinity` and `-0`
 literal members. JSON is narrower. It has no `bigint`, and its number model
 writes a `NaN` or `±Infinity` literal member as `null`, so a schema using one
 does not round-trip through JSON text. The repository's own JSON serializer
-([`fjs/media/json`](../../media/json/serializer/module.f.mjs)) keeps `-0`;
+([`fjs/media/json`](../../media/json/serializer/module.f.js)) keeps `-0`;
 the host's `JSON.stringify` writes it as `0`.
 
 ## `subset` is sound and deliberately incomplete

@@ -34,7 +34,7 @@
 
 import { assertEq } from '../../asserts/module.f.js'
 import { foldStep, mapStep, pureOk, resultStep } from '../../effects/module.f.js'
-import { collectTests, defaultTest, testResult } from '../module.f.mjs'
+import { collectTests, defaultTest, testResult } from '../module.f.js'
 import { browserResult, countsView, moduleFailure, reportOf, reportView, unreported } from './module.f.mjs'
 
 /** @type {(xs: readonly number[]) => number} */

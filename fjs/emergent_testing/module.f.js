@@ -190,6 +190,58 @@ export const collectTests = (path, throws, v) => {
 const returnedTests = ([path, { throws }], value) =>
     throws ? emptyEntries : collectTests([...path, null], false, value)
 
+/** @type {(k: string | null) => string} */
+const fmtKey = k =>
+    k === null ? '()'
+    : isInteger(k) ? `[${k}]`
+    : isIdentifier(k) ? `.${k}`
+    : `[${stringLiteral(k)}]`
+
+/**
+ * Renders a key chain as a JS property-access expression: identifier keys use
+ * dot notation, integer keys use `[N]`, other strings use `["key"]`, and `null`
+ * emits `()` to mark a function-call boundary.
+ * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
+ *
+ * @type {(path: Path) => string}
+ */
+export const fmtPath = path =>
+    path.reduce((/** @type {string} */ acc, k) => acc + fmtKey(k), '')
+
+/**
+ * Formats a fully-qualified test identifier as a JS-like expression, e.g.
+ * `import("./math.proof.f.ts").add()` or `import("./a.proof.f.ts").users[3].name()`.
+ * Self-contained per line — suitable for parallel output and as a CLI filter argument.
+ *
+ * @type {(file: string, path: Path) => string}
+ */
+export const fmtImport = (file, path) =>
+    `import(${stringLiteral(file)}).proof${fmtPath(path)}()`
+
+/**
+ * Names one leaf: what module it is in, where in that module, and what to call
+ * it.
+ *
+ * Separate from {@link testResult} because a leaf is named at two moments and
+ * judged at one — a runner announces it before running it and reports it
+ * afterwards, and both should call it the same thing. The traversal builds this
+ * once per leaf and hands it to both events.
+ *
+ * @type {(file: string, path: Path) => TestId}
+ */
+export const testId = (file, path) => ({
+    module: file,
+    path: fmtPath(path),
+    name: fmtImport(file, path),
+})
+
+/** @type {(id: TestId, r: SandboxResult<unknown>) => TestResult} */
+const resultOf = (id, { result: [s], duration }) => ({
+    ...id,
+    status: s === 'ok' ? 'passed' : 'failed',
+    duration,
+})
+
 /**
  * Registers all tests reachable from module export `v` (keyed by `k`) with
  * the given `TestContext`.
@@ -545,34 +597,6 @@ const registerModuleMap = ctx => moduleMap => {
         counts => counts.reduce((sum, count) => sum + count, 0))
 }
 
-/** @type {(k: string | null) => string} */
-const fmtKey = k =>
-    k === null ? '()'
-    : isInteger(k) ? `[${k}]`
-    : isIdentifier(k) ? `.${k}`
-    : `[${stringLiteral(k)}]`
-
-/**
- * Renders a key chain as a JS property-access expression: identifier keys use
- * dot notation, integer keys use `[N]`, other strings use `["key"]`, and `null`
- * emits `()` to mark a function-call boundary.
- * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
- *
- * @type {(path: Path) => string}
- */
-export const fmtPath = path =>
-    path.reduce((/** @type {string} */ acc, k) => acc + fmtKey(k), '')
-
-/**
- * Formats a fully-qualified test identifier as a JS-like expression, e.g.
- * `import("./math.proof.f.ts").add()` or `import("./a.proof.f.ts").users[3].name()`.
- * Self-contained per line — suitable for parallel output and as a CLI filter argument.
- *
- * @type {(file: string, path: Path) => string}
- */
-export const fmtImport = (file, path) =>
-    `import(${stringLiteral(file)}).proof${fmtPath(path)}()`
-
 /**
  * Percent-encodes characters that GitHub workflow-command property values
  * treat as separators (`%`, `:`, `,`) plus newlines.
@@ -595,30 +619,6 @@ export const ghEscape = s =>
  */
 export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
-
-/**
- * Names one leaf: what module it is in, where in that module, and what to call
- * it.
- *
- * Separate from {@link testResult} because a leaf is named at two moments and
- * judged at one — a runner announces it before running it and reports it
- * afterwards, and both should call it the same thing. The traversal builds this
- * once per leaf and hands it to both events.
- *
- * @type {(file: string, path: Path) => TestId}
- */
-export const testId = (file, path) => ({
-    module: file,
-    path: fmtPath(path),
-    name: fmtImport(file, path),
-})
-
-/** @type {(id: TestId, r: SandboxResult<unknown>) => TestResult} */
-const resultOf = (id, { result: [s], duration }) => ({
-    ...id,
-    status: s === 'ok' ? 'passed' : 'failed',
-    duration,
-})
 
 /**
  * Normalizes one leaf's outcome: its identity, whether it passed, and how long

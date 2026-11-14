@@ -760,7 +760,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   chosen special-number `.f.js` spellings.
 - [`fjs/media/datajs/serializer/module.f.mjs`](../../media/datajs/serializer/module.f.mjs)
   — the writer, where special-number handling lives.
-- [`../../media/json/serializer/module.f.mjs`](../../media/json/serializer/module.f.mjs)
+- [`../../media/json/serializer/module.f.js`](../../media/json/serializer/module.f.js)
   — shared JSON serialization primitives currently reused by DJS; DJS-specific number
   syntax must not silently change standard JSON behavior.
 - [`../../media/json/todo/number-edge-cases.md`](../../media/json/todo/number-edge-cases.md)

@@ -7,7 +7,7 @@
 ### Problem
 
 The *fan out in parallel, then discard the results* idiom is spelled out
-verbatim three times in `fjs/emergent_testing/module.f.mjs`:
+verbatim three times in `fjs/emergent_testing/module.f.js`:
 
 ```ts
 return mapStep(allOk(...sub.map(e => registerOne(t, e))), () => undefined)
@@ -105,7 +105,7 @@ recorded as superseded there.)
 - [ ] Add `allVoid` to `fjs/effects/common/module.f.js` (next to
       `all`/`both`/`allOk`) with proof coverage.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
-      `fjs/emergent_testing/module.f.mjs`.
+      `fjs/emergent_testing/module.f.js`.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related
