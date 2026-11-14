@@ -24,6 +24,27 @@ export const proof = {
     },
     length: () => assertEq([4n, 5n, 6n, 7n, 8n].map(h.length).join(), '2,1,3,1,1'),
     unit: () => assertEq(`${h.unit(4n, 0)},${h.unit(4n, 1)}`, '97,98'),
+    // `dup` and `drop` count; `from_unit` and `concat` allocate a cell the caller owns.
+    count: () => {
+        const c = host(['a'])
+        assertEq(c.live(), 1)
+        const d = c.dup(0n)
+        assertEq(d, 0n)
+        assertEq(c.live(), 1)
+        c.drop(0n)
+        assertEq(c.live(), 1)
+        c.drop(0n)
+        assertEq(c.live(), 0)
+        const s = c.from_unit(0x62)
+        assertEq(c.read(s), 'b')
+        assertEq(c.live(), 1)
+        const t = c.concat(s, s)
+        assertEq(c.read(t), 'bb')
+        assertEq(c.live(), 2)
+        c.drop(s)
+        c.drop(t)
+        assertEq(c.live(), 0)
+    },
     // Where L0 traps, the import throws: a handle of no value, or a value of another kind.
     throw: {
         negative: () => { h.kind(-1n) },
@@ -35,5 +56,11 @@ export const proof = {
         length: () => { h.length(3n) },
         unitPast: () => { h.unit(4n, 2) },
         unitOfNoString: () => { h.unit(6n, 0) },
+        dropTwice: () => {
+            const c = host(['x'])
+            c.drop(0n)
+            c.drop(0n)
+        },
+        fromUnit: () => { h.from_unit(0x1_0000) },
     },
 }

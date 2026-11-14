@@ -244,15 +244,17 @@ export const proof = {
         assertEq(why(overL0([['v', only(any)]], f64, one_)), 'f: any.only() holds no value')
         assertEq(why(overL0([['v', only(any, 'symbol')]], f64, one_)), 'f: any has no variant symbol')
         assertEq(why(overL0([['v', only(any, 'null', 'null')]], f64, one_)), 'f: any.only(null, null) names null twice')
-        assertEq(why(overL0(p, any, v)), 'f: the result is any, which the caller would own: not in this slice')
+        // Returning a borrowed parameter as an owned result is refused by the owned stage.
+        assertEq(why(overL0(p, any, v)), 'f: the body does not own its result')
         assertEq(why(overL0(p, f64, lit(any, 1n))), 'f: a literal of any is a constant, which is not in this slice')
         assertEq(why(overL0(p, f64, add(v, v))), 'f: add of any and any: an operator takes integers or floats')
         // A call of an interface takes its arguments at the kinds of its parameters.
         assertEq(why(overL0(p, f64, call('Any', 'to_f64', [v]))), "f: Any.to_f64's v is any.only(number), not any")
         assertEq(why(overL0(p, f64, call('Any', 'nope', [v]))), 'f: Any has no function nope')
         assertEq(why(overL0(p, f64, call('Any', 'kind', []))), 'f: Any.kind takes one argument, not 0')
+        // An owned result is allowed; the body's type still has to match.
         assertEq(why(overL0(p, f64, call('Make', 'any', []), [['Make', { abi: 'test', types: [], functions: [['any', signature([], any)]] }]])),
-            'f: Make.any gives any, which its caller would own: not in this slice')
+            'f: the body is any, not f64')
         // A `match` of `any` names its kinds, and an arm's name is a local like any other.
         assertEq(why(overL0(p, f64, match(v, [[['symbol'], null, one_], [null, null, one_]]))), 'f: no variant symbol')
         assertEq(why(overL0(p, f64, cast(only(any, 'number'), v, 'x', x => match(x, [[['string'], null, one_], [null, null, one_]])))), 'f: no variant string')

@@ -231,7 +231,7 @@ const lines = (t, pad) => {
 }
 
 /** A signature after `fn` and its name. @type {(name: string, s: Signature) => string} */
-const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`
+const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`
 
 /** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
 const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]
