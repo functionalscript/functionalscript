@@ -86,7 +86,7 @@ import { add, empty as noneStarted, has } from '../../../types/set/module.f.js'
 import { pushOk, walkFold } from '../../../types/stack_walk/module.f.js'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.js'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 
 const {
     entries,
@@ -226,7 +226,7 @@ const open = value => {
             return error('an array with a hole or an own property besides its elements')
         }
         /** @type {readonly (readonly [string, PropertyDescriptor])[]} */
-        const properties = names.slice(0, length).map(name => [name, descriptors[name]])
+        const properties = names.slice(0, length).map(name => [name, assertNotNullish(entry(descriptors, name))])
         return ok({ value, kind: 'array', properties, index: 0, done: empty })
     }
     const proto = getPrototypeOf(value)
@@ -255,7 +255,7 @@ const close = ({ kind, done }) => {
 const round = (walk, frame) => {
     const { value, properties, index } = frame
     if (index < properties.length) {
-        const [key, descriptor] = properties[index]
+        const [key, descriptor] = properties[Number(index)]
         return [walk, pushOk(frame)(_memberValue(key, descriptor))]
     }
     return [
@@ -303,7 +303,7 @@ const enter = leafRule => (walk, value) => {
  * @type {<L>(walk: _Walk<L>, top: _Frame<L>, value: _Value<object, L>) => _Visit<L>}
  */
 const resume = (walk, top, value) => {
-    const [key] = top.properties[top.index]
+    const [key] = top.properties[Number(top.index)]
     return round(walk, { ...top, index: top.index + 1, done: { head: top.done, tail: [[key, value]] } })
 }
 
@@ -393,7 +393,7 @@ const shared = ({ nodes, root }) => {
     const refs = [root, ...nodes.flatMap(nodeValues)]
         .flatMap(value => value[0] === 'ref' ? [value[1]] : [])
         .toSorted((a, b) => cmp(a)(b))
-    return new Set(refs.filter((ref, i) => i > 0 && refs[i - 1] === ref))
+    return new Set(refs.filter((ref, i) => i > 0 && refs[Number(i - 1)] === ref))
 }
 
 /**
@@ -435,7 +435,7 @@ const chunksOf = key => spellLeaf => names => ({ nodes }) => {
     const value = v => {
         if (v[0] === 'leaf') { return spellLeaf(v[1]) }
         const name = names.get(v[1])
-        return name === undefined ? () => chunks[v[1]] : [name]
+        return name === undefined ? () => chunks[Number(v[1])] : [name]
     }
     /** @type {(node: _Node<number, L>) => List<Chunk>} */
     const inline = node => node.kind === 'array'
@@ -473,7 +473,7 @@ const spelled = chunks => chunks
 const write = (graph, unknownExport = false) => {
     const names = constNames(graph)
     const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
-    const statements = [...names].map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[i], [';']]))
+    const statements = [...names].map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[Number(i)], [';']]))
     const exported = unknownExport
         ? flat([['\n/** @type {unknown} */\n', keyword('const'), ` $${names.size}=`], value(graph.root), [';'], [keyword('export'), ' ', keyword('default'), ` $${names.size};`]])
         : flat([[keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])

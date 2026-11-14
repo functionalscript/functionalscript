@@ -41,7 +41,7 @@ import { mergeable, ownOperandsOf, scopeHolds } from '../analysis/module.f.js'
  *
  * @type {(a: Analysis, v: Operand) => Node | null}
  */
-const unshared = (a, v) => v instanceof Array && !a.shared.includes(v[1]) ? a.nodes[v[1]] : null
+const unshared = (a, v) => v instanceof Array && !a.shared.includes(v[1]) ? a.nodes[Number(v[1])] : null
 
 /**
  * An operand as a comma's operands: the asserts before its last and the
@@ -53,14 +53,14 @@ const unshared = (a, v) => v instanceof Array && !a.shared.includes(v[1]) ? a.no
 const comma = (a, v) => {
     const node = unshared(a, v)
     return node !== null && node[0] === ',' && node[1].length !== 0
-        ? { before: node[1].slice(0, -1), last: node[1][node[1].length - 1] }
+        ? { before: node[1].slice(0, -1), last: node[1][Number(node[1].length - 1)] }
         : { before: [], last: v }
 }
 
 /** Whether an operand names a node of the tag, `['arg', 0]` where the index is given. @type {(a: Analysis, v: Operand, tag: string, index?: number) => boolean} */
 const names = (a, v, tag, index) => {
     if (!(v instanceof Array)) { return false }
-    const node = a.nodes[v[1]]
+    const node = a.nodes[Number(v[1])]
     return node[0] === tag && (index === undefined || node[1] === index)
 }
 
@@ -74,8 +74,8 @@ const names = (a, v, tag, index) => {
 const selfReads = (a, i) => {
     const { nodes, scope } = a
     /** @type {(v: Operand) => boolean} */
-    const isSelf = v => v instanceof Array && nodes[v[1]][0] === 'self' && scope[v[1]] === i
-    return nodes.flatMap((node, j) => scope[j] === i ? ownOperandsOf(node).filter(isSelf) : []).length
+    const isSelf = v => v instanceof Array && nodes[Number(v[1])][0] === 'self' && scope[Number(v[1])] === i
+    return nodes.flatMap((node, j) => scope[Number(j)] === i ? ownOperandsOf(node).filter(isSelf) : []).length
 }
 
 /**
@@ -88,7 +88,7 @@ const selfReads = (a, i) => {
  * @type {(a: Analysis, i: number) => Loop | null}
  */
 export const loopOf = (a, i) => {
-    const fn = a.nodes[i]
+    const fn = a.nodes[Number(i)]
     if (fn[0] !== '=>' || fn[1] !== 1) { return null }
     const root = comma(a, fn[3])
     const tail = unshared(a, root.last)
@@ -113,7 +113,7 @@ export const loopOf = (a, i) => {
  */
 const reached = a => v => {
     /** @type {(seen: readonly number[], v: Operand) => readonly number[]} */
-    const go = (seen, v) => !(v instanceof Array) || seen.includes(v[1]) ? seen : ownOperandsOf(a.nodes[v[1]]).reduce(go, [...seen, v[1]])
+    const go = (seen, v) => !(v instanceof Array) || seen.includes(v[1]) ? seen : ownOperandsOf(a.nodes[Number(v[1])]).reduce(go, [...seen, v[1]])
     return go([], v)
 }
 
@@ -153,5 +153,5 @@ export const keepsRecursion = (a, i, { before, condition, arm }) => {
     const fromCondition = reached(a)(condition)
     const fromArm = reached(a)(arm)
     return before.length !== 0 || scopeHolds(a, i, 'rest')
-        || a.nodes.some((n, j) => a.scope[j] === i && !mergeable(n) && fromCondition.includes(j) && fromArm.includes(j))
+        || a.nodes.some((n, j) => a.scope[Number(j)] === i && !mergeable(n) && fromCondition.includes(j) && fromArm.includes(j))
 }
