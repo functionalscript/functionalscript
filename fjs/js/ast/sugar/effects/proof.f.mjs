@@ -7,6 +7,17 @@ import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.j
 import { writes } from './module.f.mjs'
 
 export const proof = {
+    emptyWritesKeepNodeIdentity: () => {
+        for (const value of /** @type {readonly SourceValue[]} */ ([undefined, null, false, 0, '', 0n])) {
+            assertEq(writes(value, new Map()).size, 0)
+        }
+        const id = /** @type {BindingId} */ ({ index: 0 })
+        const reference = /** @type {const} */ (['ref', id])
+        const indexed = writes(reference, new Map())
+        assertEq(indexed.size, 1)
+        assertStructurallySame(indexed.get(reference), [])
+        assertEq(indexed.has(/** @type {const} */ (['ref', id])), false)
+    },
     patternDefaultsContributeOnlyWhenTheirRegionRuns: () => {
         const id = /** @type {BindingId} */ ({ index: 0 })
         const selected = /** @type {SourceBlock} */ ({ statements: [['write', id, 1]], exit: ['yield', 2] })
