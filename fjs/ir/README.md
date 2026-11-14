@@ -7,12 +7,13 @@ and the emitter writes WASM from the typed form, with no text between the
 stages.
 
 It is built in vertical slices, from the least risky to the most
-([todo/slices.md](./todo/slices.md)). This directory holds the first
-five: typed code written by hand, the same code lowered from normalized
-FAST ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
-through [the interfaces of L0](./l0/module.f.js), loops, and functions
-that a module does not export, with records and
-[L1's native rows](./native/module.f.js).
+([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
+This directory holds the first five: typed code written by hand, the same
+code lowered from normalized FAST ([`from_fast`](./from_fast/README.md)),
+values of unknown kind, read through [the interfaces of L0](./l0/module.f.js),
+loops, and functions that a module does not export, with records and
+[L1's native rows](./native/module.f.js). Next is counted values (`typeOf`),
+as six stacked PRs in that roadmap.
 
 ## Map of this directory
 
