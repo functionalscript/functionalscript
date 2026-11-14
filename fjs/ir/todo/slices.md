@@ -44,8 +44,11 @@ and refuses everything outside the slice, so that the next slice only adds.
 ### Decisions for slice 6 (2026-11-14)
 
 Owner chose option A on each of five choices after review of slices 2–5
-(about 2.4 million lowered-WASM calls, zero wrong answers; three refusal
-defects fixed in [#3837](https://github.com/functionalscript/functionalscript/pull/3837)).
+(about 2.4 million lowered-WASM calls, zero wrong answers, measured on
+[`177c39cb3`](https://github.com/functionalscript/functionalscript/commit/177c39cb3ae3ee10fbc4586a897c75a50d5a19ba)
+before [#3837](https://github.com/functionalscript/functionalscript/pull/3837)
+and on that merge for the post-fix run; three refusal defects fixed in
+#3837).
 
 | Choice | Decision |
 | --- | --- |
