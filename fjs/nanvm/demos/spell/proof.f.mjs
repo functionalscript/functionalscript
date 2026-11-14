@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.js'
-import { spell } from './module.f.mjs'
+import { spell } from './module.f.js'
 
 export const proof = {
     scalars: () => assertEq([undefined, null, true, 1.5, -0, NaN, 1n, -2n].map(spell).join(' '), 'undefined null true 1.5 0 NaN 1n -2n'),
