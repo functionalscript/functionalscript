@@ -51,7 +51,7 @@ defects fixed in [#3837](https://github.com/functionalscript/functionalscript/pu
 | --- | --- |
 | How `typeOf` gets its array | Bring array literals of values and the linear builder into slice 6, so `typeOf` lowers from L1's own text |
 | How slice 6 is cut | Six stacked PRs, 6a to 6f, one feature each |
-| Memory and where literals are built | As [L0 §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules) and [§6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up): the loader makes the memory and the module imports it; the start function builds string (and bigint) literals; module constants such as `typeNames` stay in `init`, keeping [definition.md's single rule for constants](../../../doc/sasha-gil/ir/definition.md#constants) (a small, deliberate divergence from L0 §6 building constant containers in `start`) |
+| Memory and where literals are built | As [L0 §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules) and [§6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up): the loader makes the memory and the module imports it. **Two build sites, one borrowing rule.** The start function builds every string and bigint literal (L0 §6: building one cannot throw, and the host cannot catch a trap in `start`). Derived `init` evaluates every other module constant, including container constants such as `typeNames` ([L0 §20](../../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)). A use of either is still a borrow that is never dropped, as [definition.md](../../../doc/sasha-gil/ir/definition.md#constants) says. That is a deliberate divergence from definition.md's line that derived `init` evaluates *every* constant — literals are constants for naming and borrowing, but they are not built in `init`. It also diverges from L0 §6 putting constant containers in `start` |
 | Linear and copy variants of `any` | Linear now, since 6e needs it; copy variants of `any` after slice 6, so every `any` is counted through 6f |
 | The random comparison | Keep it as a seeded host proof, in a PR of its own before 6a, and extend it with each later slice |
 
@@ -101,11 +101,13 @@ before it and proved end to end on its own.
 - [ ] **6b. The lifetime pass.** Plain stage to owned (move, `dup`, `drop`);
   lowering of L0 view functions that answer owned values.
 - [ ] **6c. Constants and `init`.** Any's `undefined`, `null`, `true` and
-  `false` as imported globals; module constants; derived `init`; lowering of
-  a module-level definition.
+  `false` as imported globals; module constants other than string and bigint
+  literals (those are 6d); derived `init`; lowering of a module-level
+  definition.
 - [ ] **6d. String literals.** A literal as a constant named by its spelling,
-  made once by `make_string` from UTF-16 units in a data segment (memory as
-  in the decisions above).
+  built once in the module's start function by `make_string` from UTF-16
+  units in a data segment (memory and the start/`init` split as in the
+  decisions above).
 - [ ] **6e. Array literals of values.** The linear kind; `begin_array`,
   `push`, `seal`; array literals with no spread and no holes. (Object
   literals, spread and `buildArray` / `buildObject` with callbacks stay in
