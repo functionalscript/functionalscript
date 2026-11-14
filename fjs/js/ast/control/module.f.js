@@ -142,17 +142,15 @@ export const freeBindings = (block, bound = []) => {
         if (task.kind === 'block') { pending = prepend(blockTasks(task.block, task), rest); continue }
         const { value } = task
         if (value === null || typeof value !== 'object') { pending = rest; continue }
-        switch (value[0]) {
-            case 'ref': {
-                if (!task.bound.includes(value[1]) && !bindings.includes(value[1])) { bindings = [...bindings, value[1]] }
-                pending = rest
-                break
-            }
-            case 'function': { pending = prepend(valueTasks(value[1].captures.map(capture => capture.value), task), rest); break }
-            case 'block': { pending = { first: blockTask(value[1], task), tail: rest }; break }
-            case 'if': { pending = prepend([...valueTasks([value[1]], task), blockTask(value[2], task), blockTask(value[3], task)], rest); break }
-            default: { pending = prepend(valueTasks(operatorOperands(value), task), rest) }
+        if (value[0] === 'ref') {
+            if (!task.bound.includes(value[1]) && !bindings.includes(value[1])) { bindings = [...bindings, value[1]] }
+            pending = rest
+            continue
         }
+        if (value[0] === 'function') { pending = prepend(valueTasks(value[1].captures.map(capture => capture.value), task), rest); continue }
+        if (value[0] === 'block') { pending = { first: blockTask(value[1], task), tail: rest }; continue }
+        if (value[0] === 'if') { pending = prepend([...valueTasks([value[1]], task), blockTask(value[2], task), blockTask(value[3], task)], rest); continue }
+        pending = prepend(valueTasks(operatorOperands(value), task), rest)
     }
     return bindings
 }

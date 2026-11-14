@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { freeBindings } from '../../control/module.f.mjs'
+import { freeBindings } from '../../control/module.f.js'
 import { _hasReturn, memoCells, recipeCells } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })

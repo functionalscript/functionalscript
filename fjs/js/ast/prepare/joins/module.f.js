@@ -10,7 +10,7 @@
  */
 
 import { operatorOperands } from '../../module.f.js'
-import { exitValues, freeBindings } from '../../control/module.f.mjs'
+import { exitValues, freeBindings } from '../../control/module.f.js'
 import { bind, call, done, run } from '../../task/module.f.js'
 import { next } from '../../../../types/list/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'

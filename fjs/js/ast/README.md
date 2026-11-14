@@ -83,7 +83,7 @@ occurrences inside operands, so locally owned cells stay within their selected
 evaluation region. The scan follows eager regions and capture expressions;
 ordinary function bodies and deferred initializers keep separate boundaries.
 [`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
-[`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
+[`control`](./control/module.f.js) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.
 
 `break` and `continue` payload expressions can return to the enclosing function.
