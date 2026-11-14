@@ -27,6 +27,7 @@
  */
 
 import { isValidCodePoint } from '../../text/code_point/module.f.js'
+import { codePointToString } from '../../text/utf16/module.f.js'
 import {
     charIs, digit0, isDigit as isDigitCodePoint, isLatinCapitalLetter, isLatinSmallLetter, latinCapitalLetterA,
     latinCapitalLetterAFRange, latinSmallLetterA, lowerHexDigitValue,
@@ -118,7 +119,7 @@ const punycodeDecode = (ascii, punycode) => {
         n = n + Math.floor(i / length)
         i = i % length
         if (!isValidCodePoint(n) || length > 128) { return null }
-        output = [...output.slice(0, i), String.fromCodePoint(n), ...output.slice(i)]
+        output = [...output.slice(0, i), codePointToString(n), ...output.slice(i)]
         i = i + 1
         if (at === punycode.length) { return output.join('') }
         delta = Math.floor(delta / damp)
@@ -339,7 +340,7 @@ const demangler = s => {
             const r = uint(i + 1)
             const v = r === null || r[0].startsWith('0x') ? -1 : Number(r[0])
             return r === null || !isValidCodePoint(v) ? null
-                : [`'${escapeChar("'")(String.fromCodePoint(v))}'`, r[1]]
+                : [`'${escapeChar("'")(codePointToString(v))}'`, r[1]]
         }
         /** @type {(j: number) => _Read<string>} */
         const strLiteral = j => {
