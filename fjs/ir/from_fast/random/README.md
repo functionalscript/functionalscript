@@ -23,11 +23,12 @@ const out = compare(0x4f1c_5e2d, 120, 80)
 | typed | floats, booleans, small integer ranges, an unexported helper, a short loop, `%`, a record kept inside the function |
 | any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind |
 
-A program whose integer body's range past its signature the checker
-refuses is counted and not run. Any other refusal is a failure, so a
-regression that rejects a category the slices already lower fails the
-proof. Where JavaScript throws, the comparison accepts any trap, as
-[`testlib.mjs`](../../wasm/testlib.mjs) does today; a stricter match of
-traps waits until slice 7 makes throws meaningful.
+A program whose **integer** signature's body range past that signature the
+checker refuses is counted and not run. The same diagnostic against an
+`f64` or `bool` signature is a failure, so a regression that gives an
+integer body where a float or bool was declared fails the proof. Any other
+refusal is a failure too. Where JavaScript throws, the comparison accepts
+any trap, as [`testlib.mjs`](../../wasm/testlib.mjs) does today; a stricter
+match of traps waits until slice 7 makes throws meaningful.
 
 Prefer `node --test` for [`proof.mjs`](./proof.mjs).
