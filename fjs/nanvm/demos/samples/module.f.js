@@ -52,6 +52,11 @@ export const samples = [
         [0, ['returned', '[false,true,false,[["0",2],["b",0]]]']],
         [1.5, ['returned', '[false,false,true,[["0",2],["b",1.5]]]']],
     ] },
+    { name: 'reference_map', directory: 'spec/built-ins/reference-map', calls: [
+        [0, ['returned', '"an object"']],
+        [1, ['returned', '"an array"']],
+        [2, ['returned', 'undefined']],
+    ] },
     { name: 'guards', directory: 'spec/control-flow/guards', calls: [
         [-5, ['returned', '"negative"']],
         [0, ['returned', '"zero"']],

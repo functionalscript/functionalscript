@@ -235,9 +235,6 @@ information — see [serialization](../design/serialization.md) and
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
-3. [ ] [reference map pattern](./reference-map.md) — one recognized
-   function, the empty map, for reference-keyed lookup without exposing a
-   label; design approved, not implemented.
 
 ## 4. ECMAScript Proposals
 

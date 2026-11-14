@@ -1,11 +1,12 @@
 # Built-ins
 
-The pure library functions a module may call: member functions of arrays, strings and numbers, and static functions.
+The pure library functions a module may call: member functions of arrays, strings and numbers, static functions, and the reference map.
 
 ## Pages
 
 - [Built-in Member Functions](./member-functions/README.md)
 - [Built-in Static Functions](./static-functions/README.md)
+- [Finding a Reference](./reference-map/README.md)
 
 Refused by design, each page showing what `fjs compile` prints and what to write instead:
 

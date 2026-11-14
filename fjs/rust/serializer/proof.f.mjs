@@ -366,6 +366,15 @@ export const proof = {
         ]
         for (const value of values) { assert(text(value).includes('Any::')) }
     },
+    // The empty reference map is NaNVM's own: a new native map wherever
+    // the node is established, under the helper's text, with a runtime in
+    // scope or with none.
+    referenceMap: () => {
+        const written = text(['refMap'])
+        assert(written.startsWith('ref_map(Some("(()=>{const $0=($1,$2)=>{const $3=new WeakMap();'), written)
+        assert(written.endsWith('return $0;})()"))'), written)
+        assertEq(untagged(unwrap(valueTagged(['refMap'], { ...options, runtime: null }))[0]), written)
+    },
     helpers: () => {
         for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])) { assert(text([tag]).length > 0) }
         const native = unwrap(valueTagged(['Object.entries'], { ...options, runtime: null }))
@@ -488,8 +497,6 @@ export const proof = {
         unknownPrimitive: () => valueTagged(/** @type {never} */ ({}), options),
         unknownStatement: () => scope({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }, options),
         unsupportedStaticWithoutRuntime: () => unwrap(valueTagged(['Object.is'], { ...options, runtime: null })),
-        // NaNVM holds no reference map yet
-        referenceMap: () => unwrap(valueTagged(['refMap'], options)),
         memberWithoutRuntime: () => unwrap(valueTagged(['.', ['array', []], 'slice', ['|()', []]], { ...options, runtime: null })),
     },
 }

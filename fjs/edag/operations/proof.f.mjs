@@ -730,6 +730,34 @@ export const proof = /** @type {const} */ ({
         failure(['()', ['Object.entries'], [null]])
         failure(['()', ['Object.entries'], []])
     },
+    // The empty reference map is a new map of the runtime's wherever the
+    // node is established, an ordinary function: a set answers the value
+    // the key had and a map that holds the new one, a read the same map,
+    // another object alike is another key, and a primitive is none.
+    referenceMap: () => {
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        // a function of a map and a key, so that each is one value where
+        // the body reads it twice
+        const set = /** @type {const} */ (['()', ['arg', 0], [['arg', 1], 7]])
+        const later = /** @type {const} */ (['.', set, 1])
+        /** @type {Exp} */
+        const uses = ['()', ['=>', 2, [], ['[]', [
+            ['.', ['()', later, [['arg', 1]]], 0],
+            ['.', set, 0],
+            ['===', ['.', ['()', ['arg', 0], [['arg', 1]]], 1], ['arg', 0]],
+            ['===', later, ['arg', 0]],
+            ['.', ['()', later, [['{}', []]]], 0],
+            ['.', ['()', later, [1]], 0],
+            ['typeof', later],
+            ['.', later, 'length'],
+        ]]], [['refMap'], ['{}', []]]]
+        assertStructurallySame(vm({ ...context, runtime })(uses), ['ok', ['[]', [7, ['undefined'], true, false, ['undefined'], ['undefined'], 'function', 2]]])
+        // setting a primitive key fails
+        assertEq(vm({ ...context, runtime })(['()', ['refMap'], [1, 2]])[0], 'error')
+        // written twice, two maps
+        assertStructurallySame(vm({ ...context, runtime })(['===', ['refMap'], ['refMap']]), ['ok', false])
+    },
     // Keys are a runtime body over native entries and the shared array map,
     // with static identity, arity and text supplied by the existing protocol.
     objectKeys: () => {

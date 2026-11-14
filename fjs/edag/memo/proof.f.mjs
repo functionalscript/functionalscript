@@ -18,6 +18,7 @@ import { read } from '../value/property/module.f.js'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.js'
 import { ok } from '../../types/result/module.f.js'
+import { noRefMap } from '../module.f.js'
 
 const context = { frame: [], args: [10, 20] }
 
@@ -268,6 +269,25 @@ export const proof = {
         }
         assertEq(assertError(result(['Boolean', 0])), noBoolean)
         assertEq(assertError(result(['Boolean', ['throw', 'operand']])), 'operand')
+    },
+    // The empty reference map under memoization: one node is one map, so
+    // a `const` naming it is the empty map wherever it is read, and a read
+    // of it answers that same map.
+    referenceMap: () => {
+        /** @type {Exp} */
+        const empty = ['refMap']
+        /** @type {Exp} */
+        const key = ['{}', []]
+        /** @type {Exp} */
+        const later = ['.', ['()', empty, [key, 7]], 1]
+        assertStructurallySame(runWithRuntime(['[]', [
+            ['.', ['()', later, [key]], 0],
+            ['===', ['.', ['()', empty, [key]], 1], empty],
+            ['===', later, empty],
+            ['.', ['()', later, [['{}', []]]], 0],
+            ['.', ['()', empty, [key]], 0],
+        ]]), [7, true, false, undefined, undefined])
+        assertStructurallySame(memo(assertOk(analysis(empty)))(context), ['error', noRefMap])
     },
     chains: () => {
         /** @type {Exp} */

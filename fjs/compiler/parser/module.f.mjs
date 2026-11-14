@@ -1467,7 +1467,7 @@ const entryFunction = ([, list, body]) => {
 
 /**
  * Recognize the empty reference map
- * ([proposal](../../../spec/todo/reference-map.md)): the canonical body of
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): the canonical body of
  * [`./ref_map`](./ref_map/module.f.mjs) under any names, as the whole
  * initializer of a `const`, whose name the body reads as itself.
  * `WeakMap` is the global only where no scope binds the word. `null` for

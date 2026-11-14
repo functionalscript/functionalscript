@@ -16,6 +16,9 @@ impl<H: Clone + PartialEq, I: Clone + Debug> IComplex<Naive> for Container<H, I>
     fn ptr_eq(&self, other: &Self) -> bool {
         self.header == other.header && Rc::ptr_eq(&self.items, &other.items)
     }
+    fn address(&self) -> usize {
+        Rc::as_ptr(&self.items).cast::<()>() as usize
+    }
 }
 
 impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<Naive> for Container<H, I> {

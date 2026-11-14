@@ -51,6 +51,7 @@
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { charCodeAt, slice } from '../intrinsic/module.f.js'
+import { refMap } from '../ref_map/module.f.js'
 import { map as arrayMap } from '../members/array/map/module.f.js'
 import { concat as arrayConcat } from '../members/array/concat/module.f.js'
 import { concat as stringConcat } from '../members/string/concat/module.f.js'
@@ -369,7 +370,7 @@ export const statics = {
     'Math.min': Math.min,
 }
 
-/** The runtime: table lookup and the `in` and `Boolean` operator bodies. */
+/** The runtime: table lookup, the `in` and `Boolean` operator bodies, and the reference map. */
 export const runtime = {
     /**
      * `Boolean(value)`, defined by logical negation twice. It reads no
@@ -443,4 +444,10 @@ export const runtime = {
         if (self === null || typeof self !== 'object' && typeof self !== 'function') { throw 'in: not an object' }
         return hasEntry(self, key) || key === 'length' && (self instanceof Array || typeof self === 'function')
     },
+    /**
+     * A new empty reference map, [`../ref_map`](../ref_map/module.f.js):
+     * what an executor with no map of its own answers the EDAG's
+     * `['refMap']` with, calling this wherever the node is established.
+     */
+    refMap,
 }

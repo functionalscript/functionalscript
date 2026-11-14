@@ -127,6 +127,7 @@ pub mod parameters;
 pub mod parity;
 pub mod property;
 pub mod recursion;
+pub mod reference_map;
 pub mod rest;
 pub mod rest_function;
 pub mod sharing;

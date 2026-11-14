@@ -120,6 +120,7 @@ pub mod owning_self_tail_calls;
 pub mod parameters;
 pub mod property;
 pub mod recursion;
+pub mod reference_map;
 pub mod rest;
 pub mod sharing;
 pub mod special_numbers;
@@ -259,6 +260,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "parameters", fixture: crate::fixtures::parameters::module::<Naive>, expected: parameters::module::<Naive>, json: parameters::JSON, throws: parameters::THROWS },
     crate::Case { name: "property", fixture: crate::fixtures::property::module::<Naive>, expected: property::module::<Naive>, json: property::JSON, throws: property::THROWS },
     crate::Case { name: "recursion", fixture: crate::fixtures::recursion::module::<Naive>, expected: recursion::module::<Naive>, json: recursion::JSON, throws: recursion::THROWS },
+    crate::Case { name: "reference_map", fixture: crate::fixtures::reference_map::module::<Naive>, expected: reference_map::module::<Naive>, json: reference_map::JSON, throws: reference_map::THROWS },
     crate::Case { name: "rest", fixture: crate::fixtures::rest::module::<Naive>, expected: rest::module::<Naive>, json: rest::JSON, throws: rest::THROWS },
     crate::Case { name: "sharing", fixture: crate::fixtures::sharing::module::<Naive>, expected: sharing::module::<Naive>, json: sharing::JSON, throws: sharing::THROWS },
     crate::Case { name: "special_numbers", fixture: crate::fixtures::special_numbers::module::<Naive>, expected: special_numbers::module::<Naive>, json: special_numbers::JSON, throws: special_numbers::THROWS },

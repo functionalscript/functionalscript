@@ -783,9 +783,9 @@ export const noStatic = name => `no binding for the static ${name}`
 
 /**
  * The failure of an executor asked for the empty reference map,
- * `['refMap']`, before it can hold one: the node is in the vocabulary, and
- * an executor without the map fails naming it, never answering a function
- * that is not one.
+ * `['refMap']`, with no map to answer: an interpreter with no runtime to
+ * take the runtime's from. It fails naming the map, never answering a
+ * function that is not one.
  */
 export const noRefMap = /** @type {const} */ ('no reference map in this executor')
 
@@ -911,11 +911,14 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * ([spec: why two helpers](../../spec/property-access/entries/README.md#why-two-helpers)).
  *
  * `refMap` is the empty reference map
- * ([proposal](../../spec/todo/reference-map.md)), as a value: a function of
+ * ([reference map](../../spec/built-ins/reference-map/README.md)), as a value: a function of
  * `length` `2`, fresh where it is established as `entry` is, whose call
  * `['()', ['refMap'], [key, value]]` reads a reference key or answers a new
- * map with the key set. The node is vocabulary only so far: no source
- * reaches it, and every executor refuses it ({@link noRefMap}).
+ * map with the key set. An interpreter answers it with a new map of the
+ * runtime's, `runtime.refMap()`, an ordinary function
+ * ([`../js/ref_map`](../js/ref_map/module.f.js)), and with no runtime
+ * refuses it ({@link noRefMap}); the Rust output writes NaNVM's own map,
+ * `ref_map`, which needs no runtime.
  *
  * The intrinsics, {@link intrinsicId}, are the helpers calling a member
  * function no body defines, `['slice']`.

@@ -1,6 +1,6 @@
 /**
  * The empty reference map
- * ([proposal](../../../spec/todo/reference-map.md)): the language's one
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): the language's one
  * way to find a reference faster than a scan with `===`. A map is a
  * function. `m(key)` answers `[current, m]`, the value last set for `key`
  * in `m` or `undefined`, and the same map; `m(key, value)` answers

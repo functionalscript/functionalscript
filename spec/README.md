@@ -76,7 +76,8 @@ output; the others say under *Examples* that theirs are still to come
 - [Control flow](./control-flow/README.md): [guards](./control-flow/guards/README.md),
   [loops](./control-flow/loops/README.md), [switch](./control-flow/switch/README.md)
 - [Built-ins](./built-ins/README.md): [member functions](./built-ins/member-functions/README.md),
-  [static functions](./built-ins/static-functions/README.md)
+  [static functions](./built-ins/static-functions/README.md),
+  [reference map](./built-ins/reference-map/README.md)
 - [Undecided constructs](./undecided/README.md): the valid JavaScript
   refused today while its decision is still owed
 - [Command line](./command-line/README.md): [checking](./command-line/checking.md),
@@ -94,7 +95,7 @@ output; the others say under *Examples* that theirs are still to come
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)`, `String(...)` and `Boolean(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, `let` variables and assignments, terminating `if` guards, `while` loops over one variable, the terminating `switch`, `return`, `throw`, ordinary and method calls |
-| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions/README.md)); `Object.is`, `Object.entries`, `Object.fromEntries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions/README.md)) |
+| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions/README.md)); `Object.is`, `Object.entries`, `Object.fromEntries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions/README.md)); the reference map, `empty`, which finds a reference in `O(log n)` ([reference map](./built-ins/reference-map/README.md)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for
