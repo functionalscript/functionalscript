@@ -183,13 +183,14 @@ const update = (s, chunk) => {
     const bits = length(chunk)
     let magic = s.magic
     let utf8 = s.utf8
-    if (!isSettled(magic, utf8)) {
-        for (let item = next(u8ListMsb(chunk)); item !== null; item = next(item.tail)) {
-            const { first: byte } = item
-            magic = magicStep(magic, byte)
-            utf8 = utf8Step(utf8, byte)
-            if (isSettled(magic, utf8)) { break }
-        }
+    if (isSettled(magic, utf8)) {
+        return { length: s.length + bits, magic, utf8 }
+    }
+    for (let item = next(u8ListMsb(chunk)); item !== null; item = next(item.tail)) {
+        const { first: byte } = item
+        magic = magicStep(magic, byte)
+        utf8 = utf8Step(utf8, byte)
+        if (isSettled(magic, utf8)) { break }
     }
     return { length: s.length + bits, magic, utf8 }
 }

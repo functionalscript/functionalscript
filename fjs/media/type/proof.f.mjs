@@ -11,7 +11,7 @@ import { runPure } from '../../effects/module.f.js'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.js'
 import { pureError } from '../../effects/module.f.js'
 import { ioError } from '../../effects/node/module.f.js'
-import { detect, detectPath, detectStream, detectVec, detector } from './module.f.mjs'
+import { detect, detectPath, detectStream, detectVec, detector } from './module.f.js'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.

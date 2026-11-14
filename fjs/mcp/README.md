@@ -145,7 +145,7 @@ below).
 ### Metadata is size-independent (the default `content: false`)
 
 The metadata-only call **never buffers the blob**. It folds the CAS read stream
-through [`fjs/media/type`](../media/type/module.f.mjs) `detectStream` — a byte-accepting
+through [`fjs/media/type`](../media/type/module.f.js) `detectStream` — a byte-accepting
 state machine (running byte count × magic-byte signature eliminator × UTF-8
 validity DFA) that derives `{ length, mimeType, type }` in O(1) space. The
 detector stops decoding once the verdict is fixed — a magic match settles it
@@ -164,7 +164,7 @@ valid UTF-8 until a trailing invalid byte is correctly classified as `base64`
 ### Content encoding (when `content: true`)
 
 Only the `content: true` path materializes the bytes (bounded by `maxLength`). It
-classifies them with the **same** detector — [`fjs/media/type`](../media/type/module.f.mjs)
+classifies them with the **same** detector — [`fjs/media/type`](../media/type/module.f.js)
 `detectVec`, the single-`Vec` form of the `detectStream` machine above — so the
 three-way verdict is computed in exactly one place, never re-derived from a
 parallel `detect` + UTF-8 check. The `type` then selects whether the inline

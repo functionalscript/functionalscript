@@ -168,7 +168,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   in, and this is that.
 
   The one-site cleanup this bullet also proposed is still worth doing and is
-  now the task below: `fjs/media/type/module.f.mjs` imports `IoResult` only to
+  now the task below: `fjs/media/type/module.f.js` imports `IoResult` only to
   spell two signatures, and `Result<Vec, unknown>` from `fjs/types/result` says
   the same thing without reaching into the effects package at all.
   The since-merged `fold-stream-combinator` issue reached that conclusion
@@ -410,7 +410,7 @@ the kind of smuggled break this section exists to avoid.
   the `fold-stream-combinator` issue; it needs no change from this one.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
   future Playwright adapter and browser-side test report.
-- `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.js:13`,
+- `fjs/media/type/module.f.js:45`, `fjs/text/sgr/module.f.js:13`,
   `fjs/emergent_testing/module.f.mjs:16-29` — importers that reach into the Node
   module for non-Node things.
 - [group-fjs-subdirectories-by-concern](../../todo/group-fjs-subdirectories-by-concern.md)

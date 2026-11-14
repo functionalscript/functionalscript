@@ -286,7 +286,7 @@ Each is the session's proposal; none is built on until the owner answers.
 
 - **D1. Bytes as a list, not a `Vec`.** `serialize` and `parse` work on
   `List<number>` bytes, as `fjs/git` does, with `Vec` adapters (`serializeVec`,
-  `parseVec`) at the 128 KiB boundary. [`detect`](../type/module.f.mjs) takes
+  `parseVec`) at the 128 KiB boundary. [`detect`](../type/module.f.js) takes
   a `Vec`, and detection of a size-bounded blob is the first consumer. The
   alternative is `Vec` only, which refuses a value that serializes to more than
   128 KiB; a list loses nothing and a `Vec` caps the model.
