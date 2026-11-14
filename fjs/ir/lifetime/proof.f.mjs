@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Proofs of the lifetime pass: plain IR, the owned stage that the pass
  * writes for it, as text, which the checker takes, and a refusal for each
  * value of a linear type that the pass would have to copy or drop.
@@ -11,7 +11,7 @@ import { check } from '../check/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, next, only, own, return_, sealed,
-    signature, trap, true_, trunc_sat, u, unit, variant,
+    signature, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
 import { lifetime } from './module.f.js'
