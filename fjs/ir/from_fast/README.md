@@ -139,8 +139,9 @@ values where it is called; it gives one copy of the body for each call.
 Each argument is lowered where it stands, after the locals of the
 arguments before it are bound, so the locals that it binds itself are
 named past them: in `mid(a + 1, sq(b + 1))`, `a + 1` is `#0`, and the
-locals of `sq(b + 1)` start at `#1`. The arguments of `unit`, of `same`
-and of a native row are lowered so too.
+locals of `sq(b + 1)` start at `#1`. The arguments of the view's
+functions of more than one argument, `unit`, `same`, `concat`,
+`substring` and `item`, and of a native row are lowered so too.
 
 The normalization puts a definition that only one function reads in a
 block around that function: a `const` that only a loop reads, or an import
@@ -198,7 +199,7 @@ the [L0 view](../../wasm/runtime/l0/module.f.js) and
 lowering resolves no path, and the module then imports
 [the interfaces of L0](../l0/module.f.js) and
 [of the rows](../native/module.f.js). Every function of the view that it
-reads takes a value of `any` first.
+reads takes a value of `any` first, but `fromUnit`, which takes a unit.
 
 | The L0 view | The IR |
 | --- | --- |
@@ -208,15 +209,26 @@ reads takes a value of `any` first.
 | `length(v)` | `float` of a `match` of `v`: an arm for each module of L0 that has a `length`, and a trap for the kinds that none takes; a call where one module takes every kind that `v` holds, `String.length(v.string)` |
 | `unit(s, i)` | `float` of a `cast` of `s` to `string`, whose arm reads the integer of `u(31)` that `i` holds, with `exact`, and calls `String.unit`; it traps (`'inexact'`) where `i` holds none |
 | `same(a, b)` | a `cast` of each to `array`, `object` and `function`, named `a.same`, around `Any.same(a.same, b.same)` |
+| `fromUnit(c)` | `String.from_unit` of the integer of `u(16)` that the float `c` holds, with `exact`, named `c.unit`; it traps (`'inexact'`) where `c` holds none |
+| `concat(a, b)` | a `cast` of each to `string`, named `a.string`, around `String.concat(a.string, b.string)` |
+| `substring(s, start, end)` | a `cast` of `s` to `string`, whose arm reads the integers of `u(31)` that `end` and then `start` hold, as the view does, named `s.end` and `s.start`, and calls `String.substring` |
+| `item(v, i)` | a `cast` of `v` to `array` and `object`, named `v.item`, whose arm reads the integer of `u(31)` that `i` holds, named `v.index`, and calls `Containers.item`; `v` itself where it holds no other kind |
+
+`fromUnit`, `concat` and `substring` answer a string and `item` a value of
+any kind, which the caller owns: L0 makes them, or counts them once more
+([l0-design.md §10](../../../doc/sasha-gil/wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
+The lowering writes the plain stage, which neither copies nor drops one,
+and the [lifetime pass](../lifetime/module.f.js) writes the owned stage,
+which drops each where its scope ends.
 
 JavaScript reads a tag and a length as numbers, so each is a float, and
 the operators on them are a float's: L1's `kind(v) === NUMBER` is
 `eq(float(Any.kind(v)), 3.0)`. An arm names the operand at its kinds after
 the operand and the kind, `v.number`, or after the module of L0, as
 `length`'s arms do: `v.string`. Where the operand is no local, the
-function's name stands for it. JavaScript reads both arguments of `unit`
-before it casts the string, so each that does something is bound to a
-local first, in their order.
+function's name stands for it. JavaScript reads every argument of `unit`,
+`substring` and `item` before the view casts any, so each that does
+something is bound to a local first, in their order.
 
 A cast narrows the rest of its block, as
 [definition.md's rule 4](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
@@ -231,8 +243,10 @@ narrows nothing, since that would move the cast's trap before it.
 A cast of a value that never holds its kind would always trap, so it is
 refused with the kinds that the value holds: `asNumber` of a local that
 `asString` has narrowed is `asNumber of any.only(string): asNumber takes a
-number`. So are `unit` of a value that is never a string, and `length` of
-one whose kinds have none.
+number`. So are `unit` and `substring` of a value that is never a string,
+`item` of one that is never an array or an object, and `length` of one
+whose kinds have none. A unit or an index that is no float is refused
+too.
 
 ## L1's native rows
 
@@ -266,7 +280,7 @@ something, it is bound to a local first, so that it is still done before
 Everything else, with the function's name and the reason
 ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
 an import other than the runtime's, among them a JSON module, a function of
-the view other than these seven, a cast of a value that never holds its
+the view other than these eleven, a cast of a value that never holds its
 kind, a native row other than `bigintEquals` and
 `numberRemainder`, a module constant that a lowered function reads, an
 exported function that the table does not name, which a lowered function
@@ -309,7 +323,12 @@ that leaves its function.
   surrogate pair among them, and of other values, `strictEquals` on pairs
   of values of every kind, the same value and equal ones among them, and
   `stringIndex` on spellings of indices and on values of other kinds. The
-  IR it makes of each is written out there.
+  IR it makes of each is written out there. It lowers
+  [`strings.f.js`](./strings.f.js) too, six functions that make strings
+  and read items, a loop that owns its string among them, writes their
+  owned stage with the lifetime pass, which is written out there, and runs
+  them against the functions themselves, with every cell of the host as it
+  found it after each call that answers.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript. Prefer
   `node --test` for it.

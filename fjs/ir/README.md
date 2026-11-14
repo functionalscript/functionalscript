@@ -156,6 +156,15 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   keeps its own count, and reads a value of `any` that a function answers,
   compares it with the twin's and drops it, before it counts the cells. A
   host proof may run a function that owns a parameter or answers a string.
+- **L0's functions that answer owned values, lowered**: String's
+  `substring(s, start, end)` and Containers' `item(c, i)` join
+  [the interfaces of L0](./l0/module.f.js) and both hosts, and the
+  [lowering](./from_fast/README.md#the-l0-view) reads the view's
+  `fromUnit`, `concat`, `substring` and `item`, whose values the caller
+  owns: it writes the plain stage, and the pass drops each where its scope
+  ends. Six FunctionalScript helpers that make strings, among them a loop
+  that owns its string, run through the pass against JavaScript with
+  nothing left over, and so do the random comparison's programs.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module

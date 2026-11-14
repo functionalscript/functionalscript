@@ -1,9 +1,11 @@
 /**
  * A seeded random comparison of the lowering: it writes FunctionalScript in
  * the part of the language the slices lower, takes each program through
- * FAST, the lowering, the checker and the emitter, and runs the WASM on the
- * host's engine against the same body as JavaScript. Programs the slices
- * refuse are counted and not run. The [proof](./proof.mjs) drives it.
+ * FAST, the lowering, the [lifetime pass](../../lifetime/module.f.js), the
+ * checker and the emitter, and runs the WASM on the host's engine against
+ * the same body as JavaScript, with every cell of the host as it found it
+ * after each call that answers. Programs the slices refuse are counted and
+ * not run. The [proof](./proof.mjs) drives it.
  *
  * @module
  *
@@ -16,12 +18,12 @@
 import { assert } from '../../../asserts/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asBoolean, asNumber, kind, length, unit,
+    asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit,
 } from '../../../wasm/runtime/l0/module.f.js'
 import { numberRemainder } from '../../../wasm/runtime/l1/native/module.f.js'
-import { check } from '../../check/module.f.js'
 import { any } from '../../l0/module.f.js'
-import { bool, f64, i, signature, u } from '../../module.f.js'
+import { lifetime } from '../../lifetime/module.f.js'
+import { bool, f64, i, only, signature, u } from '../../module.f.js'
 import { edges, held, run } from '../../wasm/testlib.mjs'
 import { lower } from '../module.f.js'
 import { runtime, sourceOf } from '../testlib.f.mjs'
@@ -50,8 +52,14 @@ const pick = (rnd, xs) => {
 /** @type {(rnd: _Rnd, n: number) => number} */
 const below = (rnd, n) => Math.floor(rnd() * n)
 
+/** A float that a twin gets. @type {(v: _Value) => number} */
+const float64 = v => {
+    assert(typeof v === 'number', v)
+    return v
+}
+
 /** The import line that marks the L0 view for the lowering. `%` needs no import: the runtime adds Native. */
-const l0Import = "import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, asBoolean, asNumber, asString, kind, length, unit } from '../l0/module.f.js'\n"
+const l0Import = "import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit } from '../l0/module.f.js'\n"
 
 /** @type {readonly (readonly [string, Type])[]} */
 const floatParams = [['a', f64], ['b', f64]]
@@ -328,8 +336,23 @@ const anySamples = [
     () => 0,
 ]
 
+/** A string of the L0 view, which a program makes and its caller owns. */
+const string = only(any, 'string')
+
+/** Strings of each length up to three, and values of other kinds, which a cast to a string refuses. */
+const stringSamples = ['', 'a', 'ab', 'abc', 1, null, ['a']]
+
+/** Arrays of each length up to three, of strings and of an array, and values of other kinds. */
+const itemSamples = [[], ['x'], ['x', ['y']], [1, 2, 3], { a: 'x' }, 'ab', 1, null]
+
+/** Numbers that an index or a unit may be: integers, and ones that are none or past a range. */
+const indexSamples = [0, 1, 2, 3, -1, 0.5, 0x61, 0xffff, 0x1_0000, NaN]
+
 /**
- * One program over values of unknown kind, through the L0 view.
+ * One program over values of unknown kind, through the L0 view, and since
+ * slice 6b its functions that answer a value that the caller owns:
+ * `concat`, `fromUnit`, `substring` and `item`, whose values the lifetime
+ * pass drops.
  *
  * @type {(rnd: _Rnd) => {
  *   readonly text: string,
@@ -340,8 +363,75 @@ const anySamples = [
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 5)
+    const form = below(rnd, 9)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
+    /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
+    const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 5) {
+        // a string that the program makes and only lends: the pass drops it after `length`
+        return {
+            text: `${l0Import}export const f = (v, c) => kind(v) === STRING ? length(concat(v, fromUnit(c))) : -1\n`,
+            signatures: { f: signature([['v', any], ['c', f64]], f64) },
+            inputs: { f: pairs(stringSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return kind(v) === STRING ? length(concat(v, fromUnit(float64(xs[1])))) : -1
+            },
+            runtime,
+        }
+    }
+    if (form === 6) {
+        // a string that each arm makes, which the caller owns
+        return {
+            text: `${l0Import}export const f = (v, i) => kind(v) === STRING ? substring(v, i, length(v)) : fromUnit(0x2d)\n`,
+            signatures: { f: signature([['v', any], ['i', f64]], string) },
+            inputs: { f: pairs(stringSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return { any: kind(v) === STRING ? substring(v, float64(xs[1]), length(v)) : fromUnit(0x2d) }
+            },
+            runtime,
+        }
+    }
+    if (form === 7) {
+        // an item, which the caller owns, or the borrowed value, which the pass copies
+        return {
+            text: `${l0Import}export const f = (v, i) => kind(v) === ARRAY ? item(v, i) : v\n`,
+            signatures: { f: signature([['v', any], ['i', f64]], any) },
+            inputs: { f: pairs(itemSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return { any: kind(v) === ARRAY ? item(v, float64(xs[1])) : v }
+            },
+            runtime,
+        }
+    }
+    if (form === 8) {
+        // a loop that owns its string, one unit longer each round, whose condition reads it
+        const body = [
+            '{',
+            '    let s = asString(v)',
+            '    while (length(s) < n) {',
+            '        s = concat(s, fromUnit(0x2e))',
+            '    }',
+            '    return s',
+            '}',
+        ].join('\n')
+        return {
+            text: `${l0Import}export const f = (v, n) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['n', f64]], string) },
+            inputs: { f: Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, stringSamples) }, pick(rnd, [0, 1, 2, 3, 2.5, 5, -1, NaN])])) },
+            twin: xs => {
+                let s = asString(held(xs[0]))
+                const n = float64(xs[1])
+                while (length(s) < n) {
+                    s = concat(s, fromUnit(0x2e))
+                }
+                return { any: s }
+            },
+            runtime,
+        }
+    }
     if (form === 0) {
         const body = 'kind(v) !== UNDEFINED && kind(v) !== NULL && asBoolean(v)'
         return {
@@ -413,8 +503,7 @@ export const anyProgram = rnd => {
         },
         twin: xs => {
             const v = held(xs[0])
-            const i = /** @type {number} */ (xs[1])
-            return kind(v) === STRING ? unit(v, i) : -1
+            return kind(v) === STRING ? unit(v, float64(xs[1])) : -1
         },
         runtime,
     }
@@ -445,11 +534,11 @@ const expectedRefusal = (reason, result) => {
 }
 
 /**
- * Lower, check, emit and run one program against its twin. A known refusal
- * from the checker (an integer range past the signature) is an outcome, not
- * a failure: the generators still write such bodies. Any other refusal is
- * reported as wrong, so a regression that refuses a supported category
- * fails the proof.
+ * Lower one program, write its owned stage, check, emit and run it against
+ * its twin. A known refusal from the checker (an integer range past the
+ * signature) is an outcome, not a failure: the generators still write such
+ * bodies. Any other refusal is reported as wrong, so a regression that
+ * refuses a supported category fails the proof.
  *
  * @type {(program: ReturnType<typeof typedProgram>) => _Outcome}
  */
@@ -463,15 +552,14 @@ export const compareOne = program => {
     if (ir[0] === 'error') {
         return accept(ir[1]) ? ['refused', ir[1]] : ['wrong', `refused: ${ir[1]}`]
     }
-    // Refuse here if the checker does; `run` checks again on the plain IR, as
-    // the other host proofs pass it, and a module that `check` already typed
-    // is not what `run` emits.
-    const checked = check(ir[1])
-    if (checked[0] === 'error') {
-        return accept(checked[1]) ? ['refused', checked[1]] : ['wrong', `refused: ${checked[1]}`]
+    // The lifetime pass types the plain stage first, so it refuses what the
+    // checker refuses; `run` then checks the owned stage that it wrote.
+    const owned = lifetime(ir[1])
+    if (owned[0] === 'error') {
+        return accept(owned[1]) ? ['refused', owned[1]] : ['wrong', `refused: ${owned[1]}`]
     }
     try {
-        run(ir[1], { f: program.twin }, program.inputs)
+        run(owned[1], { f: program.twin }, program.inputs)
     } catch (e) {
         return ['wrong', e instanceof Error ? e.message : String(e)]
     }

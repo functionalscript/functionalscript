@@ -32,10 +32,14 @@
  *   kinds, an arm for each module of L0 that has a `length`, and a trap for
  *   the kinds that none takes, or a call where one module takes them all.
  *   `unit(s, i)` reads the integer that the float `i` holds exactly, and
- *   traps where it holds none. `same` and each native row cast each
- *   argument to the kinds that they take. `%` of two floats is the row
- *   `numberRemainder`. Any other import is refused, and so is a cast of a
- *   value that never holds its kind, which would always trap.
+ *   traps where it holds none, and so do `fromUnit`, `substring` and
+ *   `item` with their numbers. `same`, `concat` and each native row cast
+ *   each argument to the kinds that they take. `fromUnit`, `concat` and
+ *   `substring` answer a string and `item` a value that the caller owns,
+ *   which the [lifetime pass](../lifetime/module.f.js) drops: the lowering
+ *   writes the plain stage. `%` of two floats is the row `numberRemainder`.
+ *   Any other import is refused, and so is a cast of a value that never
+ *   holds its kind, which would always trap.
  * - **An object literal is a record**, a product of its keys in their
  *   order, and `r.k` its field. A record stays in its function: the checker
  *   refuses one in a signature.
@@ -502,8 +506,11 @@ const lengthOf = (x, held, base) => {
     return float(match(x, arms.filter(([vs]) => vs.length > 0)))
 }
 
-/** The functions of the L0 view that the lowering reads, beside its tags. */
-const viewFunctions = ['kind', 'asBoolean', 'asNumber', 'asString', 'length', 'unit', 'same']
+/** The functions of the L0 view that the lowering reads, beside its tags, each with how many arguments it takes. @type {readonly (readonly [string, number])[]} */
+const viewFunctions = [
+    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['length', 1], ['unit', 2], ['same', 2],
+    ['fromUnit', 1], ['concat', 2], ['substring', 3], ['item', 2],
+]
 
 /** The parameters of a function of an interface of L0. @type {(module: string, name: string) => readonly Param[]} */
 const paramsOf = (module, name) => {
@@ -544,12 +551,27 @@ const castCall = (lowerValue, scope, module, name, params, vs) => settled(lowerV
 })
 
 /**
+ * `fromUnit(c)`: the string of the UTF-16 unit that the float `c` holds
+ * exactly, which traps (`'inexact'`) where it holds none. JavaScript reads
+ * a unit as a number.
+ *
+ * @type {(scope: _Scope, c: Term) => Result<Term, string>}
+ */
+const fromUnitTerm = (scope, c) => {
+    const t = typeOf(scope.ir)(c)
+    if (t[0] === 'error') { return t }
+    return !isFloat(t[1]) ? refuse(scope)(`fromUnit of ${show(t[1])} is not in this slice`)
+        : ok(exact(u(16), c, `${c[0] === 'get' ? c[1] : 'fromUnit'}.unit`, k => call('String', 'from_unit', [k])))
+}
+
+/**
  * A function of the L0 view of terms, the first a value of `any`: `kind`, a
- * cast, `length`, or `unit`. A cast of a value that holds no other kind is
- * the value, and one of a value that never holds the kind is refused, since
- * it would always trap. A name for the operand of an arm that the call
- * makes is the operand's, or the function's, and the kinds there:
- * `v.number`.
+ * cast, `length`, `unit`, `substring` or `item`. A cast of a value that
+ * holds no other kind is the value, and one of a value that never holds the
+ * kind is refused, since it would always trap. A name for the operand of an
+ * arm that the call makes is the operand's, or the function's, and the
+ * kinds there: `v.number`. An index is a float that must hold an integer
+ * exactly, named for the operand and its role: `s.index`, `s.start`.
  *
  * @type {(scope: _Scope, name: string, args: readonly Term[]) => Result<Term, string>}
  */
@@ -557,11 +579,11 @@ const viewTerm = (scope, name, args) => {
     const no = refuse(scope)
     const types = okList(args.map(x => typeOf(scope.ir)(x)))
     if (types[0] === 'error') { return types }
-    const [x, i] = args
-    const [type, at] = types[1]
+    const [x, i, j] = args
+    const [type, at, to] = types[1]
     if (type[0] !== 'sealed') { return no(`${name} of ${show(type)} is not in this slice`) }
     const held = type[3] ?? kinds
-    const takes = name === 'unit' ? 'string' : casts.find(([k]) => k === name)?.[1]
+    const takes = name === 'unit' || name === 'substring' ? 'string' : casts.find(([k]) => k === name)?.[1]
     if (takes !== undefined && !held.includes(takes)) { return no(`${name} of ${show(type)}: ${name} takes a ${takes}`) }
     const base = x[0] === 'get' ? x[1] : name
     /** `x` at `kind` in `body`: itself where it holds no other kind, else a cast. @type {(kind: string, body: (y: Term) => Term) => Term} */
@@ -575,6 +597,19 @@ const viewTerm = (scope, name, args) => {
             return lengths.some(([, , ks]) => ks.some(k => held.includes(k))) ? ok(lengthOf(x, held, base))
                 : no(`length of ${show(type)}: none of its kinds has a length`)
         }
+        case 'substring': {
+            if (!isFloat(at) || !isFloat(to)) { return no(`substring from ${show(at)} to ${show(to)} is not in this slice`) }
+            // JavaScript reads the string, then the end, then the start
+            return ok(as('string', y => exact(u(31), j, `${base}.end`, e => exact(u(31), i, `${base}.start`, b => call('String', 'substring', [y, b, e])))))
+        }
+        case 'item': {
+            const ks = held.filter(k => k === 'array' || k === 'object')
+            if (ks.length === 0) { return no(`item of ${show(type)}: item takes an array or an object`) }
+            if (!isFloat(at)) { return no(`item at ${show(at)} is not in this slice`) }
+            /** @type {(y: Term) => Term} */
+            const read = y => exact(u(31), i, `${base}.index`, k => call('Containers', 'item', [y, k]))
+            return ok(ks.length === held.length ? read(x) : cast(only(any, ...ks), x, `${base}.${ks.length === 1 ? ks[0] : 'item'}`, read))
+        }
         default: {
             // JavaScript reads an index and a unit as numbers: the index must hold an integer exactly.
             if (!isFloat(at)) { return no(`unit at ${show(at)} is not in this slice`) }
@@ -585,23 +620,25 @@ const viewTerm = (scope, name, args) => {
 }
 
 /**
- * A call of a function of the L0 view: `same`, whose arguments are cast to
- * the kinds that it takes, `unit`, or a function of one value. JavaScript
- * reads both arguments of `unit` before it casts the string, so each that
- * does something is bound to a local first, in their order, and the only
- * term in an arm is then a local or a literal.
+ * A call of a function of the L0 view: `same` and `concat`, whose arguments
+ * are cast to the kinds that they take, `unit`, `substring` and `item`, or
+ * a function of one value. JavaScript reads every argument before the view
+ * casts any, so each that does something is bound to a local first, in
+ * their order, and the only term in an arm is then a local or a literal.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, name: string, vs: readonly Value[]) => Result<Term, string>}
  */
 const viewCall = (lowerValue, scope, name, vs) => {
     const no = refuse(scope)
-    if (!viewFunctions.includes(name)) { return no(`${name} of L0 is not in this slice`) }
-    const arity = name === 'unit' || name === 'same' ? 2 : 1
+    const f = viewFunctions.find(([k]) => k === name)
+    if (f === undefined) { return no(`${name} of L0 is not in this slice`) }
+    const [, arity] = f
     if (vs.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${vs.length}`) }
     if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
-    if (name === 'unit') { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
+    if (name === 'concat') { return castCall(lowerValue, scope, 'String', 'concat', paramsOf('String', 'concat'), vs) }
+    if (arity > 1) { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
     const xs = values(lowerValue, scope, vs)
-    return xs[0] === 'error' ? xs : viewTerm(scope, name, xs[1])
+    return xs[0] === 'error' ? xs : name === 'fromUnit' ? fromUnitTerm(scope, xs[1][0]) : viewTerm(scope, name, xs[1])
 }
 
 // L1's native rows
