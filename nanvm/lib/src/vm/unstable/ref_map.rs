@@ -18,9 +18,11 @@ fn address<A: IVm>(key: &Any<A>) -> Option<usize> {
     })
 }
 
-/// The path of a key: its address with its bits spread, since allocations
-/// are aligned and their low bits agree. Multiplying by an odd number loses
-/// nothing, so two addresses never share a whole path.
+/// The path of a key: its address multiplied by an odd number, read from
+/// the high bit down. Allocations are aligned, so the low bits of addresses
+/// agree, and the low bits of the product agree with them; the high bits
+/// take in every bit of the address, so paths part early. The
+/// multiplication loses nothing, so two addresses never share a whole path.
 fn path(address: usize) -> u64 {
     (address as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15)
 }
@@ -33,9 +35,10 @@ fn node<A: IVm>(v: &Any<A>) -> Option<Array<A>> {
     })
 }
 
-/// Which child a path takes next: `zero`, at `2`, or `one`, at `3`.
+/// Which child a path takes next, by its high bit: `zero`, at `2`, or
+/// `one`, at `3`.
 fn child(path: u64) -> u32 {
-    if path & 1 == 0 { 2 } else { 3 }
+    if path >> 63 == 0 { 2 } else { 3 }
 }
 
 /// The value `key` has under `root`, or `undefined`.
@@ -46,7 +49,7 @@ fn find<A: IVm>(root: &Any<A>, mut path: u64, key: &Any<A>) -> Any<A> {
             return n[1].clone();
         }
         current = node(&n[child(path)]);
-        path >>= 1;
+        path <<= 1;
     }
     Any::undefined()
 }
@@ -69,8 +72,8 @@ fn set<A: IVm>(root: &Any<A>, path: u64, key: &Any<A>, value: &Any<A>) -> Any<A>
             .to_array()
             .to_any();
     }
-    let next = set(&n[child(path)], path >> 1, key, value);
-    if path & 1 == 0 {
+    let next = set(&n[child(path)], path << 1, key, value);
+    if child(path) == 2 {
         [n[0].clone(), n[1].clone(), next, n[3].clone()]
     } else {
         [n[0].clone(), n[1].clone(), n[2].clone(), next]
@@ -218,7 +221,7 @@ mod test {
     #[test]
     fn many() {
         let keys: Vec<Any<A>> = (0..2_000).map(|_| object()).collect();
-        let mut maps = vec![ref_map::<A>(None)];
+        let mut maps = [ref_map::<A>(None)].to_vec();
         for (i, key) in keys.iter().enumerate() {
             let next = put(&maps[i], key, (i as f64).to_any());
             maps.push(next);
