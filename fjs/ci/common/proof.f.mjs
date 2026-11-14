@@ -3,7 +3,7 @@
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
-import { architecture, install, isUbuntuArm, job, npmGlobalInstall, os, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.mjs'
+import { architecture, install, isUbuntuArm, job, npmGlobalInstall, os, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.js'
 import { assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /** @type {Step} */

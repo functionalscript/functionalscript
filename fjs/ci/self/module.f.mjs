@@ -13,7 +13,7 @@
  */
 
 import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
-import { uses, _workflowsDirectory } from '../common/module.f.mjs'
+import { uses, _workflowsDirectory } from '../common/module.f.js'
 import { step } from '../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { images, jobTimeout } from '../config/module.f.js'

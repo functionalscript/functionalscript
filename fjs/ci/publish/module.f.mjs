@@ -14,7 +14,7 @@
  */
 
 import { typescript } from '../config/module.f.js'
-import { _workflowsDirectory, install, npmGlobalInstall, test, ubuntuArm } from '../common/module.f.mjs'
+import { _workflowsDirectory, install, npmGlobalInstall, test, ubuntuArm } from '../common/module.f.js'
 import { installNode } from '../node/module.f.mjs'
 
 /**

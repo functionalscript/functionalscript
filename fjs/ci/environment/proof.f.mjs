@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { commandPrefix, environmentCommand, environmentSteps, environmentVersionStep } from './module.f.mjs'
+import { commandPrefix, environmentCommand, environmentSteps, environmentVersionStep } from './module.f.js'
 export const proof = {
     commands: () => {
         assertEq(commandPrefix, 'env ')

@@ -4,8 +4,8 @@
 
 import { definedEntries } from '../../types/object/module.f.js'
 import { node, rust as rustVersion } from '../config/module.f.js'
-import { test, uses } from '../common/module.f.mjs'
-import { commandPrefix } from '../environment/module.f.mjs'
+import { test, uses } from '../common/module.f.js'
+import { commandPrefix } from '../environment/module.f.js'
 
 /** Setup reads the checkout's committed baseline lock. */
 export const miseInstall = /** @type {const} */ ({ type: 'test', step: uses('jdx/mise-action', {

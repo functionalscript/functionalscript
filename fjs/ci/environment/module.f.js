@@ -1,7 +1,7 @@
 /** Tool-independent command assembly before manager selection. @module
  * @import { MetaStep } from '../common/types.ts'
  */
-import { test } from '../common/module.f.mjs'
+import { test } from '../common/module.f.js'
 /** Internal argv boundary replaced by the manager adapter. */
 export const commandPrefix = 'env '
 /** @type {(command: string) => string} */

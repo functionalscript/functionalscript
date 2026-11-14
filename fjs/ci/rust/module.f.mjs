@@ -4,8 +4,8 @@
  */
 
 import { wasmer, wasmtime } from '../config/module.f.js'
-import { isUbuntuArm, test } from '../common/module.f.mjs'
-import { environmentVersionStep } from '../environment/module.f.mjs'
+import { isUbuntuArm, test } from '../common/module.f.js'
+import { environmentVersionStep } from '../environment/module.f.js'
 
 /**
  * One `cargo` check, run twice: debug, then `--release`.

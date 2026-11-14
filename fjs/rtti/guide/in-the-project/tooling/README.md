@@ -5,7 +5,7 @@
 The files the repository's tooling reads, and the responses its website reads
 from GitHub, are schemas too:
 
-- the generated CI workflows, in [`ci/common`](../../../../ci/common/module.f.mjs).
+- the generated CI workflows, in [`ci/common`](../../../../ci/common/module.f.js).
   Closed: CI reads its own generated workflows back, so a key the schema does
   not name is generator drift;
 - the site's funding manifest, in

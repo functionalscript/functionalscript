@@ -22,7 +22,7 @@ import {
     os,
     test,
     ubuntuArm
-} from './common/module.f.mjs'
+} from './common/module.f.js'
 import {
     rustPlatformSteps,
     shellRustCommands,
@@ -37,10 +37,10 @@ import {
     packageJobId,
     platformNodeSteps,
 } from './node/module.f.mjs'
-import { environmentCommand, environmentSteps } from './environment/module.f.mjs'
-import { bunSteps } from './bun/module.f.mjs'
-import { denoSteps } from './deno/module.f.mjs'
-import { spiderMonkeySteps } from './spidermonkey/module.f.mjs'
+import { environmentCommand, environmentSteps } from './environment/module.f.js'
+import { bunSteps } from './bun/module.f.js'
+import { denoSteps } from './deno/module.f.js'
+import { spiderMonkeySteps } from './spidermonkey/module.f.js'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { miseJobs } from './mise/module.f.mjs'
 import { smartJobs } from './smart/module.f.mjs'

@@ -30,7 +30,7 @@ the value types are in [`types.ts`](./types.ts). The reader lives in
 anything further: both issues are retired into this file, which keeps what
 they decided. The codec's proofs come from the conformance corpus,
 [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
-[`vectors/`](./vectors/module.f.mjs) holds the record types the corpus is
+[`vectors/`](./vectors/module.f.js) holds the record types the corpus is
 typed with and `difference`, the sharing-aware comparison a proof over it
 uses.
 

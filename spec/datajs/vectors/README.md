@@ -109,7 +109,7 @@ input no taxonomy and the corpus carries no vectors for one.
 Three records carry bytes instead of code units, as a tagged hex string,
 `["hex", "ef bb bf …"]` — lowercase pairs separated by single spaces, at
 least one pair, which `bytes` in
-[`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+[`fjs/media/datajs/vectors/module.f.js`](../../../fjs/media/datajs/vectors/module.f.js)
 decodes, refusing any other spelling. All three are classed `byte/…`, and a
 consumer that reads the byte form reads all three. Two of them are tests like
 any other. `byte-bom-first` puts a BOM before an otherwise valid document, and
@@ -142,7 +142,7 @@ the corpus. The limitation
 [is stated below](#what-this-corpus-cannot-establish); the empty object shares
 normally. A proof compares the graph an implementation produced with
 `difference` in
-[`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
+[`fjs/media/datajs/vectors/module.f.js`](../../../fjs/media/datajs/vectors/module.f.js):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
 an array by `instanceof Array`, the spelling FunctionalScript uses; an
 object by its members and nothing else, since no implementation written in

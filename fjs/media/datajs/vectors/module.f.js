@@ -43,6 +43,7 @@
 import { decodeLower } from '../../../basen/base16/module.f.js'
 import { stringLiteral } from '../../../js/string_escape/module.f.js'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 const { keys } = Object
 
@@ -123,7 +124,7 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
-        return pushAll(expected.map((e, i) => /** @type {const} */ ([`${path}[${i}]`, e, actual[i]])), stack)
+        return pushAll(expected.map((e, i) => /** @type {const} */ ([`${path}[${i}]`, e, actual[Number(i)]])), stack)
     }
     if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
     const expectedKeys = keys(expected)
@@ -134,11 +135,11 @@ const children = (stack, path, expected, actual) => {
     // the keys first, in document order, so that the first difference is the
     // first member that is out of place; then the members, last pushed first
     for (let i = 0; i < expectedKeys.length; i += 1) {
-        if (expectedKeys[i] !== actualKeys[i]) {
-            return at(path, `expected member ${i} to be ${stringLiteral(expectedKeys[i])}, got ${stringLiteral(actualKeys[i])}`)
+        if (expectedKeys[Number(i)] !== actualKeys[Number(i)]) {
+            return at(path, `expected member ${i} to be ${stringLiteral(expectedKeys[Number(i)])}, got ${stringLiteral(actualKeys[Number(i)])}`)
         }
     }
-    return pushAll(expectedKeys.map(key => /** @type {const} */ ([`${path}[${stringLiteral(key)}]`, expected[key], actual[key]])), stack)
+    return pushAll(expectedKeys.map(key => /** @type {const} */ ([`${path}[${stringLiteral(key)}]`, entry(expected, key), entry(actual, key)])), stack)
 }
 
 /**

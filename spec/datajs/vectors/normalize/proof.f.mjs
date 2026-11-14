@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
-import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
+import { difference } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
 import normalize from './data.f.js'
 

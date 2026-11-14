@@ -1,7 +1,7 @@
-import { spiderMonkeySteps } from './module.f.mjs'
+import { spiderMonkeySteps } from './module.f.js'
 import { spidermonkey } from '../config/module.f.js'
-import { environmentCommand } from '../environment/module.f.mjs'
-import { toSteps } from '../common/module.f.mjs'
+import { environmentCommand } from '../environment/module.f.js'
+import { toSteps } from '../common/module.f.js'
 import { assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {

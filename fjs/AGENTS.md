@@ -1120,7 +1120,7 @@ languages require. TypeScript narrows string literals precisely, so the string
    mapping (and `keyof typeof my` gives you the key type).
 
 Existing examples: `os` / `Os` and `architecture` / `Architecture` in
-`fjs/ci/common/module.f.mjs`, and `actions` in `fjs/ci/config/module.f.js`.
+`fjs/ci/common/module.f.js`, and `actions` in `fjs/ci/config/module.f.js`.
 
 #### Write the call, not the value it computes
 

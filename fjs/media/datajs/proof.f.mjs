@@ -16,7 +16,7 @@ import { concat, occurrences } from '../../types/string/module.f.js'
 import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
 import { _graphOf, demo, examples } from './demo.f.mjs'
 import { _crossings } from '../../website/demo/graph/module.f.mjs'
-import { difference } from './vectors/module.f.mjs'
+import { difference } from './vectors/module.f.js'
 import { htmlToString } from '../html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 

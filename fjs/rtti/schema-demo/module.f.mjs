@@ -53,6 +53,7 @@ import { pureOk } from '../../effects/module.f.js'
 import { pageHref } from '../../website/page/module.f.mjs'
 import { chunksMarked, chunksText, keyword } from '../../text/marked/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { parent } from '../../path/module.f.js'
 
 // ── graph ────────────────────────────────────────────────────────────────────
 
@@ -165,12 +166,12 @@ const answerOf = r => r[0] === 'ok'
 /**
  * A schema the project itself declares, shown as the import of its export
  * from the module that holds it, so what the reader picks is the schema the
- * code runs, not a copy that could drift from it. `module` is the module's
- * directory under `fjs/`.
+ * code runs, not a copy that could drift from it. `modulePath` is the full
+ * module filename relative to `fjs/`, including its actual extension.
  *
- * @type {(name: string, module: string, schema: Type) => readonly [DemoSchema]}
+ * @type {(name: string, modulePath: string, schema: Type) => readonly [DemoSchema]}
  */
-export const projectSchema = (name, module, schema) => [{ source: name, schema, module: `fjs/${module}` }]
+export const projectSchema = (name, modulePath, schema) => [{ source: name, schema, module: `fjs/${modulePath}` }]
 
 /**
  * What `parse` and `validate` make of `text` against `schema`, and the value
@@ -360,7 +361,7 @@ const codeView = s => s.module === undefined
     ? ['pre', { [codeMarker]: '' }, ...highlight(s.source)]
     : ['pre', { [codeMarker]: '' },
         ...highlight(`import { ${s.source} } from `),
-        ['a', { href: pageHref(s.module) }, `'${packageName}/${s.module}/module.f.mjs'`],
+        ['a', { href: pageHref(parent(s.module)) }, `'${packageName}/${s.module}'`],
     ]
 
 /**

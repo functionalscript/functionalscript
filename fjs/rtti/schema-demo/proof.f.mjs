@@ -135,8 +135,16 @@ const demoProof = /** @type {const} */ ({
         // the package writes, its module specifier a link to the module's
         // page.
         projectSource: () => {
-            const html = page('Note')
-            assert(html.includes(`<pre data-code="">${tok('keyword', 'import')} { ${tok('identifier', 'noteSchema')} } ${tok('identifier', 'from')} <a href="/fjs/media/note/index.html">'functionalscript/fjs/media/note/module.f.mjs'</a></pre>`), html)
+            const cases = /** @type {const} */ ([
+                ['Note', 'noteSchema', 'media/note/module.f.mjs', '/fjs/media/note/index.html'],
+                ['GitHub Actions workflow', 'gitHubActionSchema', 'ci/common/module.f.js', '/fjs/ci/common/index.html'],
+                ['JSON-RPC request', 'request', 'protocol/json_rpc/module.f.js', '/fjs/protocol/json_rpc/index.html'],
+            ])
+            for (const [name, exported, modulePath, href] of cases) {
+                assertEq(exampleNamed(name).schemas[0].module, `fjs/${modulePath}`)
+                const html = page(name)
+                assert(html.includes(`<pre data-code="">${tok('keyword', 'import')} { ${tok('identifier', exported)} } ${tok('identifier', 'from')} <a href="${href}">'functionalscript/fjs/${modulePath}'</a></pre>`), html)
+            }
         },
         // A pair shows both schemas, each its code as a choice, and marks the
         // one picked; picking the other moves the mark and nothing else.

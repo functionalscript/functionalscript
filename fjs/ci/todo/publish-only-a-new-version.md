@@ -33,7 +33,7 @@ unpublished. A `concurrency` group does not close it either, because GitHub
 cancels the older pending run of a group when a newer one queues.
 
 It is also the only `continue-on-error` in either generated workflow, which is
-why `fjs/ci/common/module.f.mjs` admits the field as the literal `true` rather
+why `fjs/ci/common/module.f.js` admits the field as the literal `true` rather
 than as a boolean — there is one step it is for.
 
 ### Evidence

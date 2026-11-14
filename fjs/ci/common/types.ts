@@ -7,7 +7,7 @@
 
 import type { Ts } from '../../rtti/ts/types.ts'
 import type { images } from '../config/module.f.js'
-import type { os, architecture, stepSchema, jobSchema, jobsSchema, gitHubActionSchema } from './module.f.mjs'
+import type { os, architecture, stepSchema, jobSchema, jobsSchema, gitHubActionSchema } from './module.f.js'
 
 export type Os = typeof os[number]
 

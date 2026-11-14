@@ -2,7 +2,7 @@
  * @import { MetaStep } from '../common/types.ts'
  */
 import { bun } from '../config/module.f.js'
-import { environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
+import { environmentSteps, environmentVersionStep } from '../environment/module.f.js'
 /** @type {readonly MetaStep[]} */
 export const bunSteps = [
     environmentVersionStep('bun --version', bun),

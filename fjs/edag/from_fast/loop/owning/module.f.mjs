@@ -27,7 +27,7 @@ const result = (value, tail = false, base = false) => ({ value, tail, base })
 const eachTask = (source, task) => {
     /** @type {(index: number, values: readonly U[], tail: boolean, base: boolean) => Task<_Result<readonly U[]>>} */
     const each = (index, values, tail, base) => call(() => index === source.length ? done(result(values, tail, base))
-        : bind(task(source[index]), item => each(index + 1, [...values, item.value], tail || item.tail, base || item.base)))
+        : bind(task(source[Number(index)]), item => each(index + 1, [...values, item.value], tail || item.tail, base || item.base)))
     return each(0, [], false, false)
 }
 
@@ -46,10 +46,10 @@ const valueTask = (value, context) => {
         if (value[0] === 'function') {
             const fn = value[1]
             return bind(eachTask(fn.captures.map(capture => capture.value), capture => valueTask(capture, context)), captures =>
-                done(result(['function', { ...fn, captures: fn.captures.map((capture, i) => ({ ...capture, value: captures.value[i] })) }], captures.tail, captures.base)))
+                done(result(['function', { ...fn, captures: fn.captures.map((capture, i) => ({ ...capture, value: captures.value[Number(i)] })) }], captures.tail, captures.base)))
         }
         return bind(eachTask(operatorOperands(value), operand => valueTask(operand, context)), operands =>
-            done(result(mapOperator((_, index) => operands.value[index])(value), operands.tail, operands.base)))
+            done(result(mapOperator((_, index) => operands.value[Number(index)])(value), operands.tail, operands.base)))
     }
     return call(visit)
 }
@@ -118,7 +118,7 @@ const blockTask = (block, context, returnedYield) => {
             return bind(exitTask(block.exit, local, returnedYield), exit => done(result({ statements: [...statements, ...exit.value.statements], exit: exit.value.exit },
                 tail || exit.tail, base || exit.base)))
         }
-        const statement = block.statements[index]
+        const statement = block.statements[Number(index)]
         // A self alias is an established lexical read with no evaluation work.
         // Collapse its references as well: a now-unused alias must not make an
         // extracted loop helper capture a self slot that its graph never reads.

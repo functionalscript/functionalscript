@@ -17,7 +17,7 @@ export const lessons = [
         id: 'directory-entry',
         name: 'Directory entry',
         about: 'An entry readdir answers, described by a data-validation schema in effects/schema. The corresponding handwritten TypeScript operation declarations are checked against schema-derived types.',
-        schemas: projectSchema('dirent', 'effects/schema', dirent),
+        schemas: projectSchema('dirent', 'effects/schema/module.f.js', dirent),
         value: 'export default {"name":"module.f.mjs","parentPath":"fjs/rtti","isFile":true,"isDirectory":false};',
     },
 ]

@@ -15,7 +15,7 @@ import { exitValues, freeBindings } from '../../../js/ast/control/module.f.mjs'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.mjs'
-import { demandsInOrder } from '../../demand/module.f.mjs'
+import { demandsInOrder } from '../../demand/module.f.js'
 
 /** Exact binding reads name an established test, independently of syntax identity. @type {(a: Value, b: Value) => boolean} */
 const sameTest = (a, b) => a instanceof Array && b instanceof Array && a[0] === 'ref' && b[0] === 'ref' && a[1] === b[1]

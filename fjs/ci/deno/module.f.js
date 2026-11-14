@@ -4,7 +4,7 @@
  */
 
 import { deno } from '../config/module.f.js'
-import { environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
+import { environmentSteps, environmentVersionStep } from '../environment/module.f.js'
 
 /**
  * Deno prints three lines for `--version` — the runtime, V8 and TypeScript — so

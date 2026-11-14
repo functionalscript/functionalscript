@@ -36,7 +36,7 @@ Open questions:
       `package-tarball`, and `package` downloads it after `node` succeeds.
 - [x] Teach the CI generator to express job ordering, so a consuming job cannot
       start before the artifact is uploaded. The closed `jobSchema` in
-      `fjs/ci/common/module.f.mjs` admits optional `needs` as an array of job
+      `fjs/ci/common/module.f.js` admits optional `needs` as an array of job
       names; `parseGitHubAction` reads it back in the workflow proofs.
       The `needs` field landed in
       [#1762](https://github.com/functionalscript/functionalscript/pull/1762)

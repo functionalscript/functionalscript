@@ -74,6 +74,7 @@
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.js'
 import { empty as noVisited, mapEntries, mapGet, mapSet } from '../../types/map/module.f.js'
+import { entry as ownEntry } from '../../types/object/entry/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.js'
 import { sharedNodesOf } from '../sharing/module.f.js'
@@ -91,7 +92,7 @@ const ref = i => ['#', i]
  * @type {(a: unknown, b: unknown) => boolean}
  */
 const same = (a, b) => a instanceof Array
-    ? b instanceof Array && a.length === b.length && a.every((x, i) => same(x, b[i]))
+    ? b instanceof Array && a.length === b.length && a.every((x, i) => same(x, b[Number(i)]))
     : Object.is(a, b)
 
 /**
@@ -151,7 +152,9 @@ const each = f => (state, xs) => {
  *
  * Primitives stand unchanged. Generic over the tag so the handler and node
  * keep their tuple correlation without another dispatch frame.
- * @type {<K extends ExpOp[0]>(scope: _Scope) => (
+ * @template {ExpOp[0]} K
+ * @param {_Scope} scope
+ * @returns {(
  *  state: _State,
  *  e: Primitive | (TagMap[K] & readonly [K, ...readonly unknown[]]),
  * ) => readonly [_State, Operand]}
@@ -160,11 +163,14 @@ const walk = scope => (state, e) => {
     if (!(e instanceof Array)) { return [state, e] }
     const known = mapGet(state.visited, e)
     if (known === undefined) {
-        const [walked, n] = handlers[e[0]](scope)(state, e)
+        // The own key is this node's K; entry's conditional return type loses
+        // that indexed correlation, which the exhaustive handler table keeps.
+        const handler = /** @type {_Handlers[K]} */ (assertNotNullish(ownEntry(handlers, e[0])))
+        const [walked, n] = handler(scope)(state, e)
         const [entries, i] = entry(walked.merges, scope, n)(walked.entries)
         return [{ ...walked, entries, visited: mapSet(walked.visited, e, i) }, ref(i)]
     }
-    const checked = state.entries[known].scope === scope ? state : {
+    const checked = state.entries[Number(known)].scope === scope ? state : {
         ...state, problem: state.problem ?? 'a node shared across a function boundary',
     }
     return [checked, ref(known)]
@@ -471,8 +477,8 @@ const refs = node => operandsOf(node).flatMap(named)
  */
 const places = (root, nodes) => nodes.reduceRight(
     (counts, node, i) => {
-        const weight = mergeable(node) ? counts[i] : 1
-        return refs(node).reduce((c, r) => c.with(r, c[r] + weight), counts)
+        const weight = mergeable(node) ? counts[Number(i)] : 1
+        return refs(node).reduce((c, r) => c.with(r, c[Number(r)] + weight), counts)
     },
     /** @type {readonly number[]} */ (nodes.map((_, i) => root instanceof Array && root[1] === i ? 1 : 0)),
 )
@@ -493,7 +499,7 @@ const sharedByIdentity = (e, visited) => {
 }
 
 /** One operand as an expression, from the expressions of the entries before it. @type {(exps: readonly ExpOp[], operand: Operand) => Exp} */
-const restore = (exps, operand) => operand instanceof Array ? exps[operand[1]] : operand
+const restore = (exps, operand) => operand instanceof Array ? exps[Number(operand[1])] : operand
 
 /** @type {(exps: readonly ExpOp[], items: readonly ItemOperand[]) => ItemsOver<Exp>} */
 const restoreItems = (exps, items) => mapItems(/** @type {(x: Operand) => Exp} */ (x => restore(exps, x)))(items)
@@ -602,11 +608,11 @@ export const identityAnalysis = table(false)
  *
  * @type {(a: Analysis, i: number, kind: Node[0]) => boolean}
  */
-export const scopeHolds = ({ nodes, scope }, i, kind) => nodes.some((n, j) => n[0] === kind && scope[j] === i)
+export const scopeHolds = ({ nodes, scope }, i, kind) => nodes.some((n, j) => n[0] === kind && scope[Number(j)] === i)
 
 /** Whether an entry belongs to a function or a nested body it creates. @type {(scope: readonly number[], root: number, i: number) => boolean} */
 const withinScope = (scope, root, i) => {
-    while (i !== root && i !== -1) { i = scope[i] }
+    while (i !== root && i !== -1) { i = scope[Number(i)] }
     return i === root
 }
 
@@ -626,7 +632,7 @@ const withinScope = (scope, root, i) => {
 const bindingError = ({ nodes, scope }, root = -1) => {
     for (const [i, node] of nodes.entries()) {
         if (root !== -1 && !withinScope(scope, root, i)) { continue }
-        const owner = scope[i] === -1 ? null : nodes[scope[i]]
+        const owner = scope[Number(i)] === -1 ? null : nodes[Number(scope[Number(i)])]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }
         if (node[0] === 'self' && owner === null) { return 'self outside a function' }

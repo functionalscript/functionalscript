@@ -12,7 +12,7 @@ import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { parseGitHubAction } from '../common/module.f.mjs'
+import { parseGitHubAction } from '../common/module.f.js'
 
 /**
  * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no

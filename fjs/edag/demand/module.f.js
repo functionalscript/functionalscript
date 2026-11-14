@@ -56,7 +56,7 @@ const prefix = (node, selected) => {
     if (node[0] === '.' || node[0] === 'memberPresent') { return [[node[1]], [node[2]], null] }
     if (node[0] === '?:') {
         const known = selected.findLast(([test]) => Object.is(test, node[1]))
-        return known === undefined ? [[node[1]], null] : [[node[1]], [node[known[1] ? 2 : 3]]]
+        return known === undefined ? [[node[1]], null] : [[node[1]], [node[Number(known[1] ? 2 : 3)]]]
     }
     if (node[0] === '?.' || node[0] === '?.()') { return [[node[1]], null] }
     if (node[0] === 'instanceof') { return [[node[1]]] }
@@ -83,7 +83,7 @@ const establish = (available, values) => {
 const demandsFrom = (exp, required, index, available, selected) => {
     /** @type {_Work | null} */
     let pending = { first: [exp], tail: null }
-    while (index < required.length && known(required[index])(available)) { index += 1 }
+    while (index < required.length && known(required[Number(index)])(available)) { index += 1 }
     if (index === required.length) { return true }
     while (pending !== null) {
         const current = /** @type {_Work} */ (pending)
@@ -91,9 +91,9 @@ const demandsFrom = (exp, required, index, available, selected) => {
         pending = current.tail
         if (first === null) { return false }
         const node = first[0]
-        if (Object.is(node, required[index])) {
+        if (Object.is(node, required[Number(index)])) {
             available = establish(available, [node])
-            while (index < required.length && known(required[index])(available)) { index += 1 }
+            while (index < required.length && known(required[Number(index)])(available)) { index += 1 }
             if (index === required.length) { return true }
         } else if (!known(node)(available) && node instanceof Array) {
             pending = prepend(prefix(node, selected), pending)
@@ -136,7 +136,7 @@ export const requiredPrefixLength = (exp, required, established = [], selected =
     if (index === required.length) { return index }
     let available = establish(establish(empty, [...established, ...selected.map(([test]) => test)]), required.slice(0, index))
     while (!demandsFrom(exp, required, index, available, selected)) {
-        available = establish(available, [required[index]])
+        available = establish(available, [required[Number(index)]])
         index += 1
     }
     return index
