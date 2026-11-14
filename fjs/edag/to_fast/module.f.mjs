@@ -14,7 +14,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { checked, identityAnalysis, itemOperand, mergeable, ownOperandsOf, scopeHolds, stepOperands } from '../analysis/module.f.mjs'
+import { checked, identityAnalysis, itemOperand, mergeable, ownOperandsOf, scopeHolds, stepOperands } from '../analysis/module.f.js'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.js'
 import { mapOk, okThen } from '../../types/result/module.f.js'

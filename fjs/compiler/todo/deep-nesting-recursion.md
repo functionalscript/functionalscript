@@ -39,7 +39,7 @@ continuation — `after`, `continuedSteps` and `stateOf` in
 `stepParts` and `stepClosed` in [`../parser/module.f.mjs`](../parser/module.f.mjs),
 `lowerStep` in [`../edag/module.f.mjs`](../edag/module.f.mjs), the former direct
 source writer's retired `chainSteps` and `lastStep`, and `stepOperands` in
-[`../../edag/analysis/module.f.mjs`](../../edag/analysis/module.f.mjs)
+[`../../edag/analysis/module.f.js`](../../edag/analysis/module.f.js)
 — each recursed once per step at that revision. No module in the repository
 comes within two orders of magnitude of either depth; the input is named here so the crash
 is a known limit rather than a silent one.

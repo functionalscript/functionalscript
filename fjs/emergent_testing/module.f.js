@@ -652,7 +652,7 @@ const fmtResultEnd = ({ status, duration }, throws) => {
 }
 
 /** The required display name of an internally constructed test identity. @type {(id: TestId) => string} */
-const testName = id => assertNotNullish(entry(id, 'name'))
+export const testName = id => assertNotNullish(entry(id, 'name'))
 
 /**
  * A complete terminal result record, without a trailing newline. Independent

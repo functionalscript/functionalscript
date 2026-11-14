@@ -10,7 +10,7 @@
 import { assertStructurallySame } from '../asserts/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { one as c } from '../text/ascii/module.f.js'
-import { parser } from './ll1/module.f.mjs'
+import { parser } from './ll1/module.f.js'
 import { units, utf16 } from './utf16/module.f.js'
 import {
     eof,

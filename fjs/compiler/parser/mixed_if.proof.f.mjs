@@ -1,7 +1,7 @@
 /** Mixed arms retain function returns while normal paths reach one continuation. */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'

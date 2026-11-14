@@ -4,7 +4,7 @@
  */
 
 import { eof } from '../../module.f.mjs'
-import { parser } from '../../ll1/module.f.mjs'
+import { parser } from '../../ll1/module.f.js'
 import { units } from '../../utf16/module.f.js'
 import { entry } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'

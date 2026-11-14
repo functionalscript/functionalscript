@@ -26,7 +26,7 @@
 import { assertOk } from '../../asserts/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { checked, identityAnalysis } from '../analysis/module.f.mjs'
+import { checked, identityAnalysis } from '../analysis/module.f.js'
 import { invokerWith, operation } from '../operations/module.f.mjs'
 import { settle } from '../value/call/module.f.js'
 

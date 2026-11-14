@@ -370,7 +370,8 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
          * @type {(frame: _RepeatFrame, pos: number) => _Visit}
          */
         const round = (frame, pos) => {
-            const { name, min, max, item, rounds, count } = frame
+            const name = assertNotNullish(ownEntry(frame, 'name'))
+            const { min, max, item, rounds, count } = frame
             return [pos, count < min || (count < max && starts(item)(pos))
                 ? ['push', frame, item]
                 : ok(emit(name, toArray(rounds)))]
@@ -421,9 +422,9 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
                     const index = top.index + 1
                     return [pos, index < top.items.length
                         ? ['push', { ...top, index, done }, top.items[Number(index)]]
-                        : ok(emit(top.name, done))]
+                        : ok(emit(assertNotNullish(ownEntry(top, 'name')), done))]
                 }
-                case 'variant': { return [pos, ok(emit(top.name, [top.tag, ast]))] }
+                case 'variant': { return [pos, ok(emit(assertNotNullish(ownEntry(top, 'name')), [top.tag, ast]))] }
                 // `'repeat'`, the one kind left: every frame is built above
                 default: {
                     return round({ ...top, rounds: concat(top.rounds)([ast]), count: top.count + 1 }, pos)

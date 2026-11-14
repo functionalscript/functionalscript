@@ -14,7 +14,7 @@
 import { assertOk } from '../../../asserts/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { identityAnalysis } from '../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../analysis/module.f.js'
 import { functionText } from '../../../compiler/serializer/module.f.mjs'
 import { isStatic, staticText } from '../../module.f.js'
 import { join } from '../array/module.f.js'

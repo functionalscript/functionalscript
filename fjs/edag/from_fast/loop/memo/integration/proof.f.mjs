@@ -7,7 +7,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../../asserts/module.f.js'
 import { anchored, fromFast, lowerValue } from '../../../module.f.mjs'
 import { normalizeMemo } from '../module.f.mjs'
-import { identityAnalysis } from '../../../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../../../analysis/module.f.js'
 import { memo } from '../../../../memo/module.f.mjs'
 import { toFast } from '../../../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.mjs'

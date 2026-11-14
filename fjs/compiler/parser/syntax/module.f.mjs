@@ -50,7 +50,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
-import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
+import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
     arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,

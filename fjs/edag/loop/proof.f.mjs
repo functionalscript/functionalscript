@@ -7,7 +7,7 @@
  */
 
 import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
+import { analysis, identityAnalysis } from '../analysis/module.f.js'
 import { keepsRecursion, loopOf, reaches } from './module.f.mjs'
 
 /** The parts of a function at the root of its own table, or `null`. @type {(e: FunctionExp) => Loop | null} */

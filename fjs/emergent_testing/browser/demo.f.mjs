@@ -35,7 +35,7 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { foldStep, mapStep, pureOk, resultStep } from '../../effects/module.f.js'
 import { collectTests, defaultTest, testResult } from '../module.f.js'
-import { browserResult, countsView, moduleFailure, reportOf, reportView, unreported } from './module.f.mjs'
+import { browserResult, countsView, moduleFailure, reportOf, reportView, unreported } from './module.f.js'
 
 /** @type {(xs: readonly number[]) => number} */
 const sum = xs => xs.reduce((a, b) => a + b, 0)

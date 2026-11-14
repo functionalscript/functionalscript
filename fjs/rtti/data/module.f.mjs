@@ -259,9 +259,9 @@ const cmpUnion = cmpUnionWith(cmpNode)
 
 /**
  * Total order over the data form: negative, zero or positive, with zero
- * exactly on structural identity. {@link toData} output is canonical, so two
- * conversions of equivalent thunk schemas compare equal — this is what makes
- * the data form comparable and sortable.
+ * exactly on structural identity. {@link toData} normalizes each kind, while
+ * recursive rule ordinals remain part of the structure; equivalent recursive
+ * schemas can differ in their discovery order and therefore compare unequal.
  *
  * @type {(a: Data) => (b: Data) => number}
  */
@@ -274,9 +274,10 @@ export const cmp = ([aRules, aNode]) => ([bRules, bNode]) => {
 
 /**
  * Structural equality of canonical forms: `equal(toData(a))(toData(b))`
- * holds exactly when `a` and `b` normalize to the same data — e.g.
- * `or(a, b)` and `or(b, a)` are equal. Recursive definitions compare by
- * their rule names, which are derived from the defining functions' names.
+ * holds exactly when `a` and `b` normalize to the same data. Non-recursive
+ * unions are independent of operand order. Recursive definitions compare by
+ * their first-required-reference ordinals, so use {@link equivalent} to
+ * compare their sets when those labels differ.
  *
  * @type {(a: Data) => (b: Data) => boolean}
  */
@@ -850,6 +851,28 @@ const internData = (rules, entry) => [
     internNode(rules)(entry),
 ]
 
+/** @type {(names: StringMap<string>) => _NodeMap} */
+const renameReference = names => n => typeof n === 'string' ? assertNotNullish(entry(names, n)) : n
+
+/**
+ * Remove gaps left by pruning. Preserve the lexical order of references,
+ * which is part of the canonical ordering of nested patterns.
+ *
+ * @type {(data: Data) => Data}
+ */
+const compactNames = ([rules, node]) => {
+    const names = Object.keys(rules).toSorted(cmpString)
+    const compact = names.map((_, i) => String(i)).toSorted(cmpString)
+    /** @type {StringMap<string>} */
+    const labels = Object.fromEntries(names.map((name, i) => [name, compact[Number(i)]]))
+    const rename = rewriteNodes(renameReference(labels))
+    return [
+        Object.fromEntries(definedEntries(rules).map(([name, body]) =>
+            [assertNotNullish(entry(labels, name)), mapChildren(rename)(body)])),
+        rename(node),
+    ]
+}
+
 // ── rendering ────────────────────────────────────────────────────────────────
 
 /**
@@ -890,7 +913,8 @@ const kindMembers = (whole, item) =>
  * @type {<R>(algebra: UnionAlgebra<R>) => (u: UnionSet) => R}
  */
 export const unionFold = algebra => u0 => {
-    const { top, unit, whole, join } = algebra
+    const { top, unit, whole } = algebra
+    const join = assertNotNullish(entry(algebra, 'join'))
     const u = withoutUnits(absentBit)(u0)
     if (isTop(u)) { return top }
     return join([
@@ -918,21 +942,15 @@ export const requiredPrefix = rules => prefix =>
 /** A thunk — the only schema form that can close a reference cycle. */
 /** A schema tracked by identity: a thunk or a const container. */
 /**
- * The rule name of `t`, assigning a fresh one on first request — the
- * defining function's name, disambiguated with a counter on collision.
+ * The rule name of `t`, assigning its ordinal on the first required
+ * reference and reusing that name wherever the same thunk is met.
  *
  * @type {(state: _State, t: _Thunk) => readonly [_State, string]}
  */
 const ensureName = (state, t) => {
     const existing = assoc(t)(state.names)
     if (existing !== null) { return [state, existing] }
-    const used = state.names.map(([, n]) => n)
-    let name = t.name
-    let i = 0
-    while (used.some(n => n === name)) {
-        name = t.name + i
-        i += 1
-    }
+    const name = String(state.names.length)
     return [{ ...state, names: [...state.names, [t, name]] }, name]
 }
 
@@ -1233,13 +1251,16 @@ const sortRules = rules =>
  * kind-wise, literals are sorted and deduplicated, subsumed array/object
  * patterns are dropped, rules are pruned to the reachable set and sorted,
  * and a union equal to a rule's body reads back as a reference — so schema
- * identity is a property of this form: `toData(or(a, b))` and
- * `toData(or(b, a))` are structurally identical even though the two thunks
- * are distinct, and `or` is idempotent on recursive schemas.
+ * identity is a property of this form. Non-recursive unions are independent
+ * of operand order. Recursive rule labels record first-required-reference
+ * order, so changing traversal can change structural identity while leaving
+ * the represented set unchanged.
  *
- * Only recursive definitions become named rules (named after their defining
- * functions), everything else is inlined; a schema with no reference cycles
- * converts to `[{}, unionSet]`.
+ * Only recursive definitions become named rules, with decimal ordinals
+ * assigned when a cycle or deferred merge first needs a reference. The same
+ * thunk reuses its ordinal; final compaction removes pruned ordinals while
+ * preserving reference sort order. Everything else is inlined, so a schema
+ * with no reference cycles converts to `[{}, unionSet]`.
  *
  * @type {(t: Type) => Data}
  */
@@ -1271,9 +1292,9 @@ export const toData = t => {
         const entryUnion = resolve(kept)(entry)
         /** @type {RuleSet} */
         const rest = Object.fromEntries(definedEntries(kept).filter(([n]) => n !== entry))
-        return internData(sortRules(rest), entryUnion)
+        return compactNames(internData(sortRules(rest), entryUnion))
     }
-    return internData(sortRules(kept), entry)
+    return compactNames(internData(sortRules(kept), entry))
 }
 
 // ── data-driven validation ───────────────────────────────────────────────────

@@ -33,7 +33,7 @@ import { isByte } from '../../types/number/module.f.js'
 import { rangeEncode, remove, union } from '../module.f.mjs'
 import { toData } from '../data/module.f.js'
 import { codePoints } from '../../text/utf16/module.f.js'
-import { parser } from '../ll1/module.f.mjs'
+import { parser } from '../ll1/module.f.js'
 import { mapEntries } from '../../types/map/module.f.js'
 
 /** One past the last byte: the boundary a byte set never reaches past. */
