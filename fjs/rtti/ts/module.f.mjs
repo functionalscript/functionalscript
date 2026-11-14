@@ -17,7 +17,7 @@
  * @import { Marked } from '../../text/marked/types.ts'
  * @import { Type } from '../types.ts'
  * @import { ArraySet, Data, Node, ObjectSet, RuleSet, UnionAlgebra, UnionSet } from '../data/types.ts'
- * @import { _Ctx } from './private.ts'
+ * @import { _Ctx, _PrintUnion } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -102,12 +102,66 @@ const identifiers = rules => {
  * A reference prints as its definition's identifier; a reference naming a
  * missing definition is malformed data and panics.
  *
- * @type {(ctx: _Ctx) => (n: Node) => string}
+ * @type {(print: _PrintUnion) => (ctx: _Ctx) => (n: Node) => string}
  */
-const nodeToTs = ctx => n =>
+const nodeToTs = print => ctx => n =>
     typeof n === 'string'
         ? tagged('identifier')(assertNotNullish(assoc(n)(ctx.ids), `missing definition: ${n}`))
-        : unionToTs(ctx)(n)
+        : print(n)
+
+/**
+ * The node's own union, read through a reference (own-property only) if
+ * needed.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => UnionSet}
+ */
+const resolveNode = ctx => resolve(ctx.rules)
+
+/**
+ * Whether the node's value set admits `undefined` — its unit bit. Still the
+ * tail's question (`rest([42], string)` accepts `[42, , ]`, and index 1
+ * reads `undefined`); optionality of a declared member is
+ * {@link admitsAbsence}'s.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => boolean}
+ */
+const admitsUndefined = ctx => n =>
+    ((resolveNode(ctx)(n).unit ?? 0) & undefinedBit) !== 0
+
+/**
+ * Whether the node's set admits **absence** — its absent bit, read through a
+ * reference if needed. What decides a declared member's optionality.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => boolean}
+ */
+const admitsAbsence = ctx => dataAdmitsAbsence(ctx.rules)
+
+/**
+ * Whether the node's value set is empty, read through a reference if needed —
+ * the data `isNever` answers `false` for a reference without reading it.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => boolean}
+ */
+const isNever = ctx => n => dataIsNever(resolveNode(ctx)(n))
+
+/**
+ * An **interior** tuple position: one that admits absence prints
+ * `undefined | T` — TypeScript forbids an optional element before a required
+ * one, and `undefined` is what reading a hole gives — and any other prints
+ * as it is. An inline node converts by bit, so the `undefined` merges into
+ * the union's canonical order; a reference prints its identifier with
+ * `undefined` unioned in front.
+ *
+ * @type {(print: _PrintUnion) => (ctx: _Ctx) => (n: Node) => string}
+ */
+const interiorToTs = print => ctx => n => {
+    const bits = resolveNode(ctx)(n).unit ?? 0
+    if ((bits & absentBit) === 0) { return nodeToTs(print)(ctx)(n) }
+    if (typeof n === 'string') {
+        return union([primitive(undefined), nodeToTs(print)(ctx)(n)])
+    }
+    return print({ ...n, unit: (bits & ~absentBit) | undefinedBit })
+}
 
 /**
  * A tuple prints its prefix, an array its element type, and a
@@ -138,75 +192,21 @@ const nodeToTs = ctx => n =>
  * `ArrayTs`'s to close, not this printer's, and closing it here alone would
  * put the two renderers at odds on the commonest schema there is.
  *
- * @type {(ctx: _Ctx) => (p: ArraySet) => string}
+ * @type {(print: _PrintUnion) => (ctx: _Ctx) => (p: ArraySet) => string}
  */
-const arraySetToTs = ctx => p => {
+const arraySetToTs = print => ctx => p => {
     const required = requiredPrefix(ctx.rules)(p.prefix)
     const items = p.prefix.map((n, i) =>
-        i < required ? interiorToTs(ctx)(n) : `(${nodeToTs(ctx)(n)})?`)
+        i < required ? interiorToTs(print)(ctx)(n) : `(${nodeToTs(print)(ctx)(n)})?`)
     const { rest } = p
     if (rest === undefined) { return ctx.ts.tuple(items) }
-    const restTs = nodeToTs(ctx)(rest)
+    const restTs = nodeToTs(print)(ctx)(rest)
     if (items.length === 0) { return ctx.ts.array(restTs) }
     const tail = ctx.ts.array(admitsUndefined(ctx)(rest)
         ? restTs
         : union(dedup([primitive(undefined), restTs])))
     return ctx.ts.tuple([...items, `...${tail}`])
 }
-
-/**
- * The node's own union, read through a reference (own-property only) if
- * needed.
- *
- * @type {(ctx: _Ctx) => (n: Node) => UnionSet}
- */
-const resolveNode = ctx => resolve(ctx.rules)
-
-/**
- * Whether the node's value set admits `undefined` — its unit bit. Still the
- * tail's question (`rest([42], string)` accepts `[42, , ]`, and index 1
- * reads `undefined`); optionality of a declared member is
- * {@link admitsAbsence}'s.
- *
- * @type {(ctx: _Ctx) => (n: Node) => boolean}
- */
-const admitsUndefined = ctx => n =>
-    ((resolveNode(ctx)(n).unit ?? 0) & undefinedBit) !== 0
-
-/**
- * Whether the node's set admits **absence** — its absent bit, read through a
- * reference if needed. What decides a declared member's optionality.
- *
- * @type {(ctx: _Ctx) => (n: Node) => boolean}
- */
-const admitsAbsence = ctx => dataAdmitsAbsence(ctx.rules)
-
-/**
- * An **interior** tuple position: one that admits absence prints
- * `undefined | T` — TypeScript forbids an optional element before a required
- * one, and `undefined` is what reading a hole gives — and any other prints
- * as it is. An inline node converts by bit, so the `undefined` merges into
- * the union's canonical order; a reference prints its identifier with
- * `undefined` unioned in front.
- *
- * @type {(ctx: _Ctx) => (n: Node) => string}
- */
-const interiorToTs = ctx => n => {
-    const bits = resolveNode(ctx)(n).unit ?? 0
-    if ((bits & absentBit) === 0) { return nodeToTs(ctx)(n) }
-    if (typeof n === 'string') {
-        return union([primitive(undefined), nodeToTs(ctx)(n)])
-    }
-    return unionToTs(ctx)({ ...n, unit: (bits & ~absentBit) | undefinedBit })
-}
-
-/**
- * Whether the node's value set is empty, read through a reference if needed —
- * the data `isNever` answers `false` for a reference without reading it.
- *
- * @type {(ctx: _Ctx) => (n: Node) => boolean}
- */
-const isNever = ctx => n => dataIsNever(resolveNode(ctx)(n))
 
 /**
  * A struct prints its fields — a key whose value set admits **absence**
@@ -224,17 +224,17 @@ const isNever = ctx => n => dataIsNever(resolveNode(ctx)(n))
  * opposite of what is meant; the fields are the closest expressible
  * supertype, exactly as `Ts<>` renders them.
  *
- * @type {(ctx: _Ctx) => (p: ObjectSet) => string}
+ * @type {(print: _PrintUnion) => (ctx: _Ctx) => (p: ObjectSet) => string}
  */
-const objectSetToTs = ctx => p => {
+const objectSetToTs = print => ctx => p => {
     /** @type {readonly StructField[]} */
     const fields = definedEntries(p.props).map(([k, v]) => {
-        const ts = nodeToTs(ctx)(v)
+        const ts = nodeToTs(print)(ctx)(v)
         return admitsAbsence(ctx)(v) ? [k, ts, true] : [k, ts]
     })
     const { rest } = p
     if (rest === undefined || isNever(ctx)(rest)) { return ctx.ts.struct(fields) }
-    const restTs = ctx.ts.record(union(dedup([...fields.map(([, v]) => v), nodeToTs(ctx)(rest)])))
+    const restTs = ctx.ts.record(union(dedup([...fields.map(([, v]) => v), nodeToTs(print)(ctx)(rest)])))
     return fields.length === 0 ? restTs : `${ctx.ts.struct(fields)}&${restTs}`
 }
 
@@ -243,9 +243,9 @@ const objectSetToTs = ctx => p => {
  * spelling. A whole kind is its type name, except arrays and objects, which
  * print as `unknown` containers.
  *
- * @type {(ctx: _Ctx) => UnionAlgebra<string>}
+ * @type {(print: _PrintUnion) => (ctx: _Ctx) => UnionAlgebra<string>}
  */
-const tsAlgebra = ctx => ({
+const tsAlgebra = print => ctx => ({
     top: keyword('unknown'),
     unit: name => name === 'null' || name === 'false' || name === 'true' ? literal(name) : keyword(name),
     whole: kind =>
@@ -255,8 +255,8 @@ const tsAlgebra = ctx => ({
     number: primitive,
     string: primitive,
     bigint: primitive,
-    array: arraySetToTs(ctx),
-    object: objectSetToTs(ctx),
+    array: arraySetToTs(print)(ctx),
+    object: objectSetToTs(print)(ctx),
     join: union,
 })
 
@@ -271,7 +271,11 @@ const tsAlgebra = ctx => ({
  *
  * @type {(ctx: _Ctx) => (u: UnionSet) => string}
  */
-const unionToTs = ctx => unionFold(tsAlgebra(ctx))
+const unionToTs = ctx => {
+    /** @type {_PrintUnion} */
+    const print = u => unionFold(tsAlgebra(print)(ctx))(u)
+    return print
+}
 
 /**
  * The definitions and entry expression of a {@link Data} as tagged text.
@@ -281,10 +285,12 @@ const unionToTs = ctx => unionFold(tsAlgebra(ctx))
 const dataToTagged = mut => ([rules, entry]) => {
     /** @type {_Ctx} */
     const ctx = { ts: tsPrinter(mut), ids: identifiers(rules), rules }
+    const print = unionToTs(ctx)
+    const node = nodeToTs(print)(ctx)
     return [
         definedEntries(rules).map(([n, u]) =>
-            /** @type {const} */ ([nodeToTs(ctx)(n), unionToTs(ctx)(u)])),
-        nodeToTs(ctx)(entry),
+            /** @type {const} */ ([node(n), print(u)])),
+        node(entry),
     ]
 }
 
