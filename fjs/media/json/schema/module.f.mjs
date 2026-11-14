@@ -37,8 +37,28 @@ import {
 } from '../../../rtti/data/module.f.js'
 import { unknown as jsonUnknown } from '../rtti/module.f.js'
 
-/** @type {() => readonly ['const', typeof unknownConst]} */
-export const _unknownThunk = () => ['const', unknownConst]
+// Every field may be omitted: JSON Schema documents carry only the keywords
+// they need. Expansion builds fresh field wrappers around the same recursive
+// schema identity, as `media/json/rtti` does for its container branches.
+/** @param {typeof unknown} self */
+const unknownConst = self => /** @type {const} */ ({
+    $schema: or(option, string),
+    $ref: or(option, string),
+    $defs: or(option, record(self)),
+    type: or(option, 'boolean', 'number', 'string', 'integer', 'array', 'object'),
+    const: or(option, jsonUnknown),
+    not: or(option, self),
+    anyOf: or(option, array(self)),
+    items: or(option, self, false),
+    prefixItems: or(option, array(self)),
+    minItems: or(option, number),
+    properties: or(option, record(self)),
+    required: or(option, array(string)),
+    additionalProperties: or(option, self),
+})
+
+/** @type {() => readonly ['const', ReturnType<typeof unknownConst>]} */
+export const _unknownThunk = () => ['const', unknownConst(_unknownThunk)]
 
 /**
  * rtti schema for a JSON Schema (draft 2020-12) document.
@@ -54,42 +74,22 @@ export const _unknownThunk = () => ['const', unknownConst]
  * via the `Phantom` lie.
  *
  * @type {Phantom<typeof _unknownThunk, {
- *   readonly $schema?: Ts<typeof unknownConst.$schema>
- *   readonly $ref?: Ts<typeof unknownConst.$ref>
- *   readonly $defs?: Ts<typeof unknownConst.$defs>
- *   readonly type?: Ts<typeof unknownConst.type>
- *   readonly const?: Ts<typeof unknownConst.const>
- *   readonly not?: Ts<typeof unknownConst.not>
- *   readonly anyOf?: Ts<typeof unknownConst.anyOf>
- *   readonly items?: Ts<typeof unknownConst.items>
- *   readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
- *   readonly minItems?: Ts<typeof unknownConst.minItems>
- *   readonly properties?: Ts<typeof unknownConst.properties>
- *   readonly required?: Ts<typeof unknownConst.required>
- *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
+ *   readonly $schema?: Ts<ReturnType<typeof unknownConst>['$schema']>
+ *   readonly $ref?: Ts<ReturnType<typeof unknownConst>['$ref']>
+ *   readonly $defs?: Ts<ReturnType<typeof unknownConst>['$defs']>
+ *   readonly type?: Ts<ReturnType<typeof unknownConst>['type']>
+ *   readonly const?: Ts<ReturnType<typeof unknownConst>['const']>
+ *   readonly not?: Ts<ReturnType<typeof unknownConst>['not']>
+ *   readonly anyOf?: Ts<ReturnType<typeof unknownConst>['anyOf']>
+ *   readonly items?: Ts<ReturnType<typeof unknownConst>['items']>
+ *   readonly prefixItems?: Ts<ReturnType<typeof unknownConst>['prefixItems']>
+ *   readonly minItems?: Ts<ReturnType<typeof unknownConst>['minItems']>
+ *   readonly properties?: Ts<ReturnType<typeof unknownConst>['properties']>
+ *   readonly required?: Ts<ReturnType<typeof unknownConst>['required']>
+ *   readonly additionalProperties?: Ts<ReturnType<typeof unknownConst>['additionalProperties']>
  * }>}
  */
 export const unknown = _unknownThunk
-
-// Every field may be **omitted** — a JSON Schema document carries only the
-// keywords it needs, and JSON has no `undefined` to hold in a present field —
-// so the two enumerated keywords spell their optionality as `or(option, …)`
-// like the rest, not as a member `undefined`.
-const unknownConst = /** @type {const} */ ({
-    $schema: or(option, string),
-    $ref: or(option, string),
-    $defs: or(option, record(unknown)),
-    type: or(option, 'boolean', 'number', 'string', 'integer', 'array', 'object'),
-    const: or(option, jsonUnknown),
-    not: or(option, unknown),
-    anyOf: or(option, array(unknown)),
-    items: or(option, unknown, false),
-    prefixItems: or(option, array(unknown)),
-    minItems: or(option, number),
-    properties: or(option, record(unknown)),
-    required: or(option, array(string)),
-    additionalProperties: or(option, unknown),
-})
 
 /**
  * Encodes a definition name for use inside a local `$ref` URI fragment:
@@ -122,10 +122,6 @@ const refSchema = rules => name => {
     return { $ref: `#/$defs/${refEncode(name)}` }
 }
 
-/** @type {(rules: RuleSet) => (n: Node) => Ts<typeof unknown>} */
-const nodeSchema = rules => n =>
-    typeof n === 'string' ? refSchema(rules)(n) : unionSchema(rules)(n)
-
 /** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })
 
@@ -148,32 +144,6 @@ const unitSchema = name =>
     : constSchema(true)
 
 /**
- * A set of arrays: `prefixItems` for the declared positions, `items` for what
- * may follow — `false` when nothing may, which is what makes the exact-length
- * pattern exact. `prefixItems` alone constrains only elements that exist
- * (draft 2020-12 implies no minimum length), so the required length is
- * `minItems` — one past the last position excluding absence
- * (`requiredPrefix`) — and a position past it has `undefined` stripped from
- * its schema, JSON spelling an unfilled position as `null`-less truncation
- * rather than a written `undefined`. Both are the object side's `required` /
- * {@link stripUndefined} pair, one kind over.
- *
- * @type {(rules: RuleSet) => (p: ArraySet) => Ts<typeof unknown>}
- */
-const arraySetSchema = rules => p => {
-    const minItems = requiredPrefix(rules)(p.prefix)
-    return {
-        type: 'array',
-        ...(p.prefix.length === 0 ? {} : {
-            prefixItems: p.prefix.map(
-                (n, i) => nodeSchema(rules)(i < minItems ? n : stripUndefined(n))),
-        }),
-        ...(minItems === 0 ? {} : { minItems }),
-        items: p.rest === undefined ? false : nodeSchema(rules)(p.rest),
-    }
-}
-
-/**
  * The node with `undefined` removed — asking what JSON can **carry**, so it
  * stays keyed on the `undefined` bit while `required`/`minItems` moved to
  * the absent one. A key of `or(number, undefined)` is required and renders
@@ -189,6 +159,32 @@ const stripUndefined = n =>
     typeof n === 'string' ? n : withoutUnits(undefinedBit)(n)
 
 /**
+ * A set of arrays: `prefixItems` for the declared positions, `items` for what
+ * may follow — `false` when nothing may, which is what makes the exact-length
+ * pattern exact. `prefixItems` alone constrains only elements that exist
+ * (draft 2020-12 implies no minimum length), so the required length is
+ * `minItems` — one past the last position excluding absence
+ * (`requiredPrefix`) — and a position past it has `undefined` stripped from
+ * its schema, JSON spelling an unfilled position as `null`-less truncation
+ * rather than a written `undefined`. Both are the object side's `required` /
+ * {@link stripUndefined} pair, one kind over.
+ *
+ * @type {(render: (n: Node) => Ts<typeof unknown>, rules: RuleSet) => (p: ArraySet) => Ts<typeof unknown>}
+ */
+const arraySetSchema = (render, rules) => p => {
+    const minItems = requiredPrefix(rules)(p.prefix)
+    return {
+        type: 'array',
+        ...(p.prefix.length === 0 ? {} : {
+            prefixItems: p.prefix.map(
+                (n, i) => render(i < minItems ? n : stripUndefined(n))),
+        }),
+        ...(minItems === 0 ? {} : { minItems }),
+        items: p.rest === undefined ? false : render(p.rest),
+    }
+}
+
+/**
  * A set of objects: `properties` for the declared keys — a key admitting
  * **absence** is left out of `required`, every key has `undefined` stripped
  * from its printed schema ({@link stripUndefined}, JSON carrying no
@@ -196,19 +192,19 @@ const stripUndefined = n =>
  * the other keys unconstrained (lenient), matching rtti's open-struct
  * validation semantics.
  *
- * @type {(rules: RuleSet) => (p: ObjectSet) => Ts<typeof unknown>}
+ * @type {(render: (n: Node) => Ts<typeof unknown>, rules: RuleSet) => (p: ObjectSet) => Ts<typeof unknown>}
  */
-const objectSetSchema = rules => p => {
+const objectSetSchema = (render, rules) => p => {
     const ents = definedEntries(p.props)
     const required = ents.filter(([, n]) => !admitsAbsence(rules)(n)).map(([k]) => k)
     return {
         type: 'object',
         ...(ents.length === 0 ? {} : {
             properties: Object.fromEntries(ents.map(
-                ([k, n]) => /** @type {const} */ ([k, nodeSchema(rules)(stripUndefined(n))]))),
+                ([k, n]) => /** @type {const} */ ([k, render(stripUndefined(n))]))),
         }),
         ...(required.length === 0 ? {} : { required }),
-        ...(p.rest === undefined ? {} : { additionalProperties: nodeSchema(rules)(p.rest) }),
+        ...(p.rest === undefined ? {} : { additionalProperties: render(p.rest) }),
     }
 }
 
@@ -217,17 +213,17 @@ const objectSetSchema = rules => p => {
  * `bigint` as `integer`. No members is the always-false `{ "not": {} }`, one
  * member stands alone, and more are an `anyOf`.
  *
- * @type {(rules: RuleSet) => UnionAlgebra<Ts<typeof unknown>>}
+ * @type {(render: (n: Node) => Ts<typeof unknown>, rules: RuleSet) => UnionAlgebra<Ts<typeof unknown>>}
  */
-const schemaAlgebra = rules => ({
+const schemaAlgebra = (render, rules) => ({
     top: {},
     unit: unitSchema,
     whole: kind => ({ type: kind === 'bigint' ? 'integer' : kind }),
     number: constSchema,
     string: constSchema,
     bigint: bigintConstSchema,
-    array: arraySetSchema(rules),
-    object: objectSetSchema(rules),
+    array: arraySetSchema(render, rules),
+    object: objectSetSchema(render, rules),
     join: members =>
         members.length === 0 ? { not: {} }
         : members.length === 1 ? members[0]
@@ -240,9 +236,16 @@ const schemaAlgebra = rules => ({
  * `minItems` — so it contributes no schema member, and `or(option, unknown)`
  * is the always-true `{}` like plain `unknown`.
  *
- * @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>}
+ * @type {(render: (n: Node) => Ts<typeof unknown>, rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>}
  */
-const unionSchema = rules => unionFold(schemaAlgebra(rules))
+const unionSchemaWith = (render, rules) => unionFold(schemaAlgebra(render, rules))
+
+/** @type {(rules: RuleSet) => (n: Node) => Ts<typeof unknown>} */
+const nodeSchema = rules => n =>
+    typeof n === 'string' ? refSchema(rules)(n) : unionSchemaWith(nodeSchema(rules), rules)(n)
+
+/** @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>} */
+const unionSchema = rules => unionSchemaWith(nodeSchema(rules), rules)
 
 /**
  * Converts a serializable RTTI {@link Data} (from `toData`) to a JSON Schema
