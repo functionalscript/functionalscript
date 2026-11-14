@@ -99,6 +99,7 @@ export const helpers = {
     sumOfTwice: signature(f2, f64),
     doubleBoth: signature([['a', u(8)], ['b', u(16)]], i(18)),
     quadruple: signature([['x', f64]], f64),
+    meanOfSquare: signature(f2, f64),
     middle: signature([['a', f64], ['b', f64], ['c', f64], ['d', f64]], f64),
     gcd: signature(f2, f64),
 }

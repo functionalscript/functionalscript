@@ -136,6 +136,12 @@ conversion and no new function, and is exact, since the function reads
 nothing but its parameters and its captures, which stand for the same
 values where it is called; it gives one copy of the body for each call.
 
+Each argument is lowered where it stands, after the locals of the
+arguments before it are bound, so the locals that it binds itself are
+named past them: in `mid(a + 1, sq(b + 1))`, `a + 1` is `#0`, and the
+locals of `sq(b + 1)` start at `#1`. The arguments of `unit`, of `same`
+and of a native row are lowered so too.
+
 A loop's parameters are locals of the types of their first values, a float
 widened to `f64`, since a later round may give any float, and so is each
 float of a record. An integer range
@@ -186,8 +192,8 @@ the operators on them are a float's: L1's `kind(v) === NUMBER` is
 the operand and the kind, `v.number`, or after the module of L0, as
 `length`'s arms do: `v.string`. Where the operand is no local, the
 function's name stands for it. JavaScript reads both arguments of `unit`
-before it casts the string, so an index that does something is bound to a
-local first, after the string where that does something too.
+before it casts the string, so each that does something is bound to a
+local first, in their order.
 
 A cast narrows the rest of its block, as
 [definition.md's rule 4](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)

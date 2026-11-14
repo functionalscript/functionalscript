@@ -53,6 +53,15 @@ const quad = x => twice(twice(x))
 /** @type {(x: number) => number} */
 export const quadruple = x => quad(x) - x
 
+/** @type {(x: number) => number} */
+const square = x => x * x
+
+/** @type {(p: number, q: number) => number} */
+const mean = (p, q) => (p + q) / 2
+
+/** Two arguments that each do something, the later with a local of its own. @type {(a: number, b: number) => number} */
+export const meanOfSquare = (a, b) => mean(a + 1, square(b + 1))
+
 // records
 
 /** @type {(p: { readonly x: number, readonly y: number }, q: { readonly x: number, readonly y: number }) => { readonly x: number, readonly y: number }} */
