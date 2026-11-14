@@ -106,6 +106,8 @@ unit, surrogates included.
       onto it.
 - [ ] Move the consumers still listed above onto it, or record why each
       stays, `fjs/types/uint8array` included.
+- [ ] Move `rust/demangle`'s UTF-8 byte reader onto `decodeLower`, keeping
+      empty input, odd-count refusal and invalid UTF-8 refusal unchanged.
 - [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
       landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
       with the `vdf` demo on it.
