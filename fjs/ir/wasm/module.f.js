@@ -104,6 +104,15 @@ const definition = (interfaces, [, module, name]) =>
     assertNotNullish(assertNotNullish(at(module)(interfaces)).types.find(([k]) => k === name))[1]
 
 /**
+ * Whether two string literals' types are one: of one sealed type, since the
+ * checker takes a literal of the variant its type's literals hold alone,
+ * which `t.only(v)` and, where `v` is its one variant, `t` both write.
+ *
+ * @type {(a: Type, b: Type) => boolean}
+ */
+const oneType = (a, b) => a[0] === 'sealed' && b[0] === 'sealed' && a[1] === b[1] && a[2] === b[2]
+
+/**
  * The scalars that a value of `t` is, each named and typed, in the order of
  * their WASM values: a product's are its fields', each named `name.k`, and
  * `unit` and `never` have none.
@@ -431,7 +440,7 @@ const term = (env, [type, t]) => {
         case 'lit': {
             const v = t[2]
             if (typeof v !== 'string') { return just([literal(type, v)]) }
-            const found = env.literals.find(([u, s]) => s === v && equal(u, type))
+            const found = env.literals.find(([u, s]) => s === v && oneType(u, type))
             return just([['global.get', assertNotNullish(found)[2]]])
         }
         case 'get': {
@@ -607,7 +616,7 @@ export const emit = m => {
     const { constants } = m
     const written = [...m.functions.flatMap(([, f]) => literalsOf(f.body)), ...constants.flatMap(([, c]) => literalsOf(c.value))]
     // A literal is made once for its type and its spelling.
-    const literals = written.filter(([t, s], k) => written.findIndex(([u, x]) => x === s && equal(u, t)) === k)
+    const literals = written.filter(([t, s], k) => written.findIndex(([u, x]) => x === s && oneType(u, t)) === k)
     /** The function that makes a literal of a sealed type. @type {(t: Sealed) => { readonly abi: string, readonly module: string, readonly member: string, readonly type: FuncType }} */
     const makerOf = t => {
         const { carrier: c, literal } = definition(interfaces, t)

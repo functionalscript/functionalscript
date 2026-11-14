@@ -27,7 +27,7 @@
  * and only a call that could not be made at all is a refusal.
  *
  * **Answers are spelled, not `String`ed**, by
- * [`spell`](../spell/module.f.mjs) here and by its Rust twin in
+ * [`spell`](../spell/module.f.js) here and by its Rust twin in
  * `nanvm-demos`, so the comparison tells `null` from `undefined` and keeps
  * an array's nesting. The calls are the samples list's
  * ([`../samples/module.f.js`](../samples/module.f.js)), where the answers
@@ -61,7 +61,7 @@ import { graphSvg } from '../../../website/demo/graph/module.f.mjs'
 import { codeOutput } from '../../../website/demo/highlight/module.f.mjs'
 import { admittedMarker, codeMarker } from '../../../website/style/module.f.js'
 import { decode, filesView, load as loadFiles, startupView, stat } from '../page/module.f.mjs'
-import { spell } from '../spell/module.f.mjs'
+import { spell } from '../spell/module.f.js'
 
 /** @type {State} */
 export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], edag: [], calls: null }

@@ -24,7 +24,6 @@
 import { stringLiteral } from '../../../js/string_escape/module.f.js'
 
 const { entries } = Object
-const { isArray } = Array
 
 /** @type {(value: unknown) => string} */
 export const spell = value => {
@@ -34,7 +33,7 @@ export const spell = value => {
         case 'function': { return '(function)' }
         case 'object': {
             if (value === null) { return 'null' }
-            if (isArray(value)) { return `[${value.map(spell).join(',')}]` }
+            if (value instanceof Array) { return `[${value.map(spell).join(',')}]` }
             return `{${entries(value).map(([k, v]) => `${stringLiteral(k)}:${spell(v)}`).join(',')}}`
         }
         default: { return String(value) }

@@ -158,23 +158,18 @@ position.
 **A serializer-side input** is an ordinary graph, spelled by the same literal
 a reader-side expected graph is. There is no set of inputs a serializer
 refuses, so the corpus describes none: a serializer is handed a value of the
-data model and the type is what says so, checked by `tsc` at the call.
+data model, which the vector's record type states and `tsc` checks.
 
-The specification does state refusals — [§What may be serialized](../README.md#what-may-be-serialized)
-names a function, a symbol, a `Date`, a hole, a symbol key, an accessor, a
-non-enumerable property, an array with an extra own property and a cycle — and
-**no vector can carry one**, because a set is a DataJS data module: DataJS has
-no functions, no `Symbol`, no `Date`, and no way to spell a hole, an accessor or
-a class. That is a property of the carrier rather than an omission, which is why
-that section is a rule an implementation answers in its own tests, in whatever
-host can build the value. [This repository's writer](../../../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)
-takes the data model's own type, so from FunctionalScript there is no input
-outside the model to reach its refusals, and it keeps them for what a host
-hands it cast; its first draft took `unknown`, which admitted values no set
-could carry — the same carrier fact — and narrowing the parameter is what
-closed that. §What may be serialized is the same shape: a rule an
-implementation answers in a host that can build the values, not something a
-vector reaches.
+[This repository's writer](../../../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)
+takes TypeScript `unknown` and assumes a FunctionalScript value.
+A function is a FunctionalScript value but has no DataJS spelling,
+so the writer refuses it. **No vector can carry that case**, because a set is
+a DataJS data module; the writer's own FunctionalScript proofs cover it.
+The broader TypeScript annotation does not admit arbitrary host JavaScript
+values. Holes, accessors, non-enumerable members, extra array properties,
+symbol keys and cycles are outside the writer's input contract, with undefined
+behavior. The corpus neither tests those host shapes nor requires host tests
+or descriptor-helper fixtures for them.
 
 **Normalized bytes** are the document as a string, and the set's proof
 compares that string against what the shipped writer emits rather than
@@ -391,11 +386,12 @@ or read a passing corpus as more than it is.
   `i64`/`u64`, 128 from `i128`/`u128` — and stop there because there is no next
   standard width to defeat, not because three ceilings prove a negative. A
   backend bounded wider than 128 bits needs a vector of its own.
-- **A serializer's refusals**, for the reason the record section gives: the
-  inputs [§What may be serialized](../README.md#what-may-be-serialized) names
-  cannot be spelled by a DataJS data module, so a serializer that answers one of
-  them with a plausible wrong value passes this corpus. That rule is answered in
-  an implementation's own tests, in a host that can build the value.
+- **A serializer's refusals**, for the reason the record section gives: a
+  FunctionalScript function cannot be spelled by a DataJS data module, so a
+  writer that silently serializes one as data passes this corpus. The
+  repository's writer covers that refusal in its own FunctionalScript proofs.
+  Other host JavaScript shapes are outside its input contract, rather than
+  refusals the corpus must establish.
 
 ## What a vector may not do
 
