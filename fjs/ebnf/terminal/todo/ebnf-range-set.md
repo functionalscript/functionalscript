@@ -180,7 +180,7 @@ was never meant to match — and the lowering answers it: `validate` in
 **A set holds ordinary symbols only; `eof` is not a set.** EOF is the `null`
 rule (**Amended**: it was the bare `-1`), with the no-leaf behaviour
 [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) records and
-`leafAt` in `fjs/ebnf/ll1/module.f.mjs` implements. "Newline or end of input", the
+`leafAt` in `fjs/ebnf/ll1/module.f.js` implements. "Newline or end of input", the
 terminator of a line comment, is spelled as the variant `{ nl, eof }` it is
 today: a choice with a tag, not a set.
 

@@ -22,7 +22,7 @@ The same recursive `typeof`-dispatch walker over the value tree is written
 three times, and the count is what is left after the old `fjs/djs/serializer`
 was retired:
 
-- [`../serializer/module.f.mjs`](../serializer/module.f.mjs) —
+- [`../serializer/module.f.js`](../serializer/module.f.js) —
   `treeSerialize(leafSerialize)(sort)`, a factory. `fjs/media/json`'s
   `serialize` and the extended codec are two applications of it, not two
   copies.

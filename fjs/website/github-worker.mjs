@@ -10,7 +10,7 @@
  */
 
 import { parse } from '../rtti/parse/module.f.js'
-import { allowedCallbackOrigin, authPrefix, callbackPath, configPath, exchangeSchema, providerOutcome, tokenPath, validCallback, validExchange, workerConfig } from './github/module.f.mjs'
+import { allowedCallbackOrigin, authPrefix, callbackPath, configPath, exchangeSchema, providerOutcome, tokenPath, validCallback, validExchange, workerConfig } from './github/module.f.js'
 
 const readExchange = parse(exchangeSchema)
 

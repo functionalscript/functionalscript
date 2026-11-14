@@ -8,11 +8,11 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../../edag/memo/module.f.mjs'
 import { toData } from '../../../../edag/value/to_unknown/module.f.mjs'
-import { _freshAtRoot, _immutableJoin } from './module.f.mjs'
+import { _freshAtRoot, _immutableJoin } from './module.f.js'
 
 /** Equal presentation indices retain independent binding identities. @type {() => BindingId} */
 const id = () => ({ index: 0 })

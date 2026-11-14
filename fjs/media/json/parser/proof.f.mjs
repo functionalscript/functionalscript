@@ -11,7 +11,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
-import { parser } from '../../../ebnf/ll1/module.f.mjs'
+import { parser } from '../../../ebnf/ll1/module.f.js'
 import { units } from '../../../ebnf/utf16/module.f.js'
 import { escape, json, string } from '../../../ebnf/lib/json/module.f.mjs'
 import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, textAt } from './module.f.mjs'

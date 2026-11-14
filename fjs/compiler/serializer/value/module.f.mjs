@@ -8,7 +8,7 @@
  */
 
 import { assertOk } from '../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare } from '../../../js/ast/prepare/module.f.mjs'
 import { stringify as serialize } from '../../../js/ast/serializer/module.f.mjs'

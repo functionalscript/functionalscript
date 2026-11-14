@@ -8,7 +8,7 @@
  */
 
 import { compile } from './compiler/module.f.mjs'
-import { main as testMain } from './emergent_testing/module.f.mjs'
+import { main as testMain } from './emergent_testing/module.f.js'
 import { main as coverageMain } from './emergent_testing/cov/module.f.mjs'
 import { main as depsMain } from './deps/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'

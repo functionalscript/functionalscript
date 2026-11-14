@@ -10,7 +10,7 @@
  * @import { Task } from '../../task/types.ts'
  */
 
-import { freeBindings } from '../../control/module.f.mjs'
+import { freeBindings } from '../../control/module.f.js'
 import { run } from '../../task/module.f.js'
 import { terminalTree } from '../terminal/module.f.js'
 

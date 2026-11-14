@@ -11,7 +11,7 @@
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { isSpread, operatorOperands } from '../../../js/ast/module.f.js'
-import { exitValues } from '../../../js/ast/control/module.f.mjs'
+import { exitValues } from '../../../js/ast/control/module.f.js'
 import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 
 /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */

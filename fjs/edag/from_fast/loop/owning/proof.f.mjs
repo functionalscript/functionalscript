@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { _owningTailCalls } from './module.f.mjs'
+import { _owningTailCalls } from './module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })

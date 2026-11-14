@@ -6,7 +6,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { parse } from '../../compiler/transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../compiler/edag/module.f.mjs'
 import { tryModuleStringify } from '../../compiler/serializer/module.f.mjs'
-import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
+import { analysis, identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { toFast } from '../to_fast/module.f.mjs'

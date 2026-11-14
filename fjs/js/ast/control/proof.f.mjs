@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { children, exitValues, foldNodes, freeBindings, freeLoopBindings, hasLoopTransfer, someBlock } from './module.f.mjs'
+import { children, exitValues, foldNodes, freeBindings, freeLoopBindings, hasLoopTransfer, someBlock } from './module.f.js'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })

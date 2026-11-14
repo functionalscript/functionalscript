@@ -1102,7 +1102,7 @@ gain, so the dependencies are stated instead:
   JSON text". DataJS does not have the corner — it writes `NaN`,
   `±Infinity` and `-0` as themselves — so which serializer the snapshot
   goes through decides it. Written as JSON
-  ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)), a
+  ([`json/serializer`](../fjs/media/json/serializer/module.f.js)), a
   snapshot of `{ x: NaN }` would come back as `{ x: null }`,
   so the run-time schema would differ from the one the compiler checked
   against — the exact disagreement this remedy exists to prevent, arrived

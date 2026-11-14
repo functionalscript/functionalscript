@@ -8,12 +8,12 @@ function's `length` comes only from a written parameter list.
 
 The `factories` table covers lengths **0 through 16**, inclusive: `maxLength`, the
 language's limit on a function's `length`, so every valid function has a
-factory. [`fjs/edag/analysis`](../../../edag/analysis/module.f.mjs) refuses a
+factory. [`fjs/edag/analysis`](../../../edag/analysis/module.f.js) refuses a
 longer one as a binding error, and `callable` asserts it. Supplied argument
 count and rest-array length are not limited by it.
 
 `isIndex` is the canonical-length predicate `callable` asserts: a nonnegative
-integer, positive zero only. [`fjs/edag/analysis`](../../../edag/analysis/module.f.mjs)
+integer, positive zero only. [`fjs/edag/analysis`](../../../edag/analysis/module.f.js)
 validates EDAG function lengths with it.
 
 The factories provide ordinary JavaScript callable values and arity. Their host

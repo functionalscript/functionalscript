@@ -17,10 +17,10 @@
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.js'
-import { foldNodes, hasLoopTransfer } from '../control/module.f.mjs'
+import { foldNodes, hasLoopTransfer } from '../control/module.f.js'
 import { returnedBlock, hasRetainedReturn } from './completion/module.f.js'
 import { logicalCondition, logicalValue } from './logical/module.f.js'
-import { _exposeOperands } from '../returns/module.f.mjs'
+import { _exposeOperands } from '../returns/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
 import { writes as sourceWrites } from './effects/module.f.mjs'
 

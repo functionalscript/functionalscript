@@ -68,7 +68,7 @@ export const writes = (root, functions) => {
         const held = opaque
         /** @type {(index: number, entries: Entries, found: List<readonly BindingId[]>) => Task<Result>} */
         const each = (index, entries, found) => call(() => {
-            if (index !== descendants.length) { return bind(visit(descendants[index], entries), result => each(index + 1, result.entries, { first: result.writes, tail: found })) }
+            if (index !== descendants.length) { return bind(visit(descendants[Number(index)], entries), result => each(index + 1, result.entries, { first: result.writes, tail: found })) }
             const all = held ? [] : [...new Set([...localWrites, ...toArray(found).flat()])]
             return done({ writes: all, entries: { first: [node, all], tail: entries } })
         })

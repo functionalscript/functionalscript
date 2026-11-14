@@ -21,6 +21,7 @@ import { codePointListToString, codePointToString, codePoints } from "../text/ut
 import { maxCodePoint } from "../text/code_point/module.f.js"
 import { isFixedArray } from "../types/array/module.f.js"
 import { definedEntries } from "../types/object/module.f.js"
+import { entry } from "../types/object/entry/module.f.js"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.js"
 
 const { fromEntries } = Object
@@ -209,7 +210,7 @@ const node = words => {
             /** @type {(m: StringMap<readonly (readonly number[])[]>, w: readonly number[]) => StringMap<readonly (readonly number[])[]>} */
             ((m, [c, ...tail]) => {
                 const k = codePointListToString([c])
-                return { ...m, [k]: [...(m[k] ?? []), tail] }
+                return { ...m, [k]: [...(entry(m, k) ?? []), tail] }
             }),
             {})
     // A branch is its character alone where the one word through it ends

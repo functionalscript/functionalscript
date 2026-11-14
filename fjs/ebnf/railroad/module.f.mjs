@@ -45,6 +45,7 @@
 import { matchRule } from '../data/module.f.js'
 import { definedValues } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { codePointToString } from '../../text/utf16/module.f.js'
 import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.js'
@@ -84,7 +85,7 @@ const choice = (first, rest) => {
 const optional = d => choice(skip, [d])
 
 /** @type {(n: number, d: Diagram) => readonly Diagram[]} */
-const copies = (n, d) => Array.from({ length: n }, () => d)
+const copies = (n, d) => generate(n, () => d)
 
 /**
  * The symbols a reader cannot see spelled by name; the rest of the control
@@ -114,7 +115,7 @@ const symbolText = c => {
  *
  * @type {(s: RangeSet) => readonly (readonly [number, number | null])[]}
  */
-const runs = s => s.flatMap((b, i) => i % 2 === 1 ? [] : [[b, i + 1 === s.length ? null : s[i + 1] - 1]])
+const runs = s => s.flatMap((b, i) => i % 2 === 1 ? [] : [[b, i + 1 === s.length ? null : s[Number(i + 1)] - 1]])
 
 /**
  * A run of up to three symbols is those symbols, which read better one by
@@ -124,7 +125,7 @@ const runs = s => s.flatMap((b, i) => i % 2 === 1 ? [] : [[b, i + 1 === s.length
  */
 const runText = ([first, last]) =>
     last === null ? [`${symbolText(first)} …`]
-    : last - first < 3 ? Array.from({ length: last - first + 1 }, (_, i) => symbolText(first + i))
+    : last - first < 3 ? generate(last - first + 1, i => symbolText(first + i))
     : [`${symbolText(first)} … ${symbolText(last)}`]
 
 /**
@@ -156,7 +157,7 @@ export const codePoints = {
 export const tokens = ({ decode }, categories) => ({
     labels: s => runs(s).flatMap(([first, last]) => {
         assert(last !== null, ['a token set runs past the alphabet', first])
-        return Array.from({ length: last - first + 1 }, (_, i) => {
+        return generate(last - first + 1, i => {
             const name = assertNotNullish(decode(first + i), ['not a token', first + i])
             return categories.includes(name) ? category(name) : terminal(name)
         })
@@ -192,7 +193,7 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
      * @type {(name: string) => string | null}
      */
     const printable = name => {
-        const rule = ruleSet[name]
+        const rule = assertNotNullish(entry(ruleSet, name))
         const [tag, first, end] = rule
         return !titles.has(name) && tag === 'set' && rule.length === 3 && end === first + 1 ? letter(first) : null
     }
@@ -215,13 +216,14 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
      * @type {(path: ReadonlySet<string>) => (a: string, b: string) => Diagram | null}
      */
     const separatorOf = path => (a, b) => {
-        const r = ruleSet[b]
+        const r = assertNotNullish(entry(ruleSet, b))
         if (titles.has(b) || r[0] !== 'repeat' || r[1] !== 0 || r[2] !== Infinity) { return null }
         const item = r[3]
         if (item === a) { return skip }
         if (titles.has(item)) { return null }
-        const [tag, separator, again] = ruleSet[item]
-        return tag === 'sequence' && again === a && ruleSet[item].length === 3 ? ref(path)(separator) : null
+        const sequenceRule = assertNotNullish(entry(ruleSet, item))
+        const [tag, separator, again] = sequenceRule
+        return tag === 'sequence' && again === a && sequenceRule.length === 3 ? ref(path)(separator) : null
     }
     /**
      * A sequence's items, each pair that spells a loop read as that loop.
@@ -262,7 +264,7 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
                     ? min === 0 ? optional(['loop', d, skip]) : sequence([...copies(min - 1, d), ['loop', d, skip]])
                     : sequence([...copies(min, d), ...copies(max - min, optional(d))])
             },
-        })(ruleSet[name])
+        })(assertNotNullish(entry(ruleSet, name)))
     }
     /**
      * A reference to the rule `name`: a box if it is titled, else the rule
@@ -286,7 +288,7 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
  * @type {(ruleSet: RuleSet) => (name: string, tag: string) => string}
  */
 export const branch = ruleSet => (name, tag) => {
-    const [kind, branches] = ruleSet[name]
+    const [kind, branches] = assertNotNullish(entry(ruleSet, name))
     assert(kind === 'variant', ['not a variant', name])
     return assertNotNullish(entry(branches, tag), ['no such branch', name, tag])
 }

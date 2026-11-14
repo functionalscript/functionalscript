@@ -53,7 +53,7 @@
  */
 import { assert } from '../../asserts/module.f.js'
 import { items, variant } from '../../ebnf/ast/module.f.js'
-import { parser } from '../../ebnf/ll1/module.f.mjs'
+import { parser } from '../../ebnf/ll1/module.f.js'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../keywords/module.f.js'
 import { escapeToCodePoint } from '../string_escape/module.f.js'

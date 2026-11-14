@@ -3,7 +3,7 @@
 Recognizes the established scalar-loop template for common
 [`EDAG-to-FAST conversion`](../to_fast/README.md). This compatibility shortcut
 preserves its graph and output shape. General tail-call recovery lives in that
-conversion; writers render prepared FAST. [`module.f.mjs`](./module.f.mjs)
+conversion; writers render prepared FAST. [`module.f.js`](./module.f.js)
 holds the recognizer.
 
 The one shape it recognizes is a function of one state value whose condition

@@ -178,7 +178,7 @@ own property descriptors and only the values of the descriptors that
 survive validation are followed. The same mechanism answers a question no
 type can: a descriptor exists exactly when the property does, so
 `{a: undefined}` is an object with a member where `{}` is not, and
-`definedEntries`, which [JSON's walk](../json/serializer/module.f.mjs)
+`definedEntries`, which [JSON's walk](../json/serializer/module.f.js)
 reads objects through, would drop it.
 
 Container kind is settled before the descriptors, because descriptors

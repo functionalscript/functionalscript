@@ -30,7 +30,7 @@ import { sort } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { fromUndefined } from '../../types/nullable/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { codec, leafSerialize, numberSerialize } from './serializer/module.f.mjs'
+import { codec, leafSerialize, numberSerialize } from './serializer/module.f.js'
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 

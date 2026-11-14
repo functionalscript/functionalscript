@@ -10,7 +10,7 @@
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm } from '../amnesia/module.f.mjs'
-import { analysis } from '../analysis/module.f.mjs'
+import { analysis } from '../analysis/module.f.js'
 import { memo, invoke } from './module.f.mjs'
 import { noBoolean, noIn } from '../operations/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.js'

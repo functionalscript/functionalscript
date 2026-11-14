@@ -6,7 +6,7 @@
  *
  * The value shape excludes unresolved module arguments outside bodies, and
  * binding checks reject them inside bodies. Success retains the input graph.
- * Evaluated object metadata is checked separately by `../metadata/module.f.mjs`.
+ * Evaluated object metadata is checked separately by `../metadata/module.f.js`.
  * This helper serves boundaries accepting supplied EDAG data; VM constructors
  * establish these invariants directly. FJS data is acyclic by construction.
  * Diagnostics are validation failures, not program-thrown values.
@@ -16,7 +16,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { analysis, checked } from '../../analysis/module.f.mjs'
+import { analysis, checked } from '../../analysis/module.f.js'
 import { mapOk, okThen } from '../../../types/result/module.f.js'
 
 /** Checks closure bindings and body scopes in shape-checked FJS data. @type {(value: EdagValue) => Result<EdagValue, string>} */

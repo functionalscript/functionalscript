@@ -43,7 +43,7 @@ crash wait behind an issue naming the input that breaks it.
 ### Proposal
 
 Lower with an explicit work stack over the immutable `_State`, the shape
-[`../../ll1/`](../../ll1/module.f.mjs)'s machine uses for the same reason: a frame per rule being
+[`../../ll1/`](../../ll1/module.f.js)'s machine uses for the same reason: a frame per rule being
 lowered holding the children still to lower and the names lowered so far,
 so the JS stack stays O(1) however deep the rule. `freshFrom` takes the
 same treatment, a loop over the counter, or a per-hint counter kept in the
@@ -69,4 +69,4 @@ chain, a cost rather than a crash.
   recurses through.
 - [`../../../types/stack_walk/module.f.js`](../../../types/stack_walk/module.f.js)
   — the explicit-stack driver, which
-  [`../../ll1/module.f.mjs`](../../ll1/module.f.mjs)'s machine runs on.
+  [`../../ll1/module.f.js`](../../ll1/module.f.js)'s machine runs on.

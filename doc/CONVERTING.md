@@ -78,13 +78,12 @@ JavaScript converts it
 change. A constant string in brackets is the constant key, `{ ["a"]: 1 }` is
 `{ a: 1 }`, and `{ [0]: 1 }` is `{ "0": 1 }`.
 
-The one spelling to change is a **numeric key literal**, `{ 0: 1 }` or
-`{ 3e7: true }`, which the language does not read yet
-([roadmap](../spec/todo/README.md#22-priority-2)). Write it in brackets or as
-the string it names:
+Numeric key literals are accepted too
+([property keys](../spec/values/objects/README.md#property-keys)); they need no
+rewrite. These forms define the same keys:
 
 ```js
-{ 0: 'a', 3e7: 'b' }          // refused
+{ 0: 'a', 3e7: 'b' }          // accepted
 { [0]: 'a', [3e7]: 'b' }      // the same object
 { "0": 'a', "30000000": 'b' } // the same object
 ```
@@ -421,7 +420,7 @@ use [`types/map`](../fjs/types/map/module.f.js) and
 [`types/set`](../fjs/types/set/module.f.js): reference keys are found through
 RefMap, primitive keys through the existing ordered map. Both preserve
 SameValueZero and first-insertion order. The
-[`edag/analysis`](../fjs/edag/analysis/module.f.mjs) walk's `visited` uses the
+[`edag/analysis`](../fjs/edag/analysis/module.f.js) walk's `visited` uses the
 shared map for EDAG nodes compared by identity. When a map merely repeats
 the entries of an object already available, read that object through `entry`
 and `hasEntry` (rule 1):

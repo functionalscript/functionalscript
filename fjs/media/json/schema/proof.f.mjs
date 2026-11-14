@@ -26,8 +26,8 @@ const eqData = (data, expected) => () => {
     assertEq(result, exp, [result, exp])
 }
 
-const listRef = /** @type {const} */ ({ $ref: '#/$defs/list' })
-const treeRef = /** @type {const} */ ({ $ref: '#/$defs/tree' })
+const listRef = /** @type {const} */ ({ $ref: '#/$defs/0' })
+const treeRef = /** @type {const} */ ({ $ref: '#/$defs/0' })
 
 /** @type {JsonSchema} */
 const listDef = { type: 'array', items: listRef }
@@ -239,7 +239,7 @@ export const proof = {
             /** @typedef {() => readonly ['array', _List]} _List */
             /** @type {_List} */
             const list = () => ['array', list]
-            eq(list, { ...listRef, $defs: { list: listDef } })()
+            eq(list, { ...listRef, $defs: { '0': listDef } })()
         },
         mutualEntry: () => {
             /** Mutual recursion through a container. */
@@ -249,7 +249,7 @@ export const proof = {
             const tree = () => ['or', number, forest]
             /** @type {_Forest} */
             const forest = () => ['array', tree]
-            eq(tree, { ...treeRef, $defs: { tree: treeDef } })()
+            eq(tree, { ...treeRef, $defs: { '0': treeDef } })()
         },
         mutualInline: () => {
             /** Mutual recursion through a container. */
@@ -259,7 +259,7 @@ export const proof = {
             const tree = () => ['or', number, forest]
             /** @type {_Forest} */
             const forest = () => ['array', tree]
-            eq(forest, { type: 'array', items: treeRef, $defs: { tree: treeDef } })()
+            eq(forest, { type: 'array', items: treeRef, $defs: { '0': treeDef } })()
         },
         recursiveUnion: () => {
             /** A recursive list: `type _List = readonly _List[]`. */
@@ -268,7 +268,7 @@ export const proof = {
             const list = () => ['array', list]
             eq(or(number, list), {
                 anyOf: [{ type: 'number' }, { type: 'array', items: listRef }],
-                $defs: { list: listDef },
+                $defs: { '0': listDef },
             })()
         },
         recursiveRecord: () => {
@@ -277,8 +277,8 @@ export const proof = {
             /** @type {_Rec} */
             const rec = () => ['record', rec]
             eq(rec, {
-                $ref: '#/$defs/rec',
-                $defs: { rec: { type: 'object', additionalProperties: { $ref: '#/$defs/rec' } } },
+                $ref: '#/$defs/0',
+                $defs: { '0': { type: 'object', additionalProperties: { $ref: '#/$defs/0' } } },
             })()
         },
         optionalRecursiveProperty: () => {
@@ -290,25 +290,25 @@ export const proof = {
                 type: 'object',
                 properties: { p: { type: 'array', items: listRef } },
                 additionalProperties: { not: {} },
-                $defs: { list: listDef },
+                $defs: { '0': listDef },
             })()
         },
         revisionLock: () => {
             /**
              * The recursive revision lock schema. Its cycle closes through the
-             * anonymous `or` thunk, which becomes the (empty-string-named) rule.
+             * anonymous `or` thunk, which receives the first ordinal rule ID.
              */
             /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
             /** @type {_Lock} */
             const lock = () => ['record', or(string, lock)]
             eq(lock, {
                 type: 'object',
-                additionalProperties: { $ref: '#/$defs/' },
+                additionalProperties: { $ref: '#/$defs/0' },
                 $defs: {
-                    '': {
+                    '0': {
                         anyOf: [
                             { type: 'string' },
-                            { type: 'object', additionalProperties: { $ref: '#/$defs/' } },
+                            { type: 'object', additionalProperties: { $ref: '#/$defs/0' } },
                         ],
                     },
                 },

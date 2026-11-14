@@ -23,7 +23,7 @@ import { basename, join, normalize, parent, under } from '../../path/module.f.js
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
-import { fmtResult, formatDuration } from '../module.f.mjs'
+import { fmtResult, formatDuration } from '../module.f.js'
 import { csiWrite } from '../../text/sgr/module.f.js'
 import { createPlan, runPlanned } from './plan/module.f.js'
 import { openCoverageCache } from './context/module.f.mjs'

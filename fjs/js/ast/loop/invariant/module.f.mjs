@@ -8,7 +8,7 @@
  * @import { InvariantState } from './types.ts'
  */
 
-import { hasLoopTransfer } from '../../control/module.f.mjs'
+import { hasLoopTransfer } from '../../control/module.f.js'
 
 /** @type {(value: Value, id: BindingId) => boolean} */
 const names = (value, id) => value instanceof Array && value[0] === 'ref' && value[1] === id

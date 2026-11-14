@@ -13,7 +13,7 @@ import { simpleEscapes } from '../../../js/string_escape/module.f.js'
 import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { set } from '../../module.f.mjs'
-import { parser } from '../../ll1/module.f.mjs'
+import { parser } from '../../ll1/module.f.js'
 import { units, utf16 } from '../../utf16/module.f.js'
 import {
     array,

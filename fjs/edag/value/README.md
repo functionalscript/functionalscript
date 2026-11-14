@@ -49,8 +49,8 @@ written once in [`../values.md`](../values.md), and the root
 |[`method`](./method/module.f.mjs)          |built-in method calls, resolved through the runtime the executor was given   |
 |[`array_method`](./array_method/module.f.mjs)|`map`, `filter`, `sort` and the other pure array methods                   |
 |**Checking and leaving**                   |                                                                              |
-|[`metadata`](./metadata/module.f.mjs)      |unique, ordered object keys in data supplied from outside                   |
-|[`closure`](./closure/module.f.mjs)        |closure bindings, body scopes and function lengths in supplied data          |
+|[`metadata`](./metadata/module.f.js)      |unique, ordered object keys in data supplied from outside                   |
+|[`closure`](./closure/module.f.js)        |closure bindings, body scopes and function lengths in supplied data          |
 |[`to_unknown`](./to_unknown/module.f.mjs)  |`toData`: values as ordinary JavaScript values, sharing kept; `toUnknown` compiles functions|
 
 The checks in `metadata` and `closure` are for EDAG that arrives as data, at an

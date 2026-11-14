@@ -12,7 +12,7 @@ import { _defaultExport, unresolved } from '../../../../compiler/edag/module.f.m
 import { tryStringify } from '../../../../compiler/serializer/module.f.mjs'
 import { fromAnalysis, toFast } from '../../module.f.mjs'
 import { fromFast } from '../../../from_fast/module.f.mjs'
-import { identityAnalysis } from '../../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../../analysis/module.f.js'
 import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.mjs'
 import { _tailFunction } from '../../tail_calls/proof.f.mjs'
 import { _sourceLoops } from './module.f.mjs'

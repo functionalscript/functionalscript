@@ -7,7 +7,7 @@
 
 `test` of `fjs/effects/node/types.ts` registers a named test with a
 `TestContext`, a thin wrapper over an external framework's `test` function: Node
-`--test`, Bun or Deno (`registerModule` in `fjs/emergent_testing/module.f.mjs`).
+`--test`, Bun or Deno (`registerModule` in `fjs/emergent_testing/module.f.js`).
 The Node runner answers it by calling `ctx.test(name, { expectFailure }, ...)`
 and running the nested effect inside the framework's callback; the framework
 owns scheduling, reporting and the process's exit code.

@@ -82,7 +82,7 @@ Standalone blocks never invent a source-function owner.
 
 ## Canonical root loops
 
-Before extracting loop helpers, [`loop/owning`](./loop/owning/module.f.mjs)
+Before extracting loop helpers, [`loop/owning`](./loop/owning/module.f.js)
 preserves source-function self tail calls as transfers to an outer invocation
 loop. Fresh public inputs feed the original iteration bindings; defaults,
 destructuring, local declarations and capture snapshots run again for each

@@ -630,7 +630,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Use the current `['=>', length, slots, body]` schema, with `slots` an array
       operand of `exp`s, `['frame', i]` the read of slot `i`, and fixed/rest invocation bindings.
       Metadata and binding validation are owned by
-      [`fjs/edag/analysis`](../../edag/analysis/module.f.mjs).
+      [`fjs/edag/analysis`](../../edag/analysis/module.f.js).
 - [x] Lower both non-capturing functions (no slots) and captured values through
       enclosing-scope slots. The original null-only restriction is
       superseded by `captures` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs).
@@ -760,7 +760,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   chosen special-number `.f.js` spellings.
 - [`fjs/media/datajs/serializer/module.f.mjs`](../../media/datajs/serializer/module.f.mjs)
   — the writer, where special-number handling lives.
-- [`../../media/json/serializer/module.f.mjs`](../../media/json/serializer/module.f.mjs)
+- [`../../media/json/serializer/module.f.js`](../../media/json/serializer/module.f.js)
   — shared JSON serialization primitives currently reused by DJS; DJS-specific number
   syntax must not silently change standard JSON behavior.
 - [`../../media/json/todo/number-edge-cases.md`](../../media/json/todo/number-edge-cases.md)

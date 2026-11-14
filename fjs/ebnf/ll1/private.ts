@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for the LL(1) machine in `./module.f.mjs`.
+ * Implementation-private types for the LL(1) machine in `./module.f.js`.
  *
  * @module
  */

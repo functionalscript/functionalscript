@@ -9,7 +9,7 @@
 import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'

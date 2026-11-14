@@ -4,7 +4,7 @@
  * @import { Exp } from '../../../types.ts'
  */
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { checked, identityAnalysis } from '../../../analysis/module.f.mjs'
+import { checked, identityAnalysis } from '../../../analysis/module.f.js'
 import { memo } from '../../../memo/module.f.mjs'
 import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { toFast } from '../../../to_fast/module.f.mjs'

@@ -11,7 +11,7 @@
  */
 
 import { operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
-import { exitValues, freeBindings } from '../../../js/ast/control/module.f.mjs'
+import { exitValues, freeBindings } from '../../../js/ast/control/module.f.js'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.mjs'

@@ -1,7 +1,7 @@
 /** Explicit native-runner entry: the actual working directory's FJS proofs. */
 
 import { runEffect } from '../effects/node/module.mjs'
-import { registerOne } from './module.f.mjs'
+import { registerOne } from './module.f.js'
 
 const code = await runEffect(registerOne)
 // Deno's test runner can reset process.exitCode after discovery. Fail the

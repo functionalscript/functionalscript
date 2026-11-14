@@ -30,8 +30,8 @@
 
 import { catch_, import_ } from '../../effects/common/module.f.js'
 import {
-    addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
-} from '../module.f.mjs'
+    addResult, collectTests, defaultTest, formatDuration, runEntries, testName, text, zeroState, zeroTotals,
+} from '../module.f.js'
 import { attemptStep, do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { error } from '../../types/result/module.f.js'
 
@@ -52,7 +52,7 @@ const report = do_('report')
  *
  * The answer is `Result<unknown, unknown>` and a caller that knows better says
  * so at its own call, which is the same shape `catch_` is used with in
- * [`../module.f.mjs`](../module.f.mjs): the operation is generic, and a
+ * [`../module.f.js`](../module.f.js): the operation is generic, and a
  * wrapper written in JSDoc cannot carry the variable through its own body.
  *
  * @type {(f: () => unknown) => Effect<Catch, Result<unknown, unknown>, never>}
@@ -247,6 +247,31 @@ const one = ([module, proof]) => ended => {
 }
 
 /**
+ * The name a failure of the *runner* is reported under, when no module is to
+ * blame for it: the page could not be told, or — in
+ * [`./module.mjs`](./module.mjs), which imports this — broke its own
+ * interpreter. One name, because a reader meeting it in a report should not
+ * have to learn two.
+ */
+export const runnerSource = 'the browser runner'
+
+/**
+ * A failure that arrived through an **operation's error channel**, as a row.
+ *
+ * Not `errorDetails`: that reads `message` and `stack` off a value a *test*
+ * threw, and a channel error is not one of those — reading it that way spells a
+ * tuple, which is how the first version of this described every unloadable
+ * module. `errorMessage` is the sentence the channel is for, and every host
+ * says it the same way.
+ *
+ * @type {(f: readonly [string, IoChannel]) => _BrowserTestResult}
+ */
+const channelFailure = ([source, cause]) => {
+    const text = errorMessage(cause)
+    return moduleFailure(source, 0, text, text)
+}
+
+/**
  * One source: loaded, announced, and folded into the walk's state.
  *
  * Both failures answer as *values*, and the state keeps them apart: an import
@@ -327,31 +352,6 @@ export const loadProofs = sources =>
         })
 
 /**
- * The name a failure of the *runner* is reported under, when no module is to
- * blame for it: the page could not be told, or — in
- * [`./module.mjs`](./module.mjs), which imports this — broke its own
- * interpreter. One name, because a reader meeting it in a report should not
- * have to learn two.
- */
-export const runnerSource = 'the browser runner'
-
-/**
- * A failure that arrived through an **operation's error channel**, as a row.
- *
- * Not `errorDetails`: that reads `message` and `stack` off a value a *test*
- * threw, and a channel error is not one of those — reading it that way spells a
- * tuple, which is how the first version of this described every unloadable
- * module. `errorMessage` is the sentence the channel is for, and every host
- * says it the same way.
- *
- * @type {(f: readonly [string, IoChannel]) => _BrowserTestResult}
- */
-const channelFailure = ([source, cause]) => {
-    const text = errorMessage(cause)
-    return moduleFailure(source, 0, text, text)
-}
-
-/**
  * Runs every module and answers how the run ended: `null` when it reached the
  * end, or the failure of the *runner* that stopped it.
  *
@@ -394,11 +394,11 @@ export const runProofs = modules => foldStep(pureOk(modules), null, one)
  */
 export const groupByModule = results => {
     const starts = results.flatMap((result, at) =>
-        at === 0 || results[at - 1]?.module !== result.module
+        at === 0 || results[Number(at - 1)]?.module !== result.module
             ? [/** @type {const} */ ([at, result.module])]
             : [])
     return starts.map(([start, module], n) => {
-        const group = results.slice(start, starts[n + 1]?.[0] ?? results.length)
+        const group = results.slice(start, starts[Number(n + 1)]?.[0] ?? results.length)
         const { passed, failed } = group.reduce(addResult, zeroTotals)
         return { module, results: group, passed, failed }
     })
@@ -449,7 +449,7 @@ export const groupStatus = (passed, failed, settled) =>
  * @type {(result: _BrowserTestResult) => Element}
  */
 export const resultView = result => {
-    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${reportDuration(result.duration)})`
+    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${testName(result)} (${reportDuration(result.duration)})`
     return result.status === 'failed'
         ? ['li', { 'data-status': 'failed' }, line, ['pre', { 'data-test-error': '' }, `${result.message}\n${result.stack}`]]
         : ['li', { 'data-status': 'passed' }, line]
@@ -462,7 +462,7 @@ export const resultView = result => {
  *
  * @type {(id: TestId) => Element}
  */
-export const pendingView = id => ['li', { 'data-status': 'running' }, `RUN  ${id.name}`]
+export const pendingView = id => ['li', { 'data-status': 'running' }, `RUN  ${testName(id)}`]
 
 /**
  * One module's group: a line of a dot, the module's path and its counts, then

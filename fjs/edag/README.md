@@ -44,10 +44,10 @@ shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
 representation; [EDAG values](values.md) records its construction, identity,
 failure and runtime-compilation contracts.
-[`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
+[`validateMetadata`](value/metadata/module.f.js) checks unique, correctly
 ordered object keys in evaluated data and captures,
 preserving value identity.
-[`validateClosure`](value/closure/module.f.mjs) checks closure bindings,
+[`validateClosure`](value/closure/module.f.js) checks closure bindings,
 function-body scopes and function lengths, including nested function creation,
 and also preserves value identity. These checks require shape-checked FJS data
 and serve explicit boundaries accepting EDAG supplied as data. VM constructors
@@ -271,7 +271,7 @@ and memo return `Result<EdagValue, EdagValue>`, each making the calls a body
 leaves in tail position in the invocation's place; their different reuse
 policies are preserved. [Module initialization](values.md#module-initialization) uses
 memo with represented dependency exports.
-[analysis](analysis/module.f.mjs) reads
+[analysis](analysis/module.f.js) reads
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
