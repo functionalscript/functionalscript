@@ -448,7 +448,7 @@ document already establishes, and `.f.mjs` modules keep their JSDoc and their
 
 An npm package ships `.d.ts` so that TypeScript consumers see types; the
 declarations are **generated from the schemas**, never authored.
-[`fjs/rtti/ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) is already that
+[`fjs/rtti/ts/module.f.js`](../fjs/rtti/ts/module.f.js) is already that
 printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
 recursion handled — so this is close to plumbing plus an `fjs` command, and it
 is the stage that can land earliest. Not *only* plumbing, though, and not
@@ -580,7 +580,7 @@ stating rather than assuming:
 TypeScript requires an index signature to cover the declared keys too, so the
 printer widens the index type "to the union of the rest and the declared value
 types — the closest expressible supertype"
-([`rtti/ts`](../fjs/rtti/ts/module.f.mjs)). `rest({ a: number }, string)`
+([`rtti/ts`](../fjs/rtti/ts/module.f.js)). `rest({ a: number }, string)`
 therefore emits an index of `number | string`, and a caller may pass
 `{ a: 1, b: 2 }` — a numeric extra key, which the schema rejects because its
 rest is `string`. Note that an exact-key encoding for the bare, closed form
@@ -592,7 +592,7 @@ that type" as two separate constraints.
 how often they appear. The printer renders a numeric const as
 `isFinite(c) ? String(c) : 'number'`
 ([`fjs/types/ts`](../fjs/types/ts/module.f.js), which
-[`rtti/ts`](../fjs/rtti/ts/module.f.mjs) imports), so a `NaN`,
+[`rtti/ts`](../fjs/rtti/ts/module.f.js) imports), so a `NaN`,
 `Infinity`, or `-Infinity` const becomes the type `number`, and `-0` becomes
 the literal `0`. Validation meanwhile uses `Object.is` **on purpose** — its doc
 comment says so, precisely to match `NaN` and to keep `+0` and `-0` distinct
@@ -637,7 +637,7 @@ it as scoped to the object shapes TypeScript can name.
 | Schema constructors | [`fjs/rtti/module.f.js`](../fjs/rtti/module.f.js) | done |
 | Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.js), [`validate/`](../fjs/rtti/validate/module.f.js) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
 | Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.js) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
-| TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
+| TypeScript emission | [`ts/module.f.js`](../fjs/rtti/ts/module.f.js) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | JSON Schema emission | [`fjs/media/json/schema`](../fjs/media/json/schema/module.f.mjs) | done — `toJsonSchema` writes draft 2020-12 through the same data form, as an MCP tool's `inputSchema`; a second output of one schema, not a type-system piece |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation convention | [type-annotations](../spec/todo/3360-type-annotations.md) | designed, and narrowed to a name; recognition not started |
@@ -775,7 +775,7 @@ Three of its features fall out of decisions already made:
   missing is a source span, which is [open question 4](#open-questions) — the
   same work, whether the consumer is a terminal or an editor.
 - **Hover.** The name-only rule guarantees every annotated declaration has a
-  type with a *name*, so hover has something to show, and `ts/module.f.mjs`
+  type with a *name*, so hover has something to show, and `ts/module.f.js`
   already renders a schema to readable TypeScript for the expansion.
 - **Go to definition, on a type.** An annotation body is an ordinary binding,
   so this is the same jump as any `const` — plain identifier resolution, not a
@@ -894,7 +894,7 @@ gain, so the dependencies are stated instead:
   first diagnostic.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
-  [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs), wired into
+  [`ts/module.f.js`](../fjs/rtti/ts/module.f.js), wired into
   packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
   No compiler work and no language change — but **not just a command**.
   The printer's own doc comment records two divergences from `Ts<>`. They
@@ -980,7 +980,7 @@ gain, so the dependencies are stated instead:
 
   **And it is not fully independent of the compiler stages.** The printer
   renders *a schema* to a type expression;
-  [`dataToTs`](../fjs/rtti/ts/module.f.mjs) returns aliases plus that
+  [`dataToTs`](../fjs/rtti/ts/module.f.js) returns aliases plus that
   expression, not `export const ks: …`. Generating a module's `.d.ts` also
   needs to know **which export has which schema**, and that association is
   exactly what an annotation supplies — which does not exist until stages

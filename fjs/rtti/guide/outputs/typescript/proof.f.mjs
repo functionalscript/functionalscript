@@ -5,7 +5,7 @@
  */
 
 import { assertEq } from '../../../../asserts/module.f.js'
-import { printer } from '../../../ts/module.f.mjs'
+import { printer } from '../../../ts/module.f.js'
 import { array, number, option, or, record, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'
