@@ -1,6 +1,6 @@
 import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJob, packageJobId, platformNodeSteps } from './module.f.mjs'
-import { toSteps } from '../common/module.f.mjs'
-import { environmentCommand } from '../environment/module.f.mjs'
+import { toSteps } from '../common/module.f.js'
+import { environmentCommand } from '../environment/module.f.js'
 import { actions, node } from '../config/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 

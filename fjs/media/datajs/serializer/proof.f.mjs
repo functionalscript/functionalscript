@@ -12,7 +12,7 @@ import { concat } from '../../../types/string/module.f.js'
 import { tryParse } from '../parser/module.f.mjs'
 import { parseFromTokens } from '../../../compiler/parser/module.f.mjs'
 import { tokenize } from '../../../compiler/tokenizer/module.f.mjs'
-import { difference } from '../vectors/module.f.mjs'
+import { difference } from '../vectors/module.f.js'
 import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**

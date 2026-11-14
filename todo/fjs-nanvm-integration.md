@@ -430,7 +430,7 @@ historical set below with `types/bit_vec` replacing `types/bigint`;
 
 Measured from base revision `6ff068a3f`, with shared JSON string quoting in
 [#3763](https://github.com/functionalscript/functionalscript/pull/3763).
-[`media/datajs/vectors`](../fjs/media/datajs/vectors/module.f.mjs) replaces
+[`media/datajs/vectors`](../fjs/media/datajs/vectors/module.f.js) replaces
 its native `JSON.stringify` calls with
 [`js/string_escape`'s `stringLiteral`](../fjs/js/string_escape/module.f.js),
 the writer our JSON serializer already uses for strings. All four call sites

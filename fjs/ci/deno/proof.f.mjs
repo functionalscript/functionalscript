@@ -1,7 +1,7 @@
-import { denoSteps } from './module.f.mjs'
+import { denoSteps } from './module.f.js'
 import { deno } from '../config/module.f.js'
-import { environmentCommand } from '../environment/module.f.mjs'
-import { toSteps } from '../common/module.f.mjs'
+import { environmentCommand } from '../environment/module.f.js'
+import { toSteps } from '../common/module.f.js'
 import { assertStructurallySame } from '../../asserts/module.f.js'
 export const proof = {
     commands: () => assertStructurallySame(toSteps(denoSteps).flatMap(step => step.run === undefined ? [] : [step.run]), [

@@ -1,7 +1,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { wasmer, wasmtime } from '../config/module.f.js'
-import { environmentVersionStep } from '../environment/module.f.mjs'
+import { environmentVersionStep } from '../environment/module.f.js'
 import {
     i686Target,
     rustPlatformCommands,

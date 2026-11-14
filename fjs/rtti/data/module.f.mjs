@@ -176,7 +176,7 @@ const cmpList = cmpItem => (a, b) => {
     const d = a.length - b.length
     if (d !== 0) { return d }
     for (let i = 0; i < a.length; i += 1) {
-        const c = cmpItem(a[i], b[i])
+        const c = cmpItem(a[Number(i)], b[Number(i)])
         if (c !== 0) { return c }
     }
     return 0
@@ -571,9 +571,9 @@ const arraySetSubset = ctx => assumed => (p, q) => {
         : p.rest === undefined && qn === pn
     if (!lengthOk) { return false }
     /** @type {(i: number) => Node} */
-    const qAt = i => i < qn ? q.prefix[i] : assertNotNullish(q.rest)
+    const qAt = i => i < qn ? q.prefix[Number(i)] : assertNotNullish(q.rest)
     /** @type {(i: number) => boolean} */
-    const qAdmitsAbsenceAt = i => i >= qn || admitsAbsence(ctx[1])(q.prefix[i])
+    const qAdmitsAbsenceAt = i => i >= qn || admitsAbsence(ctx[1])(q.prefix[Number(i)])
     return p.prefix.every((el, i) =>
             le(stripAbsent(el), qAt(i))
             && (typeof el === 'string'
@@ -659,8 +659,8 @@ const unionSubset = ctx => assumed => (a, b) =>
 const keyedSubset = ctx => assumed => ([a, aKey], [b, bKey]) => {
     let assumed1 = assumed
     if (aKey !== undefined && bKey !== undefined) {
-        const inner = assumed[aKey]
-        if (inner !== undefined && inner[bKey] === true) { return true }
+        const inner = entry(assumed, aKey)
+        if (inner !== undefined && entry(inner, bKey) === true) { return true }
         assumed1 = { ...assumed, [aKey]: inner === undefined ? { [bKey]: true } : { ...inner, [bKey]: true } }
     }
     return unionSubset(ctx)(assumed1)(resolve(ctx[0])(a), resolve(ctx[1])(b))
@@ -726,7 +726,7 @@ const dropSubsumed = le => list =>
  */
 const sortedDedup = cmpItem => list => {
     const sorted = list.toSorted(cmpItem)
-    return sorted.filter((x, i) => i === 0 || cmpItem(sorted[i - 1], x) !== 0)
+    return sorted.filter((x, i) => i === 0 || cmpItem(sorted[Number(i - 1)], x) !== 0)
 }
 
 /** @type {(f: _NodeMap) => (p: ArraySet) => ArraySet} */
@@ -1203,7 +1203,7 @@ const reachableFrom = (rules, init) => {
     let frontier = result
     while (frontier.length !== 0) {
         const next = dedup(frontier
-            .flatMap(n => unionRefs(assertNotNullish(rules[n])))
+            .flatMap(n => unionRefs(assertNotNullish(entry(rules, n))))
             .filter(n => !result.some(r => r === n)))
         result = [...result, ...next]
         frontier = next
@@ -1258,7 +1258,7 @@ export const toData = t => {
     if (typeof entry === 'string'
         && !definedValues(kept).some(u => unionRefs(u).some(r => r === entry))) {
         // the entry rule is not referenced by any rule body — inline it
-        const entryUnion = assertNotNullish(kept[entry])
+        const entryUnion = resolve(kept)(entry)
         /** @type {RuleSet} */
         const rest = Object.fromEntries(definedEntries(kept).filter(([n]) => n !== entry))
         return internData(sortRules(rest), entryUnion)

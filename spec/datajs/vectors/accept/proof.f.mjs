@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
-import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
+import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import accept from './data.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */

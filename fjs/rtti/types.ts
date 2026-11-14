@@ -209,8 +209,8 @@ export type DemoSchema = {
     readonly source: string
     readonly schema: Type
     /**
-     * The directory of the module that declares the schema, for one the
-     * project uses — `fjs/media/note` — or absent for one written for the demo.
+     * The full path of the module that declares the schema, for one the project
+     * uses — `fjs/media/note/module.f.mjs` — or absent for one written for the demo.
      */
     readonly module?: string
 }

@@ -57,7 +57,7 @@ import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/n
 import { charIs, isDigit, isLatinLetter } from '../../../../text/ascii/module.f.js'
 import { fromVec } from '../../../../text/utf8/module.f.js'
 import { tryParse } from '../../module.f.mjs'
-import { difference } from '../module.f.mjs'
+import { difference } from '../module.f.js'
 import { occurrences } from '../../../../types/array/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'

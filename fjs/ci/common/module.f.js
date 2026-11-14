@@ -13,6 +13,7 @@
 import { actions, images, jobTimeout } from '../config/module.f.js'
 import { array, number, option, or, record, string } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
 
@@ -110,7 +111,7 @@ export const parseGitHubAction = rttiParse(gitHubActionSchema)
 
 /** @type {(name: keyof typeof actions, w?: Record<string, string>) => Step} */
 export const uses = (name, w) => ({
-    uses: `${name}@${actions[name]}`,
+    uses: `${name}@${entry(actions, name)}`,
     ...(w === undefined ? {} : { with: w })
 })
 

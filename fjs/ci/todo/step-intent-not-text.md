@@ -9,7 +9,7 @@ The assembler knows, when it builds a step, which environment the command
 runs in and which check it belongs to. That knowledge is erased into a
 `run` string, and two later layers reconstruct it from the text.
 
-[`environment`](../environment/module.f.mjs) emits a placeholder prefix:
+[`environment`](../environment/module.f.js) emits a placeholder prefix:
 
 ```js
 export const commandPrefix = 'env '
@@ -47,7 +47,7 @@ Carry the intent on `MetaStep` in [`common/types.ts`](../common/types.ts):
 an `environment` of `mise`, `spidermonkey` or `none`, and the check the
 step belongs to, written once by the builders that know them, with
 `environmentSteps` and `shellSpiderMonkeyCommands` tagging what they make.
-One renderer, beside `toSteps` in [`common`](../common/module.f.mjs),
+One renderer, beside `toSteps` in [`common`](../common/module.f.js),
 turns a tagged step into its `run`, `shell` and prefix; `smart` reads the
 tag instead of the text. `migratedStep`, `replacedSetup`, `shellPrefixes`,
 `command`, `checkId` and one of `action` and `isAction` go, and
