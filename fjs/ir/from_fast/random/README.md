@@ -23,9 +23,10 @@ const out = compare(0x4f1c_5e2d, 120, 80)
 | typed | floats, booleans, small integer ranges, an unexported helper, a short loop, `%`, a record kept inside the function |
 | any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind |
 
-A program the slices refuse — for example a product of two integer ranges
-that needs more than one word — is counted and not run. Where JavaScript
-throws, the comparison accepts any trap, as
+A program whose integer body's range past its signature the checker
+refuses is counted and not run. Any other refusal is a failure, so a
+regression that rejects a category the slices already lower fails the
+proof. Where JavaScript throws, the comparison accepts any trap, as
 [`testlib.mjs`](../../wasm/testlib.mjs) does today; a stricter match of
 traps waits until slice 7 makes throws meaningful.
 
