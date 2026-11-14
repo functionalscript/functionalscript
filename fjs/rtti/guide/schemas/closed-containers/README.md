@@ -120,4 +120,4 @@ schema is a subset of the open one. The lesson is defined in [`sample.f.js`](./s
 The container skeletons in [`common`](../../../common/module.f.js), read
 by [`parse`](../../../parse/module.f.js) and
 [`validate`](../../../validate/module.f.js); the data form's `rest` in
-[`data`](../../../data/module.f.mjs).
+[`data`](../../../data/module.f.js).

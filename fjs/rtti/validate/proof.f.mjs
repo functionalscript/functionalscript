@@ -9,7 +9,7 @@
 
 import { validate } from './module.f.js'
 import { parse } from '../parse/module.f.js'
-import { toData, validate as dataValidate } from '../data/module.f.mjs'
+import { toData, validate as dataValidate } from '../data/module.f.js'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'

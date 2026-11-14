@@ -63,7 +63,7 @@
  * readers read a container in the same order by construction. `validate`
  * supplies a collector that collects nothing, so a validation allocates
  * nothing per entry, and keeps every container as it is. The data
- * form's `validate` (`../data/module.f.mjs`) is the same shape over `Data`.
+ * form's `validate` (`../data/module.f.js`) is the same shape over `Data`.
  *
  * ## Recursion safety
  *

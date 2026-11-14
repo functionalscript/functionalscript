@@ -180,7 +180,7 @@ export const proof = {
     },
     // What a container schema declares, per kind. A tuple is read by length,
     // so a hole is a declared position whose schema is `undefined` — the same
-    // reading `../data/module.f.mjs` has, and the reason the two kinds need
+    // reading `../data/module.f.js` has, and the reason the two kinds need
     // different entry readers at all.
     schemaEntries: {
         tuple: () => assertStructurallySame(

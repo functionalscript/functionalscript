@@ -31,7 +31,7 @@ before any input.
   alphabet's symbols, should reading the entry's node by hand prove not to
   be enough; the proof's `tokenSymbols` is what it would replace.
 
-`subset` in [`../../../rtti/data/module.f.mjs`](../../../rtti/data/module.f.mjs)
+`subset` in [`../../../rtti/data/module.f.js`](../../../rtti/data/module.f.js)
 is the shape of the check.
 
 ### Tasks

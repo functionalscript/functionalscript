@@ -1,5 +1,5 @@
 import { assert } from '../../../../asserts/module.f.js'
-import { cmp, equal, subset, toData } from '../../../data/module.f.mjs'
+import { cmp, equal, subset, toData } from '../../../data/module.f.js'
 import { boolean, number, or, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'

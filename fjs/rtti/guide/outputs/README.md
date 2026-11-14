@@ -22,4 +22,4 @@ declaration:
 ## Where it is implemented
 
 [`ts`](../../ts/module.f.mjs), [`media/json/schema`](../../../media/json/schema/module.f.mjs)
-and [`data`](../../data/module.f.mjs).
+and [`data`](../../data/module.f.js).

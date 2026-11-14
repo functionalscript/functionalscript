@@ -21,7 +21,7 @@ declaration:
 | a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.js) |
 | the static TypeScript type | `Ts<typeof s>` | [`ts/types.ts`](./ts/types.ts) |
 | the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.mjs`](./ts/module.f.mjs) |
-| a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.mjs) |
+| a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.js) |
 | a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
 
 ```js
@@ -100,7 +100,7 @@ siblings there are single data structures and type-level helpers.
   returns the *original* value on success. Same acceptance as `parse`, so the
   two differ only in what a success carries — see
   [`parse` and `validate`](./guide/readers/parse-and-validate/README.md)
-- `data/module.f.mjs` — the serializable data form: `toData(schema)` converts a
+- `data/module.f.js` — the serializable data form: `toData(schema)` converts a
   thunk-form schema into a function-free, canonical representation with `cmp`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
 - `demo.f.mjs` — the module page's demo: every guide page's lessons, then

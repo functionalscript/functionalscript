@@ -3,7 +3,7 @@
  *
  * `validate` (`../validate/module.f.js`) and `parse`
  * (`../parse/module.f.js`) are the schema-form consumers, reading a value
- * against a thunk graph; the data form (`../data/module.f.mjs`) is the other,
+ * against a thunk graph; the data form (`../data/module.f.js`) is the other,
  * walking a `Data` instead. They produce the same `Result<T, ValidationError>`
  * outcome and differ in how they dispatch, so this module hosts the parts that
  * do not differ:
@@ -156,7 +156,7 @@ export const eachEntry =
  * Spreading the schema yields `undefined` for a hole and preserves its
  * length, so a hole is a declared position whose schema is `undefined` — which
  * is a `Const` schema in its own right, and exactly what reading index `0` of
- * `new Array(1)` gives. That is the reading `../data/module.f.mjs`'s
+ * `new Array(1)` gives. That is the reading `../data/module.f.js`'s
  * `containerUnion` has always had, so the canonical data form stays fixed.
  *
  * The spread walks the iterator, which is the *same* walk `containerUnion`
