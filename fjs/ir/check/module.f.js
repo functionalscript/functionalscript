@@ -29,7 +29,9 @@
  *   a `match` whose arms may name the operand at the type of their
  *   variants. A function may give one, which its caller owns, and `dup` /
  *   `drop` count it. The [owned-stage check](./owned/module.f.js) requires
- *   each owned value to be consumed once on every path.
+ *   each owned value to be consumed once on every path; `checkPlain` stops
+ *   before it, for the [lifetime pass](../lifetime/module.f.js), which
+ *   writes the owned stage.
  *
  * @module
  *
@@ -247,10 +249,11 @@ const truncType = (env, target, args) => {
 
 /**
  * The arms of a `match`, each with the variants it takes, `else` written
- * out. Each arm names variants of the operand, none is named twice, `else`
- * comes last and takes some, and every variant has an arm.
+ * out, and the variants as it wrote them. Each arm names variants of the
+ * operand, none is named twice, `else` comes last and takes some, and every
+ * variant has an arm.
  *
- * @type {(variants: readonly string[], arms: readonly ArmOf<Term>[]) => Result<readonly (readonly [readonly string[], string | null, Term])[], string>}
+ * @type {(variants: readonly string[], arms: readonly ArmOf<Term>[]) => Result<readonly (readonly [readonly string[], string | null, Term, readonly string[] | null])[], string>}
  */
 const resolveArms = (variants, arms) => {
     const named = arms.flatMap(([vs]) => vs ?? [])
@@ -264,7 +267,7 @@ const resolveArms = (variants, arms) => {
         : otherwise >= 0 && otherwise !== arms.length - 1 ? error('else is not the last arm')
         : otherwise >= 0 && rest.length === 0 ? error('else takes no variant')
         : otherwise < 0 && rest.length > 0 ? error(`no arm for ${rest.join(' or ')}`)
-        : ok(arms.map(([vs, binder, body]) => /** @type {const} */ ([vs ?? rest, binder, body])))
+        : ok(arms.map(([vs, binder, body]) => /** @type {const} */ ([vs ?? rest, binder, body, vs])))
 }
 
 /**
@@ -438,7 +441,7 @@ const term = (env, t) => {
             const operand = value(term, env, e)
             if (operand[0] === 'error') { return operand }
             const [of] = operand[1]
-            /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term]) => Result<Typed, string>} */
+            /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term, readonly string[] | null]) => Result<Typed, string>} */
             const body = ([vs, binder, x]) => {
                 if (binder === null || of[0] !== 'sealed') { return term(env, x) }
                 if (at(binder)(env.locals) !== null) { return no(`${binder} is bound twice`) }
@@ -456,7 +459,7 @@ const term = (env, t) => {
             const type = joinAll(env, types)
             const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unheld(env, type)
             return type === null || why !== null ? no(`match: ${why}`)
-                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder], k) => /** @type {const} */ ([vs, binder, bodies[1][Number(k)]]))]])
+                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder, , written], k) => /** @type {const} */ ([vs, binder, bodies[1][Number(k)], written]))]])
         }
         case 'block': {
             const [, label, type, body] = t
@@ -586,13 +589,15 @@ const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
 }
 
 /**
- * A module, checked: the interfaces it imports, its functions of distinct
- * names, each checked, and exports that name them once each. The answer is
- * the module with every body typed, which is what the emitter reads.
+ * A module's plain stage, checked: the interfaces it imports, its functions
+ * of distinct names, each typed, and exports that name them once each. The
+ * answer is the module with every body typed, which is what the
+ * [lifetime pass](../lifetime/module.f.js) reads to write the owned stage.
+ * Nothing here asks how often a value is used.
  *
  * @type {(m: Module) => Result<Checked, string>}
  */
-export const check = m => {
+export const checkPlain = m => {
     const imports = fromEntries(m.imports)
     const functions = fromEntries(m.functions)
     const why = unscoped({ name: '', locals: empty, labels: empty, functions, imports }, m.imports, m.functions, [], [])
@@ -603,9 +608,21 @@ export const check = m => {
     if (missing !== undefined) { return error(`no function ${missing} to export`) }
     if (again !== undefined) { return error(`${again} is exported twice`) }
     const typed = okList(m.functions.map(checkFn(functions, imports)))
+    return typed[0] === 'error' ? typed : ok({ imports: m.imports, functions: typed[1], exports: m.exports })
+}
+
+/**
+ * A module, checked: its plain stage typed, and its owned stage checked,
+ * each owned value consumed once on every path. The answer is the module
+ * with every body typed, which is what the emitter reads.
+ *
+ * @type {(m: Module) => Result<Checked, string>}
+ */
+export const check = m => {
+    const typed = checkPlain(m)
     if (typed[0] === 'error') { return typed }
-    const owned = checkOwned({ imports: m.imports, functions: typed[1], exports: m.exports })
-    return owned[0] === 'error' ? owned : ok({ imports: m.imports, functions: typed[1], exports: m.exports })
+    const owned = checkOwned(typed[1])
+    return owned[0] === 'error' ? owned : typed
 }
 
 /**

@@ -12,13 +12,18 @@
  * host](../l0/host/count/module.mjs) of the `fjs:l0` imports reads, and so
  * does the [host](../native/host/module.f.js) of the `fjs:l1-native`
  * imports: each call has hosts of its own, whose first cells hold the
- * call's values of `any` in the order of the parameters. A call that
- * completes leaves those cells as it found them, each counted once, and no
- * other cell: a module that keeps or frees a value that it borrows shows.
+ * call's values of `any` in the order of the parameters. A parameter that
+ * owns its argument gets a `dup` of it, so that the caller keeps its own,
+ * and a value of `any` that a call answers is the caller's, so the proof
+ * reads it and drops it.
+ * A call that completes then leaves those cells as it found them, each
+ * counted once, and no other cell: a module that keeps or frees a value
+ * that it borrows shows, and so does one that leaves a value over.
  *
  * @module
  *
  * @import { Module, Type } from '../types.ts'
+ * @import { Counting } from '../l0/host/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _Any, _Twin, _Value } from './types.ts'
  */
@@ -27,7 +32,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { write } from '../../media/wasm/binary/write/module.f.js'
 import { check } from '../check/module.f.js'
 import { counting } from '../l0/host/count/module.mjs'
-import { fits } from '../module.f.js'
+import { fits, isOwn } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.f.js'
 import { emit } from './module.f.js'
 
@@ -46,9 +51,21 @@ const toHost = (t, v) =>
     : typeof v === 'bigint' ? (t[0] === 'int' && fits(32)(t) ? Number(BigInt.asIntN(32, v)) : BigInt.asIntN(64, v))
     : v
 
-/** A result of `t`, as the JavaScript API gives it, read back. @type {(t: Type, v: unknown) => _Value} */
-const fromHost = (t, v) => {
+/**
+ * A result of `t`, as the JavaScript API gives it, read back. A value of
+ * `any` is a handle that the caller owns: the host reads its value, and the
+ * caller drops it.
+ *
+ * @type {(t: Type, v: unknown, h: Counting) => _Value}
+ */
+const fromHost = (t, v, h) => {
     if (t[0] === 'sum') { return v === 1 }
+    if (t[0] === 'sealed') {
+        assert(typeof v === 'bigint', v)
+        const any = h.read(v)
+        h.imports.drop(v)
+        return { any }
+    }
     if (t[0] !== 'int') {
         assert(typeof v === 'number', v)
         return v
@@ -122,6 +139,9 @@ export const spellings = [
     '1.5', '1e3', '\u0663', '/', ':',
 ].map(v => ({ any: v }))
 
+/** Whether two values are the same: by `Object.is`, so that `-0` and `NaN` are told apart, and two values of `any` by what they hold. @type {(a: _Value, b: _Value) => boolean} */
+const same = (a, b) => isAny(a) && isAny(b) ? Object.is(a.any, b.any) : Object.is(a, b)
+
 /** What a call answers, or that it threw. @type {(f: () => _Value) => readonly ['ok', _Value] | readonly ['threw']} */
 const attempt = f => {
     try {
@@ -133,9 +153,9 @@ const attempt = f => {
 
 /**
  * Checks and emits a module, compiles it on the host's engine, and calls
- * each function that it exports on its inputs, comparing it with its twin:
- * `Object.is`, so that `-0` and `NaN` are told apart, and where the twin
- * throws, the call must fail too, by a trap or by a throw of the host. A
+ * each function that it exports on its inputs, comparing it with its twin,
+ * and where the twin throws, the call must fail too, by a trap or by a
+ * throw of the host. A
  * function's inputs are the edges of its parameters' types, unless `inputs`
  * gives them.
  *
@@ -156,11 +176,18 @@ export const run = (m, twins, inputs) => {
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read) })
             const f = exports[name]
             assert(typeof f === 'function', name)
-            const args = xs.map((v, k) => isAny(v) ? BigInt(xs.slice(0, k).filter(isAny).length) : toHost(params[k][1], v))
-            const got = attempt(() => fromHost(result, f(...args)))
+            /** @type {(v: _Value, k: number) => unknown} */
+            const arg = (v, k) => {
+                if (!isAny(v)) { return toHost(params[k][1], v) }
+                const handle = BigInt(xs.slice(0, k).filter(isAny).length)
+                // a parameter that owns its argument takes a count of its own, and the caller keeps the one it holds
+                return isOwn(params[k]) ? h.imports.dup(handle) : handle
+            }
+            const args = xs.map(arg)
+            const got = attempt(() => fromHost(result, f(...args), h))
             const expected = attempt(() => twin(xs))
-            const same = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && Object.is(got[1], expected[1])
-            assert(same, [name, xs, got, expected])
+            const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(got[1], expected[1])
+            assert(agree, [name, xs, got, expected])
             const cells = h.live().map(([k, count]) => `${k}:${count}`).join()
             assert(got[0] === 'threw' || cells === values.map((_, k) => `${k}:1`).join(), [name, xs, cells])
         }
