@@ -27,7 +27,7 @@ import { add, empty, has } from '../../../types/set/module.f.js'
 /** @type {(validate: _Validate, values: Values, visited: _Visited) => Result<_Visited, ValidationError>} */
 const validateValues = (validate, values, visited) => {
     for (let i = 0; i < values.length; i += 1) {
-        const r = validate(values[i], visited)
+        const r = validate(values[Number(i)], visited)
         const [kind, next] = r
         if (kind === 'error') { return prependPath(String(i), r) }
         visited = next
@@ -42,7 +42,7 @@ const validateProperties = (validate, properties, visited) => {
     let previousIndex = -1
     let ordinary = false
     for (let i = 0; i < properties.length; i += 1) {
-        const [, key, value] = properties[i]
+        const [, key, value] = properties[Number(i)]
         if (has(key)(keys)) {
             return prependPath(String(i), prependPath('1', verror('duplicate object property')))
         }

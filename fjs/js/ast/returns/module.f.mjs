@@ -51,12 +51,12 @@ const sequenceTask = (valueTask, input, owner, plainCall, permitted, spreads = [
     const each = (index, statements, values, lifted, lastCallee) => call(() => {
         if (index === input.length) { return finish(statements, values, true, lifted, lastCallee) }
         const id = binding()
-        return bind(valueTask(input[index], id, owner, permitted), result => {
+        return bind(valueTask(input[Number(index)], id, owner, permitted), result => {
             if (plainCall && index === 0 && !result.callee) { return finish(null, null, true, false, false, false) }
             const statement = result.statement ?? /** @type {Statement} */ (['define', id, result.value, 'required'])
             const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
             if (!result.normal) { return finish(next, values, false, true, true) }
-            const kind = spreads[index]
+            const kind = spreads[Number(index)]
             if (kind !== undefined) {
                 const expanded = binding()
                 const expansion = /** @type {Statement} */ (['define', expanded,
@@ -85,7 +85,7 @@ const eagerTask = (valueTask, source, destination, owner, permitted, expose = fa
         if (!result.lifted && !expose) { return done(plain(source, callee)) }
         return done({
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
-                ? ['yield', [mapOperator((_, index) => result.values[index])(source)]] : ['yield', []] }],
+                ? ['yield', [mapOperator((_, index) => result.values[Number(index)])(source)]] : ['yield', []] }],
             value: ref(destination), normal: result.normal, callee: !result.normal || callee,
         })
     })
@@ -98,7 +98,7 @@ const captureTask = (valueTask, source, destination, owner, permitted) => {
         if (!result.lifted) { return done(plain(source)) }
         return done({
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
-                ? ['yield', [['function', { ...fn, captures: fn.captures.map((capture, index) => ({ ...capture, value: result.values[index] })) }]]]
+                ? ['yield', [['function', { ...fn, captures: fn.captures.map((capture, index) => ({ ...capture, value: result.values[Number(index)] })) }]]]
                 : ['yield', []] }],
             value: ref(destination), normal: result.normal, callee: true,
         })
@@ -106,7 +106,7 @@ const captureTask = (valueTask, source, destination, owner, permitted) => {
 }
 
 /** Original item metadata survives snapshots of the expanded values. @type {(items: readonly Item<Value>[], values: readonly Value[]) => readonly Item<Value>[]} */
-const mappedItems = (items, values) => items.map((item, index) => isSpread(item) ? ['...', values[index]] : values[index])
+const mappedItems = (items, values) => items.map((item, index) => isSpread(item) ? ['...', values[Number(index)]] : values[Number(index)])
 
 /** Find the one forced suffix without duplicating it beneath optional guards. @type {(source: _ChainSource) => _ChainEnd} */
 const chainEnd = source => {
@@ -308,7 +308,7 @@ const blockTask = (valueTask, source, context, mode) => {
             }
             return complete(exit, statements, false)
         }
-        const statement = source.statements[index]
+        const statement = source.statements[Number(index)]
         /** @type {(mapped: Statement, normal: boolean, addedReturns: boolean, addedLifted: boolean, leading?: readonly Statement[]) => Task<_Region>} */
         const append = (mapped, normal, addedReturns, addedLifted, leading = []) => {
             const next = /** @type {List<Statement>} */ ({ first: mapped,

@@ -12,7 +12,7 @@ from GitHub, are schemas too:
   [`website/funding`](../../../../website/funding/module.f.mjs). `open` at
   every level: the footer reads only the funding channels;
 - the GitHub responses the website reads: the sign-in exchange in
-  [`website/github`](../../../../website/github/module.f.mjs), and the open
+  [`website/github`](../../../../website/github/module.f.js), and the open
   pull requests with their checks in
   [`website/prs`](../../../../website/prs/module.f.mjs). `open` at every
   object, because GitHub adds fields.

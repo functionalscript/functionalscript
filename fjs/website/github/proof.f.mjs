@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../../rtti/parse/module.f.js'
-import { allowedCallbackOrigin, authorizeEndpoint, authorizeParams, callbackCode, callbackParams, isCallback, loginMessages, pending as pendingOf, redirectMatches, withStatus, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerOutcome, providerTokenSchema, tokenPath, tokenSchema, userSchema, validCallback, validExchange, validPending, validVerifier, workerConfig } from './module.f.mjs'
+import { allowedCallbackOrigin, authorizeEndpoint, authorizeParams, callbackCode, callbackParams, isCallback, loginMessages, pending as pendingOf, redirectMatches, withStatus, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerOutcome, providerTokenSchema, tokenPath, tokenSchema, userSchema, validCallback, validExchange, validPending, validVerifier, workerConfig } from './module.f.js'
 
 const verifier = 'a'.repeat(43)
 const pending = /** @type {const} */ ({ state: 'unguessable', verifier, createdAt: 1_000 })

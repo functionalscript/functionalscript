@@ -394,11 +394,11 @@ export const runProofs = modules => foldStep(pureOk(modules), null, one)
  */
 export const groupByModule = results => {
     const starts = results.flatMap((result, at) =>
-        at === 0 || results[at - 1]?.module !== result.module
+        at === 0 || results[Number(at - 1)]?.module !== result.module
             ? [/** @type {const} */ ([at, result.module])]
             : [])
     return starts.map(([start, module], n) => {
-        const group = results.slice(start, starts[n + 1]?.[0] ?? results.length)
+        const group = results.slice(start, starts[Number(n + 1)]?.[0] ?? results.length)
         const { passed, failed } = group.reduce(addResult, zeroTotals)
         return { module, results: group, passed, failed }
     })
