@@ -109,6 +109,18 @@ export const proof = {
             let_('x', if_(b, return_(zero), one), x => add(x, float(length(t))))))),
         { f: ([s, flag]) => flag === true ? 0 : 1 + 2 * text(s).length },
         {}),
+    // A part that may leave by a br leaves nothing over: what the parts before it gave is dropped where it leaves,
+    // and taken over by the call or the loop where it does not.
+    leaving: () => run(
+        owned(module_([['c', u(16)], ['b', bool]], f64, call('self', 'g', [fromUnit(c), if_(b, return_(zero), fromUnit(c))]),
+            [['g', fn([own('x', string), own('y', string)], f64, float(length(concat(get('x'), get('y')))))]])),
+        { f: ([, flag]) => flag === true ? 0 : 2 },
+        {}),
+    leavingFirst: () => run(
+        owned(module_([['c', u(16)], ['b', bool]], f64, loop('L', [['x', string, fromUnit(c)], ['y', string, if_(b, return_(zero), fromUnit(c))]], (x, y) =>
+            float(length(concat(x, y)))))),
+        { f: ([, flag]) => flag === true ? 0 : 2 },
+        {}),
     // A br out of a block drops what the block owns.
     exits: () => run(
         owned(module_([['c', u(16)], ['b', bool]], f64, block('L', f64, let_('s', fromUnit(c), s => if_(b, br('L', zero), float(length(s))))))),

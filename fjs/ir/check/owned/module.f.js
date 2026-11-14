@@ -15,7 +15,10 @@
  *   parameter, a `let` or a loop's parameter that binds it, and a function
  *   or a region that gives it as its value. A `get` of an owned local there
  *   moves it, and anywhere else it lends it. An owned value that nothing
- *   takes over is refused: a module binds it first.
+ *   takes over is refused: a module binds it first. So is one that an
+ *   argument, a first value or a next value gives before another that may
+ *   leave, by a `br` out of the call or the loop, which would leave the
+ *   value behind: a module binds the one that leaves first.
  * - **A borrow does not outlive what it leans on.** A use of a borrow after
  *   an owned local that it leans on was consumed is refused, and so is a
  *   call that lends a local to one parameter and consumes it with another.
@@ -47,7 +50,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { error, ok, okList } from '../../../types/result/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../../types/ordered_map/module.f.js'
-import { equal, isOwn, never } from '../../module.f.js'
+import { equal, isOwn, leaves, never } from '../../module.f.js'
 
 // sets of owned locals, as lists of their names
 
@@ -130,6 +133,20 @@ const sequence = (walk, env, alive, ts) => {
     return ts.reduce(step, ok({ owned: alive, results: [], exits: [] }))
 }
 
+/**
+ * Where a part of a sequence may leave it, by a `br` out of the term that
+ * the sequence makes, after a part before it gave an owned value that the
+ * term has not taken over yet, which the `br` would leave behind: the
+ * owned part's index and the leaving one's. `null` where no part does so.
+ * `results` are the values of the parts that the sequence reached.
+ *
+ * @type {(ts: readonly (readonly [Typed, _Mode])[], results: readonly _Value[]) => readonly [number, number] | null}
+ */
+const stranded = (ts, results) => {
+    const j = results.findIndex((_, k) => leaves(ts[Number(k)][0]).length > 0 && results.slice(0, k).some(v => v[0] === 'owned'))
+    return j < 0 ? null : [results.findIndex(v => v[0] === 'owned'), j]
+}
+
 /** A scope with one more label, or with a new meaning for one in it. @type {(env: _Env, name: string, l: _Label) => _Env} */
 const labelled = (env, name, l) => ({ ...env, labels: setReplace(name)(l)(env.labels) })
 
@@ -165,9 +182,15 @@ const callTerm = (walk, env, alive, type, mode, module, name, args) => {
     const { params } = module === 'self' ? assertNotNullish(at(name)(env.functions))
         : assertNotNullish(assertNotNullish(at(module)(env.imports)).functions.find(([k]) => k === name))[1]
     const full = module === 'self' ? name : `${module}.${name}`
-    const r = sequence(walk, env, alive, args.map((x, k) => [x, isOwn(params[Number(k)]) ? 'take' : 'read']))
+    /** @type {readonly (readonly [Typed, _Mode])[]} */
+    const items = args.map((x, k) => [x, isOwn(params[Number(k)]) ? 'take' : 'read'])
+    const r = sequence(walk, env, alive, items)
     if (r[0] === 'error') { return r }
     const { owned: after, results, exits } = r[1]
+    const strand = stranded(items, results)
+    if (strand !== null) {
+        return no(env, `${full}: the argument of ${params[Number(strand[1])][0]} may leave before the call takes that of ${params[Number(strand[0])][0]} over: bind it first`)
+    }
     if (after === null) { return ok(out(null, plain, exits)) }
     const lent = results.findIndex((v, k) => isOwn(params[Number(k)]) && v[0] !== 'owned')
     if (lent >= 0) {
@@ -268,9 +291,15 @@ const blockTerm = (walk, env, alive, mode, label, body) => {
 const loopTerm = (walk, env, alive, mode, label, params, body) => {
     const nested = params.find(([, x]) => x[0] === 'product' && holds(x))
     if (nested !== undefined) { return no(env, `${nested[0]} of loop ${label} is a product that holds a sealed value: not in this slice`) }
-    const firsts = sequence(walk, env, alive, params.map(([, , first]) => [first, 'take']))
+    /** @type {readonly (readonly [Typed, _Mode])[]} */
+    const items = params.map(([, , first]) => [first, 'take'])
+    const firsts = sequence(walk, env, alive, items)
     if (firsts[0] === 'error') { return firsts }
     const { owned: start, results, exits } = firsts[1]
+    const strand = stranded(items, results)
+    if (strand !== null) {
+        return no(env, `the first ${params[Number(strand[1])][0]} of loop ${label} may leave before the loop takes the first ${params[Number(strand[0])][0]} over: bind it first`)
+    }
     if (start === null) { return ok(out(null, plain, exits)) }
     const gone = results.flatMap(v => minus(rootsOf(v), start))
     if (gone.length > 0) { return no(env, `a parameter of loop ${label} borrows ${gone[0]}, which another's first value consumes`) }
@@ -297,9 +326,15 @@ const repeat = (walk, env, alive, label, start, params, e) => {
     // the checker writes a repeat as a `make` of the loop's parameters
     assert(make[0] === 'make')
     const [, fields] = make
-    const r = sequence(walk, env, alive, fields.map(([, x], k) => [x, params[Number(k)][1][0] === 'own' ? 'take' : 'read']))
+    /** @type {readonly (readonly [Typed, _Mode])[]} */
+    const items = fields.map(([, x], k) => [x, params[Number(k)][1][0] === 'own' ? 'take' : 'read'])
+    const r = sequence(walk, env, alive, items)
     if (r[0] === 'error') { return r }
     const { owned: after, results, exits } = r[1]
+    const strand = stranded(items, results)
+    if (strand !== null) {
+        return no(env, `the next ${params[Number(strand[1])][0]} of loop ${label} may leave before the loop takes the next ${params[Number(strand[0])][0]} over: bind it first`)
+    }
     if (after === null) { return ok(out(null, plain, exits)) }
     const lent = results.findIndex((v, k) => params[Number(k)][1][0] === 'own' && v[0] !== 'owned')
     const wider = results.findIndex((v, k) => minus(rootsOf(v), leansOn(params[Number(k)][1])).length > 0)

@@ -2,7 +2,7 @@
  * Proofs of the owned-stage check: hand-written IR that consumes each owned
  * value once on every path, and a refusal for each rule.
  *
- * @import { Module, Param, Term, Type } from '../../types.ts'
+ * @import { Fn, Module, Param, Term, Type } from '../../types.ts'
  */
 
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
@@ -71,6 +71,17 @@ const self = name => constant('self', name)
 
 const letterA = lit(u(16), 0x61n)
 
+/** A function that owns two values and drops them. @type {readonly [string, Fn]} */
+const pair = ['g', fn([own('x', any), own('y', any)], unit, let_('d', drop(get('x')), () => drop(get('y'))))]
+
+/** @type {(x: Term, y: Term) => Term} */
+const both = (x, y) => call('self', 'g', [x, y])
+
+/** A string that is never made: its block leaves the function first. */
+const away = block('B', string, return_(none))
+
+const stranded = 'f: g: the argument of y may leave before the call takes that of x over: bind it first'
+
 export const proof = {
     // What consumes each owned value once on every path.
     accept: {
@@ -133,6 +144,12 @@ export const proof = {
             ['g', fn([], u(31), let_('s', lit(string, 'abc'), s => length(s)))],
             ['h', fn([], string, dup(lit(string, 'a')))],
         ])),
+        // A part that may leave by a br before anything is owned leaves nothing behind, and so does one that the
+        // owned values before it are locals around: the br drops them, and the call takes them over after it.
+        leaving: {
+            first: () => fine(overL0([['c', u(16)]], unit, both(away, fromUnit(c)), [pair])),
+            bound: () => fine(overL0([['c', u(16)]], unit, let_('s', fromUnit(c), s => let_('t', block('B', string, let_('d', drop(s), () => return_(none))), t => both(s, t))), [pair])),
+        },
         // A call that never returns, and terms that never complete, end the paths they are on.
         never: () => fine(overL0([['x', f64]], f64, call('self', 'g', [get('x')]), [['g', fn([['x', f64]], ['sum', []], trap('g'))]])),
         stuck: {
@@ -173,6 +190,20 @@ export const proof = {
             repeat: () => assertEq(why(overL0([], f64, loop('L', [['i', f64, zero]], () => next('L', [['i', leak(one)]])))), left),
             exit: () => assertEq(why(overL0([], f64, block('L', f64, br('L', leak(one))))), left),
             result: () => assertEq(why(overL0([], f64, return_(leak(one)))), left),
+        },
+        // A br out of a part would leave behind what a part before it gave, owned and not yet taken over.
+        stranded: {
+            argument: () => assertEq(why(overL0([['c', u(16)]], unit, both(fromUnit(c), away), [pair])), stranded),
+            moved: () => assertEq(why(overL0([['c', u(16)]], unit, let_('s', fromUnit(c), s => both(s, away)), [pair])), stranded),
+            first: () => assertEq(
+                why(overL0([['c', u(16)]], unit, loop('L', [['x', string, fromUnit(c)], ['y', string, away]], (x, y) => both(x, y)), [pair])),
+                'f: the first y of loop L may leave before the loop takes the first x over: bind it first',
+            ),
+            next: () => assertEq(
+                why(overL0([['c', u(16)], ['k', f64]], unit, loop('L', [['s', string, fromUnit(c)], ['i', f64, zero]], (s, i) =>
+                    if_(lt(i, k), let_('d', drop(s), () => next('L', [['s', fromUnit(c)], ['i', block('B', f64, return_(none))]])), drop(s))))),
+                'f: the next i of loop L may leave before the loop takes the next s over: bind it first',
+            ),
         },
         // Only an owned value may be consumed.
         borrowedDrop: () => assertEq(why(overL0([['a', string]], unit, drop(a))), "f: Any.drop's v: a is borrowed"),

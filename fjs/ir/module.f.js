@@ -279,3 +279,16 @@ export const inside = t => {
         default: { return [] }
     }
 }
+
+/**
+ * The labels that a typed term may leave to, by a `br` that no `block` or
+ * `loop` inside it binds the label of: `return`, or a region around it.
+ *
+ * @type {(t: Typed) => readonly string[]}
+ */
+export const leaves = ([, t]) => {
+    const inner = inside(t).flatMap(leaves)
+    return t[0] === 'br' ? [t[1], ...inner]
+        : t[0] === 'block' || t[0] === 'loop' ? inner.filter(l => l !== t[1])
+        : inner
+}
