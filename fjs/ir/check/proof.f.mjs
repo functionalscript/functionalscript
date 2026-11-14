@@ -6,7 +6,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, cast, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
-    match, mul, n, neg, never, next, only, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
+    match, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
     variant,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
@@ -237,6 +237,8 @@ export const proof = {
         // A narrower value passes where a wider one goes.
         assertEq(kindsOf(p, cast(only(any, 'number'), v, 'x', x => call('Any', 'kind', [x]))), 'int(0, 8)')
         assertEq(kindsOf(p, let_('w', v, w => call('Any', 'kind', [w]))), 'int(0, 8)')
+        // A dup answers its argument's type, so it keeps a narrower one.
+        assertEq(kindsOf(p, cast(only(any, 'number'), v, 'x', x => call('Any', 'dup', [x]))), 'any.only(number)')
         assertEq(bodyType(overL0(p, f64, cast(only(any, 'number'), v, 'x', x => call('Any', 'to_f64', [x])))), 'f64c')
         // What a module may not write.
         assertEq(why(one(p, f64, one_)), 'f: no interface Any')
@@ -245,7 +247,7 @@ export const proof = {
         assertEq(why(overL0([['v', only(any, 'symbol')]], f64, one_)), 'f: any has no variant symbol')
         assertEq(why(overL0([['v', only(any, 'null', 'null')]], f64, one_)), 'f: any.only(null, null) names null twice')
         // Returning a borrowed parameter as an owned result is refused by the owned stage.
-        assertEq(why(overL0(p, any, v)), 'f: the body does not own its result')
+        assertEq(why(overL0(p, any, v)), 'f: the result is borrowed, and its caller would own it')
         assertEq(why(overL0(p, f64, lit(any, 1n))), 'f: a literal of any is a constant, which is not in this slice')
         assertEq(why(overL0(p, f64, add(v, v))), 'f: add of any and any: an operator takes integers or floats')
         // A call of an interface takes its arguments at the kinds of its parameters.
@@ -284,6 +286,25 @@ export const proof = {
         assertEq(why(importing(tagged([['x', f64]], u(1)))), untagged)
         assertEq(why(importing(tagged([['x', t]], int(0n, 2n)))), untagged)
         assertEq(assertOk(check(importing(tagged([['x', t]], u(1))))).imports.length, 6)
+        assertEq(why(importing(tagged([own('x', t)], u(1)))), untagged)
+        // A callee owns a value of a sealed type, and nothing else.
+        assertEq(why(importing({ abi: 'test', types: [], functions: [['f', signature([own('x', f64)], f64)]] })), 'Bad: x is own, and f64 is not sealed, so there is nothing to own')
+        // A counted type names a dup that borrows a value and answers one, and a drop that owns one and answers unit.
+        /** An interface of `t`, counted by the functions `d` and `r` as they are given. @type {(dup: string | undefined, drop: string | undefined, functions: Interface['functions']) => Interface} */
+        const counted = (dup, drop, functions) => ({
+            abi: 'test',
+            types: [['t', { variants: ['a', 'b'], kind: 'k', carrier: 'i32', ...(dup === undefined ? {} : { dup }), ...(drop === undefined ? {} : { drop }) }]],
+            functions: [['k', signature([['x', t]], u(1))], ...functions],
+        })
+        const d = /** @type {const} */ (['d', signature([['x', t]], t)])
+        const r = /** @type {const} */ (['r', signature([own('x', t)], unit)])
+        assertEq(assertOk(check(importing(counted('d', 'r', [d, r])))).imports.length, 6)
+        assertEq(why(importing(counted('d', undefined, [d]))), 'Bad: t names a dup and no drop, and a counted type names both')
+        assertEq(why(importing(counted(undefined, 'r', [r]))), 'Bad: t names a drop and no dup, and a counted type names both')
+        const miscounted = "Bad: t's dup borrows a value of the type and answers one, and its drop owns one and answers unit"
+        assertEq(why(importing(counted('d', 'r', [['d', signature([['x', t]], f64)], r]))), miscounted)
+        assertEq(why(importing(counted('d', 'r', [d, ['r', signature([['x', t]], unit)]]))), miscounted)
+        assertEq(why(importing(counted('d', 'r', [d]))), miscounted)
         // The scope of a term passes the same rules: a local may be a product, and a function's result may not.
         const scope = { name: 'f', locals: /** @type {const} */ ([['a', product([['s', ['sum', [['x', unit]]]]])]]), result: f64, functions: [], imports: [] }
         assertEq(assertError(typeOf(scope)(one_)), 'f: sum({ x: unit }) is not in this slice')

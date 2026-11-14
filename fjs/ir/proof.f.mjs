@@ -5,7 +5,7 @@
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, compareIn, div, eq, equal, exact, f64, f64c, false_, fits, float, fn,
-    get, i, if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, return_,
+    get, i, if_, int, isOwn, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, return_,
     sealed, signature, sqrt, sub, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
@@ -113,5 +113,11 @@ export const proof = {
         assert(equal([f.params, f.result, f.body], [params, f64, get('a')]))
         const s = signature(params, bool)
         assert(equal([s.params, s.result], [params, bool]))
+    },
+    // A parameter that the callee owns says so, and a plain one borrows.
+    own: () => {
+        const v = own('v', f64)
+        assert(equal(v, ['v', f64, 'own']))
+        assertEq(`${isOwn(v)} ${isOwn(['w', f64])}`, 'true false')
     },
 }
