@@ -145,6 +145,24 @@ export const toolsCallResult = open(/** @type {const} */ ({
 // ── Dispatch ───────────────────────────────────────────────────────────────────
 
 /**
+ * Helper to create a successful single-text-block tool result.
+ *
+ * @param {string} text - The text to return to the client
+ * @returns {ToolsCallResult} A `ToolsCallResult` with the text content
+ */
+export const okResult = text =>
+    ({ content: [{ type: 'text', text }] })
+
+/**
+ * Helper to create a tool-level error result with plain text explanation.
+ *
+ * @param {string} text - The error message to return to the client
+ * @returns {ToolsCallResult} A `ToolsCallResult` with `isError: true` and the text explanation
+ */
+export const errorResult = text =>
+    ({ ...okResult(text), isError: true })
+
+/**
  * Creates a type-safe tool entry that binds an RTTI schema with a handler.
  *
  * The builder validates arguments at runtime using the RTTI and passes pre-validated
@@ -186,22 +204,34 @@ export const toolEntry = (name, description, inputRtti, handle) => {
 }
 
 /**
- * Helper to create a successful single-text-block tool result.
+ * {@link toolResultStep} for a tool whose chain goes on after the success: a
+ * failure of `e` answers the call with `errorText`'s `isError` result, and
+ * its `ok` value is handed to `onOk`, which answers the call itself.
  *
- * @param {string} text - The text to return to the client
- * @returns {ToolsCallResult} A `ToolsCallResult` with the text content
- */
-export const okResult = text =>
-    ({ content: [{ type: 'text', text }] })
-
-/**
- * Helper to create a tool-level error result with plain text explanation.
+ * ```js
+ * resultStep(c.write(content), r => {
+ *     if (r[0] === 'error') { return pureOk(errorResult('write')) }
+ *     …
+ * })
+ * // is
+ * toolStep(c.write(content), () => 'write', hash => …)
+ * ```
  *
- * @param {string} text - The error message to return to the client
- * @returns {ToolsCallResult} A `ToolsCallResult` with `isError: true` and the text explanation
+ * `errorText` is required for the reason {@link toolResultStep} gives, and it
+ * comes before `onOk` so the refusal is read beside the call that can fail,
+ * not after the continuation it guards.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation>(
+ *     e: Effect<O, T, E>,
+ *     errorText: (e: E) => string,
+ *     onOk: (value: T) => Effect<Q, ToolsCallResult, never>,
+ * ) => Effect<O | Q, ToolsCallResult, never>}
  */
-export const errorResult = text =>
-    ({ ...okResult(text), isError: true })
+export const toolStep = (e, errorText, onOk) => resultStep(
+    e,
+    ([tag, value]) => tag === 'error'
+        ? pureOk(errorResult(errorText(value)))
+        : onOk(value))
 
 /**
  * Answers a tool call with the outcome of one fallible operation: the `ok`
@@ -234,36 +264,6 @@ export const errorResult = text =>
  */
 export const toolResultStep = (e, text, errorText) =>
     toolStep(e, errorText, value => pureOk(okResult(text(value))))
-
-/**
- * {@link toolResultStep} for a tool whose chain goes on after the success: a
- * failure of `e` answers the call with `errorText`'s `isError` result, and
- * its `ok` value is handed to `onOk`, which answers the call itself.
- *
- * ```js
- * resultStep(c.write(content), r => {
- *     if (r[0] === 'error') { return pureOk(errorResult('write')) }
- *     …
- * })
- * // is
- * toolStep(c.write(content), () => 'write', hash => …)
- * ```
- *
- * `errorText` is required for the reason {@link toolResultStep} gives, and it
- * comes before `onOk` so the refusal is read beside the call that can fail,
- * not after the continuation it guards.
- *
- * @type {<O extends Operation, T, E, Q extends Operation>(
- *     e: Effect<O, T, E>,
- *     errorText: (e: E) => string,
- *     onOk: (value: T) => Effect<Q, ToolsCallResult, never>,
- * ) => Effect<O | Q, ToolsCallResult, never>}
- */
-export const toolStep = (e, errorText, onOk) => resultStep(
-    e,
-    ([tag, value]) => tag === 'error'
-        ? pureOk(errorResult(errorText(value)))
-        : onOk(value))
 
 /**
  * Builds `McpHandlers` from a registry of tool entries.
