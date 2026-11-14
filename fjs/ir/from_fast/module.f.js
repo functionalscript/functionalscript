@@ -293,13 +293,13 @@ const loopTerm = (lowerValue, lowerBlock, scope, { target, parameters, initial, 
     const { ir, bindings, depth, loops } = scope
     const label = `L${loops.length}`
     /** @type {readonly LoopParamOf<Term>[]} */
-    const params = firsts[1].map((x, j) => [`#${depth + j}`, wide[1][j], x])
+    const params = firsts[1].map((x, j) => [`#${depth + j}`, wide[1][Number(j)], x])
     const names = params.map(([k]) => k)
     /** @type {_Scope} */
     const inner = {
         ...scope,
         ir: { ...ir, locals: [...ir.locals, ...params.map(([k, t]) => /** @type {const} */ ([k, t]))] },
-        bindings: [...bindings, ...parameters.map((b, j) => /** @type {const} */ ([b, ['local', names[j]]]))],
+        bindings: [...bindings, ...parameters.map((b, j) => /** @type {const} */ ([b, ['local', names[Number(j)]]]))],
         depth: depth + params.length,
         loops: [[target, label, names], ...loops],
     }
@@ -386,7 +386,7 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
             // A continue stands in the body of its loop, in the same function.
             const [, label, params] = assertNotNullish(scope.loops.find(([t]) => t === target))
             const xs = values(lowerValue, scope, vs)
-            return xs[0] === 'error' ? xs : ok(next(label, params.map((k, j) => /** @type {const} */ ([k, xs[1][j]]))))
+            return xs[0] === 'error' ? xs : ok(next(label, params.map((k, j) => /** @type {const} */ ([k, xs[1][Number(j)]]))))
         }
         case 'break': {
             const [, target, vs] = exit
@@ -418,7 +418,7 @@ const settled = (lowerValue, scope, vs, rest) => {
     /** @type {(s: _Scope, done: readonly Term[]) => Result<Term, string>} */
     const from = (s, done) => {
         if (done.length === vs.length) { return rest(s, done) }
-        const x = lowerValue(s, vs[done.length])
+        const x = lowerValue(s, vs[Number(done.length)])
         return x[0] === 'error' ? x
             : isPure(x[1]) ? from(s, [...done, x[1]])
             : bindTerm(s, x[1], (t, name) => from(t, [...done, get(name)]))
@@ -456,7 +456,7 @@ const inline = (lowerValue, scope, f, vs, resolve) => {
     if (captured[0] === 'error') { return captured }
     return settled(lowerValue, scope, vs, (s, xs) => block(lowerValue, {
         ...s,
-        bindings: [...s.bindings, ...captured[1], ...f.parameters.map((b, j) => /** @type {const} */ ([b, argument(xs[j])]))],
+        bindings: [...s.bindings, ...captured[1], ...f.parameters.map((b, j) => /** @type {const} */ ([b, argument(xs[Number(j)])]))],
         inlining: [f, ...s.inlining],
     }, f.body, ['return']))
 }
@@ -525,7 +525,7 @@ const paramsOf = (module, name) => {
  */
 const castCall = (lowerValue, scope, module, name, params, vs) => settled(lowerValue, scope, vs, ({ ir }, args) => {
     const needs = args.flatMap((x, k) => {
-        const p = params[k][1]
+        const p = params[Number(k)][1]
         const t = x[0] === 'get' ? ir.locals.find(([v]) => v === x[1])?.[1] : undefined
         if (p[0] !== 'sealed' || p[3] === null || t === undefined || t[0] !== 'sealed' || x[0] !== 'get') { return [] }
         const held = t[3] ?? kinds
@@ -832,7 +832,7 @@ const lowerFn = ({ functions, imports }, capture) => ([name, f, { params, result
     if (captured[0] === 'error') { return captured }
     /** @type {readonly (readonly [BindingId, _Meaning])[]} */
     const bindings = [
-        ...f.parameters.map((b, k) => /** @type {const} */ ([b, ['local', params[k][0]]])),
+        ...f.parameters.map((b, k) => /** @type {const} */ ([b, ['local', params[Number(k)][0]]])),
         ...(f.self === null ? [] : [/** @type {const} */ ([f.self, ['function', name]])]),
         ...captured[1],
     ]
@@ -855,7 +855,7 @@ const imported = (source, imports, args, v) => {
     if (!(slot instanceof Array) || slot[0] !== '.' || slot.length !== 3 || typeof slot[2] !== 'number') { return null }
     const from = slot[1]
     if (!(from instanceof Array) || from[0] !== 'ref' || !args(from[1])) { return null }
-    const m = imports[slot[2]]
+    const m = imports[Number(slot[2])]
     const origin = m === undefined || m.json ? null : source(m.specifier)
     return m === undefined ? ['refused', `no import ${slot[2]}`]
         : origin === null ? ['refused', `an import of ${m.specifier} is not in this slice`]

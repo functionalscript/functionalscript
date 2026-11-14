@@ -27,7 +27,7 @@ import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
 import * as helpers from './helpers.f.js'
-import { lower } from './module.f.mjs'
+import { lower } from './module.f.js'
 import * as sample from './sample.f.js'
 import { helpers as helperSignatures, l1, runtime, signatures, sourceOf } from './testlib.f.mjs'
 
