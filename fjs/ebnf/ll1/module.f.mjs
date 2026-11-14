@@ -247,11 +247,10 @@ const decisionOf = (first, nullable) => name => {
 const checkFollow = (ruleSet, first, nullable, names, greedy) => {
     const follow = followMap(ruleSet, first, nullable, names)
     const decision = decisionOf(first, nullable)
-    names.forEach(name => {
+    for (const name of names) {
         const clash = difference(intersection(matchRule(decision(name))(assertNotNullish(ownEntry(ruleSet, name))))(assertNotNullish(ownEntry(follow, name))))(greedy)
         assert(clash.length === 0, ['first/follow conflict', name, clash])
-        return undefined
-    })
+    }
     return undefined
 }
 
