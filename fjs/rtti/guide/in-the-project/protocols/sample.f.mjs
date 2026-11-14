@@ -11,7 +11,7 @@
 
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
 import { request } from '../../../../protocol/json_rpc/module.f.js'
-import { tool } from '../../../../protocol/mcp/module.f.mjs'
+import { tool } from '../../../../protocol/mcp/module.f.js'
 import { casAddArgs } from '../../../../mcp/cas/module.f.mjs'
 import { evoAddArgs } from '../../../../mcp/evo/module.f.mjs'
 
@@ -28,7 +28,7 @@ export const lessons = [
         id: 'mcp-tool',
         name: 'MCP tool',
         about: 'A tool an MCP server advertises in tools/list: a name, a description, and the JSON Schema of its arguments. Read with parse.',
-        schemas: projectSchema('tool', 'protocol/mcp/module.f.mjs', tool),
+        schemas: projectSchema('tool', 'protocol/mcp/module.f.js', tool),
         value: 'export default {"name":"cas_get","description":"Read a blob by its hash","inputSchema":{"type":"object","properties":{"hash":{"type":"string"}},"required":["hash"]}};',
     },
     {

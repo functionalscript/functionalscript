@@ -224,8 +224,8 @@ is the way to refresh this file, not a partial edit.
 | `fjs/media/json/proof.f.mjs` | 23 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/module.f.mjs` | 63 | `NodeProgram` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
 | `fjs/nanvm/proof.f.mjs` | 59 | `readonly any[]` | reads an `unknown` the surrounding code has already established |
-| `fjs/protocol/mcp/module.f.mjs` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/protocol/mcp/module.f.mjs` | 174 | `Ts<T>` | "instantiation excessively deep" |
+| `fjs/protocol/mcp/module.f.js` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/protocol/mcp/module.f.js` | 174 | `Ts<T>` | "instantiation excessively deep" |
 | `fjs/protocol/mcp/proof.f.mjs` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/protocol/mcp/stdio/proof.f.mjs` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/sul/id/module.f.mjs` | 45 | `V8` | cast overrides the inferred type — needs a type/API change, not a different cast |

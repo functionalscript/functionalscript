@@ -52,7 +52,7 @@
 import { array, option, or, string } from '../../rtti/module.f.js'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { evoSummary } from '../../cas/evo/module.f.mjs'
-import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.mjs'
+import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.js'
 import { stringify } from '../../media/json/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
 

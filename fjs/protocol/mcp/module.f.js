@@ -35,6 +35,8 @@ import {
 import { parse } from '../../rtti/parse/module.f.js'
 import { toJsonSchema } from '../../media/json/schema/module.f.js'
 import { unknown } from '../../media/json/rtti/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
@@ -284,18 +286,23 @@ export const fromRegistry = registry => {
     // Depends on the registry alone, so it is built once rather than once per
     // `tools/list`.
     /** @type {Tool[]} */
-    const tools = registry.map(({ name, description, inputRtti }) => ({
-        name,
-        description,
-        inputSchema: toJsonSchema(inputRtti),
-    }))
+    const tools = registry.map(tool => {
+        const { description, inputRtti } = tool
+        return {
+            name: assertNotNullish(entry(tool, 'name')),
+            description,
+            inputSchema: toJsonSchema(inputRtti),
+        }
+    })
     return {
         toolsList: () => pureOk({ tools }),
-        toolsCall: ({ name, arguments: args }) => {
-            const entry = registry.find(e => e.name === name)
-            return entry === undefined
+        toolsCall: params => {
+            const name = assertNotNullish(entry(params, 'name'))
+            const args = entry(params, 'arguments')
+            const found = registry.find(tool => entry(tool, 'name') === name)
+            return found === undefined
                 ? pureOk(errorResult(`unknown tool: ${name}`))
-                : entry.handle(args === undefined ? {} : args)
+                : found.handle(args === undefined ? {} : args)
         },
     }
 }
