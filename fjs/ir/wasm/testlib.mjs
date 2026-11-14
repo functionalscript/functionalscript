@@ -12,8 +12,10 @@
  * host](../l0/host/count/module.mjs) of the `fjs:l0` imports reads, and so
  * does the [host](../native/host/module.f.js) of the `fjs:l1-native`
  * imports: each call has hosts of its own, whose first cells hold the
- * call's values of `any` in the order of the parameters. A value of `any`
- * that a call answers is the caller's, so the proof reads it and drops it.
+ * call's values of `any` in the order of the parameters. A parameter that
+ * owns its argument gets a `dup` of it, so that the caller keeps its own,
+ * and a value of `any` that a call answers is the caller's, so the proof
+ * reads it and drops it.
  * A call that completes then leaves those cells as it found them, each
  * counted once, and no other cell: a module that keeps or frees a value
  * that it borrows shows, and so does one that leaves a value over.
@@ -30,7 +32,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { write } from '../../media/wasm/binary/write/module.f.js'
 import { check } from '../check/module.f.js'
 import { counting } from '../l0/host/count/module.mjs'
-import { fits } from '../module.f.js'
+import { fits, isOwn } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.f.js'
 import { emit } from './module.f.js'
 
@@ -174,7 +176,14 @@ export const run = (m, twins, inputs) => {
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read) })
             const f = exports[name]
             assert(typeof f === 'function', name)
-            const args = xs.map((v, k) => isAny(v) ? BigInt(xs.slice(0, k).filter(isAny).length) : toHost(params[k][1], v))
+            /** @type {(v: _Value, k: number) => unknown} */
+            const arg = (v, k) => {
+                if (!isAny(v)) { return toHost(params[k][1], v) }
+                const handle = BigInt(xs.slice(0, k).filter(isAny).length)
+                // a parameter that owns its argument takes a count of its own, and the caller keeps the one it holds
+                return isOwn(params[k]) ? h.imports.dup(handle) : handle
+            }
+            const args = xs.map(arg)
             const got = attempt(() => fromHost(result, f(...args), h))
             const expected = attempt(() => twin(xs))
             const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(got[1], expected[1])

@@ -151,10 +151,11 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   leaves own. The checker then checks the owned stage that the pass wrote,
   so a mistake of the pass is a refusal, never a leak; `checkPlain` is the
   checker without that check, which the pass starts from.
-- **Owned results on the host**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)
-  reads a value of `any` that a function answers, compares it with the
-  twin's, and drops it before it counts the cells, so a host proof may run
-  a function that answers a string.
+- **Ownership on the host**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)
+  gives a parameter that owns its argument a `dup` of it, so the caller
+  keeps its own count, and reads a value of `any` that a function answers,
+  compares it with the twin's and drops it, before it counts the cells. A
+  host proof may run a function that owns a parameter or answers a string.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
