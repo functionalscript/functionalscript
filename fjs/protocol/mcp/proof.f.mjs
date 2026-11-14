@@ -28,7 +28,7 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
     toolResultStep, toolStep,
-} from './module.f.mjs'
+} from './module.f.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

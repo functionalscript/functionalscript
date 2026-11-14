@@ -8,7 +8,7 @@
  *
  * Out of scope here (follow-ups): transports — stdio / HTTP framing — over
  * `fjs/effects/node`, and concrete method sets such as MCP
- * ([`fjs/protocol/mcp`](../mcp/module.f.mjs)), which layer on top of `dispatch`.
+ * ([`fjs/protocol/mcp`](../mcp/module.f.js)), which layer on top of `dispatch`.
  *
  * https://www.jsonrpc.org/specification
  *

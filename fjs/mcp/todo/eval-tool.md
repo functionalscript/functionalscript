@@ -51,7 +51,7 @@ The tool is a new registry, `fjs/mcp/eval/`, a sibling of
 [`cas`](../cas/module.f.mjs) and [`evo`](../evo/module.f.mjs). That is the
 extension point [`fjs/mcp/module.f.mjs`](../module.f.mjs) documents: the
 composition root knows about registries, not about what is in them. The
-registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.f.mjs).
+registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.f.js).
 The tool calls a reusable pure source-text evaluator in `fjs/compiler`, so a
 CLI command or another front end can use it later. Reuse or extract the existing
 per-module initialization stages rather than copying the file loader or adding

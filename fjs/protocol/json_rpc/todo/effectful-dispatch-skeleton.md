@@ -20,7 +20,7 @@ const handler = at(method)(handlers)
 if (handler === null) { return errorResponseOf(id)(methodNotFound) }
 ```
 
-Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs`):
+Effectful `mcpStep` (`fjs/protocol/mcp/module.f.js`):
 
 ```js
 const [t, message] = decodeRequest(value)
@@ -82,5 +82,5 @@ three-continuation indirection. Decide when a third consumer appears.
   *constructors*, exported from this module; this issue is the envelope
   *routing*. Complementary, and the skeleton below builds on them.
 - `validated`/`toolMethod` inside `mcpStep`
-  ([`../../mcp/module.f.mjs`](../../mcp/module.f.mjs)) — per-method
+  ([`../../mcp/module.f.js`](../../mcp/module.f.js)) — per-method
   parse/response arms.
