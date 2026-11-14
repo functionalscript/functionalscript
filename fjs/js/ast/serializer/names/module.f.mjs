@@ -54,7 +54,7 @@ export const _resolve = (chunks, reserved = [], external = []) => {
     // numbers once, without recursion or copying an accumulated prefix.
     const available = generate(keys.length + reservedNames.size, n => n)
         .filter(n => !reservedNames.has(`$${n}`))
-    const numbers = new Map(keys.map((key, i) => [key, available[i]]))
+    const numbers = new Map(keys.map((key, i) => [key, available[Number(i)]]))
     /** @type {(text: string) => string} */
     const resolveText = text => text.split('\u0000').map((part, i) => {
         if (i % 2 === 0) { return part }
