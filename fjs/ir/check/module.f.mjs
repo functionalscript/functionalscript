@@ -275,8 +275,8 @@ const loopTerm = (checkTerm, env, label, params, body) => {
     if (empty !== undefined) { return no(`${empty[0]} is never, so loop ${label} never starts`) }
     const firsts = values(checkTerm, env, params.map(([, , first]) => first))
     if (firsts[0] === 'error') { return firsts }
-    const wrong = firsts[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
-    if (wrong >= 0) { return no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(firsts[1][wrong][0])}`) }
+    const wrong = firsts[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
+    if (wrong >= 0) { return no(`${params[Number(wrong)][0]} of loop ${label} is ${show(params[Number(wrong)][1])}, not ${show(firsts[1][Number(wrong)][0])}`) }
     /** @type {readonly Param[]} */
     const parts = params.map(([k, x]) => [k, x])
     const locals = parts.reduce((ls, [k, x]) => setReplace(k)(x)(ls), env.locals)
@@ -284,7 +284,7 @@ const loopTerm = (checkTerm, env, label, params, body) => {
     if (b[0] === 'error') { return b }
     const unfit = unsupported(env, b[1][0])
     return unfit !== null ? no(`loop ${label}: ${unfit}`)
-        : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][j]])), b[1]]])
+        : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][Number(j)]])), b[1]]])
 }
 
 /**
@@ -300,9 +300,9 @@ const repeat = (checkTerm, env, label, params, e) => {
     if (e[0] !== 'make' || !equal(e[1].map(([k]) => k), names)) { return no(`br ${label} takes { ${names.join(', ')} }, the loop's parameters in their order`) }
     const fields = values(checkTerm, env, e[1].map(([, x]) => x))
     if (fields[0] === 'error') { return fields }
-    const wrong = fields[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
-    return wrong >= 0 ? no(`${params[wrong][0]} of loop ${label} is ${show(params[wrong][1])}, not ${show(fields[1][wrong][0])}`)
-        : ok([never, ['br', label, [['product', params], ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][j]]))]]]])
+    const wrong = fields[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
+    return wrong >= 0 ? no(`${params[Number(wrong)][0]} of loop ${label} is ${show(params[Number(wrong)][1])}, not ${show(fields[1][Number(wrong)][0])}`)
+        : ok([never, ['br', label, [['product', params], ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][Number(j)]]))]]]])
 }
 
 /** @type {_CheckTerm} */
@@ -351,9 +351,9 @@ const term = (env, t) => {
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
-            const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[k][1]))
+            const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
             return wrong < 0 ? ok([result, ['call', module, name, args[1]]])
-                : no(`${full}'s ${params[wrong][0]} is ${show(params[wrong][1])}, not ${show(args[1][wrong][0])}`)
+                : no(`${full}'s ${params[Number(wrong)][0]} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
         }
         case 'make': {
             return t[1].length === 0 ? ok([unit, ['make', []]]) : no('a product with fields is not in this slice')
@@ -391,7 +391,7 @@ const term = (env, t) => {
             const type = joinAll(env, types)
             const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unsupported(env, type)
             return type === null || why !== null ? no(`match: ${why}`)
-                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder], k) => /** @type {const} */ ([vs, binder, bodies[1][k]]))]])
+                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder], k) => /** @type {const} */ ([vs, binder, bodies[1][Number(k)]]))]])
         }
         case 'block': {
             const [, label, type, body] = t

@@ -215,6 +215,7 @@ export type State = {
     /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
     readonly stdin: readonly number[]
     readonly root: Dir
+    /** Response bytes keyed by enumerable own names; inherited JavaScript names are absent. */
     readonly internet: StringMap<Vec>
     readonly epochNs: number
     /** The slots of `memCreate`, kept by `../../memory`'s interpreter. */

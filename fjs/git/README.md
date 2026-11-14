@@ -91,7 +91,7 @@ what a grammar can and cannot do for the formats.
   raw bytes a tree entry holds and the hex text a header holds, and `of`,
   the id an object has at the repository's width: SHA-1 at 20 bytes,
   SHA-256 at 32.
-- [`inflater/`](inflater/module.f.mjs) — [`fjs/zlib/inflate`](../zlib/inflate/module.f.js),
+- [`inflater/`](inflater/module.f.js) — [`fjs/zlib/inflate`](../zlib/inflate/module.f.js),
   the pure inflater, fed the chunks a read gives, and what comes of it as the
   refusals the host's `inflate` effect used to give, so a caller that tells them
   apart by code is told nothing new.
@@ -298,7 +298,7 @@ payload.
 | tree payload | SP, NUL, then `times(n)(byte)` | grammar, parameterized by the id width |
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
-| zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.js), fed chunks and read over the effects by [`inflater/`](inflater/module.f.mjs) |
+| zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.js), fed chunks and read over the effects by [`inflater/`](inflater/module.f.js) |
 | packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.mjs), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in

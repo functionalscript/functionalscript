@@ -11,7 +11,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { assertIoMessage } from '../../testlib.f.js'
-import { catch_, now, randomInt, read, sandbox } from '../module.f.js'
+import { catch_, now, randomInt, read, sandbox, write } from '../module.f.js'
 import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.js'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.js'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.js'
@@ -248,6 +248,14 @@ export const proof = {
         const result = /** @type {const} */ ({ result: ok(42), duration: 7 })
         assertStructurallySame(assertOk(virtual(emptyState)(sandbox(() => result))[1]), result)
         assertEq(assertOk(assertOk(virtual(emptyState)(catch_(() => 42))[1])), 42)
+    },
+    stderrAppendsWithoutChangingStdout: () => {
+        /** @type {State} */
+        const initial = { ...emptyState, stdout: 'kept', stderr: 'before: ' }
+        const [state, result] = virtual(initial)(write('stderr', utf8('written ✓')))
+        assertEq(assertOk(result), undefined)
+        assertEq(state.stderr, 'before: written ✓')
+        assertEq(state.stdout, initial.stdout)
     },
     stdinIsConsumedOnce: () => {
         const [first, one] = virtual({ ...emptyState, stdin: [0x61, 0x62] })(read('stdin'))
@@ -498,6 +506,18 @@ export const proof = {
         // covers the `result === undefined` branch of the `fetch` handler
         const [, result] = virtual(emptyState)(fetch('https://example.com/missing'))
         assert(result[0] === 'error')
+    },
+    fetchOwnNamesOnly: () => {
+        const content = utf8('response')
+        for (const url of ['toString', 'constructor', '__proto__']) {
+            const [, missing] = virtual(emptyState)(fetch(url))
+            assert(missing[0] === 'error')
+            assertIoMessage(missing[1], 'not found')
+            /** @type {State['internet']} */
+            const internet = { [url]: content }
+            const [, found] = virtual({ ...emptyState, internet })(fetch(url))
+            assertEq(assertOk(found), content)
+        }
     },
     importNestedPath: () => {
         // import_ on a path whose parent does not exist covers the

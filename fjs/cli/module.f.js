@@ -37,7 +37,7 @@ const renderHelp = commands => {
     const width = nameCol.reduce((m, { length }) => max(m, length), -Infinity)
     return [
         'Available commands:',
-        ...rows.map(({ description }, i) => `  ${nameCol[i].padEnd(width)}  ${description}`)
+        ...rows.map(({ description }, i) => `  ${nameCol[Number(i)].padEnd(width)}  ${description}`)
     ].join('\n')
 }
 
@@ -77,7 +77,7 @@ const countWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
  */
 export const exactArgs = (name, n) => program => options => {
     if (options.args.length === n) { return program(options) }
-    const count = n < countWords.length ? countWords[n] : `${n}`
+    const count = n < countWords.length ? countWords[Number(n)] : `${n}`
     return errorExit(`'${name}' expects ${count} parameter${n === 1 ? '' : 's'}`)
 }
 

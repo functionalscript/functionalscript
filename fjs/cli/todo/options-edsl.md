@@ -49,7 +49,7 @@ Design first, then migrate. The design should settle:
   CLI parsing and help the same way. Whether that struct should be shared
   across transports is evaluated in
   [fjs/cas command-architecture](../../cas/todo/command-architecture.md);
-- coordination with `exactArgs` in [`../module.f.mjs`](../module.f.mjs),
+- coordination with `exactArgs` in [`../module.f.js`](../module.f.js),
   the arity combinator `cas add`/`cas get` use today (arity validation is
   subsumed by declared positionals).
 
@@ -65,10 +65,10 @@ Design first, then migrate. The design should settle:
 
 ### Related
 
-- `exactArgs` in [`../module.f.mjs`](../module.f.mjs) — positional arity
+- `exactArgs` in [`../module.f.js`](../module.f.js) — positional arity
   validation, subsumed by declared positional parameters.
 - dispatch-help-rendering (retired; shipped as `renderHelp` in
-  [`../module.f.mjs`](../module.f.mjs)) — the help rendering that declared
+  [`../module.f.js`](../module.f.js)) — the help rendering that declared
   options must plug into.
 - `Main` in [`../types.ts`](../types.ts) — a `Program` or a `Commands`
   table; declared options extend what `dispatch` routes.

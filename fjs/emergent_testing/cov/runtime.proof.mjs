@@ -70,13 +70,13 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         // The runtime needs neither a tooling inventory nor loaded definitions.
         for (const path of [
             'fjs/effects/node/module.mjs', 'fjs/emergent_testing/cov/reporter.mjs',
-            'fjs/emergent_testing/module.f.mjs', 'fjs/cli/module.f.mjs',
+            'fjs/emergent_testing/module.f.mjs', 'fjs/cli/module.f.js',
             'fjs/emergent_testing/one.mjs', 'fjs/module.mjs', 'fjs/module.f.mjs',
         ]) {
             write(root, path, 'throw new Error("Tooling source must not execute")\n')
         }
         assert.deepEqual(invoke(script), first)
-        write(root, 'fjs/cli/module.f.mjs', "import './new-dependency.mjs'\n")
+        write(root, 'fjs/cli/module.f.js', "import './new-dependency.mjs'\n")
         write(root, 'fjs/cli/new-dependency.mjs', 'throw new Error("Added tool dependency must not execute")\n')
         assert.deepEqual(invoke(script), first)
         write(root, 'package.json', '{"type":"module","version":"2.0.0"}')

@@ -168,7 +168,7 @@ const checkPattern = ([, ...names]) => {
 /** @type {(prefix: _AttributePath, path: _AttributePath) => boolean} */
 const isPathPrefix = (prefix, path) =>
     prefix.length <= path.length
-    && prefix.every((name, index) => name === path[index])
+    && prefix.every((name, index) => name === path[Number(index)])
 
 /** @type {(a: _AttributePath, b: _AttributePath) => boolean} */
 const pathsConflict = (a, b) =>
@@ -365,8 +365,8 @@ const serializeIndentedString = level => ([, ...parts]) => {
     const coalesced = coalesceStrings(parts)
     const contentIndent = indent(level + 1)
     const content = coalesced
-        .map((part, index) => indentedPart(part, typeof coalesced[index + 1] !== 'string'
-            && coalesced[index + 1] !== undefined))
+        .map((part, index) => indentedPart(part, typeof coalesced[Number(index + 1)] !== 'string'
+            && coalesced[Number(index + 1)] !== undefined))
         .join('')
         .split('\n')
         .map(protectLeadingWhitespace)

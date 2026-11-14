@@ -36,7 +36,7 @@ import { join, parent, under } from '../../path/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { stored } from '../../zlib/stored/module.f.js'
-import { bytesOf, inflateWithin } from '../inflater/module.f.mjs'
+import { bytesOf, inflateWithin } from '../inflater/module.f.js'
 import { tryLength, tryRead as readEnvelope, write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of } from '../oid/module.f.mjs'
 

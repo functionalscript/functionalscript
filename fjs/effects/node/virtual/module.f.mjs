@@ -30,6 +30,8 @@ import {
 import { partialRun } from '../../mock/module.f.js'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.js'
 import { asBase, asNominal } from '../../../types/nominal/module.f.js'
+import { entry as ownEntry } from '../../../types/object/entry/module.f.js'
+import { fromEntries } from '../../../types/object/module.f.js'
 import { _compareNames } from './readdir/module.f.js'
 
 /** @type {State} */
@@ -68,12 +70,11 @@ const isJsModule = entity => typeof entity === 'function'
  */
 const isDir = entity => !isBinFile(entity) && !isJsModule(entity)
 
-const { hasOwn } = Object
-
 /**
  * The entry `dir` holds at `name`, or `undefined` if it holds none.
  *
- * **Own names only.** A `Dir` is a plain object, so `dir[name]` also finds
+ * **Enumerable own names only.** A `Dir` is a FunctionalScript record, whose
+ * fields are enumerable own entries. A raw JavaScript `dir[name]` also finds
  * whatever `Object.prototype` holds: `dir['toString']` is a function — which
  * this file system reads as a `JsModule` — and `dir['__proto__']` is an object,
  * which it reads as a directory. A host has no such names, so an empty root
@@ -96,7 +97,7 @@ const { hasOwn } = Object
  *
  * @type {(dir: Dir, name: string) => _Entity | undefined}
  */
-const entryOf = (dir, name) => hasOwn(dir, name) ? dir[name] : undefined
+const entryOf = (dir, name) => ownEntry(dir, name)
 
 /**
  * @template T
@@ -225,7 +226,7 @@ const openEntity = (dir, path) => {
  *
  * @type {(name: readonly string[], prefix: readonly string[]) => boolean}
  */
-const isUnder = (name, prefix) => prefix.every((s, i) => name[i] === s)
+const isUnder = (name, prefix) => prefix.every((s, i) => name[Number(i)] === s)
 
 /**
  * The handles `f` leaves, asked of every one a name still reaches.
@@ -316,7 +317,7 @@ const mkdirOp = recursive => (dir, path) => {
     let i = path.length
     while (i > 0) {
         i -= 1
-        d = { [path[i]]: d }
+        d = { [path[Number(i)]]: d }
     }
     dir = { ...dir, ...d }
     return [dir, okVoid]
@@ -546,9 +547,9 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
     /** @type {readonly Dirent[]} */
     let result = []
     for (let i = 0; i < queue.length; i += 1) {
-        const [parentPath, d] = queue[i]
+        const [parentPath, d] = queue[Number(i)]
         for (const name of keys(d).toSorted(_compareNames)) {
-            const content = d[name]
+            const content = ownEntry(d, name)
             if (content === undefined) { continue }
             const isFile = !isDir(content)
             result = [...result, { name, parentPath, isFile, isDirectory: !isFile }]
@@ -567,6 +568,13 @@ const access = readOperation((dir, path) => {
     return entryOf(dir, path[0]) !== undefined ? okVoid : enoent
 })
 
+/**
+ * A directory's enumerable own fields except the removed name, preserving
+ * entries holding `undefined` and ordinary names such as `__proto__`.
+ * @type {(dir: Dir, name: string) => Dir}
+ */
+const withoutEntry = (dir, name) => fromEntries(Object.entries(dir).filter(([key]) => key !== name))
+
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
     // Presence before length, as `statPath` does: `operation` hands over the
@@ -584,7 +592,7 @@ const rmOp = (dir, path) => {
     // is always a `Vec[]` or a `JsModule` — never a bare `Dir` — and rm can
     // always proceed. (`rm` on a genuinely non-empty directory instead hits
     // `path.length !== 1` above, once the wrapper has descended into it.)
-    const { [name]: _, ...rest } = dir
+    const rest = withoutEntry(dir, name)
     return [rest, okVoid]
 }
 
@@ -642,7 +650,7 @@ const rmdirBelowRoot = atParent((parent, name) => {
     if (entry === undefined) { return [parent, enoent] }
     if (!isDir(entry)) { return [parent, enotdir] }
     if (!isEmptyDir(entry)) { return [parent, enotempty] }
-    const { [name]: _, ...kept } = parent
+    const kept = withoutEntry(parent, name)
     return [kept, okVoid]
 }, enotdir)
 
@@ -696,7 +704,7 @@ const rmdir = detachesHandles(emptyPathIsAbsent(path => state => {
 const extractBelowRoot = atParent((parent, name) => {
     const entry = entryOf(parent, name)
     if (entry === undefined) { return [parent, enoent] }
-    const { [name]: _, ...rest } = parent
+    const rest = withoutEntry(parent, name)
     return [rest, ok(entry)]
 }, enoent)
 
@@ -1148,7 +1156,7 @@ const fromFirstWithBits = rest => {
  */
 const readRequestBytes = (body, offset, _size) => state => {
     const index = /** @type {number} */ (asBase(body))
-    const cursor = state.bodies[index]
+    const cursor = state.bodies[Number(index)]
     if (offset !== cursor.offset) {
         return [state, error(ioError({ message: requestBodyOffsetMessage(offset, cursor.offset) }))]
     }
@@ -1439,7 +1447,7 @@ const baseOperationMap = {
     memRead: key => onMemory(memoryOperationMap.memRead(key)),
     memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
     fetch: url => state => {
-        const result = state.internet[url]
+        const result = ownEntry(state.internet, url)
         return result === undefined ? [state, fail('not found')] : [state, ok(result)]
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
@@ -1485,7 +1493,8 @@ const baseOperationMap = {
     catch: f => state => [state, ok(ok(f()))],
     write: (stream, data) => state => {
         const s = utf8ToString(data)
-        return [{ ...state, [stream]: `${state[stream]}${s}` }, okVoid]
+        const previous = stream === 'stdout' ? state.stdout : state.stderr
+        return [{ ...state, [stream]: `${previous}${s}` }, okVoid]
     },
     read: () => state => {
         const [first, ...rest] = state.stdin
