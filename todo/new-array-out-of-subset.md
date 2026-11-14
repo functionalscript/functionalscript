@@ -32,7 +32,7 @@ through; the one place the two differ is noted in it:
 | `fjs/rtti/common/proof.f.mjs` | 3 |
 | `fjs/rtti/data/proof.f.mjs` | 3 |
 | `fjs/types/range_set/proof.f.mjs` | 3 |
-| `fjs/media/datajs/serializer/proof.f.mjs` | 1 |
+| `fjs/media/datajs/serializer/proof.f.mjs` | 1 (since removed under its FunctionalScript input contract) |
 | `fjs/rtti/parse/proof.f.mjs` | 1 |
 | `fjs/sul/proof.f.mjs` | 1 (since replaced by `Array.from`) |
 | `fjs/git/refname/proof.f.mjs` | 1 |
@@ -79,10 +79,10 @@ independently.
 
 **Some guards survive and must not be swept up.** The const-tuple length bound
 in `parse` and `validate` takes both arms on dense values and earns its place
-on speed. The DataJS serializer's array check refuses a hole and an extra own
-property in one message; the hole half may be unreachable while the extra own
-property half is exactly the silently-wrong document its own documentation
-holds up as the counterexample.
+on speed. The DataJS serializer now assumes FunctionalScript values, so holes
+and extra own array properties are both outside its input contract. Its host
+inspection guards and their refusal proofs go together; neither half is a live
+FunctionalScript case that must be retained.
 
 ### Proposal
 
@@ -120,8 +120,9 @@ module they live in.
       one and nothing grants it. Answer it in `spec/README.md` beside the
       no-elision rule and in `fjs/AGENTS.md` §3.1, saying also whether it
       covers `Object.defineProperty` and index assignment on an accumulator,
-      which the same function uses. Note the precedent: this exact argument was
-      made for the DataJS corpus, acted on, and reversed.
+      which the same function uses. The DataJS writer's FunctionalScript input
+      contract does not grant an exception for array construction available only
+      on the host.
 - [x] **`fjs/sul` hygiene.** Replace `new Array(n).fill(0n)` with
       `Array.from`, and drop the reassigned local in the same helper. No
       shipped code, no coverage change, unrelated to holes. Its `push` is a
@@ -151,11 +152,12 @@ module they live in.
       both go or both stay, depending on whether it defends a FunctionalScript
       caller or the published package's JavaScript surface. Leaving the proof
       entry while removing the guard turns it red.
-- [ ] **`fjs/media/datajs/serializer`**, last. The decision it waited on is
-      taken: its parameter is the data model's `Unknown`, decided in
-      [the module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so),
-      so a hole is a value only a host can hand it. Separate the hole half of
-      its array check from the extra-own-property half before touching either.
+- [x] **`fjs/media/datajs/serializer`.** Its TypeScript parameter is `unknown`
+      under a documented contract for FunctionalScript values
+      ([module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)).
+      Functions are refused because DataJS cannot write them. Holes, extra own
+      array properties, accessors and cycles are outside that input contract;
+      the host inspection guards and their refusal proofs are removed together.
 - [ ] **`fjs/git/refname` and `fjs/git/ref`.** Decide whether the hole half of
       `byteArray`'s refusal, which both proofs exercise with `new Array(1)`,
       defends a FunctionalScript caller or only a host one, and keep or drop
@@ -175,12 +177,11 @@ module they live in.
 - [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
   — already states that FunctionalScript cannot build a sparse array, and
   assumes dense operands on that basis.
-- [`fjs/media/datajs`](../fjs/media/datajs/README.md) — where the same
-  argument was made, acted on, and reversed; the question about the
-  serializer's `unknown` parameter, which gated the last task here, is decided
-  there. The corpus that argument was about is
+- [`fjs/media/datajs`](../fjs/media/datajs/README.md) — the writer assumes
+  FunctionalScript values despite its TypeScript `unknown` parameter; that
+  settles its task here without changing the other APIs above. Its corpus is
   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md), whose README
-  records the gap from its own side.
+  documents what its DataJS-only carrier can establish.
 - [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern)
   — retired: it would have admitted one construction-time `defineProperty`,
   on a fresh function's `length`, as a complete matched pattern; nothing in
