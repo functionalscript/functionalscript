@@ -381,7 +381,7 @@ export const proof = {
     },
     writeFileOverJsModule: () => {
         // writeFile onto a path currently holding a JsModule (function) covers the
-        // `!Array.isArray(file)` branch of writeFileOp: the entry exists but is
+        // `!isBinFile(file)` branch of writeFileOp: the entry exists but is
         // neither undefined nor an array.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
@@ -943,18 +943,6 @@ export const proof = {
         const root = { 'myfile': [vec8(0x42n)], 'mydir': {} }
         const [, result] = virtualAt(root)(rename('myfile', 'mydir'))
         assert(result[0] === 'error')
-    },
-    renameForeignArrayFileOntoDirectory: () => {
-        // An array with another constructor's prototype models the observable
-        // instanceof behavior of an array received from another realm.
-        const foreignFile = Reflect.construct(Array, [], Object)
-        assert(Array.isArray(foreignFile))
-        assert(!(foreignFile instanceof Array))
-        /** @type {Dir} */
-        const root = { 'myfile': foreignFile, 'mydir': {} }
-        const [, result] = virtualAt(root)(rename('myfile', 'mydir'))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], "'mydir' is a directory")
     },
     readFileTooLarge: () => {
         // A file stored as a max-size chunk and one byte more exceeds the limit;

@@ -56,7 +56,7 @@ export const emptyState = {
  * @param {_Entity} entity
  * @returns {entity is readonly Vec[]}
  */
-const isBinFile = entity => Array.isArray(entity)
+const isBinFile = entity => entity instanceof Array
 
 /**
  * @param {_Entity} entity
@@ -937,7 +937,7 @@ const statPath = readOperation((dir, path) => {
     const file = entryOf(dir, path[0])
     if (file === undefined) { return enoent }
     if (path.length !== 1) { return enotdir }
-    // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
+    // `isBinFile` rather than a local `instanceof Array`: which entity kind a name
     // holds is asked in one place now (#1697), and the size calculation uses the same
     // helper as the write path, so the two cannot disagree about the file's end.
     if (!isBinFile(file)) { return notRegular }
