@@ -1545,6 +1545,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Variables: a snapshot for a closure': 'xxooo',
                 'Destructuring': 'ooooo',
                 'Destructuring: an elision': 'ooooo',
+                'Destructuring: object rest': 'xoooo',
                 'Methods and properties': 'ooooo',
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',
