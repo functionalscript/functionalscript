@@ -1,16 +1,18 @@
 /**
- * The DataJS writer: a value of the caller's, read into a graph and written
- * out as a document.
+ * The DataJS writer: a FunctionalScript value, read into a graph and written
+ * out as a document. Inputs obey FunctionalScript's value contract: its
+ * constructed containers are immutable and acyclic. Functions are refused;
+ * each format's leaf rule decides which primitives its document can hold.
  *
  * ```text
- * unknown
+ * FunctionalScript value
  *    |
  *    v
- * read                      one traversal: classify, validate from property
- *    |                      descriptors, and read every container once
+ * read                      one traversal: array elements or Object.entries,
+ *    |                      reading every container once
  *    v
- * link                      the host objects replaced by node indices, in
- *    |                      post-order; a reference forwards is a cycle
+ * link                      the containers replaced by node indices, in
+ *    |                      post-order
  *    v
  * write                     the shared nodes as `const` statements, then
  *    |                      `export default`
@@ -18,15 +20,9 @@
  * DataJS text
  * ```
  *
- * **Nothing is read before it is known to be data.** Reading the caller's
- * graph means following its edges, and following an edge on an ordinary
- * enumerator reads the property — which invokes an enumerable getter, the
- * very effect the data model refuses. So `read` takes each container as its
- * own property descriptors and follows only the values of the descriptors
- * that survive [`_memberValue`](#_memberValue). That also answers a question
- * no type can: a descriptor exists exactly when the property does, so a
- * member holding `undefined` is a member, where an enumerator that drops it
- * would write a different object.
+ * Arrays are read by element; other non-null objects by `Object.entries`,
+ * in their observable property order. A member holding `undefined` remains
+ * a member, so it stays distinct from an absent property.
  *
  * **What comes out is normalized form** — one line, a single space after
  * `const`, `export` and `default` and nowhere else, a node hoisted into a
@@ -38,23 +34,15 @@
  *
  * Both passes keep the reader's depth contract: the read walks an explicit
  * stack, a frame per container, and the write reads the linked graph in the
- * post-order `_link` left it in, so nesting as deep as the reader accepts
+ * post-order `link` left it in, so nesting as deep as the reader accepts
  * costs no call stack on the way back out. Neither squares the number of
  * containers: the containers entered are a persistent set with a
  * logarithmic add, and the shared nodes are read off sorted occurrences.
  *
- * The rules the specification states are each a function over data here —
- * `_memberValue`, `_elementNames`, `_link` — and exported. That is what makes
- * them provable: no value FunctionalScript can build carries an accessor, a
- * non-enumerable property, an own property on an array besides its
- * elements, or a cycle, so a refusal reached only through such a value
- * could not be proved through this module's entry points at all. The three
- * carry the `_` prefix because that export is linkage rather than API
- * ([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2): `trySerialize` and
- * `tryStringify` are what this module promises, and `tryJsonSerialize` and
- * `tryJsonStringify` beside them — a JSON document is the tree a DataJS
- * graph unfolds to, so its writer is this read under JSON's leaf rule, and
- * lives here rather than in `fjs/media/json`, which this module imports.
+ * `trySerialize` and `tryStringify` write DataJS; `tryJsonSerialize` and
+ * `tryJsonStringify` write JSON. A JSON document is the tree a DataJS graph
+ * unfolds to, so its writer is this read under JSON's leaf rule and lives
+ * here rather than in `fjs/media/json`, which this module imports.
  *
  * **The writer builds `Chunk`s and says what it wrote.** A leaf, a key and the
  * words `const`, `export` and `default` are runs with a kind, and the rest
@@ -70,7 +58,7 @@
  * @import { List } from '../../../types/list/types.ts'
  * @import { Chunk, Marked } from '../../../text/marked/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
- * @import { Primitive, Unknown } from '../types.ts'
+ * @import { Primitive } from '../types.ts'
  * @import { _Graph, _Leaf, _Member, _Node, _Read, _Value } from './types.ts'
  * @import { _Frame, _Step, _Visit, _Walk } from './private.ts'
  * @import { WalkFold } from '../../../types/stack_walk/types.ts'
@@ -81,21 +69,11 @@ import { serialize as bigintSerialize } from '../../../types/bigint/module.f.js'
 import { empty, flat } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { cmp } from '../../../types/number/module.f.js'
-import { error, mapOk, ok, okThen } from '../../../types/result/module.f.js'
+import { error, mapOk, ok } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.js'
-import { pushOk, walkFold } from '../../../types/stack_walk/module.f.js'
+import { walkFold } from '../../../types/stack_walk/module.f.js'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.js'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.js'
-import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
-
-const {
-    entries,
-    getOwnPropertyDescriptors,
-    getOwnPropertyNames,
-    getOwnPropertySymbols,
-    getPrototypeOf,
-    prototype: objectPrototype,
-} = Object
 
 // ── leaves and keys ───────────────────────────────────────────────────────────
 
@@ -110,8 +88,7 @@ const undefinedSerialize = [['undefined', 'literal']]
  * words, where JSON's `numberSerialize` writes `null` for them. Exported
  * because the compiler's JSON output and its proofs' dump, in
  * `fjs/compiler`, write numbers the same way, and the rule has one owner;
- * the `_` prefix says that export is linkage rather than API, as it does for
- * `_memberValue` below.
+ * the `_` prefix says that export is linkage rather than API.
  *
  * @type {(value: number) => List<Chunk>}
  */
@@ -153,44 +130,6 @@ export const keySerialize = key => key === protoKey
 
 // ── reading the caller's value ────────────────────────────────────────────────
 
-/**
- * The value of an own property this format can write, or why it cannot
- * write it. An accessor is refused because reading a getter is an effect,
- * and a non-enumerable property because writing the object without it would
- * denote a different object — the two attributes that decide *which values
- * appear at all*. Every other attribute is outside the data model and no
- * grounds for refusal: `writable` and `configurable` are not read here, so
- * a frozen value serializes as its data, as the specification requires.
- *
- * Exported because this is where the refusals can be proved. A descriptor
- * is ordinary data, where an object carrying an accessor or a
- * non-enumerable property is not a value FunctionalScript can build.
- *
- * @type {(key: string, descriptor: PropertyDescriptor) => Result<unknown, string>}
- */
-export const _memberValue = (key, descriptor) =>
-    descriptor.enumerable !== true ? error(`${key} is a non-enumerable property`) :
-    !hasEntry(descriptor, 'value') ? error(`${key} is an accessor property`) :
-    ok(descriptor.value)
-
-/**
- * Whether an array's own property names are exactly its elements and its
- * `length`: the indices `0 … length - 1` in order, then `length`. A hole
- * leaves one of those names out, and any other own property adds one —
- * these are names rather than keys, so a non-enumerable extra is caught
- * here too. The specification refuses both, the second because array syntax
- * holds elements and has nowhere to put `const a=[1]; a.meta=2`'s `meta`.
- *
- * Exported for the same reason as {@link _memberValue}: an array carrying an
- * own property besides its elements is not a value FunctionalScript can
- * build, but the names it would have are.
- *
- * @type {(names: readonly string[], length: number) => boolean}
- */
-export const _elementNames = (names, length) =>
-    names.length === length + 1
-    && names.every((name, i) => name === (i === length ? 'length' : `${i}`))
-
 /** @type {_Walk<never>} */
 const start = { started: noneStarted, finished: empty }
 
@@ -200,39 +139,15 @@ const leaf = kept => ['leaf', kept]
 /** @type {<L>(member: _Member<object, L>) => _Value<object, L>} */
 const memberOf = ([, value]) => value
 
-
 /**
- * A container met for the first time, opened as a frame. Its kind is
- * settled before its descriptors are looked at, because descriptors cannot
- * settle it: `new Date()`, `new Map()`, `new Set()` and `new Number(1)` each
- * carry zero own property descriptors and zero own symbols, exactly as `{}`
- * does, so descriptor-only validation would find nothing to refuse and
- * write any of them as `{}` — a document denoting something else, silently.
- * The check is positive and closed instead: an array, or a plain object,
- * whose prototype is `Object.prototype` or `null`. What the frame holds is
- * the properties the read will follow, in observable order; each is
- * validated from its descriptor when its turn comes, so that a refusal is
- * the first one in that order.
+ * A FunctionalScript container opened as a frame, with its members in their
+ * observable order. Array elements and object entries both retain undefined.
  *
- * @type {<L>(value: object) => Result<_Frame<L>, string>}
+ * @type {<L>(value: object) => _Frame<L>}
  */
-const open = value => {
-    if (getOwnPropertySymbols(value).length !== 0) { return error('an own symbol key') }
-    const descriptors = getOwnPropertyDescriptors(value)
-    if (value instanceof Array) {
-        const { length } = value
-        const names = getOwnPropertyNames(value)
-        if (!_elementNames(names, length)) {
-            return error('an array with a hole or an own property besides its elements')
-        }
-        /** @type {readonly (readonly [string, PropertyDescriptor])[]} */
-        const properties = names.slice(0, length).map(name => [name, assertNotNullish(entry(descriptors, name))])
-        return ok({ value, kind: 'array', properties, index: 0, done: empty })
-    }
-    const proto = getPrototypeOf(value)
-    if (proto !== objectPrototype && proto !== null) { return error('a non-plain object') }
-    return ok({ value, kind: 'object', properties: entries(descriptors), index: 0, done: empty })
-}
+const open = value => value instanceof Array
+    ? { value, kind: 'array', properties: value.map((element, i) => [String(i), element]), index: 0, done: empty }
+    : { value, kind: 'object', properties: Object.entries(value), index: 0, done: empty }
 
 /**
  * The node a frame closes into once every member is read.
@@ -245,18 +160,16 @@ const close = ({ kind, done }) => {
 }
 
 /**
- * The next member of a frame, its descriptor validated as its turn comes and
- * only the value of a property this format can write followed — or, when
- * none is left, the frame closed: its node appended after every node it
- * refers to, and the reference standing in its place handed down.
+ * The next member of a frame followed — or, when none is left, the frame
+ * closed: its node appended after every node it refers to, and the reference
+ * standing in its place handed down.
  *
  * @type {<L>(walk: _Walk<L>, frame: _Frame<L>) => _Visit<L>}
  */
 const round = (walk, frame) => {
     const { value, properties, index } = frame
     if (index < properties.length) {
-        const [key, descriptor] = properties[Number(index)]
-        return [walk, pushOk(frame)(_memberValue(key, descriptor))]
+        return [walk, ['push', frame, properties[Number(index)][1]]]
     }
     return [
         { started: walk.started, finished: { head: walk.finished, tail: [[value, close(frame)]] } },
@@ -268,32 +181,22 @@ const round = (walk, frame) => {
  * One value of the caller's: a leaf as the leaf rule keeps it where it is
  * met, or refused there; a container as a node of its own the first time it
  * is met and a reference to that node every time after, which is what
- * carries the sharing; and anything outside the data model refused where it
- * is met. So a refusal is the first one in the reader's order — a container
- * reached twice met once — whichever rule refuses it.
+ * carries the sharing. A function is refused where it is met. So a refusal
+ * is the first one in the reader's order — a container reached twice met
+ * once — whichever rule refuses it.
  *
  * @template L
  * @param {_Leaf<L>} leafRule
  * @returns {(walk: _Walk<L>, value: unknown) => _Visit<L>}
  */
 const enter = leafRule => (walk, value) => {
-    switch (typeof value) {
-        case 'bigint':
-        case 'boolean':
-        case 'number':
-        case 'string':
-        case 'undefined': { return [walk, mapOk(leaf)(leafRule(value))] }
-        case 'object': {
-            if (value === null) { return [walk, mapOk(leaf)(leafRule(null))] }
-            if (has(value)(walk.started)) { return [walk, ok(['ref', value])] }
-            /** @type {Result<_Frame<L>, string>} */
-            const frame = open(value)
-            return frame[0] === 'error'
-                ? [walk, frame]
-                : round({ started: add(value)(walk.started), finished: walk.finished }, frame[1])
-        }
-        default: { return [walk, error(`a ${typeof value} is not a DataJS value`)] }
+    if (typeof value === 'function') { return [walk, error('a function is not a DataJS value')] }
+    if (value !== null && typeof value === 'object') {
+        if (has(value)(walk.started)) { return [walk, ok(['ref', value])] }
+        return round({ started: add(value)(walk.started), finished: walk.finished }, open(value))
     }
+    // The input contract leaves only FunctionalScript primitives here.
+    return [walk, mapOk(leaf)(leafRule(/** @type {Primitive} */ (value)))]
 }
 
 /**
@@ -330,9 +233,6 @@ const read = leafRule => {
 /** The values a node holds, in the order it holds them. @type {<R, L>(node: _Node<R, L>) => readonly _Value<R, L>[]} */
 const nodeValues = node => node.kind === 'array' ? node.items : node.members.map(([, value]) => value)
 
-/** The nodes a node refers to. @type {<L>(node: _Node<number, L>) => readonly number[]} */
-const nodeRefs = node => nodeValues(node).flatMap(value => value[0] === 'ref' ? [value[1]] : [])
-
 /** A value with its reference, if any, replaced by the index of the node it refers to. @type {(position: ReadonlyMap<object, number>) => <L>(value: _Value<object, L>) => _Value<number, L>} */
 const linkValueBy = position => value => value[0] === 'ref'
     ? ['ref', assertNotNullish(position.get(value[1]), 'a reference to a container that was never finished')]
@@ -347,20 +247,13 @@ const linkNodeBy = position => {
 }
 
 /**
- * The graph the read produced, with every reference to a host object
- * replaced by the index of that object's node — and refused where a node
- * refers to itself or to a node finished after it, which is what a cycle is
- * here. A container finishes after every container reachable from it, so in
- * an acyclic graph every reference points backwards; a reference to a
- * container still being read is the one that cannot, and it is the back
- * edge a cycle is.
+ * The graph the read produced, with each container reference replaced by its
+ * node index. FunctionalScript's acyclic construction ensures that a container
+ * finishes after every container it reaches, so every reference points back.
  *
- * Exported because a cycle is not a value FunctionalScript can build, where
- * a graph carrying one is ordinary data.
- *
- * @type {<L>(finished: readonly _Read<L>[], root: _Value<object, L>) => Result<_Graph<L>, string>}
+ * @type {<L>(finished: readonly _Read<L>[], root: _Value<object, L>) => _Graph<L>}
  */
-export const _link = (finished, root) => {
+const link = (finished, root) => {
     const position = new Map(finished.map(
         /** @type {(entry: readonly [object, unknown], i: number) => readonly [object, number]} */
         (([value], i) => [value, i])
@@ -368,9 +261,7 @@ export const _link = (finished, root) => {
     const linkValue = linkValueBy(position)
     const linkNode = linkNodeBy(position)
     const nodes = finished.map(([, node]) => linkNode(node))
-    return nodes.every((node, i) => nodeRefs(node).every(ref => ref < i))
-        ? ok({ nodes, root: linkValue(root) })
-        : error('a cycle')
+    return { nodes, root: linkValue(root) }
 }
 
 /**
@@ -418,7 +309,7 @@ const constNames = graph => {
  * by `spellLeaf` from what the read kept, a hoisted node written as its
  * name and every other reference as a thunk over its node's chunks.
  *
- * This pass needs no stack of its own, because `_link` left the nodes in
+ * This pass needs no stack of its own, because `link` left the nodes in
  * post-order: a node comes after every node it refers to, so the chunks of
  * each node are built, in index order, from the chunks of nodes already
  * built. A reference to a node written inline is a thunk over that node's
@@ -447,10 +338,9 @@ const chunksOf = key => spellLeaf => names => ({ nodes }) => {
 }
 
 /**
- * The DataJS read's leaf rule: a leaf kept as it is, refused never. The
- * leaves are spelled by {@link write}, once `_link` has refused a cycle, so
- * a value refused for its graph costs no spelling — of a large string least
- * of all.
+ * The DataJS read's leaf rule: a primitive kept as it is, refused never.
+ * Leaves are spelled by {@link write} after the complete graph has been read,
+ * so encountering a function refuses the document before spelling its leaves.
  *
  * @type {_Leaf<Primitive>}
  */
@@ -494,25 +384,20 @@ const writeTree = key => graph => chunksOf(key)(spelled)(new Map())(graph).value
 // ── entry points ──────────────────────────────────────────────────────────────
 
 /**
- * A value of the data model as the chunks of a DataJS document, or why it
- * is not one.
+ * A FunctionalScript value as the chunks of a DataJS document, or why the
+ * document cannot hold it.
  *
- * The parameter is `Unknown`, the data model's own type, so a
- * FunctionalScript caller cannot hand this a value outside the model and
- * `tsc` says so at the call. The refusals stay, because the type cannot see
- * everything the specification refuses — a hole, a symbol key, an accessor,
- * a non-enumerable property, an array carrying anything besides its
- * elements, a non-plain object, a cycle — and a host that casts is refused
- * rather than approximated. What `JSON.stringify` does with the same values
- * — `null` for a function, `null` for a hole, a symbol-keyed member dropped
- * without a word — is the silently wrong document this refuses instead.
+ * The input is a FunctionalScript value. Its TypeScript parameter is
+ * `unknown`, so a function is an input whose refusal can be observed; the
+ * writer relies on FunctionalScript's container invariants and does not
+ * validate arbitrary host objects.
  *
  * It takes no mapping over an object's members, which JSON's `serialize`
  * does: observable key order is part of a DataJS value, so a caller
  * reordering it would get back a valid document denoting a different
  * object.
  *
- * @type {(value: Unknown) => Result<List<string>, string>}
+ * @type {(value: unknown) => Result<List<string>, string>}
  */
 export const trySerialize = value => mapOk(chunkStrings)(_trySerialize(value))
 
@@ -521,14 +406,14 @@ export const trySerialize = value => mapOk(chunkStrings)(_trySerialize(value))
  * builds on, where `trySerialize` answers their text alone. Exported for
  * linkage, as the other `_` exports are.
  *
- * @type {(value: Unknown) => Result<List<Chunk>, string>}
+ * @type {(value: unknown) => Result<List<Chunk>, string>}
  */
 export const _trySerialize = value => tryDocument(write)(value)
 
-/** A validated graph written by the supplied document writer. @type {(write: (graph: _Graph) => List<Chunk>) => (value: Unknown) => Result<List<Chunk>, string>} */
-const tryDocument = write => value => okThen(
-    /** @type {(step: _Step<Primitive>) => Result<List<Chunk>, string>} */
-    (([walk, root]) => mapOk(write)(_link(toArray(walk.finished), root)))
+/** A FunctionalScript graph written by the supplied document writer. @type {(write: (graph: _Graph) => List<Chunk>) => (value: unknown) => Result<List<Chunk>, string>} */
+const tryDocument = write => value => mapOk(
+    /** @type {(step: _Step<Primitive>) => List<Chunk>} */
+    (([walk, root]) => write(link(toArray(walk.finished), root)))
 )(read(kept)(value))
 
 /**
@@ -537,12 +422,12 @@ const tryDocument = write => value => okThen(
  * exceeds TypeScript's declaration serialization limit. This is ordinary
  * JavaScript, not DataJS: its JSDoc annotation is outside DataJS's grammar.
  *
- * @type {(value: Unknown) => Result<string, string>}
+ * @type {(value: unknown) => Result<string, string>}
  */
 export const _tryUnknownStringify = value => mapOk(chunksText)(tryDocument(graph => write(graph, true))(value))
 
 /**
- * A value of the data model as the chunks of a tree document — JSON's
+ * A FunctionalScript value as the chunks of a tree document — JSON's
  * shape, under a spelling of a leaf and of a key — or why it is not one.
  * The value is read into the same graph {@link trySerialize} reads it
  * into, each leaf spelled by the rule where the read meets it, and the
@@ -553,13 +438,13 @@ export const _tryUnknownStringify = value => mapOk(chunksText)(tryDocument(graph
  * will not be written costs no unfolding; and the leaf refused is the
  * first in the reader's order, a node reached twice met once, so
  * `[undefined, [1n]]` names `undefined` under JSON's rule. What the data
- * model refuses, `trySerialize` refuses here too.
+ * model cannot hold, a function, is refused as in `trySerialize`.
  *
- * @type {(leaf: _Leaf) => (key: (key: string) => List<Chunk>) => (value: Unknown) => Result<List<Chunk>, string>}
+ * @type {(leaf: _Leaf) => (key: (key: string) => List<Chunk>) => (value: unknown) => Result<List<Chunk>, string>}
  */
-const tryTreeSerialize = leaf => key => value => okThen(
-    /** @type {(step: _Step<List<Chunk>>) => Result<List<Chunk>, string>} */
-    (([walk, root]) => mapOk(writeTree(key))(_link(toArray(walk.finished), root)))
+const tryTreeSerialize = leaf => key => value => mapOk(
+    /** @type {(step: _Step<List<Chunk>>) => List<Chunk>} */
+    (([walk, root]) => writeTree(key)(link(toArray(walk.finished), root)))
 )(read(leaf)(value))
 
 /**
@@ -595,7 +480,7 @@ const jsonLeaf = value => {
 }
 
 /**
- * A value of the data model as the chunks of a JSON document, or why it
+ * A FunctionalScript value as the chunks of a JSON document, or why it
  * has none: the tree the value unfolds to, under {@link jsonLeaf} and JSON's
  * own spelling of a key — `__proto__` included, which a DataJS document
  * alone has to spell computed. JSON carries no identity, so a node two
@@ -604,7 +489,7 @@ const jsonLeaf = value => {
  * approximated, the first such leaf in the reader's order named, and what
  * the data model refuses is refused as {@link trySerialize} refuses it.
  *
- * @type {(value: Unknown) => Result<List<string>, string>}
+ * @type {(value: unknown) => Result<List<string>, string>}
  */
 export const tryJsonSerialize = value => mapOk(chunkStrings)(_tryJsonSerialize(value))
 
@@ -612,7 +497,7 @@ export const tryJsonSerialize = value => mapOk(chunkStrings)(_tryJsonSerialize(v
  * {@link tryJsonSerialize} with the kind of each leaf kept, as
  * {@link _trySerialize} is to {@link trySerialize}.
  *
- * @type {(value: Unknown) => Result<List<Chunk>, string>}
+ * @type {(value: unknown) => Result<List<Chunk>, string>}
  */
 export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
 
@@ -621,7 +506,7 @@ export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
  * leaf and keyword, and each name — a `const`'s — an `identifier`, which
  * `fjs compile` writes the text of.
  *
- * @type {(value: Unknown) => Result<Marked, string>}
+ * @type {(value: unknown) => Result<Marked, string>}
  */
 export const tryMarked = value => mapOk(chunks => withNames(chunksMarked(chunks)))(_trySerialize(value))
 
@@ -629,7 +514,7 @@ export const tryMarked = value => mapOk(chunks => withNames(chunksMarked(chunks)
  * {@link tryJsonSerialize} as marked text, as {@link tryMarked} is to
  * {@link trySerialize}.
  *
- * @type {(value: Unknown) => Result<Marked, string>}
+ * @type {(value: unknown) => Result<Marked, string>}
  */
 export const tryJsonMarked = value => mapOk(chunksMarked)(_tryJsonSerialize(value))
 
@@ -637,7 +522,7 @@ export const tryJsonMarked = value => mapOk(chunksMarked)(_tryJsonSerialize(valu
  * {@link tryJsonSerialize} as one string: what `fjs compile` writes for a
  * `.json` output.
  *
- * @type {(value: Unknown) => Result<string, string>}
+ * @type {(value: unknown) => Result<string, string>}
  */
 export const tryJsonStringify = value => mapOk(chunksText)(_tryJsonSerialize(value))
 
@@ -645,6 +530,6 @@ export const tryJsonStringify = value => mapOk(chunksText)(_tryJsonSerialize(val
  * {@link trySerialize} as one string: the document in normalized form, the
  * bytes a caller asks for to hash or compare documents.
  *
- * @type {(value: Unknown) => Result<string, string>}
+ * @type {(value: unknown) => Result<string, string>}
  */
 export const tryStringify = value => mapOk(chunksText)(_trySerialize(value))

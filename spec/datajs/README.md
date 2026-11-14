@@ -416,9 +416,8 @@ the format three properties for free: a document is acyclic by construction,
 it can be resolved in one forward pass, and no implementation needs cycle
 detection to read one.
 
-Cycles are therefore unrepresentable. A serializer handed a cyclic value
-rejects it rather than inventing a spelling — see
-[Serialization](#serialization).
+Cycles are therefore unrepresentable. The serializer's FunctionalScript
+input domain is acyclic as well — see [Serialization](#serialization).
 
 ## Const names
 
@@ -478,90 +477,44 @@ A reader must accept every valid document however it is spelled.
 
 ### What may be serialized
 
-A serializer's input is an ordinary programmatic value, which may be outside
-the data model. Anything outside it is **rejected as an error**, never
-approximated:
+The format carries acyclic data graphs: dense arrays, objects with enumerable
+own string-keyed data properties, and the leaves listed in
+[the data model](#data-model). A function has no DataJS spelling.
 
-- a leaf outside the leaf set — a function, a symbol, a `Date`, or any other
-  non-plain object;
-- a hole in a sparse array, which is not an `undefined` element;
-- an own property this format cannot write: a symbol key, an accessor
-  property (reading a getter is an effect), or a non-enumerable property —
-  each would otherwise vanish from the output. An array's own `length` is the
-  one exception: it is non-enumerable on every array, it is not a member, and
-  the syntax carries it implicitly in the element list;
-- an array carrying any own property besides its elements and `length`.
-  `const a=[1]; a.meta=2` has the own keys `0`, `length` and `meta`, and array
-  syntax holds only elements, so `meta` has nowhere to go;
-- a cycle.
+**The serializer accepts FunctionalScript values.** This is its input
+precondition: containers are immutable and acyclic, arrays contain only their
+elements, and object members are enumerable own string-keyed data properties.
+FunctionalScript also has functions. A function anywhere in the input graph
+is outside DataJS's leaf set and is **rejected as an error**.
 
-**Only the data is in the model.** What a serializer reads from an object is
-its own enumerable string-keyed data properties, and from an array its
-elements; what it reads from those is their values. Everything else about the
-host object is outside the data model, because DataJS has no syntax for any of
-it and therefore cannot carry it:
+The repository's writer expresses this input domain as TypeScript `unknown`.
+The data model's `Unknown` describes the narrower graph a document denotes;
+it excludes functions and remains the reader's result type. The writer's
+`unknown` parameter does not promise to validate arbitrary JavaScript host
+values before traversal.
 
-- property attributes — `writable`, `configurable`, and whether the object is
-  extensible, sealed or frozen;
-- the prototype — a `null`-prototype object or an `Array` subclass serializes
-  as its data, and reads back ordinary;
-- anything else the host attaches that is not an own enumerable string-keyed
-  data property.
+Values outside FunctionalScript's domain — symbols, host objects such as
+`Date`, accessors, non-enumerable members, symbol keys, sparse arrays, extra
+array properties and cycles — are outside the serializer's contract. It
+does not inspect descriptors, prototypes or symbols, or validate acyclicity
+to establish that precondition. No behavior for those inputs is specified.
+This leaves the DataJS format unchanged: none of those values acquires a
+document spelling.
 
-A round trip therefore preserves the **value**, not the object. This is
-deliberate and not a gap to close by rejecting the unusual cases: `Object.freeze`
-makes every property non-writable and non-configurable, so rejecting those
-descriptors would make frozen values unserializable — including the output of a
-reader that freezes what it returns, which this specification explicitly
-permits.
+The writer reads array elements directly and objects with `Object.entries`.
+Object enumeration order and a present member holding `undefined` are part
+of the graph and are preserved. Sharing is preserved by naming the shared
+containers; the traversal and emission support the reader's nesting depth.
+The JSON output variants use the same input precondition, unfold sharing,
+and additionally refuse every leaf JSON cannot represent: `undefined`,
+`bigint`, `NaN` and the infinities.
 
-Enumerability and accessors are the exception, rejected above rather than
-ignored here, and the line is worth stating: they change *which values appear
-at all*, which is a question about the data. Everything in this section's list
-is a question about the object holding it.
-
-Every one of these is a case where the obvious implementation quietly produces
-a document denoting something else. `JSON.stringify` substitutes `null` for a
-function, expands a hole to `null`, drops a symbol-keyed member, and drops that
-`meta` without a word. DataJS rejects instead, because a silently wrong
-document is worse than no document.
-
-**The conformance corpus carries no vector for any of this**, and the reason is
-DataJS rather than FunctionalScript. A conformance set is itself a **DataJS**
-data module, and DataJS has no functions, no `Symbol`, no `Date` and no way to
-spell a hole, an accessor or a class — so no vector can hold any of these inputs
-to hand a serializer. That is a property of the carrier, not an omission.
-
-An implementation's own tests are where the rule is answered, and they are not
-so limited, because a test is an ordinary module of its host language. This
-repository's writer refuses a function, a symbol, a `Date`, a `Map`, a `Set`, a
-boxed number, a non-plain prototype, a symbol key and a hole in its own proof,
-handed each as a real value. Four of the rules name a condition **no
-FunctionalScript value carries** — an accessor, a non-enumerable property, an
-own property on an array besides its elements, and a cycle — so the proof reads
-those at the level the rule is about: the descriptors, the own names and the
-graph. The remaining four values — an `Array` subclass, a frozen object, a
-frozen array and a `null`-prototype array — need a class, `Object.freeze` or
-`Object.setPrototypeOf`, none of which the subset has, so nothing in this
-repository builds them and a host that can owes the rule on its own.
-
-**A value whose prototype chain says one kind and whose construction says
-another is outside this section's input domain.** An object under
-`Array.prototype` that no array literal or constructor made —
-`Object.create(Array.prototype, …)`, or one re-pointed there by
-`Object.setPrototypeOf` — an array re-pointed away from it, and an array from
-another realm are all of that kind. None of them can be built by this format's
-own subset, which has no prototype operations at all, and no rule above reaches
-them: what a serializer does with such a value is **undefined**, and an
-implementation owes nothing either way. That is why the list above speaks of
-values as built — a `null`-prototype object from `Object.create(null)`, an
-`Array` subclass instance, a frozen array — and never of what a host can make
-the chain say afterwards.
-
-The practical consequence is worth one line, since implementations differ here
-and none of them is wrong: a serializer classifying arrays by the prototype
-chain and one classifying by `Array.isArray` disagree on exactly these values,
-and both conform.
+**The conformance corpus cannot carry a function as serializer input**,
+because each set is itself a DataJS data module. Function refusal is proved
+with FunctionalScript functions in the writer's own proofs. The corpus
+continues to cover the data graphs the format can represent; host-only
+values and synthetic descriptor or cyclic-graph checks add no obligation
+to this serializer contract.
 
 ### Normalized form
 
@@ -765,9 +718,10 @@ that just reads it emits none.
   ([§Encoding](#encoding)) and is judged on that form: a byte reader owes the
   UTF-8 rule, and the documents holding an unpaired surrogate are a code-unit
   reader's alone, since no byte sequence spells them.
-- A conforming **serializer** rejects every input outside
-  [the data model](#what-may-be-serialized) and otherwise emits a valid
-  document denoting the input graph.
+- A conforming **serializer** takes FunctionalScript values under
+  [the input precondition](#what-may-be-serialized), rejects a function
+  anywhere in the graph, and otherwise emits a valid document denoting that
+  graph. Values outside this input domain are not conformance inputs.
 - A conforming **normalized serializer** is a conforming serializer whose
   output is the byte sequence [normalized form](#normalized-form) defines.
 
