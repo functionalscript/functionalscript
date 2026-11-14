@@ -8,13 +8,29 @@ import type { Kind } from '../../../wasm/runtime/l0/types.ts'
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
- * L0](../module.f.js) bind, each on a handle, as the WebAssembly
- * JavaScript API passes an `i64`: a `bigint`. A `bool` goes back as `0` or
- * `1`, and a length and a unit as the numbers they are, as an index comes.
- * `dup` and `drop` change the count of a cell; `from_unit` and `concat`
- * allocate a cell the caller owns; `live` is how many cells remain.
+ * L0](../module.f.js) bind, over the L0 view, each on a handle as the
+ * WebAssembly JavaScript API passes an `i64`: a `bigint`. A `bool` goes back
+ * as `0` or `1`, and a length and a unit as the numbers they are, as an
+ * index comes. `from_unit` and `concat` answer the string that they make,
+ * which a host gives a handle.
  */
-export type Host = {
+export type View = {
+    readonly kind: (h: bigint) => Kind
+    readonly to_f64: (h: bigint) => number
+    readonly to_bool: (h: bigint) => 0 | 1
+    readonly same: (a: bigint, b: bigint) => 0 | 1
+    readonly length: (h: bigint) => number
+    readonly unit: (h: bigint, i: number) => number
+    readonly from_unit: (c: number) => string
+    readonly concat: (a: bigint, b: bigint) => string
+}
+
+/**
+ * The `fjs:l0` imports of a host that counts: the view's readers, `dup` and
+ * `drop`, which count a cell, and `from_unit` and `concat`, which make a
+ * cell that the caller owns and answer its handle.
+ */
+export type Imports = {
     readonly kind: (h: bigint) => Kind
     readonly to_f64: (h: bigint) => number
     readonly to_bool: (h: bigint) => 0 | 1
@@ -25,6 +41,15 @@ export type Host = {
     readonly drop: (h: bigint) => void
     readonly from_unit: (c: number) => bigint
     readonly concat: (a: bigint, b: bigint) => bigint
-    readonly live: () => number
+}
+
+/**
+ * A host that counts every value: its imports, the value that a handle
+ * names, and the cells that are alive, each a handle and its count, in the
+ * order they were made.
+ */
+export type Counting = {
+    readonly imports: Imports
     readonly read: (h: bigint) => unknown
+    readonly live: () => readonly (readonly [handle: bigint, count: number])[]
 }

@@ -8,11 +8,13 @@
  * The values cross as the WebAssembly JavaScript API passes them: an `i32` as
  * a `number` and an `i64` as a `bigint`, both read as two's complement, so a
  * value of an unsigned range comes back by its bits, and a `bool` as `0` or
- * `1`. A value of `any` is a handle that the [host](../l0/host/module.f.js)
- * of the `fjs:l0` imports reads, and so does the
- * [host](../native/host/module.f.js) of the `fjs:l1-native` imports: each
- * call has hosts of its own, whose table holds the call's values of `any`
- * in the order of the parameters.
+ * `1`. A value of `any` is a handle that the [counting
+ * host](../l0/host/count/module.mjs) of the `fjs:l0` imports reads, and so
+ * does the [host](../native/host/module.f.js) of the `fjs:l1-native`
+ * imports: each call has hosts of its own, whose first cells hold the
+ * call's values of `any` in the order of the parameters. A call that
+ * completes leaves those cells as it found them, each counted once, and no
+ * other cell: a module that keeps or frees a value that it borrows shows.
  *
  * @module
  *
@@ -24,7 +26,7 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { write } from '../../media/wasm/binary/write/module.f.js'
 import { check } from '../check/module.f.js'
-import { host } from '../l0/host/module.f.js'
+import { counting } from '../l0/host/count/module.mjs'
 import { fits } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.f.js'
 import { emit } from './module.f.js'
@@ -150,7 +152,8 @@ export const run = (m, twins, inputs) => {
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': host(values), 'fjs:l1-native': nativeHost(values) })
+            const h = counting(values)
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read) })
             const f = exports[name]
             assert(typeof f === 'function', name)
             const args = xs.map((v, k) => isAny(v) ? BigInt(xs.slice(0, k).filter(isAny).length) : toHost(params[k][1], v))
@@ -158,6 +161,8 @@ export const run = (m, twins, inputs) => {
             const expected = attempt(() => twin(xs))
             const same = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && Object.is(got[1], expected[1])
             assert(same, [name, xs, got, expected])
+            const cells = h.live().map(([k, count]) => `${k}:${count}`).join()
+            assert(got[0] === 'threw' || cells === values.map((_, k) => `${k}:1`).join(), [name, xs, cells])
         }
     }
 }

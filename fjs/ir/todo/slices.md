@@ -99,9 +99,11 @@ before it and proved end to end on its own.
   extend it as later slices land. It found the three defects that example
   proofs at 100% coverage missed. Tighten the trap oracle before slice 7
   makes throws meaningful.
-- [ ] **6a. Owned values, by hand** (wip, #3856). Copy and counted kinds; `dup`/`drop`;
+- [x] **6a. Owned values, by hand** (#3856). The counted kind, `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
-  static check of the owned stage; a host that counts every value.
+  static check of the owned stage, which also holds a linear type's owned
+  values to one consumer; a host that counts every value, under every host
+  proof of the emitter. Copy variants of `any` wait until after slice 6.
 - [ ] **6b. The lifetime pass.** Plain stage to owned (move, `dup`, `drop`);
   lowering of L0 view functions that answer owned values.
 - [ ] **6c. Constants and `init`.** Any's `undefined`, `null`, `true` and

@@ -80,10 +80,27 @@ export const proof = {
     "    if b then trap('no') else 1",
     '',
     ].join('\n')),
+    // A sealed type that is not counted names its tag and its carrier only, and a parameter that the callee owns reads `own`.
+    linear: () => assertEq(print({
+        imports: [['B', {
+            abi: 'test',
+            types: [['b', { variants: ['open'], kind: 'k', carrier: 'i32' }]],
+            functions: [['k', { params: [['x', ['sealed', 'B', 'b', null]]], result: int(0n, 0n) }], ['seal', { params: [['x', ['sealed', 'B', 'b', null], 'own']], result: unit }]],
+        }]],
+        functions: [],
+        exports: [],
+    }), [
+    'import B from test',
+    '    type b = open',
+    '        kind: k, carrier: i32',
+    '    fn k(x: b) -> int(0, 0)',
+    '    fn seal(own x: b) -> unit',
+    '',
+    ].join('\n')),
     unknown: () => assertEq(print(unknown), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop",
     "    fn kind(v: any) -> int(0, 8)",
     "    fn to_f64(v: any.only(number)) -> f64c",
     "    fn to_bool(v: any.only(boolean)) -> bool",
@@ -177,7 +194,7 @@ export const proof = {
     loops: () => assertEq(print(loops), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop",
     "    fn kind(v: any) -> int(0, 8)",
     "    fn to_f64(v: any.only(number)) -> f64c",
     "    fn to_bool(v: any.only(boolean)) -> bool",
@@ -472,7 +489,7 @@ export const proof = {
     records: () => assertEq(print(records), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop",
     "    fn kind(v: any) -> int(0, 8)",
     "    fn to_f64(v: any.only(number)) -> f64c",
     "    fn to_bool(v: any.only(boolean)) -> bool",

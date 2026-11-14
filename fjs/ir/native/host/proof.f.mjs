@@ -1,10 +1,11 @@
 import { assertEq } from '../../../asserts/module.f.js'
+import { handles } from '../../l0/host/module.f.js'
 import { host } from './module.f.js'
 
 /** Bigints, one past a word, and a value of another kind. */
 const values = [1n, 1n, -1n, 1n << 64n, 1 << 30, 'a']
 
-const h = host(values)
+const h = host(handles(values))
 
 export const proof = {
     // A handle names a value of the table, and each import is its row on the values or the floats.
