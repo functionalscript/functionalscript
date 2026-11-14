@@ -11,7 +11,7 @@ import { completeTransfers } from '../completions/module.f.js'
 import { memo } from '../../../memo/module.f.mjs'
 import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { _invocationTransition } from '../../../../js/ast/invocation/module.f.js'
-import { _directOwningInvocationRoot, invocationRootOf } from './module.f.mjs'
+import { _directOwningInvocationRoot, invocationRootOf } from './module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const target = /** @type {const} */ ({ kind: 'loop', index: 0 })

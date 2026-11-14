@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`toDiagrams`](../module.f.mjs) labelled a terminal's symbols as code points
+[`toDiagrams`](../module.f.js) labelled a terminal's symbols as code points
 only: `a`, `space`, `U+00E9`. That is right for every grammar with a demo today —
 JSON, DataJS, the JavaScript tokens and Markdown all read code points — and
 wrong for the grammars that read something else:

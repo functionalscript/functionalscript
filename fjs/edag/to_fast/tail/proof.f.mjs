@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { _tailCalls } from './module.f.mjs'
+import { _tailCalls } from './module.f.js'
 import { proof as semantic, _tailFunction } from '../tail_calls/proof.f.mjs'
 import { toFast } from '../module.f.mjs'
 import { fromFast } from '../../from_fast/module.f.mjs'

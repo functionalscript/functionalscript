@@ -52,7 +52,7 @@ import { read } from './value/property/module.f.js'
 import { assertOk } from '../asserts/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
 import { toData } from './value/to_unknown/module.f.mjs'
-import { trySerialize } from '../media/datajs/serializer/module.f.mjs'
+import { trySerialize } from '../media/datajs/serializer/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 

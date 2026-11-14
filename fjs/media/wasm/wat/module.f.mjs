@@ -111,10 +111,12 @@ const namings = group => map => {
 }
 
 /** @type {(naming: _Naming) => string} */
-const identifier = naming =>
-    id(naming.prefix !== null ? `$"${naming.prefix} ${strContents(naming.name)}"`
-    : naming.quoted ? `$"${strContents(naming.name)}"`
-    : `$${naming.name}`)
+const identifier = naming => {
+    const name = assertNotNullish(entry(naming, 'name'))
+    return id(naming.prefix !== null ? `$"${naming.prefix} ${strContents(name)}"`
+        : naming.quoted ? `$"${strContents(name)}"`
+        : `$${name}`)
+}
 
 /**
  * An item where it is defined: its name, if it has one, then its index.
@@ -125,7 +127,7 @@ const declaration = (names, index) => {
     const naming = mapGet(names, index)
     const at = comment(`(;${index};)`)
     return naming === undefined ? at
-        : naming.prefix !== null ? `${identifier(naming)} (${kw('@name')} ${str(naming.name)}) ${at}`
+        : naming.prefix !== null ? `${identifier(naming)} (${kw('@name')} ${str(assertNotNullish(entry(naming, 'name')))}) ${at}`
         : `${identifier(naming)} ${at}`
 }
 
@@ -427,6 +429,14 @@ const operands = (c, x) => {
 const instruction = (c, x) => `${kw(x[0])}${operands(c, x)}`
 
 /**
+ * Two spaces a level, up to fifty levels: `wasmprinter` stops there, so a
+ * deeply nested function does not take megabytes of spaces.
+ *
+ * @type {(nesting: number) => string}
+ */
+const indentation = nesting => '  '.repeat(min(nesting, 50))
+
+/**
  * An expression's instructions on one line each, indented from `nesting` by
  * the blocks open around them: a block's opening at the depth outside it,
  * its `else` and `end` there too.
@@ -447,14 +457,6 @@ const lines = (c, nesting, body) => {
     }
     return toArray(reverse(result))
 }
-
-/**
- * Two spaces a level, up to fifty levels: `wasmprinter` stops there, so a
- * deeply nested function does not take megabytes of spaces.
- *
- * @type {(nesting: number) => string}
- */
-const indentation = nesting => '  '.repeat(min(nesting, 50))
 
 /**
  * A constant expression on one line, its instructions space-separated.
@@ -512,7 +514,9 @@ const imports = c => {
     const { module: m, names } = c
     /** @type {(kind: ImportDesc[0], k: number) => number} */
     const index = (kind, k) => imported({ ...m, imports: m.imports.slice(0, k) }, kind)
-    return m.imports.map(({ module, name, desc }, k) => {
+    return m.imports.map((item, k) => {
+        const { module, desc } = item
+        const name = assertNotNullish(entry(item, 'name'))
         const d = desc[0] === 'func' ? (() => {
             const i = index('func', k)
             const params = c.module.types[Number(desc[1])]?.params ?? []
@@ -621,8 +625,10 @@ export const wat = m => {
         ...section('memory', m.memories.map((l, k) => `(${kw('memory')} ${declaration(names.memory, memoriesBase + k)} ${limits(l)})`)),
         ...section('global', m.globals.map(({ type, init }, k) =>
             `(${kw('global')} ${declaration(names.global, globalsBase + k)} ${globalType(type)} ${constExpr(c, init)})`)),
-        ...section('export', m.exports.map(({ name, kind, index }) =>
-            `(${kw('export')} ${str(name)} (${kw(kind)} ${reference(assertNotNullish(entry(names, kind)), index)}))`)),
+        ...section('export', m.exports.map(item => {
+            const { kind, index } = item
+            return `(${kw('export')} ${str(assertNotNullish(entry(item, 'name')))} (${kw(kind)} ${reference(assertNotNullish(entry(names, kind)), index)}))`
+        })),
         ...section('start', m.start === null ? [] : [`(${kw('start')} ${reference(names.func, m.start)})`]),
         ...section('elem', m.elements.map((e, k) => element(c, e, k))),
         ...customs('datacount'),

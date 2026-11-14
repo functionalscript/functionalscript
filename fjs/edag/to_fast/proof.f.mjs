@@ -18,7 +18,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { memo } from '../memo/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
-import { sourceReason } from './source/module.f.mjs'
+import { sourceReason } from './source/module.f.js'
 
 /** Compare semantic graph tables without merging allocation identities. @type {(graph: Exp) => void} */
 const roundTrip = graph => assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(graph))))), assertOk(analysis(graph)))

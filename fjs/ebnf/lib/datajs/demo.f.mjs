@@ -21,7 +21,7 @@
 
 import { constStatement, dataJs, exportStatement, id, number, property, value } from './module.f.js'
 import { character, escape, hex, string, uint, ws } from '../json/module.f.js'
-import { codePoints } from '../../railroad/module.f.mjs'
+import { codePoints } from '../../railroad/module.f.js'
 import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
 /**

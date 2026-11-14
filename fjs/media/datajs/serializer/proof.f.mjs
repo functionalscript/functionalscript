@@ -6,13 +6,14 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { errorMask } from '../../../text/code_point/module.f.js'
 import { stringToCodePointList, stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { take } from '../../../types/list/module.f.js'
 import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.js'
 import { tryParse } from '../parser/module.f.mjs'
 import { parseFromTokens } from '../../../compiler/parser/module.f.mjs'
 import { tokenize } from '../../../compiler/tokenizer/module.f.mjs'
 import { difference } from '../vectors/module.f.js'
-import { _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.mjs'
+import { _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.js'
 
 /** The document a value is written as. @type {(value: unknown) => string} */
 const text = value => unwrap(tryStringify(value))
@@ -174,6 +175,12 @@ export const proof = {
     // it, and `__proto__` is a plain key where a DataJS document has to
     // compute it.
     json: {
+        // Forty shared doublings are cheap to build; their unfolded JSON
+        // must stay deferred when the consumer only reads its prefix.
+        prefix: () => {
+            const chunks = unwrap(tryJsonSerialize(doubled(0, 40)))
+            assertEq(concat(take(42)(chunks)), `${'['.repeat(41)}0`)
+        },
         shared: () => {
             const c = emptyArray
             const p = /** @type {const} */ ([c])

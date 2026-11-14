@@ -36,7 +36,7 @@ asked for is settled there; what remains is the adapter itself.
   ship there too (**Amended**, below).
 - `fjs/ebnf/unicode/module.f.mjs` holds the text helpers the rule union does
   *not* imply, in EBNF forms: `str`, `not` and `unicodeRange`.
-- `fjs/ebnf/byte/module.f.mjs` holds the helpers over a byte stream —
+- `fjs/ebnf/byte/module.f.js` holds the helpers over a byte stream —
   shipped, with the byte range `0..255`, `bytes`, `not` and `ascii`.
 
 **Amended.** The front end shipped with `range`, `set` and `unicodeMax` in
@@ -89,7 +89,7 @@ Everything here is additive in `fjs/ebnf/`.
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` with `unicodeRange`, `str` and
       `not`, and its proof: string/code-point conversion, an astral character
       as one terminal, the universe's boundaries, a complement's.
-- [x] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers —
+- [x] Add `fjs/ebnf/byte/module.f.js` for binary byte-stream rule helpers —
       shipped as [`../../byte`](../../byte/README.md), for
       [`fjs/git`](../../../git/README.md), with proofs of the
       alphabet's boundaries and every rule form over bytes.
@@ -104,7 +104,7 @@ Everything here is additive in `fjs/ebnf/`.
       `EOF = -1`, and every alphabet adapter restricted to ordinary
       non-negative symbols without reserving the maximal value.
 - [ ] Have [recognizer-backend](../../todo/recognizer-backend.md) consume
-      byte helpers from `fjs/ebnf/byte/module.f.mjs` rather than defining
+      byte helpers from `fjs/ebnf/byte/module.f.js` rather than defining
       another binary-helper family — recorded there.
 - [ ] Document the boundary: the core is generic; `fjs/ebnf/unicode` and
       `fjs/ebnf/byte` adapt concrete alphabets to generic grammar symbols.

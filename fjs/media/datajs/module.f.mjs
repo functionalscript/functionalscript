@@ -56,7 +56,7 @@
  * `concat`.
  *
  * The reader is [`./parser`](./parser/module.f.mjs), the writer
- * [`./serializer`](./serializer/module.f.mjs); each is documented where it
+ * [`./serializer`](./serializer/module.f.js); each is documented where it
  * lives, and [`./README.md`](./README.md) is the map.
  *
  * @module
@@ -67,7 +67,7 @@ import {
     tryJsonMarked as serializerTryJsonMarked, tryJsonSerialize as serializerTryJsonSerialize,
     tryJsonStringify as serializerTryJsonStringify, tryMarked as serializerTryMarked,
     trySerialize as serializerTrySerialize, tryStringify as serializerTryStringify,
-} from './serializer/module.f.mjs'
+} from './serializer/module.f.js'
 
 export const tryParse = parserTryParse
 export const tryParseBytes = parserTryParseBytes

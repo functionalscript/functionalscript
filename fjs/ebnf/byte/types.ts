@@ -7,7 +7,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Set } from '../types.ts'
-import type { byte } from './module.f.mjs'
+import type { byte } from './module.f.js'
 
 // The universe is every byte, spelled as the range it is. This was
 // `./proof.f.mjs`'s `byte` entry, where it sat after the entry's last

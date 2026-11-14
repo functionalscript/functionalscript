@@ -17,7 +17,7 @@ import { history, historyStep, ioError, runPure } from '../../effects/module.f.j
 import { partialRun } from '../../effects/mock/module.f.js'
 import { nodeCommands, readUtf8File, writeFiles } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../../effects/node/virtual/module.f.js'
-import { ascii } from '../../ebnf/byte/module.f.mjs'
+import { ascii } from '../../ebnf/byte/module.f.js'
 import { hexText, of, tryFromHexOf } from '../../git/oid/module.f.mjs'
 import { objectsDir, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'

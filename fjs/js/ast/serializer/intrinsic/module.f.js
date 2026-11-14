@@ -8,21 +8,6 @@ import { helperLength } from '../../../../edag/module.f.js'
 import { _name as name, _binding as binding, _arg as argName } from '../names/module.f.js'
 
 /**
- * The `entry` helper's text, the one spelling of `['entry']` — the
- * FunctionalScript writer's and this renderer's alike, so that `String(f)`
- * and the source output agree — over the symbolic names of its three
- * bindings at `path`: the two parameters, named as every function's are,
- * and the descriptor `const`.
- *
- * ```js
- * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}
- * ```
- *
- * @type {(path: string) => string}
- */
-export const _entryText = path => chunksText(_entryChunks(path))
-
-/**
  * {@link _entryText} as chunks: its keywords carry their kind, so the one
  * text has one spelling for the plain and the marked writer.
  *
@@ -44,17 +29,19 @@ export const _entryChunks = path => {
 }
 
 /**
- * The `hasEntry` helper's text, the one spelling of `['hasEntry']`, as
- * {@link _entryText} is of `['entry']`: the same descriptor, the presence
- * returned.
+ * The `entry` helper's text, the one spelling of `['entry']` — the
+ * FunctionalScript writer's and this renderer's alike, so that `String(f)`
+ * and the source output agree — over the symbolic names of its three
+ * bindings at `path`: the two parameters, named as every function's are,
+ * and the descriptor `const`.
  *
  * ```js
- * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}
  * ```
  *
  * @type {(path: string) => string}
  */
-export const _hasEntryText = path => chunksText(_hasEntryChunks(path))
+export const _entryText = path => chunksText(_entryChunks(path))
 
 /** {@link _hasEntryText} as chunks, as {@link _entryChunks}. @type {(path: string) => readonly Chunk[]} */
 export const _hasEntryChunks = path => {
@@ -73,21 +60,17 @@ export const _hasEntryChunks = path => {
 }
 
 /**
- * The empty reference map's text, the one spelling of `['refMap']`
- * ([reference map](../../../../../spec/built-ins/reference-map/README.md)), as
- * {@link _entryText} is of `['entry']`. The body names itself, so that a
- * read of the empty map answers the empty map, and a helper is written
- * wherever a value stands, so the text binds that name itself: a `const`
- * inside an arrow called at once, the form the writer gives every function
- * that refers to itself.
+ * The `hasEntry` helper's text, the one spelling of `['hasEntry']`, as
+ * {@link _entryText} is of `['entry']`: the same descriptor, the presence
+ * returned.
  *
  * ```js
- * (()=>{const $0=($1,$2)=>{…return $2===undefined?[undefined,$0]:$10(undefined)($1,$2);};return $0;})()
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}
  * ```
  *
  * @type {(path: string) => string}
  */
-export const _refMapText = path => chunksText(_refMapChunks(path))
+export const _hasEntryText = path => chunksText(_hasEntryChunks(path))
 
 /** {@link _refMapText} as chunks, as {@link _entryChunks}. @type {(path: string) => readonly Chunk[]} */
 export const _refMapChunks = path => {
@@ -148,8 +131,32 @@ export const _refMapChunks = path => {
     ]
 }
 
+/**
+ * The empty reference map's text, the one spelling of `['refMap']`
+ * ([reference map](../../../../../spec/built-ins/reference-map/README.md)), as
+ * {@link _entryText} is of `['entry']`. The body names itself, so that a
+ * read of the empty map answers the empty map, and a helper is written
+ * wherever a value stands, so the text binds that name itself: a `const`
+ * inside an arrow called at once, the form the writer gives every function
+ * that refers to itself.
+ *
+ * ```js
+ * (()=>{const $0=($1,$2)=>{…return $2===undefined?[undefined,$0]:$10(undefined)($1,$2);};return $0;})()
+ * ```
+ *
+ * @type {(path: string) => string}
+ */
+export const _refMapText = path => chunksText(_refMapChunks(path))
+
 /** `0` to `n - 1`, in order. @type {(n: number) => readonly number[]} */
 const indices = n => n <= 0 ? [] : [...indices(n - 1), n - 1]
+
+/** {@link _intrinsicText} as chunks, as {@link _entryChunks}: one, since the text holds no keyword and no literal. @type {(id: IntrinsicId) => (path: string) => readonly Chunk[]} */
+export const _intrinsicChunks = id => path => {
+    const names = indices(helperLength(id)).map(k => argName(path, k))
+    const [receiver, ...rest] = names
+    return [`(${names.map(binding).join(',')})=>${receiver}.${id}(${rest.join(',')})`]
+}
 
 /**
  * An intrinsic's helper's text, the one spelling of its node, `['slice']`,
@@ -164,13 +171,6 @@ const indices = n => n <= 0 ? [] : [...indices(n - 1), n - 1]
  * @type {(id: IntrinsicId) => (path: string) => string}
  */
 export const _intrinsicText = id => path => chunksText(_intrinsicChunks(id)(path))
-
-/** {@link _intrinsicText} as chunks, as {@link _entryChunks}: one, since the text holds no keyword and no literal. @type {(id: IntrinsicId) => (path: string) => readonly Chunk[]} */
-export const _intrinsicChunks = id => path => {
-    const names = indices(helperLength(id)).map(k => argName(path, k))
-    const [receiver, ...rest] = names
-    return [`(${names.map(binding).join(',')})=>${receiver}.${id}(${rest.join(',')})`]
-}
 
 /**
  * A helper's text by its tag, {@link _entryChunks}, {@link _hasEntryChunks},

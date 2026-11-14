@@ -34,7 +34,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
 import { _immutableJoin } from './joins/module.f.js'
-import { _recoverOnePassJoin } from './one_pass/module.f.mjs'
+import { _recoverOnePassJoin } from './one_pass/module.f.js'
 
 /** @type {(node: _Node) => _Facts} */
 const facts = node => {

@@ -6,7 +6,7 @@
  * @module
  * @import { BindingId, Block, LoopTarget, Statement, Value } from '../../../js/ast/types.ts'
  * @import { Task } from '../../../js/ast/task/types.ts'
- * @import { _Plan, _Recipe, _Result, _Use, _UseTask } from './private.ts'
+ * @import { _BlockTask, _Plan, _Recipe, _Result, _Use, _UseTask } from './private.ts'
  */
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
@@ -33,8 +33,9 @@ const snapshots = (block, inputs) => {
     let statements = []
     for (const statement of block.statements) {
         if (statement[0] !== 'define') { return { ...block, statements: [...statements, ...block.statements.slice(statements.length)] } }
+        const available = established
         /** @type {(value: Value) => boolean} */
-        const stable = value => !(value instanceof Array) || value[0] === 'ref' && established.includes(value[1])
+        const stable = value => !(value instanceof Array) || value[0] === 'ref' && available.includes(value[1])
         const value = statement[2]
         const inert = stable(value) || value instanceof Array && (
             value[0] === 'array' && value[1].every(item => !isSpread(item) && stable(item))
@@ -146,34 +147,12 @@ const recipeTask = source => call(() => {
  * @type {(source: Block, parameters: readonly BindingId[], self: BindingId, target: LoopTarget, rest?: BindingId | null) => Block | null}
  */
 export const _tailCalls = (source, parameters, self, target, rest = null) => {
-    /** Selected recipes yield their choice; other leaves finish the invocation. @type {(value: Value, selected: readonly BindingId[]) => Task<Block>} */
-    const selectedValueTask = (value, selected) => call(() => {
+    /** @type {(value: Value, visitBlock: _BlockTask) => Task<_Result>} */
+    const valueTask = (value, visitBlock) => call(() => {
         if (value instanceof Array) {
-            const index = value[0] === 'ref' ? selected.indexOf(value[1]) : -1
-            if (index !== -1) { return done({ statements: [], exit: ['yield', selected.length === 1 ? [] : [index]] }) }
-            if (value[0] === 'block') { return selectedBlockTask(value[1], selected) }
+            if (value[0] === 'block') { return visitBlock(value[1]) }
             if (value[0] === 'if') {
-                /** @type {readonly BindingId[]} */
-                const results = selected.length === 1 ? [] : [{ index: target.index }]
-                /** @type {readonly Value[]} */
-                const values = results.map(binding => ['ref', binding])
-                return bind(selectedBlockTask(value[2], selected), then => bind(selectedBlockTask(value[3], selected), otherwise => done({
-                    statements: [['if', results, value[1], then, otherwise]], exit: ['yield', values],
-                })))
-            }
-        }
-        return bind(valueTask(value), result => done(result.block))
-    })
-    /** @type {(block: Block, selected: readonly BindingId[]) => Task<Block>} */
-    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' || block.exit[0] === 'loop' ? done(block)
-        : bind(selectedValueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0], selected), result =>
-            done({ statements: [...block.statements, ...result.statements], exit: result.exit })))
-    /** @type {(value: Value) => Task<_Result>} */
-    const valueTask = value => call(() => {
-        if (value instanceof Array) {
-            if (value[0] === 'block') { return blockTask(value[1]) }
-            if (value[0] === 'if') {
-                return bind(blockTask(value[2]), then => bind(blockTask(value[3]), otherwise => done({
+                return bind(visitBlock(value[2]), then => bind(visitBlock(value[3]), otherwise => done({
                     block: {
                         statements: [['if', [], value[1], then.block, otherwise.block]],
                         // Both arms transfer; an empty unreachable yield emits
@@ -189,36 +168,60 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
         }
         return done({ block: { statements: [], exit: ['break', target, [value]] }, changed: false })
     })
-    /** @type {(block: Block) => Task<_Result>} */
-    const ordinaryBlockTask = block => call(() => {
+    /** @type {(block: Block, selected: readonly BindingId[], visitBlock: _BlockTask) => Task<Block>} */
+    const selectedBlockTask = (block, selected, visitBlock) => {
+        /** Selected recipes yield their choice; other leaves finish the invocation. @type {(value: Value) => Task<Block>} */
+        const selectedValueTask = value => call(() => {
+            if (value instanceof Array) {
+                const index = value[0] === 'ref' ? selected.indexOf(value[1]) : -1
+                if (index !== -1) { return done({ statements: [], exit: ['yield', selected.length === 1 ? [] : [index]] }) }
+                if (value[0] === 'block') { return selectedBlockTask(value[1], selected, visitBlock) }
+                if (value[0] === 'if') {
+                    /** @type {readonly BindingId[]} */
+                    const results = selected.length === 1 ? [] : [{ index: target.index }]
+                    /** @type {readonly Value[]} */
+                    const values = results.map(binding => ['ref', binding])
+                    return bind(selectedBlockTask(value[2], selected, visitBlock), then => bind(selectedBlockTask(value[3], selected, visitBlock), otherwise => done({
+                        statements: [['if', results, value[1], then, otherwise]], exit: ['yield', values],
+                    })))
+                }
+            }
+            return bind(valueTask(value, visitBlock), result => done(result.block))
+        })
+        return call(() => block.exit[0] === 'throw' || block.exit[0] === 'loop' ? done(block)
+            : bind(selectedValueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]), result =>
+                done({ statements: [...block.statements, ...result.statements], exit: result.exit })))
+    }
+    /** @type {(block: Block, visitBlock: _BlockTask) => Task<_Result>} */
+    const ordinaryBlockTask = (block, visitBlock) => call(() => {
         if (block.exit[0] === 'throw' || block.exit[0] === 'loop') {
             /** @type {_Result} */
             const result = { block, changed: false }
             return done(result)
         }
-        return bind(valueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]), result => done({
+        return bind(valueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0], visitBlock), result => done({
             block: { statements: [...block.statements, ...result.block.statements], exit: result.block.exit }, changed: result.changed,
         }))
     })
-    /** Every reached recipe transfers; the final arm is the remaining choice. @type {(recipes: readonly _Recipe[], selected: BindingId, index: number) => Task<Block>} */
-    const dispatchTask = (recipes, selected, index) => call(() => bind(valueTask(recipes[Number(index)][2]), continuation => index + 1 === recipes.length
+    /** Every reached recipe transfers; the final arm is the remaining choice. @type {(recipes: readonly _Recipe[], selected: BindingId, index: number, visitBlock: _BlockTask) => Task<Block>} */
+    const dispatchTask = (recipes, selected, index, visitBlock) => call(() => bind(valueTask(recipes[Number(index)][2], visitBlock), continuation => index + 1 === recipes.length
         ? done(continuation.block)
-        : bind(dispatchTask(recipes, selected, index + 1), otherwise => done({
+        : bind(dispatchTask(recipes, selected, index + 1, visitBlock), otherwise => done({
             statements: [['if', [], ['===', ['ref', selected], index], continuation.block, otherwise]], exit: ['yield', []],
         }))))
-    /** @type {(block: Block) => Task<_Result>} */
+    /** The recursive block visitor is passed to each terminal-value helper. @type {_BlockTask} */
     const blockTask = block => bind(recipeTask(block), planned => {
-        if (planned === null) { return ordinaryBlockTask(block) }
+        if (planned === null) { return ordinaryBlockTask(block, blockTask) }
         const recipes = planned.recipes
         const bindings = recipes.map(recipe => recipe[1])
         if (recipes.length === 1) {
-            return bind(valueTask(recipes[0][2]), continuation => bind(selectedBlockTask(planned.block, bindings), selected => done({
+            return bind(valueTask(recipes[0][2], blockTask), continuation => bind(selectedBlockTask(planned.block, bindings, blockTask), selected => done({
                 block: { statements: [...selected.statements, ...continuation.block.statements], exit: continuation.block.exit }, changed: true,
             })))
         }
         /** @type {BindingId} */
         const selected = { index: target.index }
-        return bind(selectedBlockTask({ statements: [], exit: planned.block.exit }, bindings), selection => bind(dispatchTask(recipes, selected, 0), continuation => done({
+        return bind(selectedBlockTask({ statements: [], exit: planned.block.exit }, bindings, blockTask), selection => bind(dispatchTask(recipes, selected, 0, blockTask), continuation => done({
             block: { statements: [...planned.block.statements, ['block', [selected], selection], ...continuation.statements], exit: continuation.exit }, changed: true,
         })))
     })

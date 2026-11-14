@@ -25,7 +25,7 @@ Tail status belongs to an evaluation and its owning function. A selected
 conditional result or final sequence operand can be tail; a test, capture,
 ordinary operand or read of a completed call is not made tail by later return.
 Ordinary nested functions own their self calls. The shared
-[tail planner](../edag/to_fast/tail/module.f.mjs) and
+[tail planner](../edag/to_fast/tail/module.f.js) and
 [invocation transitions](../js/ast/invocation/module.f.js) own these decisions;
 the target writers consume their prepared control flow.
 

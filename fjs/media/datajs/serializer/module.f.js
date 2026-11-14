@@ -73,7 +73,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { cmp } from '../../../types/number/module.f.js'
 import { error, mapOk, ok } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, fromValues, has } from '../../../types/set/module.f.js'
-import { empty as noNames, fromEntries, mapEntries, mapGet, size } from '../../../types/map/module.f.js'
+import { empty as noNames, fromEntries, mapEntries, mapGet, mapSet, size } from '../../../types/map/module.f.js'
 import { walkFold } from '../../../types/stack_walk/module.f.js'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.js'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.js'
@@ -315,29 +315,33 @@ const constNames = graph => {
  * This pass needs no stack of its own, because `link` left the nodes in
  * post-order: a node comes after every node it refers to, so the chunks of
  * each node are built, in index order, from the chunks of nodes already
- * built. A reference to a node written inline is a thunk over that node's
- * chunks, forced only as the document is read out — which the list's
- * iteration does without recursion — so nesting as deep as the reader
- * accepts costs no call stack here either.
+ * built. Each thunk captures the persistent map of those completed chunks,
+ * forced only as the document is read out — which the list's iteration does
+ * without recursion — so nesting as deep as the reader accepts costs no
+ * call stack here either. Shared references retain the same chunk body;
+ * even JSON's exponentially unfolded tree is read only as demanded.
  *
  * @template L
  * @param {(key: string) => List<Chunk>} key
  * @returns {(spellLeaf: (kept: L) => List<Chunk>) => (names: PersistentMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<Chunk>[], readonly value: (value: _Value<number, L>) => List<Chunk> }}
  */
 const chunksOf = key => spellLeaf => names => ({ nodes }) => {
-    /** @type {(value: _Value<number, L>) => List<Chunk>} */
-    const value = v => {
+    /** @type {(chunks: PersistentMap<number, List<Chunk>>) => (value: _Value<number, L>) => List<Chunk>} */
+    const valueIn = chunks => v => {
         if (v[0] === 'leaf') { return spellLeaf(v[1]) }
         const name = mapGet(names, v[1])
-        return name === undefined ? () => chunks[Number(v[1])] : [name]
+        return name === undefined ? () => assertNotNullish(mapGet(chunks, v[1])) : [name]
     }
-    /** @type {(node: _Node<number, L>) => List<Chunk>} */
-    const inline = node => node.kind === 'array'
-        ? arrayWrap(node.items.map(value))
-        : objectWrap(node.members.map(([k, v]) => flat([key(k), colon, value(v)])))
-    /** @type {readonly List<Chunk>[]} */
-    const chunks = nodes.map(inline)
-    return { chunks, value }
+    /** @type {PersistentMap<number, List<Chunk>>} */
+    const initial = noNames
+    const chunks = nodes.reduce((previous, node, index) => {
+        const value = valueIn(previous)
+        const inline = node.kind === 'array'
+            ? arrayWrap(node.items.map(value))
+            : objectWrap(node.members.map(([k, v]) => flat([key(k), colon, value(v)])))
+        return mapSet(previous, index, inline)
+    }, initial)
+    return { chunks: mapEntries(chunks).map(([, value]) => value), value: valueIn(chunks) }
 }
 
 /**
@@ -386,6 +390,21 @@ const writeTree = key => graph => chunksOf(key)(spelled)(noNames)(graph).value(g
 
 // ── entry points ──────────────────────────────────────────────────────────────
 
+/** A FunctionalScript graph written by the supplied document writer. @type {(write: (graph: _Graph) => List<Chunk>) => (value: unknown) => Result<List<Chunk>, string>} */
+const tryDocument = write => value => mapOk(
+    /** @type {(step: _Step<Primitive>) => List<Chunk>} */
+    (([walk, root]) => write(link(toArray(walk.finished), root)))
+)(read(kept)(value))
+
+/**
+ * {@link trySerialize} with the kind of each leaf kept: the chunks a writer
+ * builds on, where `trySerialize` answers their text alone. Exported for
+ * linkage, as the other `_` exports are.
+ *
+ * @type {(value: unknown) => Result<List<Chunk>, string>}
+ */
+export const _trySerialize = value => tryDocument(write)(value)
+
 /**
  * A FunctionalScript value as the chunks of a DataJS document, or why the
  * document cannot hold it.
@@ -403,21 +422,6 @@ const writeTree = key => graph => chunksOf(key)(spelled)(noNames)(graph).value(g
  * @type {(value: unknown) => Result<List<string>, string>}
  */
 export const trySerialize = value => mapOk(chunkStrings)(_trySerialize(value))
-
-/**
- * {@link trySerialize} with the kind of each leaf kept: the chunks a writer
- * builds on, where `trySerialize` answers their text alone. Exported for
- * linkage, as the other `_` exports are.
- *
- * @type {(value: unknown) => Result<List<Chunk>, string>}
- */
-export const _trySerialize = value => tryDocument(write)(value)
-
-/** A FunctionalScript graph written by the supplied document writer. @type {(write: (graph: _Graph) => List<Chunk>) => (value: unknown) => Result<List<Chunk>, string>} */
-const tryDocument = write => value => mapOk(
-    /** @type {(step: _Step<Primitive>) => List<Chunk>} */
-    (([walk, root]) => write(link(toArray(walk.finished), root)))
-)(read(kept)(value))
 
 /**
  * A shared-node JavaScript module exporting unknown rather than an inferred
@@ -483,6 +487,14 @@ const jsonLeaf = value => {
 }
 
 /**
+ * {@link tryJsonSerialize} with the kind of each leaf kept, as
+ * {@link _trySerialize} is to {@link trySerialize}.
+ *
+ * @type {(value: unknown) => Result<List<Chunk>, string>}
+ */
+export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
+
+/**
  * A FunctionalScript value as the chunks of a JSON document, or why it
  * has none: the tree the value unfolds to, under {@link jsonLeaf} and JSON's
  * own spelling of a key — `__proto__` included, which a DataJS document
@@ -495,14 +507,6 @@ const jsonLeaf = value => {
  * @type {(value: unknown) => Result<List<string>, string>}
  */
 export const tryJsonSerialize = value => mapOk(chunkStrings)(_tryJsonSerialize(value))
-
-/**
- * {@link tryJsonSerialize} with the kind of each leaf kept, as
- * {@link _trySerialize} is to {@link trySerialize}.
- *
- * @type {(value: unknown) => Result<List<Chunk>, string>}
- */
-export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
 
 /**
  * {@link trySerialize} as marked text: the document with the kind of each

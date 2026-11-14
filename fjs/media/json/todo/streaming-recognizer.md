@@ -8,7 +8,7 @@
 `fjs/media/json` can turn text into a value (`parse`), but it has no way to
 answer the cheaper question *"is this a valid JSON document?"* without paying
 to build the value. `parse` in
-[`../parser/module.f.mjs`](../parser/module.f.mjs) folds the grammar's
+[`../parser/module.f.js`](../parser/module.f.js) folds the grammar's
 mappings into a whole `ParseUnknown` value — O(n) memory in the document size —
 and its string mappings build each string's text, so even a caller that
 discards the value has paid O(token length) for a single huge string. The
@@ -89,5 +89,5 @@ inputs within the limit; an over-cap document is rejected by design.
   streaming input a size-independent consumer needs.
 - [detect-json](../../type/todo/detect-json.md) — first consumer; needs
   O(depth), payload-free validity to keep `detectStream` size-independent.
-- [`../parser/module.f.mjs`](../parser/module.f.mjs) — `parse`, whose `ok`/`error`
+- [`../parser/module.f.js`](../parser/module.f.js) — `parse`, whose `ok`/`error`
   the recognizer must agree with.

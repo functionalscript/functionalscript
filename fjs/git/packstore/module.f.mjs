@@ -117,7 +117,7 @@
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
 import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.js'
 import { under } from '../../path/module.f.js'
 import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { concat } from '../../types/list/module.f.js'
