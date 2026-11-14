@@ -12,6 +12,10 @@
  *   [L0 view's](../../wasm/runtime/l0/module.f.js), and a WASM `i64`
  *   carries it. `dup` and `drop` make it counted: every value of `any` is
  *   counted in this slice (copy variants wait until after slice 6).
+ * - **`undefined`, `null`, `true` and `false` are Any's constants**, which a
+ *   module imports as immutable globals that the host makes
+ *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).
+ *   A module borrows each, and nothing drops one.
  * - **The casts' targets are the arguments.** `to_f64` takes a number and
  *   `to_bool` a boolean, so passing a value of unknown kind is a type error,
  *   and a module narrows its value with a `match` first. So does `same`,
@@ -55,10 +59,14 @@ const reference = only(any, 'array', 'object', 'function')
 /** A string. */
 const string = only(any, 'string')
 
+/** A boolean. */
+const boolean = only(any, 'boolean')
+
 /** The interface that seals `any`. @type {Interface} */
 const anyInterface = {
     abi: 'fjs:l0',
     types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64', dup: 'dup', drop: 'drop' }]],
+    constants: [['undefined', only(any, 'undefined')], ['null', only(any, 'null')], ['true', boolean], ['false', boolean]],
     functions: [
         ['kind', signature([['v', any]], int(0n, 8n))],
         ['to_f64', signature([['v', only(any, 'number')]], f64c)],

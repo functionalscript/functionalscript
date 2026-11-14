@@ -222,8 +222,9 @@ export const proof = {
         const mixed = only([['a', f64], ['b', u(8)]], f64)
         assertEq(why(fa, fast('export const f = a => a % 2')), noNative)
         assertEq(why(fa, fast('export const f = a => "s"')), 'f: a string is not in this slice')
-        assertEq(why(fa, fast('export const f = a => null')), 'f: null is not in this slice')
-        assertEq(why(fa, fast('export const f = a => undefined')), 'f: undefined is not in this slice')
+        // `null` and `undefined` are constants of Any, which a module lowered without the runtime does not import.
+        assertEq(why(fa, fast('export const f = a => null')), 'f: null is a constant of Any, which a module lowered without the runtime does not import')
+        assertEq(why(fa, fast('export const f = a => undefined')), 'f: undefined is a constant of Any, which a module lowered without the runtime does not import')
         assertEq(why(fa, fast('export const f = a => { throw a }')), 'f: throw is not in this slice')
         assertEq(why(fa, fast('export const f = a => a < 0 ? "s" : a')), 'f: a string is not in this slice')
         assertEq(why(fa, fast('export const f = a => a % 2 + 1')), noNative)
@@ -244,8 +245,19 @@ export const proof = {
         assertEq(why(fa, fast('export const f = (a, b) => a')), 'f: the signature has one parameter, and the function 2')
         assertEq(why(fa, module([], ['ref', id(99)])), 'f: a binding from outside the function is not in this slice')
         const capturing = /** @type {(v: Value) => Block} */ (v => exporting([], ['yield', [['object', [[':', 'f', ['function', fun(yields(1), [{ binding: x, value: v }])]]]]]]))
-        assertEq(why(fa, capturing(['ref', id(99)])), 'f: a capture that is not a function of the module is not in this slice')
-        assertEq(why(fa, capturing(1)), 'f: a capture that is not a function of the module is not in this slice')
+        // A binding that the module does not define holds its imports.
+        assertEq(why(fa, capturing(['ref', id(99)])), "f: a capture of the module's imports is not in this slice")
+        assertEq(why(fa, capturing(['+', 1, 2])), 'f: a capture that is neither a binding of the module nor a primitive is not in this slice')
+        // A capture of a primitive is its term: the normalization captures one where a binding of the module holds it.
+        assertEq(ir(fa, exporting([], ['yield', [['object', [[':', 'f', ['function', fun(yields(['ref', x]), [{ binding: x, value: 1.5 }])]]]]]])), [
+            'fn f(a: f64) -> f64 =',
+            '    1.5',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, capturing('s')), 'f: a string is not in this slice')
+        assertEq(why(fa, capturing(undefined)), 'f: undefined is a constant of Any, which a module lowered without the runtime does not import')
     },
     inline: () => {
         // A function inside a function is inlined where it is called. A parameter stands for its
@@ -390,10 +402,11 @@ export const proof = {
             [['define', g, ['function', relay(p, hc, ['ref', h])], 'required'], ['define', h, ['function', relay(q, gc, other)], 'required']],
             ['yield', [['object', [[':', 'f', ['function', fun(blk([], ['return', target, ['()', ['ref', fc], [['ref', a]]]]), [{ binding: fc, value: ['ref', g] }])]]]]]])
         assertEq(why(fa, relaying(['ref', g])), 'f: a function that calls itself is not in this slice')
-        assertEq(why(fa, relaying(1)), 'f: a capture that is not a function of the module is not in this slice')
+        assertEq(why(fa, relaying(1)), 'f: a call of a value is not in this slice')
         assertEq(why(fa, fast('const g = a => a\nexport const f = a => g')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
-        assertEq(why(fa, fast('const k = [1]\nconst g = a => k\nexport const f = a => g(a)')), 'f: a module constant is not in this slice')
+        // A function that the module does not export reads the constants that it captures.
+        assertEq(why(fa, fast('const k = [1]\nconst g = a => k\nexport const f = a => g(a)')), 'f: #c0: array is not in this slice')
         assertEq(why(fa, fast('export const g = a => a\nconst h = x => g(x)\nexport const f = a => h(a)')), 'f: g has no signature')
     },
     records: () => {
@@ -832,10 +845,11 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), 'f: a module constant is not in this slice')
-        // A constant that reads a constant the way an import is read is a constant.
-        assertEq(why(fa, fast('const o = [[1]]\nconst k = o[0].length\nexport const f = a => k')), 'f: a module constant is not in this slice')
-        assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), 'f: a module constant is not in this slice')
+        // A function that reads a constant that the lowering refuses is refused, and says why.
+        assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), 'f: #c0: array is not in this slice')
+        // A value that a definition reads the way an import is read, from anything but the module's imports, is a constant.
+        assertEq(why(fa, fast('const o = [[1]]\nconst k = o[0].length\nexport const f = a => k')), 'f: #c0: a member read of anything but a name is not in this slice')
+        assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), 'f: #c0: array is not in this slice')
         assertEq(why({ k: fa.f }, fast('export const k = 2')), 'k: an export that is not a function is not in this slice')
         assertEq(why({ g: fa.f, h: fa.f }, fast('const f = a => a\nexport const g = f\nexport const h = f')), 'h exports the same function as g')
         assertEq(why(fa, fast('export const g = a => a\nexport const f = a => g(a)')), 'f: g has no signature')
@@ -863,6 +877,170 @@ export const proof = {
         assertEq(why(fa, exporting([], ['yield', [['object', [['...', ['ref', x]]]]]])), 'an export of a computed name is not in this slice')
         assertEq(why(fa, exporting([], ['yield', [['object', [[':', ['ref', x], f]]]]])), 'an export of a computed name is not in this slice')
         assertEq(why(fa, exporting([], ['yield', [['object', [[':', 'f', ['ref', x]]]]]])), 'f: an export that is not a function is not in this slice')
+    },
+    constants: () => {
+        // Each other definition of the module is a constant, named for its place among them, #c0 first, whose term reads the constants before it.
+        assertEq(ir({ ...fa, g: fa.f }, fast('const half = 1 / 2\nconst quarter = half * half\nconst third = 1 / 3\nexport const f = a => a * quarter\nexport const g = a => a + third')), [
+            'const #c0: f64 =',
+            '    div(1.0, 2.0)',
+            '',
+            'const #c1: f64 =',
+            '    mul(self.#c0, self.#c0)',
+            '',
+            'const #c2: f64 =',
+            '    div(1.0, 3.0)',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    mul(a, self.#c1)',
+            '',
+            'fn g(a: f64) -> f64 =',
+            '    add(a, self.#c2)',
+            '',
+            'export f, g',
+            '',
+        ].join('\n'))
+        // The module keeps the constants that the functions that it lowers read, themselves or through the constants that they read.
+        assertEq(ir(fa, fast('const k = [1]\nconst half = 1 / 2\nconst third = 1 / 3\nexport const g = a => k + third\nexport const f = a => a * half')), [
+            'const #c1: f64 =',
+            '    div(1.0, 2.0)',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    mul(a, self.#c1)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A constant calls a function of the module, or inlines one that the module does not export, as a function does.
+        assertEq(ir({ ...fa, g: fa.f }, fast('export const g = a => a * 2\nconst k = g(3)\nexport const f = a => a + k')), [
+            'const #c0: f64 =',
+            '    g(3.0)',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    add(a, self.#c0)',
+            '',
+            'fn g(a: f64) -> f64 =',
+            '    mul(a, 2.0)',
+            '',
+            'export f, g',
+            '',
+        ].join('\n'))
+        assertEq(ir(fa, fast('const cube = x => x * x * x\nconst k = cube(2)\nexport const f = a => a + k')), [
+            'const #c0: f64 =',
+            '    mul(mul(2.0, 2.0), 2.0)',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    add(a, self.#c0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A constant of `bool`, and one of the range that holds its value.
+        assertEq(ir(fa, fast('const k = 1 < 2\nexport const f = a => k ? a : -a')), [
+            'const #c0: bool =',
+            '    lt(1.0, 2.0)',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    if self.#c0 then a else neg(a)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(ir(only([['a', u(8)]], u(16)), fast('const k = 3n * 2n\nexport const f = a => a + k')), [
+            'const #c0: int(6, 6) =',
+            '    mul(3, 2)',
+            '',
+            'fn f(a: u(8)) -> u(16) =',
+            '    add(a, self.#c0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A function that reads a constant that the lowering refuses is refused, and says why: a term that the checker refuses, a type that no global holds, or a call of a function with no signature.
+        assertEq(why(fa, fast('const k = 1 + 1n\nexport const f = a => k')), 'f: #c0: add of f64c and int(1, 1): the operands are integers or floats, not both')
+        assertEq(why(fa, fast('const r = { x: 1.5 * 2 }\nexport const f = a => r.x * a')), 'f: #c0: { x: f64 } is not in this slice')
+        assertEq(why(fa, fast('export const g = a => a\nconst k = g(1)\nexport const f = a => k')), 'f: #c0: g has no signature')
+        // A constant reads an import itself where the normalization writes the read in its term.
+        assertEq(irOver(fa, 'import { NUMBER } from "../l0/module.f.js"\nconst k = -NUMBER\nexport const f = a => k'), [
+            'const #c0: f64 =',
+            '    neg(3.0)',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    self.#c0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(fa, 'import { NUMBER } from "../l0/module.f.js"\nconst k = -NUMBER\nexport const f = a => k', null)), 'f: #c0: an import of ../l0/module.f.js is not in this slice')
+        // A module-level definition of `Math.abs` or `Math.sqrt`, which the normalization writes where a constant calls one and where the text names one, is that operator of the IR, as it is in a function. A function as a value is still refused.
+        assertEq(ir(fa, fast('const k = Math.abs(1 - 3)\nexport const f = a => a + k')), [
+            'const #c0: f64 =',
+            '    abs(sub(1.0, 3.0))',
+            '',
+            'fn f(a: f64) -> f64 =',
+            '    add(a, self.#c0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(ir(fa, fast('const root = Math.sqrt\nexport const f = a => root(a)')), [
+            'fn f(a: f64) -> f64 =',
+            '    sqrt(a)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, fast('const root = Math.sqrt\nexport const f = a => root')), 'f: a function as a value is not in this slice')
+        // `undefined` and `null` are constants of Any, which the module imports and borrows, and so is one that a function captures.
+        assertEq(irOver(only([['v', any]], any), 'import { NUMBER, kind } from "../l0/module.f.js"\nexport const f = v => kind(v) === NUMBER ? v : undefined'), [
+            'fn f(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 3.0) then v else Any.undefined',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', any]], any), 'const u = undefined\nexport const f = v => u'), [
+            'fn f(v: any) -> any =',
+            '    Any.undefined',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', any]], any), 'export const f = v => null'), [
+            'fn f(v: any) -> any =',
+            '    Any.null',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A constant of `any` owns its value, which a function borrows. The normalization may read an import through a slot of the module's arguments that a definition of its own holds, as it does `kind` here.
+        assertEq(irOver(only([['v', any]], any), 'import { STRING, concat, fromUnit, kind } from "../l0/module.f.js"\nconst a = fromUnit(0x61)\nconst b = concat(a, a)\nexport const f = v => kind(v) === STRING ? concat(v, b) : a'), [
+            'const #c0: any.only(string) =',
+            '    let fromUnit.unit = trunc_sat(u(16), 97.0)',
+            '    if eq(float(fromUnit.unit), 97.0) then String.from_unit(fromUnit.unit) else trap(\'inexact\')',
+            '',
+            'const #c1: any.only(string) =',
+            '    String.concat(self.#c0, self.#c0)',
+            '',
+            'fn f(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 4.0)',
+            '    then',
+            '        match v',
+            '          string as v.string =>',
+            '            String.concat(v.string, self.#c1)',
+            '          else =>',
+            '            trap(\'not string\')',
+            '    else',
+            '        self.#c0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // Normalized FAST defines a constant before anything that reads it, so a read of a later one is refused.
+        const [y, c] = [id(3), id(4)]
+        assertEq(why(fa, exporting(
+            [['define', x, ['-', ['ref', y]], 'required'], ['define', y, ['/', 1, 2], 'required']],
+            ['yield', [['object', [[':', 'f', ['function', fun(yields(['ref', c]), [{ binding: c, value: ['ref', x] }])]]]]]])),
+            'f: #c0: a constant that is read before its definition is not in this slice')
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
