@@ -127,8 +127,11 @@ export type TypedTerm =
     | readonly ['br', string, Typed]
     | Trap
 
-/** A parameter: its name and its type. */
-export type Param = readonly [name: string, type: Type]
+/**
+ * A parameter: its name, its type, and whether the callee owns it. A missing
+ * third part is a borrow, as every parameter was before this slice.
+ */
+export type Param = readonly [name: string, type: Type, mode?: 'own']
 
 /** What a call of a function needs: its parameters and its result. A function has them too. */
 export type Signature = {
@@ -146,19 +149,25 @@ export type FunctionOf<T> = {
 /**
  * A sealed type as its interface shows it: its public variants in the order
  * of their tags, the function of the interface that answers a value's tag,
- * and the WASM value that carries it where a host binds the interface.
+ * the WASM value that carries it where a host binds the interface, and, for
+ * a counted type, the functions that count it: `dup`, which borrows a value
+ * and answers one of the type, and `drop`, which owns one and answers
+ * `unit`. A type that names neither is linear: a value that a module owns
+ * goes to a parameter that owns it.
  */
 export type SealedDef = {
     readonly variants: readonly string[]
     readonly kind: string
     readonly carrier: 'i32' | 'i64'
+    readonly dup?: string
+    readonly drop?: string
 }
 
 /**
  * What a module needs to know of another that it imports: the other's
  * sealed types and the signatures of its functions, whose parameters borrow
- * their arguments. `abi` is the WASM module of the imports that bind it on
- * a host, which name its functions as it does.
+ * their arguments but where they are `own`. `abi` is the WASM module of the
+ * imports that bind it on a host, which name its functions as it does.
  */
 export type Interface = {
     readonly abi: string

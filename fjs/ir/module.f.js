@@ -226,3 +226,14 @@ export const fn = (params, result, body) => ({
 
 /** What a call of a function needs, written apart from its body. @type {(params: readonly Param[], result: Type) => Signature} */
 export const signature = (params, result) => ({ params, result })
+
+/**
+ * A parameter the callee owns: `own('v', any)`. A plain `[name, type]` still
+ * borrows.
+ *
+ * @type {(name: string, type: Type) => Param}
+ */
+export const own = (name, type) => [name, type, 'own']
+
+/** Whether a parameter is owned. @type {(p: Param) => boolean} */
+export const isOwn = ([, , mode]) => mode === 'own'
