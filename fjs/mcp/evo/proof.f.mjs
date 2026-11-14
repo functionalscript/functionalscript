@@ -206,13 +206,13 @@ export const proof = {
         const schema = toJsonSchema(evoAddArgs)
         const lock = entry(schema.properties ?? {}, 'lock')
         assert(lock !== undefined, ['expected a lock property', schema])
-        const ref = '#/$defs/lockValue'
+        const ref = '#/$defs/0'
         const [sharedRef, inlineMap] = lock.anyOf ?? []
         assertEq(sharedRef?.type, 'string')
         assertEq(inlineMap?.type, 'object')
         assertEq(entry(inlineMap?.additionalProperties ?? {}, '$ref'), ref)
-        const rule = entry(schema.$defs ?? {}, 'lockValue')
-        assert(rule !== undefined, ['expected a lockValue definition', schema])
+        const rule = entry(schema.$defs ?? {}, '0')
+        assert(rule !== undefined, ['expected a recursive lock definition', schema])
         const [directHash, nestedMap] = rule.anyOf ?? []
         assertEq(directHash?.type, 'string')
         assertEq(nestedMap?.type, 'object')
