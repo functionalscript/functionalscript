@@ -29,7 +29,6 @@ import { utf8 } from '../text/module.f.js'
 import { fromVec, utf8ToString } from '../text/utf8/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.js'
-import { toVec } from '../types/uint8array/module.f.mjs'
 import { codePoints } from '../text/ascii/module.f.js'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { compiled, compiledProgram, _writtenProgram, demo, outputs } from './demo.f.mjs'
@@ -38,7 +37,7 @@ import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.js'
 import { encodeQuery } from '../website/demo/sharing/module.f.mjs'
-import { maxLengthBytes } from '../types/bit_vec/module.f.js'
+import { maxLengthBytes, u8ListToVecMsb } from '../types/bit_vec/module.f.js'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 import { dirOf, encode } from './demo_files/module.f.mjs'
@@ -94,7 +93,7 @@ const normalizeSet = /** @type {readonly Normalize[]} */ (normalize)
 const documentText = document => {
     if (typeof document === 'string') { return document }
     const octets = bytes(document[1])
-    return octets === null ? null : fromVec(toVec(new Uint8Array(octets)))
+    return octets === null ? null : fromVec(u8ListToVecMsb(octets))
 }
 
 /**
@@ -531,7 +530,7 @@ export const proof = {
         // string U+00FF where a JavaScript host reads U+FFFD — a different
         // successful value (DESIGN.md §10).
         /** @type {(before: string, bad: readonly number[], after: string) => Vec} */
-        const source = (before, bad, after) => toVec(new Uint8Array([...codePoints(before), ...bad, ...codePoints(after)]))
+        const source = (before, bad, after) => u8ListToVecMsb([...codePoints(before), ...bad, ...codePoints(after)])
         const sequences = [[0xff], [0xc2], [0xc0, 0xaf], [0xed, 0xa0, 0x80]]
         for (const bad of sequences) {
             /** @type {readonly (readonly [string, Vec, string])[]} */

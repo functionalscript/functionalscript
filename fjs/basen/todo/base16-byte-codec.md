@@ -14,7 +14,7 @@ codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
 `hexBytes`, `fjs/zlib/testlib.f.js`'s `hex`, `fjs/git/refstore/name`'s
 `nameForMessage` and `fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
 
-- [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
+- [`fjs/types/uint8array`](../../types/uint8array/module.mjs) —
   `fromVec` reads a pair back with ``Number(`0x…`)``; it works a bigint at
   a time for a reason its doc gives, which the codec's byte lists do not
   respect, so it is not moved. Its writers, `hexOfByte` and the padding of

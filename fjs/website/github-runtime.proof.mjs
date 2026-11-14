@@ -8,7 +8,7 @@
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startGitHubLogin } from './github-runtime.mjs'
 import { encode } from '../basen/base64url/module.f.js'
-import { toVec } from '../types/uint8array/module.f.mjs'
+import { toVec } from '../types/uint8array/module.mjs'
 
 const origin = /** @type {const} */ ('https://functionalscript.test')
 const callback = /** @type {const} */ (`${origin}/prs/`)

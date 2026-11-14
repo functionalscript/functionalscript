@@ -108,7 +108,7 @@ easier to read.
 |[`bigfloat`](./bigfloat/)      |Decimal-to-binary float conversion on `bigint` mantissas and exponents.               |
 |[`prime_field`](./prime_field/)|Arithmetic modulo a prime: inverse, power and square root. The base of `crypto/secp`. |
 |[`bit_vec`](./bit_vec/)        |Bit vectors as `bigint`s with a stop bit, and their conversions to and from bytes.    |
-|[`uint8array`](./uint8array/)  |Conversions between `Uint8Array` and bit vectors. Deprecated in favour of `bit_vec`.  |
+|[`uint8array`](./uint8array/)  |JavaScript host conversions between `Uint8Array` and bit vectors. Deprecated in favour of `bit_vec`.  |
 
 ## Related
 

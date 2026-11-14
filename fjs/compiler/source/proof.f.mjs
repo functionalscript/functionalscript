@@ -10,7 +10,7 @@ import { ok } from '../../types/result/module.f.js'
 import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.js'
 import { nodeCommands } from '../../effects/node/module.f.js'
-import { toVec } from '../../types/uint8array/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -22,8 +22,8 @@ export const proof = {
         // Whole-source reads retain a UTF-8 sequence crossing chunk boundaries.
         const [, result] = virtualAt({
             'source.f.mjs': [
-                toVec(new Uint8Array([0xf0, 0x9f])),
-                toVec(new Uint8Array([0x98, 0x80])),
+                u8ListToVecMsb([0xf0, 0x9f]),
+                u8ListToVecMsb([0x98, 0x80]),
             ],
         })(readSource('source.f.mjs'))
         assertStructurallySame(result, ['ok', '😀'])
@@ -33,7 +33,7 @@ export const proof = {
         const run = virtualAt({ 'main.f.js': [utf8(text)] })
         assertStructurallySame(run(_parseModule('main.f.js'))[1], parse('main.f.js')(text))
         assertEq(parse('main.f.js')('not a module')[0], 'error')
-        const [, invalid] = virtualAt({ 'bad.f.js': [toVec(new Uint8Array([255]))] })(_parseModule('bad.f.js'))
+        const [, invalid] = virtualAt({ 'bad.f.js': [u8ListToVecMsb([0xff])] })(_parseModule('bad.f.js'))
         assertStructurallySame(invalid, ['error', { message: 'not UTF-8 text', metadata: null, path: 'bad.f.js' }])
         const [, missing] = virtual(emptyState)(_parseModule('missing'))
         assertStructurallySame(missing, ['error', { message: 'file not found', metadata: null, path: 'missing' }])

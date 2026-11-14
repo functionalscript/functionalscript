@@ -17,7 +17,7 @@ import { pureOk, step } from '../effects/module.f.js'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
-import { u8ListToVecMsb, vec8, repeat, length, maxLengthBytes, bytesIn } from '../types/bit_vec/module.f.js'
+import { u8ListToVecMsb, u8ArrayMsb, vec8, repeat, length, maxLengthBytes, bytesIn } from '../types/bit_vec/module.f.js'
 import { vecToCBase32 } from '../basen/cbase32/module.f.js'
 import { encode as base64Encode } from '../basen/base64/module.f.js'
 import { utf8 } from '../text/module.f.js'
@@ -29,7 +29,6 @@ import { emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f
 import { _casMcpSession, casMcpServer } from './module.f.mjs'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
-import { fromVec } from '../types/uint8array/module.f.mjs'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
@@ -121,7 +120,7 @@ const session = (...msgs) =>
 
 // UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
 /** @type {(s: string) => readonly number[]} */
-const toBytes = s => [...fromVec(utf8(s))]
+const toBytes = s => u8ArrayMsb(utf8(s))
 
 // Runs `init`, `notifications/initialized`, then `msgs` through the *real*
 // stdio pipeline — `mcpStep` wrapped in `stdioTransport`, driving
