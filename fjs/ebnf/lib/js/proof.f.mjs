@@ -7,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { codePointListToString, stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
-import { repeatFrom0 } from '../../module.f.mjs'
+import { repeatFrom0 } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
 import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'

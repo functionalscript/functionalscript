@@ -5,9 +5,9 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { one as c } from '../../text/ascii/module.f.js'
-import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
-import { dataJs } from '../lib/datajs/module.f.mjs'
-import { digit, json, string, uint, value, ws, wsSymbol } from '../lib/json/module.f.mjs'
+import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.js'
+import { dataJs } from '../lib/datajs/module.f.js'
+import { digit, json, string, uint, value, ws, wsSymbol } from '../lib/json/module.f.js'
 import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.js'
 import { mapGet, size as mapSize } from '../../types/map/module.f.js'
 

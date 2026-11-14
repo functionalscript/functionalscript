@@ -21,7 +21,7 @@ import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.j
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.js'
 import { exitValues, freeLoopBindings } from '../../js/ast/control/module.f.js'
-import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
+import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.js'
 import { _directOwningInvocationRoot, directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { _owningTailCalls } from './loop/owning/module.f.js'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.js'

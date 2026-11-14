@@ -13,6 +13,7 @@ import { array, or, string } from '../../rtti/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { stepSchema, uses } from '../common/module.f.js'
 import { miseDevelop } from '../mise/module.f.js'
+import { fromValues, values } from '../../types/set/module.f.js'
 
 export const checkSchema = /** @type {const} */ ({
     id: string,
@@ -111,10 +112,10 @@ export const platform = image => {
  */
 export const checks = (jobId, job) => {
     const work = job.steps.filter(step => !isAction(step, 'actions/checkout'))
-    const ids = /** @type {const} */ ([...new Set(work.flatMap(step => {
+    const ids = values(fromValues(work.flatMap(step => {
         const id = checkId(jobId, step)
         return id === undefined ? [] : [id]
-    }))])
+    })))
     return ids.map(id => ({
         id,
         rung: rung(id),

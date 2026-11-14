@@ -25,11 +25,13 @@
  *
  * @import { BlockType, Bytes, Custom, Data, Element, Export, Expr, FuncType, Global, GlobalType, ImportDesc, Instruction, Limits, Locals, MemArg, Module, NameMap, NameSubsection, RefType, SectionName, TableType, ValType } from '../types.ts'
  * @import { List } from '../../../types/list/types.ts'
+ * @import { PersistentMap } from '../../../types/map/types.ts'
  * @import { _Context, _Names, _Naming } from './private.ts'
  * @import { Marked } from '../../../text/marked/types.ts'
  */
 
 import { reverse } from '../../../types/list/module.f.js'
+import { empty as noNames, fromEntries, mapEntries, mapGet } from '../../../types/map/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
 import { abs } from '../../../types/number/abs/module.f.js'
@@ -93,13 +95,13 @@ const bytesLiteral = bytes => string(`"${bytes.map(b => b >= 0x20 && b < 0x7f &&
  * of `group` and the index where it is empty, starts with `#`, or was given
  * to an index before it.
  *
- * @type {(group: string) => (map: NameMap) => ReadonlyMap<number, _Naming>}
+ * @type {(group: string) => (map: NameMap) => PersistentMap<number, _Naming>}
  */
 const namings = group => map => {
     /** Where each name is first given, by its place in `map`. */
-    const first = new Map(map.map(([, name], k) => /** @type {const} */ ([name, k])).toReversed())
-    return new Map(map.map(([index, name], k) => {
-        const unusable = name === '' || name.startsWith('#') || first.get(name) !== k
+    const first = fromEntries(map.map(([, name], k) => /** @type {const} */ ([name, k])).toReversed())
+    return fromEntries(map.map(([index, name], k) => {
+        const unusable = name === '' || name.startsWith('#') || mapGet(first, name) !== k
         /** @type {_Naming} */
         const naming = unusable ? { name, prefix: `#${group}${index}` }
             : [...name].every(isIdChar) ? { name, prefix: null, quoted: false }
@@ -117,10 +119,10 @@ const identifier = naming =>
 /**
  * An item where it is defined: its name, if it has one, then its index.
  *
- * @type {(names: ReadonlyMap<number, _Naming>, index: number) => string}
+ * @type {(names: PersistentMap<number, _Naming>, index: number) => string}
  */
 const declaration = (names, index) => {
-    const naming = names.get(index)
+    const naming = mapGet(names, index)
     const at = comment(`(;${index};)`)
     return naming === undefined ? at
         : naming.prefix !== null ? `${identifier(naming)} (${kw('@name')} ${str(naming.name)}) ${at}`
@@ -130,19 +132,19 @@ const declaration = (names, index) => {
 /**
  * An item where it is used: its name, or its index.
  *
- * @type {(names: ReadonlyMap<number, _Naming>, index: number) => string}
+ * @type {(names: PersistentMap<number, _Naming>, index: number) => string}
  */
 const reference = (names, index) => {
-    const naming = names.get(index)
+    const naming = mapGet(names, index)
     return naming === undefined ? num(`${index}`) : identifier(naming)
 }
 
 /** The empty naming of a kind the name section does not name. */
-const none = new Map()
+const none = noNames
 
-/** @type {(names: readonly NameSubsection[], key: NameSubsection[0], group: string) => ReadonlyMap<number, _Naming>} */
-const mapOf = (names, key, group) => new Map(names.flatMap(s =>
-    s[0] === key ? [...namings(group)(/** @type {NameMap} */ (s[1]))] : []))
+/** @type {(names: readonly NameSubsection[], key: NameSubsection[0], group: string) => PersistentMap<number, _Naming>} */
+const mapOf = (names, key, group) => fromEntries(names.flatMap(s =>
+    s[0] === key ? mapEntries(namings(group)(/** @type {NameMap} */ (s[1]))) : []))
 
 /** @type {(customs: readonly Custom[]) => _Names} */
 const namesOf = customs => {
@@ -150,7 +152,7 @@ const namesOf = customs => {
     const names = customs.flatMap(({ content }) => content[0] === 'name' ? content[1] : [])
     const moduleName = names.flatMap(s => s[0] === 'module' ? [s[1]] : []).at(-1)
     return {
-        module: moduleName === undefined ? null : [...namings('module')([[0, moduleName]])][0][1],
+        module: moduleName === undefined ? null : mapEntries(namings('module')([[0, moduleName]]))[0][1],
         func: mapOf(names, 'function', 'func'),
         type: mapOf(names, 'type', 'type'),
         table: mapOf(names, 'table', 'table'),
@@ -158,7 +160,7 @@ const namesOf = customs => {
         global: mapOf(names, 'global', 'global'),
         elem: mapOf(names, 'elem', 'elem'),
         data: mapOf(names, 'data', 'data'),
-        local: new Map(names.flatMap(s => s[0] === 'local'
+        local: fromEntries(names.flatMap(s => s[0] === 'local'
             ? s[1].map(([func, locals]) => /** @type {const} */ ([func, namings('local')(locals)]))
             : [])),
     }
@@ -173,15 +175,15 @@ const limits = ({ min, max }) => max === null ? num(`${min}`) : `${num(`${min}`)
  * A run of parameters or locals: unnamed ones of a run in one group, each
  * named one in a group of its own.
  *
- * @type {(group: string, names: ReadonlyMap<number, _Naming>, first: number, types: readonly ValType[]) => string}
+ * @type {(group: string, names: PersistentMap<number, _Naming>, first: number, types: readonly ValType[]) => string}
  */
 const namedGroups = (group, names, first, types) => {
     /** @type {(k: number) => boolean} */
-    const named = k => names.get(first + k) !== undefined
+    const named = k => mapGet(names, first + k) !== undefined
     // A group starts at each named one and at each unnamed one after a named one.
     const starts = types.flatMap((_, k) => k === 0 || named(k) || named(k - 1) ? [k] : [])
     return starts.map((start, j) => {
-        const naming = names.get(first + start)
+        const naming = mapGet(names, first + start)
         return naming === undefined
             ? `(${kw(group)} ${types.slice(start, starts[Number(j + 1)] ?? types.length).map(kw).join(' ')})`
             : `(${kw(group)} ${identifier(naming)} ${kw(types[Number(start)])})`
@@ -514,7 +516,7 @@ const imports = c => {
         const d = desc[0] === 'func' ? (() => {
             const i = index('func', k)
             const params = c.module.types[Number(desc[1])]?.params ?? []
-            return `${kw('func')} ${declaration(names.func, i)} ${typeUse(c, desc[1], namedGroups('param', names.local.get(i) ?? none, 0, params))}`
+            return `${kw('func')} ${declaration(names.func, i)} ${typeUse(c, desc[1], namedGroups('param', mapGet(names.local, i) ?? none, 0, params))}`
         })()
             : desc[0] === 'table' ? `${kw('table')} ${declaration(names.table, index('table', k))} ${tableType(desc[1])}`
             : desc[0] === 'memory' ? `${kw('memory')} ${declaration(names.memory, index('memory', k))} ${limits(desc[1])}`
@@ -533,7 +535,7 @@ const func = (c, k) => {
     const { module: m, names } = c
     const { type, locals, body } = m.functions[Number(k)]
     const index = imported(m, 'func') + k
-    const localNames = names.local.get(index) ?? none
+    const localNames = mapGet(names.local, index) ?? none
     const params = m.types[Number(type)]?.params ?? []
     const header = `  (${kw('func')} ${declaration(names.func, index)} ${typeUse(c, type, namedGroups('param', localNames, 0, params))}`
     /** @type {readonly ValType[]} */

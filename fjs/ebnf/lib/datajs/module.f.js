@@ -15,8 +15,8 @@
  * @import { DataJsValue } from './types.ts'
  */
 
-import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'
-import { range, repeatFrom0, repeatFrom1 } from '../../module.f.mjs'
+import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.js'
+import { range, repeatFrom0, repeatFrom1 } from '../../module.f.js'
 
 const uNumber = /**@type {const}*/({
     finite: [uint, { n: 'n', optionFloatSuffix }],

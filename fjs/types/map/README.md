@@ -2,7 +2,9 @@
 
 `empty`, `mapGet(map, key)`, `mapHas(map, key)`, `mapSet(map, key, value)`,
 `mapDelete(map, key)`, `mapEntries(map)` and `size(map)` operate on
-`PersistentMap<K, V>`. Updates preserve older versions. `mapHas` distinguishes
+`PersistentMap<K, V>`. `fromEntries(entries)` builds one from an array of
+key/value pairs: duplicate keys keep their first position and last value.
+Updates preserve older versions. `mapHas` distinguishes
 an absent key from a present key whose value is `undefined`.
 
 Keys use SameValueZero: references compare by identity, NaN equals NaN, and

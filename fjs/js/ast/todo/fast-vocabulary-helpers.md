@@ -43,7 +43,7 @@ keeps a private `yielded` for it.
 
 **A value is a reference to a binding.** `value instanceof Array &&
 value[0] === 'ref' && value[1] === binding` is exported as `namesBinding`
-from [`fjs/edag/from_fast/loop`](../../../edag/from_fast/loop/module.f.mjs),
+from [`fjs/edag/from_fast/loop`](../../../edag/from_fast/loop/module.f.js),
 which the `fjs/js/ast` modules may not import
 ([compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)),
 so [`loop`](../loop/module.f.js), [`loop/invariant`](../loop/invariant/module.f.js)

@@ -12,10 +12,10 @@ import { codePointToString, stringToCodePointList } from '../../text/utf16/modul
 import { toArray } from '../../types/list/alt/module.f.js'
 import { one as c } from '../../text/ascii/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.mjs'
+import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.js'
 import { toData } from '../data/module.f.js'
-import { dataJs } from '../lib/datajs/module.f.mjs'
-import { json } from '../lib/json/module.f.mjs'
+import { dataJs } from '../lib/datajs/module.f.js'
+import { json } from '../lib/json/module.f.js'
 import { firstMap, mapping, parser, parserRuleSet } from './module.f.js'
 
 const { keys } = Object

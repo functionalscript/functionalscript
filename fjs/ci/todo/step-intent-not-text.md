@@ -29,7 +29,7 @@ const translated = generated ? run.replaceAll(commandPrefix, prefix)
 if (['cargo ', 'npm ', 'node ', 'fjs ', 'tsc'].some(command => run.startsWith(command))) {
 ```
 
-and `checkId` in [`smart`](../smart/module.f.mjs) parses the result a
+and `checkId` in [`smart`](../smart/module.f.js) parses the result a
 third time, through `shellPrefixes` and a chain of `startsWith` and `===`
 against whole commands, to decide a step's cache rung. `intelMacSteps` in
 [`module.f.mjs`](../module.f.mjs) spells the Node version test by hand in

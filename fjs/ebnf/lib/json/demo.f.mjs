@@ -19,7 +19,7 @@
  * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
-import { character, escape, hex, json, number, string, uint, value, ws } from './module.f.mjs'
+import { character, escape, hex, json, number, string, uint, value, ws } from './module.f.js'
 import { codePoints } from '../../railroad/module.f.mjs'
 import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 

@@ -17,7 +17,7 @@ results as the node has children before calling the node's own `finish`.
   over its `children`;
 - `walk` in [`fjs/edag/from_fast/loop/completions`](../../../../edag/from_fast/loop/completions/module.f.js),
   over `childrenOf`, driving `encodedBody` and `completeBlock`;
-- `aggregateBody` in [`fjs/edag/from_fast/loop`](../../../../edag/from_fast/loop/module.f.mjs),
+- `aggregateBody` in [`fjs/edag/from_fast/loop`](../../../../edag/from_fast/loop/module.f.js),
   over the blocks of `block` and `if` statements.
 
 `flows` and `summaries` are the same loop to the variable names:

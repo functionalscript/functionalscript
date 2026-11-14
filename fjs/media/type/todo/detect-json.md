@@ -216,7 +216,7 @@ exactly the path `cas_get` uses.
   lands, and `utf8Step`, the UTF-8 factor beside which the JSON factor runs.
 - [streaming-recognizer](../../json/todo/streaming-recognizer.md) — **blocks
   this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
-- `fjs/ebnf/lib/json/module.f.mjs` — `character`; refuses raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
+- `fjs/ebnf/lib/json/module.f.js` — `character`; refuses raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
 - `fjs/media/json/parser/module.f.mjs` — `parse`, over the grammar the
   recognizer reuses value-free.
 - `fjs/mcp/cas/module.f.mjs` — `cas_get`, the consumer that gains `application/json` for free.

@@ -14,7 +14,7 @@ import { decode } from '../../../basen/base16/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.js'
 import { units } from '../../../ebnf/utf16/module.f.js'
-import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
+import { value } from '../../../ebnf/lib/datajs/module.f.js'
 import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.mjs'
 import { isObject } from '../../../types/object/module.f.js'
 

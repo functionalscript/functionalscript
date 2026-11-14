@@ -45,7 +45,7 @@
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
- * @import { hex } from '../../../ebnf/lib/json/module.f.mjs'
+ * @import { hex } from '../../../ebnf/lib/json/module.f.js'
  * @import { Entry, JsonValue, ValueCases } from '../../../ebnf/lib/json/types.ts'
  * @import { _LiteralId, _Member, _OnlyKey, Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
@@ -55,11 +55,11 @@ import { hexDigitsValue } from '../../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../../text/utf16/module.f.js'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.js'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
-import { eof } from '../../../ebnf/module.f.mjs'
+import { eof } from '../../../ebnf/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
 import { lexeme, unitAt, units } from '../../../ebnf/utf16/module.f.js'
-import { character, entry as jsonEntry, escape, json, number, string, value, valueCases } from '../../../ebnf/lib/json/module.f.mjs'
+import { character, entry as jsonEntry, escape, json, number, string, value, valueCases } from '../../../ebnf/lib/json/module.f.js'
 const { fromEntries } = Object
 
 /**

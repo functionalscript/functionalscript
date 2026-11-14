@@ -22,7 +22,8 @@ import { returnedBlock, hasRetainedReturn } from './completion/module.f.js'
 import { logicalCondition, logicalValue } from './logical/module.f.js'
 import { _exposeOperands } from '../returns/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
-import { writes as sourceWrites } from './effects/module.f.mjs'
+import { writes as sourceWrites } from './effects/module.f.js'
+import { fromEntries, mapEntries, mapGet, mapHas } from '../../../types/map/module.f.js'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
 const binding = index => ({ index })
@@ -229,7 +230,7 @@ const commaValues = values => {
 }
 
 /** Source writes that the current expression can execute, excluding held functions. @type {(root: SourceValue, environment: Environment, context: Context) => boolean} */
-const writesOuter = (root, environment, context) => (context.writes.get(root) ?? []).some(id => environment.some(([outer]) => outer === id))
+const writesOuter = (root, environment, context) => (mapGet(context.writes, root) ?? []).some(id => environment.some(([outer]) => outer === id))
 
 /** Updated outer identities, in declaration order, independently of their immutable versions. @type {(before: Environment, after: Environment, context: Context) => readonly BindingId[]} */
 const changedSources = (before, after, context) => {
@@ -426,8 +427,8 @@ const skeletonResults = (made, sources) => made.normal && made.block.exit[0] ===
 const skeletonValue = (source, environment, context, recipes) => call(() => {
     if (source === null || typeof source !== 'object') { return done(unchangedValue(source, environment)) }
     if (source[0] === 'ref') {
-        const recipe = recipes.get(source[1])
-        return recipes.has(source[1]) ? stateTask(/** @type {SourceValue} */ (recipe), environment, context) : done(unchangedValue(source, environment))
+        const recipe = mapGet(recipes, source[1])
+        return mapHas(recipes, source[1]) ? stateTask(/** @type {SourceValue} */ (recipe), environment, context) : done(unchangedValue(source, environment))
     }
     // Only operator shells and their generated immutable reads are here;
     // source regions and functions are evaluated through recipe references.
@@ -488,7 +489,7 @@ const sequencedOperator = (source, environment, context) => {
     const operator = member === null ? source : /** @type {Operator<SourceValue>} */ (['.', member[1], member[2], ['|()', source[2]]])
     const inputs = operatorOperands(operator)
     const placeholders = inputs.map(() => binding(0))
-    const recipes = new Map(placeholders.map((id, index) => [id, inputs[index]]))
+    const recipes = fromEntries(placeholders.map((id, index) => /** @type {const} */ ([id, inputs[index]])))
     const exposed = _exposeOperands(mapOperator((_, index) => reference(placeholders[index]))(operator), binding(0), null)
     assert(exposed.statement !== null && exposed.statement[0] === 'block', 'a stateful expression has no operand region')
     return bind(skeletonBlock(exposed.statement[2], environment, context, recipes), made => done(regionValue(made)))
@@ -965,9 +966,10 @@ export const tryNormalize = (resolved, imports) => {
     const scopes = scopesOf(resolved.scope)
     /** @type {Context} */
     const context = { bindings: resolved.bindings, scopes, loop: null, breakRegion: null,
-        writes: sourceWrites(resolved.body, new Map(scopes.map(scope => [scope.target, eventFacts(scope.events).writes]))) }
-    if ([...context.writes.keys()].some(node => node instanceof Array && node[0] === '+' && node.length === 2)) { return error('unary + AST-to-FAST conversion is not implemented') }
-    const equality = [...context.writes.keys()].find(node => node instanceof Array && (node[0] === '==' || node[0] === '!='))
+        writes: sourceWrites(resolved.body, fromEntries(scopes.map(scope => /** @type {const} */ ([scope.target, eventFacts(scope.events).writes])))) }
+    const nodes = mapEntries(context.writes).map(([node]) => node)
+    if (nodes.some(node => node instanceof Array && node[0] === '+' && node.length === 2)) { return error('unary + AST-to-FAST conversion is not implemented') }
+    const equality = nodes.find(node => node instanceof Array && (node[0] === '==' || node[0] === '!='))
     if (equality instanceof Array) { return error(`${equality[0]} AST-to-FAST conversion is not implemented`) }
     const normalized = normalizedBlock(resolved.body, environment, context).block
     const prefix = parameters.flatMap((id, i) => representatives[i] === i ? [/** @type {Statement} */ (['define', established[i], reference(id), 'required'])] : [])

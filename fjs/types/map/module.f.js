@@ -117,5 +117,19 @@ export const mapDelete = (map, key) => {
 /** The entries, in first-insertion order. @type {<K, V>(map: PersistentMap<K, V>) => readonly MapEntry<K, V>[]} */
 export const mapEntries = map => toArray(slots(map.ordered)).map(([, key, value]) => [key, value])
 
+/**
+ * Build a map in entry order. A repeated key replaces its value without
+ * moving its first position, as `new Map(entries)` does.
+ * @template K, V
+ * @param {readonly MapEntry<K, V>[]} entries
+ * @returns {PersistentMap<K, V>}
+ */
+export const fromEntries = entries => {
+    /** @type {PersistentMap<K, V>} */
+    let map = empty
+    for (const [key, value] of entries) { map = mapSet(map, key, value) }
+    return map
+}
+
 /** How many keys the map holds. @type {<K, V>(map: PersistentMap<K, V>) => number} */
 export const size = map => map.count

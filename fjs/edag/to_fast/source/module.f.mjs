@@ -15,6 +15,7 @@ import { operatorOperands } from '../../../js/ast/module.f.js'
 import { exitValues } from '../../../js/ast/control/module.f.js'
 import { prohibitedAccess } from '../../../js/prototype/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { fromValues, has, size } from '../../../types/set/module.f.js'
 
 /** @type {(a: Analysis, key: Operand, method: boolean) => string | null} */
 const keyReason = (a, key, method) => {
@@ -51,13 +52,13 @@ const captureKey = (a, slot) => {
 const captureReason = (a, index, node) => {
     const slots = node[2]
     const names = slots.map(slot => captureKey(a, slot)).filter(key => key !== null)
-    if (new Set(names).size !== names.length) { return 'a frame slot that repeats another' }
+    if (size(fromValues(names)) !== names.length) { return 'a frame slot that repeats another' }
     return slots.some((_, k) => !a.nodes.some((read, j) => a.scope[Number(j)] === index && read[0] === 'frame' && read[1] === k)) ? 'a frame slot the body never reads' : null
 }
 
 /** The graph-specific restrictions which survive the common migration. @type {(a: Analysis, module: boolean) => string | null} */
 const graphReason = (a, module) => {
-    const shared = new Set(a.shared)
+    const shared = fromValues(a.shared)
     /** @type {readonly { value: Operand, module: boolean }[]} */
     let pending = [{ value: a.root, module }]
     /** @type {readonly (readonly [number, boolean])[]} */
@@ -68,7 +69,7 @@ const graphReason = (a, module) => {
         if (!(value instanceof Array)) { pending = rest; continue }
         const index = value[1]
         // Only shared entries can repeat a path; ordinary chains need no cache.
-        if (shared.has(index)) {
+        if (has(index)(shared)) {
             if (seen.some(([i, module]) => i === index && module === current.module)) { pending = rest; continue }
             seen = [...seen, [index, current.module]]
         }

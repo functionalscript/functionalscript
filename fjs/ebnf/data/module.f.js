@@ -1,6 +1,6 @@
 /**
  * The serializable EBNF grammar: the intermediate representation (IR) every
- * backend consumes, the lowering from the front end in `../module.f.mjs`
+ * backend consumes, the lowering from the front end in `../module.f.js`
  * into it, and the checks a grammar passes on the way.
  *
  * Every rule is a tagged tuple, and {@link matchRule} is the one place the

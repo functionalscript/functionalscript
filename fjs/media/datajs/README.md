@@ -183,7 +183,7 @@ a new issue, and `tryNormalize` then names this writer.
 ## The grammar is the reader
 
 There is no tokenizer and no container machine: the grammar in
-[`fjs/ebnf/lib/datajs`](../../ebnf/lib/datajs/module.f.mjs) is parsed by the
+[`fjs/ebnf/lib/datajs`](../../ebnf/lib/datajs/module.f.js) is parsed by the
 LL(1) backend with a mapping per rule folded into the parse, the way
 [JSON's reader](../json/README.md) is. What DataJS reuses of JSON's is
 therefore rules and their mappings rather than functions: the `string` rule

@@ -62,6 +62,8 @@
  * @import { _Graph, _Leaf, _Member, _Node, _Read, _Value } from './types.ts'
  * @import { _Frame, _Step, _Visit, _Walk } from './private.ts'
  * @import { WalkFold } from '../../../types/stack_walk/types.ts'
+ * @import { PersistentMap } from '../../../types/map/types.ts'
+ * @import { PersistentSet } from '../../../types/set/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -70,7 +72,8 @@ import { empty, flat } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { cmp } from '../../../types/number/module.f.js'
 import { error, mapOk, ok } from '../../../types/result/module.f.js'
-import { add, empty as noneStarted, has } from '../../../types/set/module.f.js'
+import { add, empty as noneStarted, fromValues, has } from '../../../types/set/module.f.js'
+import { empty as noNames, fromEntries, mapEntries, mapGet, size } from '../../../types/map/module.f.js'
 import { walkFold } from '../../../types/stack_walk/module.f.js'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.js'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.js'
@@ -233,12 +236,12 @@ const read = leafRule => {
 /** The values a node holds, in the order it holds them. @type {<R, L>(node: _Node<R, L>) => readonly _Value<R, L>[]} */
 const nodeValues = node => node.kind === 'array' ? node.items : node.members.map(([, value]) => value)
 
-/** A value with its reference, if any, replaced by the index of the node it refers to. @type {(position: ReadonlyMap<object, number>) => <L>(value: _Value<object, L>) => _Value<number, L>} */
+/** A value with its reference, if any, replaced by the index of the node it refers to. @type {(position: PersistentMap<object, number>) => <L>(value: _Value<object, L>) => _Value<number, L>} */
 const linkValueBy = position => value => value[0] === 'ref'
-    ? ['ref', assertNotNullish(position.get(value[1]), 'a reference to a container that was never finished')]
+    ? ['ref', assertNotNullish(mapGet(position, value[1]), 'a reference to a container that was never finished')]
     : value
 
-/** @type {(position: ReadonlyMap<object, number>) => <L>(node: _Node<object, L>) => _Node<number, L>} */
+/** @type {(position: PersistentMap<object, number>) => <L>(node: _Node<object, L>) => _Node<number, L>} */
 const linkNodeBy = position => {
     const linkValue = linkValueBy(position)
     return node => node.kind === 'array'
@@ -254,7 +257,7 @@ const linkNodeBy = position => {
  * @type {<L>(finished: readonly _Read<L>[], root: _Value<object, L>) => _Graph<L>}
  */
 const link = (finished, root) => {
-    const position = new Map(finished.map(
+    const position = fromEntries(finished.map(
         /** @type {(entry: readonly [object, unknown], i: number) => readonly [object, number]} */
         (([value], i) => [value, i])
     ))
@@ -278,13 +281,13 @@ const link = (finished, root) => {
  * before it, so the count costs a sort rather than an `indexOf` per
  * occurrence.
  *
- * @type {<L>(graph: _Graph<L>) => ReadonlySet<number>}
+ * @type {<L>(graph: _Graph<L>) => PersistentSet<number>}
  */
 const shared = ({ nodes, root }) => {
     const refs = [root, ...nodes.flatMap(nodeValues)]
         .flatMap(value => value[0] === 'ref' ? [value[1]] : [])
         .toSorted((a, b) => cmp(a)(b))
-    return new Set(refs.filter((ref, i) => i > 0 && refs[Number(i - 1)] === ref))
+    return fromValues(refs.filter((ref, i) => i > 0 && refs[Number(i - 1)] === ref))
 }
 
 /**
@@ -292,12 +295,12 @@ const shared = ({ nodes, root }) => {
  * them in index order takes them in the order their consts are emitted,
  * which is the order `$0`, `$1`, … names them in.
  *
- * @type {<L>(graph: _Graph<L>) => ReadonlyMap<number, string>}
+ * @type {<L>(graph: _Graph<L>) => PersistentMap<number, string>}
  */
 const constNames = graph => {
     const hoisted = shared(graph)
-    return new Map(graph.nodes
-        .flatMap((_, i) => hoisted.has(i) ? [i] : [])
+    return fromEntries(graph.nodes
+        .flatMap((_, i) => has(i)(hoisted) ? [i] : [])
         .map(
             /** @type {(i: number, n: number) => readonly [number, string]} */
             ((i, n) => [i, `$${n}`])
@@ -319,13 +322,13 @@ const constNames = graph => {
  *
  * @template L
  * @param {(key: string) => List<Chunk>} key
- * @returns {(spellLeaf: (kept: L) => List<Chunk>) => (names: ReadonlyMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<Chunk>[], readonly value: (value: _Value<number, L>) => List<Chunk> }}
+ * @returns {(spellLeaf: (kept: L) => List<Chunk>) => (names: PersistentMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<Chunk>[], readonly value: (value: _Value<number, L>) => List<Chunk> }}
  */
 const chunksOf = key => spellLeaf => names => ({ nodes }) => {
     /** @type {(value: _Value<number, L>) => List<Chunk>} */
     const value = v => {
         if (v[0] === 'leaf') { return spellLeaf(v[1]) }
-        const name = names.get(v[1])
+        const name = mapGet(names, v[1])
         return name === undefined ? () => chunks[Number(v[1])] : [name]
     }
     /** @type {(node: _Node<number, L>) => List<Chunk>} */
@@ -363,9 +366,9 @@ const spelled = chunks => chunks
 const write = (graph, unknownExport = false) => {
     const names = constNames(graph)
     const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
-    const statements = [...names].map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[Number(i)], [';']]))
+    const statements = mapEntries(names).map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[Number(i)], [';']]))
     const exported = unknownExport
-        ? flat([['\n/** @type {unknown} */\n', keyword('const'), ` $${names.size}=`], value(graph.root), [';'], [keyword('export'), ' ', keyword('default'), ` $${names.size};`]])
+        ? flat([['\n/** @type {unknown} */\n', keyword('const'), ` $${size(names)}=`], value(graph.root), [';'], [keyword('export'), ' ', keyword('default'), ` $${size(names)};`]])
         : flat([[keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])
     return flat([flat(statements), exported])
 }
@@ -379,7 +382,7 @@ const write = (graph, unknownExport = false) => {
  *
  * @type {(key: (key: string) => List<Chunk>) => (graph: _Graph<List<Chunk>>) => List<Chunk>}
  */
-const writeTree = key => graph => chunksOf(key)(spelled)(new Map())(graph).value(graph.root)
+const writeTree = key => graph => chunksOf(key)(spelled)(noNames)(graph).value(graph.root)
 
 // ── entry points ──────────────────────────────────────────────────────────────
 

@@ -9,6 +9,8 @@
  *
  * @import { BindingId, Block, Definition, Exit, FunctionTarget, Loop, LoopTarget, Statement, Value } from '../../types.ts'
  * @import { List } from '../../../../types/list/types.ts'
+ * @import { PersistentMap } from '../../../../types/map/types.ts'
+ * @import { PersistentSet } from '../../../../types/set/types.ts'
  * @import { _Link as Link } from '../../control/private.ts'
  * @import { Task } from '../../task/types.ts'
  * @import { MemoLayout, MemoPlan, RecipePlan } from './types.ts'
@@ -21,18 +23,20 @@ import { toArray } from '../../../../types/list/alt/module.f.js'
 import { mapOperator, operatorOperands } from '../../module.f.js'
 import { bind, call, done, run } from '../../task/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
+import { fromEntries, mapEntries, mapGet, mapHas, mapSet } from '../../../../types/map/module.f.js'
+import { fromValues, has as setHas, size as setSize, values as setValues } from '../../../../types/set/module.f.js'
 
 /** Owning returns inside deferred recipes, without crossing ordinary bodies. @type {(value: Value, target: FunctionTarget) => boolean} */
 export const _hasReturn = (value, target) => someBlock(({ exit }) => exit[0] === 'return' && exit[1] === target)(value)
 
 /** Established values shadow any enclosing deferred entry. @type {(scope: _Scope, bindings: readonly BindingId[]) => _Scope} */
-const established = (scope, bindings) => bindings.some(binding => scope.has(binding))
-    ? new Map([...scope].filter(([binding]) => !bindings.includes(binding))) : scope
+const established = (scope, bindings) => bindings.some(binding => mapHas(scope, binding))
+    ? fromEntries(mapEntries(scope).filter(([binding]) => !bindings.includes(binding))) : scope
 
 /** @type {(value: Value, scope: _Scope) => readonly _Root[]} */
 const dependencies = (value, scope) => freeBindings({ statements: [], exit: ['yield', [value]] })
     .flatMap(binding => {
-        const root = scope.get(binding)
+        const root = mapGet(scope, binding)
         return root === undefined ? [] : [root]
     }).filter((root, i, roots) => roots.indexOf(root) === i)
 
@@ -46,10 +50,10 @@ const dependencies = (value, scope) => freeBindings({ statements: [], exit: ['yi
 const dependencyClosure = (roots, crossing) => {
     let selected = crossing
     while (true) {
-        const selectedRoots = new Set(selected)
-        const prerequisites = new Set(selected.flatMap(cell => cell.dependencies))
-        const expanded = roots.filter(root => selectedRoots.has(root) || prerequisites.has(root)
-            || root.dependencies.some(dependency => selectedRoots.has(dependency)))
+        const selectedRoots = fromValues(selected)
+        const prerequisites = fromValues(selected.flatMap(cell => cell.dependencies))
+        const expanded = roots.filter(root => setHas(root)(selectedRoots) || setHas(root)(prerequisites)
+            || root.dependencies.some(dependency => setHas(dependency)(selectedRoots)))
         if (expanded.length === selected.length) { return selected }
         selected = expanded
     }
@@ -91,26 +95,26 @@ const transferLoop = (info, target) => {
  * A control-only helper escaping a selected ancestor must carry the same
  * vector. Selecting its intermediates can expose further such targets, so
  * close that selection before restoring the inventory's lexical order.
- * @type {(inventory: readonly _LoopInfo[], crossing: readonly _LoopInfo[]) => ReadonlySet<Loop>}
+ * @type {(inventory: readonly _LoopInfo[], crossing: readonly _LoopInfo[]) => PersistentSet<Loop>}
  */
 const selectedLoops = (inventory, crossing) => {
-    /** @type {ReadonlySet<Loop>} */
-    let selected = new Set(crossing.flatMap(info => [...toArray(info.ancestors), info.loop]))
+    /** @type {PersistentSet<Loop>} */
+    let selected = fromValues(crossing.flatMap(info => [...toArray(info.ancestors), info.loop]))
     while (true) {
-        const added = inventory.filter(info => !selected.has(info.loop) && info.transfers.some(exit => {
+        const added = inventory.filter(info => !setHas(info.loop)(selected) && info.transfers.some(exit => {
             if (exit[0] === 'return') { return false }
             const target = transferLoop(info, exit[1])
-            return target !== null && selected.has(target)
+            return target !== null && setHas(target)(selected)
         }))
-        if (added.length === 0) { return new Set(inventory.filter(info => selected.has(info.loop)).map(info => info.loop)) }
-        selected = new Set([...selected, ...added.flatMap(info => [...toArray(info.ancestors), info.loop])])
+        if (added.length === 0) { return fromValues(inventory.filter(info => setHas(info.loop)(selected)).map(info => info.loop)) }
+        selected = fromValues([...setValues(selected), ...added.flatMap(info => [...toArray(info.ancestors), info.loop])])
     }
 }
 
-/** Validate only regions reached through memo helpers; raw outer exits stay raw. @type {(inventory: readonly _LoopInfo[], selected: ReadonlySet<Loop>, functionTarget: FunctionTarget | null) => void} */
+/** Validate only regions reached through memo helpers; raw outer exits stay raw. @type {(inventory: readonly _LoopInfo[], selected: PersistentSet<Loop>, functionTarget: FunctionTarget | null) => void} */
 const validateTransfers = (inventory, selected, functionTarget) => {
     for (const info of inventory) {
-        if (!selected.has(info.loop) && !toArray(info.ancestors).some(loop => selected.has(loop))) { continue }
+        if (!setHas(info.loop)(selected) && !toArray(info.ancestors).some(loop => setHas(loop)(selected))) { continue }
         for (const exit of info.transfers) {
             if (exit[0] === 'return' ? exit[1] !== functionTarget : transferLoop(info, exit[1]) === null) {
                 throw 'memo helper transfer must name its lexical owner'
@@ -131,7 +135,7 @@ const validateTransfers = (inventory, selected, functionTarget) => {
 export const memoCells = (block, externalLazyIds = [], functionTarget = null, returnsOnly = false) => {
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
-    const prepared = run(ownedBlock(block, new Map(external.map(root => [root.binding, root])), null, null))
+    const prepared = run(ownedBlock(block, fromEntries(external.map(root => /** @type {const} */ ([root.binding, root]))), null, null))
     const roots = [...external, ...toArray(prepared.owned.roots)]
     const definitions = toArray(prepared.owned.definitions)
     const inventory = preparedLoops(prepared.owned)
@@ -154,7 +158,7 @@ export const memoCells = (block, externalLazyIds = [], functionTarget = null, re
     return {
         block: prepared.block,
         cells: recipes,
-        definitions: new Map(definitions.flatMap(([definition, root]) => {
+        definitions: fromEntries(definitions.flatMap(([definition, root]) => {
             const index = cells.indexOf(root)
             return index === -1 ? [] : [/** @type {const} */ ([definition, index])]
         })),
@@ -231,7 +235,7 @@ const ownedLoop = (source, scope, ancestors, owners) => {
             /** @type {Loop} */
             const loop = { ...occurrence, initial: initial.values, body: body.block }
             const free = freeLoopBindings(loop).flatMap(binding => {
-                const root = scope.get(binding)
+                const root = mapGet(scope, binding)
                 return root === undefined ? [] : [root]
             })
             /** @type {_LoopInfo} */
@@ -280,7 +284,7 @@ const ownedBlock = (source, initialScope, ancestors, owners) => {
             /** @type {List<_Root>} */
             let roots = null
             if (initializer !== null && typeof initializer === 'object') {
-                if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
+                if (initializer[0] === 'ref') { root = mapGet(scope, initializer[1]) ?? null }
                 else {
                     root = { binding, source: { definition, insideLoop: ancestors !== null, loop: ancestors?.first ?? null }, dependencies: dependencies(initializer, scope) }
                     roots = [root]
@@ -289,7 +293,7 @@ const ownedBlock = (source, initialScope, ancestors, owners) => {
             const added = /** @type {_Owned} */ ({
                 roots, definitions: root === null ? null : [[definition, root]], loops: null, pruned: false,
             })
-            return append(definition, root === null ? established(scope, [binding]) : new Map([...scope, [binding, root]]), added)
+            return append(definition, root === null ? established(scope, [binding]) : mapSet(scope, binding, root), added)
         }
         if (statement[0] === 'loop') {
             return bind(ownedLoop(statement[1], scope, ancestors, owners), result =>
@@ -311,9 +315,9 @@ const ownedBlock = (source, initialScope, ancestors, owners) => {
 /** Resolve stable occurrence handles to the loops emitted by the common walk. @type {(owned: _Owned) => readonly _LoopInfo[]} */
 const preparedLoops = owned => {
     const occurrences = toArray(owned.loops)
-    const bySource = new Map(occurrences.map(info => [info.source, info.loop]))
+    const bySource = fromEntries(occurrences.map(info => /** @type {const} */ ([info.source, info.loop])))
     /** @type {(links: Link<Loop> | null) => Link<Loop> | null} */
-    const mapped = links => toArray(links).map(loop => assertNotNullish(bySource.get(loop)))
+    const mapped = links => toArray(links).map(loop => assertNotNullish(mapGet(bySource, loop)))
         .reduceRight((/** @type {Link<Loop> | null} */ tail, first) => ({ first, tail }), null)
     return occurrences.map(info => ({ ...info, ancestors: mapped(info.ancestors), owners: mapped(info.owners) }))
 }
@@ -322,7 +326,7 @@ const emptyDeferred = /** @type {_DeferredSummary} */ ({ dependencies: [], cross
 
 /** @type {(first: _DeferredSummary, second: _DeferredSummary) => _DeferredSummary} */
 const mergeDeferred = (first, second) => ({
-    dependencies: [...new Set([...first.dependencies, ...second.dependencies])],
+    dependencies: setValues(fromValues([...first.dependencies, ...second.dependencies])),
     crossed: first.crossed || second.crossed,
     selected: concat(first.selected)(second.selected),
 })
@@ -335,11 +339,11 @@ const mergeDeferred = (first, second) => ({
  */
 const deferredSeeds = (source, external, definitions, candidates) => {
     if (candidates.length === 0) { return [] }
-    const wanted = new Set(candidates)
-    const declared = new Map(definitions)
+    const wanted = fromValues(candidates)
+    const declared = fromEntries(definitions)
     /** @type {(scope: _DeferredScope, bindings: readonly BindingId[]) => _DeferredScope} */
-    const shadowed = (scope, bindings) => bindings.some(binding => scope.has(binding))
-        ? new Map([...scope].filter(([binding]) => !bindings.includes(binding))) : scope
+    const shadowed = (scope, bindings) => bindings.some(binding => mapHas(scope, binding))
+        ? fromEntries(mapEntries(scope).filter(([binding]) => !bindings.includes(binding))) : scope
     /** @type {(input: readonly Value[], scope: _DeferredScope, depth: number) => Task<_DeferredSummary>} */
     const values = (input, scope, depth) => {
         /** @type {(index: number, summary: _DeferredSummary) => Task<_DeferredSummary>} */
@@ -351,7 +355,7 @@ const deferredSeeds = (source, external, definitions, candidates) => {
     const value = (source, scope, depth) => call(() => {
         if (source === null || typeof source !== 'object') { return done(emptyDeferred) }
         if (source[0] === 'ref') {
-            const binding = scope.get(source[1])
+            const binding = mapGet(scope, source[1])
             return done(binding === undefined ? emptyDeferred : {
                 dependencies: binding.roots, crossed: depth > binding.depth, selected: null,
             })
@@ -384,17 +388,17 @@ const deferredSeeds = (source, external, definitions, candidates) => {
                 : done({ summary: mergeDeferred(summary, added), normal: false })
             if (statement[0] === 'define') {
                 const [, binding, initializer, mode] = statement
-                const root = declared.get(statement)
+                const root = mapGet(declared, statement)
                 const computed = root !== undefined && root.source?.definition === statement
-                const inspect = mode === 'required' || !computed || wanted.has(root)
+                const inspect = mode === 'required' || !computed || setHas(root)(wanted)
                 return bind(inspect ? value(initializer, scope, depth) : done(emptyDeferred), result => {
                     /** @type {_DeferredBinding | undefined} */
                     const marker = mode === 'required' ? undefined
-                        : initializer instanceof Array && initializer[0] === 'ref' ? scope.get(initializer[1])
+                        : initializer instanceof Array && initializer[0] === 'ref' ? mapGet(scope, initializer[1])
                             : computed ? { roots: [root], depth }
                                 : result.dependencies.length === 0 ? undefined : { roots: result.dependencies, depth }
-                    const next = marker === undefined ? shadowed(scope, [binding]) : new Map([...scope, [binding, marker]])
-                    return append(computed && wanted.has(root) && result.crossed
+                    const next = marker === undefined ? shadowed(scope, [binding]) : mapSet(scope, binding, marker)
+                    return append(computed && setHas(root)(wanted) && result.crossed
                         ? { ...result, selected: concat(result.selected)([root]) } : result, next)
                 })
             }
@@ -412,34 +416,34 @@ const deferredSeeds = (source, external, definitions, candidates) => {
         })
         return each(0, initial, emptyDeferred)
     }
-    const scope = new Map(external.map(root => [root.binding, { roots: [root], depth: 0 }]))
+    const scope = fromEntries(external.map(root => /** @type {const} */ ([root.binding, { roots: [root], depth: 0 }])))
     return toArray(run(block(source, scope, 0)).summary.selected)
 }
 
 /**
  * Append only this getter's connected local recipes. The caller's cells keep
  * their slots; a getter invocation supplies fresh slots for its owned locals.
- * @type {(value: Value, outer: MemoLayout, aliases: ReadonlyMap<BindingId, number>, functionTarget?: FunctionTarget | null) => RecipePlan}
+ * @type {(value: Value, outer: MemoLayout, aliases: PersistentMap<BindingId, number>, functionTarget?: FunctionTarget | null) => RecipePlan}
  */
 export const recipeCells = (value, outer, aliases, functionTarget = null) => {
-    const indices = [...new Set(aliases.values())]
+    const indices = setValues(fromValues(mapEntries(aliases).map(([, index]) => index)))
     const borrowed = indices.map(index => {
         const cell = outer.cells[Number(index)]
         return /** @type {_Root} */ ({ binding: cell.binding, source: { definition: cell.definition, insideLoop: cell.iterationLocal, loop: null }, dependencies: [] })
     })
-    const byIndex = new Map(indices.map((index, position) => [index, borrowed[Number(position)]]))
-    const scope = new Map([...aliases].map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (byIndex.get(index))])))
+    const byIndex = fromEntries(indices.map((index, position) => /** @type {const} */ ([index, borrowed[Number(position)]])))
+    const scope = fromEntries(mapEntries(aliases).map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (mapGet(byIndex, index))])))
     const prepared = run(ownedValue(value, scope, null))
     const localRoots = toArray(prepared.owned.roots)
     const inventory = preparedLoops(prepared.owned)
     const crossing = inventory.filter(info => info.roots.length !== 0)
     const returning = functionTarget === null ? [] : localRoots.filter(root => root.source !== null && _hasReturn(root.source.definition[2], functionTarget))
-    const selected = dependencyClosure([...borrowed, ...localRoots], [...new Set([...borrowed, ...returning, ...crossing.flatMap(info => info.roots)])])
+    const selected = dependencyClosure([...borrowed, ...localRoots], setValues(fromValues([...borrowed, ...returning, ...crossing.flatMap(info => info.roots)])))
     const locals = localRoots.filter(root => selected.includes(root))
     const loops = selectedLoops(inventory, inventory.filter(info => info.roots.some(root => selected.includes(root))
         || locals.some(root => root.source?.loop === info.source)))
     validateTransfers(inventory, loops, functionTarget)
-    const slots = new Map([
+    const slots = fromEntries([
         ...borrowed.map((root, position) => /** @type {const} */ ([root, indices[Number(position)]])),
         ...locals.map((root, index) => /** @type {const} */ ([root, outer.cells.length + index])),
     ])
@@ -449,11 +453,11 @@ export const recipeCells = (value, outer, aliases, functionTarget = null) => {
         return { binding: root.binding, initializer: definition[2], definition, iterationLocal: source.insideLoop }
     })
     return {
-        value: locals.length === 0 && loops.size === 0 && !prepared.owned.pruned ? value : prepared.value,
+        value: locals.length === 0 && setSize(loops) === 0 && !prepared.owned.pruned ? value : prepared.value,
         layout: {
             cells: locals.length === 0 ? outer.cells : [...outer.cells, ...cells],
-            definitions: new Map(locals.length === 0 ? [] : toArray(prepared.owned.definitions).flatMap(([definition, root]) => {
-                const index = slots.get(root)
+            definitions: fromEntries(locals.length === 0 ? [] : toArray(prepared.owned.definitions).flatMap(([definition, root]) => {
+                const index = mapGet(slots, root)
                 return index === undefined ? [] : [/** @type {const} */ ([definition, index])]
             })),
             loops,

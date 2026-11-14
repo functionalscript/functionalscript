@@ -7,6 +7,7 @@
  * @import { BindingId, FunctionTarget, Operator } from '../../types.ts'
  * @import { ExpansionPlan, SourceBlock, SourceValue } from '../source.ts'
  * @import { List } from '../../../../types/list/types.ts'
+ * @import { PersistentMap } from '../../../../types/map/types.ts'
  * @import { Task } from '../../task/types.ts'
  */
 
@@ -15,13 +16,15 @@ import { bind, call, done, run } from '../../task/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { entry } from '../../../../types/object/entry/module.f.js'
 import { assert, assertNotNullish } from '../../../../asserts/module.f.js'
+import { fromEntries, mapGet } from '../../../../types/map/module.f.js'
+import { fromValues, values } from '../../../../types/set/module.f.js'
 
 /** Pattern reads evaluate their own defaults in structural source order. @type {(plan: ExpansionPlan) => readonly SourceValue[]} */
 const defaults = plan => plan.reads.flatMap(read => read.default === undefined ? [] : [read.default.value])
 
 /**
  * Return one immutable plan for a non-primitive node, without joining outer bindings.
- * @type {(node: SourceValue | SourceBlock, functions: ReadonlyMap<FunctionTarget, readonly BindingId[]>) => {
+ * @type {(node: SourceValue | SourceBlock, functions: PersistentMap<FunctionTarget, readonly BindingId[]>) => {
  *     readonly children: readonly (SourceValue | SourceBlock)[],
  *     readonly own: readonly BindingId[],
  *     readonly opaque: boolean,
@@ -34,7 +37,7 @@ const planFor = (node, functions) => {
         if (node[0] === 'ref') { return { children: [], own: [], opaque: false } }
         const children = operatorOperands(/** @type {Operator<SourceValue>} */ (node))
         const own = node[0] === '()' && node[1] instanceof Array && node[1][0] === 'function'
-            ? assertNotNullish(functions.get(node[1][1].target), 'missing source function write facts') : []
+            ? assertNotNullish(mapGet(functions, node[1][1].target), 'missing source function write facts') : []
         return { children, own, opaque: false }
     }
     const block = /** @type {SourceBlock} */ (node)
@@ -69,8 +72,8 @@ const entriesOf = result => {
 
 /**
  * @param {SourceValue | SourceBlock} root
- * @param {ReadonlyMap<FunctionTarget, readonly BindingId[]>} functions
- * @returns {ReadonlyMap<SourceValue | SourceBlock, readonly BindingId[]>}
+ * @param {PersistentMap<FunctionTarget, readonly BindingId[]>} functions
+ * @returns {PersistentMap<SourceValue | SourceBlock, readonly BindingId[]>}
  */
 export const writes = (root, functions) => {
     /**
@@ -86,10 +89,10 @@ export const writes = (root, functions) => {
         /** @type {(index: number, entries: Entries, found: List<readonly BindingId[]>) => Task<Result>} */
         const each = (index, entries, found) => call(() => {
             if (index !== descendants.length) { return bind(visit(descendants[Number(index)], entries), result => each(index + 1, entriesOf(result), { first: result.writes, tail: found })) }
-            const all = held ? [] : [...new Set([...localWrites, ...toArray(found).flat()])]
+            const all = held ? [] : values(fromValues([...localWrites, ...toArray(found).flat()]))
             return done({ writes: all, entries: { first: [node, all], tail: entries } })
         })
         return each(0, entries, null)
     })
-    return new Map(toArray(entriesOf(run(visit(root, null)))))
+    return fromEntries(toArray(entriesOf(run(visit(root, null)))))
 }

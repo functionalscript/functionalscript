@@ -129,7 +129,7 @@ own following work and transitions.
 Already-established free values cross the helper boundary as ordinary captures.
 Caller-owned lazy values use the normal-exit memo transport described below.
 
-[`loop`](./loop/module.f.mjs) builds these helpers as normalized single-input
+[`loop`](./loop/module.f.js) builds these helpers as normalized single-input
 invocation loops, then the existing root resolver and ordinary function
 constructor produce their graphs. A helper's graph uses one array argument,
 direct self calls with the next state array, and direct result arrays, without

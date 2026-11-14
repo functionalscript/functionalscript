@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { aggregateHelper, invocationAliases, namesBinding, readsEntryParameters, rootLoopOf, scalarHelper } from './module.f.mjs'
+import { aggregateHelper, invocationAliases, namesBinding, readsEntryParameters, rootLoopOf, scalarHelper } from './module.f.js'
 
 const parameter = { index: 0 }
 const state = { index: 1 }

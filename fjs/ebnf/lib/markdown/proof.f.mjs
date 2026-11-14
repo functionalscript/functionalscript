@@ -3,7 +3,7 @@
  * @import { Utf16 } from '../../utf16/types.ts'
  */
 
-import { eof } from '../../module.f.mjs'
+import { eof } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
 import { units } from '../../utf16/module.f.js'
 import { entry } from './module.f.mjs'

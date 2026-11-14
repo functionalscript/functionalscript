@@ -10,6 +10,7 @@
  * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Loop, Operator, Statement, Value } from '../types.ts'
  * @import { List, Result as ListResult } from '../../../types/list/types.ts'
  * @import { MemoLayout } from './cells/types.ts'
+ * @import { PersistentMap } from '../../../types/map/types.ts'
  * @import { _Block, _Context, _Exit, _Loop, _Recipe, _Value, _Values } from './private.ts'
  * @import { Task } from '../task/types.ts'
  */
@@ -22,6 +23,8 @@ import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
 import { _exposeOperands, liftReturns } from '../returns/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
+import { empty as emptyMap, fromEntries, mapEntries, mapGet, mapHas, mapSet } from '../../../types/map/module.f.js'
+import { empty as emptySet, has as setHas } from '../../../types/set/module.f.js'
 import { _isSelf } from '../invocation/module.f.js'
 import { _tailRegion } from '../invocation/tail/module.f.js'
 
@@ -29,13 +32,13 @@ import { _tailRegion } from '../invocation/tail/module.f.js'
 const binding = (index = 0) => ({ index })
 /** @type {(id: BindingId) => Value} */
 const ref = id => ['ref', id]
-/** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
-const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
+/** A source binder shadows only this region's active aliases. @type {(aliases: PersistentMap<BindingId, number>, bindings: readonly BindingId[]) => PersistentMap<BindingId, number>} */
+const withoutAliases = (aliases, bindings) => fromEntries(mapEntries(aliases).filter(([id]) => !bindings.includes(id)))
 /** @type {(aliases: readonly BindingId[], bindings: readonly BindingId[]) => readonly BindingId[]} */
 const withoutSelfAliases = (aliases, bindings) => aliases.filter(id => !bindings.includes(id))
 
 /** Only lexical self aliases are rewritten in an otherwise deferred value. @type {MemoLayout} */
-const selfOnlyPlan = { cells: [], definitions: new Map(), loops: new Set() }
+const selfOnlyPlan = { cells: [], definitions: emptyMap, loops: emptySet }
 
 /** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoLayout, memo: BindingId, index: number, cell: Value) => Value} */
 const withCell = (plan, memo, index, cell) => ['array', plan.cells.map((_, slot) => slot === index ? cell : ['.', ref(memo), slot])]
@@ -188,8 +191,8 @@ const ownsMemo = (source, plan) => {
         const value = item.first
         if (value === null || typeof value !== 'object') { continue }
         if (!(value instanceof Array)) {
-            if (value.exit[0] === 'loop' && plan.loops.has(value.exit[1]) || value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
-                || statement[0] === 'loop' && plan.loops.has(statement[1]))) { return true }
+            if (value.exit[0] === 'loop' && setHas(value.exit[1])(plan.loops) || value.statements.some(statement => statement[0] === 'define' && mapHas(plan.definitions, statement)
+                || statement[0] === 'loop' && setHas(statement[1])(plan.loops))) { return true }
             /** @type {readonly (Value | Block)[]} */
             const children = [...value.statements.flatMap(statement => statement[0] === 'define'
                 ? statement[3] === 'required' ? [statement[2]] : []
@@ -223,7 +226,7 @@ const valueTask = (source, context) => call(() => {
     if (source === null || typeof source !== 'object') { return done(plain(source, context)) }
     if (source[0] === 'ref') {
         if (_isSelf(source, context.selfAliases)) { return done(plain(ref(assertNotNullish(context.sourceSelf)), context)) }
-        const index = context.aliases.get(source[1])
+        const index = mapGet(context.aliases, source[1])
         return done(index === undefined ? plain(source, context) : demand(index, context))
     }
     if (source[0] === 'function') {
@@ -254,7 +257,7 @@ const valueTask = (source, context) => call(() => {
                 })))
     }
     if ((guarded(source) || source[0] === 'object' || itemSpreads(source))
-        && (freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id)) || ownsMemo(source, context.plan))) {
+        && (freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => mapHas(context.aliases, id)) || ownsMemo(source, context.plan))) {
         const value = _exposeOperands(source, binding(), context.sourceOwner)
         if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
         return valueTask(['block', { statements: [value.statement], exit: ['yield', [value.value]] }], context)
@@ -332,7 +335,7 @@ const exitTask = (exit, context) => call(() => {
 
 /** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context, terminal?: boolean) => Task<_Loop>} */
 const loopTask = (loop, context, terminal = false) => call(() => {
-    if (!context.plan.loops.has(loop)) {
+    if (!setHas(loop)(context.plan.loops)) {
         return bind(valuesTask(loop.initial, context), initial => {
             /** @type {(body: Block) => Task<_Loop>} */
             const finish = body => {
@@ -374,10 +377,10 @@ const loopTask = (loop, context, terminal = false) => call(() => {
 
 /** Thread normal-path memo bindings through source statement regions. @type {(block: Block, context: _Context) => Task<_Block>} */
 const blockTask = (block, context) => {
-    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: ReadonlyMap<BindingId, number>, selfAliases: readonly BindingId[], changed: boolean, usesMemo: boolean) => Task<_Block>} */
+    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: PersistentMap<BindingId, number>, selfAliases: readonly BindingId[], changed: boolean, usesMemo: boolean) => Task<_Block>} */
     const each = (index, statements, memo, aliases, selfAliases, changed, usesMemo) => call(() => {
         const current = /** @type {_Context} */ ({ ...context, memo, aliases, selfAliases })
-        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>, nextSelfAliases?: readonly BindingId[]) => Task<_Block>} */
+        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: PersistentMap<BindingId, number>, nextSelfAliases?: readonly BindingId[]) => Task<_Block>} */
         const resume = (pieces, nextMemo, different, used, normal = true, nextAliases = aliases, nextSelfAliases = selfAliases) => {
             const next = concat(statements)(pieces)
             return normal || context.lexicalOnly ? each(index + 1, next, nextMemo, nextAliases, nextSelfAliases, changed || different, usesMemo || used)
@@ -395,9 +398,9 @@ const blockTask = (block, context) => {
             const shadowedSelf = withoutSelfAliases(selfAliases, [statement[1]])
             if (!context.lexicalOnly && _isSelf(statement[2], selfAliases)) { return resume(null, memo, true, false, true, shadowed, [...shadowedSelf, statement[1]]) }
             if (statement[3] === 'lazy') {
-                const selected = context.plan.definitions.get(statement)
+                const selected = mapGet(context.plan.definitions, statement)
                 if (selected !== undefined) {
-                    const active = new Map([...shadowed, [statement[1], selected]])
+                    const active = mapSet(shadowed, statement[1], selected)
                     if (context.plan.cells[selected].definition === statement) {
                         const local = context.plan.cells[selected].iterationLocal
                         const nextMemo = local ? binding() : memo
@@ -409,13 +412,13 @@ const blockTask = (block, context) => {
                     return resume(null, memo, true, false, true, active, shadowedSelf)
                 }
                 const initializer = statement[2]
-                const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
-                if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]]), shadowedSelf) }
+                const root = initializer instanceof Array && initializer[0] === 'ref' ? mapGet(aliases, initializer[1]) : undefined
+                if (root !== undefined) { return resume(null, memo, true, false, true, mapSet(shadowed, statement[1], root), shadowedSelf) }
                 if (selfAliases.length === 0) { return resume([statement], memo, false, false, true, shadowed, shadowedSelf) }
                 // Preserve first-demand evaluation while replacing references
                 // to aliases whose declarations have been removed. An empty
                 // memo plan exposes no demands, recipes or evaluation prefix.
-                return bind(valueTask(initializer, { ...current, plan: selfOnlyPlan, aliases: new Map(), owners: null,
+                return bind(valueTask(initializer, { ...current, plan: selfOnlyPlan, aliases: emptyMap, owners: null,
                     completions: false, recipeOwner: null }), value => {
                     assert(value.statements === null)
                     return resume([['define', statement[1], value.value, 'lazy']], memo, value.value !== initializer,
@@ -468,7 +471,7 @@ export const _freshSelf = fn => {
     if (fn.self === null) { return fn }
     const self = binding(fn.self.index)
     /** @type {_Context} */
-    const context = { plan: selfOnlyPlan, aliases: new Map(), selfAliases: [fn.self], sourceSelf: self,
+    const context = { plan: selfOnlyPlan, aliases: emptyMap, selfAliases: [fn.self], sourceSelf: self,
         recipes: [], memo: binding(), owners: null, operand: false, sourceOwner: fn.target, recipeOwner: null,
         completions: false, lexicalOnly: true }
     return { ...fn, self, body: run(blockTask(fn.body, context)).block }
@@ -492,7 +495,7 @@ const normalize = (root, externalLazyIds, functionTarget, returnsOnly, sourceSel
     // binding analysis. Actual tail matching still uses lexical alias snapshots.
     const originalSelf = completions && sourceSelf !== null && freeBindings(plan.block).includes(sourceSelf) ? sourceSelf : null
     const self = originalSelf === null ? null : binding(originalSelf.index)
-    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), selfAliases: self === null ? [] : [self, assertNotNullish(originalSelf)], sourceSelf: self, recipes, memo, owners: null, operand: false,
+    const context = /** @type {_Context} */ ({ plan, aliases: emptyMap, selfAliases: self === null ? [] : [self, assertNotNullish(originalSelf)], sourceSelf: self, recipes, memo, owners: null, operand: false,
         sourceOwner: functionTarget, recipeOwner: null, completions })
     const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])

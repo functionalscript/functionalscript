@@ -29,7 +29,7 @@ import {
     times,
     unicodeMax,
     union,
-} from './module.f.mjs'
+} from './module.f.js'
 import { assertRecognizes, force, recognizer } from './testlib.f.mjs'
 
 /**
