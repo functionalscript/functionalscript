@@ -16,6 +16,16 @@
  *   call**, typed by what the call gives, as a function inside a function
  *   is; its captures are what the module's bindings are. One that calls
  *   itself, by its name or through others, is refused.
+ * - **Each other definition of the module is a constant**, named for its
+ *   place among them, `#c0` first, whose term reads only the constants
+ *   before it, as `init` evaluates them in their order
+ *   ([L0 design §20](../../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)).
+ *   Its term is lowered as a function's body is, and reads an import itself
+ *   where the normalization writes the read there. The module keeps the
+ *   constants that the functions read, themselves or through the constants
+ *   that they read. A constant of a record is refused, since no global
+ *   holds one, and so is a read of a constant before its definition. A
+ *   definition of `Math.abs` or `Math.sqrt` is that operator.
  * - **FAST has no types, so the table gives them**: each function's
  *   parameters and result, as a TypeScript signature names and types them.
  *   A `number` is an `f64`, a `boolean` a `bool`, a `bigint` the range that
@@ -27,6 +37,8 @@
  *   [of the rows](../native/module.f.js). JavaScript reads a tag and a
  *   length as numbers, so each is a float here: `kind(v)` is
  *   `float(Any.kind(v))`, and a tag such as `BOOLEAN` is its float.
+ *   `undefined` and `null` are Any's constants, which the host makes
+ *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).
  *   `asBoolean`, `asNumber` and `asString` are casts, to `to_bool`,
  *   `to_f64` and the string itself, and `length(v)` is a `match` of `v`'s
  *   kinds, an arm for each module of L0 that has a `length`, and a trap for
@@ -85,8 +97,9 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { AstImport } from '../../compiler/ast/types.ts'
  * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Loop, Statement, Value } from '../../js/ast/types.ts'
- * @import { Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
- * @import { _FirstCast, _Global, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
+ * @import { Primitive } from '../../media/datajs/types.ts'
+ * @import { ConstantOf, Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
+ * @import { _Context, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -96,8 +109,8 @@ import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFIN
 import { typeOf } from '../check/module.f.js'
 import { any, kinds, l0, lengths } from '../l0/module.f.js'
 import {
-    add, bool, call, cast, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
-    make, match, mul, n, ne, neg, next, not, only, product, return_, sub, trap, true_, u,
+    add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
+    make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { show } from '../print/module.f.js'
@@ -111,6 +124,9 @@ const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
 /** The static functions that are operators of the IR. @type {(id: string) => OpName | null} */
 const staticOp = id => id === 'Math.sqrt' ? 'sqrt' : id === 'Math.abs' ? 'abs' : null
 
+/** The operator of the IR that a value is, where it is a static function that is one. @type {(v: Value) => OpName | null} */
+const staticOf = v => v instanceof Array && v.length === 1 ? staticOp(v[0]) : null
+
 /** @type {(scope: _Scope) => (message: string) => Result<never, string>} */
 const refuse = scope => {
     const name = assertNotNullish(entry(scope.ir, 'name'))
@@ -118,13 +134,16 @@ const refuse = scope => {
 }
 
 /** What a binding stands for, or `null` for one from outside the function. @type {(scope: _Scope, b: BindingId) => _Meaning | null} */
-const meaning = (scope, b) => scope.bindings.find(([x]) => x === b)?.[1] ?? null
+const meaning = (scope, b) => scope.bindings.find(([x]) => x === b)?.[1] ?? scope.outer(b)
+
+/** What the callee of a call stands for: a binding, or an import that a constant's term reads where it calls it. @type {(scope: _Scope, callee: Value) => _Meaning | null} */
+const calleeOf = (scope, callee) => callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : scope.imported(callee)
 
 /** The scope where `b` stands for `m`. @type {(scope: _Scope, b: BindingId, m: _Meaning) => _Scope} */
 const standsFor = (scope, b, m) => ({ ...scope, bindings: [...scope.bindings, [b, m]] })
 
-/** A term that does nothing but give its value: a local, a literal, `false` or `true`, a product of such terms, or a field of one. @type {(t: Term) => boolean} */
-const isPure = t => t[0] === 'get' || t[0] === 'lit' || equal(t, false_) || equal(t, true_)
+/** A term that does nothing but give its value: a local, a literal, a constant, `false` or `true`, a product of such terms, or a field of one. @type {(t: Term) => boolean} */
+const isPure = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || equal(t, false_) || equal(t, true_)
     || (t[0] === 'make' && t[1].every(([, x]) => isPure(x)))
     || (t[0] === 'field' && isPure(t[1]))
 
@@ -221,7 +240,7 @@ const firstCast = (scope, v) => {
     if (!(v instanceof Array) || v[0] === 'ref') { return 'nothing' }
     if (v[0] !== '()') { return null }
     const [, callee, items] = v
-    const m = callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : null
+    const m = calleeOf(scope, callee)
     const c = m !== null && m[0] === 'l0' ? casts.find(([k]) => k === m[1]) : undefined
     const [x] = items
     const local = items.length === 1 && x instanceof Array && x[0] === 'ref' ? meaning(scope, x[1]) : null
@@ -336,7 +355,7 @@ const statement = (lowerValue, lowerBlock, scope, s, tail, rest) => {
                 const [, inlined] = f
                 return sequence(statement, lowerValue, lowerBlock, scope, around, tail, next => rest(standsFor(next, b, ['inline', inlined])))
             }
-            const op = v instanceof Array && v.length === 1 ? staticOp(v[0]) : null
+            const op = staticOf(v)
             if (op !== null) { return rest(standsFor(scope, b, ['op', op])) }
             const c = firstCast(scope, v)
             return c instanceof Array ? narrow(scope, c, next => statement(lowerValue, lowerBlock, next, s, tail, rest)) : bind(scope, b, lowerValue(scope, v), rest)
@@ -471,13 +490,10 @@ const local = scope => v => {
     return m === null ? error('a capture that is no binding of the function is not in this slice') : ok(m)
 }
 
-/** What a capture of a function of the module stands for: what `capture` makes of the module's binding. @type {(capture: (b: BindingId) => Result<_Meaning, string>) => (v: Value) => Result<_Meaning, string>} */
-const ofModule = capture => v => v instanceof Array && v[0] === 'ref' ? capture(v[1]) : error('a capture that is not a function of the module is not in this slice')
-
 // the L0 view
 
-/** The L0 view's constants, the tags of the kinds of `any`, which JavaScript reads as numbers. @type {readonly (readonly [string, number])[]} */
-const constants = [
+/** The L0 view's tags of the kinds of `any`, which JavaScript reads as numbers. @type {readonly (readonly [string, number])[]} */
+const tags = [
     ['UNDEFINED', UNDEFINED], ['NULL', NULL], ['BOOLEAN', BOOLEAN], ['NUMBER', NUMBER], ['STRING', STRING],
     ['BIGINT', BIGINT], ['ARRAY', ARRAY], ['OBJECT', OBJECT], ['FUNCTION', FUNCTION],
 ]
@@ -759,8 +775,9 @@ const isSpread = item => item instanceof Array && item[0] === '...'
  */
 const callTerm = (lowerValue, scope, callee, items) => {
     const no = refuse(scope)
-    const m = callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : null
+    const m = calleeOf(scope, callee)
     if (m === null || m[0] === 'local' || m[0] === 'term') { return no('a call of a value is not in this slice') }
+    if (m[0] === 'refused') { return no(m[1]) }
     const vs = items.flatMap(item => isSpread(item) ? [] : [item])
     if (vs.length !== items.length) { return no('a spread argument is not in this slice') }
     switch (m[0]) {
@@ -793,23 +810,63 @@ const swapped = (lowerValue, scope, f, a, b) => {
     return isPure(x[1]) ? before(scope, x[1]) : bindTerm(scope, x[1], (s, name) => before(s, get(name)))
 }
 
-/** @type {_LowerValue} */
-const value = (scope, v) => {
-    const no = refuse(scope)
+/**
+ * A primitive as a term: a number is a float literal, a bigint the range
+ * that holds it alone, a boolean a `bool`, and `undefined` and `null` are
+ * Any's constants, which a module lowered without the runtime does not
+ * import.
+ *
+ * @type {(imports: Module['imports'], v: Primitive) => Result<Term, string>}
+ */
+const primitive = (imports, v) => {
     if (typeof v === 'number') { return ok(lit(f64c, v)) }
     if (typeof v === 'bigint') { return ok(n(v)) }
     if (typeof v === 'boolean') { return ok(v ? true_ : false_) }
-    if (!(v instanceof Array)) { return no(`${typeof v === 'string' ? 'a string' : v} is not in this slice`) }
+    if (typeof v === 'string') { return error('a string is not in this slice') }
+    const name = v === null ? 'null' : 'undefined'
+    return imports.some(([k]) => k === 'Any') ? ok(constant('Any', name))
+        : error(`${name} is a constant of Any, which a module lowered without the runtime does not import`)
+}
+
+/**
+ * What a capture of a function of the module stands for: what `capture`
+ * makes of the module's binding, or the term of a primitive, which the
+ * normalization captures where a binding of the module holds one.
+ *
+ * @type {(imports: Module['imports'], capture: (b: BindingId) => Result<_Meaning, string>) => (v: Value) => Result<_Meaning, string>}
+ */
+const ofModule = (imports, capture) => v => {
+    if (v instanceof Array) { return v[0] === 'ref' ? capture(v[1]) : error('a capture that is neither a binding of the module nor a primitive is not in this slice') }
+    const x = primitive(imports, v)
+    return x[0] === 'error' ? x : ok(['term', x[1]])
+}
+
+/**
+ * The term of what a value names: a binding, or an import that a
+ * constant's term reads. A tag of the L0 view is its float.
+ *
+ * @type {(scope: _Scope, m: _Meaning | null) => Result<Term, string>}
+ */
+const named = (scope, m) => {
+    const no = refuse(scope)
+    const tag = m !== null && m[0] === 'l0' ? tags.find(([k]) => k === m[1]) : undefined
+    return m === null ? no('a binding from outside the function is not in this slice')
+        : m[0] === 'local' ? ok(get(m[1]))
+        : m[0] === 'term' ? ok(m[1])
+        : m[0] === 'refused' ? no(m[1])
+        : tag !== undefined ? ok(lit(f64c, tag[1]))
+        : no('a function as a value is not in this slice')
+}
+
+/** @type {_LowerValue} */
+const value = (scope, v) => {
+    const no = refuse(scope)
+    if (!(v instanceof Array)) {
+        const x = primitive(scope.ir.imports, v)
+        return x[0] === 'error' ? no(x[1]) : x
+    }
     switch (v[0]) {
-        case 'ref': {
-            const m = meaning(scope, v[1])
-            const tag = m !== null && m[0] === 'l0' ? constants.find(([k]) => k === m[1]) : undefined
-            return m === null ? no('a binding from outside the function is not in this slice')
-                : m[0] === 'local' ? ok(get(m[1]))
-                : m[0] === 'term' ? ok(m[1])
-                : tag !== undefined ? ok(lit(f64c, tag[1]))
-                : no('a function as a value is not in this slice')
-        }
+        case 'ref': { return named(scope, meaning(scope, v[1])) }
         case 'function': { return no('a function as a value is not in this slice') }
         case 'block': { return block(value, scope, v[1], ['value']) }
         case 'if': { return choice(value, block, scope, v[1], v[2], v[3], ['value']) }
@@ -831,7 +888,9 @@ const value = (scope, v) => {
         case 'object': { return record(value, scope, v[1]) }
         case '.': {
             const key = v[2]
-            return v.length !== 3 || typeof key !== 'string' ? no('a member read of anything but a name is not in this slice')
+            const m = scope.imported(v)
+            return m !== null ? named(scope, m)
+                : v.length !== 3 || typeof key !== 'string' ? no('a member read of anything but a name is not in this slice')
                 : unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
         }
         case '<': { return binary(value, scope, lt, v[1], v[2]) }
@@ -846,22 +905,25 @@ const value = (scope, v) => {
 
 // functions and modules
 
+/** What a function reads that it does not bind, a binding or an import: nothing, since it reads the module's bindings and imports through its captures. @type {() => null} */
+const outside = () => null
+
 /**
  * A function of the module, typed by its signature: its parameters are
  * locals of the signature's names, and its `self` and its captures are what
  * `capture` makes of the module's bindings, as are those of each function
  * of the module that it inlines.
  *
- * @type {(ir: { readonly functions: readonly (readonly [string, Signature])[], readonly imports: Module['imports'] }, capture: (b: BindingId) => Result<_Meaning, string>) => (entry: readonly [string, FastFunction, Signature]) => Result<readonly [string, Fn], string>}
+ * @type {(context: _Context, capture: (b: BindingId) => Result<_Meaning, string>) => (entry: readonly [string, FastFunction, Signature]) => Result<readonly [string, Fn], string>}
  */
-const lowerFn = ({ functions, imports }, capture) => ([name, f, { params, result }]) => {
+const lowerFn = ({ functions, imports, constants }, capture) => ([name, f, { params, result }]) => {
     /** @type {(message: string) => Result<never, string>} */
     const no = message => error(`${name}: ${message}`)
     if (f.rest !== null) { return no('a rest parameter is not in this slice') }
     if (f.parameters.length !== params.length) {
         return no(`the signature has ${count(params.length, 'parameter')}, and the function ${f.parameters.length}`)
     }
-    const module = ofModule(capture)
+    const module = ofModule(imports, capture)
     const captured = okList(f.captures.map(({ binding, value: v }) => {
         const m = module(v)
         return m[0] === 'error' ? no(m[1]) : ok(/** @type {const} */ ([binding, m[1]]))
@@ -873,28 +935,77 @@ const lowerFn = ({ functions, imports }, capture) => ([name, f, { params, result
         ...(f.self === null ? [] : [/** @type {const} */ ([f.self, ['function', name]])]),
         ...captured[1],
     ]
-    const body = block(value, { ir: { name, locals: params, result, functions, imports }, bindings, depth: 0, loops: [], inlining: [], module }, f.body, ['return'])
+    const body = block(value, { ir: { name, locals: params, result, functions, imports, constants }, bindings, outer: outside, imported: outside, depth: 0, loops: [], inlining: [], module }, f.body, ['return'])
     return body[0] === 'error' ? body : ok([name, fn(params, result, body[1])])
 }
 
 /**
- * Import `i`'s export `name`, as FAST reads it from the arguments of the
- * module: `['.', ['.', ['ref', args], i], name]`, where `args` is the
- * module's one free binding or a definition of it. An export of the L0 view
- * or of L1's native rows is its name; any other import is refused. `null`
- * where `v` reads no import.
+ * A constant of the module, named `name`: the term of the value that a
+ * module-level definition gives, which reads the module's bindings itself,
+ * each what `capture` makes of it, and its imports, as `importOf` reads
+ * them, and the term's type. A constant of a type that the checker refuses
+ * where a term reads it, such as a record, is refused, so that every other
+ * term's scope holds the constants that a term may read.
  *
- * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], args: (b: BindingId) => boolean, v: Value) => _Global | null}
+ * @type {(context: _Context, capture: (b: BindingId) => Result<_Meaning, string>, importOf: (v: Value) => _Import | null) => (name: string, v: Value) => Result<readonly [string, ConstantOf<Term>], string>}
  */
-const imported = (source, imports, args, v) => {
+const lowerConstant = ({ functions, imports, constants }, capture, importOf) => (name, v) => {
+    /** @type {_Scope} */
+    const scope = {
+        ir: { name, locals: [], functions, imports, constants },
+        bindings: [],
+        outer: b => {
+            const m = capture(b)
+            return m[0] === 'error' ? ['refused', m[1]] : m[1]
+        },
+        imported: importOf,
+        depth: 0,
+        loops: [],
+        inlining: [],
+        module: ofModule(imports, capture),
+    }
+    const x = value(scope, v)
+    if (x[0] === 'error') { return x }
+    const t = typeOf(scope.ir)(x[1])
+    if (t[0] === 'error') { return t }
+    const read = typeOf({ name, locals: [], functions, imports, constants: [[name, t[1]]] })(constant('self', name))
+    return read[0] === 'error' ? read : ok([name, { type: t[1], value: x[1] }])
+}
+
+/** The module's own constants that a term reads. @type {(t: Term) => readonly string[]} */
+const reads = t => t[0] === 'constant' ? (t[1] === 'self' ? [t[2]] : []) : terms(t).flatMap(reads)
+
+/** The types of the constants that the lowering made. @type {(done: readonly _Lowered[]) => _Context['constants']} */
+const typesOf = done => done.flatMap(([, r]) => r[0] === 'ok' ? [/** @type {const} */ ([r[1][0], r[1][1].type])] : [])
+
+/**
+ * The slot of import `i` that a value reads from the arguments of the
+ * module, `['.', ['ref', args], i]`, where `args` is the module's one free
+ * binding or a definition of it, or `null` where it reads none.
+ *
+ * @type {(args: (b: BindingId) => boolean, v: Value) => number | null}
+ */
+const slotIn = (args, v) => {
+    if (!(v instanceof Array) || v[0] !== '.' || v.length !== 3 || typeof v[2] !== 'number') { return null }
+    const from = v[1]
+    return from instanceof Array && from[0] === 'ref' && args(from[1]) ? v[2] : null
+}
+
+/**
+ * Import `i`'s export `name`, as FAST reads it from the arguments of the
+ * module: `['.', slot, name]`, where `slotOf` reads `i` from the slot. An
+ * export of the L0 view or of L1's native rows is its name; any other
+ * import is refused. `null` where `v` reads no import.
+ *
+ * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], slotOf: (v: Value) => number | null, v: Value) => _Import | null}
+ */
+const imported = (source, imports, slotOf, v) => {
     if (!(v instanceof Array) || v[0] !== '.' || v.length !== 3 || typeof v[2] !== 'string') { return null }
-    const slot = v[1]
-    if (!(slot instanceof Array) || slot[0] !== '.' || slot.length !== 3 || typeof slot[2] !== 'number') { return null }
-    const from = slot[1]
-    if (!(from instanceof Array) || from[0] !== 'ref' || !args(from[1])) { return null }
-    const m = imports[Number(slot[2])]
+    const i = slotOf(v[1])
+    if (i === null) { return null }
+    const m = imports[Number(i)]
     const origin = m === undefined || m.json ? null : source(m.specifier)
-    return m === undefined ? ['refused', `no import ${slot[2]}`]
+    return m === undefined ? ['refused', `no import ${i}`]
         : origin === null ? ['refused', `an import of ${m.specifier} is not in this slice`]
         : [origin, v[2]]
 }
@@ -915,12 +1026,15 @@ const flat = s => {
 
 /**
  * What each binding that the module's statements define stands for, those
- * of the blocks around a definition's value among them. A binding that no
- * statement defines holds the module's imports, and so does a definition
- * that only names it; a definition that reads an import from one of them is
- * that import.
+ * of the blocks around a definition's value among them, in their order,
+ * and the import that a value reads. A binding that no statement defines
+ * holds the module's imports, and so does a definition that only names it
+ * or a slot of it; a definition that reads an import from one of them is
+ * that import, one of a static function that is an operator of the IR,
+ * `Math.abs` or `Math.sqrt`, is that operator, and any other is a
+ * constant.
  *
- * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], statements: readonly Statement[]) => readonly (readonly [BindingId, _Global])[]}
+ * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], statements: readonly Statement[]) => readonly [readonly (readonly [BindingId, _Global])[], (v: Value) => _Import | null]}
  */
 const globals = (source, imports, wrapped) => {
     const statements = wrapped.flatMap(flat)
@@ -930,16 +1044,49 @@ const globals = (source, imports, wrapped) => {
     const aliases = statements.flatMap(s => s[0] === 'define' && s[2] instanceof Array && s[2][0] === 'ref' && !defined.includes(s[2][1]) ? [s[1]] : [])
     /** @type {(b: BindingId) => boolean} */
     const args = b => aliases.includes(b) || !defined.includes(b)
-    return statements.flatMap(s => {
+    const slots = statements.flatMap(s => {
+        const i = s[0] === 'define' ? slotIn(args, s[2]) : null
+        return i === null ? [] : [/** @type {const} */ ([s[1], i])]
+    })
+    /** The slot that a value reads: itself, or a binding that a definition of one defines. @type {(v: Value) => number | null} */
+    const slotOf = v => {
+        const slot = v instanceof Array && v[0] === 'ref' ? slots.find(([b]) => b === v[1]) : undefined
+        return slot === undefined ? slotIn(args, v) : slot[1]
+    }
+    /** @type {(v: Value) => _Import | null} */
+    const importOf = v => imported(source, imports, slotOf, v)
+    const bindings = statements.flatMap(s => {
+        const op = s[0] === 'define' ? staticOf(s[2]) : null
         /** @type {_Global} */
         const g = s[0] !== 'define' ? ['refused', `a module statement of the kind ${s[0]} is not in this slice`]
             : s[3] === 'lazy' ? ['refused', 'a lazy definition is not in this slice']
             : s[2] instanceof Array && s[2][0] === 'function' ? ['function', s[2][1]]
-            : aliases.includes(s[1]) ? ['args']
-            : imported(source, imports, args, s[2]) ?? ['refused', 'a module constant is not in this slice']
+            : aliases.includes(s[1]) || slots.some(([b]) => b === s[1]) ? ['args']
+            : op !== null ? ['op', op]
+            : importOf(s[2]) ?? ['constant', s[2]]
         return results(s).map(b => /** @type {const} */ ([b, g]))
     })
+    return [bindings, importOf]
 }
+
+/**
+ * What a read of a constant stands for: its term, which borrows it, or why
+ * the lowering refused it. The normalization defines a constant before
+ * anything that reads it.
+ *
+ * @type {(made: Result<readonly [string, ConstantOf<Term>], string> | undefined) => Result<_Meaning, string>}
+ */
+const ofConstant = made => made === undefined ? error('a constant that is read before its definition is not in this slice')
+    : made[0] === 'error' ? made
+    : ok(['term', constant('self', made[1][0])])
+
+/**
+ * The constants that the module keeps, those after `c` first, and what
+ * they and the functions read: `c` is kept where one of them reads it.
+ *
+ * @type {(state: readonly [readonly (readonly [string, ConstantOf<Term>])[], readonly string[]], c: readonly [string, ConstantOf<Term>]) => readonly [readonly (readonly [string, ConstantOf<Term>])[], readonly string[]]}
+ */
+const keep = ([later, needed], c) => needed.includes(c[0]) ? [[c, ...later], [...needed, ...reads(c[1].value)]] : [later, needed]
 
 /**
  * The lowering of a module: the signatures of the exported functions to
@@ -947,7 +1094,10 @@ const globals = (source, imports, wrapped) => {
  * it: the specifiers by which it imports the L0 view and L1's native rows,
  * whose interfaces it then imports; then the normalized FAST of the
  * module's text and its imports. The functions keep the order of the
- * exports.
+ * exports. Each other definition of the module is a constant, named for
+ * its place among them, `#c0` first, whose term reads the constants before
+ * it; the module keeps those that the functions read, themselves or
+ * through the constants that they read, in their order.
  *
  * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
  */
@@ -964,7 +1114,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     if (stray !== undefined) { return error(`${stray[0]} has a signature, and the module exports no function ${stray[0]}`) }
     /** @type {(specifier: string) => 'l0' | 'native' | null} */
     const source = x => runtime === null ? null : x === runtime.l0 ? 'l0' : x === runtime.native ? 'native' : null
-    const defined = globals(source, imports, [...statements, ...entries[1].flatMap(([, ss]) => ss)])
+    const [defined, importOf] = globals(source, imports, [...statements, ...entries[1].flatMap(([, ss]) => ss)])
     /** @type {(b: BindingId) => _Global | undefined} */
     const globalOf = b => defined.find(([x]) => x === b)?.[1]
     /** An export that the table names, as the function to lower and the binding that defines it, if one does. @type {(key: string, v: Value, s: Signature) => Result<readonly [string, FastFunction, Signature, BindingId | null], string>} */
@@ -986,19 +1136,32 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     if (shared !== undefined) {
         return error(`${shared[0]} exports the same function as ${lowered.find(([, , , b]) => b === shared[3])?.[0]}`)
     }
-    /** What a function that the lowering makes reads where it captures `b`. @type {(b: BindingId) => Result<_Meaning, string>} */
-    const capture = b => {
+    /**
+     * What a term that the lowering makes reads where it reads `b`, once it
+     * has made the constants in `done`: a function, which it calls or
+     * inlines, a name of an import, or a constant.
+     *
+     * @type {(done: readonly _Lowered[]) => (b: BindingId) => Result<_Meaning, string>}
+     */
+    const captureIn = done => b => {
         const own = lowered.find(([, , , x]) => x === b)
         const g = globalOf(b)
         const exported = all.find(([, v]) => v instanceof Array && v[0] === 'ref' && v[1] === b)
         return own !== undefined ? ok(['function', own[0]])
-            : g === undefined || g[0] === 'args' ? error('a capture that is not a function of the module is not in this slice')
+            : g === undefined || g[0] === 'args' ? error("a capture of the module's imports is not in this slice")
             : g[0] === 'refused' ? error(g[1])
+            : g[0] === 'constant' ? ofConstant(done.find(([x]) => x === b)?.[1])
             : g[0] !== 'function' ? ok(g)
             : exported !== undefined ? error(`${exported[0]} has no signature`)
             : ok(['module', g[1]])
     }
     const ir = { functions: table, imports: runtime === null ? [] : [...l0, /** @type {const} */ (['Native', native])] }
-    const functions = okList(lowered.map(([key, f, s]) => lowerFn(ir, capture)([key, f, s])))
-    return functions[0] === 'error' ? functions : ok({ imports: ir.imports, functions: functions[1], exports: lowered.map(([key]) => key) })
+    /** The constants that the lowering made, and the next, which reads those. @type {(done: readonly _Lowered[], definition: readonly [BindingId, Value], k: number) => readonly _Lowered[]} */
+    const addConstant = (done, [b, v], k) => [...done, [b, lowerConstant({ ...ir, constants: typesOf(done) }, captureIn(done), importOf)(`#c${k}`, v)]]
+    const done = defined.flatMap(([b, g]) => g[0] === 'constant' ? [/** @type {const} */ ([b, g[1]])] : []).reduce(addConstant, [])
+    const capture = captureIn(done)
+    const functions = okList(lowered.map(([key, f, s]) => lowerFn({ ...ir, constants: typesOf(done) }, capture)([key, f, s])))
+    if (functions[0] === 'error') { return functions }
+    const [constants] = done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : []).reduceRight(keep, [[], functions[1].flatMap(([, f]) => reads(f.body))])
+    return ok({ imports: ir.imports, constants, functions: functions[1], exports: lowered.map(([key]) => key) })
 }

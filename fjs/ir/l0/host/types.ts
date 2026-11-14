@@ -28,11 +28,17 @@ export type View = {
 }
 
 /**
- * The `fjs:l0` imports of a host that counts: the view's readers, `dup` and
- * `drop`, which count a cell, and `from_unit`, `concat`, `substring` and
- * `item`, which make a cell that the caller owns and answer its handle.
+ * The `fjs:l0` imports of a host that counts: Any's constants, each an
+ * immutable global of the handle of a cell that the host keeps, the view's
+ * readers, `dup` and `drop`, which count a cell, and `from_unit`, `concat`,
+ * `substring` and `item`, which make a cell that the caller owns and answer
+ * its handle.
  */
 export type Imports = {
+    readonly undefined: WebAssembly.Global
+    readonly null: WebAssembly.Global
+    readonly true: WebAssembly.Global
+    readonly false: WebAssembly.Global
     readonly kind: (h: bigint) => Kind
     readonly to_f64: (h: bigint) => number
     readonly to_bool: (h: bigint) => 0 | 1
@@ -49,11 +55,14 @@ export type Imports = {
 
 /**
  * A host that counts every value: its imports, the value that a handle
- * names, and the cells that are alive, each a handle and its count, in the
- * order they were made.
+ * names, `keep`, which keeps every cell alive at its count, and the cells
+ * that are not as they were kept, each a handle and its count, in the order
+ * they were made: a cell alive that is not kept, and a kept one at another
+ * count, `0` where a `drop` freed it.
  */
 export type Counting = {
     readonly imports: Imports
     readonly read: (h: bigint) => unknown
+    readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
 }

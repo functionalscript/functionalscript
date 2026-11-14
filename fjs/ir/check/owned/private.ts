@@ -53,7 +53,7 @@ export type _Seq = {
     readonly exits: readonly _Exit[]
 }
 
-/** Where a term stands: its function's name and result, the module's signatures, the interfaces, and the locals and labels in scope. */
+/** Where a term stands: the name and the result of its function, or the name and the type of its constant, the module's signatures, the interfaces, and the locals and labels in scope. */
 export type _Env = {
     readonly name: string
     readonly result: Type

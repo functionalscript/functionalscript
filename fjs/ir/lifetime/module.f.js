@@ -21,8 +21,10 @@
  *   `match` lends what its operand reads to each arm that names the
  *   operand, and only to those, so the arms of an `if` may move what its
  *   condition read.
- * - **A `let` owns its value, a loop its parameters and a function its
- *   result**, where they are of a sealed type.
+ * - **A `let` owns its value, a loop its parameters, a function its result
+ *   and a constant its value**, where they are of a sealed type.
+ * - **A constant is a borrow**, which nothing drops: a use that takes it
+ *   over is a `dup` of it.
  * - **A product borrows.** One that holds a sealed value leans on the
  *   locals that it was made from, which live while it does, and nothing
  *   copies or drops it. So a field of a sealed type that it is made with is
@@ -46,13 +48,13 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { FunctionOf, Interface, LoopParamOf, Module, Sealed, SealedDef, Signature, Term, Type, Typed, TypedArm } from '../types.ts'
+ * @import { ConstantOf, FunctionOf, Interface, LoopParamOf, Module, Sealed, SealedDef, Signature, Term, Type, Typed, TypedArm } from '../types.ts'
  * @import { _Env, _Frame, _Go, _Local, _Mode, _Name, _Step, _Steps } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
-import { at, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
+import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { checkPlain } from '../check/module.f.js'
 import { equal, isOwn, never } from '../module.f.js'
 import { show } from '../print/module.f.js'
@@ -73,8 +75,8 @@ const union = (a, b) => [...a, ...minus(b, a)]
 /** Whether a value of a type holds a value of a sealed type: it is one, or a product with a field that holds one. @type {(t: Type) => boolean} */
 const holds = t => t[0] === 'sealed' || (t[0] === 'product' && t[1].some(([, x]) => holds(x)))
 
-/** Whether a term is a value already, so that naming it changes no order of evaluation: a local, a literal or a field of such a value. @type {(t: Typed) => boolean} */
-const isSimple = ([, t]) => t[0] === 'get' || t[0] === 'lit' || (t[0] === 'field' && isSimple(t[1]))
+/** Whether a term is a value already, so that naming it changes no order of evaluation: a local, a literal, a constant or a field of such a value. @type {(t: Typed) => boolean} */
+const isSimple = ([, t]) => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || (t[0] === 'field' && isSimple(t[1]))
 
 /**
  * Whether a term may complete. A term of type `never` does not, and the
@@ -536,6 +538,11 @@ const go = (env, typed, mode, owned, live, n) => {
         }
         case 'loop': { return loopStep(go, env, mode, t[1], t[2], t[3], owned, live, n) }
         case 'br': { return brStep(go, env, t[1], t[2], owned, n) }
+        case 'constant': {
+            if (type[0] !== 'sealed' || mode === 'read') { return ok({ term: t, owned, n }) }
+            const d = dupOf(env, type, t, `${t[1]}.${t[2]}`)
+            return d[0] === 'error' ? d : ok({ term: d[1], owned, n })
+        }
         default: { return ok({ term: t, owned, n }) }
     }
 }
@@ -566,17 +573,36 @@ const lifetimeFn = (functions, imports) => ([fn, { params, result, body }]) => {
 }
 
 /**
- * A module's owned stage, from its plain stage: each function with the
- * `dup` and the `drop` of each sealed type's interface written in, or why
- * the checker refuses the plain stage, or the pass a value of a linear type
- * that it would have to copy or drop. The [checker](../check/module.f.js)
- * then takes the answer, and checks its owned stage.
+ * A constant's owned stage: its temporaries named, then its term written
+ * from no owned local, so that the constant owns its value.
+ *
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, ConstantOf<Typed>]) => Result<readonly [string, ConstantOf<Term>], string>}
+ */
+const lifetimeConstant = (functions, imports) => ([fn, { type, value }]) => {
+    /** @type {_Env} */
+    const env = { fn, functions, imports, taken: bound(value), locals: empty, frames: [] }
+    const [plain, n] = named(env, value, 0)
+    const r = go(env, plain, 'take', nothing, nothing, n)
+    return r[0] === 'error' ? r : ok([fn, { type, value: r[1].term }])
+}
+
+/**
+ * A module's owned stage, from its plain stage: each constant and each
+ * function with the `dup` and the `drop` of each sealed type's interface
+ * written in, or why the checker refuses the plain stage, or the pass a
+ * value of a linear type that it would have to copy or drop. The
+ * [checker](../check/module.f.js) then takes the answer, and checks its
+ * owned stage.
  *
  * @type {(m: Module) => Result<Module, string>}
  */
 export const lifetime = m => {
     const typed = checkPlain(m)
     if (typed[0] === 'error') { return typed }
-    const written = okList(typed[1].functions.map(lifetimeFn(fromEntries(m.functions), fromEntries(m.imports))))
-    return written[0] === 'error' ? written : ok({ imports: m.imports, functions: written[1], exports: m.exports })
+    const functions = fromEntries(m.functions)
+    const imports = fromEntries(m.imports)
+    const constants = okList(typed[1].constants.map(lifetimeConstant(functions, imports)))
+    if (constants[0] === 'error') { return constants }
+    const written = okList(typed[1].functions.map(lifetimeFn(functions, imports)))
+    return written[0] === 'error' ? written : ok({ imports: m.imports, constants: constants[1], functions: written[1], exports: m.exports })
 }

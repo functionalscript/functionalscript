@@ -12,12 +12,16 @@
  * ```
  *
  * An interface that the module imports comes first, as its binding, its
- * sealed types and its functions' signatures:
+ * sealed types, its constants and its functions' signatures:
  *
  * ```text
  * import String from fjs:l0
  *     fn length(s: any.only(string)) -> u(31)
  * ```
+ *
+ * The module's constants come next, each as its type and the term that
+ * `init` evaluates, and a term reads a constant as its module and its name,
+ * `self.k` or `Any.undefined`.
  *
  * A parameter that the callee owns reads `own v: any`, and a counted sealed
  * type names its counting functions after its tag's:
@@ -28,7 +32,7 @@
  *
  * @module
  *
- * @import { ArmOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
+ * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
  */
 
 import { bool, equal, never, unit } from '../module.f.js'
@@ -148,6 +152,7 @@ const flat = t => {
             return value === null ? null : `${transfer(t[1])} ${value}`
         }
         case 'trap': { return showTrap(t[1]) }
+        case 'constant': { return `${t[1]}.${t[2]}` }
         default: { return null }
     }
 }
@@ -230,6 +235,7 @@ const lines = (t, pad) => {
         case 'block': { return [`${pad}block ${t[1]}: ${show(t[2])}`, ...lines(t[3], inner)] }
         case 'loop': { return [...loopHead(lines, pad, t[1], t[2]), ...lines(t[3], inner)] }
         case 'br': { return after(transfer(t[1]), t[2]) }
+        case 'constant': { return [`${pad}${t[1]}.${t[2]}`] }
         default: { return [`${pad}${showTrap(t[1])}`] }
     }
 }
@@ -240,24 +246,32 @@ const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k
 /** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
 const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]
 
-/** An interface as its binding, its sealed types and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
-const showInterface = (name, { abi, types, functions }) => [
+/** A constant as its type and its term. @type {(name: string, c: ConstantOf<Term>) => readonly string[]} */
+const showConstant = (name, { type, value }) => [`const ${name}: ${show(type)} =`, ...lines(value, '    ')]
+
+/** An interface as its binding, its sealed types, its constants and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
+const showInterface = (name, { abi, types, constants = [], functions }) => [
     `import ${name} from ${abi}`,
     ...types.flatMap(([type, { variants, kind, carrier, dup, drop }]) => [
         `    type ${type} = ${variants.join(' | ')}`,
         `        kind: ${kind}, carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}`,
     ]),
+    ...constants.map(([k, t]) => `    const ${k}: ${show(t)}`),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),
 ]
 
 /**
- * A module as text: the interfaces it imports, then its functions, in their
- * order, each after a blank line but the first, and its exports last.
+ * A module as text: the interfaces it imports, then its constants and its
+ * functions, in their order, each after a blank line but the first, and its
+ * exports last.
  *
  * @type {(m: Module) => string}
  */
 export const print = m => [
-    ...[...m.imports.map(([name, i]) => showInterface(name, i)), ...m.functions.map(([name, f]) => showFn(name, f))]
-        .flatMap((paragraph, k) => [...(k === 0 ? [] : ['']), ...paragraph]),
+    ...[
+        ...m.imports.map(([name, i]) => showInterface(name, i)),
+        ...(m.constants ?? []).map(([name, c]) => showConstant(name, c)),
+        ...m.functions.map(([name, f]) => showFn(name, f)),
+    ].flatMap((paragraph, k) => [...(k === 0 ? [] : ['']), ...paragraph]),
     ...(m.exports.length === 0 ? [] : ['', `export ${m.exports.join(', ')}`]),
 ].map(line => `${line}\n`).join('')

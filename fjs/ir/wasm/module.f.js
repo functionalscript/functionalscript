@@ -53,15 +53,27 @@
  *   an `if` for each arm but the last, which takes the variants that no arm
  *   before it took. An arm's name for the operand is the operand's local.
  * - **A `trap` is an `unreachable`.**
+ * - **A constant is a global**, which `constant` reads with `global.get`.
+ *   One of an interface is an immutable global that the module imports
+ *   from the interface's `abi` by the constant's name
+ *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)),
+ *   each constant of each interface that it imports, after the functions.
+ *   One of the module is a mutable global of zero, which `init`, a
+ *   function that the module exports where it has constants, sets to the
+ *   value of the constant's term, one constant at a time in their order
+ *   ([L0 design §20](../../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)).
  *
  * The functions keep their order and their names, which the name section
  * holds with their parameters and the locals of their `let`s and loops, and
  * an import is named for its interface and its function: `String.length`.
+ * `init` comes after them, with the locals of the constants' terms, and a
+ * global is named for its interface and its constant, `Any.undefined`, or
+ * for the module's constant.
  *
  * @module
  *
- * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
- * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm, TypedTerm } from '../types.ts'
+ * @import { BlockType, Export, Expr, FuncType, Import, IndirectNameMap, Instruction, Locals, Module as WasmModule, NameMap, ValType } from '../../media/wasm/types.ts'
+ * @import { Checked, ConstantOf, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
  */
@@ -69,7 +81,7 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { bitsOf } from '../../media/rust/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { compareIn, equal, fits, i, never, u } from '../module.f.js'
+import { compareIn, equal, fits, i, inside, never, u } from '../module.f.js'
 
 // values
 
@@ -481,27 +493,12 @@ const term = (env, [type, t]) => {
             assert(v[0] === 'make', v)
             return sequence(term, env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][Number(j)][1]])), [...setAll(env, target[1]), leave])
         }
+        case 'constant': { return just([['global.get', assertNotNullish(at(t[2])(assertNotNullish(at(t[1])(env.globals))))]]) }
         default: { return just([['unreachable']]) }
     }
 }
 
 // functions and modules
-
-/** The typed terms that a term holds, in their order. @type {(t: TypedTerm) => readonly Typed[]} */
-const inside = t => {
-    switch (t[0]) {
-        case 'let': { return [t[2], t[3]] }
-        case 'op': { return t[2] }
-        case 'call': { return t[3] }
-        case 'make': { return t[1].map(([, x]) => x) }
-        case 'field': { return [t[1]] }
-        case 'variant': case 'block': { return [t[3]] }
-        case 'match': { return [t[1], ...t[2].map(([, , x]) => x)] }
-        case 'loop': { return [...t[2].map(([, , x]) => x), t[3]] }
-        case 'br': { return [t[2]] }
-        default: { return [] }
-    }
-}
 
 /**
  * The block types that a term needs in the type section: the results of
@@ -534,22 +531,42 @@ const signature = (interfaces, { params, result }) => ({
 /** A callee, by its index and its signature. @type {(index: number, s: Signature) => _Callee} */
 const callee = (index, { params }) => [index, params.map(([, t]) => t)]
 
+/** An import of a function of an interface, by its type's index. @type {(abi: string, name: string, type: number) => Import} */
+const funcImport = (abi, name, type) => ({ module: abi, name, desc: ['func', type] })
+
+/** An import of a constant of an interface: an immutable global of its carrier. @type {(abi: string, name: string, type: ValType) => Import} */
+const globalImport = (abi, name, type) => ({ module: abi, name, desc: ['global', { type, mutable: false }] })
+
+/** An export of a function, by its index. @type {(name: string, index: number) => Export} */
+const funcExport = (name, index) => ({ name, kind: 'func', index })
+
+/** The value that a global of a constant holds until `init` sets it. @type {(t: ValType) => Instruction} */
+const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 0n] : ['i32.const', 0]
+
 /**
  * A checked module as a WASM module: an import for each function of each
- * interface that it imports, then a function each of its own, in their
- * order, a type for each distinct signature and then for each distinct
- * block type of more than one value, the exports by their names, and a
- * name section for the functions and their locals.
+ * interface that it imports, then for each of their constants, then a
+ * function each of its own, in their order, and `init` where it has
+ * constants, a global for each of its constants, a type for each distinct
+ * signature and then for each distinct block type of more than one value,
+ * the exports by their names, and a name section for the functions, their
+ * locals and the globals.
  *
  * @type {(m: Checked) => WasmModule}
  */
 export const emit = m => {
     const interfaces = fromEntries(m.imports)
     const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
+    const importedConstants = m.imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => ({ module, abi, member, t })))
+    const { constants } = m
+    /** @type {readonly FuncType[]} */
+    const init = constants.length === 0 ? [] : [{ params: [], results: [] }]
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
         ...m.functions.map(([, f]) => signature(interfaces, f)),
+        ...init,
         ...m.functions.flatMap(([, f]) => blockTypes(interfaces, f.body)),
+        ...constants.flatMap(([, c]) => blockTypes(interfaces, c.value)),
     ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
@@ -557,30 +574,66 @@ export const emit = m => {
         module,
         fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
     ])))
+    const globals = fromEntries([
+        ...m.imports.map(([module]) => /** @type {const} */ ([
+            module,
+            fromEntries(importedConstants.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, k])] : [])),
+        ])),
+        /** @type {const} */ (['self', fromEntries(constants.map(([name], k) => /** @type {const} */ ([name, importedConstants.length + k])))]),
+    ])
     const own = imported.length
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
+    /** @type {_Env} */
+    const base = { locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals }
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
+        ...base,
         locals: fromEntries(params.map(([name], k) => [name, k])),
         labels: setReplace('return')(/** @type {const} */ ([-1, ['block', result]]))(empty),
-        depth: 0,
         next: params.length,
-        functions,
-        imports,
-        interfaces,
-        types,
     }, 0, body, result))
+    const initIndex = own + m.functions.length
+    /** @type {(done: _Code, constant: readonly [string, ConstantOf<Typed>], k: number) => _Code} */
+    const evaluate = (done, [, { type, value }], k) => {
+        const c = valueOf(term, { ...base, next: done.locals.length }, 0, value, type)
+        return { code: [...done.code, ...c.code, ['global.set', importedConstants.length + k]], locals: [...done.locals, ...c.locals] }
+    }
+    const initCode = constants.reduce(evaluate, just([]))
+    /** The names of locals, from those of their functions' parameters on. @type {(names: readonly string[]) => NameMap} */
+    const named = names => names.map((name, j) => [j, name])
+    /** @type {IndirectNameMap} */
+    const localNames = [
+        ...m.functions.map(([, f], k) => /** @type {const} */ ([own + k, named([...f.params.map(([name]) => name), ...codes[Number(k)].locals.map(([name]) => name)])])),
+        ...(init.length === 0 ? [] : [/** @type {const} */ ([initIndex, named(initCode.locals.map(([name]) => name))])]),
+    ]
+    /** @type {NameMap} */
+    const globalNames = [
+        ...importedConstants.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
+        ...constants.map(([name], k) => /** @type {const} */ ([importedConstants.length + k, name])),
+    ]
     return {
         types,
-        imports: imported.map(({ abi, member }, k) => ({ module: abi, name: member, desc: ['func', typeOf(k)] })),
-        functions: codes.map((c, k) => ({
-            type: typeOf(own + k),
-            locals: runs(c.locals.map(([, t]) => t)),
-            body: c.code,
-        })),
+        imports: [
+            ...imported.map(({ abi, member }, k) => funcImport(abi, member, typeOf(k))),
+            ...importedConstants.map(({ abi, member, t }) => globalImport(abi, member, carrier(interfaces, t)[0])),
+        ],
+        functions: [
+            ...codes.map((c, k) => ({
+                type: typeOf(own + k),
+                locals: runs(c.locals.map(([, t]) => t)),
+                body: c.code,
+            })),
+            ...(init.length === 0 ? [] : [{ type: typeOf(initIndex), locals: runs(initCode.locals.map(([, t]) => t)), body: initCode.code }]),
+        ],
         tables: [],
         memories: [],
-        globals: [],
-        exports: m.exports.map(name => ({ name, kind: 'func', index: own + m.functions.findIndex(([k]) => k === name) })),
+        globals: constants.map(([, { type }]) => {
+            const t = carrier(interfaces, type)[0]
+            return { type: { type: t, mutable: true }, init: [zero(t)] }
+        }),
+        exports: [
+            ...m.exports.map(name => funcExport(name, own + m.functions.findIndex(([k]) => k === name))),
+            ...(init.length === 0 ? [] : [funcExport('init', initIndex)]),
+        ],
         start: null,
         elements: [],
         dataCount: null,
@@ -591,8 +644,10 @@ export const emit = m => {
                 ['function', [
                     ...imported.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
                     ...m.functions.map(([name], k) => /** @type {const} */ ([own + k, name])),
+                    ...(init.length === 0 ? [] : [/** @type {const} */ ([initIndex, 'init'])]),
                 ]],
-                ['local', m.functions.map(([, f], k) => [own + k, [...f.params.map(([name]) => name), ...codes[Number(k)].locals.map(([name]) => name)].map((name, j) => [j, name])])],
+                ['local', localNames],
+                ...(globalNames.length === 0 ? [] : [/** @type {const} */ (['global', globalNames])]),
             ]],
         }],
     }

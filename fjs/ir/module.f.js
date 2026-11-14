@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, Signature, Sum, Term, Type } from './types.ts'
+ * @import { ArmOf, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
  */
 
 // types
@@ -136,6 +136,14 @@ export const call = (module, name, args) => ['call', module, name, args]
 /** A product from its fields. @type {(fields: readonly (readonly [string, Term])[]) => Term} */
 export const make = fields => ['make', fields]
 
+/**
+ * A constant, borrowed: one of the module's own, `self`, or one of an
+ * interface that it imports, `constant('Any', 'undefined')`.
+ *
+ * @type {(module: string, name: string) => Term}
+ */
+export const constant = (module, name) => ['constant', module, name]
+
 /** A field of a product, by its name. @type {(e: Term, name: string) => Term} */
 export const field = (e, name) => ['field', e, name]
 
@@ -237,3 +245,37 @@ export const own = (name, type) => [name, type, 'own']
 
 /** Whether a parameter is owned. @type {(p: Param) => boolean} */
 export const isOwn = ([, , mode]) => mode === 'own'
+
+// the parts of a term
+
+/** The terms that a term holds, in their order. @type {(t: Term) => readonly Term[]} */
+export const terms = t => {
+    switch (t[0]) {
+        case 'let': { return [t[2], t[3]] }
+        case 'op': { return t[2] }
+        case 'call': { return t[3] }
+        case 'make': { return t[1].map(([, x]) => x) }
+        case 'field': { return [t[1]] }
+        case 'variant': case 'block': { return [t[3]] }
+        case 'match': { return [t[1], ...t[2].map(([, , x]) => x)] }
+        case 'loop': { return [...t[2].map(([, , x]) => x), t[3]] }
+        case 'br': { return [t[2]] }
+        default: { return [] }
+    }
+}
+
+/** The typed terms that a typed term holds, in their order, as `terms` reads a term. @type {(t: TypedTerm) => readonly Typed[]} */
+export const inside = t => {
+    switch (t[0]) {
+        case 'let': { return [t[2], t[3]] }
+        case 'op': { return t[2] }
+        case 'call': { return t[3] }
+        case 'make': { return t[1].map(([, x]) => x) }
+        case 'field': { return [t[1]] }
+        case 'variant': case 'block': { return [t[3]] }
+        case 'match': { return [t[1], ...t[2].map(([, , x]) => x)] }
+        case 'loop': { return [...t[2].map(([, , x]) => x), t[3]] }
+        case 'br': { return [t[2]] }
+        default: { return [] }
+    }
+}

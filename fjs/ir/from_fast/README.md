@@ -5,9 +5,10 @@ The lowering of the second to the fifth slices
 normalized FAST, as [`edag/to_fast`](../../edag/to_fast/README.md) makes it,
 to a module of the [IR](../README.md), for the part of the language that
 the first slice admits, for values of unknown kind, which the third reads
-through the L0 view, for the loops that the fourth adds, and for the
+through the L0 view, for the loops that the fourth adds, for the
 functions that the module does not export, the records and L1's native
-rows that the fifth adds. It reads FAST before
+rows that the fifth adds, and for the module constants that slice 6c adds.
+It reads FAST before
 [preparation](../../js/ast/prepare/README.md) adds mutable slots, as
 definition.md's
 [open question 2](../../../doc/sasha-gil/ir/definition.md#open-questions)
@@ -58,6 +59,8 @@ far more, gives the five functions that the slices name so far:
 | a call of a function that the function defines, or that the module does not export | its body, inlined where the call stands |
 | an object literal of names and values, `{ i: 0, value: 0 }` | a record: a `make` of its keys in their order, `{ i: 0.0, value: 0.0 }` |
 | `r.k` | `field(r, 'k')`, printed `r.k`; the field's own term where `r` is a record made there whose other fields do nothing |
+| any other definition of the module | a constant, `#c0`, `#c1`, … by its place among them, which a term reads as `self.#c0` |
+| `undefined`, `null` | `Any.undefined`, `Any.null`: constants of the L0 interface `Any` |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
 | `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
@@ -264,6 +267,47 @@ instruction for it: L1's `numberIndex` tests `n % 1 === 0`, which is
 runtime imports no row, so it refuses `%`, and `%` of integers is refused
 as their division is.
 
+## Constants
+
+Each definition of the module that is not a function is a constant, named
+for its place among them, `#c0` first, whose term reads only the
+constants before it: the IR's derived `init` evaluates them once, in their
+order
+([L0 design §20](../../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)),
+and a function borrows each one that it reads. A constant's term is
+lowered as a function's body is: it may call a function of the module or
+inline one that the module does not export, and reads an import itself
+where the normalization writes the read there, as it does `-NUMBER`. The
+module keeps the constants that its functions read, themselves or through
+the constants that they read, in their order.
+
+```js
+const half = 1 / 2
+const quarter = half * half
+export const f = a => a * quarter
+```
+
+```
+const #c0: f64 =
+    div(1.0, 2.0)
+
+const #c1: f64 =
+    mul(self.#c0, self.#c0)
+
+fn f(a: f64) -> f64 =
+    mul(a, self.#c1)
+```
+
+`undefined` and `null` are constants of `Any`, which the host makes
+([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)),
+so a module lowered without the runtime refuses them. A definition of
+`Math.abs` or `Math.sqrt`, which the normalization writes where a
+constant calls one, is that operator. A constant of a record is refused,
+since no global holds one, and so is a read of a constant before its
+definition, which normalized FAST never writes. A function that reads a
+constant that the lowering refuses is refused with its reason, after the
+constant's name: `f: #c0: g has no signature`.
+
 ## Operators
 
 Where JavaScript has one operator for two types, the operand's type picks
@@ -282,16 +326,16 @@ Everything else, with the function's name and the reason
 an import other than the runtime's, among them a JSON module, a function of
 the view other than these eleven, a cast of a value that never holds its
 kind, a native row other than `bigintEquals` and
-`numberRemainder`, a module constant that a lowered function reads, an
-exported function that the table does not name, which a lowered function
-calls, a function as a value, a function that calls itself or whose call
+`numberRemainder`, a constant of a record, a read of a constant before its
+definition, an exported function that the table does not name, which a
+lowered function or constant calls, a function as a value, a function that calls itself or whose call
 gives another number of arguments than it takes, a loop of more than one
 variable, a loop parameter of an integer range, in a record too, a `break`
 that does not end its loop's body, a `return` inside a loop or before the
 end of a function that is inlined, an entry of an object that is not a name
 and its value, such as a spread, a member read of anything but a name,
-`?.`, `throw`, a `lazy` definition, a string, `null`, `undefined`, a rest
-parameter, a spread argument, a statement of no result or of several, `%`
+`?.`, `throw`, a `lazy` definition, a string, `null` and `undefined` in a
+module lowered without the runtime, a rest parameter, a spread argument, a statement of no result or of several, `%`
 of integers, or in a module lowered without the runtime, and every
 operator not in the table, such as `**` and the bitwise ones. The
 [checker](../check/module.f.js)
@@ -328,7 +372,11 @@ that leaves its function.
   and read items, a loop that owns its string among them, writes their
   owned stage with the lifetime pass, which is written out there, and runs
   them against the functions themselves, with every cell of the host as it
-  found it after each call that answers.
+  found it after each call that answers. It lowers
+  [`constants.f.js`](./constants.f.js) too, six functions that read the
+  module's constants of floats, of a `bool` and of strings, and answer
+  `undefined`, and runs them after `init`, with every cell as `init` left
+  it.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript. Prefer
   `node --test` for it.

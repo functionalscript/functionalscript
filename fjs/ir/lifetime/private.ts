@@ -40,9 +40,10 @@ export type _Target =
 export type _Frame = readonly [label: string, outer: readonly string[], target: _Target]
 
 /**
- * Where a term stands: its function's name, the module's signatures and
- * interfaces, every name that the function binds, so that no new name takes
- * one, and the locals and the regions in scope.
+ * Where a term stands: the name of its function or its constant, the
+ * module's signatures and interfaces, every name that the function or the
+ * constant binds, so that no new name takes one, and the locals and the
+ * regions in scope.
  */
 export type _Env = {
     readonly fn: string

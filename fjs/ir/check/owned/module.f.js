@@ -31,12 +31,15 @@
  * - **A `match` lends its operand**, and the name of an arm is a borrow of
  *   it. A product holds borrows only, and no parameter of a loop is a
  *   product that holds a sealed value.
+ * - **A constant is a borrow that leans on nothing**, since nothing drops
+ *   it, and its term gives it an owned value, as a function's body gives
+ *   an owned result.
  *
  * @module
  *
  * @import { Result } from '../../../types/result/types.ts'
  * @import { OrderedMap } from '../../../types/ordered_map/types.ts'
- * @import { Checked, FunctionOf, Interface, LoopParamOf, Signature, Type, Typed, TypedArm } from '../../types.ts'
+ * @import { Checked, ConstantOf, FunctionOf, Interface, LoopParamOf, Signature, Type, Typed, TypedArm } from '../../types.ts'
  * @import { _Env, _Exit, _Label, _Local, _Mode, _Out, _Seq, _Value, _Walk } from './private.ts'
  */
 
@@ -310,15 +313,16 @@ const repeat = (walk, env, alive, label, start, params, e) => {
 }
 
 /**
- * The end of a function, at the end of its body or at a `br` to `return`:
- * nothing it owns is left, and it owns its value where its result holds a
- * sealed value.
+ * The end of a function, at the end of its body or at a `br` to `return`,
+ * or of a constant's term: nothing it owns is left, and it owns its value
+ * where its result holds a sealed value, since the caller, or the
+ * constant, owns it then. `lent` says why a borrowed value may not end it.
  *
- * @type {(env: _Env, alive: readonly string[], value: _Value) => Result<null, string>}
+ * @type {(env: _Env, alive: readonly string[], value: _Value, lent?: string) => Result<null, string>}
  */
-const end = (env, alive, value) =>
+const end = (env, alive, value, lent = 'the result is borrowed, and its caller would own it') =>
     alive.length > 0 ? no(env, `${are(alive)} left over`)
-    : holds(env.result) && value[0] !== 'owned' ? no(env, 'the result is borrowed, and its caller would own it')
+    : holds(env.result) && value[0] !== 'owned' ? no(env, lent)
     : ok(null)
 
 /**
@@ -366,6 +370,7 @@ const walk = (env, alive, [type, t], mode) => {
         case 'loop': { return loopTerm(walk, env, alive, mode, t[1], t[2], t[3]) }
         case 'br': { return brTerm(walk, env, alive, t[1], t[2]) }
         case 'trap': { return ok(out(null, plain, [])) }
+        case 'constant': { return ok(out(alive, holds(type) ? ['borrowed', []] : plain, [])) }
         default: { return ok(out(alive, plain, [])) }
     }
 }
@@ -389,14 +394,28 @@ const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
 }
 
 /**
- * A typed module's owned stage, checked: `null` where each of its functions
- * consumes each owned value once on every path, or why one does not.
+ * A constant: its term, from no owned local, which gives the constant an
+ * owned value where its type holds a sealed one.
+ *
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, ConstantOf<Typed>]) => Result<null, string>}
+ */
+const checkConstant = (functions, imports) => ([name, { type, value }]) => {
+    /** @type {_Env} */
+    const env = { name, result: type, functions, imports, locals: empty, labels: empty }
+    const r = walk(env, [], value, 'take')
+    return r[0] === 'error' ? r : end(env, assertNotNullish(r[1].next), r[1].value, 'the value is borrowed, and the constant would own it')
+}
+
+/**
+ * A typed module's owned stage, checked: `null` where each of its
+ * constants and its functions consumes each owned value once on every
+ * path, or why one does not.
  *
  * @type {(m: Checked) => Result<null, string>}
  */
 export const checkOwned = m => {
     const functions = fromEntries(m.functions)
     const imports = fromEntries(m.imports)
-    const failed = m.functions.map(checkFn(functions, imports)).find(r => r[0] === 'error')
+    const failed = [...m.constants.map(checkConstant(functions, imports)), ...m.functions.map(checkFn(functions, imports))].find(r => r[0] === 'error')
     return failed === undefined ? ok(null) : failed
 }

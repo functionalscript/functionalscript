@@ -24,7 +24,7 @@ import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any } from '../l0/module.f.js'
-import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings } from './testlib.mjs'
 
 // values
@@ -199,6 +199,17 @@ const twins = {
     steps: ([x]) => steps(num(x)),
     describe: ([v]) => typeof held(v) === 'number' ? asNumber(held(v)) : 0,
     kindOfFirst: ([v]) => BigInt(kind(held(v))),
+    halve: ([x]) => num(x) * 0.5,
+    eighth: () => 0.125,
+    answer: () => 42n,
+    far: () => -(1n << 40n),
+    less: () => false,
+    six: () => 6,
+    aa: () => ({ any: 'aa' }),
+    lengthOfAa: () => 2n,
+    nothingKind: () => BigInt(kind(null)),
+    truth: ([b]) => b,
+    orUndefined: ([v]) => ({ any: typeof held(v) === 'number' ? held(v) : undefined }),
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -254,4 +265,5 @@ export const proof = {
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),
     records: () => run(records, twins, inputs),
+    constants: () => run(constants, twins, inputs),
 }
