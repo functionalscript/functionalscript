@@ -109,8 +109,8 @@ before it and proved end to end on its own.
     checker's plain stage, `checkPlain` (#3864);
   - [x] lowering of L0 view functions that answer owned values (`concat`,
     `fromUnit`, `substring`, `item`), with helpers against JavaScript and
-    the random comparison through the pass.
-- [ ] **6c. Constants and `init`.** Any's `undefined`, `null`, `true` and
+    the random comparison through the pass (#3865).
+- [x] **6c. Constants and `init`** (#3866). Any's `undefined`, `null`, `true` and
   `false` as imported globals; module constants other than string and bigint
   literals (those are 6d); derived `init`; lowering of a module-level
   definition.

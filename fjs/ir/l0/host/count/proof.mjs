@@ -1,6 +1,7 @@
 /**
- * Host proofs of the counting host: how it counts, and hand-written IR of
- * the owned stage run on it, which leaves every cell as it found it. A
+ * Host proofs of the counting host: how it counts, what it keeps, and
+ * hand-written IR of the owned stage run on it, which leaves every cell as
+ * it found it. A
  * WebAssembly import is the boundary: a FunctionalScript proof can neither
  * instantiate a module nor hold the cells that the imports count.
  *
@@ -73,6 +74,23 @@ export const proof = {
         const c = counting([[t]])
         const x = c.imports.item(0n, 0)
         assertEq(`${c.read(x)} ${cells(c)}`, `${t} 0:1,1:1`)
+    },
+    // Any's constants are the cells -1 to -4, kept from the start, and keep keeps every cell alive at its count: live tells
+    // what changed since, a cell freed among it.
+    kept: () => {
+        const h = counting(['a'])
+        const { undefined: u, null: n, true: t, false: f } = h.imports
+        assertEq([u, n, t, f].map(g => `${g.value}:${String(h.read(g.value))}`).join(), '-1:undefined,-2:null,-3:true,-4:false')
+        assertEq(cells(h), '0:1')
+        h.imports.dup(-2n)
+        assertEq(cells(h), '0:1,-2:2')
+        h.imports.drop(-2n)
+        const s = h.imports.from_unit(0x61)
+        h.keep()
+        assertEq(cells(h), '')
+        h.imports.drop(s)
+        h.imports.dup(0n)
+        assertEq(cells(h), `0:2,${s}:0`)
     },
     // A handle of no cell throws, and so does one whose cell a drop freed.
     throw: {

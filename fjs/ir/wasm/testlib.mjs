@@ -16,9 +16,11 @@
  * owns its argument gets a `dup` of it, so that the caller keeps its own,
  * and a value of `any` that a call answers is the caller's, so the proof
  * reads it and drops it.
- * A call that completes then leaves those cells as it found them, each
- * counted once, and no other cell: a module that keeps or frees a value
- * that it borrows shows, and so does one that leaves a value over.
+ * Where the module has constants, `init` evaluates them first, and the host
+ * then keeps every cell alive, what `init` made among them, since nothing
+ * drops a constant. A call that completes then leaves every cell as it
+ * found it, and no other cell: a module that keeps or frees a value that
+ * it borrows shows, and so does one that leaves a value over.
  *
  * @module
  *
@@ -174,6 +176,9 @@ export const run = (m, twins, inputs) => {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
             const h = counting(values)
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read) })
+            const { init } = exports
+            if (typeof init === 'function') { init() }
+            h.keep()
             const f = exports[name]
             assert(typeof f === 'function', name)
             /** @type {(v: _Value, k: number) => unknown} */
@@ -189,7 +194,7 @@ export const run = (m, twins, inputs) => {
             const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(got[1], expected[1])
             assert(agree, [name, xs, got, expected])
             const cells = h.live().map(([k, count]) => `${k}:${count}`).join()
-            assert(got[0] === 'threw' || cells === values.map((_, k) => `${k}:1`).join(), [name, xs, cells])
+            assert(got[0] === 'threw' || cells === '', [name, xs, cells])
         }
     }
 }

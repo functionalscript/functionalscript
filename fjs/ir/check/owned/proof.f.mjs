@@ -8,7 +8,7 @@
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { any, l0 } from '../../l0/module.f.js'
 import {
-    add, block, bool, br, call, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, next, only, own, return_, trap, true_, u, unit,
+    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, next, only, own, return_, trap, true_, u, unit,
     variant,
 } from '../../module.f.js'
 import { check } from '../module.f.js'
@@ -65,6 +65,14 @@ const cb = /** @type {const} */ ([['c', u(16)], ['b', bool]])
 /** `a`, a borrowed string, and `b`, a condition. */
 const ab = /** @type {const} */ ([['a', string], ['b', bool]])
 
+/** A module over L0 of constants and functions, which exports none. @type {(cs: NonNullable<Module['constants']>, fs?: Module['functions']) => Module} */
+const withConstants = (cs, fs = []) => ({ imports: l0, constants: cs, functions: fs, exports: [] })
+
+/** A constant of the module. @type {(name: string) => Term} */
+const self = name => constant('self', name)
+
+const letterA = lit(u(16), 0x61n)
+
 export const proof = {
     // What consumes each owned value once on every path.
     accept: {
@@ -110,6 +118,17 @@ export const proof = {
         // An arm that never completes is left out of the join, so the arm that moves v agrees with nothing.
         armTraps: () => fine(overL0([own('v', any)], any, match(get('v'), [[['string'], null, get('v')], [null, null, trap('no')]]))),
         variant: () => fine(overL0([], bool, true_)),
+        // A constant owns its value: a string that from_unit answers, a dup of a constant, or a float, which is plain.
+        // A term borrows a constant, and a function answers a dup of one.
+        constants: () => fine(withConstants([
+            ['a', { type: string, value: fromUnit(letterA) }],
+            ['n', { type: only(any, 'null'), value: dup(constant('Any', 'null')) }],
+            ['x', { type: f64, value: one }],
+        ], [
+            ['f', fn([], string, dup(self('a')))],
+            ['g', fn([], u(31), length(self('a')))],
+            ['h', fn([], f64, self('x'))],
+        ])),
         // A call that never returns, and terms that never complete, end the paths they are on.
         never: () => fine(overL0([['x', f64]], f64, call('self', 'g', [get('x')]), [['g', fn([['x', f64]], ['sum', []], trap('g'))]])),
         stuck: {
@@ -127,6 +146,14 @@ export const proof = {
     },
     // One refusal per rule.
     refuse: {
+        // A constant owns its value, which a borrow is not, and its term leaves nothing over.
+        constantBorrowed: () => assertEq(why(withConstants([['k', { type: only(any, 'null'), value: constant('Any', 'null') }]])), 'k: the value is borrowed, and the constant would own it'),
+        constantLeft: () => assertEq(why(withConstants([['k', { type: f64, value: leak(one) }]])), 'k: s is left over'),
+        // A function that answers a constant answers a borrow.
+        constantResult: () => assertEq(
+            why(withConstants([['a', { type: string, value: fromUnit(letterA) }]], [['f', fn([], string, self('a'))]])),
+            'f: the result is borrowed, and its caller would own it',
+        ),
         // A refusal inside a term is the term's, wherever the term stands.
         inside: {
             field: () => assertEq(why(overL0([], f64, field(make([['x', leak(one)]]), 'x'))), left),

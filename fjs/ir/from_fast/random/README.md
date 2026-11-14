@@ -5,7 +5,8 @@ the [slices](../../todo/slices.md) lower so far, takes each program through
 normalized FAST, the lowering, the
 [lifetime pass](../../lifetime/module.f.js), the checker and the emitter,
 and runs the WASM against the same body as JavaScript, with every cell of
-the host as it found it after each call that answers.
+the host as it found it after each call that answers, or, where the module
+has constants, as `init` left it.
 
 It is the first pull request of slice 6: it found the three refusal defects
 that example proofs at 100% coverage missed (#3837), and it stays as each
@@ -22,8 +23,8 @@ const out = compare(0x4f1c_5e2d, 120, 80)
 
 | Generator | Writes |
 | --- | --- |
-| typed | floats, booleans, small integer ranges, an unexported helper, a short loop, `%`, a record kept inside the function |
-| any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind; since 6b, `concat`, `fromUnit`, `substring` and `item`, whose values the caller owns, and a loop that owns its string |
+| typed | floats, booleans, small integer ranges, an unexported helper, a short loop, `%`, a record kept inside the function; since 6c, module constants of floats, each reading the ones before it, and a `bool` of two of them |
+| any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind; since 6b, `concat`, `fromUnit`, `substring` and `item`, whose values the caller owns, and a loop that owns its string; since 6c, a constant of a string that `init` makes, and `undefined` and `null` |
 
 A program whose **integer** signature's body range past that signature the
 checker refuses is counted and not run. The same diagnostic against an

@@ -10,7 +10,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, next, only, own, return_, sealed,
+    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, next, only, own, return_, sealed,
     signature, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
@@ -21,10 +21,11 @@ const string = only(any, 'string')
 /** @type {Sealed} */
 const res = sealed('Lin', 'res')
 
-/** A linear type, which nothing copies or drops: `open` makes a value of it, `peek` borrows one and `close` owns one. @type {readonly [string, Interface]} */
+/** A linear type, which nothing copies or drops: `open` makes a value of it, `peek` borrows one and `close` owns one, and `it` is a constant of it. @type {readonly [string, Interface]} */
 const linear = ['Lin', {
     abi: 'test:lin',
     types: [['res', { variants: ['res'], kind: 'kind', carrier: 'i64' }]],
+    constants: [['it', res]],
     functions: [
         ['kind', signature([['r', res]], int(0n, 0n))],
         ['open', signature([], res)],
@@ -49,6 +50,19 @@ const owned = m => {
 
 /** @type {(m: Module, lines: readonly string[]) => void} */
 const golden = (m, lines) => assertEq(owned(m), lines.map(line => `${line}\n`).join(''))
+
+/** A module over L0 and the linear type of constants and functions, which exports none. @type {(cs: NonNullable<Module['constants']>, fs?: Module['functions']) => Module} */
+const withConstants = (cs, fs = []) => ({ imports: [...l0, linear], constants: cs, functions: fs, exports: [] })
+
+/** The constants and the functions of a module's owned stage, as text, which the checker takes. @type {(m: Module, lines: readonly string[]) => void} */
+const constantsGolden = (m, lines) => {
+    const r = assertOk(lifetime(m))
+    assertOk(check(r))
+    assertEq(print({ ...r, imports: [] }), lines.map(line => `${line}\n`).join(''))
+}
+
+/** A constant of the module. @type {(name: string) => Term} */
+const self = name => constant('self', name)
 
 /** @type {(m: Module, message: string) => void} */
 const refused = (m, message) => assertEq(assertError(lifetime(m)), message)
@@ -310,6 +324,50 @@ export const proof = {
             '    y',
         ]),
         // A value of the linear type that a parameter that owns it takes over.
+        // A constant owns its value, so a term that takes one over takes a dup of it, and one that reads it reads it as it is. A
+        // constant's term drops what it owns, as a body does, and a constant of a float is plain.
+        constants: () => constantsGolden(withConstants([
+            ['a', { type: string, value: fromUnit(letterA) }],
+            ['aa', { type: string, value: concat(self('a'), self('a')) }],
+            ['n', { type: only(any, 'null'), value: constant('Any', 'null') }],
+            ['x', { type: f64, value: one }],
+            ['len', { type: u(31), value: let_('s', fromUnit(letterA), s => length(s)) }],
+        ], [
+            ['f', fn([], string, self('aa'))],
+            ['g', fn([], u(31), length(self('a')))],
+            ['h', fn([], f64, self('x'))],
+            ['p', fn([], f64, peek(constant('Lin', 'it')))],
+        ]), [
+            'const a: any.only(string) =',
+            '    String.from_unit(97 as u(16))',
+            '',
+            'const aa: any.only(string) =',
+            '    String.concat(self.a, self.a)',
+            '',
+            'const n: any.only(null) =',
+            '    Any.dup(Any.null)',
+            '',
+            'const x: f64 =',
+            '    1.0 as f64',
+            '',
+            'const len: u(31) =',
+            '    let s = String.from_unit(97 as u(16))',
+            '    let $0 = String.length(s)',
+            '    let $1 = Any.drop(s)',
+            '    $0',
+            '',
+            'fn f() -> any.only(string) =',
+            '    Any.dup(self.aa)',
+            '',
+            'fn g() -> u(31) =',
+            '    String.length(self.a)',
+            '',
+            'fn h() -> f64 =',
+            '    self.x',
+            '',
+            'fn p() -> f64 =',
+            '    Lin.peek(Lin.it)',
+        ]),
         linear: () => golden(module_([], f64, let_('r', open, r => let_('x', peek(r), x => let_('d', close(r), () => x)))), [
             'fn f() -> f64 =',
             '    let r = Lin.open()',
@@ -348,6 +406,9 @@ export const proof = {
             body: () => refused(module_([], f64, loop('L', [['i', f64, one]], () => left('r'))), leftOver('r')),
             br: () => refused(module_([], f64, block('L', f64, br('L', left('r')))), leftOver('r')),
         },
+        // A constant of a linear type, which a term takes over, and a constant's term that leaves a value of one over.
+        constant: () => refused(withConstants([], [['f', fn([], res, constant('Lin', 'it'))]]), 'f: a copy of Lin.it is needed, and res is linear: nothing copies it'),
+        constantLeft: () => refused(withConstants([['k', { type: f64, value: left('r') }]]), 'k: r is left over, and res is linear: nothing drops it'),
         // The checker refuses the plain stage before the pass sees it.
         plain: () => refused(module_([], f64, get('nope')), 'f: no local nope'),
     },

@@ -15,7 +15,10 @@
  * out below, to read beside the original. So do the string helpers of
  * [`strings.f.js`](./strings.f.js), whose owned stage, which the
  * [lifetime pass](../lifetime/module.f.js) writes, is written out too: each
- * leaves every cell of the host as it found it.
+ * leaves every cell of the host as it found it. So do the functions of
+ * [`constants.f.js`](./constants.f.js), which read the module's other
+ * definitions: each call comes after `init`, which evaluates them, and
+ * leaves every cell as `init` left it.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -34,7 +37,10 @@ import * as helpers from './helpers.f.js'
 import { lower } from './module.f.js'
 import * as sample from './sample.f.js'
 import * as strings from './strings.f.js'
-import { helpers as helperSignatures, l1, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime } from './testlib.f.mjs'
+import * as constants from './constants.f.js'
+import {
+    constants as constantSignatures, helpers as helperSignatures, l1, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
+} from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
 const fromText = (url, table, r = null) => {
@@ -53,6 +59,9 @@ const fromHelpers = () => fromText(new URL('./helpers.f.js', import.meta.url), h
 
 /** The owned stage of the module that the lowering makes of the string helpers' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
 const fromStrings = () => assertOk(lifetime(fromText(new URL('./strings.f.js', import.meta.url), stringSignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of the constants' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromConstants = () => assertOk(lifetime(fromText(new URL('./constants.f.js', import.meta.url), constantSignatures, stringsRuntime)))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -115,6 +124,16 @@ const pairs = product([operands, operands])
 const float64 = v => {
     assert(typeof v === 'number', v)
     return v
+}
+
+/** The functions that read constants, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
+const constantTwins = {
+    scale: ([x]) => constants.scale(float64(x)),
+    twice: ([x]) => constants.twice(float64(x)),
+    shift: ([x]) => constants.shift(float64(x)),
+    narrow: ([x]) => constants.narrow(float64(x)),
+    dashed: ([v]) => ({ any: constants.dashed(held(v)) }),
+    numberOrUndefined: ([v]) => ({ any: constants.numberOrUndefined(held(v)) }),
 }
 
 /** The string helpers, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
@@ -256,6 +275,10 @@ export const proof = {
         'import Any from fjs:l0',
         '    type any = undefined | null | boolean | number | string | bigint | array | object | function',
         '        kind: kind, carrier: i64, dup: dup, drop: drop',
+        '    const undefined: any.only(undefined)',
+        '    const null: any.only(null)',
+        '    const true: any.only(boolean)',
+        '    const false: any.only(boolean)',
         '    fn kind(v: any) -> int(0, 8)',
         '    fn to_f64(v: any.only(number)) -> f64c',
         '    fn to_bool(v: any.only(boolean)) -> bool',
@@ -800,6 +823,69 @@ export const proof = {
         ].join('\n'))
     },
     stringsRun: () => run(fromStrings(), stringTwins, stringInputs),
+    // The constants' owned stage: each constant owns its value, and a function that answers one answers a dup of it.
+    constants: () => {
+        const m = fromConstants()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'const #c0: f64 =',
+            '    div(1.0, 2.0)',
+            '',
+            'const #c1: f64 =',
+            '    mul(self.#c0, self.#c0)',
+            '',
+            'const #c2: f64 =',
+            '    twice(2.0)',
+            '',
+            'const #c3: f64 =',
+            '    mul(mul(2.0, 2.0), 2.0)',
+            '',
+            'const #c4: bool =',
+            '    lt(self.#c1, self.#c0)',
+            '',
+            'const #c5: any.only(string) =',
+            '    let fromUnit.unit = trunc_sat(u(16), 45.0)',
+            "    if eq(float(fromUnit.unit), 45.0) then String.from_unit(fromUnit.unit) else trap('inexact')",
+            '',
+            'const #c6: any.only(string) =',
+            '    String.concat(self.#c5, self.#c5)',
+            '',
+            'fn dashed(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 4.0)',
+            '    then',
+            '        let #0 =',
+            '            match v',
+            '              string as v.string =>',
+            '                String.concat(self.#c6, v.string)',
+            '              else =>',
+            "                trap('not string')",
+            '        let $0 = String.concat(#0, self.#c6)',
+            '        let $1 = Any.drop(#0)',
+            '        $0',
+            '    else',
+            '        Any.dup(self.#c5)',
+            '',
+            'fn narrow(x: f64) -> f64 =',
+            '    if self.#c4 then mul(x, self.#c0) else x',
+            '',
+            'fn numberOrUndefined(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 3.0) then Any.dup(v) else Any.dup(Any.undefined)',
+            '',
+            'fn scale(x: f64) -> f64 =',
+            '    add(mul(x, self.#c1), self.#c0)',
+            '',
+            'fn shift(x: f64) -> f64 =',
+            '    sub(add(x, self.#c2), self.#c3)',
+            '',
+            'fn twice(x: f64) -> f64 =',
+            '    add(x, x)',
+            '',
+            'export dashed, narrow, numberOrUndefined, scale, shift, twice',
+            '',
+        ].join('\n'))
+    },
+    // Each call comes after `init`, on cells that the host then keeps, the constants' among them, and leaves them as it found them.
+    constantsRun: () => run(fromConstants(), constantTwins, {}),
     l1Run: () => run(fromL1(), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),

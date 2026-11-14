@@ -4,8 +4,8 @@
  * of the kind that the first slice is for, among them one for each integer
  * instruction that the emitter writes, `corners`, the forms that the
  * emitter handles once each, `unknown`, functions over values of unknown
- * kind, as the third slice reads them, `loops`, the fourth slice's, and
- * `records`, the fifth's.
+ * kind, as the third slice reads them, `loops`, the fourth slice's,
+ * `records`, the fifth's, and `constants`, the sixth's.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -17,7 +17,7 @@
 
 import { any, l0 } from './l0/module.f.js'
 import {
-    abs, add, block, bool, br, call, cast, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
+    abs, add, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
     let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, product, return_, sqrt, sub, trap, true_,
     trunc_sat, u, unit, variant,
 } from './module.f.js'
@@ -281,4 +281,52 @@ export const records = {
             let_('r', make([['p', v], ['q', w]]), r => kindOf(field(r, 'p'))))],
     ],
     exports: ['stringIndex', 'midpoint', 'fib', 'choose', 'middle', 'widened', 'nested', 'steps', 'describe', 'kindOfFirst'],
+}
+
+/** A constant of the module. @type {(name: string) => Term} */
+const self = name => constant('self', name)
+
+/** A `dup` of a value of `any`, which the caller owns. @type {(x: Term) => Term} */
+const dup = x => call('Any', 'dup', [x])
+
+/**
+ * Constants, which `init` evaluates in their order, each reading only
+ * those before it: the module's own of each word that a global holds, a
+ * float, a range of 32 bits and one of 64, a `bool` and strings, one read
+ * through a function of the module, one with a `let` and one with a loop
+ * whose value is a product, whose block type the type section holds; and
+ * Any's, which the module imports and borrows. A constant owns its value,
+ * and a function that answers one answers a `dup` of it.
+ *
+ * @type {Module}
+ */
+export const constants = {
+    imports: l0,
+    constants: [
+        ['half', { type: f64, value: div(c(1), c(2)) }],
+        ['quarter', { type: f64, value: mul(self('half'), self('half')) }],
+        ['eighth', { type: f64, value: let_('q', self('quarter'), q => call('self', 'halve', [q])) }],
+        ['answer', { type: u(8), value: n(42n) }],
+        ['far', { type: i(64), value: n(-far) }],
+        ['less', { type: bool, value: lt(self('half'), self('quarter')) }],
+        ['six', { type: f64, value: field(loop('L', [['k', f64, c(0)], ['s', f64, c(0)]], (k, s) =>
+            if_(lt(k, c(4)), next('L', [['k', add(k, c(1))], ['s', add(s, k)]]), make([['k', k], ['s', s]]))), 's') }],
+        ['a', { type: string, value: call('String', 'from_unit', [n(0x61n)]) }],
+        ['aa', { type: string, value: call('String', 'concat', [self('a'), self('a')]) }],
+        ['nothing', { type: only(any, 'null'), value: dup(constant('Any', 'null')) }],
+    ],
+    functions: [
+        ['halve', fn([['x', f64]], f64, x => mul(x, self('half')))],
+        ['eighth', fn([], f64, self('eighth'))],
+        ['answer', fn([], u(8), self('answer'))],
+        ['far', fn([], i(64), self('far'))],
+        ['less', fn([], bool, self('less'))],
+        ['six', fn([], f64, self('six'))],
+        ['aa', fn([], string, dup(self('aa')))],
+        ['lengthOfAa', fn([], u(31), lengthOf('String')(self('aa')))],
+        ['nothingKind', fn([], int(0n, 8n), kindOf(self('nothing')))],
+        ['truth', fn([['b', bool]], bool, b => if_(b, call('Any', 'to_bool', [constant('Any', 'true')]), call('Any', 'to_bool', [constant('Any', 'false')])))],
+        ['orUndefined', fn([['v', any]], any, v => match(v, [[['number'], 'x', dup(get('x'))], [null, null, dup(constant('Any', 'undefined'))]]))],
+    ],
+    exports: ['halve', 'eighth', 'answer', 'far', 'less', 'six', 'aa', 'lengthOfAa', 'nothingKind', 'truth', 'orUndefined'],
 }
