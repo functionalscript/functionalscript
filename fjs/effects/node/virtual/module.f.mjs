@@ -1434,7 +1434,7 @@ const onMemory = f => state => {
  *
  * @satisfies {PartialMemOperationMap<NodeOp, State>}
  */
-const baseOperationMap = {
+const baseOperationMap = /** @type {const} */ ({
     memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
     memRead: key => onMemory(memoryOperationMap.memRead(key)),
     memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
@@ -1493,7 +1493,7 @@ const baseOperationMap = {
             ? [state, ok(null)]
             : [{ ...state, stdin: rest }, ok(first)]
     },
-}
+})
 
 /**
  * The interpreter supplies its runner to `listen` when it steps the transition,
@@ -1501,7 +1501,7 @@ const baseOperationMap = {
  *
  * @satisfies {PartialMemOperationMapWithRunner<NodeOp, State>}
  */
-const operationMap = { ...baseOperationMap, listen }
+const operationMap = /** @type {const} */ ({ ...baseOperationMap, listen })
 
 /**
  * The virtual runner.
@@ -1537,13 +1537,13 @@ export const virtual = partialRun(nodeCommands)(operationMap)
  *
  * @satisfies {PartialMemOperationMap<NodeOp, State>}
  */
-export const virtualOperationMap = {
+export const virtualOperationMap = /** @type {const} */ ({
     ...baseOperationMap,
     listen: (server, port, host) => {
         const transition = listen(server, port, host)
         return state => transition(state, virtual)
     },
-}
+})
 
 /**
  * The virtual runner over {@link emptyState} with `root` as its filesystem: the
