@@ -121,6 +121,14 @@ export const proof = {
             return BigInt(typeof x === 'string' ? x.length : 0)
         } },
         {}),
+    // An exported function that owns its argument drops it, and its caller keeps a count of its own.
+    ownsExported: () => run(
+        owned(module_([own('v', any)], u(31), match(get('v'), [[['string'], 's', length(get('s'))], [null, null, lit(u(31), 0n)]]))),
+        { f: ([v]) => {
+            const x = held(v)
+            return BigInt(typeof x === 'string' ? x.length : 0)
+        } },
+        {}),
     // A br out of a loop to the function's end drops what the loop and the function own.
     out: () => run(
         owned(module_([['c', u(16)], ['k', f64]], f64, let_('s', fromUnit(c), s => loop('L', [['t', string, concat(s, s)], ['i', f64, zero]], (t, i) =>
