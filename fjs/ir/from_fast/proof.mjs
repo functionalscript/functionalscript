@@ -12,7 +12,13 @@
  * values, `strictEquals` on pairs of values of every kind, and
  * `stringIndex`, whose loop keeps a record, on spellings of indices and on
  * values of other kinds. The IR that the lowering makes of each is written
- * out below, to read beside the original.
+ * out below, to read beside the original. So do the string helpers of
+ * [`strings.f.js`](./strings.f.js), whose owned stage, which the
+ * [lifetime pass](../lifetime/module.f.js) writes, is written out too: each
+ * leaves every cell of the host as it found it. So do the functions of
+ * [`constants.f.js`](./constants.f.js), which read the module's other
+ * definitions: each call comes after `init`, which evaluates them, and
+ * leaves every cell as `init` left it.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -20,16 +26,21 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { strictEquals, stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
+import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
 import * as helpers from './helpers.f.js'
 import { lower } from './module.f.js'
 import * as sample from './sample.f.js'
-import { helpers as helperSignatures, l1, runtime, signatures, sourceOf } from './testlib.f.mjs'
+import * as strings from './strings.f.js'
+import * as constants from './constants.f.js'
+import {
+    constants as constantSignatures, helpers as helperSignatures, l1, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
+} from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
 const fromText = (url, table, r = null) => {
@@ -45,6 +56,12 @@ const fromL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', impor
 
 /** The module that the lowering makes of the helpers' text, over the runtime. @type {() => Module} */
 const fromHelpers = () => fromText(new URL('./helpers.f.js', import.meta.url), helperSignatures, runtime)
+
+/** The owned stage of the module that the lowering makes of the string helpers' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromStrings = () => assertOk(lifetime(fromText(new URL('./strings.f.js', import.meta.url), stringSignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of the constants' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromConstants = () => assertOk(lifetime(fromText(new URL('./constants.f.js', import.meta.url), constantSignatures, stringsRuntime)))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -102,6 +119,56 @@ const operands = ['', 'a', 'b', 'ab', 'ba', 'abc', 'abd', '\u0000', '\uffff', '\
 
 /** Every pair of operands, for both string comparisons. */
 const pairs = product([operands, operands])
+
+/** A float that a twin gets. @type {(v: _Value) => number} */
+const float64 = v => {
+    assert(typeof v === 'number', v)
+    return v
+}
+
+/** The functions that read constants, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
+const constantTwins = {
+    scale: ([x]) => constants.scale(float64(x)),
+    twice: ([x]) => constants.twice(float64(x)),
+    shift: ([x]) => constants.shift(float64(x)),
+    narrow: ([x]) => constants.narrow(float64(x)),
+    dashed: ([v]) => ({ any: constants.dashed(held(v)) }),
+    numberOrUndefined: ([v]) => ({ any: constants.numberOrUndefined(held(v)) }),
+}
+
+/** The string helpers, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
+const stringTwins = {
+    pair: ([a, b]) => ({ any: strings.pair(float64(a), float64(b)) }),
+    twice: ([s]) => ({ any: strings.twice(held(s)) }),
+    inner: ([s]) => ({ any: strings.inner(held(s)) }),
+    trimStart: ([s]) => ({ any: strings.trimStart(held(s)) }),
+    lastOfTwice: ([s]) => strings.lastOfTwice(held(s)),
+    first: ([v]) => ({ any: strings.first(held(v)) }),
+}
+
+/**
+ * Inputs of the string helpers: units at both ends of their range, past
+ * them and between two integers; strings of each length up to four, a
+ * surrogate half, and spaces at either end and between; arrays and objects
+ * of a string, of a container and of nothing; and values of the kinds that
+ * the helpers do not take.
+ *
+ * @type {StringMap<readonly (readonly _Value[])[]>}
+ */
+const stringInputs = (() => {
+    const texts = ['', 'a', 'ab', 'abc', 'abcd', '\ud83d', ' ', '  ', ' a', '  a b ', 'a  ']
+    const others = [undefined, null, true, 0, NaN, 1n, ['a'], { a: 'x' }, () => 0]
+    const of = (/** @type {readonly unknown[]} */ xs) => xs.map(any => [{ any }])
+    const containers = [[], ['x', 2], [[3]], {}, { a: 'x' }, { a: { b: 1 } }]
+    return {
+        pair: product([[0x61, 0, -0, 0xffff, 0x1_0000, -1, 0.5, NaN, Infinity], [0x62, 0xd83d]]),
+        twice: of([...texts, ...others]),
+        inner: of([...texts, ...others]),
+        trimStart: of([...texts, ...others]),
+        lastOfTwice: of([...texts, ...others]),
+        first: of([...containers, ...texts, ...others]),
+    }
+})()
 
 export const proof = {
     ir: () => assertEq(print(lowered()), [
@@ -208,6 +275,10 @@ export const proof = {
         'import Any from fjs:l0',
         '    type any = undefined | null | boolean | number | string | bigint | array | object | function',
         '        kind: kind, carrier: i64, dup: dup, drop: drop',
+        '    const undefined: any.only(undefined)',
+        '    const null: any.only(null)',
+        '    const true: any.only(boolean)',
+        '    const false: any.only(boolean)',
         '    fn kind(v: any) -> int(0, 8)',
         '    fn to_f64(v: any.only(number)) -> f64c',
         '    fn to_bool(v: any.only(boolean)) -> bool',
@@ -220,12 +291,14 @@ export const proof = {
         '    fn unit(s: any.only(string), i: u(31)) -> u(16)',
         '    fn from_unit(c: u(16)) -> any.only(string)',
         '    fn concat(a: any.only(string), b: any.only(string)) -> any.only(string)',
+        '    fn substring(s: any.only(string), start: u(31), end: u(31)) -> any.only(string)',
         '',
         'import BigInt from fjs:l0',
         '    fn length(b: any.only(bigint)) -> u(31)',
         '',
         'import Containers from fjs:l0',
         '    fn length(c: any.only(array, object)) -> u(31)',
+        '    fn item(c: any.only(array, object), i: u(31)) -> any',
         '',
         'import Functions from fjs:l0',
         '    fn length(f: any.only(function)) -> u(31)',
@@ -595,6 +668,224 @@ export const proof = {
         ].join('\n'))
     },
     helpersRun: () => run(fromHelpers(), twinsOf(helpers), helperInputs),
+    strings: () => {
+        const m = fromStrings()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'fn first(v: any) -> any =',
+            '    if',
+            '        let #0 = float(Any.kind(v))',
+            '        let #1 = eq(#0, 6.0)',
+            '        let #2 = if #1 then #1 else eq(#0, 7.0)',
+            '        if #2',
+            '        then',
+            '            let #3 =',
+            '                float(',
+            '                    match v',
+            '                      string as v.string =>',
+            '                        String.length(v.string)',
+            '                      bigint as v.bigint =>',
+            '                        BigInt.length(v.bigint)',
+            '                      array | object as v.containers =>',
+            '                        Containers.length(v.containers)',
+            '                      function as v.functions =>',
+            '                        Functions.length(v.functions)',
+            '                      undefined | null | boolean | number =>',
+            "                        trap('no length')",
+            '                )',
+            '            lt(0.0, #3)',
+            '        else',
+            '            #2',
+            '    then',
+            '        match v',
+            '          array | object as v.item =>',
+            '            let v.index = trunc_sat(u(31), 0.0)',
+            "            if eq(float(v.index), 0.0) then Containers.item(v.item, v.index) else trap('inexact')",
+            '          else =>',
+            "            trap('not array or object')",
+            '    else',
+            '        Any.dup(v)',
+            '',
+            'fn inner(s: any) -> any.only(string) =',
+            '    let #0 =',
+            '        sub(',
+            '            float(',
+            '                match s',
+            '                  string as s.string =>',
+            '                    String.length(s.string)',
+            '                  bigint as s.bigint =>',
+            '                    BigInt.length(s.bigint)',
+            '                  array | object as s.containers =>',
+            '                    Containers.length(s.containers)',
+            '                  function as s.functions =>',
+            '                    Functions.length(s.functions)',
+            '                  undefined | null | boolean | number =>',
+            "                    trap('no length')",
+            '            ),',
+            '            1.0',
+            '        )',
+            '    match s',
+            '      string as s.string =>',
+            '        let s.end = trunc_sat(u(31), #0)',
+            '        if eq(float(s.end), #0)',
+            '        then',
+            '            let s.start = trunc_sat(u(31), 1.0)',
+            "            if eq(float(s.start), 1.0) then String.substring(s.string, s.start, s.end) else trap('inexact')",
+            '        else',
+            "            trap('inexact')",
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'fn lastOfTwice(s: any) -> f64 =',
+            '    let #0 =',
+            '        match s',
+            '          string as s.string =>',
+            '            String.concat(s.string, s.string)',
+            '          else =>',
+            "            trap('not string')",
+            '    let $0 =',
+            '        if eq(float(String.length(#0)), 0.0)',
+            '        then',
+            '            -1.0',
+            '        else',
+            '            add(',
+            '                let #1 = sub(float(String.length(#0)), 1.0)',
+            '                float(',
+            '                    let #1.index = trunc_sat(u(31), #1)',
+            "                    if eq(float(#1.index), #1) then String.unit(#0, #1.index) else trap('inexact')",
+            '                ),',
+            '                float(String.length(#0))',
+            '            )',
+            '    let $1 = Any.drop(#0)',
+            '    $0',
+            '',
+            'fn pair(a: f64, b: f64) -> any.only(string) =',
+            '    let #0 =',
+            '        let a.unit = trunc_sat(u(16), a)',
+            "        if eq(float(a.unit), a) then String.from_unit(a.unit) else trap('inexact')",
+            '    let $2 =',
+            '        let #1 =',
+            '            let b.unit = trunc_sat(u(16), b)',
+            "            if eq(float(b.unit), b) then String.from_unit(b.unit) else trap('inexact')",
+            '        let $0 = String.concat(#0, #1)',
+            '        let $1 = Any.drop(#1)',
+            '        $0',
+            '    let $3 = Any.drop(#0)',
+            '    $2',
+            '',
+            'fn trimStart(s: any) -> any.only(string) =',
+            '    let #0 =',
+            '        match s',
+            '          string as s.string =>',
+            '            Any.dup(s.string)',
+            '          else =>',
+            "            trap('not string')",
+            '    loop L0 (#1: any.only(string) = #0)',
+            '        if',
+            '            let #2 =',
+            '                let #2 = float(String.length(#1))',
+            '                lt(0.0, #2)',
+            '            if #2',
+            '            then',
+            '                eq(',
+            '                    float(',
+            '                        let unit.index = trunc_sat(u(31), 0.0)',
+            "                        if eq(float(unit.index), 0.0) then String.unit(#1, unit.index) else trap('inexact')",
+            '                    ),',
+            '                    32.0',
+            '                )',
+            '            else',
+            '                #2',
+            '        then',
+            '            let $0 =',
+            '                let #2 = float(String.length(#1))',
+            '                let #1.end = trunc_sat(u(31), #2)',
+            '                if eq(float(#1.end), #2)',
+            '                then',
+            '                    let #1.start = trunc_sat(u(31), 1.0)',
+            "                    if eq(float(#1.start), 1.0) then String.substring(#1, #1.start, #1.end) else trap('inexact')",
+            '                else',
+            "                    trap('inexact')",
+            '            let $1 = Any.drop(#1)',
+            '            br L0 { #1: $0 }',
+            '        else',
+            '            #1',
+            '',
+            'fn twice(s: any) -> any.only(string) =',
+            '    match s',
+            '      string as s.string =>',
+            '        String.concat(s.string, s.string)',
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export first, inner, lastOfTwice, pair, trimStart, twice',
+            '',
+        ].join('\n'))
+    },
+    stringsRun: () => run(fromStrings(), stringTwins, stringInputs),
+    // The constants' owned stage: each constant owns its value, and a function that answers one answers a dup of it.
+    constants: () => {
+        const m = fromConstants()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'const #c0: f64 =',
+            '    div(1.0, 2.0)',
+            '',
+            'const #c1: f64 =',
+            '    mul(self.#c0, self.#c0)',
+            '',
+            'const #c2: f64 =',
+            '    twice(2.0)',
+            '',
+            'const #c3: f64 =',
+            '    mul(mul(2.0, 2.0), 2.0)',
+            '',
+            'const #c4: bool =',
+            '    lt(self.#c1, self.#c0)',
+            '',
+            'const #c5: any.only(string) =',
+            '    let fromUnit.unit = trunc_sat(u(16), 45.0)',
+            "    if eq(float(fromUnit.unit), 45.0) then String.from_unit(fromUnit.unit) else trap('inexact')",
+            '',
+            'const #c6: any.only(string) =',
+            '    String.concat(self.#c5, self.#c5)',
+            '',
+            'fn dashed(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 4.0)',
+            '    then',
+            '        let #0 =',
+            '            match v',
+            '              string as v.string =>',
+            '                String.concat(self.#c6, v.string)',
+            '              else =>',
+            "                trap('not string')",
+            '        let $0 = String.concat(#0, self.#c6)',
+            '        let $1 = Any.drop(#0)',
+            '        $0',
+            '    else',
+            '        Any.dup(self.#c5)',
+            '',
+            'fn narrow(x: f64) -> f64 =',
+            '    if self.#c4 then mul(x, self.#c0) else x',
+            '',
+            'fn numberOrUndefined(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 3.0) then Any.dup(v) else Any.dup(Any.undefined)',
+            '',
+            'fn scale(x: f64) -> f64 =',
+            '    add(mul(x, self.#c1), self.#c0)',
+            '',
+            'fn shift(x: f64) -> f64 =',
+            '    sub(add(x, self.#c2), self.#c3)',
+            '',
+            'fn twice(x: f64) -> f64 =',
+            '    add(x, x)',
+            '',
+            'export dashed, narrow, numberOrUndefined, scale, shift, twice',
+            '',
+        ].join('\n'))
+    },
+    // Each call comes after `init`, on cells that the host then keeps, the constants' among them, and leaves them as it found them.
+    constantsRun: () => run(fromConstants(), constantTwins, {}),
     l1Run: () => run(fromL1(), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),

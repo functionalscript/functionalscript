@@ -2,16 +2,16 @@
  * @import { Interface, Module, Param, Term, Type } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, cast, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
+    add, block, bool, br, call, cast, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
     match, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
     variant,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { check, typeOf } from './module.f.js'
+import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
 const one = (params, result, body) => ({ imports: [], functions: [['f', fn(params, result, body)]], exports: [] })
@@ -34,6 +34,15 @@ const bodyType = m => show(assertOk(check(m)).functions[0][1].body[0])
 const x = get('x')
 const y = get('y')
 const one_ = lit(f64c, 1)
+
+/** A constant of the module. @type {(name: string) => Term} */
+const self = name => constant('self', name)
+
+/** A module over L0 of constants and functions, which exports none. @type {(cs: NonNullable<Module['constants']>, fs?: Module['functions']) => Module} */
+const withConstants = (cs, fs = []) => ({ imports: l0, constants: cs, functions: fs, exports: [] })
+
+/** An interface beside L0 whose only part is its constants. @type {(cs: NonNullable<Interface['constants']>) => Module} */
+const constantsOf = cs => importing({ abi: 'test:bad', types: [], constants: cs, functions: [] })
 
 export const proof = {
     samples: () => {
@@ -84,6 +93,65 @@ export const proof = {
         assertEq(why({ imports: [], functions: [['f', f], ['f', f]], exports: [] }), 'two functions are named f')
         assertEq(why({ imports: [], functions: [['f', f]], exports: ['g'] }), 'no function g to export')
         assertEq(why({ imports: [], functions: [['f', f]], exports: ['f', 'f'] }), 'f is exported twice')
+    },
+    constants: () => {
+        // Each constant is typed as the term that `init` evaluates, which may be narrower than its type.
+        assertEq(assertOk(check(constants)).constants.map(([k, c]) => `${k}: ${show(c.value[0])}`).join(', '), [
+            'half: f64', 'quarter: f64', 'eighth: f64', 'answer: int(42, 42)', 'far: int(-1099511627776, -1099511627776)',
+            'less: bool', 'six: f64', 'a: any.only(string)', 'aa: any.only(string)', 'nothing: any.only(null)',
+        ].join(', '))
+        // A constant is one of the module's own, `self`, or of an interface that the module imports.
+        assertEq(why(withConstants([['k', { type: f64, value: self('j') }]])), 'k: no constant j')
+        assertEq(why(withConstants([['k', { type: f64, value: constant('Any', 'nope') }]])), 'k: Any has no constant nope')
+        assertEq(why(withConstants([['k', { type: f64, value: constant('String', 'empty') }]])), 'k: String has no constant empty')
+        assertEq(why(withConstants([['k', { type: f64, value: constant('Nope', 'c') }]])), 'k: no interface Nope')
+        // The term gives a value of the constant's type, with no local and no label in scope.
+        assertEq(why(withConstants([['k', { type: bool, value: one_ }]])), 'k: the value is f64c, not bool')
+        assertEq(why(withConstants([['k', { type: f64, value: trap('no') }]])), 'k: a trap that gives no value stands where a value is used')
+        assertEq(why(withConstants([['k', { type: f64, value: x }]])), 'k: no local x')
+        assertEq(why(withConstants([['k', { type: f64, value: return_(one_) }]])), 'k: no label return')
+        // A constant is one value, which one global holds, and its name is its own.
+        assertEq(why(withConstants([['k', { type: never, value: trap('no') }]])), 'k: a constant of never holds no value')
+        assertEq(why(withConstants([['k', { type: product([['a', f64]]), value: make([['a', one_]]) }]])), 'k: { a: f64 } is not in this slice')
+        assertEq(why(withConstants([['k', { type: f64, value: one_ }], ['k', { type: f64, value: one_ }]])), 'two constants are named k')
+        assertEq(why(withConstants([], [['init', fn([], f64, one_)]])), 'init is the function that evaluates the constants, so no function has that name')
+        // `init` evaluates the constants in their order, so each reads only those before it, itself or through the functions that it calls.
+        assertEq(why(withConstants([['j', { type: f64, value: self('k') }], ['k', { type: f64, value: one_ }]])), 'j: k is read before init evaluates it')
+        assertEq(why(withConstants([['k', { type: f64, value: self('k') }]])), 'k: k is read before init evaluates it')
+        assertEq(why(withConstants([['j', { type: f64, value: call('self', 'g', []) }], ['k', { type: f64, value: one_ }]], [['g', fn([], f64, self('k'))]])),
+            'j: k is read before init evaluates it')
+        assertEq(why(withConstants(
+            [['j', { type: f64, value: call('self', 'g', []) }], ['k', { type: f64, value: one_ }]],
+            [['g', fn([], f64, call('self', 'h', []))], ['h', fn([], f64, self('k'))]])),
+            'j: k is read before init evaluates it')
+        assertOk(check(withConstants([['j', { type: f64, value: one_ }], ['k', { type: f64, value: call('self', 'g', []) }]], [['g', fn([], f64, self('j'))]])))
+        // An interface names each of its constants once, each of a type that a global holds.
+        assertEq(why(constantsOf([['c', f64], ['c', f64]])), 'Bad: two constants are named c')
+        assertEq(why(constantsOf([['c', product([['a', f64]])]])), 'Bad: c: { a: f64 } is not in this slice')
+        assertEq(why(constantsOf([['c', never]])), 'Bad: c: a constant of never holds no value')
+        // A host gives one value for each name of an ABI, so a constant and a function, or two constants whose globals hold
+        // different WASM values, may not share one. Two constants whose globals hold one value share the host's global.
+        assertEq(why(importing({ abi: 'test:bad', types: [], constants: [['c', f64]], functions: [['c', signature([], f64)]] })), 'the constant Bad.c and the function Bad.c are both the import c of test:bad')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['kind', f64]], functions: [] })), 'the constant Bad.kind and the function Any.kind are both the import kind of fjs:l0')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['null', f64]], functions: [] })), 'the constants Any.null, a global of i64, and Bad.null, a global of f64, are both the import null of fjs:l0')
+        assertOk(check(importing({ abi: 'fjs:l0', types: [], constants: [['null', only(any, 'null')]], functions: [] })))
+        assertOk(check(importing({ abi: 'fjs:l0', types: [], constants: [['null', any]], functions: [] })))
+        /** A module that imports `c` of one ABI from two interfaces, as `a` and as `b`. @type {(a: Type, b: Type) => Module} */
+        const twice = (a, b) => ({
+            imports: [['A', { abi: 'test:c', types: [], constants: [['c', a]], functions: [] }], ['B', { abi: 'test:c', types: [], constants: [['c', b]], functions: [] }]],
+            functions: [],
+            exports: [],
+        })
+        assertOk(check(twice(f64c, f64)))
+        assertOk(check(twice(int(0n, 1n), bool)))
+        assertEq(why(twice(int(0n, 1n), u(64))), 'the constants A.c, a global of i32, and B.c, a global of i64, are both the import c of test:c')
+        // A sealed type that no interface defines is the interface's refusal.
+        assertEq(why(twice(sealed('Nope', 'x'), f64)), "A: c: no interface Nope")
+        // typeOf reads the constants that a scope names, and a constant's term, which has no result, has no label.
+        assertEq(show(assertOk(typeOf({ name: 'f', locals: [], functions: [], imports: l0, constants: [['k', f64]] })(self('k')))), 'f64')
+        assertEq(show(assertOk(typeOf({ name: 'f', locals: [], result: f64, functions: [], imports: l0 })(constant('Any', 'null')))), 'any.only(null)')
+        assertEq(assertError(typeOf({ name: 'k', locals: [], functions: [], imports: l0, constants: [] })(return_(one_))), 'k: no label return')
+        assertEq(assertError(typeOf({ name: 'f', locals: [], functions: [], imports: l0, constants: [['k', product([['a', f64]])]] })(one_)), 'f: { a: f64 } is not in this slice')
     },
     lit: () => {
         assertEq(why(one([], f64, lit(unit, 1n))), 'f: unit is not in this slice')
@@ -222,9 +290,12 @@ export const proof = {
         assertEq(imports, unknown.imports)
         assertEq(functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '),
             'toBoolean: bool, kindOf: int(0, 8), isNumber: bool, size: u(31), tag: int(0, 8), number: f64c, fail: never, falsy: bool')
-        // `else` is written out as the kinds it takes.
-        const [, , arms] = /** @type {readonly ['match', unknown, readonly (readonly [readonly string[], unknown, unknown])[]]} */ (functions[0][1].body[1])
+        // `else` is written out as the kinds it takes, and each arm keeps the variants as the term wrote them.
+        const [, body] = functions[0][1].body
+        assert(body[0] === 'match')
+        const [, , arms] = body
         assertEq(arms.map(([vs]) => vs.join(' | ')).join(', '), 'boolean, number, string, bigint, array | object | function, undefined | null')
+        assertEq(arms.map(([, , , written]) => written === null ? 'else' : written.join(' | ')).join(', '), 'boolean, number, string, bigint, array | object | function, else')
     },
     sealed: () => {
         const v = get('v')
@@ -268,6 +339,12 @@ export const proof = {
         assertEq(why(overL0([...p, ['o', sealed('Other', 'x')]], f64, match(v, [[['number'], 'x', get('x')], [null, null, get('o')]]), [['Other', other]])),
             'f: match: its arms are any.only(number), x, which no one type holds')
         assertEq(why(overL0([['o', sealed('Other', 'x')]], f64, call('Any', 'kind', [get('o')]), [['Other', other]])), "f: Any.kind's v is any, not x")
+    },
+    // The plain stage reads a value of a sealed type as often as it needs: `checkPlain` types it, and `check` refuses what it leaves over.
+    plain: () => {
+        const m = overL0([['c', u(16)]], u(31), let_('s', call('String', 'from_unit', [get('c')]), s => call('String', 'length', [s])))
+        assertEq(show(assertOk(checkPlain(m)).functions[0][1].body[0]), 'u(31)')
+        assertEq(why(m), 'f: s is left over')
     },
     interfaces: () => {
         const t = sealed('Bad', 't')

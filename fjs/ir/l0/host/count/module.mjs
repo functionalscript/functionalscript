@@ -9,8 +9,16 @@
  *   whose cell a `drop` freed.
  * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
  *   answers its handle; `drop` takes one away, and frees the cell at zero.
- * - **`from_unit` and `concat` make a cell** of the value that the view
- *   answers, counted once, and answer its handle, which the caller owns.
+ * - **`from_unit`, `concat`, `substring` and `item` make a cell** of the
+ *   value that the view answers, counted once, and answer its handle, which
+ *   the caller owns: an item read from an array is a cell of its own.
+ * - **What a constant holds is kept.** Any's `undefined`, `null`, `true`
+ *   and `false` are the cells `-1` to `-4`, each counted once for the
+ *   immutable global that holds it, and kept from the start. `keep` keeps
+ *   every cell alive at its count, so that a host proof that calls it after
+ *   `init` keeps what `init` made for the module's constants. `live` then
+ *   tells what a call changed: a cell that is not kept and is alive, and a
+ *   kept one at another count, `0` where it was freed.
  *
  * Counting is state, and a WebAssembly import has nowhere else to keep it,
  * so this is a host boundary in plain JavaScript beside the
@@ -32,6 +40,8 @@ import { view } from '../module.f.js'
 export const counting = values => {
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map(values.map((value, k) => [BigInt(k), { value, count: 1 }]))
+    /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
+    const kept = new Map()
     let next = BigInt(values.length)
     /** @type {(h: bigint) => { readonly value: unknown, readonly count: number }} */
     const cell = h => {
@@ -48,9 +58,19 @@ export const counting = values => {
         cells.set(h, { value, count: 1 })
         return h
     }
+    /** A constant of Any: a cell of `value`, named `h`, counted once for the global that holds it, and kept. @type {(h: bigint, value: unknown) => WebAssembly.Global} */
+    const constant = (h, value) => {
+        cells.set(h, { value, count: 1 })
+        kept.set(h, 1)
+        return new WebAssembly.Global({ value: 'i64', mutable: false }, h)
+    }
     const v = view(read)
     return {
         imports: {
+            undefined: constant(-1n, undefined),
+            null: constant(-2n, null),
+            true: constant(-3n, true),
+            false: constant(-4n, false),
             kind: v.kind,
             to_f64: v.to_f64,
             to_bool: v.to_bool,
@@ -72,8 +92,16 @@ export const counting = values => {
             },
             from_unit: c => make(v.from_unit(c)),
             concat: (a, b) => make(v.concat(a, b)),
+            substring: (s, start, end) => make(v.substring(s, start, end)),
+            item: (c, i) => make(v.item(c, i)),
         },
         read,
-        live: () => [...cells].map(([h, { count }]) => [h, count]),
+        keep: () => {
+            for (const [h, { count }] of cells) { kept.set(h, count) }
+        },
+        live: () => [
+            ...[...cells].flatMap(([h, { count }]) => kept.get(h) === count ? [] : [/** @type {const} */ ([h, count])]),
+            ...[...kept.keys()].flatMap(h => cells.has(h) ? [] : [/** @type {const} */ ([h, 0])]),
+        ],
     }
 }

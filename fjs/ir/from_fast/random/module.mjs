@@ -1,9 +1,12 @@
 /**
  * A seeded random comparison of the lowering: it writes FunctionalScript in
  * the part of the language the slices lower, takes each program through
- * FAST, the lowering, the checker and the emitter, and runs the WASM on the
- * host's engine against the same body as JavaScript. Programs the slices
- * refuse are counted and not run. The [proof](./proof.mjs) drives it.
+ * FAST, the lowering, the [lifetime pass](../../lifetime/module.f.js), the
+ * checker and the emitter, and runs the WASM on the host's engine against
+ * the same body as JavaScript, with every cell of the host as it found it
+ * after each call that answers, or, where the module has constants, as
+ * `init` left it. Programs the slices refuse are counted and not run. The
+ * [proof](./proof.mjs) drives it.
  *
  * @module
  *
@@ -16,12 +19,12 @@
 import { assert } from '../../../asserts/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asBoolean, asNumber, kind, length, unit,
+    asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit,
 } from '../../../wasm/runtime/l0/module.f.js'
 import { numberRemainder } from '../../../wasm/runtime/l1/native/module.f.js'
-import { check } from '../../check/module.f.js'
 import { any } from '../../l0/module.f.js'
-import { bool, f64, i, signature, u } from '../../module.f.js'
+import { lifetime } from '../../lifetime/module.f.js'
+import { bool, f64, i, only, signature, u } from '../../module.f.js'
 import { edges, held, run } from '../../wasm/testlib.mjs'
 import { lower } from '../module.f.js'
 import { runtime, sourceOf } from '../testlib.f.mjs'
@@ -50,8 +53,14 @@ const pick = (rnd, xs) => {
 /** @type {(rnd: _Rnd, n: number) => number} */
 const below = (rnd, n) => Math.floor(rnd() * n)
 
+/** A float that a twin gets. @type {(v: _Value) => number} */
+const float64 = v => {
+    assert(typeof v === 'number', v)
+    return v
+}
+
 /** The import line that marks the L0 view for the lowering. `%` needs no import: the runtime adds Native. */
-const l0Import = "import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, asBoolean, asNumber, asString, kind, length, unit } from '../l0/module.f.js'\n"
+const l0Import = "import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit } from '../l0/module.f.js'\n"
 
 /** @type {readonly (readonly [string, Type])[]} */
 const floatParams = [['a', f64], ['b', f64]]
@@ -176,8 +185,36 @@ const typedInputs = (params, rnd) => {
 }
 
 /**
+ * Module constants of floats, each reading the ones before it, and at times
+ * a `bool` of two of them, which a function of two floats reads: the
+ * constants of slice 6c, which `init` evaluates once.
+ *
+ * @type {(rnd: _Rnd) => {
+ *   readonly lines: readonly string[],
+ *   readonly names: readonly string[],
+ *   readonly flag: boolean,
+ * }}
+ */
+const floatConstants = rnd => {
+    /** @type {string[]} */
+    const names = []
+    /** @type {string[]} */
+    const lines = []
+    const count = 1 + below(rnd, 3)
+    for (let k = 0; k < count; k += 1) {
+        const value = names.length === 0 ? pick(rnd, ['0.5', '-1', '3', '-0', '1e308']) : floatExpr(rnd, names, 1 + below(rnd, 2))
+        lines.push(`const c${k} = ${value}`)
+        names.push(`c${k}`)
+    }
+    const flag = rnd() < 0.5
+    if (flag) { lines.push(`const flag = ${floatExpr(rnd, names, 1)} < ${floatExpr(rnd, names, 1)}`) }
+    return { lines, names, flag }
+}
+
+/**
  * One typed program: floats, booleans, small integer ranges, an unexported
- * helper, a short loop, `%`, or a record kept inside the function.
+ * helper, a short loop, `%`, a record kept inside the function, or since
+ * slice 6c, module constants that the function reads.
  *
  * @type {(rnd: _Rnd) => {
  *   readonly text: string,
@@ -188,7 +225,21 @@ const typedInputs = (params, rnd) => {
  * }}
  */
 export const typedProgram = rnd => {
-    const kind = below(rnd, 7)
+    const kind = below(rnd, 8)
+    if (kind === 7) {
+        const { lines, names, flag } = floatConstants(rnd)
+        const reads = floatExpr(rnd, ['a', 'b', ...names], 2 + below(rnd, 2))
+        const body = flag ? `(flag ? ${reads} : ${pick(rnd, names)})` : reads
+        const text = [...lines, `export const f = (a, b) => ${body}`, ''].join('\n')
+        const fn = new Function('a', 'b', `${lines.join('\n')}\nreturn (${body})`)
+        return {
+            text,
+            signatures: { f: signature(floatParams, f64) },
+            inputs: { f: typedInputs(floatParams, rnd) },
+            twin: xs => fn(...xs),
+            runtime: text.includes('%') ? runtime : null,
+        }
+    }
     if (kind === 0) {
         const params = floatParams
         const names = params.map(([n]) => n)
@@ -340,8 +391,28 @@ const anySamples = [
     () => 0,
 ]
 
+/** A string of the L0 view, which a program makes and its caller owns. */
+const string = only(any, 'string')
+
+/** Strings of each length up to three, and values of other kinds, which a cast to a string refuses. */
+const stringSamples = ['', 'a', 'ab', 'abc', 1, null, ['a']]
+
+/** Arrays of each length up to three, of strings and of an array, and values of other kinds. */
+const itemSamples = [[], ['x'], ['x', ['y']], [1, 2, 3], { a: 'x' }, 'ab', 1, null]
+
+/** Numbers that an index or a unit may be: integers, and ones that are none or past a range. */
+const indexSamples = [0, 1, 2, 3, -1, 0.5, 0x61, 0xffff, 0x1_0000, NaN]
+
+/** A code unit as the text of a program spells it. @type {(c: number) => string} */
+const hex = c => `0x${c.toString(16)}`
+
 /**
- * One program over values of unknown kind, through the L0 view.
+ * One program over values of unknown kind, through the L0 view, and since
+ * slice 6b its functions that answer a value that the caller owns:
+ * `concat`, `fromUnit`, `substring` and `item`, whose values the lifetime
+ * pass drops. Since slice 6c, a constant of a string, which `init` makes
+ * and nothing drops, and Any's `undefined` and `null`, which the host
+ * makes, each of which a function answers, and the lifetime pass copies.
  *
  * @type {(rnd: _Rnd) => {
  *   readonly text: string,
@@ -352,8 +423,92 @@ const anySamples = [
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 5)
+    const form = below(rnd, 10)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
+    /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
+    const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 9) {
+        // a string that `init` makes once, and a constant of Any that the host makes
+        const made = pick(rnd, [
+            `fromUnit(${hex(pick(rnd, [0x2d, 0x2e, 0x61]))})`,
+            `concat(fromUnit(${hex(pick(rnd, [0x2d, 0x61]))}), fromUnit(${hex(pick(rnd, [0x2e, 0x7a]))}))`,
+        ])
+        const lines = [`const c = ${made}`, `const none = ${pick(rnd, ['undefined', 'null'])}`]
+        const body = `kind(v) === STRING ? ${pick(rnd, ['concat(v, c)', 'concat(c, v)', 'c', 'v'])} : ${pick(rnd, ['undefined', 'null', 'none', 'c', 'v'])}`
+        const fn = new Function('STRING', 'concat', 'fromUnit', 'kind', `${lines.join('\n')}\nreturn v => ${body}`)(STRING, concat, fromUnit, kind)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], any) },
+            inputs: { f: samples() },
+            twin: xs => ({ any: fn(held(xs[0])) }),
+            runtime,
+        }
+    }
+    if (form === 5) {
+        // a string that the program makes and only lends: the pass drops it after `length`
+        return {
+            text: `${l0Import}export const f = (v, c) => kind(v) === STRING ? length(concat(v, fromUnit(c))) : -1\n`,
+            signatures: { f: signature([['v', any], ['c', f64]], f64) },
+            inputs: { f: pairs(stringSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return kind(v) === STRING ? length(concat(v, fromUnit(float64(xs[1])))) : -1
+            },
+            runtime,
+        }
+    }
+    if (form === 6) {
+        // a string that each arm makes, which the caller owns
+        return {
+            text: `${l0Import}export const f = (v, i) => kind(v) === STRING ? substring(v, i, length(v)) : fromUnit(0x2d)\n`,
+            signatures: { f: signature([['v', any], ['i', f64]], string) },
+            inputs: { f: pairs(stringSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return { any: kind(v) === STRING ? substring(v, float64(xs[1]), length(v)) : fromUnit(0x2d) }
+            },
+            runtime,
+        }
+    }
+    if (form === 7) {
+        // an item, which the caller owns, or the borrowed value, which the pass copies
+        return {
+            text: `${l0Import}export const f = (v, i) => kind(v) === ARRAY ? item(v, i) : v\n`,
+            signatures: { f: signature([['v', any], ['i', f64]], any) },
+            inputs: { f: pairs(itemSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return { any: kind(v) === ARRAY ? item(v, float64(xs[1])) : v }
+            },
+            runtime,
+        }
+    }
+    if (form === 8) {
+        // a loop that owns its string, one unit longer each round, whose condition reads it
+        const body = [
+            '{',
+            '    let s = asString(v)',
+            '    while (length(s) < n) {',
+            '        s = concat(s, fromUnit(0x2e))',
+            '    }',
+            '    return s',
+            '}',
+        ].join('\n')
+        return {
+            text: `${l0Import}export const f = (v, n) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['n', f64]], string) },
+            inputs: { f: Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, stringSamples) }, pick(rnd, [0, 1, 2, 3, 2.5, 5, -1, NaN])])) },
+            twin: xs => {
+                let s = asString(held(xs[0]))
+                const n = float64(xs[1])
+                while (length(s) < n) {
+                    s = concat(s, fromUnit(0x2e))
+                }
+                return { any: s }
+            },
+            runtime,
+        }
+    }
     if (form === 0) {
         const body = 'kind(v) !== UNDEFINED && kind(v) !== NULL && asBoolean(v)'
         return {
@@ -425,8 +580,7 @@ export const anyProgram = rnd => {
         },
         twin: xs => {
             const v = held(xs[0])
-            const i = /** @type {number} */ (xs[1])
-            return kind(v) === STRING ? unit(v, i) : -1
+            return kind(v) === STRING ? unit(v, float64(xs[1])) : -1
         },
         runtime,
     }
@@ -457,11 +611,11 @@ const expectedRefusal = (reason, result) => {
 }
 
 /**
- * Lower, check, emit and run one program against its twin. A known refusal
- * from the checker (an integer range past the signature) is an outcome, not
- * a failure: the generators still write such bodies. Any other refusal is
- * reported as wrong, so a regression that refuses a supported category
- * fails the proof.
+ * Lower one program, write its owned stage, check, emit and run it against
+ * its twin. A known refusal from the checker (an integer range past the
+ * signature) is an outcome, not a failure: the generators still write such
+ * bodies. Any other refusal is reported as wrong, so a regression that
+ * refuses a supported category fails the proof.
  *
  * @type {(program: ReturnType<typeof typedProgram>) => _Outcome}
  */
@@ -475,15 +629,14 @@ export const compareOne = program => {
     if (ir[0] === 'error') {
         return accept(ir[1]) ? ['refused', ir[1]] : ['wrong', `refused: ${ir[1]}`]
     }
-    // Refuse here if the checker does; `run` checks again on the plain IR, as
-    // the other host proofs pass it, and a module that `check` already typed
-    // is not what `run` emits.
-    const checked = check(ir[1])
-    if (checked[0] === 'error') {
-        return accept(checked[1]) ? ['refused', checked[1]] : ['wrong', `refused: ${checked[1]}`]
+    // The lifetime pass types the plain stage first, so it refuses what the
+    // checker refuses; `run` then checks the owned stage that it wrote.
+    const owned = lifetime(ir[1])
+    if (owned[0] === 'error') {
+        return accept(owned[1]) ? ['refused', owned[1]] : ['wrong', `refused: ${owned[1]}`]
     }
     try {
-        run(ir[1], { f: program.twin }, program.inputs)
+        run(owned[1], { f: program.twin }, program.inputs)
     } catch (e) {
         return ['wrong', e instanceof Error ? e.message : String(e)]
     }

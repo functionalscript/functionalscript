@@ -1,12 +1,12 @@
 /**
- * @import { Int, Term } from './types.ts'
+ * @import { Int, Term, Typed, TypedTerm } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
-    abs, add, block, bool, br, call, cast, compareIn, div, eq, equal, exact, f64, f64c, false_, fits, float, fn,
-    get, i, if_, int, isOwn, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, return_,
-    sealed, signature, sqrt, sub, trap, true_, trunc_sat, u, unit, variant,
+    abs, add, block, bool, br, call, cast, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
+    get, i, if_, inside, int, isOwn, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, return_,
+    sealed, signature, sqrt, sub, terms, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
 export const proof = {
@@ -67,6 +67,47 @@ export const proof = {
         assert(equal(match(get('b'), [[null, null, n(1n)]]), ['match', get('b'), [[null, null, n(1n)]]]))
         assert(equal(block('l', f64, n(1n)), ['block', 'l', f64, n(1n)]))
         assert(equal(br('l', n(1n)), ['br', 'l', n(1n)]))
+        assert(equal(constant('Any', 'null'), ['constant', 'Any', 'null']))
+    },
+    // The terms that a term holds, in their order, and the typed terms in the same places of a typed term.
+    parts: () => {
+        const [x, y, z] = [get('x'), get('y'), get('z')]
+        /** @type {readonly (readonly [Term, readonly Term[]])[]} */
+        const plain = [
+            [let_('v', x, y), [x, y]],
+            [add(x, y), [x, y]],
+            [call('self', 'f', [x, y]), [x, y]],
+            [make([['a', x], ['b', y]]), [x, y]],
+            [field(x, 'a'), [x]],
+            [variant(bool, 'true', x), [x]],
+            [block('l', f64, x), [x]],
+            [match(x, [[null, null, y], [['true'], 'b', z]]), [x, y, z]],
+            [loop('l', [['i', f64, x], ['j', f64, y]], z), [x, y, z]],
+            [br('l', x), [x]],
+            [n(1n), []],
+            [x, []],
+            [trap('no'), []],
+            [constant('self', 'c'), []],
+        ]
+        assert(plain.every(([t, parts]) => equal(terms(t), parts)))
+        /** @type {readonly [Typed, Typed, Typed]} */
+        const [tx, ty, tz] = [[f64, ['get', 'x']], [f64, ['get', 'y']], [f64, ['get', 'z']]]
+        /** @type {readonly (readonly [TypedTerm, readonly Typed[]])[]} */
+        const typed = [
+            [['let', 'v', tx, ty], [tx, ty]],
+            [['op', 'add', [tx, ty]], [tx, ty]],
+            [['call', 'self', 'f', [tx, ty]], [tx, ty]],
+            [['make', [['a', tx], ['b', ty]]], [tx, ty]],
+            [['field', tx, 'a'], [tx]],
+            [['variant', bool, 'true', tx], [tx]],
+            [['block', 'l', f64, tx], [tx]],
+            [['match', tx, [[['false'], null, ty, null], [['true'], 'b', tz, ['true']]]], [tx, ty, tz]],
+            [['loop', 'l', [['i', f64, tx], ['j', f64, ty]], tz], [tx, ty, tz]],
+            [['br', 'l', tx], [tx]],
+            [['get', 'x'], []],
+            [['constant', 'self', 'c'], []],
+        ]
+        assert(typed.every(([t, parts]) => equal(inside(t), parts)))
     },
     sealed: () => {
         const any = sealed('Any', 'any')
