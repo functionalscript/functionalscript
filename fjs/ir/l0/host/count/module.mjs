@@ -20,6 +20,14 @@
  *   `init` for its constants. `live` then tells what a call changed: a cell
  *   that is not kept and is alive, and a kept one at another count, `0`
  *   where it was freed.
+ * - **A builder is a handle of its own**, an `i32` that names an array
+ *   that is not sealed yet
+ *   ([L0 design §8](../../../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
+ *   `begin_array(n)` begins one of `n` items, `push` takes over a cell as
+ *   its next item, a count of it that a `drop` would take away, and `seal`
+ *   ends the builder and makes a cell of the array, which the caller owns.
+ *   A push past `n` items, a seal of fewer, and a handle of no builder, or
+ *   of one that is sealed, throw. `builders` tells which are not sealed.
  * - **The host makes the memory**, as a loader does
  *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
  *   the region of a module's data segments starts at `data_base`, past
@@ -71,6 +79,30 @@ export const counting = (values, data = 0) => {
         cells.set(h, { value, count: 1 })
         return h
     }
+    /** @type {(h: bigint) => bigint} */
+    const dup = h => {
+        const { value, count } = cell(h)
+        cells.set(h, { value, count: count + 1 })
+        return h
+    }
+    /** @type {(h: bigint) => void} */
+    const drop = h => {
+        const { value, count } = cell(h)
+        if (count === 1) {
+            cells.delete(h)
+        } else {
+            cells.set(h, { value, count: count - 1 })
+        }
+    }
+    /** The builders that are not sealed: how many items each takes, and those it has. @type {Map<number, { readonly length: number, readonly items: readonly unknown[] }>} */
+    const builders = new Map()
+    let nextBuilder = 0
+    /** @type {(b: number) => { readonly length: number, readonly items: readonly unknown[] }} */
+    const builder = b => {
+        const x = builders.get(b)
+        if (x === undefined) { throw 'fjs:l0 host: not a builder' }
+        return x
+    }
     /** A constant of Any: a cell of `value`, named `h`, counted once for the global that holds it, and kept. @type {(h: bigint, value: unknown) => WebAssembly.Global} */
     const constant = (h, value) => {
         cells.set(h, { value, count: 1 })
@@ -100,23 +132,31 @@ export const counting = (values, data = 0) => {
             same: v.same,
             length: v.length,
             unit: v.unit,
-            dup: h => {
-                const { value, count } = cell(h)
-                cells.set(h, { value, count: count + 1 })
-                return h
-            },
-            drop: h => {
-                const { value, count } = cell(h)
-                if (count === 1) {
-                    cells.delete(h)
-                } else {
-                    cells.set(h, { value, count: count - 1 })
-                }
-            },
+            dup,
+            drop,
             from_unit: c => make(v.from_unit(c)),
             concat: (a, b) => make(v.concat(a, b)),
             substring: (s, start, end) => make(v.substring(s, start, end)),
             item: (c, i) => make(v.item(c, i)),
+            begin_array: n => {
+                const b = nextBuilder
+                nextBuilder = b + 1
+                builders.set(b, { length: n, items: [] })
+                return b
+            },
+            push: (b, h) => {
+                const { length, items } = builder(b)
+                if (items.length >= length) { throw 'fjs:l0 host: push past the length of a builder' }
+                const value = read(h)
+                drop(h)
+                builders.set(b, { length, items: [...items, value] })
+            },
+            seal: b => {
+                const { length, items } = builder(b)
+                if (items.length !== length) { throw 'fjs:l0 host: seal of a builder that is not full' }
+                builders.delete(b)
+                return make(items)
+            },
         },
         read,
         keep: () => {
@@ -126,5 +166,6 @@ export const counting = (values, data = 0) => {
             ...[...cells].flatMap(([h, { count }]) => kept.get(h) === count ? [] : [/** @type {const} */ ([h, count])]),
             ...[...kept.keys()].flatMap(h => cells.has(h) ? [] : [/** @type {const} */ ([h, 0])]),
         ],
+        builders: () => [...builders.keys()],
     }
 }

@@ -121,10 +121,14 @@ before it and proved end to end on its own.
   segment at `data_base` of the memory that the loader makes (the
   start/`init` split as in the decisions above); lowering of a string of
   FAST.
-- [ ] **6e. Array literals of values.** The linear kind; `begin_array`,
-  `push`, `seal`; array literals with no spread and no holes. (Object
-  literals, spread and `buildArray` / `buildObject` with callbacks stay in
-  the builders slice below.)
+- [x] **6e. Array literals of values.** The linear kind, Containers'
+  `builder`, which names no `dup`, `drop` or `kind`; a function that gives
+  back a parameter, `push`, whose import answers nothing; `begin_array`,
+  `push`, `seal`; array literals of values of `any` with no spread (the
+  parser refuses holes), their items done before the builder begins.
+  Numbers and booleans as items wait for Any's `from_f64` and `from_bool`.
+  (Object literals, spread and `buildArray` / `buildObject` with callbacks
+  stay in the builders slice below.)
 - [ ] **6f. Reading an array, and `typeOf`.** `a[k]` of an array at a number
   key by L1's `get` rules for that case; `typeOf` lowered from L1's text.
 

@@ -55,6 +55,14 @@
  * - **An object literal is a record**, a product of its keys in their
  *   order, and `r.k` its field. A record stays in its function: the checker
  *   refuses one in a signature.
+ * - **An array literal is built by Containers**
+ *   ([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
+ *   its items first, each lowered where it stands as an argument is, then
+ *   `seal` of a `push` of each item, in their order, onto `begin_array` of
+ *   their count. Nothing between `begin_array` and `seal` traps or leaves,
+ *   so the builder, which is linear, is never left behind. An item is a
+ *   value of `any`: a number or a boolean is refused, and so are a spread
+ *   and an array in a module lowered without the runtime.
  * - **The checker types the terms** that the lowering makes, so that the
  *   operand's type picks the operator where JavaScript has one for two
  *   types: `-x` is `neg` of a float and `0n - x` of an integer, `===` of two
@@ -102,7 +110,7 @@
  * @import { _Context, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.js'
+import { assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
@@ -765,6 +773,36 @@ const same = (lowerValue, scope, a, b, negated) => {
 /** @type {(item: Item<Value>) => item is readonly ['...', Value]} */
 const isSpread = item => item instanceof Array && item[0] === '...'
 
+// arrays
+
+/** Whether a type is `any`, of every kind or of some. @type {(t: Type) => boolean} */
+const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2]
+
+/**
+ * An array literal, as Containers builds one: its items first, each lowered
+ * where it stands as the arguments of a call are, so that each is a term
+ * that does nothing, then `seal` of a `push` of each, in their order, onto
+ * `begin_array` of their count. Nothing between `begin_array` and `seal`
+ * traps or leaves, so the builder, which is linear, is never left behind.
+ * An item is a value of `any`, and a spread is refused.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, items: readonly Item<Value>[]) => Result<Term, string>}
+ */
+const arrayOf = (lowerValue, scope, items) => {
+    const no = refuse(scope)
+    if (!scope.ir.imports.some(([k]) => k === 'Containers')) { return no('an array is a value that Containers builds, which a module lowered without the runtime does not import') }
+    const vs = items.flatMap(item => isSpread(item) ? [] : [item])
+    if (vs.length !== items.length) { return no('a spread in an array literal is not in this slice') }
+    return settled(lowerValue, scope, vs, (s, xs) => {
+        // Each item is a term that does nothing, which was typed where it was lowered.
+        const ts = xs.map(x => assertOk(typeOf(s.ir)(x)))
+        const k = ts.findIndex(t => !isAny(t))
+        const begun = call('Containers', 'begin_array', [n(BigInt(xs.length))])
+        return k !== -1 ? no(`an item of an array is a value of any, and item ${k} is ${show(ts[Number(k)])}`)
+            : ok(call('Containers', 'seal', [xs.reduce((b, x) => call('Containers', 'push', [b, x]), begun)]))
+    })
+}
+
 /**
  * A call of a function of the module, of a static function that is an
  * operator, of a function of the L0 view or of L1's native rows, or of a
@@ -889,6 +927,7 @@ const value = (scope, v) => {
         case '/': { return binary(value, scope, div, v[1], v[2]) }
         case '%': { return remainder(value, scope, v[1], v[2]) }
         case 'object': { return record(value, scope, v[1]) }
+        case 'array': { return arrayOf(value, scope, v[1]) }
         case '.': {
             const key = v[2]
             const m = scope.imported(v)

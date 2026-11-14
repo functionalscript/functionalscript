@@ -36,6 +36,12 @@
  *   names the function that makes its literals has string literals of the
  *   one variant that the function makes, `any.only(string)` for `any`,
  *   and a module that has one imports the maker's interface.
+ * - **A tag is its interface's too.** A `match` of a sealed type asks the
+ *   function that the type names as its `kind`, so a type that names none,
+ *   as Containers' builder, has no `match`.
+ * - **A function of an interface may give back a parameter that it owns**,
+ *   whose type is the function's result: Containers' `push` gives back its
+ *   builder, which its import takes once and does not answer.
  *
  * @module
  *
@@ -481,6 +487,7 @@ const term = (env, t) => {
                 return term({ ...env, locals: bind(narrowed(env, of, vs))(env.locals) }, x)
             }
             if (of[0] !== 'sealed' && !equal(of, bool)) { return no(`a match of ${show(of)} is not in this slice`) }
+            if (of[0] === 'sealed' && unwrap(definition(env, of)).kind === undefined) { return no(`a match needs the tag of ${show(of)}, and ${of[1]} names no kind for it`) }
             if (of[0] !== 'sealed' && arms.some(([, binder]) => binder !== null)) { return no("a name for the operand of a bool's arm is not in this slice") }
             const resolved = resolveArms(of[0] === 'sealed' ? kinds(env, of) : ['false', 'true'], arms)
             if (resolved[0] === 'error') { return no(resolved[1]) }
@@ -564,11 +571,12 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  * call, a constant and a sealed type find them by their names, each of its
  * sealed types names its variants once each, its constants and its
  * signatures have types that a module may write, the tag of each sealed
- * type comes from a function of the interface that borrows a value of the
- * type and answers `int(0, n - 1)`, one tag for each of its `n` variants,
- * and a counted type names both of its counting functions: a `dup` that
- * borrows a value and answers one of the type, and a `drop` that owns one
- * and answers `unit`.
+ * type that has one comes from a function of the interface that borrows a
+ * value of the type and answers `int(0, n - 1)`, one tag for each of its
+ * `n` variants, a counted type names both of its counting functions: a
+ * `dup` that borrows a value and answers one of the type, and a `drop` that
+ * owns one and answers `unit`, and a function that gives back a parameter
+ * owns it, and the parameter is of the type of its result.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
@@ -589,10 +597,11 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         const s = functions.find(([k]) => k === f)?.[1]
         return s !== undefined && s.params.length === 1 && equal(s.params[0][1], ['sealed', name, type, null]) && isOwn(s.params[0]) === own && equal(s.result, result)
     }
-    const untagged = types.find(([type, { variants, kind }]) => !takes(kind, type, false, int(0n, BigInt(variants.length - 1))))
+    const untagged = types.find(([type, { variants, kind }]) => kind !== undefined && !takes(kind, type, false, int(0n, BigInt(variants.length - 1))))
     const half = types.find(([, { dup, drop }]) => (dup === undefined) !== (drop === undefined))
     const unmaking = types.find(([, { variants, literal }]) => literal !== undefined && !variants.includes(literal.variant))
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
+    const unreturned = functions.find(([, { params, result, returns }]) => returns !== undefined && !params.some(p => p[0] === returns && isOwn(p) && equal(p[1], result)))
     return type !== undefined ? `${name}: two types are named ${type}`
         : constant !== undefined ? `${name}: two constants are named ${constant}`
         : named !== undefined ? `${name}: two functions are named ${named}`
@@ -603,6 +612,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         : half !== undefined ? `${name}: ${half[0]} names ${half[1].dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
         : unmaking !== undefined ? `${name}: ${unmaking[0]}'s literals hold ${unmaking[1].literal?.variant}, which is none of its variants`
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
+        : unreturned !== undefined ? `${name}: ${unreturned[0]} gives back ${unreturned[1].returns}, which is no parameter that it owns of the type of its result`
         : null
 }
 

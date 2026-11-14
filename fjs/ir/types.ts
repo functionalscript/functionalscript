@@ -148,10 +148,19 @@ export type TypedTerm =
  */
 export type Param = readonly [name: string, type: Type, mode?: 'own']
 
-/** What a call of a function needs: its parameters and its result. A function has them too. */
+/**
+ * What a call of a function needs: its parameters and its result. A function
+ * has them too. A function of an interface may give back a parameter that
+ * it owns, `returns`: its result is that parameter's value, of its type.
+ * Where a host binds the interface, the import takes the value once and
+ * answers nothing, and the caller reads the value again after the call
+ * ([definition.md's binding rule 3](../../doc/sasha-gil/ir/definition.md#bindings)),
+ * as Containers' `push` gives back its builder.
+ */
 export type Signature = {
     readonly params: readonly Param[]
     readonly result: Type
+    readonly returns?: string
 }
 
 /** A function: its parameters, its result, and a body that the label `return` leaves. */
@@ -164,17 +173,19 @@ export type FunctionOf<T> = {
 /**
  * A sealed type as its interface shows it: its public variants in the order
  * of their tags, the function of the interface that answers a value's tag,
- * the WASM value that carries it where a host binds the interface, and, for
- * a counted type, the functions that count it: `dup`, which borrows a value
- * and answers one of the type, and `drop`, which owns one and answers
- * `unit`. A type that names neither is linear: a value that a module owns
- * goes to a parameter that owns it. A type that has string literals names
- * the variant that one holds and the function that makes one, of an
- * interface that a module with such a literal imports.
+ * where a module may branch on them, the WASM value that carries it where a
+ * host binds the interface, and, for a counted type, the functions that
+ * count it: `dup`, which borrows a value and answers one of the type, and
+ * `drop`, which owns one and answers `unit`. A type that names neither is
+ * linear: a value that a module owns goes to a parameter that owns it. A
+ * type that names no `kind` has no tag, so no `match` branches on it, as a
+ * builder has none. A type that has string literals names the variant that
+ * one holds and the function that makes one, of an interface that a module
+ * with such a literal imports.
  */
 export type SealedDef = {
     readonly variants: readonly string[]
-    readonly kind: string
+    readonly kind?: string
     readonly carrier: 'i32' | 'i64'
     readonly dup?: string
     readonly drop?: string

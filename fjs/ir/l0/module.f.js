@@ -44,6 +44,17 @@
  *   ([L0 design §10](../../../doc/sasha-gil/wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
  *   `item` and `substring` trap where the view throws: at or past the end,
  *   and where `start` is past `end`.
+ * - **A builder makes an array**
+ *   ([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
+ *   `begin_array(n)` answers a builder of `n` items, each `push` owns it
+ *   and an item and gives it back, and `seal` owns it and answers the
+ *   array, owned. A builder is linear
+ *   ([definition.md](../../../doc/sasha-gil/ir/definition.md#ownership-is-two-capabilities)):
+ *   Containers names no `dup` and no `drop` for it, so each path consumes
+ *   it once, by a `push` or a `seal`, and no `kind`, so nothing branches on
+ *   it. An `i32` carries it. `push` gives back the builder it owns, so its
+ *   import takes it once and answers nothing. Pushing more items than `n`,
+ *   sealing with fewer, or a builder that is sealed already traps.
  *
  * @module
  *
@@ -66,6 +77,12 @@ const reference = only(any, 'array', 'object', 'function')
 
 /** A string, the type of a string literal. */
 export const string = only(any, 'string')
+
+/** An array, which `seal` answers. */
+export const array = only(any, 'array')
+
+/** A builder of an array, which nothing copies or drops. */
+export const builder = sealed('Containers', 'builder')
 
 /** A boolean. */
 const boolean = only(any, 'boolean')
@@ -94,10 +111,10 @@ const anyInterface = {
  */
 export const lengths = [['String', 's', ['string']], ['BigInt', 'b', ['bigint']], ['Containers', 'c', ['array', 'object']], ['Functions', 'f', ['function']]]
 
-/** An interface whose functions are the `length` of some kinds, then `more`. @type {(param: string, kinds: readonly string[], more: Interface['functions']) => Interface} */
-const lengthOf = (param, kinds, more) => ({
+/** An interface of `types`, whose functions are the `length` of some kinds, then `more`. @type {(param: string, kinds: readonly string[], more: Interface['functions'], types: Interface['types']) => Interface} */
+const lengthOf = (param, kinds, more, types) => ({
     abi: 'fjs:l0',
-    types: [],
+    types,
     functions: [['length', signature([[param, only(any, ...kinds)]], index)], ...more],
 })
 
@@ -118,19 +135,33 @@ const strings = [
 
 /**
  * Containers' functions besides its `length`: `item`, the item `i` of an
- * array or the value of the property `i` of an object, owned.
+ * array or the value of the property `i` of an object, owned; and the
+ * builder's: `begin_array`, a builder of `n` items, `push`, which owns the
+ * builder and an item and gives the builder back, and `seal`, which owns
+ * the builder and answers the array.
  *
  * @type {Interface['functions']}
  */
 const containers = [
     ['item', signature([['c', only(any, 'array', 'object')], ['i', index]], any)],
+    ['begin_array', signature([['n', index]], builder)],
+    ['push', signature([own('b', builder), own('v', any)], builder, 'b')],
+    ['seal', signature([own('b', builder)], array)],
 ]
 
-/** The functions of the modules of L0 that have more than a `length`. @type {readonly (readonly [string, Interface['functions']])[]} */
-const more = [['String', strings], ['Containers', containers]]
+/**
+ * The functions of the modules of L0 that have more than a `length`, and
+ * their types: Containers' builder, carried by an `i32`.
+ *
+ * @type {readonly (readonly [string, Interface['functions'], Interface['types']])[]}
+ */
+const more = [['String', strings, []], ['Containers', containers, [['builder', { variants: ['builder'], carrier: 'i32' }]]]]
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
 export const l0 = [
     ['Any', anyInterface],
-    ...lengths.map(([module, param, ks]) => /** @type {const} */ ([module, lengthOf(param, ks, more.find(([k]) => k === module)?.[1] ?? [])])),
+    ...lengths.map(([module, param, ks]) => {
+        const [, fns, types] = more.find(([k]) => k === module) ?? ['', [], []]
+        return /** @type {const} */ ([module, lengthOf(param, ks, fns, types)])
+    }),
 ]

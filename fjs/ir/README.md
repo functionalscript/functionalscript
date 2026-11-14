@@ -15,9 +15,10 @@ through [the interfaces of L0](./l0/module.f.js), loops, functions that a
 module does not export, with records and
 [L1's native rows](./native/module.f.js), owned values written by hand
 (6a), the lifetime pass, which writes them (6b), constants, which a
-module's `init` evaluates (6c), and string literals, which its start
-function makes (6d). Next is the rest of counted values (`typeOf`), as
-stacked PRs in that roadmap: array literals (6e, 6f).
+module's `init` evaluates (6c), string literals, which its start
+function makes (6d), and array literals of values, which Containers'
+builder makes (6e). Next is the rest of counted values, as a stacked PR
+in that roadmap: reading an array, and `typeOf` (6f).
 
 ## Map of this directory
 
@@ -231,6 +232,37 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   Five FunctionalScript functions that read literals, among them the
   empty string, a unit past ASCII and a pair of surrogates, run against
   JavaScript, and so do the random comparison's programs of literals.
+
+## What 6e adds
+
+- **A linear type of L0**: Containers' `builder`
+  ([L0 design §8](../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)),
+  which names no `dup` and no `drop`, so each path consumes it once, and
+  no `kind`, so nothing matches it: the checker refuses a `match` of a
+  type whose interface names no kind for it. An `i32` carries it.
+- **A function that gives back a parameter**
+  ([definition.md's binding rule 3](../../doc/sasha-gil/ir/definition.md#bindings)):
+  `Signature.returns` names an owned parameter of the result's type, which
+  the call answers. `begin_array(n)` answers a builder of `n` items,
+  `push(own b, own v)` gives `b` back with `v` its next item, and
+  `seal(own b)` answers the array, `any.only(array)`. The checker refuses
+  an interface whose function gives back a parameter that it does not own
+  or that is of another type than its result. In WASM the import answers
+  nothing: the call keeps the builder in a local, with `local.tee`, and
+  reads it after the call.
+- **The counting host's builders**: `begin_array` begins one, `push` takes
+  over a count of a cell as its next item, and `seal` makes a cell of the
+  array; a push past the count, a seal of fewer items and a handle of no
+  builder throw. A call that completes leaves no builder that it did not
+  seal, and an array is the twin's where their items are, one by one.
+- **The lowering of an array literal**: with the runtime, its items
+  first, each lowered where it stands as the arguments of a call are, then
+  `seal` of a `push` of each onto `begin_array` of their count, so nothing
+  between them traps or leaves. An item is a value of `any`; a number, a
+  boolean and a spread are refused, and the parser refuses a hole. A
+  definition of the module that holds an array is a constant that `init`
+  builds. Six FunctionalScript functions that make arrays run against
+  JavaScript, and so do the random comparison's programs of arrays.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module

@@ -25,7 +25,7 @@ const out = compare(0x4f1c_5e2d, 120, 80)
 | Generator | Writes |
 | --- | --- |
 | typed | floats, booleans, small integer ranges, an unexported helper, a short loop, `%`, a record kept inside the function; since 6c, module constants of floats, each reading the ones before it, and a `bool` of two of them |
-| any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind; since 6b, `concat`, `fromUnit`, `substring` and `item`, whose values the caller owns, and a loop that owns its string; since 6c, a constant of a string that `init` makes, and `undefined` and `null`; since 6d, string literals, the empty one, a unit past ASCII and a pair of surrogates among them, raw and escaped, at times one written twice and at times through a definition of the module |
+| any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind; since 6b, `concat`, `fromUnit`, `substring` and `item`, whose values the caller owns, and a loop that owns its string; since 6c, a constant of a string that `init` makes, and `undefined` and `null`; since 6d, string literals, the empty one, a unit past ASCII and a pair of surrogates among them, raw and escaped, at times one written twice and at times through a definition of the module; since 6e, array literals of parameters, literals, Any's constants, strings that `concat` makes and arrays, at times one that `init` builds, in the arms of a `kind` test, and read by `length` and `item` or answered |
 
 A program whose **integer** signature's body range past that signature the
 checker refuses is counted and not run. The same diagnostic against an

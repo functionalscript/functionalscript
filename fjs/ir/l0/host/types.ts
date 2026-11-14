@@ -34,7 +34,9 @@ export type View = {
  * `substring` and `item`, which make a cell that the caller owns and answer
  * its handle. The memory that the host makes holds a module's data
  * segments at `data_base`, from which `make_string` makes a cell of a
- * string of the UTF-16 units at an address.
+ * string of the UTF-16 units at an address. A builder is an `i32` handle:
+ * `begin_array` makes one of a number of items, `push` takes over a cell
+ * as its next item, and `seal` ends it and makes a cell of the array.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
@@ -56,6 +58,9 @@ export type Imports = {
     readonly concat: (a: bigint, b: bigint) => bigint
     readonly substring: (s: bigint, start: number, end: number) => bigint
     readonly item: (c: bigint, i: number) => bigint
+    readonly begin_array: (n: number) => number
+    readonly push: (b: number, v: bigint) => void
+    readonly seal: (b: number) => bigint
 }
 
 /**
@@ -63,11 +68,13 @@ export type Imports = {
  * names, `keep`, which keeps every cell alive at its count, and the cells
  * that are not as they were kept, each a handle and its count, in the order
  * they were made: a cell alive that is not kept, and a kept one at another
- * count, `0` where a `drop` freed it.
+ * count, `0` where a `drop` freed it. `builders` are the handles of the
+ * builders that are not sealed, in the order they were begun.
  */
 export type Counting = {
     readonly imports: Imports
     readonly read: (h: bigint) => unknown
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
+    readonly builders: () => readonly number[]
 }

@@ -103,7 +103,27 @@ export const proof = {
         const e = h.imports.make_string(base, 0)
         assertEq(`${h.read(s)} ${JSON.stringify(h.read(e))} ${cells(h)}`, `a\u{1F600} "" ${s}:1,${e}:1`)
     },
-    // A handle of no cell throws, and so does one whose cell a drop freed, and units past the memory.
+    // A builder is a handle of its own: push takes over a count of a cell as its next item, and seal ends the builder and
+    // makes a cell of the array, which holds an array that it holds as its value.
+    builders: () => {
+        const h = counting(['a', 'b'])
+        const b = h.imports.begin_array(2)
+        assertEq(h.builders().join(), `${b}`)
+        h.imports.push(b, 0n)
+        assertEq(cells(h), '1:1')
+        h.imports.push(b, h.imports.dup(1n))
+        assertEq(cells(h), '1:1')
+        const r = h.imports.seal(b)
+        assertEq(`${JSON.stringify(h.read(r))} ${h.builders().length} ${cells(h)}`, `["a","b"] 0 1:1,${r}:1`)
+        const c = h.imports.begin_array(1)
+        assert(c !== b)
+        h.imports.push(c, r)
+        const t = h.imports.seal(c)
+        assertEq(`${JSON.stringify(h.read(t))} ${cells(h)}`, `[["a","b"]] 1:1,${t}:1`)
+        assertEq(JSON.stringify(h.read(h.imports.seal(h.imports.begin_array(0)))), '[]')
+    },
+    // A handle of no cell throws, and so does one whose cell a drop freed, units past the memory, a handle of no builder or of
+    // a sealed one, a push past a builder's length and a seal of fewer items.
     throw: {
         none: () => { counting([]).read(0n) },
         freed: () => {
@@ -114,6 +134,21 @@ export const proof = {
         past: () => {
             const h = counting([])
             h.imports.make_string(h.imports.memory.buffer.byteLength - 1, 1)
+        },
+        builder: () => { counting([]).imports.seal(0) },
+        sealed: () => {
+            const h = counting([])
+            const b = h.imports.begin_array(0)
+            h.imports.seal(b)
+            h.imports.push(b, -1n)
+        },
+        full: () => {
+            const h = counting([])
+            h.imports.push(h.imports.begin_array(0), -1n)
+        },
+        short: () => {
+            const h = counting([])
+            h.imports.seal(h.imports.begin_array(1))
         },
     },
     // concat of a borrowed string answers an owned one, which the caller drops.
