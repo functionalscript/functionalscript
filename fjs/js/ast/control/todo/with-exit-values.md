@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`control`](../module.f.mjs)'s `exitValues` is the one reader of an
+[`control`](../module.f.js)'s `exitValues` is the one reader of an
 `Exit`'s operands: `yield` carries a list, `break` and `continue` a target
 and a list, `return` a target and one value, `throw` one value. The writer,
 "this exit with its operands replaced", has no owner, so every pass that
