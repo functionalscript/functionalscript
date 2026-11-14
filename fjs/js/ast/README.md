@@ -117,7 +117,7 @@ by the value inside a computed `['Number', value]` key; literal keys remain
 metadata. It resolves the member without evaluating call arguments or checking
 callability. The graph conversion and runtime writers support this form;
 source admission has no spelling for it. The shared
-[`returns`](./returns/module.f.mjs) pass lifts owning returns through member and
+[`returns`](./returns/module.f.js) pass lifts owning returns through member and
 optional-call operands before graph construction or physical preparation. It
 retains required lookup, receiver binding and optional-region boundaries;
 target writers consume the resulting explicit control flow.
