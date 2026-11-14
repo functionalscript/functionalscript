@@ -6,7 +6,7 @@
  *
  * A function sample, a spec page's example, also lists its calls: each
  * input the page's Run button calls it with, and what JavaScript answers,
- * as [`spell`](../spell/module.f.mjs) writes it. The list is their one
+ * as [`spell`](../spell/module.f.js) writes it. The list is their one
  * statement: the host proof beside this module holds JavaScript to them,
  * and the generator writes them into Rust tests that hold the compiled
  * sample to the same answers, so a page whose two runs would disagree fails
