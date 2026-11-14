@@ -1,32 +1,34 @@
 /**
- * A JavaScript host for the `fjs:l0` imports that [the interfaces of
- * L0](../module.f.js) bind, so that a module of the IR runs on any
+ * The `fjs:l0` imports that [the interfaces of L0](../module.f.js) bind,
+ * as the [L0 view](../../../wasm/runtime/l0/module.f.js)'s functions on the
+ * values that handles name, so that a module of the IR runs on any
  * WebAssembly engine of a JavaScript host before NaNVM runs it.
  *
- * - **A value of `any` is a handle**: the index of the value in a table that
- *   the host holds, as an `i64`. A handle that names no value of the table
- *   throws.
- * - **Each import is the [L0 view](../../../wasm/runtime/l0/module.f.js)'s
- *   function**, on the values that the handles name: `kind` is its `kind`,
+ * - **A value of `any` is a handle**, an `i64` that a host reads as the
+ *   value it names. `handles` reads a table of values by index, and the
+ *   [counting host](./count/module.mjs) reads its cells.
+ * - **Each import is the view's function**: `kind` is its `kind`,
  *   `to_f64` its `asNumber`, `to_bool` its `asBoolean`, `same` its `same`,
  *   `length` its `length`, and `unit` its `unit`. Where L0 traps, the view
  *   throws, and so does the import.
+ * - **`from_unit` and `concat` answer the value they make**, the view's
+ *   `fromUnit` and `concat`, which a host gives a handle. Counting is the
+ *   host's: `dup`, `drop` and the cells are state, which a host boundary
+ *   holds and FunctionalScript does not.
  *
- * A host proof makes one table per call of an exported function: the
- * values of its arguments of `any`, whose handles it passes. The
- * [host of L1's native rows](../../native/host/module.f.js) reads the same
- * table through `handles`.
+ * The [host of L1's native rows](../../native/host/module.f.js) reads
+ * values the same way.
  *
  * @module
  *
- * @import { Host } from './types.ts'
+ * @import { View } from './types.ts'
  */
 
-import { asBoolean, asNumber, kind, length, same, unit } from '../../../wasm/runtime/l0/module.f.js'
+import { asBoolean, asNumber, concat, fromUnit, kind, length, same, unit } from '../../../wasm/runtime/l0/module.f.js'
 
 /**
- * The value that a handle names in a table of values, or a throw where it
- * names none.
+ * The value that a handle names in a table of values, by its index, or a
+ * throw where it names none.
  *
  * @type {(values: readonly unknown[]) => (h: bigint) => unknown}
  */
@@ -36,18 +38,17 @@ export const handles = values => h => {
 }
 
 /**
- * The `fjs:l0` imports over a table of values.
+ * The `fjs:l0` imports of the L0 view, over a reading of handles.
  *
- * @type {(values: readonly unknown[]) => Host}
+ * @type {(read: (h: bigint) => unknown) => View}
  */
-export const host = values => {
-    const value = handles(values)
-    return {
-        kind: h => kind(value(h)),
-        to_f64: h => asNumber(value(h)),
-        to_bool: h => asBoolean(value(h)) ? 1 : 0,
-        same: (a, b) => same(value(a), value(b)) ? 1 : 0,
-        length: h => length(value(h)),
-        unit: (h, i) => unit(value(h), i),
-    }
-}
+export const view = read => ({
+    kind: h => kind(read(h)),
+    to_f64: h => asNumber(read(h)),
+    to_bool: h => asBoolean(read(h)) ? 1 : 0,
+    same: (a, b) => same(read(a), read(b)) ? 1 : 0,
+    length: h => length(read(h)),
+    unit: (h, i) => unit(read(h), i),
+    from_unit: c => fromUnit(c),
+    concat: (a, b) => concat(read(a), read(b)),
+})

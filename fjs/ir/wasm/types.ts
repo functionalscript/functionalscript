@@ -15,10 +15,11 @@ export type _Any = { readonly any: unknown }
 
 /**
  * A value of the IR on the host, as the host proofs pass it: an integer as
- * a `bigint`, a float as a `number`, a `bool` as a `boolean`, and a value
- * of `any` as the value it holds.
+ * a `bigint`, a float as a `number`, a `bool` as a `boolean`, a value of
+ * `any` as the value it holds, and `unit` as `undefined`, which is what the
+ * JavaScript API gives for no result.
  */
-export type _Value = bigint | number | boolean | _Any
+export type _Value = bigint | number | boolean | undefined | _Any
 
 /** A function's JavaScript twin, on its arguments in their order. */
 export type _Twin = (xs: readonly _Value[]) => _Value
