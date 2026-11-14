@@ -43,7 +43,7 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, int, never, product, unit } from '../module.f.js'
+import { bool, compareIn, equal, f64, f64c, fits, int, isOwn, never, product, unit } from '../module.f.js'
 import { show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 
@@ -488,8 +488,9 @@ const term = (env, t) => {
 /**
  * Why a module may not have a function of a signature, or `null` where it
  * may: parameters of distinct names, types that a module may write, no
- * parameter of type `never`, and a result that is a type a module may write
- * or `unit` (as `drop` answers). A sealed result is owned by the caller.
+ * parameter of type `never`, an `own` parameter only of a sealed type,
+ * which is what a callee can own, and a result that is a type a module may
+ * write, or `unit`, as `drop` answers. The caller owns a sealed result.
  *
  * @type {(env: _Env, s: Signature) => string | null}
  */
@@ -499,9 +500,11 @@ const unsigned = (env, { params, result }) => {
     const resultOk = equal(result, unit) ? null : unsupported(env, result)
     const why = [...params.map(([, t]) => t).map(t => unsupported(env, t)), resultOk].find(x => x !== null)
     const unreachable = params.find(([, t]) => isNever(t))
+    const unowned = params.find(p => isOwn(p) && p[1][0] !== 'sealed')
     return twice !== undefined ? `two parameters are named ${twice}`
         : typeof why === 'string' ? why
         : unreachable !== undefined ? `${unreachable[0]} is never, so no call reaches the function`
+        : unowned !== undefined ? `${unowned[0]} is own, and ${show(unowned[1])} is not sealed, so there is nothing to own`
         : null
 }
 
@@ -510,9 +513,11 @@ const unsigned = (env, { params, result }) => {
  * names each of its types and its functions once, since a call and a sealed
  * type find them by their names, each of its sealed types names its
  * variants once each, its signatures have types that a module may write,
- * and the tag of each sealed type comes from a function of the interface
- * that takes the type and answers `int(0, n - 1)`, one tag for each of its
- * `n` variants.
+ * the tag of each sealed type comes from a function of the interface that
+ * borrows a value of the type and answers `int(0, n - 1)`, one tag for each
+ * of its `n` variants, and a counted type names both of its counting
+ * functions: a `dup` that borrows a value and answers one of the type, and
+ * a `drop` that owns one and answers `unit`.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
@@ -525,17 +530,21 @@ const checkInterface = imports => ([name, { types, functions }]) => {
     const named = functionNames.find((k, j) => functionNames.indexOf(k) !== j)
     const twice = types.find(([, { variants }]) => variants.some((v, k) => variants.indexOf(v) !== k))
     const why = functions.map(([, s]) => unsigned(env, s)).find(x => x !== null)
-    /** @type {(entry: readonly [string, SealedDef]) => boolean} */
-    const tagged = ([type, { variants, kind }]) => {
-        const f = functions.find(([k]) => k === kind)?.[1]
-        return f !== undefined && equal(f.params.map(([, t]) => t), [['sealed', name, type, null]]) && equal(f.result, int(0n, BigInt(variants.length - 1)))
+    /** Whether `f` names a function of the interface whose only parameter is a value of `type`, owned or not as `own` says, and whose result is `result`. @type {(f: string, type: string, own: boolean, result: Type) => boolean} */
+    const takes = (f, type, own, result) => {
+        const s = functions.find(([k]) => k === f)?.[1]
+        return s !== undefined && s.params.length === 1 && equal(s.params[0][1], ['sealed', name, type, null]) && isOwn(s.params[0]) === own && equal(s.result, result)
     }
-    const untagged = types.find(entry => !tagged(entry))
+    const untagged = types.find(([type, { variants, kind }]) => !takes(kind, type, false, int(0n, BigInt(variants.length - 1))))
+    const half = types.find(([, { dup, drop }]) => (dup === undefined) !== (drop === undefined))
+    const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     return type !== undefined ? `${name}: two types are named ${type}`
         : named !== undefined ? `${name}: two functions are named ${named}`
         : twice !== undefined ? `${name}: ${twice[0]} names a variant twice`
         : typeof why === 'string' ? `${name}: ${why}`
         : untagged !== undefined ? `${name}: ${untagged[1].kind} does not answer the tag of ${untagged[0]}, one for each of its variants`
+        : half !== undefined ? `${name}: ${half[0]} names ${half[1].dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
+        : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : null
 }
 

@@ -149,8 +149,11 @@ export type FunctionOf<T> = {
 /**
  * A sealed type as its interface shows it: its public variants in the order
  * of their tags, the function of the interface that answers a value's tag,
- * the WASM value that carries it where a host binds the interface, and the
- * functions that count it when the type is counted (`dup` and `drop`).
+ * the WASM value that carries it where a host binds the interface, and, for
+ * a counted type, the functions that count it: `dup`, which borrows a value
+ * and answers one of the type, and `drop`, which owns one and answers
+ * `unit`. A type that names neither is linear: a value that a module owns
+ * goes to a parameter that owns it.
  */
 export type SealedDef = {
     readonly variants: readonly string[]
@@ -163,8 +166,8 @@ export type SealedDef = {
 /**
  * What a module needs to know of another that it imports: the other's
  * sealed types and the signatures of its functions, whose parameters borrow
- * their arguments. `abi` is the WASM module of the imports that bind it on
- * a host, which name its functions as it does.
+ * their arguments but where they are `own`. `abi` is the WASM module of the
+ * imports that bind it on a host, which name its functions as it does.
  */
 export type Interface = {
     readonly abi: string
