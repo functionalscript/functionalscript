@@ -251,9 +251,11 @@ so a map after a set is a new kind of evaluated value.
   assumes an interpreter's reference values keep their host identity, so that
   the module sees the keys `===` sees.
 - NaNVM builds every function with `static_function(code, length, frame,
-  text)`, so a native function can hold a map in `frame` and return another.
-  It needs a reference's identity as a number, which the VM interface may not
-  offer yet.
+  text)`, so a native function holds a map in `frame` and returns another.
+  A reference's identity as a number is `IComplex::address`, which every VM
+  implements: equal for one value, different for two that are both alive.
+  The map keeps its entries in a trie over that number, and keeps its keys
+  alive, so no number is another key's while it is in a map.
 - The parser's grammar reads the whole body, `new` and a captured `let`
   assigned from a nested function included, with one exception: `next++` as
   an operand. The body therefore counts in a statement of its own,
@@ -346,9 +348,10 @@ step ([SESSION.md](../../doc/SESSION.md)):
   the native map, so that NaNVM runs a program that uses a map at once: the
   Rust output calls the runtime's maker, which NaNVM's generated runtime
   already holds, and the fixture runs on NaNVM against Node's answers.
-- [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
-  keys, within the `O(log n)` bound, in place of the runtime's `O(n)` one,
-  and written out as the fold over the empty map.
+- [x] `nanvm`: the native map over `static_function` and `frame`, retaining
+  keys, within the `O(log n)` bound, in place of the runtime's `O(n)` one.
+  NaNVM writes no value out, so the fold over the empty map has no writer
+  there yet.
 - [ ] `spec`: the specification page with a sample that keeps its data in an
   ordinary container under keys the map assigns; update the
   [design sketch](../design/object-identity.md) and the
