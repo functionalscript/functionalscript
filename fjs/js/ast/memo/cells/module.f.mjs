@@ -173,7 +173,7 @@ const mergeOwned = (first, second) => ({
 })
 
 /** @type {(exit: Exclude<Exit, readonly ['loop', Loop]>, values: readonly Value[]) => Exit} */
-const mappedExit = (exit, values) => values.every((value, index) => value === exitValues(exit)[index]) ? exit
+const mappedExit = (exit, values) => values.every((value, index) => value === exitValues(exit)[Number(index)]) ? exit
     : exit[0] === 'yield' ? ['yield', values]
         : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
             : exit[0] === 'throw' ? ['throw', values[0]] : ['return', exit[1], values[0]]
@@ -182,10 +182,10 @@ const mappedExit = (exit, values) => values.every((value, index) => value === ex
 const ownedValues = (values, scope, ancestors) => {
     /** @type {(index: number, prepared: List<Value>, owned: _Owned) => Task<_OwnedValues>} */
     const each = (index, prepared, owned) => call(() => {
-        if (index !== values.length) { return bind(ownedValue(values[index], scope, ancestors), result =>
+        if (index !== values.length) { return bind(ownedValue(values[Number(index)], scope, ancestors), result =>
             each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))) }
         const result = toArray(prepared).toReversed()
-        return done({ values: result.every((value, index) => value === values[index]) ? values : result, owned })
+        return done({ values: result.every((value, index) => value === values[Number(index)]) ? values : result, owned })
     })
     return each(0, null, emptyOwned)
 }
@@ -212,13 +212,13 @@ const ownedValue = (source, scope, ancestors) => call(() => {
     if (source[0] === 'function') {
         const values = source[1].captures.map(capture => capture.value)
         return bind(ownedValues(values, scope, ancestors), captures => done({
-            value: captures.values === values ? source : ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[index] })) }],
+            value: captures.values === values ? source : ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[Number(index)] })) }],
             owned: captures.owned,
         }))
     }
     const values = operatorOperands(source)
     return bind(ownedValues(values, scope, ancestors), operands => done({
-        value: operands.values === values ? source : mapOperator((_, index) => operands.values[index])(source), owned: operands.owned,
+        value: operands.values === values ? source : mapOperator((_, index) => operands.values[Number(index)])(source), owned: operands.owned,
     }))
 })
 
@@ -259,7 +259,7 @@ const ownedBlock = (source, initialScope, ancestors, owners) => {
                 normal: exit[0] === 'yield', owned: mergeOwned(owned, values.owned),
             }))
         }
-        const statement = source.statements[index]
+        const statement = source.statements[Number(index)]
         /** @type {(statement: Statement, nextScope: _Scope, added: _Owned, normal?: boolean) => Task<_OwnedBlock>} */
         const append = (statement, nextScope, added, normal = true) => {
             const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
@@ -344,7 +344,7 @@ const deferredSeeds = (source, external, definitions, candidates) => {
     const values = (input, scope, depth) => {
         /** @type {(index: number, summary: _DeferredSummary) => Task<_DeferredSummary>} */
         const each = (index, summary) => call(() => index === input.length ? done(summary)
-            : bind(value(input[index], scope, depth), result => each(index + 1, mergeDeferred(summary, result))))
+            : bind(value(input[Number(index)], scope, depth), result => each(index + 1, mergeDeferred(summary, result))))
         return each(0, emptyDeferred)
     }
     /** @type {(source: Value, scope: _DeferredScope, depth: number) => Task<_DeferredSummary>} */
@@ -378,7 +378,7 @@ const deferredSeeds = (source, external, definitions, candidates) => {
                 return bind(values(exitValues(source.exit), scope, depth), result =>
                     done({ summary: mergeDeferred(summary, result), normal: source.exit[0] === 'yield' }))
             }
-            const statement = source.statements[index]
+            const statement = source.statements[Number(index)]
             /** @type {(added: _DeferredSummary, next: _DeferredScope, normal?: boolean) => Task<_DeferredBlock>} */
             const append = (added, next, normal = true) => normal ? each(index + 1, next, mergeDeferred(summary, added))
                 : done({ summary: mergeDeferred(summary, added), normal: false })
@@ -424,10 +424,10 @@ const deferredSeeds = (source, external, definitions, candidates) => {
 export const recipeCells = (value, outer, aliases, functionTarget = null) => {
     const indices = [...new Set(aliases.values())]
     const borrowed = indices.map(index => {
-        const cell = outer.cells[index]
+        const cell = outer.cells[Number(index)]
         return /** @type {_Root} */ ({ binding: cell.binding, source: { definition: cell.definition, insideLoop: cell.iterationLocal, loop: null }, dependencies: [] })
     })
-    const byIndex = new Map(indices.map((index, position) => [index, borrowed[position]]))
+    const byIndex = new Map(indices.map((index, position) => [index, borrowed[Number(position)]]))
     const scope = new Map([...aliases].map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (byIndex.get(index))])))
     const prepared = run(ownedValue(value, scope, null))
     const localRoots = toArray(prepared.owned.roots)
@@ -440,7 +440,7 @@ export const recipeCells = (value, outer, aliases, functionTarget = null) => {
         || locals.some(root => root.source?.loop === info.source)))
     validateTransfers(inventory, loops, functionTarget)
     const slots = new Map([
-        ...borrowed.map((root, position) => /** @type {const} */ ([root, indices[position]])),
+        ...borrowed.map((root, position) => /** @type {const} */ ([root, indices[Number(position)]])),
         ...locals.map((root, index) => /** @type {const} */ ([root, outer.cells.length + index])),
     ])
     const cells = locals.map(root => {
