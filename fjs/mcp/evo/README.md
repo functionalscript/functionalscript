@@ -60,8 +60,8 @@ therefore takes either form the format does: the bindings inline as a map, or
 the cBase32 hash of a [`vnd.fjs.lock`](../../media/lock/) blob holding them —
 recorded as given, never followed. The map half is recursive — a value is a
 hash or a nested scope — which is why it is the one argument whose JSON Schema
-is not inlined whole: the recursion comes out as a named `$defs` rule
-(`lockValue`) reached through a local `$ref`, the JSON Schema spelling of a
+is not inlined whole: the recursion comes out as a `$defs` rule with ordinal
+`0`, reached through the local `$ref` `#/$defs/0`, the JSON Schema spelling of a
 cycle.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
