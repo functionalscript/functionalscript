@@ -581,6 +581,29 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
 }
 
 /**
+ * Why two imports of the interfaces that a module imports would be one
+ * import of different values, or `null` where none would: a constant and a
+ * function, or two constants of different types, that are imported from one
+ * ABI by one name. A host gives one value for each name of an ABI, so it
+ * could bind only one of them. Two functions of one name share the host's
+ * function, as the four `length`s do.
+ *
+ * @type {(imports: readonly (readonly [string, Interface])[]) => string | null}
+ */
+const shared = imports => {
+    const fns = imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member])))
+    const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, t])))
+    const clash = cs.flatMap(([name, abi, member, t], j) => {
+        const f = fns.find(([, a, m]) => a === abi && m === member)
+        const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && !equal(x, t))
+        return f !== undefined ? [`the constant ${name} and the function ${f[0]} are both the import ${member} of ${abi}`]
+            : c !== undefined ? [`the constants ${c[0]} and ${name}, of different types, are both the import ${member} of ${abi}`]
+            : []
+    })
+    return clash[0] ?? null
+}
+
+/**
  * Why the checker may not type a term in an environment, or `null` where
  * it may: the interfaces and the signatures that the environment sees are
  * ones a module may have, the types of its locals are ones a local may
@@ -595,6 +618,7 @@ const unscoped = (env, imports, functions, locals, results) => {
     const names = functions.map(([name]) => name)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const iface = imports.map(checkInterface(env.imports)).find(x => x !== null)
+    const field = shared(imports)
     const signature = functions.map(([name, s]) => {
         const why = unsigned(env, s)
         return why === null ? null : `${name}: ${why}`
@@ -604,6 +628,7 @@ const unscoped = (env, imports, functions, locals, results) => {
         : imported !== undefined ? `${imported} is imported twice`
         : twice !== undefined ? `two functions are named ${twice}`
         : typeof iface === 'string' ? iface
+        : typeof field === 'string' ? field
         : typeof signature === 'string' ? signature
         : typeof local === 'string' ? `${assertNotNullish(entry(env, 'name'))}: ${local}`
         : null
