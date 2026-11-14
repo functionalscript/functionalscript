@@ -469,7 +469,10 @@ export const compareOne = program => {
     } catch (e) {
         return ['wrong', e instanceof Error ? e.message : String(e)]
     }
-    const calls = Object.values(program.inputs).reduce((n, rows) => n + rows.length, 0)
+    const calls = Object.values(program.inputs).reduce((n, rows) => {
+        assert(rows !== undefined)
+        return n + rows.length
+    }, 0)
     return ['ran', calls]
 }
 
