@@ -44,11 +44,8 @@ and refuses everything outside the slice, so that the next slice only adds.
 ### Decisions for slice 6 (2026-11-14)
 
 Owner chose option A on each of five choices after review of slices 2–5
-(about 2.4 million lowered-WASM calls, zero wrong answers, measured on
-[`177c39cb3`](https://github.com/functionalscript/functionalscript/commit/177c39cb3ae3ee10fbc4586a897c75a50d5a19ba)
-before [#3837](https://github.com/functionalscript/functionalscript/pull/3837)
-and on that merge for the post-fix run; three refusal defects fixed in
-#3837).
+(about 2.4 million lowered-WASM calls, zero wrong answers; three refusal
+defects fixed in [#3837](https://github.com/functionalscript/functionalscript/pull/3837)).
 
 | Choice | Decision |
 | --- | --- |
@@ -94,11 +91,10 @@ literal of strings, and array reads need a bounds path to `undefined`. The
 stack below brings that machinery forward. Each PR is stacked on the one
 before it and proved end to end on its own.
 
-- [x] **Seeded random comparison** (before 6a). A host proof of a few hundred
-  programs a run under [`from_fast/random`](../from_fast/random/README.md);
-  extend it as later slices land. It found the three defects that example
-  proofs at 100% coverage missed. Tighten the trap oracle before slice 7
-  makes throws meaningful.
+- [ ] **Seeded random comparison** (before 6a). A host proof of a few hundred
+  programs a run, covering what the slices lower; extend it as later slices
+  land. It found the three defects that example proofs at 100% coverage
+  missed. Tighten the trap oracle before slice 7 makes throws meaningful.
 - [ ] **6a. Owned values, by hand.** Copy and counted kinds; `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage; a host that counts every value.
