@@ -1,5 +1,9 @@
 /**
- * Types private to the seeded random comparison.
+ * Types of the seeded random comparison. They live here, not in
+ * `private.ts`, because [`module.mjs`](./module.mjs) names them in its
+ * declaration, and that declaration ships in the package
+ * ([`package.json` `files`](../../../../package.json) excludes
+ * `private.d.ts`).
  *
  * @module
  */
