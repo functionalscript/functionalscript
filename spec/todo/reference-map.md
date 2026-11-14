@@ -342,11 +342,13 @@ step ([SESSION.md](../../doc/SESSION.md)):
   runtime's function with its pairs; the fold over the empty map is the form
   for a native map, and is NaNVM's step and
   [the store](../../fjs/edag/todo/reference-map-store.md)'s.
+- [x] `rust/serializer`: emit the map, with a harness fixture. Taken before
+  the native map, so that NaNVM runs a program that uses a map at once: the
+  Rust output calls the runtime's maker, which NaNVM's generated runtime
+  already holds, and the fixture runs on NaNVM against Node's answers.
 - [ ] `nanvm`: the native map over `static_function` and `frame`, retaining
-  keys, within the `O(log n)` bound. NaNVM's runtime is generated from the
-  same source, so it already holds the runtime's map; its own code still
-  refuses the node.
-- [ ] `rust/serializer`: emit the map, with harness fixtures and demos.
+  keys, within the `O(log n)` bound, in place of the runtime's `O(n)` one,
+  and written out as the fold over the empty map.
 - [ ] `spec`: the specification page with a sample that keeps its data in an
   ordinary container under keys the map assigns; update the
   [design sketch](../design/object-identity.md) and the

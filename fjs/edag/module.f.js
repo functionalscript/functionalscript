@@ -783,10 +783,9 @@ export const noStatic = name => `no binding for the static ${name}`
 
 /**
  * The failure of an executor asked for the empty reference map,
- * `['refMap']`, with no map to answer: an interpreter with no runtime to
- * take the runtime's from, and the Rust output, which has none of its own
- * yet. It fails naming the map, never answering a function that is not
- * one.
+ * `['refMap']`, with no map to answer: an interpreter, or the Rust
+ * output, with no runtime to take the runtime's from. It fails naming the
+ * map, never answering a function that is not one.
  */
 export const noRefMap = /** @type {const} */ ('no reference map in this executor')
 
@@ -918,7 +917,8 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * map with the key set. An interpreter answers it with a new map of the
  * runtime's, `runtime.refMap()`, an ordinary function
  * ([`../js/ref_map`](../js/ref_map/module.f.js)), and with no runtime
- * refuses it ({@link noRefMap}), as the Rust output still does.
+ * refuses it ({@link noRefMap}); the Rust output writes the same call of
+ * the runtime, and refuses the same way.
  *
  * The intrinsics, {@link intrinsicId}, are the helpers calling a member
  * function no body defines, `['slice']`.
