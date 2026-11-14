@@ -73,7 +73,7 @@
  *   local, `asString(a)` say, a `cast` of the local wraps the definition and
  *   the rest of the block, which read it at the cast's kind: `a.string`.
  *
- * The answer is a module for the [checker](../check/module.f.mjs), which
+ * The answer is a module for the [checker](../check/module.f.js), which
  * refuses what the IR does not admit, such as a `match` of a float.
  *
  * @module
@@ -86,9 +86,10 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
-import { typeOf } from '../check/module.f.mjs'
+import { typeOf } from '../check/module.f.js'
 import { any, kinds, l0, lengths } from '../l0/module.f.js'
 import {
     add, bool, call, cast, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
@@ -107,7 +108,10 @@ const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
 const staticOp = id => id === 'Math.sqrt' ? 'sqrt' : id === 'Math.abs' ? 'abs' : null
 
 /** @type {(scope: _Scope) => (message: string) => Result<never, string>} */
-const refuse = scope => message => error(`${scope.ir.name}: ${message}`)
+const refuse = scope => {
+    const name = assertNotNullish(entry(scope.ir, 'name'))
+    return message => error(`${name}: ${message}`)
+}
 
 /** What a binding stands for, or `null` for one from outside the function. @type {(scope: _Scope, b: BindingId) => _Meaning | null} */
 const meaning = (scope, b) => scope.bindings.find(([x]) => x === b)?.[1] ?? null

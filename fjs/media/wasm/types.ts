@@ -1,7 +1,7 @@
 /**
  * The WebAssembly module AST: a module's sections as values, in the binary
  * format's terms, read by [`binary/parse`](./binary/parse/module.f.mjs) and
- * written by [`binary/write`](./binary/write/module.f.mjs) and
+ * written by [`binary/write`](./binary/write/module.f.js) and
  * [`wat`](./wat/module.f.mjs).
  *
  * **A module is a record of its sections, not a list of them.** The known

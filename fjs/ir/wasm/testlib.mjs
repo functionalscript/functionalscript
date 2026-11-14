@@ -22,8 +22,8 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
-import { write } from '../../media/wasm/binary/write/module.f.mjs'
-import { check } from '../check/module.f.mjs'
+import { write } from '../../media/wasm/binary/write/module.f.js'
+import { check } from '../check/module.f.js'
 import { host } from '../l0/host/module.f.js'
 import { fits } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.f.js'

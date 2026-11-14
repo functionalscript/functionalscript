@@ -4,7 +4,7 @@
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { check } from '../check/module.f.mjs'
+import { check } from '../check/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'

@@ -31,7 +31,7 @@ import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/b
 import { toArray } from '../../types/list/alt/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { collectRead, toPath } from '../module.f.mjs'
+import { collectRead, toPath } from '../module.f.js'
 import { _driveCas } from '../proof.f.mjs'
 import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.mjs'
 

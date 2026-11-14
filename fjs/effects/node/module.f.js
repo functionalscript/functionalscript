@@ -88,7 +88,7 @@ export const randomInt = commonRandomInt
 /**
  * A 256-bit random `Vec`, built from 8 sequential {@link randomInt} (32-bit)
  * calls: what a name nobody else is writing to is made of — a CAS staging
- * file ([`fjs/cas`](../../cas/module.f.mjs)) and a loose object's temporary
+ * file ([`fjs/cas`](../../cas/module.f.js)) and a loose object's temporary
  * file ([`fjs/git/loose`](../../git/loose/module.f.mjs)).
  *
  * @type {Effect<RandomInt, Vec, NotImplemented>}

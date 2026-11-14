@@ -1,7 +1,7 @@
 /**
- * The emitter: a module that the [checker](../check/module.f.mjs) took, as a
+ * The emitter: a module that the [checker](../check/module.f.js) took, as a
  * WebAssembly module in the AST of [`fjs/media/wasm`](../../media/wasm/types.ts),
- * whose [writer](../../media/wasm/binary/write/module.f.mjs) makes its bytes.
+ * whose [writer](../../media/wasm/binary/write/module.f.js) makes its bytes.
  *
  * It reads the types that the checker answered, and they alone decide what it
  * writes:

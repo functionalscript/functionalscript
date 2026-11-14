@@ -19,7 +19,7 @@ import {
     addResult, defaultReporter, defaultTest, formatDuration, main, register, registerOne, testResult, text, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun, runAll } from '../effects/mock/module.f.js'
-import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.mjs'
+import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.js'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'

@@ -39,6 +39,8 @@
  */
 
 import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { bool, compareIn, equal, f64, f64c, fits, int, never, product } from '../module.f.js'
 import { show } from '../print/module.f.js'
@@ -281,7 +283,7 @@ const callee = (env, module, name) => {
 /** A term that gives a value, which a `never` does not. @type {(checkTerm: _CheckTerm, env: _Env, t: Term) => Result<Typed, string>} */
 const value = (checkTerm, env, t) => {
     const r = checkTerm(env, t)
-    return r[0] === 'ok' && isNever(r[1][0]) ? error(`${env.name}: a ${t[0]} that gives no value stands where a value is used`) : r
+    return r[0] === 'ok' && isNever(r[1][0]) ? error(`${assertNotNullish(entry(env, 'name'))}: a ${t[0]} that gives no value stands where a value is used`) : r
 }
 
 /** @type {(checkTerm: _CheckTerm, env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
@@ -300,8 +302,9 @@ const label_ = (label, l) => setReplace(label)(l)
  * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly (readonly [string, Type, Term])[], body: Term) => Result<Typed, string>}
  */
 const loopTerm = (checkTerm, env, label, params, body) => {
+    const functionName = assertNotNullish(entry(env, 'name'))
     /** @type {(message: string) => Result<Typed, string>} */
-    const no = message => error(`${env.name}: ${message}`)
+    const no = message => error(`${functionName}: ${message}`)
     const names = params.map(([k]) => k)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const bound = names.find(k => at(k)(env.locals) !== null)
@@ -330,8 +333,9 @@ const loopTerm = (checkTerm, env, label, params, body) => {
  * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly Param[], e: Term) => Result<Typed, string>}
  */
 const repeat = (checkTerm, env, label, params, e) => {
+    const functionName = assertNotNullish(entry(env, 'name'))
     /** @type {(message: string) => Result<Typed, string>} */
-    const no = message => error(`${env.name}: ${message}`)
+    const no = message => error(`${functionName}: ${message}`)
     const names = params.map(([k]) => k)
     if (e[0] !== 'make' || !equal(e[1].map(([k]) => k), names)) { return no(`br ${label} takes { ${names.join(', ')} }, the loop's parameters in their order`) }
     const fields = values(checkTerm, env, e[1].map(([, x]) => x))
@@ -343,8 +347,9 @@ const repeat = (checkTerm, env, label, params, e) => {
 
 /** @type {_CheckTerm} */
 const term = (env, t) => {
+    const functionName = assertNotNullish(entry(env, 'name'))
     /** @type {(message: string) => Result<Typed, string>} */
-    const no = message => error(`${env.name}: ${message}`)
+    const no = message => error(`${functionName}: ${message}`)
     switch (t[0]) {
         case 'lit': {
             const [, type, v] = t
@@ -549,7 +554,7 @@ const unscoped = (env, imports, functions, locals, results) => {
         : twice !== undefined ? `two functions are named ${twice}`
         : typeof iface === 'string' ? iface
         : typeof signature === 'string' ? signature
-        : typeof local === 'string' ? `${env.name}: ${local}`
+        : typeof local === 'string' ? `${assertNotNullish(entry(env, 'name'))}: ${local}`
         : null
 }
 
@@ -590,13 +595,17 @@ export const check = m => {
  *
  * @type {(scope: Scope) => (t: Term) => Result<Type, string>}
  */
-export const typeOf = ({ name, locals, result, functions, imports }) => t => {
+export const typeOf = scope => {
+    const name = assertNotNullish(entry(scope, 'name'))
+    const { locals, result, functions, imports } = scope
     /** @type {_Env} */
     const env = {
         name, locals: fromEntries(locals), labels: label_('return', ['block', result])(empty), functions: fromEntries(functions), imports: fromEntries(imports),
     }
     const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [result])
-    if (why !== null) { return error(why) }
-    const r = term(env, t)
-    return r[0] === 'error' ? r : ok(r[1][0])
+    return t => {
+        if (why !== null) { return error(why) }
+        const r = term(env, t)
+        return r[0] === 'error' ? r : ok(r[1][0])
+    }
 }

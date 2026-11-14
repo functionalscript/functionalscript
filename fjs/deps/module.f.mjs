@@ -11,7 +11,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.mjs'
+import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.js'
 import { join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
 import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
 import { tokenize } from '../compiler/tokenizer/module.f.mjs'

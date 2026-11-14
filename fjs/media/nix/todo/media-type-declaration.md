@@ -30,7 +30,7 @@ is therefore unverifiable for the members that most need it stated.
 ### Proposal
 
 Declare the conventional unregistered type in each module header —
-`text/x-nix` in `fjs/media/nix/module.f.mjs`, and the same `x-` spelling for
+`text/x-nix` in `fjs/media/nix/module.f.js`, and the same `x-` spelling for
 Rust source in `fjs/media/rust/module.f.js`. That is the whole change: Nix
 expressions and Rust literals *are* content, so the bucket is right and nothing
 moves — only the declaration is missing.
@@ -43,7 +43,7 @@ yet, and an exported constant with no reader would be speculative API.
 
 ### Tasks
 
-- [ ] State `text/x-nix` in the `fjs/media/nix/module.f.mjs` module header,
+- [ ] State `text/x-nix` in the `fjs/media/nix/module.f.js` module header,
       and the Rust type in the `fjs/media/rust/module.f.js` one.
 - [ ] Export each as `mediaType` **only** if a detector-side consumer exists by
       then; otherwise leave it as documentation.

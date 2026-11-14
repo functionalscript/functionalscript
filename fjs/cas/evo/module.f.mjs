@@ -65,7 +65,7 @@ import {
     step as ioStep,
 } from '../../effects/module.f.js'
 import { create, read, write } from '../../effects/memory/module.f.js'
-import { collectRead } from '../module.f.mjs'
+import { collectRead } from '../module.f.js'
 import { canonicalCBase32, cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
 import { tryUtf8 } from '../../text/module.f.js'

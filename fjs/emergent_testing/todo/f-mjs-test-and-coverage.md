@@ -14,7 +14,7 @@ is future regression infrastructure on its own schedule.
 ### Problem
 
 Tooling recognition of `.f.mjs` has landed: `shouldLoad` in
-`fjs/dev/module.f.mjs` matches `.f.mjs`, and `npm start cov node` and
+`fjs/dev/module.f.js` matches `.f.mjs`, and `npm start cov node` and
 `deno task cov` include `module.f.mjs`. The Deno CI job runs FJS tests without
 coverage; `deno.json` owns the local Deno coverage filter.
 
@@ -148,7 +148,7 @@ enter the published runtime graph remains unblocked by this issue.
   **blocked by** this fixture task; that gate was de-scoped rather than met, since every conversion happened
   first and the repository itself became the evidence the fixture was to supply
   in advance. This task is independent regression work now and blocks nothing.
-- `shouldLoad` in [`../../dev/module.f.mjs`](../../dev/module.f.mjs) — ordinary
+- `shouldLoad` in [`../../dev/module.f.js`](../../dev/module.f.js) — ordinary
   `.mjs` files stay opt-in through the `proof.mjs` convention, because a
   non-FunctionalScript module may have import side effects; this issue does not
   expand that rule.

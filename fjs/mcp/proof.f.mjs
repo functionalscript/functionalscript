@@ -21,7 +21,7 @@ import { u8ListToVecMsb, vec8, repeat, length, maxLengthBytes, bytesIn } from '.
 import { vecToCBase32 } from '../basen/cbase32/module.f.js'
 import { encode as base64Encode } from '../basen/base64/module.f.js'
 import { utf8 } from '../text/module.f.js'
-import { fileCas } from '../cas/module.f.mjs'
+import { fileCas } from '../cas/module.f.js'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.js'

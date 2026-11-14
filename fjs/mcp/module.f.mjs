@@ -41,7 +41,7 @@ import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
     mcpStep, uninitializedState, fromRegistry,
 } from '../protocol/mcp/module.f.mjs'
-import { fileCas } from '../cas/module.f.mjs'
+import { fileCas } from '../cas/module.f.js'
 import { initEvo, evo } from '../cas/evo/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.js'
 import { casToolRegistry } from './cas/module.f.mjs'

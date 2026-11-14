@@ -9,7 +9,7 @@ Five implementation modules exported a `proof` object of their own, although
 each already has a `proof.f.mjs` beside it; only `fjs/types/btree/remove`
 still does:
 
-- [`fjs/dev`](../dev/module.f.mjs) — a whole suite (`allFilesSkipsNodeModules`,
+- [`fjs/dev`](../dev/module.f.js) — a whole suite (`allFilesSkipsNodeModules`,
   `allFilesFindsFunctionalScript`, the `loadModuleMap…` cases). The module
   imports `fjs/asserts` and `fjs/effects/node/virtual` at runtime for it and
   for nothing else.
