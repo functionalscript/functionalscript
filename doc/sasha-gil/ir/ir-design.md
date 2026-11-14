@@ -91,7 +91,7 @@ an `l1` import:
 import { func, get, if_, let_, self } from '…/ir/module.f.js'
 import { any } from '…/ir/type/module.f.mjs'
 import { prim } from '…/ir/prim/module.f.mjs'
-import { l0 } from '…/ir/l0/module.f.mjs'
+import { l0 } from '…/ir/l0/module.f.js'
 import { l1 } from '…/ir/l1/module.f.mjs'
 
 const subtract = func([['a', any], ['b', any]], any, [
