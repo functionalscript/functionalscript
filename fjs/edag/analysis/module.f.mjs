@@ -57,10 +57,10 @@
  * lengths are also errors. Input must be shape-checked FJS data; immutable
  * FunctionalScript construction guarantees that its value graph is acyclic.
  *
- * The accumulators are immutable and copied per node, so a build is
+ * The entries accumulator is immutable and copied per node, so a build is
  * quadratic in the node count — the sizes compiled today, not a design
- * bound; the DataJS serializer's finished list and one `Map` at the end is
- * the shape to move to if it ever matters.
+ * bound. Its identity index uses the shared persistent map, whose updates
+ * copy search paths rather than the whole index.
  *
  * @module
  *
@@ -73,13 +73,13 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.js'
-import { mapSet } from '../../types/map/module.f.mjs'
+import { empty as noVisited, mapEntries, mapGet, mapSet } from '../../types/map/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.js'
 import { sharedNodesOf } from '../sharing/module.f.js'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
-const start = merges => ({ visited: new Map(), entries: [], problem: null, merges })
+const start = merges => ({ visited: noVisited, entries: [], problem: null, merges })
 
 /** @type {(i: number) => Ref} */
 const ref = i => ['#', i]
@@ -158,7 +158,7 @@ const each = f => (state, xs) => {
  */
 const walk = scope => (state, e) => {
     if (!(e instanceof Array)) { return [state, e] }
-    const known = state.visited.get(e)
+    const known = mapGet(state.visited, e)
     if (known === undefined) {
         const [walked, n] = handlers[e[0]](scope)(state, e)
         const [entries, i] = entry(walked.merges, scope, n)(walked.entries)
@@ -487,8 +487,9 @@ const places = (root, nodes) => nodes.reduceRight(
  * @type {(e: Exp, visited: _State['visited']) => readonly number[]}
  */
 const sharedByIdentity = (e, visited) => {
-    const shared = [e, ...[...visited.keys()].flatMap(n => n[0] === '=>' ? [n[3]] : [])].flatMap(sharedNodesOf)
-    return [...visited].flatMap(([n, i]) => shared.includes(n) ? [i] : [])
+    const entries = mapEntries(visited)
+    const shared = [e, ...entries.flatMap(([n]) => n[0] === '=>' ? [n[3]] : [])].flatMap(sharedNodesOf)
+    return entries.flatMap(([n, i]) => shared.includes(n) ? [i] : [])
 }
 
 /** One operand as an expression, from the expressions of the entries before it. @type {(exps: readonly ExpOp[], operand: Operand) => Exp} */
@@ -547,7 +548,7 @@ const restoreNode = (exps, node) => {
  */
 const expsOf = (merges, nodes, visited) => merges
     ? nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, restoreNode(prefix, node)], [])
-    : [...visited.keys()]
+    : mapEntries(visited).map(([key]) => key)
 
 /**
  * The table of `e`, its twins merged where `merges` says, and its shared
@@ -563,7 +564,7 @@ const table = merges => e => {
     return ok({
         root,
         nodes,
-        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
+        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(mapGet(visited, x.scope))),
         shared: merges ? places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []) : sharedByIdentity(e, visited),
         exps: expsOf(merges, nodes, visited),
     })

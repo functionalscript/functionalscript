@@ -34,6 +34,7 @@ import { rangeEncode, remove, union } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { codePoints } from '../../text/utf16/module.f.js'
 import { parser } from '../ll1/module.f.mjs'
+import { mapEntries } from '../../types/map/module.f.js'
 
 /** One past the last byte: the boundary a byte set never reaches past. */
 const byteEnd = /** @type {const} */ (0x100)
@@ -230,7 +231,7 @@ const check = rule => {
  */
 export const byteParser = (rule, set = []) => {
     const [, , names] = toData(rule)
-    for (const key of names.keys()) {
+    for (const [key] of mapEntries(names)) {
         check(key)
     }
     return parser(rule, set)

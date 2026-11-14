@@ -10,7 +10,7 @@ import { assert, assertEq, assertOk } from '../asserts/module.f.js'
 import { demo } from './demo.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.js'
-import { textOfResult } from '../text/marked/module.f.mjs'
+import { textOfResult } from '../text/marked/module.f.js'
 
 const run = asyncRun(commonOperationMap)
 

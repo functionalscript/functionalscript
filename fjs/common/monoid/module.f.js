@@ -30,9 +30,8 @@
  * an operation whose cost does not depend on its operands.
  *
  * The fold's state, a {@link Stack} of runs, is exported too — `step`,
- * `collect` and `runs` — for a structure that keeps the stack itself rather
- * than folding it away, as [`fjs/types/set`](../../types/set/module.f.mjs)
- * does, or that folds it only once it knows the answer is wanted, as
+ * `collect` and `runs` — for a structure that keeps the stack itself and
+ * folds it only once it knows the answer is wanted, as
  * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.js) does under its
  * length cap. `step` is the only way in: every stack it builds from `null`
  * keeps the {@link Stack} invariant. So is the fold's single move,

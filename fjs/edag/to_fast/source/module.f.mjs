@@ -11,7 +11,7 @@
  */
 
 import { itemOperand, operandsOf } from '../../analysis/module.f.mjs'
-import { operatorOperands } from '../../../js/ast/module.f.mjs'
+import { operatorOperands } from '../../../js/ast/module.f.js'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { prohibitedAccess } from '../../../js/prototype/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'

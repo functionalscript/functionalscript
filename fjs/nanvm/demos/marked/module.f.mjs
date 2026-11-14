@@ -33,7 +33,7 @@
 import { _compileMarked, noRuntime } from '../../../compiler/module.f.mjs'
 import { foldStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../../effects/node/module.f.js'
-import { toTagged } from '../../../text/marked/module.f.mjs'
+import { toTagged } from '../../../text/marked/module.f.js'
 import { samples } from '../samples/module.f.js'
 import { buildDirectory, rustMarkedExtension, rustMarkedPath, rustPath, samplePath } from '../page/module.f.mjs'
 import { removeStale } from '../publish/module.f.mjs'

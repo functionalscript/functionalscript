@@ -1,8 +1,8 @@
 /**
  * Shared kernel for RTTI consumers.
  *
- * `validate` (`../validate/module.f.mjs`) and `parse`
- * (`../parse/module.f.mjs`) are the schema-form consumers, reading a value
+ * `validate` (`../validate/module.f.js`) and `parse`
+ * (`../parse/module.f.js`) are the schema-form consumers, reading a value
  * against a thunk graph; the data form (`../data/module.f.mjs`) is the other,
  * walking a `Data` instead. They produce the same `Result<T, ValidationError>`
  * outcome and differ in how they dispatch, so this module hosts the parts that
@@ -298,8 +298,8 @@ export const hasUndeclaredMember = (declared, value) => {
  * @type {(declared: readonly string[]) => (k: string) => boolean}
  */
 export const declaredTest = declared => {
-    const names = new Set(declared)
-    return k => names.has(k)
+    const names = Object.fromEntries(declared.map(k => [k, true]))
+    return k => hasEntry(names, k)
 }
 
 /**

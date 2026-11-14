@@ -7,6 +7,7 @@
 
 import type { ExpOp, TagMap } from '../types.ts'
 import type { Node } from './types.ts'
+import type { PersistentMap } from '../../types/map/types.ts'
 
 /** The `=>` node whose body is being walked, or `null` at the module level. */
 export type _Scope = ExpOp | null
@@ -21,7 +22,7 @@ export type _Entry = { readonly scope: _Scope, readonly node: Node }
  * downstream.
  */
 export type _State = {
-    readonly visited: ReadonlyMap<ExpOp, number>
+    readonly visited: PersistentMap<ExpOp, number>
     readonly entries: readonly _Entry[]
     /** First structural failure; an errored walk never yields a public table. */
     readonly problem: string | null

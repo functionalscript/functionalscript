@@ -9,7 +9,7 @@
  *
  * ## What distinguishes it from `parse`
  *
- * `../parse/module.f.mjs` answers "read this value as `T`" and builds a fresh
+ * `../parse/module.f.js` answers "read this value as `T`" and builds a fresh
  * value holding exactly what the schema declares. `validate` answers "is this
  * value a `T`?" about the value itself, so on success the caller keeps the
  * object it passed in — same reference, same members, same serialization:
@@ -57,7 +57,7 @@
  *
  * ## Dispatch strategy
  *
- * The reader is `readerOf` in `../common/module.f.mjs`, which `parse` is
+ * The reader is `readerOf` in `../common/module.f.js`, which `parse` is
  * built from too: schema recognition, the container skeletons and the shape
  * each container kind is read with are written there once, so the two
  * readers read a container in the same order by construction. `validate`
@@ -82,14 +82,14 @@
  * @import { Validate } from '../common/types.ts'
  */
 
-import { noAccumulate, readerOf } from '../common/module.f.mjs'
+import { noAccumulate, readerOf } from '../common/module.f.js'
 
 /** A checked container is the result: the value it was given, not a reconstruction. */
 /** @type {(acc: undefined, value: Unknown) => Unknown} */
 const keep = (_, value) => value
 
 /**
- * What `validate` brings to `readerOf` in `../common/module.f.mjs`: nothing
+ * What `validate` brings to `readerOf` in `../common/module.f.js`: nothing
  * to collect — a success carries the value it was given, so a read allocates
  * nothing per member — and every container kind kept as it is.
  */
@@ -108,7 +108,7 @@ const read = readerOf(
  * `['error', { path, message }]` describing the failure location.
  *
  * Use it when the question is "is this value of this shape?" and the value has
- * to survive the question intact. Use `../parse/module.f.mjs` when the answer
+ * to survive the question intact. Use `../parse/module.f.js` when the answer
  * wanted is a value built to the schema.
  *
  * @example

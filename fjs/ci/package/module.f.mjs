@@ -9,7 +9,7 @@
  */
 
 import { typescript } from '../config/module.f.js'
-import { stringLiteral } from '../../js/string_escape/module.f.mjs'
+import { stringLiteral } from '../../js/string_escape/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
 
 /**

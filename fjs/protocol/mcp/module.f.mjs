@@ -9,7 +9,7 @@
  *
  * Each schema is both a runtime decoder (`parse(schema)`) and a static
  * TypeScript type (`Ts<typeof schema>`). Transport framing (stdio) and the
- * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.mjs`.
+ * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.js`.
  *
  * @module
  *
@@ -31,8 +31,8 @@ import {
     decodeRequest,
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
     errorResponseOf, successResponseOf,
-} from '../json_rpc/module.f.mjs'
-import { parse } from '../../rtti/parse/module.f.mjs'
+} from '../json_rpc/module.f.js'
+import { parse } from '../../rtti/parse/module.f.js'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.js'
 

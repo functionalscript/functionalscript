@@ -379,7 +379,7 @@ root matching at each owning block boundary.
 
 ## Enclosing-function returns
 
-[`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
+[`loop/completions`](./loop/completions/module.f.js) carries statement-level
 returns and outer-loop transfers through helpers. A terminal loop has no normal
 completion: return-only helpers carry the owning function's result directly,
 and several outward exit kinds dispatch exhaustively over their actual cases.

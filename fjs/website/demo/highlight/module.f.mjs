@@ -26,7 +26,7 @@
  */
 
 import { spansOf, tsSpansOf } from '../../../js/marked/module.f.mjs'
-import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
+import { fromSpans, toText } from '../../../text/marked/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { codeBlock } from '../code/module.f.js'
 import { caption, refusal } from '../module.f.mjs'

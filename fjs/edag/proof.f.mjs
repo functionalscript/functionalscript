@@ -39,7 +39,7 @@
  * } from './types.ts'
  */
 
-import { validate } from '../rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.js'
 import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
 import { demo, run as runDemo } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.js'

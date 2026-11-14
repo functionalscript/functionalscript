@@ -16,7 +16,7 @@
 
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
-import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { mapOperator, operatorOperands } from '../module.f.js'
 import { foldNodes, hasLoopTransfer } from '../control/module.f.mjs'
 import { returnedBlock, hasRetainedReturn } from './completion/module.f.js'
 import { logicalCondition, logicalValue } from './logical/module.f.js'

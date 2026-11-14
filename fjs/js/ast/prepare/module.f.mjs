@@ -24,7 +24,7 @@
  * @import { List } from '../../../types/list/types.ts'
  */
 
-import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../module.f.js'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'

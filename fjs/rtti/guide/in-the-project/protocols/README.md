@@ -6,7 +6,7 @@ The messages the repository exchanges with a peer are schemas, so one
 declaration is both the decoder and the static type:
 
 - the JSON-RPC 2.0 envelopes, in
-  [`protocol/json_rpc`](../../../../protocol/json_rpc/module.f.mjs);
+  [`protocol/json_rpc`](../../../../protocol/json_rpc/module.f.js);
 - the MCP messages, in [`protocol/mcp`](../../../../protocol/mcp/module.f.mjs);
 - the arguments of the MCP tools the repository serves, in
   [`mcp/cas`](../../../../mcp/cas/module.f.mjs) and

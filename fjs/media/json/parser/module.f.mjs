@@ -53,7 +53,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { hexDigitsValue } from '../../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../../text/utf16/module.f.js'
-import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
+import { escapeToCodePoint } from '../../../js/string_escape/module.f.js'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'

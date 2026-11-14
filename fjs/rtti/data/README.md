@@ -17,7 +17,7 @@ consumer actually needs it.
   ordering (`cmp`).
 
 A consequence is two readers: the thunk-direct
-[`../parse`](../parse/module.f.mjs) walks the thunk graph at dispatch time —
+[`../parse`](../parse/module.f.js) walks the thunk graph at dispatch time —
 simple, no preprocessing, good for ad-hoc use — while `validate` here consumes
 a `Data` produced by `toData` and benefits from the canonical form: unions are
 already flattened, subset-covered patterns already dropped. The two coexist;

@@ -40,7 +40,7 @@ import { pureError, pureOk, resultStep, step } from '../../../effects/module.f.j
 import { ioError, readLine, write } from '../../../effects/node/module.f.js'
 import { tryUtf8 } from '../../../text/module.f.js'
 import { parse, stringifySorted } from '../../../media/json/module.f.mjs'
-import { errorResponseOf, internalError, parseError } from '../../json_rpc/module.f.mjs'
+import { errorResponseOf, internalError, parseError } from '../../json_rpc/module.f.js'
 
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
 const parseErrorResponse = errorResponseOf(null)(parseError)

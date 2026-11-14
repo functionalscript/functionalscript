@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { completeBlockTransfers, completeTransfers } from './module.f.mjs'
+import { completeBlockTransfers, completeTransfers } from './module.f.js'
 import { proof as terminalLoops } from '../../terminal_loops.proof.f.mjs'
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })

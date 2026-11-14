@@ -9,7 +9,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { fromFast } from '../module.f.mjs'
 import { identityAnalysis } from '../../analysis/module.f.mjs'
 import { exp } from '../../module.f.js'
-import { validate } from '../../../rtti/validate/module.f.mjs'
+import { validate } from '../../../rtti/validate/module.f.js'
 import { liftReturns } from '../../../js/ast/returns/module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction } from '../proof.f.mjs'

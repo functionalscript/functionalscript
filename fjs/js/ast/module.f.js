@@ -7,10 +7,16 @@
  *
  * @import { Binding, BindingId, BindingEvent, BindingScope, Entry, FunctionTarget, Item, Key, Operator, Step } from './types.ts'
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
+ * @import { RefMap } from '../../types/ref_map/types.ts'
  */
 
 import { concat, next, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { empty as noPositions } from '../../types/ref_map/module.f.js'
+import { fromValues, values as setValues } from '../../types/set/module.f.js'
+
+/** Store a declaration's position under its reference identity. @type {(positions: RefMap, declaration: { readonly id: BindingId }, position: number) => RefMap} */
+const indexDeclaration = (positions, { id }, position) => positions(id, position)[1]
 
 /**
  * Reassignment and nested references over the complete expanded source scope.
@@ -51,16 +57,17 @@ export const analyzeBindings = root => {
         pending = rest
     }
     const ordered = toArray(declarations)
-    const positions = new Map(ordered.map(({ id }, position) => [id, position]))
+    const positions = ordered.reduce(indexDeclaration, noPositions)
     // Stable grouping keeps each binding's source reference order. References
     // to declarations outside this scope sort after every declaration here.
     const grouped = toArray(reverse(references)).map(reference => ({
-        ...reference, position: positions.get(reference.id) ?? ordered.length,
+        ...reference, position: /** @type {number | undefined} */ (positions(reference.id)[0]) ?? ordered.length,
     })).toSorted((a, b) => a.position - b.position)
     let cursor = 0
     /** @type {List<Binding>} */
     let facts = null
-    for (const [position, { id, owner }] of ordered.entries()) {
+    for (let position = 0; position < ordered.length; position += 1) {
+        const { id, owner } = ordered[Number(position)]
         let isMutable = false
         /** @type {List<FunctionTarget>} */
         let captures = null
@@ -70,7 +77,7 @@ export const analyzeBindings = root => {
             if (reference.scope !== owner) { captures = { first: reference.scope, tail: captures } }
             cursor += 1
         }
-        facts = { first: { id, isMutable, capturedBy: [...new Set(toArray(reverse(captures)))] }, tail: facts }
+        facts = { first: { id, isMutable, capturedBy: setValues(fromValues(toArray(reverse(captures)))) }, tail: facts }
     }
     return toArray(reverse(facts))
 }

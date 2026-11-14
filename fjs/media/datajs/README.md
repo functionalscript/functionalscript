@@ -161,9 +161,9 @@ out — which the list's iteration does without recursion.
 
 Neither pass squares the number of containers. The set of containers entered
 grows by one per container, and `new Set([...prev, value])` would copy every
-container so far each time, so it is [`fjs/types/set`](../../types/set/module.f.mjs),
-a persistent set whose add carries like a binary counter and costs a
-logarithm amortized; and which nodes are shared is read off the sorted
+container so far each time, so it is [`fjs/types/set`](../../types/set/module.f.js),
+a persistent set whose reference index and ordered B-tree copy only their
+search paths on an add; and which nodes are shared is read off the sorted
 reference occurrences rather than by an `indexOf` per occurrence. `fjs
 compile` writes every module through this writer, which is why a document
 with a hundred thousand containers has to be a second's work rather than a

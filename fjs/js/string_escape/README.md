@@ -1,7 +1,7 @@
 # String escapes
 
 JavaScript's escape sequences, and the one function that writes a quoted
-string. [`module.f.mjs`](./module.f.mjs) holds them, so the tokenizer that
+string. [`module.f.js`](./module.f.js) holds them, so the tokenizer that
 reads `"\n"` and every printer that writes one agree on what it means.
 
 |Export             |Holds                                                                                            |
@@ -13,7 +13,7 @@ reads `"\n"` and every printer that writes one agree on what it means.
 |`stringLiteral(s)` |`s` as a double-quoted JavaScript (and JSON) string literal                                      |
 
 ```js
-import { stringLiteral } from './module.f.mjs'
+import { stringLiteral } from './module.f.js'
 
 stringLiteral('a"\n') // '"a\\"\\n"', the text "a\"\n" with its quotes
 ```

@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) owns the FAST vocabulary and a few facts
+[`module.f.mjs`](../module.f.js) owns the FAST vocabulary and a few facts
 about it, `isSpread` and `operatorOperands` among them. Four more facts are
 re-spelled by the passes that need them, each in several modules:
 

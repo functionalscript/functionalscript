@@ -36,7 +36,7 @@ import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.js'
 import { operandsOf, visit } from '../../edag/sharing/module.f.js'
 import { disagreement } from '../../js/marked/module.f.mjs'
-import { textOfResult, toText } from '../../text/marked/module.f.mjs'
+import { textOfResult, toText } from '../../text/marked/module.f.js'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'

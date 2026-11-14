@@ -416,15 +416,15 @@ requires; a `.f.js` module's runtime imports must themselves target `.f.js`.
 
 ## 9. A `Map` or a `Set` of strings
 
-`Map` is not a language type, and `new Map(...)` is refused
-(`unexpected token`). A `Map` earns its place only where the keys are not
-strings — a function, an object, a value compared by identity — and stays
-the module's until the language has a type for that; the
-[`edag/analysis`](../fjs/edag/analysis/module.f.mjs) walk's `visited`,
-keyed by EDAG nodes through
-[`types/map`](../fjs/types/map/module.f.mjs), is one. A `Map` whose keys
-are strings is an object the module already has, read through `entry` and
-`hasEntry` (rule 1):
+Native `Map` and `Set` construction is not admitted. Persistent collections
+use [`types/map`](../fjs/types/map/module.f.js) and
+[`types/set`](../fjs/types/set/module.f.js): reference keys are found through
+RefMap, primitive keys through the existing ordered map. Both preserve
+SameValueZero and first-insertion order. The
+[`edag/analysis`](../fjs/edag/analysis/module.f.mjs) walk's `visited` uses the
+shared map for EDAG nodes compared by identity. When a map merely repeats
+the entries of an object already available, read that object through `entry`
+and `hasEntry` (rule 1):
 
 ```js
 const { entries } = Object
@@ -455,10 +455,8 @@ is an optimization, and the module drops it with the `Map`
 is the worked case.
 
 A `Set` follows the same line: `new Set(...)` is refused as `new Map(...)`
-is, and a `Set` of strings needs no collection at all. Built to ask whether
-a list repeats, it is the question asked of the list itself — each item
-first appears at its own index — and built to ask whether a string is in
-it, `includes`:
+is. Stable deduplication and repeated membership use the shared persistent
+set; a single membership question over an existing array can use `includes`:
 
 ```js
 const unique = names => new Set(names).size === names.length    // refused
@@ -466,14 +464,18 @@ const has = (names, x) => new Set(names).has(x)                 // refused
 ```
 
 ```js
-const unique = names => names.every((n, i) => names.indexOf(n) === i)   // accepted
-const has = (names, x) => names.includes(x)                             // accepted
+import { fromValues, size, values } from '../types/set/module.f.js'
+
+const unique = names => size(fromValues(names)) === names.length // accepted
+const deduplicate = names => values(fromValues(names))           // first encounter order
+const has = (names, x) => names.includes(x)                       // accepted
 ```
 
-The value is preserved for strings, which `===`, `indexOf` and `includes`
-tell apart exactly as a `Set` does: `'1'` and `'01'` are two, `'__proto__'`
-is a string like any other, and `''` is one. `unique` is quadratic where
-the `Set` was linear, the optimization the module drops with it.
+The shared set preserves SameValueZero for primitives and reference identity
+for objects and functions, without repeatedly copying or scanning the whole
+collection. For strings, `'1'` and `'01'` are two, `'__proto__'` is a string
+like any other, and `''` is one. An incremental string-only set may instead
+use [`types/string_set`](../fjs/types/string_set/module.f.js).
 [`fjs/ebnf/token_symbol`](../fjs/ebnf/token_symbol/module.f.js), whose
 `encoding` refuses a repeated name, is the worked case.
 

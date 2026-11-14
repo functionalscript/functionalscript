@@ -1,7 +1,7 @@
 # `rtti/common` — the readers' shared kernel
 
-[`module.f.mjs`](./module.f.mjs) holds what [`parse`](../parse/module.f.mjs)
-and [`validate`](../validate/module.f.mjs) share: the error shape and its path
+[`module.f.js`](./module.f.js) holds what [`parse`](../parse/module.f.js)
+and [`validate`](../validate/module.f.js) share: the error shape and its path
 bookkeeping, the primitive checks, `visit` and `orVisit`, and the container
 skeletons `readerOf` instantiates for both readers. Its module comment lists
 each export. What a schema *means* is in [the guide](../guide/README.md); this

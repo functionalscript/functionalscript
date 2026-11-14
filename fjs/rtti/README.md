@@ -17,8 +17,8 @@ declaration:
 
 | From one schema `s` | | Where |
 | --- | --- | --- |
-| a decoder that builds a fresh value | `parse(s)(value)` | [`parse/`](./parse/module.f.mjs) |
-| a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.mjs) |
+| a decoder that builds a fresh value | `parse(s)(value)` | [`parse/`](./parse/module.f.js) |
+| a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.js) |
 | the static TypeScript type | `Ts<typeof s>` | [`ts/types.ts`](./ts/types.ts) |
 | the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.mjs`](./ts/module.f.mjs) |
 | a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.mjs) |
@@ -26,8 +26,8 @@ declaration:
 
 ```js
 import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.js'
-import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
-import { validate } from 'functionalscript/fjs/rtti/validate/module.f.mjs'
+import { parse } from 'functionalscript/fjs/rtti/parse/module.f.js'
+import { validate } from 'functionalscript/fjs/rtti/validate/module.f.js'
 
 const person = { name: string, age: number, tags: or(option, array(string)) }
 // Ts<typeof person> is
@@ -91,12 +91,12 @@ siblings there are single data structures and type-level helpers.
   (see `ts/README.md`)
 - `ts/module.f.mjs` — the runtime printer: a schema's TypeScript type as text,
   through the data form
-- `common/module.f.mjs` — shared kernel for runtime consumers: error shape, path
+- `common/module.f.js` — shared kernel for runtime consumers: error shape, path
   bookkeeping, primitive checks, `visit`/`orVisit` (the `Type` dispatchers),
   and the container skeletons the two schema-form readers read through
-- `parse/module.f.mjs` — runtime deserialization: `parse(schema)(value)` returns
+- `parse/module.f.js` — runtime deserialization: `parse(schema)(value)` returns
   a freshly constructed value containing only the declared fields/elements
-- `validate/module.f.mjs` — runtime validation: `validate(schema)(value)`
+- `validate/module.f.js` — runtime validation: `validate(schema)(value)`
   returns the *original* value on success. Same acceptance as `parse`, so the
   two differ only in what a success carries — see
   [`parse` and `validate`](./guide/readers/parse-and-validate/README.md)

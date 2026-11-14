@@ -30,7 +30,7 @@ import { strictEqual as strictEqualCurried } from '../../types/function/operator
 import { definedEntries, definedValues } from '../../types/object/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
-import { declaredTest, eachEntry, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { declaredTest, eachEntry, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.js'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
