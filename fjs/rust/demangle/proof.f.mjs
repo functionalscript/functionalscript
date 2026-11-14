@@ -8,7 +8,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { demangle } from './module.f.mjs'
+import { demangle } from './module.f.js'
 
 /** @type {(cases: readonly (readonly [string, string])[]) => void} */
 const check = cases => cases.forEach(([symbol, expected]) => assertEq(demangle(symbol), expected))
@@ -65,6 +65,7 @@ export const proof = {
         ["_RIC0Ke80_E", "_RIC0Ke80_E"],
         ["_RIC0Kec3_E", "_RIC0Kec3_E"],
         ["_RIC0KRe616263_E", "::<\"abc\">"],
+        ["_RIC0KRe_E", "::<\"\">"],
         ["_RIC0KRp_E", "_RIC0KRp_E"],
         ["_RIC0KRRRh0_E", "::<{&&&0}>"],
         ["_RIC0KQAE_E", "_RIC0KQAE_E"],

@@ -91,7 +91,7 @@ built:
   which lay it out as the `wasmprinter` crate did. The WAT holds only the
   functions Rust compiled from the sample's module, picked by their names in
   the module's name section, demangled with
-  [`fjs/rust/demangle`](../fjs/rust/demangle/module.f.mjs). NaNVM and `std`
+  [`fjs/rust/demangle`](../fjs/rust/demangle/module.f.js). NaNVM and `std`
   are most of the module, the same for every sample, and left out. The WAT
   names every function as Rust does, since the name section is demangled
   before it is printed. A Rust publisher with `wasmparser`, `wasmprinter`

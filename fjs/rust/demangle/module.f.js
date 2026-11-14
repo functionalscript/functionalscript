@@ -33,6 +33,7 @@ import {
     latinCapitalLetterAFRange, latinSmallLetterA, lowerHexDigitValue,
 } from '../../text/ascii/module.f.js'
 import { contains } from '../../types/range/module.f.js'
+import { decodeLower } from '../../basen/base16/module.f.js'
 import { fromU8List } from '../../text/utf8/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
@@ -158,8 +159,8 @@ const escapeChar = quote => c => {
  * @type {(nibbles: string) => string | null}
  */
 const utf8Nibbles = nibbles => {
-    if (nibbles.length % 2 !== 0) { return null }
-    return fromU8List(generate(nibbles.length / 2, k => parseInt(nibbles.slice(2 * k, 2 * k + 2), 16)))
+    const bytes = decodeLower(nibbles)
+    return bytes === null ? null : fromU8List(bytes)
 }
 
 /**
