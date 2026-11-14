@@ -26,7 +26,7 @@ import { _directOwningInvocationRoot, directInvocationRoot, invocationRootOf } f
 import { _owningTailCalls } from './loop/owning/module.f.js'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.js'
 import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
-import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
+import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.js'
 import { bind, call, done, run } from '../../js/ast/task/module.f.js'
 import { step } from '../../common/monoid/module.f.js'
 import { maxLength } from '../../types/function/length/module.f.js'

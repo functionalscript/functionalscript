@@ -45,6 +45,7 @@
 import { matchRule } from '../data/module.f.js'
 import { definedValues } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { codePointToString } from '../../text/utf16/module.f.js'
 import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.js'
@@ -84,7 +85,7 @@ const choice = (first, rest) => {
 const optional = d => choice(skip, [d])
 
 /** @type {(n: number, d: Diagram) => readonly Diagram[]} */
-const copies = (n, d) => Array.from({ length: n }, () => d)
+const copies = (n, d) => generate(n, () => d)
 
 /**
  * The symbols a reader cannot see spelled by name; the rest of the control
@@ -124,7 +125,7 @@ const runs = s => s.flatMap((b, i) => i % 2 === 1 ? [] : [[b, i + 1 === s.length
  */
 const runText = ([first, last]) =>
     last === null ? [`${symbolText(first)} …`]
-    : last - first < 3 ? Array.from({ length: last - first + 1 }, (_, i) => symbolText(first + i))
+    : last - first < 3 ? generate(last - first + 1, i => symbolText(first + i))
     : [`${symbolText(first)} … ${symbolText(last)}`]
 
 /**
@@ -156,7 +157,7 @@ export const codePoints = {
 export const tokens = ({ decode }, categories) => ({
     labels: s => runs(s).flatMap(([first, last]) => {
         assert(last !== null, ['a token set runs past the alphabet', first])
-        return Array.from({ length: last - first + 1 }, (_, i) => {
+        return generate(last - first + 1, i => {
             const name = assertNotNullish(decode(first + i), ['not a token', first + i])
             return categories.includes(name) ? category(name) : terminal(name)
         })

@@ -11,6 +11,7 @@
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
 import { isHelper, isStatic } from '../../../edag/module.f.js'
@@ -139,7 +140,7 @@ const chainSkip = end => chainYield(end.args !== null && end.member ? [false, un
 
 /** Prefix nesting is linear in chain length; no suffix statement array is copied. @type {(statements: readonly Statement[], next: _ChainRegion, lifted: boolean, end: _ChainEnd) => _ChainRegion} */
 const chainPrefix = (statements, next, lifted, end) => {
-    const ids = Array.from({ length: end.args !== null && end.member ? 3 : 1 }, binding)
+    const ids = generate(end.args !== null && end.member ? 3 : 1, () => binding())
     return {
         ...next, lifted: lifted || next.lifted,
         block: { statements: [...statements, ['block', ids, next.block]], exit: next.normal ? ['yield', ids.map(ref)] : ['yield', []] },
@@ -161,7 +162,7 @@ const present = value => ['?:', ['===', value, null], false, ['!==', value, unde
 
 /** Optional regions join before a forced suffix, retaining receiver and key separately. @type {(test: Value, reached: _ChainRegion, end: _ChainEnd) => _ChainRegion} */
 const chainGuard = (test, reached, end) => {
-    const ids = Array.from({ length: end.args !== null && end.member ? 3 : 1 }, binding)
+    const ids = generate(end.args !== null && end.member ? 3 : 1, () => binding())
     return {
         block: { statements: [['if', ids, test, reached.block, chainSkip(end).block]], exit: ['yield', ids.map(ref)] },
         normal: true, lifted: reached.lifted, callee: reached.callee,
@@ -217,7 +218,7 @@ const chainValue = (valueTask, value, step, owner, end, permitted) => call(() =>
 /** Replay the single forced suffix after the optional region has joined. @type {(valueTask: _ValueTask, _region: _ChainRegion, end: _ChainEnd, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
 const forcedChain = (valueTask, region, end, owner, permitted) => {
     if (end.args === null || !region.normal) { return done(region) }
-    const ids = Array.from({ length: end.member ? 3 : 1 }, binding)
+    const ids = generate(end.member ? 3 : 1, () => binding())
     const items = end.args
     return bind(sequenceTask(valueTask, items.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, items.map(itemExpansion)), /** @returns {Task<_ChainRegion>} */ args => {
         const prefix = /** @type {readonly Statement[]} */ ([['block', ids, region.block], ...args.statements])

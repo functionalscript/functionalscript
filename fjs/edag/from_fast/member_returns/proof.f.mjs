@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.mjs'
-import { liftReturns } from '../../../js/ast/returns/module.f.mjs'
+import { liftReturns } from '../../../js/ast/returns/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
 import { memo } from '../../memo/module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'

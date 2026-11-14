@@ -305,7 +305,7 @@ fixed point. Shared sequences established as ordinary bindings by common
 placement can reach source output, while remaining genuine lazy definitions
 retain the source admission pass's existing refusal.
 
-The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
+The shared FAST [`returns`](../returns/module.f.js) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the
 new regions and bindings. Lookup remains before arguments, member calls retain

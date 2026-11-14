@@ -60,7 +60,7 @@ merge their expression value and changed bindings through explicit FAST branch
 results. Loop conditions pass their updates to the body and to their final false
 exit, defaults pass reached updates to subsequent parameters, and switch labels
 retain only the work and updates of reached labels. The shared
-[`returns`](../returns/module.f.mjs) operand sequencer owns member lookup,
+[`returns`](../returns/module.f.js) operand sequencer owns member lookup,
 optional regions, spread expansion and object-key conversion. Normalization
 evaluates resolved source recipes through that sequencer's immutable binding
 skeleton rather than duplicating these rules. Recipe re-entry and operand
