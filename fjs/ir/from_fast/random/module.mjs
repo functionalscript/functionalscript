@@ -421,14 +421,16 @@ export const anyProgram = rnd => {
 }
 
 /**
- * Whether a refusal is one the generators expect today: an integer body's
- * range past the signature's, which the checker finds by interval
- * arithmetic. Any other refusal is a regression against what the slices
- * already lower.
+ * Whether a refusal is one the generators expect today: an integer-signed
+ * body's range past its signature, which the checker finds by interval
+ * arithmetic. The signature's result must be an integer range, so a
+ * regression that gives an integer body where `f64` or `bool` was declared
+ * is not counted as expected.
  *
- * @type {(reason: string) => boolean}
+ * @type {(reason: string, result: Type) => boolean}
  */
-const expectedRefusal = reason => {
+const expectedRefusal = (reason, result) => {
+    if (result[0] !== 'int') { return false }
     // `f: the body is int(-65535, 0), not u(16)`
     const colon = reason.indexOf(':')
     if (colon < 0) { return false }
@@ -446,19 +448,21 @@ const expectedRefusal = reason => {
  * @type {(program: ReturnType<typeof typedProgram>) => _Outcome}
  */
 export const compareOne = program => {
+    const result = program.signatures.f.result
+    const accept = (/** @type {string} */ reason) => expectedRefusal(reason, result)
     const parsed = sourceOf(program.text)
     if (parsed[0] === 'error') { return ['wrong', `parse: ${parsed[1]}`] }
     const { fast, imports } = parsed[1]
     const ir = lower(program.signatures, program.runtime)(fast, imports)
     if (ir[0] === 'error') {
-        return expectedRefusal(ir[1]) ? ['refused', ir[1]] : ['wrong', `refused: ${ir[1]}`]
+        return accept(ir[1]) ? ['refused', ir[1]] : ['wrong', `refused: ${ir[1]}`]
     }
     // Refuse here if the checker does; `run` checks again on the plain IR, as
     // the other host proofs pass it, and a module that `check` already typed
     // is not what `run` emits.
     const checked = check(ir[1])
     if (checked[0] === 'error') {
-        return expectedRefusal(checked[1]) ? ['refused', checked[1]] : ['wrong', `refused: ${checked[1]}`]
+        return accept(checked[1]) ? ['refused', checked[1]] : ['wrong', `refused: ${checked[1]}`]
     }
     try {
         run(ir[1], { f: program.twin }, program.inputs)
