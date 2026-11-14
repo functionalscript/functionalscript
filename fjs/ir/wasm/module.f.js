@@ -61,7 +61,7 @@
  * @module
  *
  * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
- * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedTerm } from '../types.ts'
+ * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm, TypedTerm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
  */
@@ -356,7 +356,7 @@ const fieldOf = (emitTerm, env, type, e, name) => {
  * the arms test more than one variant, the tag is read once, into a local
  * named for the operand: `v.kind`.
  *
- * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, operand: Typed, arms: readonly (readonly [readonly string[], string | null, Typed])[]) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, operand: Typed, arms: readonly TypedArm[]) => _Code}
  */
 const sealedMatch = (emitTerm, env, type, operand, arms) => {
     const [of, x] = operand

@@ -3,8 +3,8 @@
  * a module once it has typed it: each owned value is consumed once on every
  * path, and no borrow outlives what it leans on
  * ([definition.md: Stages](../../../../doc/sasha-gil/ir/definition.md#stages)).
- * The lifetime pass (slice 6b) is what writes the owned stage; until it
- * lands, a person writes it, as the proofs do.
+ * The [lifetime pass](../../lifetime/module.f.js) writes the owned stage
+ * from the plain one, and a person may write it too, as the proofs do.
  *
  * - **A value of a sealed type is owned or borrowed.** A call answers an
  *   owned one where its result is of a sealed type. An `own` parameter is

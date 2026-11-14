@@ -108,9 +108,11 @@ export type Typed = readonly [Type, TypedTerm]
 
 /**
  * A `match` arm as the checker answers it: every variant it takes, `else`
- * written out, the name of the operand there, if it has one, and its body.
+ * written out, the name of the operand there, if it has one, its body, and
+ * the variants as the term wrote them, `null` for `else`, so that a pass
+ * that rewrites a typed module writes each arm as it was.
  */
-export type TypedArm = readonly [variants: readonly string[], binder: string | null, body: Typed]
+export type TypedArm = readonly [variants: readonly string[], binder: string | null, body: Typed, written: readonly string[] | null]
 
 export type TypedTerm =
     | Lit
