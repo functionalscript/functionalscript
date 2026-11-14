@@ -12,17 +12,16 @@ case), `decodeCodePoints` (either case, over code points) and `decodeLower`
 separator, a prefix or a width stays the caller's grammar, checked around the
 codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
 `hexBytes`, `fjs/zlib/testlib.f.js`'s `hex`, `fjs/git/refstore/name`'s
-`nameForMessage` and `fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
+`nameForMessage`, `fjs/media/datajs/vectors`'s `bytes` and
+`fjs/rust/demangle`'s `utf8Nibbles` are on it. These still spell their own:
 
 - [`fjs/types/uint8array`](../../types/uint8array/module.mjs) —
   `fromVec` reads a pair back with ``Number(`0x…`)``; it works a bigint at
   a time for a reason its doc gives, which the codec's byte lists do not
   respect, so it is not moved. Its writers, `hexOfByte` and the padding of
   the whole vector's spelling, are `encodeScalar`.
-- [`fjs/rust/demangle`](../../rust/demangle/module.f.mjs) — `utf8Nibbles`
-  reads a lowercase-hex byte list with `parseInt` over each pair, and
-  `uint` reads a hex run with the `BigInt` string constructor; the first
-  is `decodeLower`, odd count refused, and the second `hexDigitsValue`.
+- [`fjs/rust/demangle`](../../rust/demangle/module.f.js) — `uint` reads a
+  hex run with the `BigInt` string constructor; it could use `hexDigitsValue`.
   `integer62` and `punycodeDecode` there subtract letter offsets for a
   base-62 and a base-36 digit, which `digitsValue` stops short of on
   purpose; a digit value over the alphanumeric alphabet in `text/ascii`
@@ -106,7 +105,7 @@ unit, surrogates included.
       onto it.
 - [ ] Move the consumers still listed above onto it, or record why each
       stays, `fjs/types/uint8array` included.
-- [ ] Move `rust/demangle`'s UTF-8 byte reader onto `decodeLower`, keeping
+- [x] Move `rust/demangle`'s UTF-8 byte reader onto `decodeLower`, keeping
       empty input, odd-count refusal and invalid UTF-8 refusal unchanged.
 - [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
       landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
