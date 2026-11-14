@@ -100,7 +100,7 @@ export const proof = {
     unknown: () => assertEq(print(unknown), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64, dup: dup, drop: drop",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
     "    const undefined: any.only(undefined)",
     "    const null: any.only(null)",
     "    const true: any.only(boolean)",
@@ -200,7 +200,7 @@ export const proof = {
     loops: () => assertEq(print(loops), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64, dup: dup, drop: drop",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
     "    const undefined: any.only(undefined)",
     "    const null: any.only(null)",
     "    const true: any.only(boolean)",
@@ -501,7 +501,7 @@ export const proof = {
     records: () => assertEq(print(records), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64, dup: dup, drop: drop",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
     "    const undefined: any.only(undefined)",
     "    const null: any.only(null)",
     "    const true: any.only(boolean)",

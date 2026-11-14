@@ -90,17 +90,17 @@ const narrowed = (env, t, held) => {
 /**
  * Why a module may not write a literal of a sealed type, or `null` where it
  * may: a string, of the type of the variant that the type's string literals
- * hold, which a function of an interface that the module imports makes.
+ * hold, which a function of an interface that the module imports makes. A
+ * type of that variant alone holds just its values, so the type may name it.
  *
  * @type {(env: _Env, t: Sealed, v: bigint | number | string) => string | null}
  */
 const unmade = (env, t, v) => {
     const { literal } = unwrap(definition(env, t))
-    /** @type {Sealed} */
-    const made = literal === undefined ? t : ['sealed', t[1], t[2], [literal.variant]]
+    const held = kinds(env, t)
     return literal === undefined ? `${show(t)} has no literals`
         : typeof v !== 'string' ? `${v} is not a literal of ${show(t)}`
-        : !equal(t, made) ? `a string literal is ${show(made)}, not ${show(t)}`
+        : held.length !== 1 || held[0] !== literal.variant ? `a string literal is ${show(narrowed(env, t, [literal.variant]))}, not ${show(t)}`
         : at(literal.module)(env.imports) === null ? `${literal.module} makes the literals of ${t[2]}, and the module does not import ${literal.module}`
         : null
 }
@@ -631,14 +631,16 @@ const globalOf = (env, t) => {
  * the host's function, as the four `length`s do. The function that makes a
  * type's literals is a function of its interface's ABI here too, and that
  * ABI's `memory` and `data_base` are the loader's, so no constant or
- * function of the ABI has either name.
+ * function of the ABI has either name. The emitter imports a maker once
+ * for its ABI and its name, and it answers one WASM value, so two types
+ * whose literals it makes are carried by that value.
  *
  * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
  */
 const shared = (env, imports) => {
-    const makers = imports.flatMap(([, { types }]) => types.flatMap(([, { literal }]) => {
+    const makers = imports.flatMap(([module, { types }]) => types.flatMap(([type, { literal, carrier }]) => {
         const i = literal === undefined ? null : at(literal.module)(env.imports)
-        return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member])]
+        return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
     }))
     const fns = [...imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member]))), ...makers]
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
@@ -651,7 +653,11 @@ const shared = (env, imports) => {
             : c !== undefined ? [`the constants ${c[0]}, a global of ${c[3]}, and ${name}, a global of ${w}, are both the import ${member} of ${abi}`]
             : []
     })
-    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals` : clash[0] ?? null
+    const carried = makers.flatMap(([, abi, member, type, c], j) => {
+        const other = makers.find(([, a, m, , x], k) => k < j && a === abi && m === member && x !== c)
+        return other === undefined ? [] : [`the literals of ${other[3]}, carried by ${other[4]}, and of ${type}, carried by ${c}, are both made by the import ${member} of ${abi}, which answers one WASM value`]
+    })
+    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals` : clash[0] ?? carried[0] ?? null
 }
 
 /**

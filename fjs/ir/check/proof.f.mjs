@@ -369,6 +369,19 @@ export const proof = {
         assertOk(check(importing({ abi: 'test:bad', types: [], constants: [['memory', f64]], functions: [['data_base', signature([], f64)]] })))
         // Two interfaces may make literals of one spelling, each of its own type.
         assertOk(check({ imports: [...l0, ['Label', making('text')]], functions: [['f', fn([], bool, let_('l', lit(only(sealed('Label', 'label'), 'text'), 'a'), () => true_))]], exports: [] }))
+        // The emitter imports a maker once for its ABI and its name, so the types whose literals it makes share its carrier.
+        /** An interface of a type of `carrier` whose literals String's `make_string` makes. @type {(carrier: 'i32' | 'i64') => Interface} */
+        const sharing = carrier => ({
+            abi: 'test:label',
+            types: [['label', { variants: ['text'], kind: 'k', carrier, literal: { variant: 'text', module: 'String', member: 'make_string' } }]],
+            functions: [['k', signature([['l', sealed('Label', 'label')]], int(0n, 0n))]],
+        })
+        assertEq(why({ imports: [...l0, ['Label', sharing('i32')]], functions: [], exports: [] }),
+            'the literals of Any.any, carried by i64, and of Label.label, carried by i32, are both made by the import make_string of fjs:l0, which answers one WASM value')
+        assertOk(check({ imports: [...l0, ['Label', sharing('i64')]], functions: [], exports: [] }))
+        // A type of one variant holds the values of that variant alone, so a literal of it may name the type in full.
+        const label = sealed('Label', 'label')
+        assertOk(check({ imports: [...l0, ['Label', sharing('i64')]], functions: [['f', fn([], bool, let_('l', lit(label, 'a'), () => let_('m', lit(only(label, 'text'), 'b'), () => true_)))]], exports: [] }))
     },
     // The plain stage reads a value of a sealed type as often as it needs: `checkPlain` types it, and `check` refuses what it leaves over.
     plain: () => {
