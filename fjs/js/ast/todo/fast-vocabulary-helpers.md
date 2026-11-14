@@ -46,7 +46,7 @@ value[0] === 'ref' && value[1] === binding` is exported as `namesBinding`
 from [`fjs/edag/from_fast/loop`](../../../edag/from_fast/loop/module.f.mjs),
 which the `fjs/js/ast` modules may not import
 ([compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)),
-so [`loop`](../loop/module.f.js), [`loop/invariant`](../loop/invariant/module.f.mjs)
+so [`loop`](../loop/module.f.js), [`loop/invariant`](../loop/invariant/module.f.js)
 and [`invocation`](../invocation/module.f.js) each keep a private `names`,
 `prepare` spells it inline against `loop.parameters[0]`, and `sameTest` in
 [`fjs/edag/to_fast/join`](../../../edag/to_fast/join/module.f.mjs) spells

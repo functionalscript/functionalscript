@@ -29,7 +29,7 @@ is established before a continue; the caller binds normal results and resumes
 its following work once. The declared FAST signature determines slot order,
 without the source fixed-parameter limit.
 
-[`loop/invariant`](../../js/ast/loop/invariant/module.f.mjs) can retain the scalar
+[`loop/invariant`](../../js/ast/loop/invariant/module.f.js) can retain the scalar
 helper when extra slots forward established, nondeferred entry values exactly.
 It keeps required entry demands and loop execution anchored even when only an
 invariant result is used. Computed/deferred entries and hidden owning transfers
