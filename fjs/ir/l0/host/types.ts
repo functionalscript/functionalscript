@@ -11,8 +11,8 @@ import type { Kind } from '../../../wasm/runtime/l0/types.ts'
  * L0](../module.f.js) bind, over the L0 view, each on a handle as the
  * WebAssembly JavaScript API passes an `i64`: a `bigint`. A `bool` goes back
  * as `0` or `1`, and a length and a unit as the numbers they are, as an
- * index comes. `from_unit` and `concat` answer the string that they make,
- * which a host gives a handle.
+ * index comes. `from_unit`, `concat`, `substring` and `item` answer the
+ * value that they make or read, which a host gives a handle.
  */
 export type View = {
     readonly kind: (h: bigint) => Kind
@@ -23,12 +23,14 @@ export type View = {
     readonly unit: (h: bigint, i: number) => number
     readonly from_unit: (c: number) => string
     readonly concat: (a: bigint, b: bigint) => string
+    readonly substring: (s: bigint, start: number, end: number) => string
+    readonly item: (c: bigint, i: number) => unknown
 }
 
 /**
  * The `fjs:l0` imports of a host that counts: the view's readers, `dup` and
- * `drop`, which count a cell, and `from_unit` and `concat`, which make a
- * cell that the caller owns and answer its handle.
+ * `drop`, which count a cell, and `from_unit`, `concat`, `substring` and
+ * `item`, which make a cell that the caller owns and answer its handle.
  */
 export type Imports = {
     readonly kind: (h: bigint) => Kind
@@ -41,6 +43,8 @@ export type Imports = {
     readonly drop: (h: bigint) => void
     readonly from_unit: (c: number) => bigint
     readonly concat: (a: bigint, b: bigint) => bigint
+    readonly substring: (s: bigint, start: number, end: number) => bigint
+    readonly item: (c: bigint, i: number) => bigint
 }
 
 /**

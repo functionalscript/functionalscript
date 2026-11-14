@@ -9,8 +9,9 @@
  *   whose cell a `drop` freed.
  * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
  *   answers its handle; `drop` takes one away, and frees the cell at zero.
- * - **`from_unit` and `concat` make a cell** of the value that the view
- *   answers, counted once, and answer its handle, which the caller owns.
+ * - **`from_unit`, `concat`, `substring` and `item` make a cell** of the
+ *   value that the view answers, counted once, and answer its handle, which
+ *   the caller owns: an item read from an array is a cell of its own.
  *
  * Counting is state, and a WebAssembly import has nowhere else to keep it,
  * so this is a host boundary in plain JavaScript beside the
@@ -72,6 +73,8 @@ export const counting = values => {
             },
             from_unit: c => make(v.from_unit(c)),
             concat: (a, b) => make(v.concat(a, b)),
+            substring: (s, start, end) => make(v.substring(s, start, end)),
+            item: (c, i) => make(v.item(c, i)),
         },
         read,
         live: () => [...cells].map(([h, { count }]) => [h, count]),

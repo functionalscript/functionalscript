@@ -31,9 +31,11 @@ export const proof = {
     },
     length: () => assertEq([4n, 5n, 6n, 7n, 8n].map(h.length).join(), '2,1,3,1,1'),
     unit: () => assertEq(`${h.unit(4n, 0)},${h.unit(4n, 1)}`, '97,98'),
-    // `from_unit` and `concat` answer the string that they make, for a host to give a handle.
+    // `from_unit`, `concat`, `substring` and `item` answer a value, for a host to give a handle.
     from_unit: () => assertEq(h.from_unit(0x62), 'b'),
     concat: () => assertEq(h.concat(4n, 4n), 'abab'),
+    substring: () => assertEq(`${h.substring(4n, 0, 1)},${h.substring(4n, 1, 2)},${h.substring(4n, 2, 2)}`, 'a,b,'),
+    item: () => assertEq(`${h.item(6n, 2)},${h.item(7n, 0)}`, '3,1'),
     // Where L0 traps, the import throws: a handle of no value, or a value of another kind.
     throw: {
         negative: () => { h.kind(-1n) },
@@ -47,5 +49,9 @@ export const proof = {
         unitOfNoString: () => { h.unit(6n, 0) },
         fromUnit: () => { h.from_unit(0x1_0000) },
         concat: () => { h.concat(4n, 5n) },
+        substringPast: () => { h.substring(4n, 0, 3) },
+        substringBackwards: () => { h.substring(4n, 2, 1) },
+        itemPast: () => { h.item(6n, 3) },
+        itemOfNoContainer: () => { h.item(4n, 0) },
     },
 }

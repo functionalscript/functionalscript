@@ -26,8 +26,12 @@
  * - **A string's unit is String's `unit`**, which L0 names so and
  *   modular-l0.md's memo calls `at`: the UTF-16 unit at an index of
  *   `u(31)`, which traps at or past the end, as the view's `unit` throws.
- * - **`from_unit` and `concat` answer an owned string**, the first functions
- *   of L0 that give a value of `any` for the caller to own.
+ * - **`from_unit`, `concat` and `substring` answer an owned string, and
+ *   Containers' `item` an owned value**, which the caller drops: the item
+ *   of an array or the value of a property of an object, counted once more
+ *   ([L0 design §10](../../../doc/sasha-gil/wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
+ *   `item` and `substring` trap where the view throws: at or past the end,
+ *   and where `start` is past `end`.
  *
  * @module
  *
@@ -83,8 +87,9 @@ const lengthOf = (param, kinds, more) => ({
 
 /**
  * String's functions besides its `length`: `unit`, the UTF-16 unit of a
- * string at an index; `from_unit`, the owned string of one unit; and
- * `concat`, the owned join of two borrowed strings.
+ * string at an index; `from_unit`, the owned string of one unit; `concat`,
+ * the owned join of two borrowed strings; and `substring`, the owned string
+ * of the units of `s` from `start` up to `end`.
  *
  * @type {Interface['functions']}
  */
@@ -92,10 +97,24 @@ const strings = [
     ['unit', signature([['s', string], ['i', index]], u(16))],
     ['from_unit', signature([['c', u(16)]], string)],
     ['concat', signature([['a', string], ['b', string]], string)],
+    ['substring', signature([['s', string], ['start', index], ['end', index]], string)],
 ]
+
+/**
+ * Containers' functions besides its `length`: `item`, the item `i` of an
+ * array or the value of the property `i` of an object, owned.
+ *
+ * @type {Interface['functions']}
+ */
+const containers = [
+    ['item', signature([['c', only(any, 'array', 'object')], ['i', index]], any)],
+]
+
+/** The functions of the modules of L0 that have more than a `length`. @type {readonly (readonly [string, Interface['functions']])[]} */
+const more = [['String', strings], ['Containers', containers]]
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
 export const l0 = [
     ['Any', anyInterface],
-    ...lengths.map(([module, param, ks]) => /** @type {const} */ ([module, lengthOf(param, ks, module === 'String' ? strings : [])])),
+    ...lengths.map(([module, param, ks]) => /** @type {const} */ ([module, lengthOf(param, ks, more.find(([k]) => k === module)?.[1] ?? [])])),
 ]

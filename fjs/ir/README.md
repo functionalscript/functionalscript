@@ -157,6 +157,15 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   leaves own. The checker then checks the owned stage that the pass wrote,
   so a mistake of the pass is a refusal, never a leak; `checkPlain` is the
   checker without that check, which the pass starts from.
+- **L0's functions that answer owned values, lowered**: String's
+  `substring(s, start, end)` and Containers' `item(c, i)` join
+  [the interfaces of L0](./l0/module.f.js) and both hosts, and the
+  [lowering](./from_fast/README.md#the-l0-view) reads the view's
+  `fromUnit`, `concat`, `substring` and `item`, whose values the caller
+  owns: it writes the plain stage, and the pass drops each where its scope
+  ends. Six FunctionalScript helpers that make strings, among them a loop
+  that owns its string, run through the pass against JavaScript with
+  nothing left over, and so do the random comparison's programs.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module

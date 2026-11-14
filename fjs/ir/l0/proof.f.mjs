@@ -28,8 +28,10 @@ export const proof = {
         'String.unit(s: any.only(string), i: u(31)) -> u(16)',
         'String.from_unit(c: u(16)) -> any.only(string)',
         'String.concat(a: any.only(string), b: any.only(string)) -> any.only(string)',
+        'String.substring(s: any.only(string), start: u(31), end: u(31)) -> any.only(string)',
         'BigInt.length(b: any.only(bigint)) -> u(31)',
         'Containers.length(c: any.only(array, object)) -> u(31)',
+        'Containers.item(c: any.only(array, object), i: u(31)) -> any',
         'Functions.length(f: any.only(function)) -> u(31)',
     ].join('; ')),
     // A module may import all of them: the checker takes the interfaces.

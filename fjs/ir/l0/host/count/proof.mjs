@@ -67,6 +67,12 @@ export const proof = {
         h.imports.drop(0n)
         h.imports.drop(s)
         assertEq(cells(h), '2:1')
+        // substring and item make a cell too, an item of its own beside the array's
+        const u = h.imports.substring(t, 1, 2)
+        assertEq(`${h.read(u)} ${cells(h)}`, 'b 2:1,3:1')
+        const c = counting([[t]])
+        const x = c.imports.item(0n, 0)
+        assertEq(`${c.read(x)} ${cells(c)}`, `${t} 0:1,1:1`)
     },
     // A handle of no cell throws, and so does one whose cell a drop freed.
     throw: {
