@@ -20,7 +20,7 @@ declaration:
 | a decoder that builds a fresh value | `parse(s)(value)` | [`parse/`](./parse/module.f.js) |
 | a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.js) |
 | the static TypeScript type | `Ts<typeof s>` | [`ts/types.ts`](./ts/types.ts) |
-| the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.mjs`](./ts/module.f.mjs) |
+| the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.js`](./ts/module.f.js) |
 | a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.js) |
 | a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
 
@@ -89,7 +89,7 @@ siblings there are single data structures and type-level helpers.
 - `module.f.js` — schema construction: defines `Type`, `Info`, and schema builder values
 - `ts/types.ts` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
   (see `ts/README.md`)
-- `ts/module.f.mjs` — the runtime printer: a schema's TypeScript type as text,
+- `ts/module.f.js` — the runtime printer: a schema's TypeScript type as text,
   through the data form
 - `common/module.f.js` — shared kernel for runtime consumers: error shape, path
   bookkeeping, primitive checks, `visit`/`orVisit` (the `Type` dispatchers),

@@ -88,7 +88,9 @@ const identifiers = rules => {
             continue
         }
         let id = `T${i}`
-        while (kept.some(k => k === id)) {
+        while (true) {
+            const id0 = id
+            if (!kept.some(k => k === id0)) { break }
             i += 1
             id = `T${i}`
         }

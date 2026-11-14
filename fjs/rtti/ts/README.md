@@ -1,6 +1,6 @@
 # `rtti/ts` — TypeScript type inference for RTTI schemas
 
-`Ts<T>` (`module.f.mjs`) maps an RTTI schema `Type` to its TypeScript type at
+`Ts<T>` (`types.ts`) maps an RTTI schema `Type` to its TypeScript type at
 compile time. It works by walking the schema's structural shape with a chain of
 conditional types and `infer`.
 

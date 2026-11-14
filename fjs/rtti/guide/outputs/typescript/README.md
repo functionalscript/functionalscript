@@ -63,4 +63,4 @@ accept it. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 
 `Ts<>` in [`ts/types.ts`](../../../ts/types.ts), whose
 [README](../../../ts/README.md) explains how it avoids TS2589; `printer`,
-`dataToTs` and their marked forms in [`ts/module.f.mjs`](../../../ts/module.f.mjs).
+`dataToTs` and their marked forms in [`ts/module.f.js`](../../../ts/module.f.js).

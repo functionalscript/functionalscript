@@ -4,7 +4,7 @@
  * Each `*Ts` type maps a schema (or schema fragment) to its corresponding TypeScript type.
  * The main entry point is `Ts<T>`.
  *
- * The runtime `toTs` function (`printer` in `./module.f.mjs`) mirrors `Ts<T>` at value
+ * The runtime `toTs` function (`printer` in `./module.f.js`) mirrors `Ts<T>` at value
  * level, returning a TypeScript type expression string for a given RTTI schema.
  *
  * @module
