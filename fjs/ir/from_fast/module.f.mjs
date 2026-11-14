@@ -76,7 +76,7 @@
  * @import { AstImport } from '../../compiler/ast/types.ts'
  * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Loop, Statement, Value } from '../../js/ast/types.ts'
  * @import { Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
- * @import { _Global, _Meaning, _Scope, _Tail } from './private.ts'
+ * @import { _FirstCast, _Global, _LowerBlock, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -161,95 +161,73 @@ const bind = (scope, b, r, rest) => {
 const completes = ({ statements, exit }) => exit[0] === 'yield' && statements.every(s =>
     s[0] === 'block' ? completes(s[2]) : s[0] === 'if' ? completes(s[3]) || completes(s[4]) : true)
 
-/** @type {(scope: _Scope, s: Statement, tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>} */
-const statement = (scope, s, tail, rest) => {
-    const no = refuse(scope)
-    switch (s[0]) {
-        case 'define': {
-            const [, b, v, kind] = s
-            if (kind === 'lazy') { return no('a lazy definition is not in this slice') }
-            if (v instanceof Array && v[0] === 'function') { return rest(standsFor(scope, b, ['inline', v[1]])) }
-            const op = v instanceof Array && v.length === 1 ? staticOp(v[0]) : null
-            if (op !== null) { return rest(standsFor(scope, b, ['op', op])) }
-            const c = firstCast(scope, v)
-            return c instanceof Array ? narrow(scope, c, next => statement(next, s, tail, rest)) : bind(scope, b, value(scope, v), rest)
-        }
-        case 'block': {
-            const [, results, b] = s
-            // A block that never completes ends its block, and what follows it is never reached.
-            if (!completes(b)) { return block(scope, b, tail) }
-            return results.length !== 1 ? no(`a statement with ${count(results.length, 'result')} is not in this slice`)
-                : bind(scope, results[0], block(scope, b, ['value']), rest)
-        }
-        case 'if': {
-            const [, results, c, a, b] = s
-            if (!completes(a) && !completes(b)) { return choice(scope, c, a, b, tail) }
-            return results.length !== 1 ? no(`a statement with ${count(results.length, 'result')} is not in this slice`)
-                : bind(scope, results[0], choice(scope, c, a, b, ['value']), rest)
-        }
-        default: {
-            const [, l] = s
-            return l.results.length !== 1 ? no(`a loop with ${count(l.results.length, 'result')} is not in this slice`)
-                : bind(scope, l.results[0], loopTerm(scope, l), rest)
-        }
-    }
+// casts
+
+/** The casts of the L0 view, each with the kind that it narrows to. @type {readonly (readonly [string, string])[]} */
+const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string']]
+
+/** Whether a local holds a value of a sealed type that has kinds besides `kind`. @type {(scope: _Scope, name: string, kind: string) => boolean} */
+const wider = (scope, name, kind) => {
+    const [, t] = assertNotNullish(scope.ir.locals.find(([k]) => k === name))
+    return t[0] === 'sealed' && !(t[3] ?? kinds).every(k => k === kind)
+}
+
+/** The cast that values do first, in their order. @type {(checkFirst: _FirstCast, scope: _Scope, vs: readonly Item<Value>[]) => readonly [string, string] | 'nothing' | null} */
+const firstOf = (checkFirst, scope, vs) => {
+    if (vs.length === 0) { return 'nothing' }
+    const [v, ...more] = vs
+    const first = checkFirst(scope, v)
+    return first === 'nothing' ? firstOf(checkFirst, scope, more) : first
 }
 
 /**
- * The exit of a block where its end stands: a `yield` is the block's value,
- * a `return` and a `break` are where they end a function's or a loop's
- * body, and a `continue` is a `br` to its loop anywhere in the loop's body.
+ * The cast that a value does first, as the local that it narrows and the
+ * kind: a cast of the L0 view of a local that holds other kinds too, where
+ * it is the first thing that the value does. A reference and a primitive
+ * do `'nothing'`, and a call does what its arguments do, in their order,
+ * then itself. `null` where the value does something else first, which a
+ * call of anything but such a cast is, and so is anything else.
  *
- * @type {(scope: _Scope, exit: Exit, tail: _Tail) => Result<Term, string>}
+ * @type {_FirstCast}
  */
-const exitTerm = (scope, exit, tail) => {
-    const no = refuse(scope)
-    switch (exit[0]) {
-        case 'yield': {
-            const [, vs] = exit
-            return tail[0] === 'loop' ? no("a loop's body that ends in neither continue nor break is not in this slice")
-                : vs.length === 1 ? value(scope, vs[0])
-                : no(`a region that yields ${count(vs.length, 'value')} is not in this slice`)
-        }
-        case 'return': {
-            if (tail[0] === 'loop') { return no('a return inside a loop is not in this slice') }
-            const r = value(scope, exit[2])
-            return tail[0] === 'return' || r[0] === 'error' ? r
-                : scope.inlining.length > 0 ? no('a return before the end of a function that is inlined is not in this slice')
-                : ok(return_(r[1]))
-        }
-        case 'continue': {
-            const [, target, vs] = exit
-            // A continue stands in the body of its loop, in the same function.
-            const [, label, params] = assertNotNullish(scope.loops.find(([t]) => t === target))
-            const xs = values(scope, vs)
-            return xs[0] === 'error' ? xs : ok(next(label, params.map((k, j) => /** @type {const} */ ([k, xs[1][j]]))))
-        }
-        case 'break': {
-            const [, target, vs] = exit
-            return tail[0] === 'loop' && tail[1] === target ? value(scope, vs[0])
-                : no("a break before the end of its loop's body is not in this slice")
-        }
-        case 'throw': { return no('throw is not in this slice') }
-        default: { return no('a loop that never breaks is not in this slice') }
-    }
+const firstCast = (scope, v) => {
+    if (!(v instanceof Array) || v[0] === 'ref') { return 'nothing' }
+    if (v[0] !== '()') { return null }
+    const [, callee, items] = v
+    const m = callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : null
+    const c = m !== null && m[0] === 'l0' ? casts.find(([k]) => k === m[1]) : undefined
+    const [x] = items
+    const local = items.length === 1 && x instanceof Array && x[0] === 'ref' ? meaning(scope, x[1]) : null
+    if (c !== undefined && local !== null && local[0] === 'local' && wider(scope, local[1], c[1])) { return [local[1], c[1]] }
+    const first = firstOf(firstCast, scope, items)
+    return first === 'nothing' ? null : first
 }
 
 /**
- * A block: its statements as `let`s around its exit, which ends where
- * `tail` says.
+ * The rest of a block where a cast narrows a local: a `cast` of the local
+ * to the kind, its arm named after the local and the kind, `a.string`,
+ * which every binding that read the local reads from then on.
  *
- * @type {(scope: _Scope, b: Block, tail: _Tail) => Result<Term, string>}
+ * @type {(scope: _Scope, c: readonly [string, string], rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>}
  */
-const block = (scope, { statements, exit }, tail) => {
-    if (statements.length === 0) { return exitTerm(scope, exit, tail) }
-    const [s, ...more] = statements
-    return statement(scope, s, tail, next => block(next, { statements: more, exit }, tail))
+const narrow = (scope, [name, kind], rest) => {
+    const binder = `${name}.${kind}`
+    const t = only(any, kind)
+    const { ir, bindings } = scope
+    const body = rest({
+        ...scope,
+        ir: { ...ir, locals: [...ir.locals, [binder, t]] },
+        bindings: bindings.map(([b, m]) => m[0] === 'local' && m[1] === name ? /** @type {const} */ ([b, ['local', binder]]) : [b, m]),
+    })
+    return body[0] === 'error' ? body : ok(cast(t, get(name), binder, body[1]))
 }
 
-/** @type {(scope: _Scope, c: Value, a: Block, b: Block, tail: _Tail) => Result<Term, string>} */
-const choice = (scope, c, a, b, tail) => {
-    const parts = okList([value(scope, c), block(scope, a, tail), block(scope, b, tail)])
+/** @type {(lowerValue: _LowerValue, scope: _Scope, vs: readonly Value[]) => Result<readonly Term[], string>} */
+const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v)))
+
+/** @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, c: Value, a: Block, b: Block, tail: _Tail) => Result<Term, string>} */
+const choice = (lowerValue, lowerBlock, scope, c, a, b, tail) => {
+    const parts = okList([lowerValue(scope, c), lowerBlock(lowerValue, scope, a, tail), lowerBlock(lowerValue, scope, b, tail)])
     return parts[0] === 'error' ? parts : ok(if_(parts[1][0], parts[1][1], parts[1][2]))
 }
 
@@ -277,10 +255,10 @@ const loose = t => {
  * their first values, loosened. The body ends where the loop's `break` is
  * the loop's value.
  *
- * @type {(scope: _Scope, l: Loop) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, l: Loop) => Result<Term, string>}
  */
-const loopTerm = (scope, { target, parameters, initial, body }) => {
-    const firsts = values(scope, initial)
+const loopTerm = (lowerValue, lowerBlock, scope, { target, parameters, initial, body }) => {
+    const firsts = values(lowerValue, scope, initial)
     if (firsts[0] === 'error') { return firsts }
     const types = okList(firsts[1].map(x => typeOf(scope.ir)(x)))
     if (types[0] === 'error') { return types }
@@ -302,8 +280,94 @@ const loopTerm = (scope, { target, parameters, initial, body }) => {
         depth: depth + params.length,
         loops: [[target, label, names], ...loops],
     }
-    const b = block(inner, body, ['loop', target])
+    const b = lowerBlock(lowerValue, inner, body, ['loop', target])
     return b[0] === 'error' ? b : ok(loop(label, params, b[1]))
+}
+
+/** @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, s: Statement, tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>} */
+const statement = (lowerValue, lowerBlock, scope, s, tail, rest) => {
+    const no = refuse(scope)
+    switch (s[0]) {
+        case 'define': {
+            const [, b, v, kind] = s
+            if (kind === 'lazy') { return no('a lazy definition is not in this slice') }
+            if (v instanceof Array && v[0] === 'function') { return rest(standsFor(scope, b, ['inline', v[1]])) }
+            const op = v instanceof Array && v.length === 1 ? staticOp(v[0]) : null
+            if (op !== null) { return rest(standsFor(scope, b, ['op', op])) }
+            const c = firstCast(scope, v)
+            return c instanceof Array ? narrow(scope, c, next => statement(lowerValue, lowerBlock, next, s, tail, rest)) : bind(scope, b, lowerValue(scope, v), rest)
+        }
+        case 'block': {
+            const [, results, b] = s
+            // A block that never completes ends its block, and what follows it is never reached.
+            if (!completes(b)) { return lowerBlock(lowerValue, scope, b, tail) }
+            return results.length !== 1 ? no(`a statement with ${count(results.length, 'result')} is not in this slice`)
+                : bind(scope, results[0], lowerBlock(lowerValue, scope, b, ['value']), rest)
+        }
+        case 'if': {
+            const [, results, c, a, b] = s
+            if (!completes(a) && !completes(b)) { return choice(lowerValue, lowerBlock, scope, c, a, b, tail) }
+            return results.length !== 1 ? no(`a statement with ${count(results.length, 'result')} is not in this slice`)
+                : bind(scope, results[0], choice(lowerValue, lowerBlock, scope, c, a, b, ['value']), rest)
+        }
+        default: {
+            const [, l] = s
+            return l.results.length !== 1 ? no(`a loop with ${count(l.results.length, 'result')} is not in this slice`)
+                : bind(scope, l.results[0], loopTerm(lowerValue, lowerBlock, scope, l), rest)
+        }
+    }
+}
+
+/**
+ * The exit of a block where its end stands: a `yield` is the block's value,
+ * a `return` and a `break` are where they end a function's or a loop's
+ * body, and a `continue` is a `br` to its loop anywhere in the loop's body.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, exit: Exit, tail: _Tail) => Result<Term, string>}
+ */
+const exitTerm = (lowerValue, scope, exit, tail) => {
+    const no = refuse(scope)
+    switch (exit[0]) {
+        case 'yield': {
+            const [, vs] = exit
+            return tail[0] === 'loop' ? no("a loop's body that ends in neither continue nor break is not in this slice")
+                : vs.length === 1 ? lowerValue(scope, vs[0])
+                : no(`a region that yields ${count(vs.length, 'value')} is not in this slice`)
+        }
+        case 'return': {
+            if (tail[0] === 'loop') { return no('a return inside a loop is not in this slice') }
+            const r = lowerValue(scope, exit[2])
+            return tail[0] === 'return' || r[0] === 'error' ? r
+                : scope.inlining.length > 0 ? no('a return before the end of a function that is inlined is not in this slice')
+                : ok(return_(r[1]))
+        }
+        case 'continue': {
+            const [, target, vs] = exit
+            // A continue stands in the body of its loop, in the same function.
+            const [, label, params] = assertNotNullish(scope.loops.find(([t]) => t === target))
+            const xs = values(lowerValue, scope, vs)
+            return xs[0] === 'error' ? xs : ok(next(label, params.map((k, j) => /** @type {const} */ ([k, xs[1][j]]))))
+        }
+        case 'break': {
+            const [, target, vs] = exit
+            return tail[0] === 'loop' && tail[1] === target ? lowerValue(scope, vs[0])
+                : no("a break before the end of its loop's body is not in this slice")
+        }
+        case 'throw': { return no('throw is not in this slice') }
+        default: { return no('a loop that never breaks is not in this slice') }
+    }
+}
+
+/**
+ * A block: its statements as `let`s around its exit, which ends where
+ * `tail` says.
+ *
+ * @type {_LowerBlock}
+ */
+const block = (lowerValue, scope, { statements, exit }, tail) => {
+    if (statements.length === 0) { return exitTerm(lowerValue, scope, exit, tail) }
+    const [s, ...more] = statements
+    return statement(lowerValue, block, scope, s, tail, next => block(lowerValue, next, { statements: more, exit }, tail))
 }
 
 /**
@@ -317,9 +381,9 @@ const loopTerm = (scope, { target, parameters, initial, body }) => {
  * by its own name or through others, is refused, since its copies would
  * never end.
  *
- * @type {(scope: _Scope, f: FastFunction, args: readonly Term[], resolve: (v: Value) => Result<_Meaning, string>) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction, args: readonly Term[], resolve: (v: Value) => Result<_Meaning, string>) => Result<Term, string>}
  */
-const inline = (scope, f, args, resolve) => {
+const inline = (lowerValue, scope, f, args, resolve) => {
     const no = refuse(scope)
     if (f.rest !== null) { return no('a rest parameter is not in this slice') }
     if (f.self !== null || scope.inlining.includes(f)) { return no('a function that calls itself is not in this slice') }
@@ -333,7 +397,7 @@ const inline = (scope, f, args, resolve) => {
     if (captured[0] === 'error') { return captured }
     /** The parameters from the `j`-th on, standing for their arguments, around the body. @type {(s: _Scope, j: number) => Result<Term, string>} */
     const from = (s, j) => {
-        if (j === args.length) { return block(s, f.body, ['return']) }
+        if (j === args.length) { return block(lowerValue, s, f.body, ['return']) }
         const b = f.parameters[j]
         const x = args[j]
         return x[0] === 'get' ? from(standsFor(s, b, ['local', x[1]]), j + 1)
@@ -351,67 +415,6 @@ const local = scope => v => {
 
 /** What a capture of a function of the module stands for: what `capture` makes of the module's binding. @type {(capture: (b: BindingId) => Result<_Meaning, string>) => (v: Value) => Result<_Meaning, string>} */
 const ofModule = capture => v => v instanceof Array && v[0] === 'ref' ? capture(v[1]) : error('a capture that is not a function of the module is not in this slice')
-
-// casts
-
-/** The casts of the L0 view, each with the kind that it narrows to. @type {readonly (readonly [string, string])[]} */
-const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string']]
-
-/**
- * The cast that a value does first, as the local that it narrows and the
- * kind: a cast of the L0 view of a local that holds other kinds too, where
- * it is the first thing that the value does. A reference and a primitive
- * do `'nothing'`, and a call does what its arguments do, in their order,
- * then itself. `null` where the value does something else first, which a
- * call of anything but such a cast is, and so is anything else.
- *
- * @type {(scope: _Scope, v: Item<Value>) => readonly [string, string] | 'nothing' | null}
- */
-const firstCast = (scope, v) => {
-    if (!(v instanceof Array) || v[0] === 'ref') { return 'nothing' }
-    if (v[0] !== '()') { return null }
-    const [, callee, items] = v
-    const m = callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : null
-    const c = m !== null && m[0] === 'l0' ? casts.find(([k]) => k === m[1]) : undefined
-    const [x] = items
-    const local = items.length === 1 && x instanceof Array && x[0] === 'ref' ? meaning(scope, x[1]) : null
-    if (c !== undefined && local !== null && local[0] === 'local' && wider(scope, local[1], c[1])) { return [local[1], c[1]] }
-    const first = firstOf(scope, items)
-    return first === 'nothing' ? null : first
-}
-
-/** The cast that values do first, in their order. @type {(scope: _Scope, vs: readonly Item<Value>[]) => readonly [string, string] | 'nothing' | null} */
-const firstOf = (scope, vs) => {
-    if (vs.length === 0) { return 'nothing' }
-    const [v, ...more] = vs
-    const first = firstCast(scope, v)
-    return first === 'nothing' ? firstOf(scope, more) : first
-}
-
-/** Whether a local holds a value of a sealed type that has kinds besides `kind`. @type {(scope: _Scope, name: string, kind: string) => boolean} */
-const wider = (scope, name, kind) => {
-    const [, t] = assertNotNullish(scope.ir.locals.find(([k]) => k === name))
-    return t[0] === 'sealed' && !(t[3] ?? kinds).every(k => k === kind)
-}
-
-/**
- * The rest of a block where a cast narrows a local: a `cast` of the local
- * to the kind, its arm named after the local and the kind, `a.string`,
- * which every binding that read the local reads from then on.
- *
- * @type {(scope: _Scope, c: readonly [string, string], rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>}
- */
-const narrow = (scope, [name, kind], rest) => {
-    const binder = `${name}.${kind}`
-    const t = only(any, kind)
-    const { ir, bindings } = scope
-    const body = rest({
-        ...scope,
-        ir: { ...ir, locals: [...ir.locals, [binder, t]] },
-        bindings: bindings.map(([b, m]) => m[0] === 'local' && m[1] === name ? /** @type {const} */ ([b, ['local', binder]]) : [b, m]),
-    })
-    return body[0] === 'error' ? body : ok(cast(t, get(name), binder, body[1]))
-}
 
 // the L0 view
 
@@ -555,10 +558,10 @@ const nativeCall = (scope, name, args) => {
  * `a % b` of two floats: L1's native row `numberRemainder`, since WASM has
  * no instruction for it, which a module lowered over the runtime imports.
  *
- * @type {(scope: _Scope, a: Value, b: Value) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, a: Value, b: Value) => Result<Term, string>}
  */
-const remainder = (scope, a, b) => {
-    const xs = values(scope, [a, b])
+const remainder = (lowerValue, scope, a, b) => {
+    const xs = values(lowerValue, scope, [a, b])
     if (xs[0] === 'error') { return xs }
     const ts = okList(xs[1].map(x => typeOf(scope.ir)(x)))
     if (ts[0] === 'error') { return ts }
@@ -576,13 +579,13 @@ const remainder = (scope, a, b) => {
  * nothing reads it as an object, and the checker refuses a name given
  * twice.
  *
- * @type {(scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
  */
-const record = (scope, entries) => {
+const record = (lowerValue, scope, entries) => {
     const fields = okList(entries.map(e => {
         if (e[0] !== ':' || typeof e[1] !== 'string') { return refuse(scope)('an entry of an object that is not a name and its value is not in this slice') }
         const [, k, v] = e
-        const x = value(scope, v)
+        const x = lowerValue(scope, v)
         return x[0] === 'error' ? x : ok(/** @type {const} */ ([k, x[1]]))
     }))
     return fields[0] === 'error' ? fields : ok(make(fields[1]))
@@ -602,12 +605,9 @@ const fieldOf = (x, key) => {
 
 // values
 
-/** @type {(scope: _Scope, vs: readonly Value[]) => Result<readonly Term[], string>} */
-const values = (scope, vs) => okList(vs.map(v => value(scope, v)))
-
-/** An operator of two operands. @type {(scope: _Scope, f: (a: Term, b: Term) => Term, a: Value, b: Value) => Result<Term, string>} */
-const binary = (scope, f, a, b) => {
-    const xs = values(scope, [a, b])
+/** An operator of two operands. @type {(lowerValue: _LowerValue, scope: _Scope, f: (a: Term, b: Term) => Term, a: Value, b: Value) => Result<Term, string>} */
+const binary = (lowerValue, scope, f, a, b) => {
+    const xs = values(lowerValue, scope, [a, b])
     return xs[0] === 'error' ? xs : ok(f(xs[1][0], xs[1][1]))
 }
 
@@ -615,10 +615,10 @@ const binary = (scope, f, a, b) => {
  * An operator of one operand, picked by the operand's type: `pick` answers
  * the term, or `null` where no operator of the slice fits.
  *
- * @type {(scope: _Scope, tag: string, x: Value, pick: (t: Type, x: Term) => Term | null) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, tag: string, x: Value, pick: (t: Type, x: Term) => Term | null) => Result<Term, string>}
  */
-const unary = (scope, tag, x, pick) => {
-    const r = value(scope, x)
+const unary = (lowerValue, scope, tag, x, pick) => {
+    const r = lowerValue(scope, x)
     if (r[0] === 'error') { return r }
     const t = typeOf(scope.ir)(r[1])
     if (t[0] === 'error') { return t }
@@ -630,10 +630,10 @@ const unary = (scope, tag, x, pick) => {
  * `===`, or `!==` where `negated`: `eq` of two numbers, and a `match` of two
  * booleans, which evaluates each operand once on every path.
  *
- * @type {(scope: _Scope, a: Value, b: Value, negated: boolean) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, a: Value, b: Value, negated: boolean) => Result<Term, string>}
  */
-const same = (scope, a, b, negated) => {
-    const xs = values(scope, [a, b])
+const same = (lowerValue, scope, a, b, negated) => {
+    const xs = values(lowerValue, scope, [a, b])
     if (xs[0] === 'error') { return xs }
     const [x, y] = xs[1]
     const ts = okList([typeOf(scope.ir)(x), typeOf(scope.ir)(y)])
@@ -652,19 +652,19 @@ const isSpread = item => item instanceof Array && item[0] === '...'
  * function that the function defines or that the module does not export,
  * which are inlined: the callee is a binding that stands for one.
  *
- * @type {(scope: _Scope, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
  */
-const callTerm = (scope, callee, items) => {
+const callTerm = (lowerValue, scope, callee, items) => {
     const no = refuse(scope)
     const m = callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : null
     if (m === null || m[0] === 'local' || m[0] === 'term') { return no('a call of a value is not in this slice') }
-    const xs = okList(items.map(item => isSpread(item) ? no('a spread argument is not in this slice') : value(scope, item)))
+    const xs = okList(items.map(item => isSpread(item) ? no('a spread argument is not in this slice') : lowerValue(scope, item)))
     if (xs[0] === 'error') { return xs }
     switch (m[0]) {
         case 'l0': { return viewCall(scope, m[1], xs[1]) }
         case 'native': { return nativeCall(scope, m[1], xs[1]) }
-        case 'inline': { return inline(scope, m[1], xs[1], local(scope)) }
-        case 'module': { return inline(scope, m[1], xs[1], scope.module) }
+        case 'inline': { return inline(lowerValue, scope, m[1], xs[1], local(scope)) }
+        case 'module': { return inline(lowerValue, scope, m[1], xs[1], scope.module) }
         case 'function': { return ok(call('self', m[1], xs[1])) }
         default: { return ok(['op', m[1], xs[1]]) }
     }
@@ -675,20 +675,20 @@ const callTerm = (scope, callee, items) => {
  * first: where it is no local or literal it is bound to a local before `b`,
  * since either may trap and a loop may never end.
  *
- * @type {(scope: _Scope, f: (a: Term, b: Term) => Term, a: Value, b: Value) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, f: (a: Term, b: Term) => Term, a: Value, b: Value) => Result<Term, string>}
  */
-const swapped = (scope, f, a, b) => {
-    const x = value(scope, a)
+const swapped = (lowerValue, scope, f, a, b) => {
+    const x = lowerValue(scope, a)
     if (x[0] === 'error') { return x }
     /** `b`, where `s` is the scope, before `y`. @type {(s: _Scope, y: Term) => Result<Term, string>} */
     const before = (s, y) => {
-        const r = value(s, b)
+        const r = lowerValue(s, b)
         return r[0] === 'error' ? r : ok(f(r[1], y))
     }
     return isPure(x[1]) ? before(scope, x[1]) : bindTerm(scope, x[1], (s, name) => before(s, get(name)))
 }
 
-/** @type {(scope: _Scope, v: Value) => Result<Term, string>} */
+/** @type {_LowerValue} */
 const value = (scope, v) => {
     const no = refuse(scope)
     if (typeof v === 'number') { return ok(lit(f64c, v)) }
@@ -706,35 +706,35 @@ const value = (scope, v) => {
                 : no('a function as a value is not in this slice')
         }
         case 'function': { return no('a function as a value is not in this slice') }
-        case 'block': { return block(scope, v[1], ['value']) }
-        case 'if': { return choice(scope, v[1], v[2], v[3], ['value']) }
+        case 'block': { return block(value, scope, v[1], ['value']) }
+        case 'if': { return choice(value, block, scope, v[1], v[2], v[3], ['value']) }
         case '?:': {
-            const parts = values(scope, [v[1], v[2], v[3]])
+            const parts = values(value, scope, [v[1], v[2], v[3]])
             return parts[0] === 'error' ? parts : ok(if_(parts[1][0], parts[1][1], parts[1][2]))
         }
-        case '()': { return callTerm(scope, v[1], v[2]) }
+        case '()': { return callTerm(value, scope, v[1], v[2]) }
         case '-': {
-            return v.length === 3 ? binary(scope, sub, v[1], v[2])
-                : unary(scope, '-', v[1], (t, x) => t[0] === 'int' ? sub(n(0n), x) : isFloat(t) ? neg(x) : null)
+            return v.length === 3 ? binary(value, scope, sub, v[1], v[2])
+                : unary(value, scope, '-', v[1], (t, x) => t[0] === 'int' ? sub(n(0n), x) : isFloat(t) ? neg(x) : null)
         }
-        case '+': { return v.length === 3 ? binary(scope, add, v[1], v[2]) : no('+ of one operand is not in this slice') }
-        case '!': { return unary(scope, '!', v[1], (t, x) => equal(t, bool) ? not(x) : null) }
-        case 'Number': { return unary(scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
-        case '*': { return binary(scope, mul, v[1], v[2]) }
-        case '/': { return binary(scope, div, v[1], v[2]) }
-        case '%': { return remainder(scope, v[1], v[2]) }
-        case 'object': { return record(scope, v[1]) }
+        case '+': { return v.length === 3 ? binary(value, scope, add, v[1], v[2]) : no('+ of one operand is not in this slice') }
+        case '!': { return unary(value, scope, '!', v[1], (t, x) => equal(t, bool) ? not(x) : null) }
+        case 'Number': { return unary(value, scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
+        case '*': { return binary(value, scope, mul, v[1], v[2]) }
+        case '/': { return binary(value, scope, div, v[1], v[2]) }
+        case '%': { return remainder(value, scope, v[1], v[2]) }
+        case 'object': { return record(value, scope, v[1]) }
         case '.': {
             const key = v[2]
             return v.length !== 3 || typeof key !== 'string' ? no('a member read of anything but a name is not in this slice')
-                : unary(scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
+                : unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
         }
-        case '<': { return binary(scope, lt, v[1], v[2]) }
-        case '<=': { return binary(scope, le, v[1], v[2]) }
-        case '>': { return swapped(scope, lt, v[1], v[2]) }
-        case '>=': { return swapped(scope, le, v[1], v[2]) }
-        case '===': { return same(scope, v[1], v[2], false) }
-        case '!==': { return same(scope, v[1], v[2], true) }
+        case '<': { return binary(value, scope, lt, v[1], v[2]) }
+        case '<=': { return binary(value, scope, le, v[1], v[2]) }
+        case '>': { return swapped(value, scope, lt, v[1], v[2]) }
+        case '>=': { return swapped(value, scope, le, v[1], v[2]) }
+        case '===': { return same(value, scope, v[1], v[2], false) }
+        case '!==': { return same(value, scope, v[1], v[2], true) }
         default: { return no(`${v[0]} is not in this slice`) }
     }
 }
@@ -768,7 +768,7 @@ const lowerFn = ({ functions, imports }, capture) => ([name, f, { params, result
         ...(f.self === null ? [] : [/** @type {const} */ ([f.self, ['function', name]])]),
         ...captured[1],
     ]
-    const body = block({ ir: { name, locals: params, result, functions, imports }, bindings, depth: 0, loops: [], inlining: [], module }, f.body, ['return'])
+    const body = block(value, { ir: { name, locals: params, result, functions, imports }, bindings, depth: 0, loops: [], inlining: [], module }, f.body, ['return'])
     return body[0] === 'error' ? body : ok([name, fn(params, result, body[1])])
 }
 

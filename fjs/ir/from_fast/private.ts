@@ -5,7 +5,7 @@
  */
 
 import type { Result } from '../../types/result/types.ts'
-import type { BindingId, Function as FastFunction, LoopTarget, Value } from '../../js/ast/types.ts'
+import type { BindingId, Block, Function as FastFunction, Item, LoopTarget, Value } from '../../js/ast/types.ts'
 import type { OpName, Scope, Term } from '../types.ts'
 
 /**
@@ -63,3 +63,12 @@ export type _Scope = {
     readonly inlining: readonly FastFunction[]
     readonly module: (v: Value) => Result<_Meaning, string>
 }
+
+/** The cast that a value does before anything else. */
+export type _FirstCast = (scope: _Scope, v: Item<Value>) => readonly [string, string] | 'nothing' | null
+
+/** Lower a value in the scope where it stands. */
+export type _LowerValue = (scope: _Scope, v: Value) => Result<Term, string>
+
+/** Lower a block, using the recursive value lowering for its values. */
+export type _LowerBlock = (lowerValue: _LowerValue, scope: _Scope, b: Block, tail: _Tail) => Result<Term, string>
