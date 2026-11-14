@@ -196,10 +196,16 @@ const validateVisitor = (name, ref, nullable) => ({
         assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
         return undefined
     },
-    sequence: items => items.forEach(ref),
+    sequence: items => {
+        for (const item of items) { ref(item) }
+        return undefined
+    },
     // Every own entry, so a tag written with no rule under it is refused
     // rather than read as absent.
-    variant: branches => entries(branches).forEach(([, item]) => ref(item)),
+    variant: branches => {
+        for (const [, item] of entries(branches)) { ref(item) }
+        return undefined
+    },
     repeat: (min, max, item) => {
         assert(isRepeatBounds(min, max), ['repeat bounds outside their domain', name, min, max])
         ref(item)
@@ -229,7 +235,7 @@ export const validate = (ruleSet, entry) => {
     assert(isObject(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
-    entries(ruleSet).forEach(([name, r]) => rule(name)(r))
+    for (const [name, r] of entries(ruleSet)) { rule(name)(r) }
     return undefined
 }
 
