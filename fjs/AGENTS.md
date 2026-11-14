@@ -204,7 +204,7 @@ Never use `try`/`catch` in `.f.mjs` files — FunctionalScript itself has no
 nest the test function under a `throw` property key instead of wrapping it in
 `try`/`catch` (see `fjs/asserts/proof.f.mjs`).
 
-The test runner (`fjs/emergent_testing/module.f.mjs`) treats `throw` as a
+The test runner (`fjs/emergent_testing/module.f.js`) treats `throw` as a
 structural marker: any function reachable under a `throw` key gets
 `throws: true`, and the runner inverts the sandboxed result so a thrown error
 counts as a pass — with no manual `caught`/`threw` flag or `assert` needed.

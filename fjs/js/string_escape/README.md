@@ -20,7 +20,7 @@ stringLiteral('a"\n') // '"a\\"\\n"', the text "a\"\n" with its quotes
 
 `\uXXXX` is not a simple escape: its meaning is computed from its digits, so
 the tokenizer decodes it rather than looking it up. `stringLiteral` writes
-JSON-compatible output, which is why [`media/json`](../../media/json/serializer/module.f.mjs)
+JSON-compatible output, which is why [`media/json`](../../media/json/serializer/module.f.js)
 and the generated `package.json` in [`ci`](../../ci/README.md) use it too.
 Single-quoted `\'`, `\v` and `\xHH` are decoded by the JavaScript tokenizer
 above this JSON table, preserving JSON-compatible output.

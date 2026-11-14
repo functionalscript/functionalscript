@@ -1,5 +1,5 @@
 import { assertEq } from '../../../asserts/module.f.js'
-import { _validDuration, _formatDuration } from './module.f.mjs'
+import { _validDuration, _formatDuration } from './module.f.js'
 
 export const proof = {
     _validDuration: () => {

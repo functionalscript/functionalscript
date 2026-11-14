@@ -1,6 +1,7 @@
 /** Owning return lifting across plain value regions. @module */
 
-import type { Block, FunctionTarget, Item, Key, LoopTarget, Statement, Step, Value } from '../types.ts'
+import type { BindingId, Block, FunctionTarget, Item, Key, LoopTarget, Statement, Step, Value } from '../types.ts'
+import type { Task } from '../task/types.ts'
 import type { List } from '../../../types/list/types.ts'
 
 export type _Context = {
@@ -58,3 +59,9 @@ export type _ChainRegion = {
     readonly lifted: boolean
     readonly callee: boolean
 }
+
+/** Recursive value lifting is passed to the operand and block helpers. */
+export type _ValueTask = (source: Value, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>
+
+/** Chain helpers resume through this trampoline continuation. */
+export type _ChainValueTask = (valueTask: _ValueTask, value: Value, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>

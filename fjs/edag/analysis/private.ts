@@ -5,8 +5,8 @@
  * @module
  */
 
-import type { ExpOp, TagMap } from '../types.ts'
-import type { Node } from './types.ts'
+import type { Exp, ExpOp, TagMap } from '../types.ts'
+import type { Node, Operand } from './types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
 
 /** The `=>` node whose body is being walked, or `null` at the module level. */
@@ -33,5 +33,8 @@ export type _State = {
 /** A walker: given the scope, threads the state through `e` and yields what stands for it in the table. */
 export type _Walk<E, R> = (scope: _Scope) => (state: _State, e: E) => readonly [_State, R]
 
+/** A walker whose recursive expression walk is supplied by its caller. */
+export type _Handler<E, R> = (walk: _Walk<Exp, Operand>) => _Walk<E, R>
+
 /** One walker per node tag, each seeing its own tuple type. */
-export type _Handlers = { readonly [K in ExpOp[0]]: _Walk<TagMap[K], Node> }
+export type _Handlers = { readonly [K in ExpOp[0]]: _Handler<TagMap[K], Node> }

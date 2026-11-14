@@ -25,7 +25,7 @@
  *
  * @import { List } from '../../../types/list/types.ts'
  * @import { Reduce } from '../../../types/function/operator/types.ts'
- * @import { Tree, TreeObject, TreeArray, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
+ * @import { Tree, TreeObject, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
  * @import { Codec, LeafSerializer, _ExtraLeaves, _Leaves } from './types.ts'
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
@@ -33,7 +33,7 @@
 import { flat, map, reduce, empty } from '../../../types/list/module.f.js'
 import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/module.f.js'
 import { definedEntries, isObject } from '../../../types/object/module.f.js'
-import { compose, fn } from '../../../types/function/module.f.js'
+import { compose } from '../../../types/function/module.f.js'
 import { stringLiteral } from '../../../js/string_escape/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
@@ -47,6 +47,12 @@ const { is } = Object
  */
 export const stringSerialize
     = input => [[stringLiteral(input), 'string']]
+
+/**
+ * Shared serialized representation for `null`.
+ */
+/** @type {List<Chunk>} */
+export const nullSerialize = [['null', 'literal']]
 
 /**
  * Serializes a number as a JSON number literal.
@@ -66,12 +72,6 @@ export const stringSerialize
  */
 export const numberSerialize
     = input => Number.isFinite(input) ? [[is(input, -0) ? '-0' : String(input), 'number']] : nullSerialize
-
-/**
- * Shared serialized representation for `null`.
- */
-/** @type {List<Chunk>} */
-export const nullSerialize = [['null', 'literal']]
 
 /** @type {List<Chunk>} */
 const trueSerialize = [['true', 'literal']]
@@ -172,32 +172,19 @@ export const colon = [':']
  * @returns {(sort: TreeMapEntries<P>) => (value: Tree<P>) => List<Chunk>}
  */
 export const treeSerialize = leafSerialize => sort => {
-    // `definedEntries` is generic; naming it at `P` here is what keeps the leaf
-    // type through the `fn(...)` composition below, which would otherwise
-    // instantiate it at `unknown`.
+    // Keep the codec's leaf type through the generic entry enumeration.
     /** @type {(object: TreeObject<P>) => TreeEntries<P>} */
     const objectEntries = definedEntries
-    /** @type {(kv: TreeEntry<P>) => List<Chunk>} */
-    const propertySerialize = ([k, v]) => flat([
-        stringSerialize(k),
-        colon,
-        f(v)
-    ])
-    const mapPropertySerialize = map(propertySerialize)
-    /** @type {(object: TreeObject<P>) => List<Chunk>} */
-    const objectSerialize = fn(objectEntries)
-        .map(sort)
-        .map(mapPropertySerialize)
-        .map(objectWrap)
-        .result
     /** @type {(value: Tree<P>) => List<Chunk>} */
     const f = value => {
-        if (value instanceof Array) { return arraySerialize(value) }
-        if (isObject(value)) { return objectSerialize(value) }
+        if (value instanceof Array) { return arrayWrap(map(f)(value)) }
+        if (isObject(value)) {
+            /** @type {(kv: TreeEntry<P>) => List<Chunk>} */
+            const propertySerialize = ([k, v]) => flat([stringSerialize(k), colon, f(v)])
+            return objectWrap(map(propertySerialize)(sort(objectEntries(value))))
+        }
         return leafSerialize(value)
     }
-    /** @type {(value: TreeArray<P>) => List<Chunk>} */
-    const arraySerialize = compose(map(f))(arrayWrap)
     return f
 }
 

@@ -125,7 +125,7 @@ not survive the enumeration, neither should the row.
 - **Not two records per leaf on a TTY.** Tried and reverted — it doubles every
   line to guard a case that announces itself; the reason is on
   `defaultReporter`'s `start` in
-  [`module.f.mjs`](../emergent_testing/module.f.mjs). A non-TTY format may
+  [`module.f.mjs`](../emergent_testing/module.f.js). A non-TTY format may
   still choose it.
 - **The browser is a destination, not a variant.** It renders a pending row on
   the start event and settles it in place, and a design that only distinguishes

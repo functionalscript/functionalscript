@@ -15,7 +15,7 @@ import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { _runBrowserProofsWith, renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
-import { fmtImport, testResult } from '../module.f.mjs'
+import { fmtImport, testResult } from '../module.f.js'
 import { groupByModule, runnerSource } from './module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'

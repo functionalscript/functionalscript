@@ -70,7 +70,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         // The runtime needs neither a tooling inventory nor loaded definitions.
         for (const path of [
             'fjs/effects/node/module.mjs', 'fjs/emergent_testing/cov/reporter.mjs',
-            'fjs/emergent_testing/module.f.mjs', 'fjs/cli/module.f.js',
+            'fjs/emergent_testing/module.f.js', 'fjs/cli/module.f.js',
             'fjs/emergent_testing/one.mjs', 'fjs/module.mjs', 'fjs/module.f.mjs',
         ]) {
             write(root, path, 'throw new Error("Tooling source must not execute")\n')

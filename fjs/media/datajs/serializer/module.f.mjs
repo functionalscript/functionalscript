@@ -85,7 +85,7 @@ import { error, mapOk, ok, okThen } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.js'
 import { pushOk, walkFold } from '../../../types/stack_walk/module.f.js'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.js'
-import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
+import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 const {
