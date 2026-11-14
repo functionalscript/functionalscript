@@ -18,6 +18,11 @@ import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.js'
 import { factoryStringify, stringify } from './module.f.mjs'
 import { tryStringify } from '../module.f.mjs'
+import { vm } from '../../../edag/amnesia/module.f.mjs'
+import { read } from '../../../edag/value/property/module.f.js'
+import runtimeEdag from '../../../js/runtime/gen.edag.js'
+import { pureOk } from '../../../effects/module.f.js'
+import { source as referenceMap } from '../../parser/ref_map/module.f.mjs'
 
 /** Load actual module syntax. @type {(source: string) => Promise<any>} */
 const load = async source => {
@@ -2322,5 +2327,39 @@ export const proof = {
         const [pairs, self] = f(0)
         assertEq(pairs[0], a)
         assertEq(self, f)
+    },
+    // A reference map an interpreter has used is the runtime's function
+    // with its pairs, written out as any function is: read back, it holds
+    // the same keys, each still the reference the rest of the module holds,
+    // one map met twice is one map, and two maps are two. The empty map,
+    // never called, is written as the map the language recognizes.
+    referenceMap: async () => {
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        const root = /** @type {const} */ ({
+            main: [utf8(`${referenceMap}
+const a = { name: 'a' }
+const b = { name: 'b' }
+const [, one] = empty(a, 1)
+const [, two] = one(b, 2)
+export default { a, b, one, two, again: two, empty }
+`)],
+        })
+        const [, result] = virtualAt(root)(interpret(pureOk(runtime))('main'))
+        const { a, b, one, two, again, empty } = (await compile(assertOk(result))).default
+        assertEq(two(a)[0], 1)
+        assertEq(two(b)[0], 2)
+        assertEq(one(a)[0], 1)
+        assertEq(one(b)[0], undefined)
+        // a key is the reference, not an object alike
+        assertEq(two({ name: 'a' })[0], undefined)
+        assertEq(two, again)
+        assert(one !== two)
+        assertEq(two(a)[1], two)
+        // a map read back is a map still: a set answers a new one
+        assertEq(two(a, 3)[1](a)[0], 3)
+        assertEq(two(a)[0], 1)
+        assertEq(empty(a)[1], empty)
+        assertEq(empty(a, 4)[1](a)[0], 4)
     },
 }
