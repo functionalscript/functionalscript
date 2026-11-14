@@ -11,7 +11,7 @@ import { check } from '../check/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, next, only, own, return_, sealed,
-    signature, trap, true_, trunc_sat, u, unit, variant,
+    signature, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
 import { lifetime } from './module.f.js'
