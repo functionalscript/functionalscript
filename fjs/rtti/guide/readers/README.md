@@ -29,5 +29,5 @@ DataJS the data form is more permissive; see
 ## Where it is implemented
 
 [`parse`](../../parse/module.f.js), [`validate`](../../validate/module.f.js),
-the data form's `validate` in [`data`](../../data/module.f.mjs), and the kernel
+the data form's `validate` in [`data`](../../data/module.f.js), and the kernel
 they share in [`common`](../../common/module.f.js).

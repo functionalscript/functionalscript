@@ -34,7 +34,7 @@ import {
     undefinedBit,
     unionFold,
     withoutUnits,
-} from '../../../rtti/data/module.f.mjs'
+} from '../../../rtti/data/module.f.js'
 import { unknown as jsonUnknown } from '../rtti/module.f.js'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */

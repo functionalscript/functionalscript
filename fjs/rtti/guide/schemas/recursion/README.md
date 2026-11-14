@@ -53,5 +53,5 @@ defined in [`sample.f.js`](./sample.f.js), and the
 ## Where it is implemented
 
 `Thunk` and `Info` in [`types.ts`](../../../types.ts); `toData`'s named
-rules in [`data`](../../../data/module.f.mjs); `WithOut` in
+rules in [`data`](../../../data/module.f.js); `WithOut` in
 [`ts/types.ts`](../../../ts/types.ts).

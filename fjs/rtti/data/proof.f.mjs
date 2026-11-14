@@ -43,7 +43,7 @@ import {
     unknown,
     validate,
     withoutUnits,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>

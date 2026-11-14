@@ -37,7 +37,7 @@ import {
     toData,
     undefinedBit,
     unionFold,
-} from '../data/module.f.mjs'
+} from '../data/module.f.js'
 
 /**
  * Names that cannot name a TypeScript type alias: the ECMAScript reserved

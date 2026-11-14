@@ -1230,9 +1230,10 @@ const reachableFrom = (rules, init) => {
     let result = dedup(init)
     let frontier = result
     while (frontier.length !== 0) {
+        const reached = result
         const next = dedup(frontier
             .flatMap(n => unionRefs(assertNotNullish(entry(rules, n))))
-            .filter(n => !result.some(r => r === n)))
+            .filter(n => !reached.some(r => r === n)))
         result = [...result, ...next]
         frontier = next
     }

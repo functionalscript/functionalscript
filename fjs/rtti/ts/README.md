@@ -107,7 +107,7 @@ so one rendering
 
 What counts as empty is a semantic question, a `toData` conversion compared
 with the bare container's by `equivalent` in
-[`data/module.f.mjs`](../data/module.f.mjs), which `types.ts` cannot invoke. So `RestTs` recognizes the
+[`data/module.f.js`](../data/module.f.js), which `types.ts` cannot invoke. So `RestTs` recognizes the
 one directly spellable empty rest, `or()`, and keeps the tail whenever it
 cannot tell. A kept tail is wider than the schema but sound, which is the
 direction a success cast needs. The runtime printer goes through the data form

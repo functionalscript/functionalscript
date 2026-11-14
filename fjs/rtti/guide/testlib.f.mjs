@@ -14,7 +14,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { _readersOf } from '../schema-demo/module.f.mjs'
 import { parse } from '../parse/module.f.js'
 import { validate } from '../validate/module.f.js'
-import { toData, validate as dataValidate } from '../data/module.f.mjs'
+import { toData, validate as dataValidate } from '../data/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**

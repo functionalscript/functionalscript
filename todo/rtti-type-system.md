@@ -264,7 +264,7 @@ the program above compiles.
 
 **None of that arises here.** A schema denotes a *set of immutable values*;
 `subset` is inclusion between two such sets, approximated soundly on the canonical
-[`data`](../fjs/rtti/data/module.f.mjs) form, with no writer anywhere to
+[`data`](../fjs/rtti/data/module.f.js) form, with no writer anywhere to
 make the answer go stale. Three concrete consequences — the first two holding
 **within FunctionalScript**, for the reason the next paragraph is careful
 about:
@@ -636,7 +636,7 @@ it as scoped to the object shapes TypeScript can name.
 | --- | --- | --- |
 | Schema constructors | [`fjs/rtti/module.f.js`](../fjs/rtti/module.f.js) | done |
 | Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.js), [`validate/`](../fjs/rtti/validate/module.f.js) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
-| Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
+| Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.js) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | JSON Schema emission | [`fjs/media/json/schema`](../fjs/media/json/schema/module.f.mjs) | done — `toJsonSchema` writes draft 2020-12 through the same data form, as an MCP tool's `inputSchema`; a second output of one schema, not a type-system piece |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
@@ -1772,7 +1772,7 @@ splits around inference, so the runnable order is 668's representation half
   type Ts<T> = Info<Map<T>, typeof system>
   ```
 
-  `subset` shipped in [`rtti/data`](../fjs/rtti/data/module.f.mjs); the
+  `subset` shipped in [`rtti/data`](../fjs/rtti/data/module.f.js); the
   parser half is this epic.
 - [types-for-fjs.md](./types-for-fjs.md) — why TypeScript's own type system is not
   the target: it cannot analyze mutable types soundly, which is the argument

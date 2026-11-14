@@ -8,7 +8,7 @@
 import { assertEq } from '../../../asserts/module.f.js'
 import { parse } from '../../../rtti/parse/module.f.js'
 import { validate } from '../../../rtti/validate/module.f.js'
-import { toData, validate as dataValidate } from '../../../rtti/data/module.f.mjs'
+import { toData, validate as dataValidate } from '../../../rtti/data/module.f.js'
 import { primitive, unknown, object, array } from './module.f.js'
 
 // Reduces a parse to its `ok`/`error` tag: these schemas are about what is

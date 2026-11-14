@@ -336,7 +336,7 @@ type RequiredFields<T extends Struct> = {
  * one set, so one rendering, and `readonly[42, ...undefined[]]` would admit
  * the `[42, undefined]` both readers reject. What counts as empty is a
  * semantic question — a `toData` conversion compared with the bare
- * container's by `equivalent` in `../data/module.f.mjs` — which `types.ts`
+ * container's by `equivalent` in `../data/module.f.js` — which `types.ts`
  * cannot invoke. Nor is
  * `Ts<R> extends never` a substitute — `Ts<readonly[Or<readonly[]>]>` is
  * `readonly[never]`, whose `length` is `1`. So this recognizes the one
