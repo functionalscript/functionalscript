@@ -126,8 +126,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 10. [ ] [array holes](./2480-array-holes.md) — the elision `[1, , 3]` is
     refused by design, and valid code builds no sparse array; whether to
     support one someday, which would change the VM, at P5.
-11. [ ] [object rest destructuring](./object-rest-destructuring.md) —
-    `{ a, ...r }` remains unsupported.
+11. [x] [object rest destructuring](../bindings/destructuring/README.md) —
+    `{ a, ...r }` copies remaining own enumerable properties.
 12. [ ] [computed binding keys](./computed-binding-keys.md) — expressions
     beyond standalone string and number literals remain unsupported.
 13. [ ] [rest parameter patterns](./rest-parameter-patterns.md) — a rest

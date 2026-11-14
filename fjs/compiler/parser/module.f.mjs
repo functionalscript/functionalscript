@@ -113,14 +113,12 @@ const malformedParameters = foldError('malformed parameter list')
 const invalidTarget = foldError('invalid destructuring target')
 
 /**
- * A rest property in an object binding pattern, `{ a, ...r }`, at its
- * `...`: JavaScript's, and not read yet
- * ([object rest](../../../spec/todo/object-rest-destructuring.md)), so refused
- * by name rather than read in part.
+ * A built-in namespace supplies selected members rather than a value whose
+ * enumerable entries an object rest binding could copy.
  */
-const restTarget = foldError('rest element not supported')
+const namespaceRest = foldError('object rest requires a value')
 
-/** A comma after an array rest target, including a trailing comma. */
+/** A comma after a rest target, including a trailing comma. */
 const restComma = foldError('comma after rest element')
 
 /**
@@ -472,7 +470,7 @@ const planned = check => planPattern({
 })
 
 /** The source admission owner supplies each refused spelling's diagnostic. */
-const patternRefusals = { invalid: invalidTarget, rest: restTarget, restComma, computed: computedPatternKey, duplicate: duplicateId }
+const patternRefusals = /** @type {const} */ ({ invalid: invalidTarget, namespaceRest, restComma, computed: computedPatternKey, duplicate: duplicateId })
 
 /** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
 const namespaceMember = (namespace, key) => {

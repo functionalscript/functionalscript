@@ -459,14 +459,16 @@ the fold's:
   what refuses a value in a binding position (`invalid destructuring
   target`) — a literal, an access, a call, or a group, `[(a)]`, JavaScript's
   early error — a name bound twice in one pattern or across a parameter
-  list, a key a prototype gives a value, and what the language does not
-  read yet, a rest element and a computed key beyond a literal alone in its
-  brackets, each by name — and a module whose exports are all patterns
+  list, a key a prototype gives a value, a misplaced rest element or invalid
+  rest target, and a computed key beyond a literal alone in its brackets,
+  each by name — and a module whose exports are all patterns
   binding no name, which exports nothing where a name was owed (`module
   exports nothing`). The common sugar planner records each expanded read
   and its original identity, with the fold supplying name and key policy
-  callbacks. Executable definitions and parameter layout are chosen by sugar
-  after source binding analysis;
+  callbacks. Array rest records a suffix read; object rest records the source
+  and excluded property keys for copying the remaining entries. A built-in
+  namespace is not a value and cannot supply object rest. Executable definitions
+  and parameter layout are chosen by sugar after source binding analysis;
 - an access naming a property of a built-in prototype, `a.push`,
   `a["toString"]` or `a.__proto__` in either spelling — every name
   [`fjs/js/prototype`](../../js/prototype/module.f.js) lists but `length`,

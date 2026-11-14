@@ -41,5 +41,5 @@ extension.
 
 - [Destructuring](../bindings/destructuring/README.md) — accepted literal keys
   and current refusals.
-- [Object rest destructuring](./object-rest-destructuring.md) — property
-  exclusion is separate work and must not silently decide computed-key rules.
+- [Object rest destructuring](../bindings/destructuring/README.md) — its
+  source-key exclusions must also account for any future computed-key support.

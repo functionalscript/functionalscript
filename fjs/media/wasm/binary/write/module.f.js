@@ -4,7 +4,7 @@
  * **The output is canonical, not the input's.** Integers are written in their
  * shortest LEB128, an element segment in the shortest of the eight encodings
  * that holds it, and an empty known section not at all, so
- * [`parse`](../parse/module.f.mjs) of what this writes is the module it was
+ * [`parse`](../parse/module.f.js) of what this writes is the module it was
  * given, while the bytes need not be the ones that module was read from:
  * `wasm-ld`, for one, pads the indices it relocates to five bytes.
  *

@@ -113,6 +113,11 @@ pub mod object_keys;
 pub mod object_keys_missing_throws;
 pub mod object_keys_null_throws;
 pub mod object_keys_undefined_throws;
+pub mod object_rest;
+pub mod object_rest_default_throws;
+pub mod object_rest_null_throws;
+pub mod object_rest_scopes;
+pub mod object_rest_undefined_throws;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;
@@ -253,6 +258,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "object_keys_missing_throws", fixture: crate::fixtures::object_keys_missing_throws::module::<Naive>, expected: object_keys_missing_throws::module::<Naive>, json: object_keys_missing_throws::JSON, throws: object_keys_missing_throws::THROWS },
     crate::Case { name: "object_keys_null_throws", fixture: crate::fixtures::object_keys_null_throws::module::<Naive>, expected: object_keys_null_throws::module::<Naive>, json: object_keys_null_throws::JSON, throws: object_keys_null_throws::THROWS },
     crate::Case { name: "object_keys_undefined_throws", fixture: crate::fixtures::object_keys_undefined_throws::module::<Naive>, expected: object_keys_undefined_throws::module::<Naive>, json: object_keys_undefined_throws::JSON, throws: object_keys_undefined_throws::THROWS },
+    crate::Case { name: "object_rest", fixture: crate::fixtures::object_rest::module::<Naive>, expected: object_rest::module::<Naive>, json: object_rest::JSON, throws: object_rest::THROWS },
+    crate::Case { name: "object_rest_default_throws", fixture: crate::fixtures::object_rest_default_throws::module::<Naive>, expected: object_rest_default_throws::module::<Naive>, json: object_rest_default_throws::JSON, throws: object_rest_default_throws::THROWS },
+    crate::Case { name: "object_rest_null_throws", fixture: crate::fixtures::object_rest_null_throws::module::<Naive>, expected: object_rest_null_throws::module::<Naive>, json: object_rest_null_throws::JSON, throws: object_rest_null_throws::THROWS },
+    crate::Case { name: "object_rest_scopes", fixture: crate::fixtures::object_rest_scopes::module::<Naive>, expected: object_rest_scopes::module::<Naive>, json: object_rest_scopes::JSON, throws: object_rest_scopes::THROWS },
+    crate::Case { name: "object_rest_undefined_throws", fixture: crate::fixtures::object_rest_undefined_throws::module::<Naive>, expected: object_rest_undefined_throws::module::<Naive>, json: object_rest_undefined_throws::JSON, throws: object_rest_undefined_throws::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
     crate::Case { name: "optional", fixture: crate::fixtures::optional::module::<Naive>, expected: optional::module::<Naive>, json: optional::JSON, throws: optional::THROWS },

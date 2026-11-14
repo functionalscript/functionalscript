@@ -149,6 +149,38 @@ const establish = (environment, id, value, alias) => {
     return { environment: [...environment, [id, reference(version)]], statements: [['define', version, value, value instanceof Array && value[0] === 'ref' ? 'lazy' : 'required']] }
 }
 
+/** An entry belongs to an object rest exactly when its key was not selected.
+ * The excluded keys are literals, so the generated callback captures nothing.
+ * @type {(excluded: readonly string[]) => Value}
+ */
+const objectRestPredicate = excluded => {
+    const pair = binding(0)
+    /** @type {FastFunction['target']} */
+    const target = { kind: 'function', index: 0 }
+    /** @type {Value} */
+    const key = ['.', reference(pair), 0]
+    /** @type {Value} */
+    let accepted = true
+    for (const name of excluded.toReversed()) { accepted = ['?:', ['!==', key, name], accepted, false] }
+    return ['function', {
+        target, parameters: [pair], rest: null, self: null, captures: [],
+        body: { statements: [], exit: ['return', target, accepted] },
+    }]
+}
+
+/** Copy an object's remaining entries through the existing runtime operations.
+ * A rest-only pattern needs no filter, but still constructs a fresh object.
+ * @type {(source: Value, excluded: readonly string[]) => Value}
+ */
+const objectRest = (source, excluded) => {
+    /** @type {Value} */
+    const entries = ['()', ['Object.entries'], [source]]
+    /** @type {Value} */
+    const remaining = excluded.length === 0 ? entries
+        : ['()', ['.', entries, 'filter'], [objectRestPredicate(excluded)]]
+    return ['()', ['Object.fromEntries'], [remaining]]
+}
+
 /** The single owner of checked pattern expansion. @type {(plan: ExpansionPlan, value: Value, environment: Environment, alias: boolean, context: Context) => Established} */
 const expanded = (plan, value, environment, alias, context) => {
     let inner = environment
@@ -158,6 +190,7 @@ const expanded = (plan, value, environment, alias, context) => {
         const read = source === null ? value
             : typeof source === 'number' || source.length === 1 ? source
             : source[0] === 'slice' ? /** @type {Value} */ (['()', ['.', lookup(inner, plan.ids[source[1]]), 'slice'], [source[2]]])
+            : source[0] === 'object-rest' ? objectRest(lookup(inner, plan.ids[source[1]]), source[2])
             : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
         let selected = read
         if (fallback !== undefined) {

@@ -97,12 +97,48 @@ export const proof = {
         assert(rest[0] === '...' && rest[3] !== undefined)
         assertEq(rest[3].token.kind, ',')
     },
-    arraySpreadAndObjectRestKeepTheirExistingShapes: () => {
-        const plain = unwrap(parseSyntax(tokenizeString('export default [...items];'))).exported
-        const trailing = unwrap(parseSyntax(tokenizeString('export default [...items,];'))).exported
-        assert(plain !== null && trailing !== null)
-        assertStructurallySame(trailing.value, plain.value)
-        const declaration = unwrap(parseSyntax(tokenizeString('const {...rest,} = input; export default rest;'))).statements[0]
+    objectRestRetainsItsFollowingComma: () => {
+        for (const suffix of /** @type {const} */ (['', ',', ', next', ', ...next'])) {
+            const source = /** @type {const} */ (`const {first,...rest${suffix}} = input; export default rest;`)
+            const declaration = unwrap(parseSyntax(tokenizeString(source))).statements[0]
+            assert(declaration[0] === 'const')
+            const target = declaration[1].declaration.target
+            assert(target[0] === 'object')
+            const rest = target[2][1]
+            assert(rest instanceof Array && rest[0] === '...' && rest[2][0] === 'name')
+            assertEq(rest[1].metadata.column, source.indexOf('...') + 1)
+            if (suffix === '') {
+                assertEq(rest.length, 3)
+                assertEq(rest[3], undefined)
+            } else {
+                const comma = rest[3]
+                assert(comma !== undefined)
+                assertEq(comma.token.kind, ',')
+                assertEq(comma.metadata.column, source.indexOf(',', source.indexOf('...')) + 1)
+            }
+        }
+        const source = /** @type {const} */ ('export default ({nested:{...rest,}})=>rest;')
+        const value = unwrap(parseSyntax(tokenizeString(source))).exported?.value
+        assert(value !== undefined && value[0] === '=>' && hasEntry(value[1], 'fixed'))
+        const target = value[1].fixed[0]
+        assert(target[0] === 'object')
+        const nested = target[2][0]
+        assert(!(nested instanceof Array) && nested.target[0] === 'object')
+        const rest = nested.target[2][0]
+        assert(rest instanceof Array && rest[3] !== undefined)
+        assertEq(rest[3].token.kind, ',')
+    },
+    valueSpreadsKeepTheirExistingShapes: () => {
+        for (const [plainSource, trailingSource] of /** @type {const} */ ([
+            ['export default [...items];', 'export default [...items,];'],
+            ['export default {...items};', 'export default {...items,};'],
+        ])) {
+            const plain = unwrap(parseSyntax(tokenizeString(plainSource))).exported
+            const trailing = unwrap(parseSyntax(tokenizeString(trailingSource))).exported
+            assert(plain !== null && trailing !== null)
+            assertStructurallySame(trailing.value, plain.value)
+        }
+        const declaration = unwrap(parseSyntax(tokenizeString('const {...rest} = input; export default rest;'))).statements[0]
         assert(declaration[0] === 'const')
         const target = declaration[1].declaration.target
         assert(target[0] === 'object')

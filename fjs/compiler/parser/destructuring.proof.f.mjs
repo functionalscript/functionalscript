@@ -13,7 +13,7 @@
 
 import { parseFromTokens } from './module.f.mjs'
 import { expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
-import { assertEq } from '../../asserts/module.f.js'
+import { assertEq, assertOk } from '../../asserts/module.f.js'
 
 /** An array pattern nested as deep as the parser's bar, binding `a` at the bottom. */
 const deep = `${'['.repeat(20000)}a${']'.repeat(20000)}`
@@ -177,7 +177,6 @@ export const proof = {
             expectRefused('export default (a, { b: c.d }) => 1;', 'invalid destructuring target', 25)
             expectRefused('export default ((a)) => 1;', 'malformed parameter list', 16)
             expectRefused('export default ([a].length) => 1;', 'malformed parameter list', 16)
-            expectRefused('export default ({ a, ...r }) => 1;', 'rest element not supported', 22)
             expectRefused('export default ({ [k]: a }) => 1;', 'computed key in a binding pattern not supported', 20)
             expectRefused('export default (...[a]) => 1;', 'unexpected token', 20)
             expectRefused('export default ({ a })\n=> 1;', 'unexpected token', 1)
@@ -211,11 +210,57 @@ export const proof = {
             expectRefused('const x = {}; const { a: [b, (c)] } = x; export default 1;', 'invalid destructuring target', 30)
             expectRefused('export default () => { const { x: 1 } = {}; return 1; };', 'invalid destructuring target', 35)
         },
-        // Object rest remains refused at its `...`; a computed key is
-        // refused at the token it begins with, the conversion included
-        // (spec/bindings/destructuring/README.md).
+        objectRestBindingPositions: () => {
+            for (const source of [
+                'const { a: renamed, ...rest } = { a: 1, b: 2 }; export default [renamed, rest];',
+                'export const { a, ...rest } = { a: 1, b: 2 };',
+                'const [{ x, ...rest }] = [{ x: 1, y: 2 }]; export default rest;',
+                'export default ({ a = 1, ...rest }) => () => [a, rest];',
+                'export default (head, { a, ...rest }) => [head, a, rest];',
+                'let { ...rest } = { a: 1 }; rest = { b: 2 }; export default rest;',
+                'let kept = {}; for (const { a, ...rest } of [{ a: 1, b: 2 }]) { kept = rest; } export default kept;',
+            ]) { assertOk(parseFromTokens(tokenizeString(source))) }
+        },
+        objectRestBindingErrors: () => {
+            const later = /** @type {const} */ ('const { a = rest, ...rest } = {}; export default a;')
+            expectRefused(later, 'const not found', later.indexOf('rest') + 1)
+            for (const source of [
+                'const { a, ...a } = {}; export default 0;',
+                'const { ...rest } = {}; const rest = 1; export default 0;',
+                'export default ({ a, ...a }) => 0;',
+            ]) {
+                const name = source.includes('...a') ? 'a' : 'rest'
+                expectRefused(source, 'duplicate id', source.indexOf(name, source.includes('...a') ? source.indexOf('...') : source.indexOf('const rest')) + 1)
+            }
+            const reserved = /** @type {const} */ ('const { ...Number } = {}; export default 0;')
+            expectRefused(reserved, 'reserved word', reserved.indexOf('Number') + 1)
+            for (const source of [
+                'const { ...[rest] } = {}; export default 0;',
+                'const { ...{ rest } } = {}; export default 0;',
+                'const { ...rest.value } = {}; export default 0;',
+                'const { ...rest() } = {}; export default 0;',
+                'const { ...1 } = {}; export default 0;',
+            ]) {
+                const target = source.indexOf('...') + 3
+                const first = source.slice(target).length - source.slice(target).trimStart().length
+                expectRefused(source, 'invalid destructuring target', target + first + 1)
+            }
+            for (const source of [
+                'const { ...rest = {} } = {}; export default 0;',
+                'export default ({ ...rest = {} }) => 0;',
+            ]) { expectRefused(source, 'unexpected token', source.indexOf('=', source.indexOf('...')) + 1) }
+            for (const source of [
+                'const { ...rest, } = {}; export default 0;',
+                'const { ...rest, next } = {}; export default 0;',
+                'const { ...rest, ...other } = {}; export default 0;',
+                'export default ({ a, ...rest, }) => 0;',
+            ]) { expectRefused(source, 'comma after rest element', source.indexOf(',', source.indexOf('...')) + 1) }
+            const prohibited = /** @type {const} */ ('const { toString: a, ...rest } = {}; export default 0;')
+            expectRefused(prohibited, 'prohibited property name', prohibited.indexOf('toString') + 1)
+        },
+        // Computed keys beyond the literal surface remain refused at the token
+        // they begin with, the conversion included.
         unsupported: () => {
-            expectRefused('const x = {}; const { a, ...r } = x; export default 1;', 'rest element not supported', 26)
             expectRefused('const x = {}; const k = 1; const { [k]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 37)
             expectRefused('const x = {}; const { [Number(1)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             // a grouped or a signed literal is no constant, as `o[(3)]` and

@@ -45,7 +45,6 @@ const refusals = {
     'decl.generator': ':1:1 - error: unexpected token',
     'decl.accessor': ':1:22 - error: unexpected token',
     'decl.method': ':1:19 - error: unexpected token',
-    'decl.pattern-object-rest': ':1:12 - error: rest element not supported',
     'decl.pattern-computed-key': ':2:10 - error: computed key in a binding pattern not supported',
     'mod.export-list': ':2:8 - error: unexpected token',
     'mod.reexport': ':1:8 - error: unexpected token',

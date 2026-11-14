@@ -396,8 +396,22 @@ const elementTargetsOf = ([item, more]) => {
     }
 }
 
-/** The targets of a list of entries, beside its entries. */
-const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
+/**
+ * Object targets retain a comma after a rest property, which only a binding
+ * refuses. The value entries keep their spread and trailing-comma syntax.
+ *
+ * @type {(node: _ListNode) => List<BindingProperty>}
+ */
+const entryTargetsOf = ([item, more]) => {
+    const target = entryTargetAt(item)
+    const rounds = unmapped(more)
+    if (rounds.length === 0) { return { first: target, tail: null } }
+    const [comma, following] = unmapped(rounds[0])
+    return {
+        first: target instanceof Array ? ['...', target[1], target[2], tokenAt(comma)] : target,
+        tail: entryTargets(following),
+    }
+}
 
 /**
  * The pattern an array or an object literal is where a binding is wanted:

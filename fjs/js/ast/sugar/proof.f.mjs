@@ -8,9 +8,12 @@ import { parse } from '../../../compiler/source/module.f.mjs'
 import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { freeLoopBindings } from '../../../edag/from_fast/control/module.f.mjs'
+import { foldNodes } from '../control/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { read } from '../../../edag/value/property/module.f.js'
+import runtimeEdag from '../../runtime/gen.edag.js'
 import { normalize } from './module.f.mjs'
 
 /** @type {(source: string) => Exp} */
@@ -18,6 +21,13 @@ const graph = source => fromFast(normalize(assertOk(parse('')(source)), []).body
 
 /** Evaluate represented data through the EDAG interpreter. @param {string} source */
 const result = source => assertOk(toData(assertOk(memo(assertOk(analysis(graph(source))))({ args: [] }))))
+
+/** Object-rest reconstruction uses the package runtime's existing fromEntries. */
+const objectRestRuntime = assertOk(read(memo(assertOk(analysis(/** @type {Exp} */ (runtimeEdag))))({ args: [] }), 'runtime'))
+assert(objectRestRuntime instanceof Array && objectRestRuntime[0] === '{}')
+
+/** Evaluate object-rest source with the common runtime, bootstrapped once above. @param {string} source */
+const restResult = source => assertOk(toData(assertOk(memo(assertOk(analysis(graph(source))))({ args: [], runtime: objectRestRuntime }))))
 
 /** The function directly exported by the source fixture. @type {(source: string) => FastFunction} */
 const fn = source => {
@@ -33,6 +43,103 @@ const fn = source => {
 }
 
 export const proof = {
+    objectRestExcludesSourceKeysAndKeepsEnumerationOrder: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const {a:renamed,a:again,...rest}={a:1,b:2};export default [renamed,again,rest];', [1, 1, { b: 2 }]],
+            ['const {[1.0]:one,["3"]:three,...rest}={"3":"three","1":"one",b:2,a:4};export default [one,three,Object.entries(rest)];', ['one', 'three', [['b', 2], ['a', 4]]]],
+            ['const {1:one,"1":again,...rest}={1:7,2:8};export default [one,again,Object.entries(rest)];', [7, 7, [['2', 8]]]],
+            ['const {"a-b":selected,...rest}={"a-b":1,other:2};export default [selected,rest];', [1, { other: 2 }]],
+            ['const {a:{x,...inner},...outer}={a:{x:1,y:2},b:3};export default [x,inner,outer];', [1, { y: 2 }, { b: 3 }]],
+            ['const [{a,...rest}]=[{a:1,b:2}];export default [a,rest];', [1, { b: 2 }]],
+            ['const {unused,...rest}={z:0,2:"b",1:"a",unused:1,a:3};export default Object.entries(rest);', [['1', 'a'], ['2', 'b'], ['z', 0], ['a', 3]]],
+            ['const {a,...rest}={a:1,missing:undefined};export default Object.entries(rest);', [['missing', undefined]]],
+            ['const child={};const {x,...rest}={["__proto__"]:child,x:1};export default [Object.entries(rest),Object.entries(rest)[0][1]===child];', [[['__proto__', {}]], true]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(restResult(source), { default: expected }, source) }
+        assertStructurallySame(restResult('export const {a,...rest}={a:1,b:2};'), { a: 1, rest: { b: 2 } })
+    },
+    objectRestCopiesPrimitiveAndArrayEntries: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const {...rest}=[];export default rest;', {}],
+            ['const {...rest}=[1,2];export default Object.entries(rest);', [['0', 1], ['1', 2]]],
+            ['const {0:first,...rest}=[1,2];export default [first,Object.entries(rest)];', [1, [['1', 2]]]],
+            ['const {0:first,...rest}="😀x";export default [first,Object.entries(rest)];', ['\ud83d', [['1', '\ude00'], ['2', 'x']]]],
+            ['const {length,...rest}="abc";export default [length,Object.entries(rest)];', [3, [['0', 'a'], ['1', 'b'], ['2', 'c']]]],
+            ['const {...number}=17;const {...boolean}=true;const {...bigint}=2n;export default [number,boolean,bigint];', [{}, {}, {}]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(restResult(source), { default: expected }, source) }
+    },
+    objectRestKeepsFreshShallowIdentityAndParameterBindings: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const child={};const source={a:child,b:2};const {...all}=source;const {...again}=source;const {a,b,...empty}=source;const {a:other,b:second,...otherEmpty}=source;export default [all!==source,all!==again,all.a===child,empty!==otherEmpty,Object.keys(empty).length];', [true, true, true, true, 0]],
+            ['const f=({a,...rest})=>()=>[a,rest];const first=f({a:1,b:2});const second=f({a:3,c:4});export default [f.length,first(),second()];', [1, [1, { b: 2 }], [3, { c: 4 }]]],
+            ['const f=({a=5,...rest}={b:6},tail,...more)=>[a,rest,tail,more];export default [f.length,f(),f({a:1,b:2},3,4)];', [0, [5, { b: 6 }, undefined, []], [1, { b: 2 }, 3, [4]]]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(restResult(source), { default: expected }, source) }
+    },
+    objectRestRetainsSourceSnapshotsAndDefaultOrder: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['let reads=0;const {a,...rest}=(()=>{reads+=1;return {a:1,b:2};})();export default [reads,a,rest];', [1, 1, { b: 2 }]],
+            ['let source={b:2};const {a=(()=>{source={a:9,b:8,c:7};return source.a;})(),...rest}=source;export default [a,rest,source];', [9, { b: 2 }, { a: 9, b: 8, c: 7 }]],
+            ['let order=0;const {a:renamed=(()=>{order=order*10+1;return 4;})(),b=(()=>{order=order*10+2;return renamed+1;})(),...rest}={c:6};export default [renamed,b,rest,order];', [4, 5, { c: 6 }, 12]],
+            ['const {a:{x=1,...inner}={y:2},...outer}={b:3};export default [x,inner,outer];', [1, { y: 2 }, { b: 3 }]],
+            ['let called=0;const {...unused}=(()=>{called=7;return {};})();export default called;', 7],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(restResult(source), { default: expected }, source) }
+    },
+    objectRestKeepsLoopCapturesAndMutableBindings: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['let saved=[];for(const {a,...rest} of [{a:1,b:2},{a:3,c:4}]){saved=[...saved,()=>rest];}export default saved.map(read=>read());', [{ b: 2 }, { c: 4 }]],
+            ['const source={a:1,b:2};let saved=[];for(const {a,...rest} of [source,source]){saved=[...saved,rest];}export default saved[0]!==saved[1];', true],
+            ['let {a,...rest}={a:1,b:2};rest={c:a};export default rest;', { c: 1 }],
+            ['let total=0;for(let {a=0,...rest}={b:2};a<2;a+=1){total+=rest.b;}export default total;', 4],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(restResult(source), { default: expected }, source) }
+    },
+    objectRestRetainsRequiredFailures: () => {
+        for (const source of [
+            'const {...unused}=null;export default 0;',
+            'const {...unused}=undefined;export default 0;',
+            'const {a=null.x,...unused}={};export default 0;',
+            'const {a:{...unused}}={a:null};export default 0;',
+            'export default (({...unused})=>0)(null);',
+            'for(const {...unused} of [undefined]){}export default 0;',
+        ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [], runtime: objectRestRuntime })) }
+    },
+    objectRestPredicatesCaptureNothingAndRestOnlyNeedsNone: () => {
+        const callbacks = foldNodes(
+            /** @type {(found: readonly FastFunction[], value: import('../types.ts').Value | import('../types.ts').Block) => readonly FastFunction[]} */
+            (found, value) => value instanceof Array && value[0] === 'function' ? [...found, value[1]] : found,
+            [])
+        const selected = callbacks(fn('export default ({a,b,...rest})=>rest;').body)
+        assertEq(selected.length, 1)
+        assertEq(selected[0].captures.length, 0)
+        assertEq(selected[0].parameters.length, 1)
+        assertEq(selected[0].rest, null)
+        assertEq(selected[0].self, null)
+        assertEq(selected[0].body.exit[0], 'return')
+        assertEq(selected[0].body.exit[1], selected[0].target)
+        assertEq(callbacks(fn('export default ({...rest})=>rest;').body).length, 0)
+    },
+    objectRestSurvivesSourceRoundTrips: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const copy=o=>{const {a,...rest}=o;return rest;};export default [copy({a:1,b:2}),copy({a:2,c:3})];', [{ b: 2 }, { c: 3 }]],
+            ['const child={};const {...rest}={a:child};export default [rest.a===child,rest];', [true, { a: {} }]],
+        ]
+        for (const [source, expected] of cases) {
+            let current = source
+            for (let round = 0; round < 3; round += 1) {
+                current = assertOk(tryModuleStringify(graph(current)))
+                assertStructurallySame(restResult(current), { default: expected }, current)
+            }
+        }
+    },
     arrayRestPreservesIterationBindingsAndIdentity: () => {
         const cases = /** @type {const} */ ([
             ['const [a,,...tail]=[1,2,3,4];export default [a,tail];', [1, [3, 4]]],

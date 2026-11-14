@@ -26,8 +26,9 @@ export type ExpansionPlan<V = SourceValue> = {
         /**
          * The initializer, an earlier property read, or a namespace function/number.
          * `['slice', parent, start]` selects a suffix of an earlier array copy.
+         * `['object-rest', parent, keys]` copies the parent's other own entries.
          */
-        readonly source: null | number | readonly [number, string | number] | readonly ['slice', number, number] | readonly [StaticId]
+        readonly source: null | number | readonly [number, string | number] | readonly ['slice', number, number] | readonly ['object-rest', number, readonly string[]] | readonly [StaticId]
         /** Array patterns copy the iterable before reading its elements. */
         readonly spread: boolean
         /** Test the established read before any iterable copy or nested reads. */

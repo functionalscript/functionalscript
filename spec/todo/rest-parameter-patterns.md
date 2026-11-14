@@ -37,5 +37,5 @@ rest parameters keep their plain-name rule and existing refusals.
   the current plain-name rest-parameter rule.
 - [Parameters](../functions/parameters/README.md) — argument positions and
   parameter counting.
-- [Object rest destructuring](./object-rest-destructuring.md) — a distinct
-  unsupported binding operation.
+- [Object rest destructuring](../bindings/destructuring/README.md) — an
+  implemented binding operation, distinct from a pattern under a rest parameter.
