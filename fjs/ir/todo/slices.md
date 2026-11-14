@@ -104,11 +104,12 @@ before it and proved end to end on its own.
   static check of the owned stage, which also holds a linear type's owned
   values to one consumer; a host that counts every value, under every host
   proof of the emitter. Copy variants of `any` wait until after slice 6.
-- [ ] **6b. The lifetime pass**, as two stacked PRs:
+- [x] **6b. The lifetime pass**, as two stacked PRs:
   - [x] the pass: plain stage to owned (move, `dup`, `drop`), from the
-    checker's plain stage, `checkPlain`;
-  - [ ] lowering of L0 view functions that answer owned values (`concat`,
-    `fromUnit`, `substring`, `item`), with helpers against JavaScript.
+    checker's plain stage, `checkPlain` (#3864);
+  - [x] lowering of L0 view functions that answer owned values (`concat`,
+    `fromUnit`, `substring`, `item`), with helpers against JavaScript and
+    the random comparison through the pass.
 - [ ] **6c. Constants and `init`.** Any's `undefined`, `null`, `true` and
   `false` as imported globals; module constants other than string and bigint
   literals (those are 6d); derived `init`; lowering of a module-level

@@ -1,8 +1,9 @@
 /**
  * What the proofs of the lowering share: the normalized FAST of a module's
  * text, as the compiler makes it, with its imports, and the signatures of
- * [`sample.f.js`](./sample.f.js), of [`helpers.f.js`](./helpers.f.js) and
- * of the functions of L1 that the lowering reads, which FAST does not have.
+ * [`sample.f.js`](./sample.f.js), of [`helpers.f.js`](./helpers.f.js), of
+ * [`strings.f.js`](./strings.f.js) and of the functions of L1 that the
+ * lowering reads, which FAST does not have.
  *
  * @module
  *
@@ -17,7 +18,7 @@ import { tryUnresolved } from '../../compiler/edag/module.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
 import { toFast } from '../../edag/to_fast/module.f.mjs'
 import { any } from '../l0/module.f.js'
-import { bool, f64, i, int, signature, u } from '../module.f.js'
+import { bool, f64, i, int, only, signature, u } from '../module.f.js'
 
 /**
  * The normalized FAST of a module's text and its imports: parsed, lowered
@@ -39,6 +40,9 @@ export const sourceOf = text => {
 
 /** The runtime that L1 is lowered over: the specifiers by which it imports the L0 view and its native rows. */
 export const runtime = { l0: '../l0/module.f.js', native: './native/module.f.js' }
+
+/** The runtime that `strings.f.js` is lowered over: the specifiers by which a module of this directory imports the L0 view and L1's native rows. */
+export const stringsRuntime = { l0: '../../wasm/runtime/l0/module.f.js', native: '../../wasm/runtime/l1/native/module.f.js' }
 
 const any2 = /** @type {const} */ ([['a', any], ['b', any]])
 
@@ -103,4 +107,16 @@ export const helpers = {
     middle: signature([['a', f64], ['b', f64], ['c', f64], ['d', f64]], f64),
     gcd: signature(f2, f64),
     steps: signature([['a', f64]], f64),
+}
+
+const string = only(any, 'string')
+
+/** The signatures of `strings.f.js`, which the lowering reads over the runtime: a string is `any.only(string)`. @type {Readonly<Record<string, Signature>>} */
+export const strings = {
+    pair: signature(f2, string),
+    twice: signature([['s', any]], string),
+    inner: signature([['s', any]], string),
+    trimStart: signature([['s', any]], string),
+    lastOfTwice: signature([['s', any]], f64),
+    first: signature([['v', any]], any),
 }

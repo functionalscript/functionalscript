@@ -45,7 +45,7 @@ const irOver = (signatures, text) => {
 }
 
 /** The L0 view's names that the proofs of the view read. */
-const imports = "import { NUMBER, asBoolean, asNumber, asString, kind, length, same, unit } from '../l0/module.f.js'\n"
+const imports = "import { NUMBER, asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, same, substring, unit } from '../l0/module.f.js'\n"
 
 /** L1's native rows that the proofs of the rows read, by the specifier by which L1 imports them. */
 const natives = "import { bigintAdd, bigintEquals, numberRemainder } from './native/module.f.js'\n"
@@ -1115,8 +1115,104 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // `fromUnit` reads the unit that its float holds exactly, and answers a string, which the caller owns:
+        // the lowering writes the plain stage, and the lifetime pass drops it.
+        const string = subset(any, 'string')
+        assertEq(irOver(only([['c', f64]], string), `${imports}export const f = c => fromUnit(c)`), [
+            'fn f(c: f64) -> any.only(string) =',
+            '    let c.unit = trunc_sat(u(16), c)',
+            "    if eq(float(c.unit), c) then String.from_unit(c.unit) else trap('inexact')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A unit that is no local is named for the function.
+        assertEq(irOver(only([['c', f64]], string), `${imports}export const f = c => fromUnit(c + 1)`), [
+            'fn f(c: f64) -> any.only(string) =',
+            '    let fromUnit.unit.float = add(c, 1.0)',
+            '    let fromUnit.unit = trunc_sat(u(16), fromUnit.unit.float)',
+            "    if eq(float(fromUnit.unit), fromUnit.unit.float) then String.from_unit(fromUnit.unit) else trap('inexact')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // `concat` casts both of its arguments to strings.
+        assertEq(irOver(only([['a', any], ['b', any]], string), `${imports}export const f = (a, b) => concat(a, b)`), [
+            'fn f(a: any, b: any) -> any.only(string) =',
+            '    match a',
+            '      string as a.string =>',
+            '        match b',
+            '          string as b.string =>',
+            '            String.concat(a.string, b.string)',
+            '          else =>',
+            "            trap('not string')",
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // `substring` casts its string, then reads the integers that its end and its start hold exactly, as the view does.
+        assertEq(irOver(only([['s', any], ['i', f64], ['j', f64]], string), `${imports}export const f = (s, i, j) => substring(s, i, j)`), [
+            'fn f(s: any, i: f64, j: f64) -> any.only(string) =',
+            '    match s',
+            '      string as s.string =>',
+            '        let s.end = trunc_sat(u(31), j)',
+            '        if eq(float(s.end), j)',
+            '        then',
+            '            let s.start = trunc_sat(u(31), i)',
+            "            if eq(float(s.start), i) then String.substring(s.string, s.start, s.end) else trap('inexact')",
+            '        else',
+            "            trap('inexact')",
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // `item` casts its operand to the arrays and the objects that it may hold, and answers a value that the caller owns.
+        assertEq(irOver(only([['v', any], ['i', f64]], any), `${imports}export const f = (v, i) => item(v, i)`), [
+            'fn f(v: any, i: f64) -> any =',
+            '    match v',
+            '      array | object as v.item =>',
+            '        let v.index = trunc_sat(u(31), i)',
+            "        if eq(float(v.index), i) then Containers.item(v.item, v.index) else trap('inexact')",
+            '      else =>',
+            "        trap('not array or object')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', subset(any, 'array', 'string')], ['i', f64]], any), `${imports}export const f = (v, i) => item(v, i)`), [
+            'fn f(v: any.only(array, string), i: f64) -> any =',
+            '    match v',
+            '      array as v.array =>',
+            '        let v.index = trunc_sat(u(31), i)',
+            "        if eq(float(v.index), i) then Containers.item(v.array, v.index) else trap('inexact')",
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // An operand that holds no other kind is no cast.
+        assertEq(irOver(only([['v', subset(any, 'array', 'object')], ['i', f64]], any), `${imports}export const f = (v, i) => item(v, i)`), [
+            'fn f(v: any.only(array, object), i: f64) -> any =',
+            '    let v.index = trunc_sat(u(31), i)',
+            "    if eq(float(v.index), i) then Containers.item(v, v.index) else trap('inexact')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A number that is no float, and an operand of no kind that a function takes, are refused.
+        assertEq(assertError(over(only([['v', any]], string), `${imports}export const f = v => fromUnit(v)`)), 'f: fromUnit of any is not in this slice')
+        assertEq(assertError(over(only([['s', any], ['v', any]], string), `${imports}export const f = (s, v) => substring(s, v, v)`)), 'f: substring from any to any is not in this slice')
+        assertEq(assertError(over(only([['v', subset(any, 'number')], ['i', f64]], string), `${imports}export const f = (v, i) => substring(v, i, i)`)), 'f: substring of any.only(number): substring takes a string')
+        assertEq(assertError(over(only([['v', string], ['i', f64]], any), `${imports}export const f = (v, i) => item(v, i)`)), 'f: item of any.only(string): item takes an array or an object')
+        assertEq(assertError(over(only([['v', any]], any), `${imports}export const f = v => item(v, v)`)), 'f: item at any is not in this slice')
         // What the view does not read.
-        assertEq(assertError(over(fvi, "import { item } from '../l0/module.f.js'\nexport const f = (v, i) => item(v, i)")), 'f: item of L0 is not in this slice')
+        assertEq(assertError(over(fvi, "import { key } from '../l0/module.f.js'\nexport const f = (v, i) => key(v, i)")), 'f: key of L0 is not in this slice')
+        assertEq(assertError(over(only([['v', any], ['i', f64]], string), `${imports}export const f = (v, i) => substring(v, i)`)), 'f: substring takes 3 arguments, not 2')
         assertEq(assertError(over(fv, `${imports}export const f = v => unit(v)`)), 'f: unit takes 2 arguments, not 1')
         assertEq(assertError(over(fv, `${imports}export const f = v => unit(v, 1n)`)), 'f: unit at int(1, 1) is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => unit(1, 0)`)), 'f: unit of f64c is not in this slice')
@@ -1136,12 +1232,13 @@ export const proof = {
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v, v)`)), 'f: kind takes one argument, not 2')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1)`)), 'f: kind of f64c is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
+        assertEq(assertError(over(fv, `${imports}export const f = v => fromUnit(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind("s")`)), 'f: a string is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind`)), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v)`, null)), 'f: an import of ../l0/module.f.js is not in this slice')
         assertEq(assertError(over(fv, 'import g from "./g.f.js"\nexport const f = a => g(a)')), 'f: an import of ./g.f.js is not in this slice')
         assertEq(assertError(over(fv, 'import d from "./d.json" with { type: "json" }\nexport const f = a => d', { ...runtime, l0: './d.json' })), 'f: an import of ./d.json is not in this slice')
-        assertEq(assertError(lower(fv, runtime)(assertOk(sourceOf(`${imports}export const f = v => kind(v)`)).fast)), 'f: no import 4')
+        assertEq(assertError(lower(fv, runtime)(assertOk(sourceOf(`${imports}export const f = v => kind(v)`)).fast)), 'f: no import 7')
         // Without the L0 view, the module imports no interface, so the checker finds none that names `any`.
         assertEq(assertError(check(assertOk(lower(fv)(fast('export const f = v => 1'))))), 'f: no interface Any')
     },
