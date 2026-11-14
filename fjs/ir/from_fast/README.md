@@ -204,7 +204,7 @@ reads takes a value of `any` first.
 | --- | --- |
 | `kind(v)` | `float(Any.kind(v))` |
 | `UNDEFINED`, `NULL`, …, `FUNCTION` | the tag, a `lit` of `f64c` |
-| `asBoolean(v)`, `asNumber(v)`, `asString(v)` | a `cast` of `v` to `boolean`, `number` or `string`, whose arm calls `Any.to_bool` or `Any.to_f64`, or is `v.string`, and a trap for the other kinds; `v` itself where it holds no other kind |
+| `asBoolean(v)`, `asNumber(v)`, `asString(v)` | a `cast` of `v` to `boolean`, `number` or `string`, whose arm calls `Any.to_bool` or `Any.to_f64`, or is `v.string`, and a trap for the other kinds; `v` itself where it holds no other kind, and refused where it never holds the kind |
 | `length(v)` | `float` of a `match` of `v`: an arm for each module of L0 that has a `length`, and a trap for the kinds that none takes; a call where one module takes every kind that `v` holds, `String.length(v.string)` |
 | `unit(s, i)` | `float` of a `cast` of `s` to `string`, whose arm reads the integer of `u(31)` that `i` holds, with `exact`, and calls `String.unit`; it traps (`'inexact'`) where `i` holds none |
 | `same(a, b)` | a `cast` of each to `array`, `object` and `function`, named `a.same`, around `Any.same(a.same, b.same)` |
@@ -227,6 +227,12 @@ the definition and the rest of the block, which read the local as
 String's. L1's `const n = length(asString(a))` narrows `a` so for the rest
 of `stringEquals`. A cast after something else that the definition does
 narrows nothing, since that would move the cast's trap before it.
+
+A cast of a value that never holds its kind would always trap, so it is
+refused with the kinds that the value holds: `asNumber` of a local that
+`asString` has narrowed is `asNumber of any.only(string): asNumber takes a
+number`. So are `unit` of a value that is never a string, and `length` of
+one whose kinds have none.
 
 ## L1's native rows
 
@@ -260,7 +266,8 @@ something, it is bound to a local first, so that it is still done before
 Everything else, with the function's name and the reason
 ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
 an import other than the runtime's, among them a JSON module, a function of
-the view other than these seven, a native row other than `bigintEquals` and
+the view other than these seven, a cast of a value that never holds its
+kind, a native row other than `bigintEquals` and
 `numberRemainder`, a module constant that a lowered function reads, an
 exported function that the table does not name, which a lowered function
 calls, a function as a value, a function that calls itself or whose call

@@ -34,7 +34,8 @@
  *   `unit(s, i)` reads the integer that the float `i` holds exactly, and
  *   traps where it holds none. `same` and each native row cast each
  *   argument to the kinds that they take. `%` of two floats is the row
- *   `numberRemainder`. Any other import is refused.
+ *   `numberRemainder`. Any other import is refused, and so is a cast of a
+ *   value that never holds its kind, which would always trap.
  * - **An object literal is a record**, a product of its keys in their
  *   order, and `r.k` its field. A record stays in its function: the checker
  *   refuses one in a signature.
@@ -436,10 +437,11 @@ const firstOf = (scope, vs) => {
     return first === 'nothing' ? firstOf(scope, more) : first
 }
 
-/** Whether a local holds a value of a sealed type that has kinds besides `kind`. @type {(scope: _Scope, name: string, kind: string) => boolean} */
+/** Whether a local holds a value of a sealed type that has `kind` and other kinds too, which a cast to `kind` narrows. @type {(scope: _Scope, name: string, kind: string) => boolean} */
 const wider = (scope, name, kind) => {
     const [, t] = assertNotNullish(scope.ir.locals.find(([k]) => k === name))
-    return t[0] === 'sealed' && !(t[3] ?? kinds).every(k => k === kind)
+    const held = t[0] === 'sealed' ? t[3] ?? kinds : []
+    return held.includes(kind) && held.length > 1
 }
 
 /**
@@ -537,8 +539,10 @@ const castCall = (scope, module, name, params, vs) => settled(scope, vs, ({ ir }
 /**
  * A function of the L0 view of terms, the first a value of `any`: `kind`, a
  * cast, `length`, or `unit`. A cast of a value that holds no other kind is
- * the value. A name for the operand of an arm that the call makes is the
- * operand's, or the function's, and the kinds there: `v.number`.
+ * the value, and one of a value that never holds the kind is refused, since
+ * it would always trap. A name for the operand of an arm that the call
+ * makes is the operand's, or the function's, and the kinds there:
+ * `v.number`.
  *
  * @type {(scope: _Scope, name: string, args: readonly Term[]) => Result<Term, string>}
  */
@@ -550,6 +554,8 @@ const viewTerm = (scope, name, args) => {
     const [type, at] = types[1]
     if (type[0] !== 'sealed') { return no(`${name} of ${show(type)} is not in this slice`) }
     const held = type[3] ?? kinds
+    const takes = name === 'unit' ? 'string' : casts.find(([k]) => k === name)?.[1]
+    if (takes !== undefined && !held.includes(takes)) { return no(`${name} of ${show(type)}: ${name} takes a ${takes}`) }
     const base = x[0] === 'get' ? x[1] : name
     /** `x` at `kind` in `body`: itself where it holds no other kind, else a cast. @type {(kind: string, body: (y: Term) => Term) => Term} */
     const as = (kind, body) => held.every(k => k === kind) ? body(x) : cast(only(any, kind), x, `${base}.${kind}`, body)
@@ -558,7 +564,10 @@ const viewTerm = (scope, name, args) => {
         case 'asBoolean': { return ok(as('boolean', y => call('Any', 'to_bool', [y]))) }
         case 'asNumber': { return ok(as('number', y => call('Any', 'to_f64', [y]))) }
         case 'asString': { return ok(as('string', y => y)) }
-        case 'length': { return ok(lengthOf(x, held, base)) }
+        case 'length': {
+            return lengths.some(([, , ks]) => ks.some(k => held.includes(k))) ? ok(lengthOf(x, held, base))
+                : no(`length of ${show(type)}: none of its kinds has a length`)
+        }
         default: {
             // JavaScript reads an index and a unit as numbers: the index must hold an integer exactly.
             if (!isFloat(at)) { return no(`unit at ${show(at)} is not in this slice`) }

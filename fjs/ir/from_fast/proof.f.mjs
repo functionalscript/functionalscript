@@ -1011,6 +1011,18 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A cast narrows a local that holds its kind among others, those of its type.
+        assertEq(irOver(only([['v', subset(any, 'string', 'number')]], f64), `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * length(s)\n}`), [
+            'fn f(v: any.only(string, number)) -> f64 =',
+            '    match v',
+            '      string as v.string =>',
+            '        mul(float(String.length(v.string)), float(String.length(v.string)))',
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // `unit` reads the integer that its index holds exactly, after the cast of the string.
         const fvi = only([['v', any], ['i', f64]], f64)
         assertEq(irOver(fvi, `${imports}export const f = (v, i) => unit(v, i)`), [
@@ -1113,6 +1125,14 @@ export const proof = {
         assertEq(assertError(over(fa, `${imports}export const f = a => {\n    const s = asString(a)\n    return length(s) * length(s)\n}`)), 'f: asString of f64 is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(...v)\n    return length(s) * length(s)\n}`)), 'f: a spread argument is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * (length(s) * "x")\n}`)), 'f: a string is not in this slice')
+        // A cast of a value that never holds its kind would always trap, as would `unit` of one that
+        // is never a string and `length` of one whose kinds have none.
+        const numeric = only([['v', subset(any, 'number')]], f64)
+        assertEq(assertError(over(only([['v', subset(any, 'string')]], f64), `${imports}export const f = v => asNumber(v)`)), 'f: asNumber of any.only(string): asNumber takes a number')
+        assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return asNumber(v) + length(s)\n}`)), 'f: asNumber of any.only(string): asNumber takes a number')
+        assertEq(assertError(over(numeric, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * length(s)\n}`)), 'f: asString of any.only(number): asString takes a string')
+        assertEq(assertError(over(numeric, `${imports}export const f = v => unit(v, 0)`)), 'f: unit of any.only(number): unit takes a string')
+        assertEq(assertError(over(only([['v', subset(any, 'boolean', 'number')]], f64), `${imports}export const f = v => length(v)`)), 'f: length of any.only(boolean, number): none of its kinds has a length')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v, v)`)), 'f: kind takes one argument, not 2')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1)`)), 'f: kind of f64c is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
