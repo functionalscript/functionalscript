@@ -99,7 +99,7 @@ before it and proved end to end on its own.
   extend it as later slices land. It found the three defects that example
   proofs at 100% coverage missed. Tighten the trap oracle before slice 7
   makes throws meaningful.
-- [ ] **6a. Owned values, by hand** (wip). Copy and counted kinds; `dup`/`drop`;
+- [ ] **6a. Owned values, by hand** (wip, #3856). Copy and counted kinds; `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage; a host that counts every value.
 - [ ] **6b. The lifetime pass.** Plain stage to owned (move, `dup`, `drop`);

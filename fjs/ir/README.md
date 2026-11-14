@@ -12,8 +12,8 @@ This directory holds the first five: typed code written by hand, the same
 code lowered from normalized FAST ([`from_fast`](./from_fast/README.md)),
 values of unknown kind, read through [the interfaces of L0](./l0/module.f.js),
 loops, and functions that a module does not export, with records and
-[L1's native rows](./native/module.f.js). Next is counted values (`typeOf`),
-as six stacked PRs in that roadmap.
+[L1's native rows](./native/module.f.js). Next after 6a's owned values is the rest of counted values (`typeOf`),
+as stacked PRs in that roadmap.
 
 ## Map of this directory
 
@@ -22,11 +22,12 @@ as six stacked PRs in that roadmap.
 |[`types.ts`](./types.ts)                  |the data: types, terms, functions, modules, and the checker's answer   |
 |[`.`](./module.f.js)                     |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.js)           |the checker: a type for every term, or the module refused with a reason|
+|[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path   |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
-|[`l0/host`](./l0/host/module.f.js)        |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
+|[`l0/host`](./l0/host/module.f.js)        |a counting JavaScript host for the `fjs:l0` imports, over the L0 view  |
 |[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.f.js)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
@@ -70,10 +71,11 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **Terms**: a `match` of a sealed type, whose arms take kinds and may name
   the operand at those kinds; `trap`, of type `never`, where L0 would trap;
   and `cast`, an arm for some kinds and a trap for the others.
-- **Every value of `any` is borrowed**: a parameter, an arm's name for its
-  operand, and a `let` of one. No function, of the module or of an
-  interface, may give one, since its caller would own it, so nothing has to
-  release one. Counting values is a later slice.
+- **A value of `any` may be borrowed or owned**: a parameter borrows unless
+  it is `own`, a `match` lends its operand, and a call of `dup`,
+  `from_unit` or `concat` answers an owned value that `drop` consumes. The
+  owned-stage check requires each owned value to be consumed once on every
+  path.
 
 ## What the fourth slice adds
 

@@ -27,8 +27,9 @@
  * - **A sealed type is its interface's.** A module reads a value of `any`
  *   through the functions of the interfaces it imports, and narrows it with
  *   a `match` whose arms may name the operand at the type of their
- *   variants. Every such value is borrowed: no function gives one, so no
- *   term owns one, and nothing has to release it.
+ *   variants. A function may give one, which its caller owns, and `dup` /
+ *   `drop` count it. The [owned-stage check](./owned/module.f.js) requires
+ *   each owned value to be consumed once on every path.
  *
  * @module
  *
@@ -42,8 +43,12 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, int, never, product } from '../module.f.js'
+import { bool, compareIn, equal, f64, f64c, fits, int, never, product, unit } from '../module.f.js'
 import { show } from '../print/module.f.js'
+import { checkOwned } from './owned/module.f.js'
+
+/** Locals of a function: names to types, without parameter modes. @type {(params: readonly Param[]) => OrderedMap<Type>} */
+const localsOf = params => fromEntries(params.map(([name, type]) => /** @type {const} */ ([name, type])))
 
 // types
 
@@ -319,8 +324,8 @@ const loopTerm = (checkTerm, env, label, params, body) => {
     if (firsts[0] === 'error') { return firsts }
     const wrong = firsts[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
     if (wrong >= 0) { return no(`${params[Number(wrong)][0]} of loop ${label} is ${show(params[Number(wrong)][1])}, not ${show(firsts[1][Number(wrong)][0])}`) }
-    /** @type {readonly Param[]} */
-    const parts = params.map(([k, x]) => [k, x])
+    /** @type {readonly (readonly [string, Type])[]} */
+    const parts = params.map(([k, x]) => /** @type {const} */ ([k, x]))
     const locals = parts.reduce((ls, [k, x]) => setReplace(k)(x)(ls), env.locals)
     const b = checkTerm({ ...env, locals, labels: label_(label, ['loop', parts])(env.labels) }, body)
     return b[0] === 'error' ? b : ok([b[1][0], ['loop', label, params.map(([k, x], j) => /** @type {const} */ ([k, x, firsts[1][Number(j)]])), b[1]]])
@@ -330,7 +335,7 @@ const loopTerm = (checkTerm, env, label, params, body) => {
  * A `br` that repeats a loop: a `make` of the loop's parameters, by their
  * names in their order, each of its parameter's type.
  *
- * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly Param[], e: Term) => Result<Typed, string>}
+ * @type {(checkTerm: _CheckTerm, env: _Env, label: string, params: readonly (readonly [string, Type])[], e: Term) => Result<Typed, string>}
  */
 const repeat = (checkTerm, env, label, params, e) => {
     const functionName = assertNotNullish(entry(env, 'name'))
@@ -342,7 +347,7 @@ const repeat = (checkTerm, env, label, params, e) => {
     if (fields[0] === 'error') { return fields }
     const wrong = fields[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
     return wrong >= 0 ? no(`${params[Number(wrong)][0]} of loop ${label} is ${show(params[Number(wrong)][1])}, not ${show(fields[1][Number(wrong)][0])}`)
-        : ok([never, ['br', label, [['product', params], ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][Number(j)]]))]]]])
+        : ok([never, ['br', label, [product(params), ['make', e[1].map(([k], j) => /** @type {const} */ ([k, fields[1][Number(j)]]))]]]])
 }
 
 /** @type {_CheckTerm} */
@@ -388,13 +393,17 @@ const term = (env, t) => {
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
             const full = module === 'self' ? name : `${module}.${name}`
-            if (result[0] === 'sealed') { return no(`${full} gives ${show(result)}, which its caller would own: not in this slice`) }
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
             const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
-            return wrong < 0 ? ok([result, ['call', module, name, args[1]]])
-                : no(`${full}'s ${params[Number(wrong)][0]} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
+            if (wrong >= 0) {
+                return no(`${full}'s ${params[Number(wrong)][0]} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
+            }
+            // a `dup` answers the type of its argument, so a refined value stays refined
+            const iface = module === 'self' ? null : at(module)(env.imports)
+            const isDup = iface !== null && iface.types.some(([, d]) => d.dup === name)
+            return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
         }
         case 'make': {
             const names = t[1].map(([k]) => k)
@@ -479,19 +488,20 @@ const term = (env, t) => {
 /**
  * Why a module may not have a function of a signature, or `null` where it
  * may: parameters of distinct names, types that a module may write, no
- * parameter of type `never`, and a result that no one has to own.
+ * parameter of type `never`, and a result that is a type a module may write
+ * or `unit` (as `drop` answers). A sealed result is owned by the caller.
  *
  * @type {(env: _Env, s: Signature) => string | null}
  */
 const unsigned = (env, { params, result }) => {
     const names = params.map(([k]) => k)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
-    const why = [...params.map(([, t]) => t), result].map(t => unsupported(env, t)).find(x => x !== null)
+    const resultOk = equal(result, unit) ? null : unsupported(env, result)
+    const why = [...params.map(([, t]) => t).map(t => unsupported(env, t)), resultOk].find(x => x !== null)
     const unreachable = params.find(([, t]) => isNever(t))
     return twice !== undefined ? `two parameters are named ${twice}`
         : typeof why === 'string' ? why
         : unreachable !== undefined ? `${unreachable[0]} is never, so no call reaches the function`
-        : result[0] === 'sealed' ? `the result is ${show(result)}, which the caller would own: not in this slice`
         : null
 }
 
@@ -514,7 +524,7 @@ const checkInterface = imports => ([name, { types, functions }]) => {
     const functionNames = functions.map(([k]) => k)
     const named = functionNames.find((k, j) => functionNames.indexOf(k) !== j)
     const twice = types.find(([, { variants }]) => variants.some((v, k) => variants.indexOf(v) !== k))
-    const why = functions.flatMap(([, { params, result }]) => [...params.map(([, t]) => t), result]).map(t => unsupported(env, t)).find(x => x !== null)
+    const why = functions.map(([, s]) => unsigned(env, s)).find(x => x !== null)
     /** @type {(entry: readonly [string, SealedDef]) => boolean} */
     const tagged = ([type, { variants, kind }]) => {
         const f = functions.find(([k]) => k === kind)?.[1]
@@ -560,7 +570,7 @@ const unscoped = (env, imports, functions, locals, results) => {
 
 /** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
 const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
-    const b = term({ name, locals: fromEntries(params), labels: label_('return', ['block', result])(empty), functions, imports }, body)
+    const b = term({ name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports }, body)
     if (b[0] === 'error') { return b }
     return sub({ name, locals: empty, labels: empty, functions, imports }, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
         : error(`${name}: the body is ${show(b[1][0])}, not ${show(result)}`)
@@ -584,7 +594,9 @@ export const check = m => {
     if (missing !== undefined) { return error(`no function ${missing} to export`) }
     if (again !== undefined) { return error(`${again} is exported twice`) }
     const typed = okList(m.functions.map(checkFn(functions, imports)))
-    return typed[0] === 'error' ? typed : ok({ imports: m.imports, functions: typed[1], exports: m.exports })
+    if (typed[0] === 'error') { return typed }
+    const owned = checkOwned({ imports: m.imports, functions: typed[1], exports: m.exports })
+    return owned[0] === 'error' ? owned : ok({ imports: m.imports, functions: typed[1], exports: m.exports })
 }
 
 /**
@@ -600,7 +612,7 @@ export const typeOf = scope => {
     const { locals, result, functions, imports } = scope
     /** @type {_Env} */
     const env = {
-        name, locals: fromEntries(locals), labels: label_('return', ['block', result])(empty), functions: fromEntries(functions), imports: fromEntries(imports),
+        name, locals: localsOf(locals), labels: label_('return', ['block', result])(empty), functions: fromEntries(functions), imports: fromEntries(imports),
     }
     const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [result])
     return t => {

@@ -10,7 +10,8 @@
  * - **`any` is sealed by Any.** Its variants are the nine kinds in the order
  *   of the tags that `kind` answers, which are the
  *   [L0 view's](../../wasm/runtime/l0/module.f.js), and a WASM `i64`
- *   carries it.
+ *   carries it. `dup` and `drop` make it counted: every value of `any` is
+ *   counted in this slice (copy variants wait until after slice 6).
  * - **The casts' targets are the arguments.** `to_f64` takes a number and
  *   `to_bool` a boolean, so passing a value of unknown kind is a type error,
  *   and a module narrows its value with a `match` first. So does `same`,
@@ -25,17 +26,15 @@
  * - **A string's unit is String's `unit`**, which L0 names so and
  *   modular-l0.md's memo calls `at`: the UTF-16 unit at an index of
  *   `u(31)`, which traps at or past the end, as the view's `unit` throws.
- *
- * These are the parts of L0 that [the slices](../todo/slices.md) read so
- * far, and every parameter borrows. A function that gives a value of `any`,
- * which its caller would own, joins with the slice that counts values.
+ * - **`from_unit` and `concat` answer an owned string**, the first functions
+ *   of L0 that give a value of `any` for the caller to own.
  *
  * @module
  *
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, f64c, int, only, sealed, signature, u } from '../module.f.js'
+import { bool, f64c, int, only, own, sealed, signature, u, unit } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
@@ -49,15 +48,20 @@ const index = u(31)
 /** A value that L0's `same` takes: an array, an object or a function. */
 const reference = only(any, 'array', 'object', 'function')
 
+/** A string. */
+const string = only(any, 'string')
+
 /** The interface that seals `any`. @type {Interface} */
 const anyInterface = {
     abi: 'fjs:l0',
-    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64' }]],
+    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64', dup: 'dup', drop: 'drop' }]],
     functions: [
         ['kind', signature([['v', any]], int(0n, 8n))],
         ['to_f64', signature([['v', only(any, 'number')]], f64c)],
         ['to_bool', signature([['v', only(any, 'boolean')]], bool)],
         ['same', signature([['a', reference], ['b', reference]], bool)],
+        ['dup', signature([['v', any]], any)],
+        ['drop', signature([own('v', any)], unit)],
     ],
 }
 
@@ -79,11 +83,16 @@ const lengthOf = (param, kinds, more) => ({
 
 /**
  * String's functions besides its `length`: `unit`, the UTF-16 unit of a
- * string at an index, which traps where the index is not before the end.
+ * string at an index; `from_unit`, the owned string of one unit; and
+ * `concat`, the owned join of two borrowed strings.
  *
  * @type {Interface['functions']}
  */
-const strings = [['unit', signature([['s', only(any, 'string')], ['i', index]], u(16))]]
+const strings = [
+    ['unit', signature([['s', string], ['i', index]], u(16))],
+    ['from_unit', signature([['c', u(16)]], string)],
+    ['concat', signature([['a', string], ['b', string]], string)],
+]
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
 export const l0 = [
