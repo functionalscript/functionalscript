@@ -34,7 +34,8 @@
  *   `unit(s, i)` reads the integer that the float `i` holds exactly, and
  *   traps where it holds none. `same` and each native row cast each
  *   argument to the kinds that they take. `%` of two floats is the row
- *   `numberRemainder`. Any other import is refused.
+ *   `numberRemainder`. Any other import is refused, and so is a cast of a
+ *   value that never holds its kind, which would always trap.
  * - **An object literal is a record**, a product of its keys in their
  *   order, and `r.k` its field. A record stays in its function: the checker
  *   refuses one in a signature.
@@ -57,10 +58,15 @@
  *   `break` is its value where it ends the loop's body.
  * - **A function inside a function is inlined where it is called.**
  *   Normalized FAST makes a function of each loop and calls it once. Its
- *   parameters stand for the arguments, a term that does nothing as itself
- *   and anything else bound to a local, its captures for what they read
- *   where the call stands, and the `return` that ends its body for its
- *   value.
+ *   parameters stand for the arguments, each lowered where it stands: a
+ *   term that does nothing as itself and anything else bound to a local,
+ *   in whose scope the arguments after it are lowered. Its captures stand
+ *   for what they read where the call stands, and the `return` that ends
+ *   its body for its value.
+ * - **A definition that only one function reads comes in a block around
+ *   that function**, where the normalization puts it: a `const` that only a
+ *   loop reads, or an import that only one function of the module reads.
+ *   The block's statements stand where the function is defined.
  * - **A cast narrows the rest of its block**
  *   ([definition.md, rule 4](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
  *   Where the first thing that a definition's value does is a cast of a
@@ -76,7 +82,7 @@
  * @import { AstImport } from '../../compiler/ast/types.ts'
  * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Loop, Statement, Value } from '../../js/ast/types.ts'
  * @import { Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
- * @import { _FirstCast, _Global, _LowerBlock, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
+ * @import { _FirstCast, _Global, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -161,15 +167,32 @@ const bind = (scope, b, r, rest) => {
 const completes = ({ statements, exit }) => exit[0] === 'yield' && statements.every(s =>
     s[0] === 'block' ? completes(s[2]) : s[0] === 'if' ? completes(s[3]) || completes(s[4]) : true)
 
+/**
+ * A value past the blocks that the normalization puts around it, where only
+ * the value reads a binding, and the statements of those blocks, which
+ * define the bindings: a function that alone reads an import, or a loop
+ * that alone reads a `const`, comes in one.
+ *
+ * @type {(v: Value) => readonly [readonly Statement[], Value]}
+ */
+const unwrapped = v => {
+    if (!(v instanceof Array) || v[0] !== 'block') { return [[], v] }
+    const { statements, exit } = v[1]
+    if (exit[0] !== 'yield' || exit[1].length !== 1) { return [[], v] }
+    const [inner, w] = unwrapped(exit[1][0])
+    return [[...statements, ...inner], w]
+}
+
 // casts
 
 /** The casts of the L0 view, each with the kind that it narrows to. @type {readonly (readonly [string, string])[]} */
 const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string']]
 
-/** Whether a local holds a value of a sealed type that has kinds besides `kind`. @type {(scope: _Scope, name: string, kind: string) => boolean} */
+/** Whether a local holds a value of a sealed type that has `kind` and other kinds too, which a cast to `kind` narrows. @type {(scope: _Scope, name: string, kind: string) => boolean} */
 const wider = (scope, name, kind) => {
     const [, t] = assertNotNullish(scope.ir.locals.find(([k]) => k === name))
-    return t[0] === 'sealed' && !(t[3] ?? kinds).every(k => k === kind)
+    const held = t[0] === 'sealed' ? t[3] ?? kinds : []
+    return held.includes(kind) && held.length > 1
 }
 
 /** The cast that values do first, in their order. @type {(checkFirst: _FirstCast, scope: _Scope, vs: readonly Item<Value>[]) => readonly [string, string] | 'nothing' | null} */
@@ -284,6 +307,18 @@ const loopTerm = (lowerValue, lowerBlock, scope, { target, parameters, initial, 
     return b[0] === 'error' ? b : ok(loop(label, params, b[1]))
 }
 
+/**
+ * Statements in their order, each around those after it, and then `rest`,
+ * which stands in the scope that they leave.
+ *
+ * @type {(lowerStatement: _LowerStatement, lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, statements: readonly Statement[], tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>}
+ */
+const sequence = (lowerStatement, lowerValue, lowerBlock, scope, statements, tail, rest) => {
+    if (statements.length === 0) { return rest(scope) }
+    const [s, ...more] = statements
+    return lowerStatement(lowerValue, lowerBlock, scope, s, tail, next => sequence(lowerStatement, lowerValue, lowerBlock, next, more, tail, rest))
+}
+
 /** @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, s: Statement, tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>} */
 const statement = (lowerValue, lowerBlock, scope, s, tail, rest) => {
     const no = refuse(scope)
@@ -291,7 +326,12 @@ const statement = (lowerValue, lowerBlock, scope, s, tail, rest) => {
         case 'define': {
             const [, b, v, kind] = s
             if (kind === 'lazy') { return no('a lazy definition is not in this slice') }
-            if (v instanceof Array && v[0] === 'function') { return rest(standsFor(scope, b, ['inline', v[1]])) }
+            // A function is inlined where it is called. The statements of the blocks around it stand where it is defined.
+            const [around, f] = unwrapped(v)
+            if (f instanceof Array && f[0] === 'function') {
+                const [, inlined] = f
+                return sequence(statement, lowerValue, lowerBlock, scope, around, tail, next => rest(standsFor(next, b, ['inline', inlined])))
+            }
             const op = v instanceof Array && v.length === 1 ? staticOp(v[0]) : null
             if (op !== null) { return rest(standsFor(scope, b, ['op', op])) }
             const c = firstCast(scope, v)
@@ -364,47 +404,61 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
  *
  * @type {_LowerBlock}
  */
-const block = (lowerValue, scope, { statements, exit }, tail) => {
-    if (statements.length === 0) { return exitTerm(lowerValue, scope, exit, tail) }
-    const [s, ...more] = statements
-    return statement(lowerValue, block, scope, s, tail, next => block(lowerValue, next, { statements: more, exit }, tail))
+const block = (lowerValue, scope, { statements, exit }, tail) => sequence(statement, lowerValue, block, scope, statements, tail, next => exitTerm(lowerValue, next, exit, tail))
+
+/**
+ * The arguments of a call that reads each of them once it has read them
+ * all: each lowered where it stands, in its order, a term that does nothing
+ * as itself and anything else bound to a local, in whose scope those after
+ * it are lowered. `rest` reads them all, as terms that do nothing.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, vs: readonly Value[], rest: (scope: _Scope, xs: readonly Term[]) => Result<Term, string>) => Result<Term, string>}
+ */
+const settled = (lowerValue, scope, vs, rest) => {
+    /** @type {(s: _Scope, done: readonly Term[]) => Result<Term, string>} */
+    const from = (s, done) => {
+        if (done.length === vs.length) { return rest(s, done) }
+        const x = lowerValue(s, vs[Number(done.length)])
+        return x[0] === 'error' ? x
+            : isPure(x[1]) ? from(s, [...done, x[1]])
+            : bindTerm(s, x[1], (t, name) => from(t, [...done, get(name)]))
+    }
+    return from(scope, [])
 }
+
+/** What a parameter stands for where its argument does nothing: the local that the argument reads, or its term. @type {(x: Term) => _Meaning} */
+const argument = x => x[0] === 'get' ? ['local', x[1]] : ['term', x]
 
 /**
  * A call of a function that the lowering inlines, one that the function
  * defines or one that the module does not export: its body, inlined where
  * the call stands, which ends where its `return` is its value. Its
- * parameters stand for the arguments, a term that does nothing as itself,
- * and anything else bound to a local first, in their order; its captures
- * stand for what `resolve` makes of them: what they read where the call
- * stands, or what the module's bindings are. A function that calls itself,
- * by its own name or through others, is refused, since its copies would
- * never end.
+ * parameters stand for the arguments, each lowered where it stands: a term
+ * that does nothing as itself, and anything else bound to a local first, in
+ * their order; its captures stand for what `resolve` makes of them: what
+ * they read where the call stands, or what the module's bindings are. A
+ * function that calls itself, by its own name or through others, is
+ * refused, since its copies would never end.
  *
- * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction, args: readonly Term[], resolve: (v: Value) => Result<_Meaning, string>) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction, vs: readonly Value[], resolve: (v: Value) => Result<_Meaning, string>) => Result<Term, string>}
  */
-const inline = (lowerValue, scope, f, args, resolve) => {
+const inline = (lowerValue, scope, f, vs, resolve) => {
     const no = refuse(scope)
     if (f.rest !== null) { return no('a rest parameter is not in this slice') }
     if (f.self !== null || scope.inlining.includes(f)) { return no('a function that calls itself is not in this slice') }
-    if (f.parameters.length !== args.length) {
-        return no(`a function that is inlined takes ${count(f.parameters.length, 'argument')}, and its call gives ${args.length}`)
+    if (f.parameters.length !== vs.length) {
+        return no(`a function that is inlined takes ${count(f.parameters.length, 'argument')}, and its call gives ${vs.length}`)
     }
     const captured = okList(f.captures.map(({ binding, value: v }) => {
         const m = resolve(v)
         return m[0] === 'error' ? no(m[1]) : ok(/** @type {const} */ ([binding, m[1]]))
     }))
     if (captured[0] === 'error') { return captured }
-    /** The parameters from the `j`-th on, standing for their arguments, around the body. @type {(s: _Scope, j: number) => Result<Term, string>} */
-    const from = (s, j) => {
-        if (j === args.length) { return block(lowerValue, s, f.body, ['return']) }
-        const b = f.parameters[Number(j)]
-        const x = args[Number(j)]
-        return x[0] === 'get' ? from(standsFor(s, b, ['local', x[1]]), j + 1)
-            : isPure(x) ? from(standsFor(s, b, ['term', x]), j + 1)
-            : bindTerm(s, x, (t, name) => from(standsFor(t, b, ['local', name]), j + 1))
-    }
-    return from({ ...scope, bindings: [...scope.bindings, ...captured[1]], inlining: [f, ...scope.inlining] }, 0)
+    return settled(lowerValue, scope, vs, (s, xs) => block(lowerValue, {
+        ...s,
+        bindings: [...s.bindings, ...captured[1], ...f.parameters.map((b, j) => /** @type {const} */ ([b, argument(xs[Number(j)])]))],
+        inlining: [f, ...s.inlining],
+    }, f.body, ['return']))
 }
 
 /** What a capture of a function that the function defines stands for: what it reads where the call stands. @type {(scope: _Scope) => (v: Value) => Result<_Meaning, string>} */
@@ -467,14 +521,12 @@ const paramsOf = (module, name) => {
  * two arguments read is cast once. The checker refuses an argument that
  * holds none of the kinds.
  *
- * @type {(scope: _Scope, module: string, name: string, params: readonly Param[], args: readonly Term[]) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, module: string, name: string, params: readonly Param[], vs: readonly Value[]) => Result<Term, string>}
  */
-const castCall = (scope, module, name, params, args) => {
-    const j = args.findIndex(x => !isPure(x))
-    if (j >= 0) { return bindTerm(scope, args[Number(j)], (s, k) => castCall(s, module, name, params, args.map((x, i) => i === j ? get(k) : x))) }
+const castCall = (lowerValue, scope, module, name, params, vs) => settled(lowerValue, scope, vs, ({ ir }, args) => {
     const needs = args.flatMap((x, k) => {
         const p = params[Number(k)][1]
-        const t = x[0] === 'get' ? scope.ir.locals.find(([v]) => v === x[1])?.[1] : undefined
+        const t = x[0] === 'get' ? ir.locals.find(([v]) => v === x[1])?.[1] : undefined
         if (p[0] !== 'sealed' || p[3] === null || t === undefined || t[0] !== 'sealed' || x[0] !== 'get') { return [] }
         const held = t[3] ?? kinds
         const takes = p[3]
@@ -489,31 +541,28 @@ const castCall = (scope, module, name, params, args) => {
         return c === undefined ? x : get(binder(...c))
     }))
     return ok(casts.reduceRight((b, [v, ks]) => cast(only(any, ...ks), get(v), binder(v, ks), b), body))
-}
+})
 
 /**
- * A call of a function of the L0 view, whose first argument is a value of
- * `any`: `kind`, a cast, `length`, `unit`, or `same`, whose arguments are
- * cast to the kinds that it takes. A cast of a value that holds no other
- * kind is the value. A name for the operand of an arm that the
- * call makes is the operand's, or the function's, and the kinds there:
- * `v.number`. So the only term in an arm is a local or a literal: `unit`'s
- * index, where it does something, is a local bound before the cast.
+ * A function of the L0 view of terms, the first a value of `any`: `kind`, a
+ * cast, `length`, or `unit`. A cast of a value that holds no other kind is
+ * the value, and one of a value that never holds the kind is refused, since
+ * it would always trap. A name for the operand of an arm that the call
+ * makes is the operand's, or the function's, and the kinds there:
+ * `v.number`.
  *
  * @type {(scope: _Scope, name: string, args: readonly Term[]) => Result<Term, string>}
  */
-const viewCall = (scope, name, args) => {
+const viewTerm = (scope, name, args) => {
     const no = refuse(scope)
-    if (!viewFunctions.includes(name)) { return no(`${name} of L0 is not in this slice`) }
-    const arity = name === 'unit' || name === 'same' ? 2 : 1
-    if (args.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${args.length}`) }
-    if (name === 'same') { return castCall(scope, 'Any', 'same', paramsOf('Any', 'same'), args) }
     const types = okList(args.map(x => typeOf(scope.ir)(x)))
     if (types[0] === 'error') { return types }
     const [x, i] = args
     const [type, at] = types[1]
     if (type[0] !== 'sealed') { return no(`${name} of ${show(type)} is not in this slice`) }
     const held = type[3] ?? kinds
+    const takes = name === 'unit' ? 'string' : casts.find(([k]) => k === name)?.[1]
+    if (takes !== undefined && !held.includes(takes)) { return no(`${name} of ${show(type)}: ${name} takes a ${takes}`) }
     const base = x[0] === 'get' ? x[1] : name
     /** `x` at `kind` in `body`: itself where it holds no other kind, else a cast. @type {(kind: string, body: (y: Term) => Term) => Term} */
     const as = (kind, body) => held.every(k => k === kind) ? body(x) : cast(only(any, kind), x, `${base}.${kind}`, body)
@@ -522,20 +571,37 @@ const viewCall = (scope, name, args) => {
         case 'asBoolean': { return ok(as('boolean', y => call('Any', 'to_bool', [y]))) }
         case 'asNumber': { return ok(as('number', y => call('Any', 'to_f64', [y]))) }
         case 'asString': { return ok(as('string', y => y)) }
-        case 'length': { return ok(lengthOf(x, held, base)) }
+        case 'length': {
+            return lengths.some(([, , ks]) => ks.some(k => held.includes(k))) ? ok(lengthOf(x, held, base))
+                : no(`length of ${show(type)}: none of its kinds has a length`)
+        }
         default: {
             // JavaScript reads an index and a unit as numbers: the index must hold an integer exactly.
             if (!isFloat(at)) { return no(`unit at ${show(at)} is not in this slice`) }
-            // JavaScript reads both arguments before `unit` casts the string, so an index that does
-            // something is bound to a local first, after the string where that does something too.
-            if (!isPure(i)) {
-                return isPure(x) ? bindTerm(scope, i, (s, k) => viewCall(s, name, [x, get(k)]))
-                    : bindTerm(scope, x, (s, k) => viewCall(s, name, [get(k), i]))
-            }
             const index = `${i[0] === 'get' ? i[1] : 'unit'}.index`
             return ok(float(as('string', y => exact(u(31), i, index, k => call('String', 'unit', [y, k])))))
         }
     }
+}
+
+/**
+ * A call of a function of the L0 view: `same`, whose arguments are cast to
+ * the kinds that it takes, `unit`, or a function of one value. JavaScript
+ * reads both arguments of `unit` before it casts the string, so each that
+ * does something is bound to a local first, in their order, and the only
+ * term in an arm is then a local or a literal.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, name: string, vs: readonly Value[]) => Result<Term, string>}
+ */
+const viewCall = (lowerValue, scope, name, vs) => {
+    const no = refuse(scope)
+    if (!viewFunctions.includes(name)) { return no(`${name} of L0 is not in this slice`) }
+    const arity = name === 'unit' || name === 'same' ? 2 : 1
+    if (vs.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${vs.length}`) }
+    if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
+    if (name === 'unit') { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
+    const xs = values(lowerValue, scope, vs)
+    return xs[0] === 'error' ? xs : viewTerm(scope, name, xs[1])
 }
 
 // L1's native rows
@@ -545,13 +611,13 @@ const viewCall = (scope, name, args) => {
  * a `call` of the interface of the rows, its arguments cast to the kinds
  * that the row takes.
  *
- * @type {(scope: _Scope, name: string, args: readonly Term[]) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, name: string, vs: readonly Value[]) => Result<Term, string>}
  */
-const nativeCall = (scope, name, args) => {
+const nativeCall = (lowerValue, scope, name, vs) => {
     const row = native.functions.find(([k]) => k === name)
     return row === undefined ? refuse(scope)(`${name} of L1's native rows is not in this slice`)
-        : args.length !== row[1].params.length ? refuse(scope)(`${name} takes ${count(row[1].params.length, 'argument')}, not ${args.length}`)
-        : castCall(scope, 'Native', name, row[1].params, args)
+        : vs.length !== row[1].params.length ? refuse(scope)(`${name} takes ${count(row[1].params.length, 'argument')}, not ${vs.length}`)
+        : castCall(lowerValue, scope, 'Native', name, row[1].params, vs)
 }
 
 /**
@@ -658,15 +724,17 @@ const callTerm = (lowerValue, scope, callee, items) => {
     const no = refuse(scope)
     const m = callee instanceof Array && callee[0] === 'ref' ? meaning(scope, callee[1]) : null
     if (m === null || m[0] === 'local' || m[0] === 'term') { return no('a call of a value is not in this slice') }
-    const xs = okList(items.map(item => isSpread(item) ? no('a spread argument is not in this slice') : lowerValue(scope, item)))
-    if (xs[0] === 'error') { return xs }
+    const vs = items.flatMap(item => isSpread(item) ? [] : [item])
+    if (vs.length !== items.length) { return no('a spread argument is not in this slice') }
     switch (m[0]) {
-        case 'l0': { return viewCall(scope, m[1], xs[1]) }
-        case 'native': { return nativeCall(scope, m[1], xs[1]) }
-        case 'inline': { return inline(lowerValue, scope, m[1], xs[1], local(scope)) }
-        case 'module': { return inline(lowerValue, scope, m[1], xs[1], scope.module) }
-        case 'function': { return ok(call('self', m[1], xs[1])) }
-        default: { return ok(['op', m[1], xs[1]]) }
+        case 'l0': { return viewCall(lowerValue, scope, m[1], vs) }
+        case 'native': { return nativeCall(lowerValue, scope, m[1], vs) }
+        case 'inline': { return inline(lowerValue, scope, m[1], vs, local(scope)) }
+        case 'module': { return inline(lowerValue, scope, m[1], vs, scope.module) }
+        default: {
+            const xs = values(lowerValue, scope, vs)
+            return xs[0] === 'error' ? xs : ok(m[0] === 'function' ? call('self', m[1], xs[1]) : ['op', m[1], xs[1]])
+        }
     }
 }
 
@@ -795,14 +863,30 @@ const imported = (source, imports, args, v) => {
 }
 
 /**
- * What each binding that the module's statements define stands for. A
- * binding that no statement defines holds the module's imports, and so
- * does a definition that only names it; a definition that reads an import
- * from one of them is that import.
+ * A statement of a module, and before it the statements of the blocks that
+ * the normalization puts around the value that it defines, which define
+ * bindings of the module too.
+ *
+ * @type {(s: Statement) => readonly Statement[]}
+ */
+const flat = s => {
+    if (s[0] !== 'define') { return [s] }
+    const [, b, v, kind] = s
+    const [around, w] = unwrapped(v)
+    return [...around.flatMap(flat), ['define', b, w, kind]]
+}
+
+/**
+ * What each binding that the module's statements define stands for, those
+ * of the blocks around a definition's value among them. A binding that no
+ * statement defines holds the module's imports, and so does a definition
+ * that only names it; a definition that reads an import from one of them is
+ * that import.
  *
  * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], statements: readonly Statement[]) => readonly (readonly [BindingId, _Global])[]}
  */
-const globals = (source, imports, statements) => {
+const globals = (source, imports, wrapped) => {
+    const statements = wrapped.flatMap(flat)
     /** @type {(s: Statement) => readonly BindingId[]} */
     const results = s => s[0] === 'define' ? [s[1]] : s[0] === 'loop' ? s[1].results : s[1]
     const defined = statements.flatMap(results)
@@ -818,21 +902,6 @@ const globals = (source, imports, statements) => {
             : imported(source, imports, args, s[2]) ?? ['refused', 'a module constant is not in this slice']
         return results(s).map(b => /** @type {const} */ ([b, g]))
     })
-}
-
-/**
- * An export's value past the blocks that the normalization puts around it,
- * where only the export reads a binding, and the statements of those
- * blocks, which define bindings of the module.
- *
- * @type {(v: Value) => readonly [readonly Statement[], Value]}
- */
-const unwrapped = v => {
-    if (!(v instanceof Array) || v[0] !== 'block') { return [[], v] }
-    const { statements, exit } = v[1]
-    if (exit[0] !== 'yield' || exit[1].length !== 1) { return [[], v] }
-    const [inner, w] = unwrapped(exit[1][0])
-    return [[...statements, ...inner], w]
 }
 
 /**
