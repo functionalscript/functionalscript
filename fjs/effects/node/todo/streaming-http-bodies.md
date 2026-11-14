@@ -267,7 +267,7 @@ cannot answer still has a status code ([`../types.ts`](../types.ts)); a body
 that fails *after* the status has gone out has none.
 
 **The producer.** `fjs/cas` has the loop twice already — `read` and
-`streamFile` in [`../../../cas/module.f.mjs`](../../../cas/module.f.mjs) are the
+`streamFile` in [`../../../cas/module.f.js`](../../../cas/module.f.js) are the
 same `readBytes`-at-`chunkBytes` fold, ending the stream on an empty read — and
 `fjs/web` would be the third caller. That is the point at which it moves into
 [`../module.f.js`](../module.f.js) beside `writeFromStream`, as its mirror,

@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`, the `read` method on the `FileCas`
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.js`, the `read` method on the `FileCas`
 returned by `fileCas`) streams whatever bytes live at the addressed path without
 recomputing the hash. After **synchronization by copying files**
 (see `doc/plan/vision.md`), or simply over time on a faulty disk, a blob can become

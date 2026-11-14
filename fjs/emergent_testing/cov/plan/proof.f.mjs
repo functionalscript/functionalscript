@@ -12,7 +12,7 @@ import { partialRun } from '../../../effects/mock/module.f.js'
 import { access, ioError, nodeCommands, readdir } from '../../../effects/node/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { createPlan, runPlanned } from './module.f.mjs'
+import { createPlan, runPlanned } from './module.f.js'
 
 /** @type {(key: string) => Entry} */
 const entry = key => ({ manifest: { target: key }, key, path: `.cas/${key}`, payload: key, byteLength: key.length })

@@ -32,7 +32,7 @@ import { catchStep, forEachStep, history, historyStep, mapStep, orElse, pureOk, 
 import { exitStep, isNotFound, log, writeFromStream } from '../../../effects/node/module.f.js'
 import { oidBytes as widthOf } from '../../../git/format/module.f.js'
 import { tryCommonDir } from '../../../git/repo/module.f.js'
-import { casAddFile } from '../../module.f.mjs'
+import { casAddFile } from '../../module.f.js'
 import { branchCas, configuredAuthor, snapshot } from '../module.f.mjs'
 
 /** The code the current directory is refused with where it is neither a Git worktree nor a repository directory. */

@@ -13,6 +13,8 @@ import { cmp as strCmp } from '../types/string/module.f.js'
 import { fromEntries } from '../types/object/module.f.js'
 import { mapStep, pureOk, resultStep, step } from '../effects/module.f.js'
 import { join, relativize, toPosix } from '../path/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
 
 /**
  * Opt-in host proofs, including the existing JavaScript/TypeScript spellings.
@@ -117,7 +119,7 @@ export const walk = (s, classify) => {
         const listed = step(
             readdir(p, {}),
             d => allOk(...d.flatMap(i => {
-                const path = join(p, i.name)
+                const path = join(p, assertNotNullish(entry(i, 'name')))
                 const action = classify(path, i)
                 return action === 'take' ? [pureOk([path])]
                     : action === 'descend' ? [load(path)]
@@ -137,10 +139,12 @@ export const walk = (s, classify) => {
  *
  * @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>}
  */
-export const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) =>
-    isDirectory ? (isThirdParty(name) ? 'skip' : 'descend')
-    : !name.startsWith('.') && predicate(path) ? 'take'
-    : 'skip')
+export const allFiles = (s, predicate) => walk(s, (path, dirent) => {
+    const name = assertNotNullish(entry(dirent, 'name'))
+    return dirent.isDirectory ? (isThirdParty(name) ? 'skip' : 'descend')
+        : !name.startsWith('.') && predicate(path) ? 'take'
+        : 'skip'
+})
 
 /**
  * One file, loaded: its import's `Result` is kept as the entry's value, so a
@@ -175,8 +179,10 @@ const loadFiles = (files, prefix) => {
  * @type {() => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
 export const loadDirectoryModuleMap = () => {
-    const discovered = walk('.', (path, { name, isDirectory }) =>
-        isDirectory || name.startsWith('.') || !isAuthored(path) ? 'skip' : 'take')
+    const discovered = walk('.', (path, dirent) => {
+        const name = assertNotNullish(entry(dirent, 'name'))
+        return dirent.isDirectory || name.startsWith('.') || !isAuthored(path) ? 'skip' : 'take'
+    })
     return step(discovered, files => loadFiles(files, ''))
 }
 

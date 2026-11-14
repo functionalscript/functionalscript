@@ -10,7 +10,7 @@
  *
  * **The checker answers a term with its type.** A `Typed` is a type and the
  * term again, with its parts typed in turn. The
- * [checker](./check/module.f.mjs) writes it, and the
+ * [checker](./check/module.f.js) writes it, and the
  * [emitter](./wasm/module.f.js) reads only that.
  *
  * @module

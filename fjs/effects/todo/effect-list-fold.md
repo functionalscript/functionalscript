@@ -39,9 +39,9 @@ it stays.
 **The stream fold is being hand-written separately.** The *EOF → finalize;
 chunk → fold and recurse* skeleton appears in six places — `detectStream`
 (`fjs/media/type/module.f.mjs`), `collectRead` and `contentKey`
-(`fjs/cas/module.f.mjs`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
+(`fjs/cas/module.f.js`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
 (`fjs/effects/node/module.f.js`) and `fileCas.write`'s inner loop
-(`fjs/cas/module.f.mjs`). That is `foldStep` over a stream. The *error item →
+(`fjs/cas/module.f.js`). That is `foldStep` over a stream. The *error item →
 propagate* case it once also had is gone: an `EffectList` cell carries its own failure,
 and `step` propagates it. The two pure folds fit the plain shape; `writeLoop`
 threads its offset as the accumulator; `fileCas.write` threads
@@ -109,8 +109,8 @@ Six, all currently strict:
 | `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.mjs:202` | `cas.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.mjs:280` | `pure(parents)` | `fromList(parents)` |
-| `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |
-| `fjs/cas/module.f.mjs:310` | `pure([0…7])` | `fromList([0…7])` |
+| `fjs/cas/module.f.js:149` | `pure(expired)` | `fromList(expired)` |
+| `fjs/cas/module.f.js:310` | `pure([0…7])` | `fromList([0…7])` |
 | `fjs/compiler/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
 
 The two `cas.list()` sites are the ones this exists for; converting them is a

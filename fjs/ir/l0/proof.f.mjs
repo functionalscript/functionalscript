@@ -1,6 +1,6 @@
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, kind as viewKind } from '../../wasm/runtime/l0/module.f.js'
-import { check } from '../check/module.f.mjs'
+import { check } from '../check/module.f.js'
 import { show } from '../print/module.f.js'
 import { any, kinds, l0 } from './module.f.js'
 

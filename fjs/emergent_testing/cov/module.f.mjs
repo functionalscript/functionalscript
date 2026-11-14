@@ -16,7 +16,7 @@
  * @import { Entry } from './cache/types.ts'
  */
 
-import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
+import { allFiles, sourceRoot } from '../../dev/module.f.js'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.js'
 import { allOk, availableParallelism, capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.js'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
@@ -25,7 +25,7 @@ import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
 import { fmtResult, formatDuration } from '../module.f.mjs'
 import { csiWrite } from '../../text/sgr/module.f.js'
-import { createPlan, runPlanned } from './plan/module.f.mjs'
+import { createPlan, runPlanned } from './plan/module.f.js'
 import { openCoverageCache } from './context/module.f.mjs'
 import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.js'
 

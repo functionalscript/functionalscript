@@ -4,7 +4,7 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { emptyModule, everything, header } from '../../testlib.f.js'
-import { write } from '../write/module.f.mjs'
+import { write } from '../write/module.f.js'
 import { parse } from './module.f.mjs'
 
 /** A section of fewer than 128 bytes. @type {(id: number, content: Bytes) => Bytes} */

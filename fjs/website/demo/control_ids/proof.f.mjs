@@ -3,7 +3,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
-import { eventNameMarker, scopeIds, scopeMarker } from './module.f.mjs'
+import { eventNameMarker, scopeIds, scopeMarker } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     localReferences: () => {

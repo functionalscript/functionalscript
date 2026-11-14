@@ -43,7 +43,7 @@ spelling it twice.
 
 ### Related
 
-- [`fjs/cas`](../../module.f.mjs) — `writeImpl`, the staging upload this
+- [`fjs/cas`](../../module.f.js) — `writeImpl`, the staging upload this
   would reuse the shape of.
 - [`fjs/zlib/stored`](../../../zlib/stored/module.f.js) — the one-shot
   writer.

@@ -1,6 +1,6 @@
 /**
  * The code IR's constructors, the way a person writes a module by hand, and
- * the facts about types that the [checker](./check/module.f.mjs) and the
+ * the facts about types that the [checker](./check/module.f.js) and the
  * [emitter](./wasm/module.f.js) share. The data is
  * [`types.ts`](./types.ts)'s, and the [README](./README.md) says what a
  * module may hold so far.

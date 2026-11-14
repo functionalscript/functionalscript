@@ -20,7 +20,7 @@ that a module does not export, with records and
 |------------------------------------------|-----------------------------------------------------------------------|
 |[`types.ts`](./types.ts)                  |the data: types, terms, functions, modules, and the checker's answer   |
 |[`.`](./module.f.js)                     |the constructors, and the facts about types that the stages share      |
-|[`check`](./check/module.f.mjs)           |the checker: a type for every term, or the module refused with a reason|
+|[`check`](./check/module.f.js)           |the checker: a type for every term, or the module refused with a reason|
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
@@ -31,9 +31,9 @@ that a module does not export, with records and
 
 ```js
 import { unwrap } from '../types/result/module.f.js'
-import { write } from '../media/wasm/binary/write/module.f.mjs'
+import { write } from '../media/wasm/binary/write/module.f.js'
 import { f64, fn, if_, lt } from './module.f.js'
-import { check } from './check/module.f.mjs'
+import { check } from './check/module.f.js'
 import { emit } from './wasm/module.f.js'
 
 const max = fn([['a', f64], ['b', f64]], f64, (a, b) => if_(lt(a, b), b, a))

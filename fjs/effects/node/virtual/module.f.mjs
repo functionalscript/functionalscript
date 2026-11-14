@@ -237,7 +237,11 @@ const isUnder = (name, prefix) => prefix.every((s, i) => name[Number(i)] === s)
  *
  * @type {(f: (handle: _OpenFile, name: readonly string[]) => _OpenFile) => (handles: readonly _OpenFile[]) => readonly _OpenFile[]}
  */
-const mapNamed = f => handles => handles.map(h => h.name === null ? h : f(h, h.name))
+const mapNamed = f => handles => handles.map(h => {
+    const name = ownEntry(h, 'name')
+    assert(name !== undefined)
+    return name === null ? h : f(h, name)
+})
 
 /**
  * `op`, and then what the path now holds copied into every handle under it —
