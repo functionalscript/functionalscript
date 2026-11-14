@@ -152,17 +152,22 @@ export const spellings = [
     '1.5', '1e3', '\u0663', '/', ':',
 ].map(v => ({ any: v }))
 
+/** The arrays that values hold, at any depth: those that a call is given. @type {(values: readonly unknown[]) => ReadonlySet<unknown>} */
+const arraysIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...arraysIn(v)] : []))
+
 /**
  * Whether two values that values of `any` hold are the same: by `Object.is`,
  * so that `-0` and `NaN` are told apart, and two arrays item by item, since
- * a module makes an array of its own.
+ * a module makes an array of its own, unless the twin's is one that the
+ * call was given, `given`, which the module must answer itself.
  *
- * @type {(a: unknown, b: unknown) => boolean}
+ * @type {(given: ReadonlySet<unknown>) => (a: unknown, b: unknown) => boolean}
  */
-const sameHeld = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.length === b.length && a.every((x, k) => sameHeld(x, b[k])) : Object.is(a, b)
+const sameHeld = given => (a, b) => Object.is(a, b)
+    || Array.isArray(a) && Array.isArray(b) && !given.has(b) && a.length === b.length && a.every((x, k) => sameHeld(given)(x, b[k]))
 
-/** Whether two values are the same: by `Object.is`, and two values of `any` by what they hold. @type {(a: _Value, b: _Value) => boolean} */
-const same = (a, b) => isAny(a) && isAny(b) ? sameHeld(a.any, b.any) : Object.is(a, b)
+/** Whether two values are the same: by `Object.is`, and two values of `any` by what they hold. @type {(given: ReadonlySet<unknown>) => (a: _Value, b: _Value) => boolean} */
+const same = given => (a, b) => isAny(a) && isAny(b) ? sameHeld(given)(a.any, b.any) : Object.is(a, b)
 
 /** What a call answers, or that it threw. @type {(f: () => _Value) => readonly ['ok', _Value] | readonly ['threw']} */
 const attempt = f => {
@@ -242,7 +247,7 @@ export const run = (m, twins, inputs) => {
             const args = xs.map(arg)
             const got = attempt(() => fromHost(result, f(...args), h))
             const expected = attempt(() => twin(xs))
-            const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(got[1], expected[1])
+            const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(arraysIn(values))(got[1], expected[1])
             assert(agree, [name, xs, got, expected])
             const cells = [...h.live().map(([k, count]) => `${k}:${count}`), ...h.builders().map(b => `builder ${b}`)].join()
             assert(got[0] === 'threw' || cells === '', [name, xs, cells])
