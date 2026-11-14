@@ -24,14 +24,10 @@ export const empty = { references: noReferences, primitives: noPrimitives, order
 
 /**
  * Primitive types occupy separate namespaces. String conversion merges the
- * two zeros and all NaNs, exactly as SameValueZero does. Symbols have no
- * FunctionalScript representation and must never collide by their description.
+ * two zeros and all NaNs, exactly as SameValueZero does.
  * @type {(key: unknown) => string}
  */
-const primitiveKey = key => {
-    assert(typeof key !== 'symbol', 'a persistent map key cannot be a symbol')
-    return `${key === null ? 'null' : typeof key}:${String(key)}`
-}
+const primitiveKey = key => `${key === null ? 'null' : typeof key}:${String(key)}`
 
 /** @type {(id: bigint) => (slot: readonly [bigint, unknown, unknown]) => Sign} */
 const compareId = id => ([other]) => cmp(id)(other)

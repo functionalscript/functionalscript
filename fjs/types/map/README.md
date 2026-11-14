@@ -8,7 +8,7 @@ an absent key from a present key whose value is `undefined`.
 Keys use SameValueZero: references compare by identity, NaN equals NaN, and
 both signed zeros are stored as positive zero. Primitive types remain
 separate, so `1`, `1n` and `'1'` are three keys. All FunctionalScript values
-can be keys; a symbol supplied by a JavaScript host is explicitly refused.
+can be keys.
 
 Entries keep first-insertion order. Updating a value keeps its position;
 deleting and reinserting a key appends it. The result of `mapEntries` is an

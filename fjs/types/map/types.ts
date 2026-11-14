@@ -4,7 +4,7 @@ import type { Tree } from '../btree/types/types.ts'
 import type { OrderedMap } from '../ordered_map/types.ts'
 import type { RefMap, RefMapKey } from '../ref_map/types.ts'
 
-/** The primitive and reference keys of FunctionalScript; symbols are excluded. */
+/** The primitive and reference keys of FunctionalScript. */
 export type MapKey = undefined | null | boolean | number | bigint | string | RefMapKey
 
 /** A key and its value, in the map's first-insertion order. */

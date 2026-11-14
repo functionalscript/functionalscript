@@ -410,8 +410,8 @@ export const proof = {
         mixedRuleIdentityKeys: () => {
             const tuple = /** @type {const} */ ([c('a')])
             const otherTuple = /** @type {const} */ ([c('a')])
-            const variant = { item: c('a') }
-            const otherVariant = { item: c('a') }
+            const variant = /** @type {const} */ ({ item: c('a') })
+            const otherVariant = /** @type {const} */ ({ item: c('a') })
             const thunk = () => /** @type {const} */ (['const', c('b')])
             const source = /** @type {const} */ ([0, '0', '', null, tuple, tuple, otherTuple, variant, variant, otherVariant, thunk, thunk])
             const [ruleSet, entry, names] = toData(source)
