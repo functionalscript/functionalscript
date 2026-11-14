@@ -273,9 +273,23 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // Each argument is lowered where it stands: after one that is bound to a local, the locals
+        // of the next are named past it.
+        assertEq(ir(fab, fast('export const f = (a, b) => {\n    const sq = x => x * x\n    const mid = (p, q) => (p + q) / 2\n    return mid(a + 1, sq(b + 1))\n}')), [
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    let #0 = add(a, 1.0)',
+            '    let #1 =',
+            '        let #1 = add(b, 1.0)',
+            '        mul(#1, #1)',
+            '    div(add(#0, #1), 2.0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         assertEq(why(fa, fast('export const f = a => {\n    const g = b => b\n    return g\n}')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => [b => b]')), 'f: array is not in this slice')
         assertEq(why(fa, fast('export const f = a => (b => b)(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
+        assertEq(why(fa, fast('export const f = a => (b => b)("s")')), 'f: a string is not in this slice')
         /** A module whose `f` calls a function that it defines, `g`, on `a`. @type {(g: FastFunction) => Block} */
         const calling = g => module([['define', x, ['function', g], 'required']], ['()', ['ref', x], [['ref', a]]])
         const b = id(3)
@@ -332,6 +346,22 @@ export const proof = {
         assertEq(irOver(only([['v', any]], f64), `${imports}const k = v => kind(v)\nexport const f = v => k(v) + k(v)`), [
             'fn f(v: any) -> f64 =',
             '    add(float(Any.kind(v)), float(Any.kind(v)))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // The normalization puts an import that only one function reads in a block around that
+        // function, which is a function of the module all the same.
+        assertEq(irOver(only([['v', any]], f64), `${imports}const g = v => asNumber(v)\nexport const f = v => g(v) + 1`), [
+            'fn f(v: any) -> f64 =',
+            '    add(',
+            '        match v',
+            '          number as v.number =>',
+            '            Any.to_f64(v.number)',
+            '          else =>',
+            "            trap('not number'),",
+            '        1.0',
+            '    )',
             '',
             'export f',
             '',
@@ -537,6 +567,25 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        assertEq(irOver(only([['a', any], ['b', any], ['c', bool]], bool), `${natives}const pick = (c, x, y) => c ? x : y\nexport const f = (a, b, c) => bigintEquals(c ? a : b, pick(!c, a, b))`), [
+            'fn f(a: any, b: any, c: bool) -> bool =',
+            '    let #0 = if c then a else b',
+            '    let #1 =',
+            '        let #1 = if c then false else true',
+            '        if #1 then a else b',
+            '    match #0',
+            '      bigint as #0.bigint =>',
+            '        match #1',
+            '          bigint as #1.bigint =>',
+            '            Native.bigintEquals(#0.bigint, #1.bigint)',
+            '          else =>',
+            "            trap('not bigint')",
+            '      else =>',
+            "        trap('not bigint')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         assertEq(irOver(only([['a', subset(any, 'bigint')], ['b', any]], bool), `${natives}export const f = (a, b) => bigintEquals(a, b)`), [
             'fn f(a: any.only(bigint), b: any) -> bool =',
             '    match b',
@@ -593,6 +642,17 @@ export const proof = {
             'fn f(a: f64) -> f64 =',
             '    loop L0 (#0: f64 = 0.0)',
             '        if lt(#0, a) then br L0 { #0: add(#0, 1.0) } else #0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // The normalization puts a `const` that only a loop reads in a block around the loop's
+        // function: its statements stand where the function is defined.
+        assertEq(ir(fa, fast('export const f = a => {\n    const k = a * 2\n    let i = 0\n    while (i < k) { i = i + 1 }\n    return i\n}')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = mul(a, 2.0)',
+            '    loop L0 (#1: f64 = 0.0)',
+            '        if lt(#1, #0) then br L0 { #1: add(#1, 1.0) } else #1',
             '',
             'export f',
             '',
@@ -938,6 +998,31 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A cast that only a loop reads stands where the loop's function is defined, and narrows the loop.
+        assertEq(irOver(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    let i = 0\n    while (i < length(s)) { i = i + 1 }\n    return i\n}`), [
+            'fn f(v: any) -> f64 =',
+            '    match v',
+            '      string as v.string =>',
+            '        loop L0 (#0: f64 = 0.0)',
+            '            if lt(#0, float(String.length(v.string))) then br L0 { #0: add(#0, 1.0) } else #0',
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A cast narrows a local that holds its kind among others, those of its type.
+        assertEq(irOver(only([['v', subset(any, 'string', 'number')]], f64), `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * length(s)\n}`), [
+            'fn f(v: any.only(string, number)) -> f64 =',
+            '    match v',
+            '      string as v.string =>',
+            '        mul(float(String.length(v.string)), float(String.length(v.string)))',
+            '      else =>',
+            "        trap('not string')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // `unit` reads the integer that its index holds exactly, after the cast of the string.
         const fvi = only([['v', any], ['i', f64]], f64)
         assertEq(irOver(fvi, `${imports}export const f = (v, i) => unit(v, i)`), [
@@ -954,8 +1039,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        // JavaScript reads both arguments first, so an index that does something is bound before the
-        // cast, and an operand that does something before it.
+        // JavaScript reads both arguments first, so each that does something is bound before the cast,
+        // in their order.
         assertEq(irOver(fvi, `${imports}export const f = (v, i) => unit(v, unit(v, i + 1))`), [
             'fn f(v: any, i: f64) -> f64 =',
             '    let #0 =',
@@ -996,13 +1081,33 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        assertEq(irOver(fvi, `${imports}const sq = x => x * x\nexport const f = (v, i) => unit(asString(v), sq(i + 1))`), [
+            'fn f(v: any, i: f64) -> f64 =',
+            '    let #0 =',
+            '        match v',
+            '          string as v.string =>',
+            '            v.string',
+            '          else =>',
+            "            trap('not string')",
+            '    let #1 =',
+            '        let #1 = add(i, 1.0)',
+            '        mul(#1, #1)',
+            '    float(',
+            '        let #1.index = trunc_sat(u(31), #1)',
+            "        if eq(float(#1.index), #1) then String.unit(#0, #1.index) else trap('inexact')",
+            '    )',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         assertEq(irOver(only([['v', any], ['c', bool]], f64), `${imports}export const f = (v, c) => unit(c ? v : v, 0)`), [
             'fn f(v: any, c: bool) -> f64 =',
+            '    let #0 = if c then v else v',
             '    float(',
-            '        match if c then v else v',
-            '          string as unit.string =>',
+            '        match #0',
+            '          string as #0.string =>',
             '            let unit.index = trunc_sat(u(31), 0.0)',
-            "            if eq(float(unit.index), 0.0) then String.unit(unit.string, unit.index) else trap('inexact')",
+            "            if eq(float(unit.index), 0.0) then String.unit(#0.string, unit.index) else trap('inexact')",
             '          else =>',
             "            trap('not string')",
             '    )',
@@ -1020,9 +1125,18 @@ export const proof = {
         assertEq(assertError(over(fa, `${imports}export const f = a => {\n    const s = asString(a)\n    return length(s) * length(s)\n}`)), 'f: asString of f64 is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(...v)\n    return length(s) * length(s)\n}`)), 'f: a spread argument is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * (length(s) * "x")\n}`)), 'f: a string is not in this slice')
+        // A cast of a value that never holds its kind would always trap, as would `unit` of one that
+        // is never a string and `length` of one whose kinds have none.
+        const numeric = only([['v', subset(any, 'number')]], f64)
+        assertEq(assertError(over(only([['v', subset(any, 'string')]], f64), `${imports}export const f = v => asNumber(v)`)), 'f: asNumber of any.only(string): asNumber takes a number')
+        assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return asNumber(v) + length(s)\n}`)), 'f: asNumber of any.only(string): asNumber takes a number')
+        assertEq(assertError(over(numeric, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * length(s)\n}`)), 'f: asString of any.only(number): asString takes a string')
+        assertEq(assertError(over(numeric, `${imports}export const f = v => unit(v, 0)`)), 'f: unit of any.only(number): unit takes a string')
+        assertEq(assertError(over(only([['v', subset(any, 'boolean', 'number')]], f64), `${imports}export const f = v => length(v)`)), 'f: length of any.only(boolean, number): none of its kinds has a length')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v, v)`)), 'f: kind takes one argument, not 2')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1)`)), 'f: kind of f64c is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind("s")`)), 'f: a string is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind`)), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v)`, null)), 'f: an import of ../l0/module.f.js is not in this slice')
         assertEq(assertError(over(fv, 'import g from "./g.f.js"\nexport const f = a => g(a)')), 'f: an import of ./g.f.js is not in this slice')
