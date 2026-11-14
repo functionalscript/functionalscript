@@ -63,7 +63,7 @@ identityAnalysis(['=>', 0, [], body]);
 ```
 
 The analysis walk — `walk` and its handlers in
-[`../analysis/module.f.mjs`](../analysis/module.f.mjs) — recurses once per
+[`../analysis/module.f.js`](../analysis/module.f.js) — recurses once per
 operand, so a sufficiently deep EDAG — a long left-associative operator
 chain (`1 + 1 + 1 + …`), or deeply nested containers (`[[[[…]]]]`) —
 overflows the JS call stack. At `36c8d4a`, an 8,000-term `1 + 1 + … + 1`
@@ -177,7 +177,7 @@ discovered one `RangeError` at a time.
       every walk from the front end to the `.js` and `.rs` outputs whose
       depth is the input's, and for each, an explicit stack, the
       trampoline, or the reason neither fits.
-- [ ] Identify every recursive call in `fjs/edag/analysis/module.f.mjs`
+- [ ] Identify every recursive call in `fjs/edag/analysis/module.f.js`
       (and any sibling module with the same shape) whose depth is the
       *input's*, not a bounded constant.
 - [ ] Include `fjs/edag/value/function`'s body copier, preserving its

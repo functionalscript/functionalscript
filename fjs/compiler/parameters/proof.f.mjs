@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { analysis, checked } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked } from '../../edag/analysis/module.f.js'
 import { vm, invoke as amnesiaInvoke } from '../../edag/amnesia/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.js'

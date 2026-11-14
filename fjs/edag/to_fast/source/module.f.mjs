@@ -10,7 +10,7 @@
  * @import { Task } from './private.ts'
  */
 
-import { itemOperand, operandsOf } from '../../analysis/module.f.mjs'
+import { itemOperand, operandsOf } from '../../analysis/module.f.js'
 import { operatorOperands } from '../../../js/ast/module.f.js'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { prohibitedAccess } from '../../../js/prototype/module.f.js'

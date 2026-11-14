@@ -67,7 +67,7 @@ Investigate, then improve:
 
 ### Related
 
-- [`../../analysis/module.f.mjs`](../../analysis/module.f.mjs) —
+- [`../../analysis/module.f.js`](../../analysis/module.f.js) —
   `identityAnalysis`, `analysis`.
 - [`../../../compiler/transpiler/module.f.mjs`](../../../compiler/transpiler/module.f.mjs)
   — evaluates a module by the identity table.

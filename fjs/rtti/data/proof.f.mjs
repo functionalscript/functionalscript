@@ -458,20 +458,20 @@ export const proof = {
         restRecursion: () => {
             assertData(toData(closedNode))([
                 {
-                    closedNode: {
+                    '0': {
                         array: [{
                             prefix: [
                                 { number: true },
-                                { array: [{ prefix: [], rest: 'closedNode' }] },
+                                { array: [{ prefix: [], rest: '0' }] },
                             ],
                         }],
                     },
                 },
-                'closedNode',
+                '0',
             ])
             // and a cycle whose recursive position is the rest itself
             assertData(toData(nestedRest))(
-                [{ nestedRest: { object: [{ props: { a: { number: true } }, rest: 'nestedRest' }] } }, 'nestedRest'])
+                [{ '0': { object: [{ props: { a: { number: true } }, rest: '0' }] } }, '0'])
         },
         constSchemas: () => {
             assertData(toData(() => /** @type {const} */ (['const', 42])))([{}, { number: [42] }])
@@ -580,32 +580,32 @@ export const proof = {
             assertData(toData(or(tupleNumber, tupleString)))(toData(or(tupleString, tupleNumber)))
         },
         recursion: () => {
-            assertData(toData(list))([{ list: { array: [{ prefix: [], rest: 'list' }] } }, 'list'])
+            assertData(toData(list))([{ '0': { array: [{ prefix: [], rest: '0' }] } }, '0'])
             assertData(toData(tree))(
-                [{ tree: { number: true, array: [{ prefix: [], rest: 'tree' }] } }, 'tree'])
+                [{ '0': { number: true, array: [{ prefix: [], rest: '0' }] } }, '0'])
             assertData(toData(forest))([
-                { tree: { number: true, array: [{ prefix: [], rest: 'tree' }] } },
-                { array: [{ prefix: [], rest: 'tree' }] },
+                { '0': { number: true, array: [{ prefix: [], rest: '0' }] } },
+                { array: [{ prefix: [], rest: '0' }] },
             ])
             assertData(toData(record(list)))([
-                { list: { array: [{ prefix: [], rest: 'list' }] } },
-                { object: [{ props: {}, rest: 'list' }] },
+                { '0': { array: [{ prefix: [], rest: '0' }] } },
+                { object: [{ props: {}, rest: '0' }] },
             ])
             assertData(toData({ p: list }))([
-                { list: { array: [{ prefix: [], rest: 'list' }] } },
-                { object: [{ props: { p: 'list' }, rest: never }] },
+                { '0': { array: [{ prefix: [], rest: '0' }] } },
+                { object: [{ props: { p: '0' }, rest: never }] },
             ])
             assertData(toData(a2))([
                 {
-                    a2: {
+                    '0': {
                         array: [{
                             prefix: [],
-                            rest: { array: [{ prefix: ['a2', 'b2'] }] },
+                            rest: { array: [{ prefix: ['0', '1'] }] },
                         }],
                     },
-                    b2: { array: [{ prefix: [], rest: 'b2' }] },
+                    '1': { array: [{ prefix: [], rest: '1' }] },
                 },
-                'a2',
+                '0',
             ])
         },
         orCycles: () => {
@@ -616,15 +616,17 @@ export const proof = {
             // `outer` and `inner` denote the same set; the interning step
             // recognizes the inlined entry as `inner`'s body
             assertData(toData(outer))([
-                { inner: { string: true, array: [{ prefix: [], rest: 'inner' }] } },
-                'inner',
+                { '0': { string: true, array: [{ prefix: [], rest: '0' }] } },
+                '0',
             ])
+            // Starting at inner allocates a rule later pruned; compaction
+            // closes the gap so the same retained cycle has the same data.
             assertData(toData(outer))(toData(inner))
             assertData(toData(x))([
-                { w: { number: true, array: [{ prefix: [], rest: 'w' }] } },
-                { array: [{ prefix: [], rest: { array: [{ prefix: [], rest: 'w' }] } }] },
+                { '0': { number: true, array: [{ prefix: [], rest: '0' }] } },
+                { array: [{ prefix: [], rest: { array: [{ prefix: [], rest: '0' }] } }] },
             ])
-            assertData(toData(topArr))([{ topOr: unknown }, { array: [{ prefix: [], rest: 'topOr' }] }])
+            assertData(toData(topArr))([{ '0': unknown }, { array: [{ prefix: [], rest: '0' }] }])
         },
         intern: () => {
             // a union equal to a rule's body reads back as a reference,
@@ -649,23 +651,63 @@ export const proof = {
             assert(subset(toData(list))(toData(or(list, listB))))
             assert(subset(toData(listB))(toData(or(list, listB))))
             assertEq(validate(toData(or(list, listB)))([[]])[0], 'ok')
-            // the pair is a mutual subset, yet `equal` stays structural
+            // Function metadata is irrelevant: both independently converted
+            // self-recursive lists receive the same ordinal and structure.
             assert(subset(toData(list))(toData(listB)))
             assert(subset(toData(listB))(toData(list)))
-            assert(!equal(toData(list))(toData(listB)))
+            assert(equal(toData(list))(toData(listB)))
+            // Explicitly supplied rule names remain part of structural data.
+            /** @type {Data} */
+            const named = [{ other: { array: [{ prefix: [], rest: 'other' }] } }, 'other']
+            assert(equivalent(toData(list))(named))
+            assert(!equal(toData(list))(named))
             // bisimilar mixed-kind recursions collapse the same way
             assertData(toData(or(tree, y)))(toData(tree))
         },
         names: () => {
-            // colliding function names are disambiguated with a counter
+            // distinct thunks receive distinct ordinals despite sharing a
+            // function name; metadata does not enter the data form
             assertData(toData(/** @type {const} */ ([mkRec(), mkRec()])))([
                 {
-                    f: { array: [{ prefix: [], rest: 'f' }] },
-                    f0: { array: [{ prefix: [], rest: 'f0' }] },
+                    '0': { array: [{ prefix: [], rest: '0' }] },
+                    '1': { array: [{ prefix: [], rest: '1' }] },
                 },
-                { array: [{ prefix: ['f', 'f0'] }] },
+                { array: [{ prefix: ['0', '1'] }] },
             ])
-            assertData(toData(anon))([{ '': { array: [{ prefix: [], rest: '' }] } }, ''])
+            assertData(toData(anon))([{ '0': { array: [{ prefix: [], rest: '0' }] } }, '0'])
+            assertData(toData(/** @type {const} */ ([list, list])))([
+                { '0': { array: [{ prefix: [], rest: '0' }] } },
+                { array: [{ prefix: ['0', '0'] }] },
+            ])
+        },
+        compactNames: () => {
+            const refs = [mkRec(), mkRec(), mkRec(), mkRec(), mkRec(), mkRec(),
+                mkRec(), mkRec(), mkRec(), mkRec(), mkRec(), mkRec()]
+            // Rule 0 is discovered inside the first element but absorbed by
+            // unknown. The other twelve stay reachable and must be renamed
+            // consistently in their bodies and in the tuple's references.
+            const actual = toData([or(unknownRtti, mkRec()), ...refs])
+            const ids = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+            assertData(actual)([
+                Object.fromEntries(ids.map(id => [id, { array: [{ prefix: [], rest: id }] }])),
+                { array: [{ prefix: [unknown, '0', '2', '3', '4', '5', '6', '7', '8', '9', '1', '10', '11'] }] },
+            ])
+        },
+        recursiveUnionOrder: () => {
+            const arraysFirst = toData(or(list, recordSelf))
+            const objectsFirst = toData(or(recordSelf, list))
+            assert(!equal(arraysFirst)(objectsFirst))
+            assert(equivalent(arraysFirst)(objectsFirst))
+            const a = validate(arraysFirst)
+            const b = validate(objectsFirst)
+            for (const value of [[], [[]], {}, { child: {} }]) {
+                assertEq(a(value)[0], 'ok')
+                assertEq(b(value)[0], 'ok')
+            }
+            for (const value of [1, [{}], { child: [] }]) {
+                assertEq(a(value)[0], 'error')
+                assertEq(b(value)[0], 'error')
+            }
         },
         collapse: () => {
             // a longer tuple pattern is included in a shorter one when both
@@ -713,7 +755,7 @@ export const proof = {
                 '[{},{"unit":1,"string":true,"array":[{"prefix":[],"rest":{"number":true}}]}]')
             assertEq(
                 JSON.stringify(toData(list)),
-                '[{"list":{"array":[{"prefix":[],"rest":"list"}]}},"list"]')
+                '[{"0":{"array":[{"prefix":[],"rest":"0"}]}},"0"]')
         },
     },
     cmp: {
@@ -850,8 +892,8 @@ export const proof = {
         referencedRest: () => {
             // the exemption itself: the rest stays a reference, bit intact
             assertData(toData(rest([number], optList)))([
-                { optList: { unit: absentBit, array: [{ prefix: [], rest: 'optList' }] } },
-                { array: [{ prefix: [{ number: true }], rest: 'optList' }] },
+                { '0': { unit: absentBit, array: [{ prefix: [], rest: '0' }] } },
+                { array: [{ prefix: [{ number: true }], rest: '0' }] },
             ])
             // the stripped fixpoint is a *different rule*, not a bit-mask:
             // one-way inclusion, resolved coinductively
@@ -868,8 +910,8 @@ export const proof = {
             // sets, not one set spelled twice
             const holey = toData(rest([number], absCycleA))
             assertData(holey)([
-                { absCycleA: { unit: absentBit } },
-                { array: [{ prefix: [{ number: true }], rest: 'absCycleA' }] },
+                { '0': { unit: absentBit } },
+                { array: [{ prefix: [{ number: true }], rest: '0' }] },
             ])
             assertEq(validate(holey)([1, , , ])[0], 'ok')
             assertEq(validate(holey)([1, 2])[0], 'error')
@@ -884,8 +926,8 @@ export const proof = {
             // from `array(number)`, and still read the same way
             const referencedTrailing = toData(rest([optNumA], number))
             assertData(referencedTrailing)([
-                { optNumA: { unit: absentBit, number: true } },
-                { array: [{ prefix: ['optNumA'], rest: { number: true } }] },
+                { '0': { unit: absentBit, number: true } },
+                { array: [{ prefix: ['0'], rest: { number: true } }] },
             ])
             assert(!equal(referencedTrailing)(toData(array(number))))
             // the readers still agree on what both spellings accept

@@ -16,7 +16,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { analysis, checked } from '../../analysis/module.f.mjs'
+import { analysis, checked } from '../../analysis/module.f.js'
 import { mapOk, okThen } from '../../../types/result/module.f.js'
 
 /** Checks closure bindings and body scopes in shape-checked FJS data. @type {(value: EdagValue) => Result<EdagValue, string>} */

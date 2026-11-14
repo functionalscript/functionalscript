@@ -1,7 +1,7 @@
 /**
  * The browser runner's orchestration, driven by runners that are not browsers.
  *
- * Every proof here runs [`./module.f.mjs`](./module.f.mjs) on a mock runner,
+ * Every proof here runs [`./module.f.js`](./module.f.js) on a mock runner,
  * which is the whole point of the move: what used to be an `async` function
  * building its own interpreter is now an effect, so a proof chooses the runner
  * and the run's *own* failure becomes reachable. A runner that declares
@@ -21,7 +21,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import {
     countsView, failureOf, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, unreported,
-} from './module.f.mjs'
+} from './module.f.js'
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.js'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.js'

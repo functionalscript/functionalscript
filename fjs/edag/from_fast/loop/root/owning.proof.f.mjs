@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../../analysis/module.f.js'
 import { fromFast } from '../../module.f.mjs'
 import { completeTransfers } from '../completions/module.f.js'
 import { memo } from '../../../memo/module.f.mjs'

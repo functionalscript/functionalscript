@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { analysis, identityAnalysis } from '../../analysis/module.f.mjs'
+import { analysis, identityAnalysis } from '../../analysis/module.f.js'
 import { functionFromAnalysis, toFast } from '../module.f.mjs'
 import { fromFast } from '../../from_fast/module.f.mjs'
 import { prepareFunction } from '../../../js/ast/prepare/module.f.mjs'

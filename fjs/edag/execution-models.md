@@ -77,7 +77,7 @@ be reused, and allocate memoization only for them. Nodes reached once can be
 computed directly.
 
 This preserves the behavior of §2.1 while reducing runtime memory and memo-table
-work. The traversal is [`analysis`](./analysis/module.f.mjs): one table per
+work. The traversal is [`analysis`](./analysis/module.f.js): one table per
 program — by node identity, `identityAnalysis`, where the compiler
 evaluates a module and wherever a body is invoked — the shared entries by
 index, each cached within its scope; the

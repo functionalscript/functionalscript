@@ -13,7 +13,7 @@ the input ends until it is told, and the natural way to tell it is the last
 symbol — so the synthesis has nothing to key on.
 
 Synthesizing a symbol nobody sent also costs machinery in
-[`../../ll1/module.f.mjs`](../../ll1/module.f.mjs), all of it in service of
+[`../../ll1/module.f.js`](../../ll1/module.f.js), all of it in service of
 giving that symbol a position it does not have:
 
 - `symbolAt` answers `eofSymbol` for any `pos >= length` rather than reading
@@ -79,7 +79,7 @@ receives a real `Meta<I>` from the caller, so nothing has to invent one.
       `Parser`'s doc in `../../ll1/types.ts`. They stay true as written until
       the code changes, so they change *with* it, not before.
 - [ ] Delete the extended-cursor handling in
-      [`../../ll1/module.f.mjs`](../../ll1/module.f.mjs): `symbolAt`'s
+      [`../../ll1/module.f.js`](../../ll1/module.f.js): `symbolAt`'s
       end case, `accepts`' guard, `leafAt`'s empty node, and `physical`.
 - [ ] Update the callers to supply EOF. Under no-leaf every AST is unchanged,
       so no mapping moves — but every reader of a whole input does:

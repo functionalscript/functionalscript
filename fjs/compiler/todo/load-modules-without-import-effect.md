@@ -62,7 +62,7 @@ it self-hosting:
   [native parity checks](../../edag/memo/todo/immutable-cache.md) must still prove
   sharing, laziness and per-invocation identity after compilation.
 - Host `Map` dependencies still need migration: the walk in
-  [analysis](../../edag/analysis/module.f.mjs) tracks visited node identities
+  [analysis](../../edag/analysis/module.f.js) tracks visited node identities
   for deduplication. Immutable use of a host `Map` does not make it admitted FJS;
   [built-in admission](../../../spec/todo/2360-built-in.md#keyed-collections)
   and the [container design](../../../todo/037-language-design-map.md) remain
@@ -72,7 +72,7 @@ it self-hosting:
   [operations](../../edag/operations/module.f.mjs)'s `semanticUnary[node[0]]`,
   `numericUnary[node[0]]`, `semanticBinary[tag]`, `relational[tag]` and
   `numericBinary[tag]`, and
-  [analysis](../../edag/analysis/module.f.mjs)'s `handlers[e[0]]` select functions
+  [analysis](../../edag/analysis/module.f.js)'s `handlers[e[0]]` select functions
   by runtime string keys. The [property-access contract](./compile-modules-to-edag.md)
   refuses that source form. Rewrite dispatch with explicit tag comparisons and
   statically named calls using admitted FJS, such as conditional expressions.

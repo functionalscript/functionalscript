@@ -30,7 +30,7 @@
 
 import { catch_, import_ } from '../../effects/common/module.f.js'
 import {
-    addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
+    addResult, collectTests, defaultTest, formatDuration, runEntries, testName, text, zeroState, zeroTotals,
 } from '../module.f.js'
 import { attemptStep, do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { error } from '../../types/result/module.f.js'
@@ -449,7 +449,7 @@ export const groupStatus = (passed, failed, settled) =>
  * @type {(result: _BrowserTestResult) => Element}
  */
 export const resultView = result => {
-    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${reportDuration(result.duration)})`
+    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${testName(result)} (${reportDuration(result.duration)})`
     return result.status === 'failed'
         ? ['li', { 'data-status': 'failed' }, line, ['pre', { 'data-test-error': '' }, `${result.message}\n${result.stack}`]]
         : ['li', { 'data-status': 'passed' }, line]
@@ -462,7 +462,7 @@ export const resultView = result => {
  *
  * @type {(id: TestId) => Element}
  */
-export const pendingView = id => ['li', { 'data-status': 'running' }, `RUN  ${id.name}`]
+export const pendingView = id => ['li', { 'data-status': 'running' }, `RUN  ${testName(id)}`]
 
 /**
  * One module's group: a line of a dot, the module's path and its counts, then

@@ -11,7 +11,7 @@
 
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
+import { analysis, identityAnalysis } from '../analysis/module.f.js'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'

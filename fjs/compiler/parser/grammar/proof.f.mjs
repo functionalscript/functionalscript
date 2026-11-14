@@ -12,7 +12,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
 import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
-import { parser as predictiveParser } from '../../../ebnf/ll1/module.f.mjs'
+import { parser as predictiveParser } from '../../../ebnf/ll1/module.f.js'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'

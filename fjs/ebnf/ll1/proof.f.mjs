@@ -16,7 +16,7 @@ import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, t
 import { toData } from '../data/module.f.js'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { json } from '../lib/json/module.f.mjs'
-import { firstMap, mapping, parser, parserRuleSet } from './module.f.mjs'
+import { firstMap, mapping, parser, parserRuleSet } from './module.f.js'
 
 const { keys } = Object
 
