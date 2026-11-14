@@ -33,7 +33,7 @@
  * `collect` and `runs` — for a structure that keeps the stack itself rather
  * than folding it away, as [`fjs/types/set`](../../types/set/module.f.mjs)
  * does, or that folds it only once it knows the answer is wanted, as
- * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.mjs) does under its
+ * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.js) does under its
  * length cap. `step` is the only way in: every stack it builds from `null`
  * keeps the {@link Stack} invariant. So is the fold's single move,
  * {@link move} on a {@link Walk}: `step` and `collect` are loops over it, and
@@ -304,7 +304,7 @@ export const absorbingAccumulator = ({ monoid, absorbing }) => {
  * it, so a list that goes on with them past the answer is read until they
  * end. Where the answer can be read from the values before they merge, as a
  * length cap can from the lengths, stop the list on that instead:
- * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.mjs) caps the total
+ * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.js) caps the total
  * length as each vector is pushed, with `step` and `collect`, and never waits
  * for a merge.
  *

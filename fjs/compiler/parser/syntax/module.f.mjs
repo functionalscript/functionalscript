@@ -124,6 +124,19 @@ const outAt = node => {
     return meta
 }
 
+/**
+ * What a mapping returned at a position, asserted to be the `id` member of
+ * `Out`. The assert is the check; the cast only says what it checked,
+ * since a generic `id` does not narrow the union.
+ *
+ * @type {<I extends Out['id']>(id: I, node: _Leaf) => Extract<Out, { readonly id: I }>}
+ */
+const outOf = (id, node) => {
+    const out = outAt(node)
+    assert(out.id === id)
+    return /** @type {Extract<Out, { readonly id: typeof id }>} */ (out)
+}
+
 /** The node at a value's position, whether or not a `(` opened it. @type {(node: _Leaf) => Node} */
 const nodeAt = node => {
     const out = outAt(node)
@@ -133,45 +146,24 @@ const nodeAt = node => {
 
 /** @type {(node: _Leaf) => _ParameterTail} */
 const parametersAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'parameters')
-    return { fixed: out.fixed, rest: out.rest }
+    const { fixed, rest } = outOf('parameters', node)
+    return { fixed, rest }
 }
 
 /** @type {(node: _Leaf) => Item} */
-const itemAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'item')
-    return out.item
-}
+const itemAt = node => outOf('item', node).item
 
 /** @type {(node: _Leaf) => List<Item>} */
-const valuesAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'values')
-    return out.items
-}
+const valuesAt = node => outOf('values', node).items
 
 /** @type {(node: _Leaf) => Member} */
-const memberAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'member')
-    return out.member
-}
+const memberAt = node => outOf('member', node).member
 
 /** @type {(node: _Leaf) => Entry} */
-const entryAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entry')
-    return out.entry
-}
+const entryAt = node => outOf('entry', node).entry
 
 /** @type {(node: _Leaf) => List<Entry>} */
-const entriesAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entries')
-    return out.items
-}
+const entriesAt = node => outOf('entries', node).items
 
 /**
  * The target a value is where a binding is wanted: its own reading, or
@@ -188,46 +180,22 @@ const valueTargetAt = node => {
 }
 
 /** @type {(node: _Leaf) => BindingElement} */
-const itemTargetAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'item')
-    return out.target
-}
+const itemTargetAt = node => outOf('item', node).target
 
 /** @type {(node: _Leaf) => List<Element>} */
-const elementsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'elements')
-    return out.items
-}
+const elementsAt = node => outOf('elements', node).items
 
 /** @type {(node: _Leaf) => List<BindingElement>} */
-const elementTargetsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'elements')
-    return out.targets
-}
+const elementTargetsAt = node => outOf('elements', node).targets
 
 /** @type {(node: _Leaf) => BindingProperty} */
-const memberTargetAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'member')
-    return out.target
-}
+const memberTargetAt = node => outOf('member', node).target
 
 /** @type {(node: _Leaf) => BindingProperty} */
-const entryTargetAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entry')
-    return out.target
-}
+const entryTargetAt = node => outOf('entry', node).target
 
 /** @type {(node: _Leaf) => List<BindingProperty>} */
-const entryTargetsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'entries')
-    return out.targets
-}
+const entryTargetsAt = node => outOf('entries', node).targets
 
 /** A value that is no binding target, at the token it begins with. @type {(first: ModuleTokenWithMetadata) => PlainBindingTarget} */
 const invalid = first => ['invalid', first]
@@ -236,32 +204,16 @@ const invalid = first => ['invalid', first]
 const named = token => ['name', token]
 
 /** @type {(node: _Leaf) => Import} */
-const importAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'import')
-    return out.statement
-}
+const importAt = node => outOf('import', node).statement
 
 /** @type {(node: _Leaf) => Const} */
-const constAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'const')
-    return out.statement
-}
+const constAt = node => outOf('const', node).statement
 
 /** @type {(node: _Leaf) => Let} */
-const letAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'let')
-    return out.statement
-}
+const letAt = node => outOf('let', node).statement
 
 /** @type {(node: _Leaf) => NamedStatement} */
-const namedAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'named')
-    return out.statement
-}
+const namedAt = node => outOf('named', node).statement
 
 
 
@@ -272,25 +224,13 @@ const namedAt = node => {
 
 
 /** @type {(node: _Leaf) => LoopStatement} */
-const loopStatementAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'loopStatement')
-    return out.statement
-}
+const loopStatementAt = node => outOf('loopStatement', node).statement
 
 /** @type {(node: _Leaf) => Extract<Out, { readonly id: 'last' }>} */
-const lastAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'last')
-    return out
-}
+const lastAt = node => outOf('last', node)
 
 /** @type {(node: _Leaf) => Module} */
-const moduleAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'module')
-    return out.module
-}
+const moduleAt = node => outOf('module', node).module
 
 /**
  * The words that denote a value, which the tokenizer gives token kinds of
@@ -439,8 +379,22 @@ const valuesOf = listOf(itemAt, valuesAt)
 /** The elements of an array's list from an item on, its tail already mapped. @type {(node: _ListNode) => List<Element>} */
 const elementsOf = listOf(itemAt, elementsAt)
 
-/** The targets of an array's list from an item on, beside its elements. */
-const elementTargetsOf = listOf(itemTargetAt, elementTargetsAt)
+/**
+ * Array targets retain a comma after a rest element, which only a binding
+ * refuses. The value items keep the same spread and trailing-comma syntax.
+ *
+ * @type {(node: _ListNode) => List<BindingElement>}
+ */
+const elementTargetsOf = ([item, more]) => {
+    const target = itemTargetAt(item)
+    const rounds = unmapped(more)
+    if (rounds.length === 0) { return { first: target, tail: null } }
+    const [comma, following] = unmapped(rounds[0])
+    return {
+        first: target[0] === '...' ? ['...', target[1], target[2], tokenAt(comma)] : target,
+        tail: elementTargets(following),
+    }
+}
 
 /** The targets of a list of entries, beside its entries. */
 const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
@@ -503,11 +457,7 @@ const valueWith = (node, init) => {
 const noParenItems = trailing => ({ fixed: null, rest: null, operands: null, refusal: null, trailing })
 
 /** @type {(node: _Leaf) => _ParenItems} */
-const parenItemsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'parenItems')
-    return out
-}
+const parenItemsAt = node => outOf('parenItems', node)
 
 /** The items a `(` value `,` holds after the comma, `[ parenItems ]`: none, a trailing comma, where nothing follows it. @type {(node: _OptionalList) => _ParenItems} */
 const parenItemsOf = node => {
@@ -1257,11 +1207,7 @@ const forAt = node => {
 }
 
 /** An alternate has already been rewritten, so chained conditionals cost no host recursion. @type {(node: _Leaf) => LoopBlock} */
-const loopElseAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'loopElse')
-    return out.block
-}
+const loopElseAt = node => outOf('loopElse', node).block
 
 /** A missing alternate remains distinct from an explicitly empty lexical block. @type {(node: Ast<LoopIfStatement, ModuleTokenWithMetadata, Out>) => LoopIf} */
 const loopIfAt = node => {
@@ -1456,18 +1402,10 @@ const attributeOf = node => {
 }
 
 /** @type {(node: _Leaf) => ImportBinding} */
-const importBindingAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'importBinding')
-    return out.binding
-}
+const importBindingAt = node => outOf('importBinding', node).binding
 
 /** @type {(node: _Leaf) => List<ImportBinding>} */
-const importBindingsAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'importBindings')
-    return out.items
-}
+const importBindingsAt = node => outOf('importBindings', node).items
 
 const importBindingsOf = listOf(importBindingAt, importBindingsAt)
 const importItems = optionalItems(importBindingsAt)
@@ -1563,11 +1501,7 @@ const toLet = ([first, binding, end]) => {
 }
 
 /** @type {(node: _Leaf) => ModuleStatementRecord} */
-const moduleStatementAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'moduleStatement')
-    return out.statement
-}
+const moduleStatementAt = node => outOf('moduleStatement', node).statement
 
 
 

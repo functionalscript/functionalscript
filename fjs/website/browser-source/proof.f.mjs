@@ -7,7 +7,7 @@
  */
 
 import { assert, assertStructurallySame } from '../../asserts/module.f.js'
-import { exportsProof, local, specifiers } from './module.f.mjs'
+import { exportsProof, local, specifiers } from './module.f.js'
 
 /** @type {(source: string) => void} */
 const exports = source => assert(exportsProof(source), source)

@@ -9,6 +9,6 @@ export type Source = ExpansionPlan['reads'][number]['source']
 export type Read = ExpansionPlan<Node>['reads'][number]
 export type Pending =
     | { readonly target: BindingTarget; readonly source: Source; readonly default?: { readonly value: Node } }
-    | { readonly element: BindingElement; readonly source: Source }
+    | { readonly element: BindingElement; readonly source: readonly [number, number] }
     | { readonly property: BindingProperty; readonly parent: number | ModuleTokenWithMetadata }
 export type Stack = StackOf<Pending>

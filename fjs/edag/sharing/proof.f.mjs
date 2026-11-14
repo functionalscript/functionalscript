@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
+import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.js'
 
 /** @type {Exp} */
 const c = ['[]', []]
@@ -30,6 +30,7 @@ export const proof = {
         assertStructurallySame(operandsOf(['arg', 0]), [])
         assertStructurallySame(operandsOf(['entry']), [])
         assertStructurallySame(operandsOf(['hasEntry']), [])
+        assertStructurallySame(operandsOf(['refMap']), [])
         assertStructurallySame(operandsOf(['slice']), [])
         assertStructurallySame(operandsOf(['charCodeAt']), [])
         // the constructor's name is no operand

@@ -2,11 +2,23 @@
  * @import { StringMap } from './types.ts'
  */
 
-import { at, definedEntries, definedValues, fromMap } from './module.f.mjs'
+import { definedEntries, definedValues, fromMap, isObject, sort } from './module.f.js'
 import { empty, setReplace } from '../ordered_map/module.f.js'
-import { assertEq } from '../../asserts/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
+    sortedEntries: () => {
+        assertStructurallySame(toArray(sort([['b', 1], ['a', 2]])), [['a', 2], ['b', 1]])
+        assertStructurallySame(toArray(sort([])), [])
+    },
+    objectGuard: () => {
+        assert(isObject({}))
+        assert(isObject({ value: 1 }))
+        for (const value of /** @type {const} */ ([null, [], 1, 'object', undefined])) {
+            assert(!isObject(value))
+        }
+    },
     // an ordered map as an object: its entries in the map's order, sorted
     fromMap: () => {
         const map = setReplace('b')(1)(setReplace('a')(2)(empty))
@@ -14,16 +26,6 @@ export const proof = {
         assertEq(Object.keys(object).join(), 'a,b')
         assertEq(object.a, 2)
         assertEq(object.b, 1)
-    },
-    ctor: () => {
-        const a = {}
-        const value = at('constructor')(a)
-        assertEq(value, null)
-    },
-    property: () => {
-        const a = { constructor: 42 }
-        const value = at('constructor')(a)
-        assertEq(value, 42)
     },
     // a member holding `undefined` is dropped; the others keep their order
     defined: () => {

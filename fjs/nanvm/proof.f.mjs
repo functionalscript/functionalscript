@@ -21,11 +21,11 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { structurallySame } from '../types/object/structurally_same/module.f.js'
-import { exp } from '../edag/module.f.mjs'
+import { exp } from '../edag/module.f.js'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'
-import { call } from '../edag/value/call/module.f.mjs'
-import { read } from '../edag/value/property/module.f.mjs'
-import runtimeEdag from '../js/runtime/gen.edag.data.js'
+import { call } from '../edag/value/call/module.f.js'
+import { read } from '../edag/value/property/module.f.js'
+import runtimeEdag from '../js/runtime/gen.edag.js'
 import { toData } from '../edag/value/to_unknown/module.f.mjs'
 import { ok } from '../types/result/module.f.js'
 import { validate } from '../rtti/validate/module.f.mjs'
@@ -151,7 +151,7 @@ const reference = key => {
  * The runtime, `fjs/js/runtime`, as the executor takes it: its EDAG, which
  * `npm run gen` writes beside its source, evaluated to the module's export
  * object and read for `runtime`. The member-function cases whose name the
- * dispatcher has no native implementation of — `startsWith` — run the body
+ * dispatcher has no native implementation of, including `concat`, run the body
  * it holds, against the host's own built-in.
  *
  * @type {import('../edag/value/types.ts').Runtime}
@@ -434,6 +434,20 @@ const method = () => {
     assertEq(assertOk(corpus()(exprOf(g)([[1, 2], -1]))), 2)
 }
 
+/** The shared concat body preserves conversion, argument and optional-call order. */
+const concatRuntime = () => {
+    /** @type {(message: string) => Exp} */
+    const failsConversion = message => ['{}', [[':', 'toString', ['=>', 0, [], ['throw', message]]]]]
+    const first = failsConversion('first conversion')
+    const second = failsConversion('second conversion')
+    const evaluate = vm(context)
+    assertEq(assertError(evaluate(['.', '', 'concat', ['|()', [first, second]]])), 'first conversion')
+    // Call operands are evaluated before the body starts converting them.
+    assertEq(assertError(evaluate(['.', '', 'concat', ['|()', [first, ['throw', 'argument']]]])), 'argument')
+    assertEq(assertError(evaluate(['.', 1, 'concat', ['|()', [['throw', 'argument']]]])), 'argument')
+    assertStructurallySame(assertOk(evaluate(['.', 1, 'concat', ['|?.()', [['throw', 'skipped']]]])), ['undefined'])
+}
+
 /**
  * An `unreached` lowers to an operation that throws when established, and
  * `amnesia` returns an error on it — which makes a lazy-position case
@@ -583,6 +597,7 @@ export const proof = {
     lambda,
     callbacks: callbacksProof,
     method,
+    concatRuntime,
     referenceCoverage,
     ...fromEntries(data.groups.map(g => [groupKey(g) === 'throw' ? 'throwOperation' : groupKey(g), group(g)])),
     crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),

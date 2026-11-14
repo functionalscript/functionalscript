@@ -36,14 +36,17 @@ this package already had to put it.
 
 ### Proposal
 
-**Shipped so far: the smallest slice.** `spawn`, `childWait` and `ExitStatus`
-are in `../types.ts`, `../module.f.mjs` and the Node runner, with
-`SpawnOptions = { readonly stdio: 'inherit' }` — the option *required*, not
-optional, until `childRead` exists: a piped child has no reader yet, and one
-whose pipes nobody drains blocks once they fill. The first caller is
-`fjs/dev/gen`, which runs the Nix lock script on the terminal. `cwd` and `env`
-stay with the open questions below; the rest of the family, the piped child
-and its reads, writes and kill, is still to do. `deno.json` already grants
+**Shipped so far:** `spawn`, `childWait` and `ExitStatus` are in
+`../types.ts`, `../module.f.js` and the Node runner. `SpawnOptions` requires
+`stdio: 'inherit' | 'ignore'` and accepts `cwd`. A piped long-lived child still
+has no reader, so its pipe mode is not exposed until `childRead` exists.
+
+`capture` supplies the batch case: literal argv, optional `cwd`, closed input,
+and concurrent collection of both UTF-8 streams through their closure. It
+returns the exit status and complete stdout/stderr even for nonzero exits or
+signals. Coverage uses it to keep successful children quiet and show failed
+children's diagnostics. The rest of the long-lived family — pipe reads,
+writes, environment selection and kill — remains below. `deno.json` grants
 `--allow-run` to the suite, since the host proofs spawn `node`.
 
 A `Spawn` family beside `Exec`, not replacing it. The 0.46 effect system can
@@ -235,13 +238,15 @@ Open for review before code:
 
 - [ ] Settle the signatures above.
 - [x] `spawn`, `childWait`, `Child`, `ExitStatus` and `SpawnOptions` with
-      `stdio: 'inherit'`, in `../types.ts`, `../module.f.mjs` and the Node
+      `stdio: 'inherit'`, in `../types.ts`, `../module.f.js` and the Node
       runner — the brand around the `ChildProcess` itself, `'spawn'` raced
       against `'error'`, the outcome read before `'exit'` is listened for —
       with host proofs for an exit, a signal and a missing command.
+- [x] Batch `capture` with complete UTF-8 output and exit status, used by
+      isolated coverage to replay failed child logs.
 - [ ] `../types.ts`: the five remaining operations; `stdio` becomes optional
       once `childRead` can drain a piped child.
-- [ ] `../module.f.mjs`: their `do_` constructors and `nodeCommandSet` keys.
+- [ ] `../module.f.js`: their `do_` constructors and `nodeCommandSet` keys.
 - [ ] `../module.mjs`: the piped child — `writeAll`-style backpressure, the
       reads and their race, `childKill`.
 - [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,
@@ -274,7 +279,7 @@ Open for review before code:
       a Deno permission error.
 - [x] `../virtual/module.f.mjs`: the not-implemented list names `spawn` and
       `childWait`.
-- [ ] `tsc`, `npm test`, `npm run cov`.
+- [ ] `tsc`, `npm test`, `npm start cov node`.
 
 ### Related
 

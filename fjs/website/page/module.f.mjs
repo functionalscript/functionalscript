@@ -18,12 +18,12 @@
  * exact commit. A build that does not know its commit keeps the raw link,
  * since a GitHub link to a commit nobody pushed opens nothing.
  *
- * The builder is split in two because the root page is not built here. It
- * carries the site's own heading and the browser test runner, so it takes
- * {@link sections} and keeps its own frame, while every other directory gets
- * the whole page from {@link page}. Both write the same catalogue, which is
- * the property that matters — a reader moving between them sees one
- * catalogue, not two.
+ * **The root is a directory like any other.** {@link page} builds its page
+ * too, so a reader moving between the root and any directory sees one
+ * catalogue and one frame, not two. It differs from the rule in three leaves
+ * only: its title and fallback heading are the site's name, it has no
+ * breadcrumb, having no ancestors, and its suite opens with a paragraph on
+ * where the suite comes from.
  *
  * @module
  *
@@ -35,10 +35,10 @@
 
 import { permalink } from '../permalink/module.f.js'
 import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.mjs'
-import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.mjs'
+import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
-import { htmlDocument, parseElement, textContent } from '../../media/html/module.f.mjs'
+import { htmlDocument, mapElement, parseElement, textContent } from '../../media/html/module.f.js'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.js'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse } from '../../types/list/module.f.js'
@@ -387,15 +387,12 @@ const testSummary = linkedSummary('emergent-testing', 'Emergent Testing')
  *
  * @type {(view: Element) => Element}
  */
-const inactive = view => {
-    const [tag, attributes, children] = parseElement(view)
+const inactive = mapElement((tag, attributes) => {
     const name = tag.toLowerCase()
     const action = name === 'button' || (name === 'input' && attributes.type?.toLowerCase() === 'button')
     const pointed = attributes['data-demo-click'] !== undefined || attributes['data-demo-drag'] !== undefined
-    return [tag,
-        action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes,
-        ...children.map(child => typeof child === 'string' ? child : inactive(child))]
-}
+    return [tag, action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes]
+})
 
 /**
  * The demo section: what this module *does*, if it says.
@@ -908,6 +905,18 @@ export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName)
 const rootCard = { href: cardImageHref('.'), alt: siteName }
 
 /**
+ * A page's `og:url`: its root-relative `href` under the build's origin, and
+ * nothing where the build has none, since Open Graph takes only an absolute
+ * URL. One tag, shared with rustdoc's pages
+ * ([`../cargo-doc`](../cargo-doc/module.f.mjs)), which get it as they are
+ * copied.
+ *
+ * @type {(origin: string | null) => (href: string) => readonly Element[]}
+ */
+export const urlMeta = origin => href =>
+    origin === null ? [] : [['meta', { property: 'og:url', content: `${origin}${href}` }]]
+
+/**
  * The `<meta>` tags a chat or a social network reads to build the card it
  * shows for a pasted link: the page's title, what it is about and, when the
  * build has an origin, its own URL, then the {@link siteMeta}
@@ -920,7 +929,7 @@ const rootCard = { href: cardImageHref('.'), alt: siteName }
  * **The description twice.** `description` is the one a search engine shows
  * under the title; `og:description` is the card's.
  *
- * **`og:url` is absolute or absent**, as `og:image` is.
+ * **`og:url` is absolute or absent** ({@link urlMeta}), as `og:image` is.
  *
  * **A page's own card is described by its title**, which is what the image
  * shows: the page's README under its heading. A page without one shows the
@@ -932,7 +941,7 @@ export const previewMeta = origin => ({ href, title, description, card }) => [
     ['meta', { name: 'description', content: description }],
     ['meta', { property: 'og:title', content: title }],
     ['meta', { property: 'og:description', content: description }],
-    ...(origin === null ? [] : [/** @type {Element} */ (['meta', { property: 'og:url', content: `${origin}${href}` }])]),
+    ...urlMeta(origin)(href),
     ...cardMeta(origin)(card === undefined ? rootCard : { href: card, alt: title }),
 ]
 
@@ -974,25 +983,52 @@ export const shell = build => head => content => htmlDocument(lang)(
  *
  * @type {(...nodes: readonly Node[]) => Element}
  */
-export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'data-state': 'idle' }, ...nodes]
+const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'data-state': 'idle' }, ...nodes]
 
 /**
- * The whole page for a directory below the root: where it sits, what it
- * holds, and what is open against it.
+ * What introduces the root's suite: where the suite comes from.
+ *
+ * @type {Element}
+ */
+const suiteIntro = ['p',
+    'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
+    ['a',
+        { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
+        'Read “Emergent Testing in JavaScript”'
+    ],
+    '.'
+]
+
+/**
+ * The whole page for a directory: where it sits, what it holds, and what is
+ * open against it.
+ *
+ * **The root is the project's page.** Its title and the heading it gets
+ * without a README title are the site's name, its description the site's,
+ * it has no ancestors and so no breadcrumb, and its suite opens with
+ * {@link suiteIntro}. The repository and the releases are linked from the
+ * header every page carries ({@link shell}), not from the page's own frame.
+ *
+ * **The catalogue sits beside the demo and test suite.** A reader can
+ * navigate the directory without a growing demo or report moving its links.
  *
  * @type {(build: Build) => (dir: Dir) => string}
  */
-export const page = build => dir => shell(build)({
-    href: pageHref(dir.path),
-    title: pageTitle(dir.path),
-    description: readmeDescription(dir.readme) ?? siteDescription,
-    ...(readmeArticle(dir.readme) === null ? {} : { card: cardImageHref(dir.path) }),
-})(directoryLayout(build)(dir)(testsMain(
-    breadcrumb(dir.path)(basename(dir.path)),
-    ...pageHeading(dir.readme)(basename(dir.path)),
-    ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
-    ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
-    ...dir.readme,
-    ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...testSection(dir)([]),
-)))
+export const page = build => dir => {
+    const isRoot = dir.path === '.'
+    const name = isRoot ? siteName : basename(dir.path)
+    return shell(build)({
+        href: pageHref(dir.path),
+        title: isRoot ? siteName : pageTitle(dir.path),
+        description: isRoot ? siteDescription : readmeDescription(dir.readme) ?? siteDescription,
+        ...(readmeArticle(dir.readme) === null ? {} : { card: cardImageHref(dir.path) }),
+    })(directoryLayout(build)(dir)(testsMain(
+        ...(isRoot ? [] : [breadcrumb(dir.path)(name)]),
+        ...pageHeading(dir.readme)(name),
+        ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
+        ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
+        ...dir.readme,
+        ...(dir.demo === null ? [] : demoSection(dir.demo)),
+        ...testSection(dir)(isRoot ? [suiteIntro] : []),
+    )))
+}

@@ -12,7 +12,7 @@ import { projectSchema } from '../../../schema-demo/module.f.mjs'
 import { revisionSchema } from '../../../../media/revision/module.f.mjs'
 import { lockSchema } from '../../../../media/lock/module.f.mjs'
 import { noteSchema } from '../../../../media/note/module.f.mjs'
-import { unknown as jsonValue } from '../../../../media/json/rtti/module.f.mjs'
+import { unknown as jsonValue } from '../../../../media/json/rtti/module.f.js'
 import { unknown as jsonSchema } from '../../../../media/json/schema/module.f.mjs'
 
 /** @type {readonly DemoExample[]} */

@@ -51,8 +51,8 @@
  * @import { Call, Calls, FunctionSample, Outcome, State } from './types.ts'
  */
 
-import { sandbox } from '../../../effects/common/module.f.mjs'
-import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { sandbox } from '../../../effects/common/module.f.js'
+import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { compiled } from '../../../compiler/demo.f.mjs'
 import { graphOfText } from '../../../compiler/edag/demo.f.mjs'

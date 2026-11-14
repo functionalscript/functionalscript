@@ -50,7 +50,7 @@ The demo on this page runs the *Optional or undefined* lesson:
 `{ a: or(option, number), b: or(number, undefined) }`, whose TypeScript type
 marks `a` optional and gives `b` the type `undefined|number`. Leave `b` out of
 the value to see both readers refuse it; give it `undefined` to see them
-accept it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+accept it. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference

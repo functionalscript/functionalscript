@@ -14,7 +14,7 @@ maintained, and they cannot both be the contract.
 The generator leans toward the first: `ci(setup)` lets a caller vary only
 `nodeExtra`, which reaches the per-OS platform jobs, while `nodeVersionJobs`
 yields the canonical Node jobs unconditionally — so every consumer's generated
-`gen.ci.yml` gets this repository's `node26` job whether or not they want it.
+`gen.ci.yml` gets this repository's `node` job whether or not they want it.
 
 Most of that job is a documented contract and works as intended.
 [`../README.md`](../README.md) states which commands a consuming `package.json`
@@ -25,9 +25,9 @@ entry point and `fjs/dev/gen/module.f.mjs`, including `ci/self/module.f.mjs`,
 to avoid depending on the package bin
 before the package is installed, which that README says outright. So
 `npm run gen` and its drift check are an extension point, not a private
-gate. Since the packed-package check moved into `node26`, the job also ends
-with it: a project whose tarball ships no declarations gets a red `node26`
-(`TS18003`). The README documents this under "Two consequences", and
+gate. The separate `package` job consumes a tarball built and uploaded by
+`node`: a project whose tarball ships no declarations gets a red `package`
+(`TS18003`).
 [package-check-unsupported-package-shapes](./package-check-unsupported-package-shapes.md)
 (2) prices the alternatives.
 
@@ -45,7 +45,7 @@ pattern cannot answer a question about scope
 regenerates gets a workflow that attempts to publish it to npm on every push to
 `main`. Deleting the file does not opt out: the next `fjs ci` writes it again,
 and `gen`'s drift check then fails on its absence. `Setup` has no field
-that turns it off, for the same reason it has none for `node26` — and
+that turns it off, for the same reason it has none for `node` — and
 `fjs run <custom-ci-module>`, which [`fjs/README.md`](../../README.md) offers as
 the escape hatch for exactly this, is not one here: a custom module calls
 `ci(setup)`, and `ci(setup)` is what writes the file.
@@ -107,7 +107,7 @@ is speculative generality.
 
 ### Related
 
-- [`../node/module.f.mjs`](../node/module.f.mjs) — `node26Steps`, the job in
+- [`../node/module.f.mjs`](../node/module.f.mjs) — `nodeVersionJobs`, the job in
   question.
 - [`../module.f.mjs`](../module.f.mjs) — `ci(setup)` and `canonicalJobs`, where
   the jobs are assembled and `nodeExtra` stops short.

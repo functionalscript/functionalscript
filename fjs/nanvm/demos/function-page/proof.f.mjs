@@ -16,8 +16,8 @@
 
 import { tagged } from '../../../text/marked/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { ioError, notImplemented } from '../../../effects/module.f.mjs'
-import { run } from '../../../effects/mock/module.f.mjs'
+import { ioError, notImplemented } from '../../../effects/module.f.js'
+import { run } from '../../../effects/mock/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { codePoints } from '../../../text/ascii/module.f.js'
 import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'

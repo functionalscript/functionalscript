@@ -3,7 +3,7 @@
  * operations onto MCP tools, so an agent that speaks MCP can store a blob and
  * get back its hash, fetch a blob by hash, and enumerate what is stored —
  * without shelling out to the `cas` CLI. The store itself
- * (`fjs/cas/module.f.mjs`) stays transport-agnostic; this is an additional
+ * (`fjs/cas/module.f.js`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. This registry is one of the tool sets
  * `fjs/mcp/module.f.mjs` composes into the FJS MCP server — see that module
  * for the full tool table (including `fjs/mcp/evo`'s `evo_*` tools) and the
@@ -121,26 +121,26 @@
  * @import { Key } from '../../effects/memory/types.ts'
  */
 
-import { string, option, or, boolean } from '../../rtti/module.f.mjs'
+import { string, option, or, boolean } from '../../rtti/module.f.js'
 import { stringify } from '../../media/json/module.f.mjs'
-import { pureOk, resultStep } from '../../effects/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
-import { tryUtf8 } from '../../text/module.f.mjs'
-import { detectStream } from '../../media/type/module.f.mjs'
+import { pureOk, resultStep } from '../../effects/module.f.js'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
+import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.js'
+import { tryUtf8 } from '../../text/module.f.js'
+import { detectStream } from '../../media/type/module.f.js'
 import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.mjs'
 import { lockDialect } from '../../media/lock/module.f.mjs'
 import { noteDialect } from '../../media/note/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
 } from '../../protocol/mcp/module.f.mjs'
-import { collectRead } from '../../cas/module.f.mjs'
-import { errorSummary } from '../../effects/node/module.f.mjs'
-import { fromVec } from '../../text/utf8/module.f.mjs'
+import { collectRead } from '../../cas/module.f.js'
+import { errorSummary } from '../../effects/node/module.f.js'
+import { fromVec } from '../../text/utf8/module.f.js'
 import { identity } from '../../types/function/module.f.js'
-import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { syncRevision } from '../../cas/evo/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 

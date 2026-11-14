@@ -9,7 +9,7 @@
  */
 
 import { assert } from '../asserts/module.f.js'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
 import { anchor } from '../website/demo/railroad/module.f.mjs'
 
 const { entries, fromEntries } = Object

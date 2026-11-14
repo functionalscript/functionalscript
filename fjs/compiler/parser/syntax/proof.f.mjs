@@ -7,7 +7,7 @@
 import { _baseOf, _primitiveOf, _toMember, parseSyntax } from './module.f.mjs'
 import { tokenizeString } from '../proof.f.mjs'
 import { _valueKinds } from '../grammar/module.f.mjs'
-import { fromEntries } from '../../../types/object/module.f.mjs'
+import { fromEntries } from '../../../types/object/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
@@ -55,6 +55,62 @@ const returned = node => {
 }
 
 export const proof = {
+    arrayRestRetainsItsFollowingComma: () => {
+        for (const suffix of ['', ',', ', next', ',,']) {
+            const source = /** @type {const} */ (`const [...rest${suffix}] = input; export default rest;`)
+            const declaration = unwrap(parseSyntax(tokenizeString(source))).statements[0]
+            assert(declaration[0] === 'const')
+            const target = declaration[1].declaration.target
+            assert(target[0] === 'array')
+            const rest = target[2][0]
+            assert(rest[0] === '...' && rest[2][0] === 'name')
+            assertEq(rest[1].metadata.column, source.indexOf('...') + 1)
+            if (suffix === '') {
+                assertEq(rest.length, 3)
+                assertEq(rest[3], undefined)
+            } else {
+                const comma = rest[3]
+                assert(comma !== undefined)
+                assertEq(comma.token.kind, ',')
+                assertEq(comma.metadata.column, source.indexOf(',') + 1)
+            }
+        }
+    },
+    arrayRestCoverKeepsNestedAndParameterTargets: () => {
+        for (const [source, kind] of [
+            ['const [...[a, b]] = input; export default a;', 'array'],
+            ['const [...{ length: size }] = input; export default size;', 'object'],
+        ]) {
+            const declaration = unwrap(parseSyntax(tokenizeString(source))).statements[0]
+            assert(declaration[0] === 'const')
+            const target = declaration[1].declaration.target
+            assert(target[0] === 'array')
+            const rest = target[2][0]
+            assert(rest[0] === '...')
+            assertEq(rest[2][0], kind)
+        }
+        const value = unwrap(parseSyntax(tokenizeString('export default ([...rest,]) => rest;'))).exported?.value
+        assert(value !== undefined && value[0] === '=>' && hasEntry(value[1], 'fixed'))
+        const target = value[1].fixed[0]
+        assert(target[0] === 'array')
+        const rest = target[2][0]
+        assert(rest[0] === '...' && rest[3] !== undefined)
+        assertEq(rest[3].token.kind, ',')
+    },
+    arraySpreadAndObjectRestKeepTheirExistingShapes: () => {
+        const plain = unwrap(parseSyntax(tokenizeString('export default [...items];'))).exported
+        const trailing = unwrap(parseSyntax(tokenizeString('export default [...items,];'))).exported
+        assert(plain !== null && trailing !== null)
+        assertStructurallySame(trailing.value, plain.value)
+        const declaration = unwrap(parseSyntax(tokenizeString('const {...rest,} = input; export default rest;'))).statements[0]
+        assert(declaration[0] === 'const')
+        const target = declaration[1].declaration.target
+        assert(target[0] === 'object')
+        const rest = target[2][0]
+        assert(rest instanceof Array)
+        assertEq(rest[0], '...')
+        assertEq(rest.length, 3)
+    },
     objectPatternDefaultsRetainTargetsInitializersAndTokens: () => {
         const source = 'const {a=1,b:c=2,"d":d=3,["e"]:e=4,nested:{f=5}={}}=input;export default a;'
         const declaration = unwrap(parseSyntax(tokenizeString(source))).statements[0]

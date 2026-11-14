@@ -10,7 +10,7 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b514: Any<A> = _args.rest(1).to_any();
         Ok([_args.argument(0), {
             let _b2: Any<A> = (Any::dot(_b514.clone(), f64_any(0x0000000000000000)).end())?;
-            if Any::<A>::to_boolean((strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { f64_any(0x4024000000000000) } else { _b2.clone() }
+            if Any::<A>::to_boolean(&(strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { f64_any(0x4024000000000000) } else { _b2.clone() }
         }, (Any::dot((Any::dot(_b514.clone(), string_any("slice")).end_call(&A::frame(_self)[0], || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?, string_any("length")).end())?].to_array().to_any())
     }, 1, [runtime.clone()].to_array(), Some("($0,...$1)=>[$0,(()=>{const $2=$1[0];return $2===undefined?10:$2;})(),$1.slice(1).length]")).to_any();
     Ok([(string_key("default"), A::static_function(|_self, _args| {

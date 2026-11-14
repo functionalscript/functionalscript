@@ -6,9 +6,9 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { decode, encode } from '../../basen/base16/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
-import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { hole, latin1, modesTree, rootTree, sha256Tree } from '../testlib.f.mjs'
+import { latin1, modesTree, rootTree, sha256Tree, undefinedByte } from '../testlib.f.js'
 import { isSubtree, mode, tryRead, validate, write } from './module.f.mjs'
 
 const read20 = tryRead(20)
@@ -214,9 +214,9 @@ export const proof = {
             shortId: () => toArray(write20([entry('100644', 'a', '00'.repeat(19))])),
             wideId: () => toArray(write20([entry('100644', 'a', '00'.repeat(32))])),
             nonByteInName: () => toArray(write20([{ mode: latin1('100644'), name: [0x100], oid: oid(idA) }])),
-            holeInName: () => toArray(write20([{ mode: latin1('100644'), name: hole, oid: oid(idA) }])),
+            undefinedByteInName: () => toArray(write20([{ mode: latin1('100644'), name: undefinedByte, oid: oid(idA) }])),
             modeOfNonOctal: () => mode(entry('9', 'a', idA)),
-            readHole: () => read20(hole),
+            readUndefinedByte: () => read20(undefinedByte),
         },
     },
 }

@@ -42,7 +42,7 @@
  * @import { _Span } from './private.ts'
  */
 
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { codeMarker, drawingMarker } from '../../website/style/module.f.js'
 import { button, caption, option, selectField } from '../../website/demo/module.f.mjs'
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'

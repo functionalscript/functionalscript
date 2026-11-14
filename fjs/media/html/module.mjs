@@ -1,6 +1,6 @@
 /**
  * Renders a `media/html` element into a DOM — the impure sibling of
- * [`./module.f.mjs`](./module.f.mjs), which renders the same element to text.
+ * [`./module.f.js`](./module.f.js), which renders the same element to text.
  * It also holds {@link macrotask}, the yield a page renders across.
  *
  * **Built, not parsed.** A page that serialized an element and assigned the
@@ -43,8 +43,9 @@
  * @import { Element as HtmlElement, Node as HtmlNode } from './types.ts'
  */
 
-import { definedEntries } from '../../types/object/module.f.mjs'
-import { isRawText, isVoidTag, parseElement, rawTextContent, scriptRefusal } from './module.f.mjs'
+import { asciiLowercase } from '../../text/ascii/module.f.js'
+import { definedEntries } from '../../types/object/module.f.js'
+import { isRawText, isVoidTag, parseElement, rawTextContent, scriptRefusal } from './module.f.js'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'
 
@@ -91,7 +92,7 @@ const mathMlReadsAsHtml = (target, tag) => {
     return mathMlTextIntegrationPoints.includes(localName)
         ? tag !== 'mglyph' && tag !== 'malignmark'
         : localName === 'annotation-xml'
-            && (tag === 'svg' || htmlEncodings.includes((target.getAttribute('encoding') ?? '').toLowerCase()))
+            && (tag === 'svg' || htmlEncodings.includes(asciiLowercase(target.getAttribute('encoding') ?? '')))
 }
 
 /**
@@ -183,7 +184,7 @@ const namespaceFor = (rules, tag) =>
  *
  * **The serializer's rules for content.** A void element such as `br` gets no
  * children, and a `style` gets only its text, with element children dropped —
- * both by the helpers [`./module.f.mjs`](./module.f.mjs) serializes with, so
+ * both by the helpers [`./module.f.js`](./module.f.js) serializes with, so
  * the same element reads the same whichever way it reaches the page.
  *
  * A `template`'s children go into its `content`, and a `script` is refused;
@@ -386,7 +387,7 @@ const fits = (target, node, tag) => node.localName === tag && node.namespaceURI 
  */
 const storedName = (target, name) => target.namespaceURI !== xhtml
     ? name
-    : [...name].map(c => c >= 'A' && c <= 'Z' ? c.toLowerCase() : c).join('')
+    : asciiLowercase(name)
 
 /**
  * Puts `fresh` where `node` is, or after the last child when there is no
@@ -426,7 +427,7 @@ const showDefault = target => {
     }
     if (target.localName !== 'input') { return }
     const input = /** @type {HTMLInputElement} */ (target)
-    const type = (input.getAttribute('type') ?? '').toLowerCase()
+    const type = asciiLowercase(input.getAttribute('type') ?? '')
     if (type === 'checkbox' || type === 'radio') {
         if (input.checked !== input.defaultChecked) { input.checked = input.defaultChecked }
         return

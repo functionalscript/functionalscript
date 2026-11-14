@@ -6,7 +6,7 @@
 
 ### Problem
 
-`decodeAll` (`fjs/asn.1/module.f.mjs`) drains a bit vector by repeatedly
+`decodeAll` (`fjs/asn.1/module.f.js`) drains a bit vector by repeatedly
 applying `step` until it's empty. It backs `decodeSequence` / `decodeSet` and
 the arcs after the first byte of `decodeObjectIdentifier`. Two independent
 O(n) costs stacked per iteration:
@@ -15,7 +15,7 @@ O(n) costs stacked per iteration:
    O(remaining `length(v)`) per call: a `Vec` is one `bigint`, so every
    `popFront` shifts and masks the whole remaining vector — the same shape
    as the `baseN.vecToString` bug fixed in PR #1202 and the `sha2.append` bug
-   (since fixed in `fjs/crypto/sha2/module.f.mjs`), just with variable-length
+   (since fixed in `fjs/crypto/sha2/module.f.js`), just with variable-length
    ASN.1 fields instead of fixed-size chunks.
 2. `result = [...result, item]` rebuilt the whole array every iteration — a
    plain JS quadratic array build, unrelated to `bit_vec`. **Fixed:**
@@ -59,7 +59,7 @@ expected element counts call for it.
 
 ### Related
 
-- `fjs/basen/module.f.mjs` `vecToString` / `unpackToString` — the fixed
+- `fjs/basen/module.f.js` `vecToString` / `unpackToString` — the fixed
   sibling bug, PR #1202.
-- `fjs/crypto/sha2/module.f.mjs` — the hot sibling bug (`append`), since fixed:
+- `fjs/crypto/sha2/module.f.js` — the hot sibling bug (`append`), since fixed:
   the per-chunk fold is hoisted out of the per-`append` path.

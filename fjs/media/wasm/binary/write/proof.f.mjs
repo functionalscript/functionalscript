@@ -1,7 +1,7 @@
 import { assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { emptyModule, everything, header } from '../../testlib.f.js'
 import { parse } from '../parse/module.f.mjs'
-import { write } from './module.f.mjs'
+import { write } from './module.f.js'
 
 export const proof = {
     empty: () => {

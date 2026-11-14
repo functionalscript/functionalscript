@@ -6,7 +6,7 @@
 
 ### Problem
 
-[`fjs/crypto/sha1`](../sha1/module.f.mjs) computes SHA-1 in `sha2`'s
+[`fjs/crypto/sha1`](../sha1/module.f.js) computes SHA-1 in `sha2`'s
 `Hash<S, R>` shape, proven by the FIPS 180-4 vectors, and `fjs/git/oid`'s `of`
 hashes a Git object with it at the repository's width. That is enough to
 address an object, and to verify one against a name already trusted.
@@ -44,5 +44,5 @@ computes with; `sha1dc` is the one a verifier that must refuse chooses, and
   — what to do about a hash that can collide.
 - [`fjs/git/README.md`](../../git/README.md) — the readers this addresses
   the objects of.
-- [`fjs/crypto/sha2`](../sha2/module.f.mjs) — the shape `sha1` follows, the
+- [`fjs/crypto/sha2`](../sha2/module.f.js) — the shape `sha1` follows, the
   other width, and `framed`, the constructor of the record both build.

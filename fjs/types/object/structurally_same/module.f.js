@@ -10,7 +10,7 @@
  *
  * This module stays below `fjs/asserts` on purpose. `fjs/asserts` needs the
  * comparison for `assertStructurallySame`, and the public object module
- * (`../module.f.mjs`) reaches `fjs/asserts` through `types/nullable`, so
+ * (`../module.f.js`) reaches `fjs/asserts` through `types/nullable`, so
  * importing it here would close the cycle
  * `asserts -> object -> nullable -> asserts`. Its one import is
  * `../entry`, which imports nothing; SameValue is the built-in `Object.is`.

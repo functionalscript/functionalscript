@@ -953,7 +953,7 @@ guidance. Keep detailed operation semantics in their existing owners.
 Map current modules to the proposed responsibilities before moving them:
 `fjs/js/tokenizer`, the compiler's tokenizer adapter, parser/syntax tree,
 `compiler/ast`, `compiler/edag`, the JS serializer, `edag/sharing`,
-`edag/analysis`, `edag/loop`, `compiler/serializer/function_text`, `edag/rust`,
+`edag/analysis`, `edag/loop`, `compiler/serializer`'s `functionText`, `edag/rust`,
 `compiler/rust`, and the Rust media helpers.
 Distinguish responsibilities already shared from those still to extract.
 

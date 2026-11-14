@@ -12,7 +12,7 @@ import type {
     integer,
     objectIdentifier,
     octetString,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /**
  * ASN.1 tag number.

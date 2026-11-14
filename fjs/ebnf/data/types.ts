@@ -49,7 +49,7 @@ export type Rule = Terminal | Sequence | Variant | Repeat
  * which certifies that every name a rule references is defined — a backend
  * following a reference is reading a rule, not a rule that might be
  * missing. The one reader that meets a name that may be absent, `validate`
- * itself, looks names up through `at`, where a miss is typed.
+ * itself, looks names up through `entry`, where a miss is typed.
  */
 export type RuleSet = AbstractRequiredMap<string, Rule>
 

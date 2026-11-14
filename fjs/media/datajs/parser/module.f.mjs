@@ -57,8 +57,8 @@ import { walk } from '../../../types/stack_walk/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
-import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
-import { fromU8List } from '../../../text/utf8/module.f.mjs'
+import { lexeme, units } from '../../../ebnf/utf16/module.f.js'
+import { fromU8List } from '../../../text/utf8/module.f.js'
 import { entry, valueCases } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.mjs'
@@ -309,7 +309,7 @@ const bomRule = 'document: a document has no BOM'
  * them, and a reader taking bytes owes both.
  *
  * Strictness is the decoder's: `fromU8List` in
- * [`fjs/text/utf8`](../../../text/utf8/module.f.mjs), which `fromVec` uses
+ * [`fjs/text/utf8`](../../../text/utf8/module.f.js), which `fromVec` uses
  * too, refuses a malformed sequence and what a code point may not be — a
  * surrogate, which `ED A0 80` decodes to, and anything past U+10FFFF.
  * Measured, that catches a truncated sequence, a lone continuation byte, an

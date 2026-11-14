@@ -26,7 +26,7 @@ export type PrimeField = {
     readonly middle: bigint
     readonly max: bigint
     readonly neg: Unary
-    readonly sub: Reduce
+    readonly subtract: Reduce
     readonly add: Reduce
     readonly abs: Unary
     readonly mul: Reduce

@@ -2,16 +2,16 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, utf8Decoder, stringToU8List, u8ListToString, utf8ToString } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, utf8Decoder, stringToU8List, u8ListToString, utf8ToString } from './module.f.js'
 import { next } from '../../types/list/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, codePoints } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 
 export const proof = {
     lifecycle: () => {

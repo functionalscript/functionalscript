@@ -11,13 +11,13 @@
  * @import { ExpansionPlan, SourceBlock, SourceExit, SourceForOf, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Task } from '../task/types.ts'
- * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, ReferenceTask, Results, Work } from './private.ts'
+ * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, Results, Work } from './private.ts'
  */
 
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
-import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
+import { foldNodes, hasLoopTransfer } from '../control/module.f.mjs'
 import { returnedBlock, hasRetainedReturn } from './completion/module.f.js'
 import { logicalCondition, logicalValue } from './logical/module.f.js'
 import { _exposeOperands } from '../returns/module.f.mjs'
@@ -92,46 +92,18 @@ const captureSources = (context, fn) => {
  */
 const loopSources = (used, environment, context) => context.bindings.filter(fact => fact.isMutable && used.includes(fact.id) && environment.some(([id]) => id === fact.id)).map(fact => fact.id)
 
-/** @type {(value: Value) => ReferenceTask} */
-const valueTask = value => ({ kind: 'value', value })
-
-/** @type {(block: Block) => ReferenceTask} */
-const blockTask = block => ({ kind: 'block', block })
-
 /**
  * Capture and rest pruning follows normalized uses after unused aliases have
- * disappeared. Nested functions expose their established capture values alone.
+ * disappeared. Nested functions expose their established capture values alone,
+ * as `control`'s `children` gives a function's captures and not its body: every
+ * binding a `ref` reads, once each, in lexical order.
  *
  * @type {(root: Block) => readonly BindingId[]}
  */
-const references = root => {
-    /** @type {readonly ReferenceTask[]} */
-    let pending = [blockTask(root)]
-    /** @type {readonly BindingId[]} */
-    let found = []
-    while (pending.length !== 0) {
-        const [task, ...rest] = pending
-        if (task.kind === 'block') {
-            const { block } = task
-            const statements = block.statements.flatMap(statement => statement[0] === 'define' ? [valueTask(statement[2])]
-                : statement[0] === 'if' ? [valueTask(statement[2]), blockTask(statement[3]), blockTask(statement[4])]
-                : statement[0] === 'block' ? [blockTask(statement[2])]
-                : [...statement[1].initial.map(valueTask), blockTask(statement[1].body)])
-            const exit = block.exit
-            pending = [...statements, ...(exit[0] === 'loop'
-                ? [...exit[1].initial.map(valueTask), blockTask(exit[1].body)] : exitValues(exit).map(valueTask)), ...rest]
-            continue
-        }
-        const { value } = task
-        if (value === null || typeof value !== 'object') { pending = rest; continue }
-        if (value[0] === 'ref') { if (!found.includes(value[1])) { found = [...found, value[1]] } pending = rest; continue }
-        if (value[0] === 'function') { pending = [...value[1].captures.map(capture => valueTask(capture.value)), ...rest]; continue }
-        if (value[0] === 'block') { pending = [blockTask(value[1]), ...rest]; continue }
-        if (value[0] === 'if') { pending = [valueTask(value[1]), blockTask(value[2]), blockTask(value[3]), ...rest]; continue }
-        pending = [...operatorOperands(value).map(valueTask), ...rest]
-    }
-    return found
-}
+const references = foldNodes(
+    /** @type {(found: readonly BindingId[], node: Value | Block) => readonly BindingId[]} */
+    (found, node) => node instanceof Array && node[0] === 'ref' && !found.includes(node[1]) ? [...found, node[1]] : found,
+    [])
 
 /**
  * An established read carries no evaluation or identity of its own.
@@ -183,7 +155,10 @@ const expanded = (plan, value, environment, alias, context) => {
     /** @type {readonly Statement[]} */
     let statements = []
     for (const [index, { source, spread, default: fallback }] of plan.reads.entries()) {
-        const read = source === null ? value : typeof source === 'number' || source.length === 1 ? source : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
+        const read = source === null ? value
+            : typeof source === 'number' || source.length === 1 ? source
+            : source[0] === 'slice' ? /** @type {Value} */ (['()', ['.', lookup(inner, plan.ids[source[1]]), 'slice'], [source[2]]])
+            : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
         let selected = read
         if (fallback !== undefined) {
             const raw = binding(index)

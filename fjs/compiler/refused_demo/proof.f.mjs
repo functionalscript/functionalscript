@@ -10,9 +10,9 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
-import { run } from '../../effects/mock/module.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { ioError } from '../../effects/module.f.js'
+import { run } from '../../effects/mock/module.f.js'
+import { htmlToString } from '../../media/html/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { compileAs, excerpt, init, refusedDemo, report, reportText, suggestedText } from './module.f.mjs'
 

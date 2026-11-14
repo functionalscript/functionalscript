@@ -14,8 +14,8 @@
 
 import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
 import { uses, _workflowsDirectory } from '../common/module.f.mjs'
-import { step } from '../../effects/module.f.mjs'
-import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
+import { step } from '../../effects/module.f.js'
+import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
 import { installNode } from '../node/module.f.mjs'

@@ -25,7 +25,7 @@ values, which the data form's `equal` confirms
 The demo on this page runs the *Primitives* lesson: a struct of `boolean`,
 `number`, `string`, `bigint` and `unknown` against a value with `NaN` for the
 number and `7n` for the bigint, written as DataJS. Put a number where the
-bigint is to see both readers refuse it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+bigint is to see both readers refuse it. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
@@ -37,5 +37,5 @@ bigint is to see both readers refuse it. The lesson is defined in [`sample.f.mjs
 
 ## Where it is implemented
 
-The nullary schemas in [`module.f.mjs`](../../../module.f.mjs); the kind
+The nullary schemas in [`module.f.js`](../../../module.f.js); the kind
 checks in [`common`](../../../common/module.f.mjs).

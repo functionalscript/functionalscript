@@ -8,6 +8,6 @@ use nanvm_lib::vm::{Any, Array, Constructor, IStaticFunction, ToAny, ToArray, To
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b414: Any<A> = _args.rest(0).to_any();
-        Any::instanceof_((Any::dot([[(Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any(), (Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any(), (Any::number((Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?))?).end())?, Constructor::Array)
+        Any::instanceof_(&(Any::dot([[(Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any(), (Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any(), (Any::number((Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?))?).end())?, Constructor::Array)
     }, 0, Array::default(), Some("(...$0)=>[[$0[0]],$0[0]][Number($0[0])] instanceof Array")).to_any())].to_object().to_any())
 }

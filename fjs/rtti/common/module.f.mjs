@@ -50,9 +50,8 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
-import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
-import { arrayIndex } from '../../js/array_index/module.f.js'
+import { isArray as commonIsArray } from '../../types/array/module.f.js'
+import { isObject as commonIsObject } from '../../types/object/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /** Builds an error result with empty path and the given message. */
@@ -197,29 +196,24 @@ export const structSchemaEntries = rtti =>
  *
  * Bounded by what the value **carries** rather than by `length`: an index that
  * reads a value is an own enumerable property of the array, so enumerating its
- * own entries finds every one without materializing the range. Walking `0 … length - 1`
+ * own keys finds every one without materializing the range. Walking `0 … length - 1`
  * instead turned a `new Array(2 ** 32 - 1)` — which carries one own property,
  * `length` — into billions of iterations before any check could reject it.
  *
- * The own entries **are** the answer, already in the order wanted:
- * `Object.entries` follows `[[OwnPropertyKeys]]`, integer indices ascending
+ * The own keys **are** the answer, already in the order wanted:
+ * `Object.keys` follows `[[OwnPropertyKeys]]`, integer indices ascending
  * and without repeats,
  * so the walk is one linear pass and needs neither a dedup nor a sort. Adding
  * either made every `array(t)` read quadratic in its length: 829 ms at 40 000
  * elements against 3 ms at 1 000.
  *
- * No `in` test: a name reached this way is an own property of the value, so
- * the array reads at it by construction.
+ * DataJS arrays carry only positional keys below `length`. No `in` test:
+ * a name reached this way is an own property of the value, so the array
+ * reads at it by construction.
  *
  * @type {(value: ReadonlyArray<Unknown>) => readonly number[]}
  */
-const readIndices = value => {
-    const { length } = value
-    return Object.entries(value).flatMap(([k]) => {
-        const i = arrayIndex(k)
-        return i !== null && i < length ? [i] : []
-    })
-}
+const readIndices = value => Object.keys(value).map(v => Number(v))
 
 /**
  * The members of `value` that `declared` does not admit — every one the
@@ -227,8 +221,8 @@ const readIndices = value => {
  *
  * `declared` tests membership in a container schema's own keys, so for a
  * struct these are its undeclared own keys, and for a tuple they are the
- * positions past the prefix together with every own key that is no position
- * at all.
+ * positions past the prefix. The readers' DataJS input domain gives arrays
+ * only positional members.
  *
  * **A tuple's positions are read, not enumerated.** `length` is what says how
  * far an array reaches, and every own index below it is a member the `rest`
@@ -258,12 +252,9 @@ export const undeclaredMembers = (declared, value) => {
     if (!commonIsArray(value)) {
         return Object.entries(value).filter(([k]) => undeclared(k))
     }
-    return [
-        ...readIndices(value)
-            .filter(i => undeclared(String(i)))
-            .map(i => /** @type {const} */ ([String(i), value[Number(i)]])),
-        ...Object.entries(value).filter(([k]) => arrayIndex(k) === null && undeclared(k)),
-    ]
+    return readIndices(value)
+        .filter(i => undeclared(String(i)))
+        .map(i => /** @type {const} */ ([String(i), value[Number(i)]]))
 }
 
 /**
@@ -285,6 +276,8 @@ export const undeclaredMembers = (declared, value) => {
  * 0.5s here against a same-shaped value, for a question that is O(1) a key.
  *
  * `undeclaredMembers` stays for the `rest` readers, which need the pairs.
+ * DataJS arrays have only positional members, so their index walk settles
+ * the question without a separate search for named array properties.
  *
  * @type {(declared: (k: string) => boolean, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
  */
@@ -295,7 +288,6 @@ export const hasUndeclaredMember = (declared, value) => {
         return Object.keys(value).some(undeclared)
     }
     return readIndices(value).some(i => undeclared(String(i)))
-        || Object.keys(value).some(k => arrayIndex(k) === null && undeclared(k))
 }
 
 /**
@@ -399,15 +391,16 @@ const consPresent = (cons, value) => (acc, k, v) => hasEntry(value, k) ? cons(ac
  * so an element set that admits nothing, `array(or())`, is the empty array
  * without a length check of its own.
  */
-export const containerRead =
+const openContainerRead =
     /**
      * @template A
-     * @param {Reader<A>} reader
-     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>>(isContainer: IsContainer<C>, finish: Finish<C, A>) => (item: Type) => ValidateE}
+     * @param {Omit<Reader<A>, 'read'>} reader
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>>(isContainer: IsContainer<C>, finish: Finish<C, A>) => (item: Type) => (read: Reader<A>['read']) => ValidateE}
      */
-    ({ read, empty, cons }) =>
+    ({ empty, cons }) =>
     (isContainer, finish) =>
     item =>
+    read =>
     value => {
         if (!isContainer(value)) {
             return verror('unexpected value')
@@ -420,6 +413,19 @@ export const containerRead =
         const r = eachEntry(e, (_k, v) => itemRead(v), empty, cons)
         return r[0] === 'error' ? r : ok(finish(r[1], value))
     }
+
+/** Bind the recursive reader to the shared uniform-container handler.
+ * @template A
+ * @param {Reader<A>} reader
+ * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>>(isContainer: IsContainer<C>, finish: Finish<C, A>) => (item: Type) => ValidateE}
+ */
+export const containerRead = ({ read, empty, cons }) => {
+    const container = openContainerRead({ empty, cons })
+    return (isContainer, finish) => {
+        const itemRead = container(isContainer, finish)
+        return item => itemRead(item)(read)
+    }
+}
 
 /**
  * The container handler for `Tuple` and `Struct` const schemas — **closed**:
@@ -459,13 +465,13 @@ export const containerRead =
  * JavaScript is stated in
  * `../guide/readers/assumptions/README.md`.
  */
-export const constContainerRead =
+const openConstContainerRead =
     /**
      * @template A
-     * @param {Reader<A>} reader
-     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, fits: Fits<C>, finish: Finish<C, A>) => (rtti: S) => ValidateE}
+     * @param {Omit<Reader<A>, 'read'>} reader
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, fits: Fits<C>, finish: Finish<C, A>) => (rtti: S) => (read: Reader<A>['read']) => ValidateE}
      */
-    ({ read, empty, cons }) =>
+    ({ empty, cons }) =>
     (isContainer, schemaEntries, getItem, fits, finish) =>
     rtti => {
         // Depend on `rtti` alone, so they are computed once per schema rather
@@ -474,7 +480,7 @@ export const constContainerRead =
         const declared = rttiEntries.map(([k]) => k)
         // One lookup per key at the gate, rather than a scan of `declared`.
         const isDeclared = declaredTest(declared)
-        return value => {
+        return read => value => {
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
@@ -526,6 +532,19 @@ export const constContainerRead =
         }
     }
 
+/** Bind the recursive reader to the shared closed-container handler.
+ * @template A
+ * @param {Reader<A>} reader
+ * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, fits: Fits<C>, finish: Finish<C, A>) => (rtti: S) => ValidateE}
+ */
+export const constContainerRead = ({ read, empty, cons }) => {
+    const container = openConstContainerRead({ empty, cons })
+    return (isContainer, schemaEntries, getItem, fits, finish) => {
+        const schemaRead = container(isContainer, schemaEntries, getItem, fits, finish)
+        return rtti => schemaRead(rtti)(read)
+    }
+}
+
 /**
  * The container handler for a schema with a stated `rest`. The declared
  * members are read as the bare form reads them, and every member the schema
@@ -545,20 +564,20 @@ export const constContainerRead =
  * the only kind the readers read, that reaches past the prefix has a member
  * there, and the member meets the `rest`.
  */
-export const restContainerRead =
+const openRestContainerRead =
     /**
      * @template A
-     * @param {Reader<A>} reader
-     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, finish: Finish<C, A>) => (rtti: S, r: Type) => ValidateE}
+     * @param {Omit<Reader<A>, 'read'>} reader
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, finish: Finish<C, A>) => (rtti: S, r: Type) => (read: Reader<A>['read']) => ValidateE}
      */
-    ({ read, empty, cons }) =>
+    ({ empty, cons }) =>
     (isContainer, schemaEntries, getItem, finish) =>
     (rtti, r) => {
         // Depend on the schema alone, so they are computed once per schema.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
         const isDeclared = declaredTest(declared)
-        return value => {
+        return read => value => {
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
@@ -577,6 +596,19 @@ export const restContainerRead =
         }
     }
 
+/** Bind the recursive reader to the shared rest-container handler.
+ * @template A
+ * @param {Reader<A>} reader
+ * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, finish: Finish<C, A>) => (rtti: S, r: Type) => ValidateE}
+ */
+export const restContainerRead = ({ read, empty, cons }) => {
+    const container = openRestContainerRead({ empty, cons })
+    return (isContainer, schemaEntries, getItem, finish) => {
+        const restRead = container(isContainer, schemaEntries, getItem, finish)
+        return (rtti, rest) => restRead(rtti, rest)(read)
+    }
+}
+
 /**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
  *
@@ -587,11 +619,10 @@ export const restContainerRead =
  * Validate<Type>` would itself instantiate `Validate<Type>` and hit TS2589 —
  * so each caller passes its recursive function through one boundary cast.
  *
- * @type {(recurse: (t: Type) => ValidateE) => (variants: readonly Type[]) => (value: Unknown) => ResultE}
+ * @type {(variants: readonly Type[]) => (recurse: (t: Type) => ValidateE) => ValidateE}
  */
-export const orVisit =
-    recurse =>
-    variants => value => {
+const openOrVisit =
+    variants => recurse => value => {
         let i = 0
         while (i < variants.length) {
             const r = recurse(variants[Number(i)])(value)
@@ -602,6 +633,11 @@ export const orVisit =
         }
         return verror('no match')
     }
+
+/** Bind the recursive reader to the shared union handler.
+ * @type {(recurse: (t: Type) => ValidateE) => (variants: readonly Type[]) => ValidateE}
+ */
+export const orVisit = recurse => variants => openOrVisit(variants)(recurse)
 
 /**
  * Visits a schema `Type` by dispatching to the matching handler in `v`.
@@ -681,31 +717,31 @@ const structItem = (value, k) => entry(value, k)
  * @returns {(rtti: Type) => ValidateE}
  */
 export const readerOf = ({ empty, cons }, finish) => {
-    /** @type {(rtti: Type) => ValidateE} */
-    const read = rtti => visit(visitor)(rtti)
-    /** @type {Reader<A>} */
-    const reader = { read, empty, cons }
-    const container = containerRead(reader)
-    const constContainer = constContainerRead(reader)
-    const restContainer = restContainerRead(reader)
+    /** @type {Omit<Reader<A>, 'read'>} */
+    const reader = { empty, cons }
+    const container = openContainerRead(reader)
+    const constContainer = openConstContainerRead(reader)
+    const restContainer = openRestContainerRead(reader)
     const restTuple = restContainer(isArray, tupleSchemaEntries, tupleItem, finish.tuple)
     const restStruct = restContainer(isObject, structSchemaEntries, structItem, finish.struct)
-    /** @type {Visitor<ValidateE>} */
+    /** @type {Visitor<(read: (rtti: Type) => ValidateE) => ValidateE>} */
     const visitor = {
         tuple: constContainer(isArray, tupleSchemaEntries, tupleItem, tupleFits, finish.tuple),
         struct: constContainer(isObject, structSchemaEntries, structItem, objectFits, finish.struct),
         rest: (c, r) => c instanceof Array ? restTuple(c, r) : restStruct(c, r),
         array: container(isArray, finish.array),
         record: container(isObject, finish.record),
-        or: orVisit(read),
-        constPrimitive: constPrimitiveValidate,
-        primitive0: primitive0Validate,
-        unknown: () => ok,
+        or: openOrVisit,
+        constPrimitive: value => () => constPrimitiveValidate(value),
+        primitive0: tag => () => primitive0Validate(tag),
+        unknown: () => () => ok,
         // Absence is decided by the container loop before dispatch, so a value
         // that reaches this handler is present — and no present value is
         // absent. An ordinary error is what lets `orVisit` try the other
         // members of `or(option, t)`.
-        option: () => () => verror('unexpected value'),
+        option: () => () => () => verror('unexpected value'),
     }
+    /** @type {(rtti: Type) => ValidateE} */
+    const read = rtti => visit(visitor)(rtti)(read)
     return read
 }

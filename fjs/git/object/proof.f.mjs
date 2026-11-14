@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { fromArrayLike } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
+import { commitPayload, latin1, undefinedByte } from '../testlib.f.js'
 import { objectTypes, tryLength, tryRead, tryType, write } from './module.f.mjs'
 
 /** @type {(input: Bytes) => Envelope} */
@@ -102,10 +102,10 @@ export const proof = {
         readNonByteBeyondPrefix: () => tryRead([...latin1('blob 30\u0000'), ...latin1('x'.repeat(29)), 0x100]),
         writeNonByte: () => write('blob', [0x100]),
         writeFraction: () => write('blob', [0.5]),
-        // A hole is met, not skipped: in the prefix the parser reads, and
+        // An undefined value is no byte, in the prefix the parser reads or
         // in the payload the fold counts.
-        readHoleInPrefix: () => tryRead(hole),
-        readHoleInPayload: () => tryRead([...latin1('blob 2\u0000'), ...toArray(hole)]),
-        writeHole: () => write('blob', hole),
+        readUndefinedByteInPrefix: () => tryRead(undefinedByte),
+        readUndefinedByteInPayload: () => tryRead([...latin1('blob 2\u0000'), ...toArray(undefinedByte)]),
+        writeUndefinedByte: () => write('blob', undefinedByte),
     },
 }

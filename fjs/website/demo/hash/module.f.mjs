@@ -8,10 +8,10 @@
  * @import { Node, Element } from '../../../media/html/types.ts'
  */
 
-import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from '../../../crypto/sha2/module.f.mjs'
-import { sha1 } from '../../../crypto/sha1/module.f.mjs'
-import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.mjs'
-import { tryUtf8 } from '../../../text/module.f.mjs'
+import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from '../../../crypto/sha2/module.f.js'
+import { sha1 } from '../../../crypto/sha1/module.f.js'
+import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
+import { tryUtf8 } from '../../../text/module.f.js'
 import { codeBlock } from '../code/module.f.js'
 import { tryShellQuote } from '../../../text/shell/module.f.js'
 import { caption, option, refusal } from '../module.f.mjs'

@@ -24,7 +24,7 @@ export const bun = '1.4.4'
 
 export const deno = '2.9.8'
 
-export const node = /** @type {const} */ ('26.13.0')
+export const node = /** @type {const} */ ('26.13.1')
 
 export const typescript = /** @type {const} */({
     version: '7.0.2',
@@ -39,13 +39,15 @@ export const wasmtime = '50.0.1'
 export const wasmer = '7.5.0'
 
 export const spidermonkey = /** @type {const} */ ({
-    version: '153.6.0',
+    version: '153.7.0',
 })
 
 export const actions = /** @type {const} */({
     'jdx/mise-action': 'v5',
     'actions/checkout': 'v7.0.1',
     'actions/setup-node': 'v7.1.0',
+    'actions/upload-artifact': 'v7.0.2',
+    'actions/download-artifact': 'v8.0.2',
     'actions/cache': 'v6.1.0',
     'dtolnay/rust-toolchain': rust,
 })

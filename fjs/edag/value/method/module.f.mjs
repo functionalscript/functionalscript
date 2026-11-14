@@ -18,26 +18,17 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
-import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
-import { call } from '../call/module.f.mjs'
-import { functionAt } from '../property/module.f.mjs'
-import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.mjs'
+import { allowedCalls, prototypes } from '../../../js/prototype/module.f.js'
+import { call } from '../call/module.f.js'
+import { functionAt } from '../property/module.f.js'
+import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.js'
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
+import { at } from '../at/module.f.js'
+import { slice } from '../slice/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
-
-/** The prototype a call on each receiver type looks in, by the type's global's name, as `fjs/js/runtime` keys it. */
-const prototypes = {
-    Object: objectPrototype,
-    Array: arrayPrototype,
-    String: stringPrototype,
-    Number: numberPrototype,
-    Boolean: booleanPrototype,
-    BigInt: bigintPrototype,
-    Function: functionPrototype,
-}
 
 /** A non-nullish receiver's type, by its global's name, as `fjs/js/runtime` keys it. @type {(receiver: EdagValue) => keyof typeof prototypes} */
 const typeName = receiver => typeof receiver === 'string' ? 'String'
@@ -75,7 +66,7 @@ export const callee = (runtime, key, receiver, invoke) => {
  *
  * @type {readonly string[]}
  */
-export const _runtimeOnly = ['startsWith', 'codePointAt']
+export const _runtimeOnly = ['startsWith', 'codePointAt', 'map', 'concat']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish
@@ -172,16 +163,6 @@ const stringMethod = (receiver, key, args, invoke) => {
         // Unicode version, which NaNVM asserts at compile time.
         case 'toLowerCase': { return ok(receiver.toLowerCase()) }
         case 'toUpperCase': { return ok(receiver.toUpperCase()) }
-        case 'concat': {
-            let text = receiver
-            for (const value of args) {
-                const result = toString(value, invoke)
-                const [kind, part] = result
-                if (kind === 'error') { return result }
-                text += part
-            }
-            return ok(text)
-        }
         case 'replace': case 'replaceAll': {
             const result = toString(first, invoke)
             const [kind, search] = result
@@ -202,7 +183,7 @@ const stringMethod = (receiver, key, args, invoke) => {
             const [kind, index] = result
             if (kind === 'error') { return result }
             switch (key) {
-                case 'at': { return ok(tagUndefined(receiver.at(index))) }
+                case 'at': { return ok(at(receiver, index)) }
                 case 'charAt': { return ok(receiver.charAt(index)) }
                 case 'charCodeAt': { return ok(receiver.charCodeAt(index)) }
                 case 'repeat': {
@@ -221,7 +202,7 @@ const stringMethod = (receiver, key, args, invoke) => {
                     const end = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
                     const [endKind, last] = end
                     if (endKind === 'error') { return end }
-                    return ok(key === 'slice' ? receiver.slice(index, last) : receiver.substring(index, last))
+                    return ok(key === 'slice' ? slice(receiver, index, last) : receiver.substring(index, last))
                 }
             }
         }

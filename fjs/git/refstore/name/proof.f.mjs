@@ -8,8 +8,8 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
-import { latin1 } from '../../testlib.f.mjs'
+import { maxLengthBytes } from '../../../types/bit_vec/module.f.js'
+import { latin1 } from '../../testlib.f.js'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey, nameText, refsPrefix } from './module.f.mjs'
 
 /** A name of `n` bytes, every one of them `a`. @type {(n: number) => readonly number[]} */

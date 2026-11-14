@@ -199,11 +199,11 @@
  * @import { _Scope } from './scope/types.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
-import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
+import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
 import { under } from '../../path/module.f.js'
-import { occurrences } from '../../types/array/module.f.mjs'
-import { u8ListMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { occurrences } from '../../types/array/module.f.js'
+import { u8ListMsb, uint } from '../../types/bit_vec/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
@@ -1245,7 +1245,7 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  *
  * One effect per pending ref, at one level, which is a walk rather than a fold
  * only because the step's answer feeds the next state — see
- * [`fjs/effects`](../../effects/module.f.mjs)' `foldStep`, which is what this is.
+ * [`fjs/effects`](../../effects/module.f.js)' `foldStep`, which is what this is.
  *
  * **A target that resolves nowhere leaves the name recorded and adds no root**,
  * which is the shadowing rule: the loose file decided the name by existing, so
@@ -1355,7 +1355,7 @@ const resolvePending = (dirs, oidBytes, packed, found) => {
  * `rev-list`, measured — and it answers the same for a `HEAD` holding bytes
  * that are no ref. But this module is *given* a directory rather than finding
  * one, and whether a repository is there is what
- * [`fjs/git/repo`](../repo/module.f.mjs) and `fjs/git/store`'s `config` read
+ * [`fjs/git/repo`](../repo/module.f.js) and `fjs/git/store`'s `config` read
  * say. A `HEAD` that is there and is no ref *is* this function's business, and
  * refuses the listing the way a broken loose ref does.
  *

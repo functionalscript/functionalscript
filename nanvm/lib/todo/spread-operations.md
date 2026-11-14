@@ -51,7 +51,7 @@ The names are not symmetric because the semantics are not:
 
 - **`get_iterator` is a general protocol, not a spread rule.** Array spread,
   call spread and array destructuring, `const [a, b] = x`
-  ([destructuring](../../../spec/todo/2450-destructuring.md)), all start with
+  ([destructuring](../../../spec/bindings/destructuring/README.md)), all start with
   `GetIterator`, so the operation takes the spec's name.
 - **`object_spread` is spread-specific.** `Object.entries` throws on `null`
   and `undefined`, where `{...null}` is `{}`. Object rest destructuring,

@@ -2,7 +2,7 @@
 
 Synchronous runners for proofs: they perform an effect by calling a handler per
 command and threading a state through, with no host at all.
-[`module.f.mjs`](./module.f.mjs) holds them, and [`types.ts`](./types.ts) the
+[`module.f.js`](./module.f.js) holds them, and [`types.ts`](./types.ts) the
 `MemOperationMap` handler shape.
 
 ```js
@@ -11,8 +11,8 @@ command and threading a state through, with no host at all.
  * @import { MemOperationMap } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
-import { do_, history, historyStep } from '../module.f.mjs'
-import { run } from './module.f.mjs'
+import { do_, history, historyStep } from '../module.f.js'
+import { run } from './module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 /** @type {() => Effect<readonly ['count', () => Result<number, never>], number, never>} */
@@ -30,6 +30,16 @@ run(counter)(0)(twice) // [2, ['ok', [1, 0]]], newest first
 |--------------------------|-------------------------------------------------------------------------|
 |`run(handlers)`           |every operation the program can perform has a handler                    |
 |`partialRun(commands)(handlers)`|some do not: a missing one answers `error(notImplemented(command))`|
+|`runAll(handlers)`         |the program uses `all`, which the runner answers over itself            |
+
+Neither `runAll` nor `partialRun`, where `commands` includes `all`, takes a
+handler for `all`: they run its effects in turn through the runner itself,
+threading the state, so a mock never writes that fold.
+
+`partialRun` also accepts transitions written as `(state, run) => …`: the second
+argument is the same runner `partialRun` returned, for performing nested effects.
+State-only handlers still work. The operation map, matcher, and runner are built
+once and reused by later calls, including nested `all` and handler calls.
 
 A proof asserts on both halves of the answer: the final state says what the
 program did, and the `Result` what it answered. The demo on

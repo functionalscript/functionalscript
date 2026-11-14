@@ -1,6 +1,6 @@
 /**
  * Type-level API for `fjs/js/runtime/module.f.js`: the pins that keep the
- * tables inside the admitted set and the `runtime` export the three
+ * tables inside the admitted set and the `runtime` export the four
  * functions an executor asks — every key `member` holds is a name `allowedCalls`
  * admits, and every entry a member body; the keys of `statics` are
  * exactly the ids `fjs/js/static` admits, and every entry a body — or, at
@@ -17,10 +17,15 @@ import type { StaticId } from '../../edag/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
 import type { member, runtime, statics } from './module.f.js'
 
-/** The runtime: `static`, a static function by its id, `dot`, the callee of a member call, and `in`, the operator's body. */
+/** The runtime: table lookups `static` and `dot`, operator bodies `in` and `Boolean`, and the reference map's maker, `refMap`. */
 export type Runtime = typeof runtime
 
-type _Sections = Assert<Equal<keyof Runtime, 'dot' | 'in' | 'static'>>
+type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'refMap' | 'static'>>
+
+/** The Boolean conversion operator's body. */
+export type BooleanConversion = Runtime['Boolean']
+
+type _BooleanConversion = Assert<Equal<BooleanConversion, (value: unknown) => boolean>>
 
 /** The static read: the function at an id, or `undefined`. */
 export type Static = Runtime['static']
@@ -74,3 +79,19 @@ type _StaticEntries = Assert<Equal<Statics[StaticId] extends StaticBody ? true :
 type _NativeIsTheBuiltIn = Assert<Equal<Statics['Object.entries'], typeof Object.entries>>
 
 type _NativeFromCharCode = Assert<Equal<Statics['String.fromCharCode'], typeof String.fromCharCode>>
+
+type _NativeTrunc = Assert<Equal<Statics['Math.trunc'], typeof Math.trunc>>
+
+type _NativeFloor = Assert<Equal<Statics['Math.floor'], typeof Math.floor>>
+
+type _NativeAbs = Assert<Equal<Statics['Math.abs'], typeof Math.abs>>
+
+type _NativeSqrt = Assert<Equal<Statics['Math.sqrt'], typeof Math.sqrt>>
+
+type _NativeCeil = Assert<Equal<Statics['Math.ceil'], typeof Math.ceil>>
+
+type _NativeImul = Assert<Equal<Statics['Math.imul'], typeof Math.imul>>
+
+type _NativeMax = Assert<Equal<Statics['Math.max'], typeof Math.max>>
+
+type _NativeMin = Assert<Equal<Statics['Math.min'], typeof Math.min>>

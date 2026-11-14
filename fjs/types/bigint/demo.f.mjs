@@ -28,9 +28,9 @@
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.js'
 import { codeMarker } from '../../website/style/module.f.js'
-import { log2 } from './module.f.mjs'
-import { sandbox } from '../../effects/common/module.f.mjs'
-import { foldStep, pureOk, resultStep } from '../../effects/module.f.mjs'
+import { log2 } from './module.f.js'
+import { sandbox } from '../../effects/common/module.f.js'
+import { foldStep, pureOk, resultStep } from '../../effects/module.f.js'
 
 /**
  * `benchmark.mjs`'s own `log2`, which is **not** the one that shipped.

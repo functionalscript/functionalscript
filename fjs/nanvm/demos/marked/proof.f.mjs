@@ -7,10 +7,10 @@
  */
 
 import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
-import { exitCode, readdir, readUtf8File } from '../../../effects/node/module.f.mjs'
+import { exitCode, readdir, readUtf8File } from '../../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { untagged } from '../../../text/marked/module.f.mjs'
-import { utf8 } from '../../../text/module.f.mjs'
+import { utf8 } from '../../../text/module.f.js'
 import { generate, rustPath } from '../module.f.mjs'
 import { rustMarkedPath } from '../page/module.f.mjs'
 import { main, writeMarked } from './module.f.mjs'

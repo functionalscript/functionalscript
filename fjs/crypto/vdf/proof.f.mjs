@@ -10,9 +10,9 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { concat as stringConcat, occurrences } from '../../types/string/module.f.js'
-import { element, htmlToString } from '../../media/html/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { element, htmlToString } from '../../media/html/module.f.js'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth

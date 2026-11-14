@@ -221,7 +221,7 @@ parameter or an enclosing body's `const` is a capture: the slots are
 scope's own node for a captured value, one per node — a `const` and its
 alias, or a parameter read twice, being one, and two nodes spelled alike,
 `o[0]` read by two `const`s, two, since sharing is node identity
-([`fjs/edag/sharing`](../edag/sharing/module.f.mjs)) — in the order the
+([`fjs/edag/sharing`](../edag/sharing/module.f.js)) — in the order the
 body first names them, and the body reads slot `i` as `['frame', i]` — so
 no outside node is ever shared into a body, only read through its frame. A
 captured primitive is written into the body rather than captured, and a
@@ -408,57 +408,15 @@ item's first set, once the punctuators are a prefix tree built from the
 list. An earlier count through the classical `dispatchMap`, which had no
 first/follow check, found three of the eight.
 
-## Next steps
+## What the compiler reads
 
-- [x] use JS tokenizer
-- [x] identifiers `{a:5}`
-- [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
-  the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/values/objects/README.md#the-__proto__-key)) —
-  and `{[k]:5}`, a key computed from any value
-  ([spec: property keys](../../spec/values/objects/README.md#property-keys))
-- [x] big int
-- [x] `export default ...`
-- [x] constants
-  ```js
-  const a = [3]
-  export default = { a: a, b: a }
-  ```
-  Serialization
-  ```js
-  const _0=[3];
-  export default {a:_0,b:_0};
-  ```
-- [x] import
-  ```js
-  import a from 'c.f.js'
-  export default { a: a, b: a}
-  ```
-- [x] short form
-  ```js
-  const a = 5;
-  export default { a }
-  ```
-
-Optional, for fun, syntax sugar:
-
-- [x] comments. Ignore them. Not an error.
-- [x] double/single quote strings: double quotes keep JSON's escapes; single
-      quotes also accept `\'`, `\xHH` and `\v`, as specified in
-      [string escapes](../../spec/lexical/string-escapes/README.md).
-
-## Decidable Language
-
-- [ ] using operator and functions
-  ```js
-  const a = 2+2+Math.abs(5)
-  export default { a: a }
-  ```
-- [ ] decidable functions?
-  ```js
-  const f = a => b => a + b
-  export default f(1)(2)
-  ```
+The language the compiler accepts is the one the
+[language specification](../../spec/README.md) describes, and what it does
+not accept yet is tracked in [`spec/todo`](../../spec/todo/README.md), with
+the valid JavaScript it refuses listed in
+[refused constructs](../../spec/todo/refused-constructs.md). A call to a
+global such as `Math.abs` is [global names](../../spec/todo/2365-global-names.md)
+and [built-in objects](../../spec/todo/2360-built-in.md).
 
 ## Source files and repository migration
 
@@ -470,7 +428,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without an explicit `return`, which the compiler refuses — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without an explicit `return`, which the compiler refuses — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -690,7 +648,7 @@ The repository compiler-compatibility migration is
 [`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md). Stage 1
 was its first blocker and is complete; a standalone `.f.js` is directly
 type-checked, receives a `.d.ts`, is packed in the clean CI package build and
-is covered, and the packed-package check closing the `node26` CI job imports
+is covered, and the packed-package check in the `package` CI job imports
 a published one from a clean consumer, runs it and type-checks a use of its
 declaration with a negative control
 ([`fjs/ci/package`](../ci/package/module.f.mjs)); and the first

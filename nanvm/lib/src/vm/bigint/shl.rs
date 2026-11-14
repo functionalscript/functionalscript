@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn shl_just_over_max_words_returns_err_without_allocating() {
         // Shifting by exactly `MAX_WORDS * 64` bits (2^20, matching
-        // `fjs/types/bigint/module.f.mjs`'s `maxLength`) needs MAX_WORDS + 1
+        // `fjs/types/bigint/module.f.js`'s `maxLength`) needs MAX_WORDS + 1
         // words (word_shift = MAX_WORDS, plus the existing word of `1`, no
         // carry since bit_shift is 0) — one word past `nanvm-lib`'s own
         // policy limit. That is not a boundary V8 itself enforces (V8 alone

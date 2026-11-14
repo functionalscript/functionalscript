@@ -33,13 +33,13 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
 | [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
 | [`runtime/module.f.mjs`](runtime/module.f.mjs) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
-| [`corpus/module.f.mjs`](corpus/module.f.mjs) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
+| [`corpus/module.f.js`](corpus/module.f.js) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
 | [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
 | [`demos/`](demos/README.md) | The [WASM demo pages](demos/README.md): FunctionalScript run as JavaScript and compiled to WebAssembly, side by side. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in
-[`fjs/media/rust`](../media/rust/module.f.mjs). Rust *names* for the operations
+[`fjs/media/rust`](../media/rust/module.f.js). Rust *names* for the operations
 are the printer's own explicit map, never `snakeCase` over a canonical id. A
 method group's name is the exception that proves it: a method name is already
 an identifier, so its function is `method_` and the name in snake case.

@@ -8,7 +8,7 @@ stored — without shelling out to the `cas` CLI — and it exposes Evo's
 subject/head API (`evo_list`/`evo_head`/`evo_revision`/`evo_add`,
 [`fjs/mcp/evo`](evo/)) from the same process.
 
-The store (`fjs/cas/module.f.mjs`) stays transport-agnostic; this adapter is an
+The store (`fjs/cas/module.f.js`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
 `casMcpServer(home)` builds one store under `home`, which both tool registries
@@ -145,7 +145,7 @@ below).
 ### Metadata is size-independent (the default `content: false`)
 
 The metadata-only call **never buffers the blob**. It folds the CAS read stream
-through [`fjs/media/type`](../media/type/module.f.mjs) `detectStream` — a byte-accepting
+through [`fjs/media/type`](../media/type/module.f.js) `detectStream` — a byte-accepting
 state machine (running byte count × magic-byte signature eliminator × UTF-8
 validity DFA) that derives `{ length, mimeType, type }` in O(1) space. The
 detector stops decoding once the verdict is fixed — a magic match settles it
@@ -164,7 +164,7 @@ valid UTF-8 until a trailing invalid byte is correctly classified as `base64`
 ### Content encoding (when `content: true`)
 
 Only the `content: true` path materializes the bytes (bounded by `maxLength`). It
-classifies them with the **same** detector — [`fjs/media/type`](../media/type/module.f.mjs)
+classifies them with the **same** detector — [`fjs/media/type`](../media/type/module.f.js)
 `detectVec`, the single-`Vec` form of the `detectStream` machine above — so the
 three-way verdict is computed in exactly one place, never re-derived from a
 parallel `detect` + UTF-8 check. The `type` then selects whether the inline
@@ -173,7 +173,7 @@ payload lands in `text` or `blob`:
 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `blob` is
    RFC 4648 base64.
 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`, and
-   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.mjs)
+   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.js)
    `fromVec`, used here purely as the decoder).
 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`,
    `blob` is base64.
@@ -207,7 +207,7 @@ Examples:
 ## Encoding split: hashes (cBase32) vs. content
 
 `Cas<O>` deals in `Vec` (bit vectors); MCP models only `textContent` today.
-Hashes travel as **cBase32** ([`fjs/basen/cbase32`](../basen/cbase32/module.f.mjs)) — the
+Hashes travel as **cBase32** ([`fjs/basen/cbase32`](../basen/cbase32/module.f.js)) — the
 canonical CAS hash format shared with the CLI and the on-disk store layout.
 Content encoding is determined at read time as described above.
 

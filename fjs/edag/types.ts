@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/edag/module.f.mjs`: `Exp`, the union of every EDAG
+ * Type-level API for `fjs/edag/module.f.js`: `Exp`, the union of every EDAG
  * node kind — see the union immediately below for the current list, rather
  * than enumerating it here too, where it silently drifts stale as nodes are
  * added — each pinned against its rtti schema in the sibling module with
@@ -15,6 +15,7 @@ import type {
     _exp,
     _optionLambda,
     _optionPropertyLambda,
+    helpers,
     intrinsics,
     array,
     arg,
@@ -52,7 +53,7 @@ import type {
     propertyLambda,
     spread,
     staticId,
-} from './module.f.mjs'
+} from './module.f.js'
 import type { StaticPath } from '../js/static/types.ts'
 
 // exp
@@ -83,7 +84,7 @@ export type Exp =
 /**
  * Bare constant values, not operation nodes — `undefined` is deliberately
  * excluded, since `['undefined']` is a tagged `Op0` operation, not a bare
- * value; see `primitive` in `module.f.mjs`.
+ * value; see `primitive` in `module.f.js`.
  */
 export type Primitive = null | boolean | number | string | bigint
 
@@ -136,7 +137,7 @@ export type Object = readonly['{}', readonly Properties[]]
 
 export type NumberCast = readonly['Number', Exp]
 
-// Index — shape only; see `index` in `module.f.mjs` for what this doesn't
+// Index — shape only; see `index` in `module.f.js` for what this doesn't
 // cover (e.g. denylisted property names like `constructor`)
 
 export type Index = number | NumberCast | string
@@ -188,7 +189,7 @@ export type OptionPropertyLambda =
 
 // The chain states nest, and saying so beats restating the four productions
 // the two option states share — which is what both of these used to do, and
-// what `module.f.mjs`'s `regionProductions` now does once for the schema.
+// what `module.f.js`'s `regionProductions` now does once for the schema.
 //
 // These came here ahead of the schema pins below, for the reason those
 // followed: a `@typedef` in `proof.f.mjs` is checked only where a statement
@@ -243,13 +244,16 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | IntrinsicId | StaticId
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | 'refMap' | IntrinsicId | StaticId
 
-/** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.mjs`. */
+/** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.js`. */
 export type IntrinsicId = (typeof intrinsics)[number][0]
 
+/** A helper's tag: `'entry'`, `'hasEntry'`, `'refMap'` or an intrinsic's. The list is `helpers` in `module.f.js`. */
+export type HelperId = (typeof helpers)[number][0]
+
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
-export type StaticId = 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite'
+export type StaticId = 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.keys' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite' | 'Math.log2' | 'Math.trunc' | 'Math.floor' | 'Math.abs' | 'Math.sqrt' | 'Math.ceil' | 'Math.imul' | 'Math.max' | 'Math.min'
 
 /** A path's keys joined by `.`, the tag a static node carries for it. */
 type Joined<P> = P extends readonly [infer G extends string, infer N extends string] ? `${G}.${N}`
@@ -270,7 +274,7 @@ export type Frame = readonly ['frame', number]
 // Op1Ids
 
 export type Op1Id =
-    | 'String' | 'Number' | 'BigInt' | '!' | '~' | 'typeof' | 'throw'
+    | 'String' | 'Number' | 'BigInt' | 'Boolean' | '!' | '~' | 'typeof' | 'throw'
 
 export type Op1 = readonly[Op1Id, Exp]
 
@@ -295,7 +299,7 @@ export type Op12 =
 
 // Op3Ids — the conditional, and the first node whose operand shape is lazy
 // on its own account: the condition is established, then exactly one arm.
-// See `op3` in `module.f.mjs`.
+// See `op3` in `module.f.js`.
 
 export type Op3Id = '?:'
 
@@ -303,14 +307,14 @@ export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
 
 // Instance check — one operand and a constructor *name*, which is no
 // operand: `Over` keeps it as the literal it is. See `instanceOf` in
-// `module.f.mjs`.
+// `module.f.js`.
 
 export type ConstructorId = 'Array'
 
 export type InstanceOf = readonly['instanceof', Exp, ConstructorId]
 
 // Entry check — a key *spelling*, which is no operand, and one operand:
-// `Over` keeps the key as the string it is. See `inOp` in `module.f.mjs`.
+// `Over` keeps the key as the string it is. See `inOp` in `module.f.js`.
 
 export type In = readonly['in', string, Exp]
 
@@ -419,7 +423,7 @@ type _OverIsClosed = Assert<And<
     Equal<Over<ExpOp, 0> extends readonly [ExpOp[0], ...readonly unknown[]] ? true : false, true>,
     Equal<Over<Call, 0>, readonly ['()', 0, ItemsOver<0>]>>>
 
-// Each RTTI constant in `./module.f.mjs` matches its declared type above.
+// Each RTTI constant in `./module.f.js` matches its declared type above.
 //
 // These were `proof.f.mjs`'s `consistency` entry, whose body was nothing but
 // typedefs — so none of them bound to anything and all 28 were green whatever

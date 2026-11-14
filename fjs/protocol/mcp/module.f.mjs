@@ -23,10 +23,10 @@
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
-import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
-import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.mjs'
+import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.js'
+import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { read, write } from '../../effects/memory/module.f.mjs'
+import { read, write } from '../../effects/memory/module.f.js'
 import {
     decodeRequest,
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
@@ -34,7 +34,7 @@ import {
 } from '../json_rpc/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
-import { unknown } from '../../media/json/rtti/module.f.mjs'
+import { unknown } from '../../media/json/rtti/module.f.js'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
@@ -220,7 +220,7 @@ export const errorResult = text =>
  *
  * **Both renderers are required, and `errorText` is the load-bearing one** —
  * for the reason `unwrapStep` gives for its own `summary`
- * (`fjs/effects/module.f.mjs`): a renderer written for a particular error
+ * (`fjs/effects/module.f.js`): a renderer written for a particular error
  * channel cannot accept a wider one, so a fallible call added upstream turns
  * into a compile error at the tool that has to say what the new failure reads
  * like, instead of silently reaching the client as whatever `String` made of

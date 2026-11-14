@@ -11,7 +11,7 @@
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
-import { array, number, option, or, record, string } from '../../rtti/module.f.mjs'
+import { array, number, option, or, record, string } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
@@ -59,9 +59,9 @@ export const stepSchema = /** @type {const} */ ({
     'continue-on-error': or(option, true)
 })
 
-// `needs` is how one job waits for another. The generated platform checks and
-// website preview build run independently; previews need only their own build
-// to succeed. The schema retains the field for consumers that need ordering.
+// `needs` is how one job waits for another: the package consumer waits for
+// the node job to upload its tarball. Platform checks and website previews
+// run independently.
 // `parseGitHubAction` reads back the workflow this repository generates, so
 // an unmodelled key would fail that round-trip.
 //

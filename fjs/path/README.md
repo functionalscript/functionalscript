@@ -42,6 +42,7 @@ parse('C:\\a\\..\\b')     // ['b'], and its root is 'C:/'
 | `concat(a)(b)` | `b` resolved against `a`; an absolute `b` replaces `a` |
 | `parent` | the directory a path is in; `parent('/')` is `/`, `parent('x')` is `.` |
 | `basename` | the last segment, or `''` for a root |
+| `extension` | what follows the last `.` of the last segment, `''` for `.gitignore` |
 | `ancestors` | every directory above a path, outermost first |
 | `join(...segments)` | segments joined with `/`, with no normalization |
 | `under(dir, name)` | a name below a directory that came from outside |
@@ -64,11 +65,11 @@ directory.
 
 ## Import specifiers
 
-[`import/module.f.mjs`](./import/module.f.mjs) reads an `import` specifier as
+[`import/module.f.js`](./import/module.f.js) reads an `import` specifier as
 a URL path and resolves it against the importing file.
 
 ```js
-import { specifierKind, resolve } from './import/module.f.mjs'
+import { specifierKind, resolve } from './import/module.f.js'
 
 specifierKind('./x')                   // 'relative'
 specifierKind('node:fs')               // 'bare': not a path

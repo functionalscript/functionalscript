@@ -31,7 +31,7 @@ what a module exports, so a module exporting a function named `then` corrupts
 its own dynamic import. That is why exporting `then` from a proof module is
 forbidden ([`spec/modules/exports/README.md`](../../../spec/modules/exports/README.md)) —
 The compiler now enforces this for compiled modules. Proof discovery in
-`../../dev/module.f.mjs` still imports authored `.f.mjs` directly without that
+`../../dev/module.f.js` still imports authored `.f.mjs` directly without that
 compiler check.
 
 **A proof tree is not a thenable, even when it has a `then`.** The runner's rule
@@ -184,7 +184,7 @@ shadow in `runPromise` are for. They are not decoration.
 **FunctionalScript as specified has no promises, and nothing enforces that.** A
 conforming `.f.mjs` proof is pure: no `async`, no `await`, nothing that
 constructs a `Promise`. But selection is by filename — `isAuthored`
-(`../../dev/module.f.mjs`), which `website/module.f.mjs` selects with, is a
+(`../../dev/module.f.js`), which `website/module.f.mjs` selects with, is a
 bare extension check, `.f.mjs` or `.f.js`, with no content check — so a
 module that does not conform is loaded anyway. Verified: a `.f.mjs` returning `Promise.resolve(...)` is selected
 (138 of 138) and awaited correctly. Treat what follows as a statement about
@@ -210,7 +210,7 @@ own fixtures**, and deleting both leaves nothing uncovered.
 
 **In the browser it is stronger than that: by convention a promise does not
 occur.** The browser suite runs authored FunctionalScript and nothing else —
-`isAuthored` (`../../dev/module.f.mjs`), which `website/module.f.mjs` selects
+`isAuthored` (`../../dev/module.f.js`), which `website/module.f.mjs` selects
 with, matches `.f.mjs` and `.f.js`, and the proof list a page carries holds
 those and the one browser-realm proof the website ships, nothing else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no

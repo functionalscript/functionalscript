@@ -30,8 +30,8 @@
  */
 
 import { textSharing } from './sharing/module.f.mjs'
-import { at } from '../../types/object/module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
+import { entry } from '../../types/object/entry/module.f.js'
+import { pureOk } from '../../effects/module.f.js'
 import { examplePicker, name as exampleName } from './examples/module.f.js'
 import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
@@ -183,6 +183,6 @@ export const dragValue = (axis, bounds, x) => axis.right <= axis.left
  * @type {<S extends StringMap<string>>(state: S) => (event: DemoEvent) => Effect<never, S, never>}
  */
 export const fieldUpdate = state => event => pureOk(
-    event.kind === 'input' && at(event.name)(state) !== null
+    event.kind === 'input' && entry(state, event.name) !== undefined
         ? { ...state, [event.name]: event.value }
         : state)

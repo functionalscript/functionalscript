@@ -12,13 +12,13 @@
  */
 
 import { assertOk } from '../../../asserts/module.f.js'
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.mjs'
 import { functionText } from '../../../compiler/serializer/module.f.mjs'
-import { isStatic, staticText } from '../../module.f.mjs'
-import { join } from '../array/module.f.mjs'
-import { objectToPrimitive, primitiveToString, primitiveToNumber } from '../coercion/module.f.mjs'
+import { isStatic, staticText } from '../../module.f.js'
+import { join } from '../array/module.f.js'
+import { objectToPrimitive, primitiveToString, primitiveToNumber } from '../coercion/module.f.js'
 
 /** @type {(value: EdagValue, hint: 'number' | 'string', invoke: Invoke) => Result<Primitive, EdagValue>} */
 export const toPrimitive = (value, hint, invoke) => {

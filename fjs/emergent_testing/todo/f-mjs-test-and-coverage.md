@@ -14,10 +14,9 @@ is future regression infrastructure on its own schedule.
 ### Problem
 
 Tooling recognition of `.f.mjs` has landed: `shouldLoad` in
-`fjs/dev/module.f.mjs` matches `.f.mjs`, `npm run cov` and `deno task cov`
-include `module.f.mjs`, and the canonical Deno CI generator
-(`fjs/ci/deno/module.f.mjs`) delegates to `deno task cov` with a regression
-proof, so `deno.json` is the only owner of the Deno coverage filter.
+`fjs/dev/module.f.js` matches `.f.mjs`, and `npm start cov node` and
+`deno task cov` include `module.f.mjs`. The Deno CI job runs FJS tests without
+coverage; `deno.json` owns the local Deno coverage filter.
 
 What is still missing is end-to-end evidence from an actual `.f.mjs` runtime
 fixture. No repository fixture currently proves that a migrated
@@ -114,7 +113,7 @@ dependency on migrating assertion helpers first.
 
 - A `proof.f.mjs` importing `module.f.mjs` is executed by the normal test
   command and type-checks under `tsc`.
-- The `.f.mjs` fixture appears as a covered file in `npm run cov` and in
+- The `.f.mjs` fixture appears as a covered file in `npm start cov node` and in
   `deno task cov`.
 - `proof.f.mjs` is the proof extension; nothing in the fixture depends on the
   retired `proof.f.ts` form.
@@ -149,7 +148,7 @@ enter the published runtime graph remains unblocked by this issue.
   **blocked by** this fixture task; that gate was de-scoped rather than met, since every conversion happened
   first and the repository itself became the evidence the fixture was to supply
   in advance. This task is independent regression work now and blocks nothing.
-- `shouldLoad` in [`../../dev/module.f.mjs`](../../dev/module.f.mjs) — ordinary
+- `shouldLoad` in [`../../dev/module.f.js`](../../dev/module.f.js) — ordinary
   `.mjs` files stay opt-in through the `proof.mjs` convention, because a
   non-FunctionalScript module may have import side effects; this issue does not
   expand that rule.

@@ -115,7 +115,7 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 `fjs/types/range_set` **is** this type — the `RangeMap<boolean>` that used to
 be there is gone, along with its one consumer's use of it
-(`fjs/media/nix/module.f.mjs`, which builds its sets from `[a, b + 1]`), and
+(`fjs/media/nix/module.f.js`, which builds its sets from `[a, b + 1]`), and
 there are not two. The module exports the algebra (`contains`, `union`,
 `intersection`, `complement`, `difference`), the half-open `fromRange`, and
 `rangeSet`, `empty` and `full` with `isRangeSet` for the validation they panic
@@ -301,7 +301,7 @@ justification is the API and the AST, which is where
       `difference`, the half-open `fromRange`, validation on construction;
       proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`, `[0.5, 1.5]`, an
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
-      repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
+      repeat, a decrease). Port `fjs/media/nix/module.f.js` to `[a, b + 1]`.
 - [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
       `one(x)` as `[a, b + 1]` and `[x, x + 1]` over non-negative safe
       integers with `a <= b`, the open tail when the end is

@@ -12,7 +12,7 @@
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { Assignment, BindingTarget, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, Import, Item, Key, Let, LoopSwitch, Module, Node, ParameterList, Statement, Step, ValueStatement, While, DoWhile, StandaloneLoopBlock } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueRefMap, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { declarations } from './declarations/module.f.js'
@@ -21,17 +21,18 @@ import { returnedBlock, hasRetainedReturn } from '../../js/ast/sugar/completion/
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { sort } from '../../types/object/module.f.mjs'
+import { sort } from '../../types/object/module.f.js'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
 import { assert, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { analyzeBindings } from '../../js/ast/module.f.mjs'
 import { planPattern } from '../../js/ast/sugar/pattern/module.f.js'
 import { maxLength } from '../../types/function/length/module.f.js'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
-import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
+import { prohibitedAccess } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
+import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
-import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
+import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
 
@@ -112,12 +113,15 @@ const malformedParameters = foldError('malformed parameter list')
 const invalidTarget = foldError('invalid destructuring target')
 
 /**
- * A rest element or property in a binding pattern, `[a, ...r]` or
- * `{ a, ...r }`, at its `...`: JavaScript's, and not read yet
- * ([destructuring](../../../spec/todo/2450-destructuring.md)), so refused
+ * A rest property in an object binding pattern, `{ a, ...r }`, at its
+ * `...`: JavaScript's, and not read yet
+ * ([object rest](../../../spec/todo/object-rest-destructuring.md)), so refused
  * by name rather than read in part.
  */
 const restTarget = foldError('rest element not supported')
+
+/** A comma after an array rest target, including a trailing comma. */
+const restComma = foldError('comma after rest element')
 
 /**
  * A hole in an array value, `[1, , 2]` or `[,]`, at the comma that makes
@@ -137,7 +141,7 @@ const arrayHole = foldError('array hole')
  * yet, the conversion `Number(i)` an access admits included — a body's
  * statement is resolved as one value, and the key would be a second value
  * to resolve inside the statement
- * ([destructuring](../../../spec/todo/2450-destructuring.md)).
+ * ([computed binding keys](../../../spec/todo/computed-binding-keys.md)).
  */
 const computedPatternKey = foldError('computed key in a binding pattern not supported')
 
@@ -155,27 +159,28 @@ const captureShadowed = foldError('capture shadowed')
 
 /**
  * A keyword where JavaScript wants an identifier, at the word — or a
- * reserved global, `Number`, `String`, or `BigInt`, bound or read anywhere but as the
+ * reserved global, `Boolean`, `Number`, `String`, or `BigInt`, bound or read anywhere but as the
  * callee of the conversion, {@link conversion}, or `Object` or `Number`
  * anywhere but as the namespace of an admitted static member,
  * {@link staticRead}: never a module's to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
- * no value, so `Number.MAX_VALUE`, `Object.keys` and a bare `Number` are
+ * no value, so `Number.MAX_VALUE`, `Object.values` and a bare `Number` are
  * refused at the word as `typeof.x` would be.
  */
 const reservedWord = foldError('reserved word')
 
 /**
- * The call of `Number`, `String`, or `BigInt` with more than one argument, or a spread,
+ * The call of `Boolean`, `Number`, `String`, or `BigInt` with more than one argument, or a spread,
  * at the word: `Number(a, b)` and `Number(...a)`, refused by design. A
  * conversion is an operator, whose fixed set of operands the compiler
  * checks, and an extra or spread argument says more than the conversion
  * does — `Number(s, 16)` reads as a radix JavaScript ignores
  * ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
  * `Number()` is `0`, and is read as the literal, {@link conversion}, as
- * `String()` is the empty string. `BigInt` requires one operand.
+ * `String()` is the empty string. `Boolean()` converts `undefined` through
+ * the runtime body. `BigInt` requires one operand.
  *
- * @type {(name: 'Number' | 'String' | 'BigInt') => (token: ModuleTokenWithMetadata) => ParseError}
+ * @type {(name: 'Boolean' | 'Number' | 'String' | 'BigInt') => (token: ModuleTokenWithMetadata) => ParseError}
  */
 const conversionArity = name => foldError(`${name} takes one argument`)
 
@@ -312,41 +317,8 @@ const prohibitedKey = foldError('prohibited property name')
  */
 const prohibitedCall = foldError('prohibited member function')
 
-/**
- * The names an access may not read: every name a built-in prototype gives
- * a value, `fjs/js/prototype`, but `length` — an own property of an array,
- * a string and a function, which the two languages read alike.
- *
- * @type {ReadonlySet<string>}
- */
-const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
-
-/**
- * The names a method call may not call: `prohibitedCalls`, as a set.
- *
- * @type {ReadonlySet<string>}
- */
-const prohibitedCallNames = new Set(prohibitedCalls)
-
-/**
- * Why an access of the name is refused, or `null` when it is allowed: a
- * member function a module may not call where the access is a method
- * call's callee, `method`, and a name of the prototype chain where it is
- * read — the two rules of `fjs/js/prototype`'s two lists.
- *
- * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
- * which refuses the same accesses rather than write one the parser here
- * would not read back: the rule is the language's, and it has one owner,
- * each consumer wrapping the answer in its own error. The `_` says that
- * export is linkage rather than API, as it does for `_tokenKindNames` in
- * [`./grammar`](./grammar/module.f.mjs).
- *
- * @type {(method: boolean) => (name: string) => 'member function' | 'property name' | null}
- */
-export const _prohibitedAccess = method => name =>
-    method
-        ? (prohibitedCallNames.has(name) ? 'member function' : null)
-        : (prohibitedNames.has(name) ? 'property name' : null)
+/** Why a read of the name is refused, or `null`: `in`'s left side is a read. */
+const prohibitedRead = prohibitedAccess(false)
 
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: ModuleTokenWithMetadata) => string | number} */
 const keyNamed = t => {
@@ -412,14 +384,14 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
 /**
  * A key's name, or its refusal: a name of the prototype chain where the
  * key is read, and a member function a module may not call where it is
- * called, `method`, as {@link _prohibitedAccess} answers.
+ * called, `method`, as `fjs/js/prototype`'s `prohibitedAccess` answers.
  *
  * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
  */
 const checkedKey = (key, method) => {
     const named = keyNamed(key)
     if (typeof named === 'string') {
-        const why = _prohibitedAccess(method)(named)
+        const why = prohibitedAccess(method)(named)
         if (why === 'member function') { return error(prohibitedCall(key)) }
         if (why === 'property name') { return error(prohibitedKey(key)) }
     }
@@ -500,7 +472,7 @@ const planned = check => planPattern({
 })
 
 /** The source admission owner supplies each refused spelling's diagnostic. */
-const patternRefusals = { invalid: invalidTarget, rest: restTarget, computed: computedPatternKey, duplicate: duplicateId }
+const patternRefusals = { invalid: invalidTarget, rest: restTarget, restComma, computed: computedPatternKey, duplicate: duplicateId }
 
 /** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
 const namespaceMember = (namespace, key) => {
@@ -1240,7 +1212,7 @@ const enter = (stack, scope, node) => {
         case 'in': {
             const [, left, right, at] = node
             if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
-            if (prohibitedNames.has(left[1])) { return [stack, scope, error(prohibitedKey(at))] }
+            if (prohibitedRead(left[1]) !== null) { return [stack, scope, error(prohibitedKey(at))] }
             return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
         }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
@@ -1261,7 +1233,7 @@ const enter = (stack, scope, node) => {
 const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
 
 /**
- * The conversion `Number(x)`, `String(x)`, or `BigInt(x)` entered, or `null` where the call
+ * The conversion `Boolean(x)`, `Number(x)`, `String(x)`, or `BigInt(x)` entered, or `null` where the call
  * is no conversion: a call whose callee is one of those words — which no scope
  * binds, since each word is refused at every binding, {@link identifierOf},
  * so the word alone decides — its one plain argument entered under a frame
@@ -1279,14 +1251,15 @@ const conversion = (stack, scope, [, callee, args]) => {
     if (callee[0] !== 'ref') { return null }
     const name = nameOf(callee[1])
     if (!isConversionWord(name)) { return null }
+    if (args.length === 0 && name === 'Boolean') { return [stack, scope, ok(['Boolean', undefined])] }
     if (args.length === 0 && name !== 'BigInt') { return [stack, scope, ok(name === 'Number' ? 0 : '')] }
     const operand = args.length === 1 ? args[0] : null
     if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(name)(callee[1]))] }
     return [{ top: { unary: name }, rest: stack }, scope, ['enter', operand]]
 }
 
-/** Whether a word is a conversion's, `Number`, `String`, or `BigInt`, which the word alone decides, no scope binding it. @type {(name: string) => name is 'Number' | 'String' | 'BigInt'} */
-const isConversionWord = name => name === 'Number' || name === 'String' || name === 'BigInt'
+/** Whether a word names a conversion, decided without a scope binding. @type {(name: string) => name is 'Boolean' | 'Number' | 'String' | 'BigInt'} */
+const isConversionWord = name => name === 'Boolean' || name === 'Number' || name === 'String' || name === 'BigInt'
 
 /**
  * Whether an access's key is the constant `name`, in either spelling: a
@@ -1297,7 +1270,7 @@ const isConversionWord = name => name === 'Number' || name === 'String' || name 
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
 
 /**
- * The static member the key `named` names in the namespace `global`, as
+ * The static member the key `named` names in the namespace `namespaceName`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: the functions of `Object`, the predicates of `Number`,
  * and `Number.MAX_SAFE_INTEGER`
@@ -1308,11 +1281,11 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * Numeric constants lower directly to their host-defined value, without
  * introducing an EDAG operation or copying the constant's digits here.
  *
- * @type {(global: string, named: string | number) => ValueStatic | number | null}
+ * @type {(namespaceName: string, named: string | number) => ValueStatic | number | null}
  */
-const staticMember = (global, named) => {
-    if (global === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
-    const id = staticIds.find(id => id === `${global}.${named}`)
+const staticMember = (namespaceName, named) => {
+    if (namespaceName === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
+    const id = staticIds.find(id => id === `${namespaceName}.${named}`)
     if (id === undefined) { return null }
     /** @type {ValueStatic} */
     const member = [id]
@@ -1323,7 +1296,7 @@ const staticMember = (global, named) => {
  * The static member an access reads, where its base is the bare word
  * of a namespace and its key a constant naming an admitted member, in
  * either spelling, {@link staticMember}; `null` for every other access,
- * which is resolved as any is — so `Object.keys` and `Number.MAX_VALUE`
+ * which is resolved as any is — so `Object.values` and `Number.MAX_VALUE`
  * enter the word and are refused at it. The word is a reserved global,
  * which no scope binds, so it alone decides.
  *
@@ -1441,7 +1414,7 @@ const intrinsicFunction = ([, list, body]) => {
     if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
     const key = keyNamed(callee[2])
     const intrinsic = intrinsics.find(([id]) => id === key)
-    if (intrinsic === undefined || list.fixed.length !== intrinsicLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
+    if (intrinsic === undefined || list.fixed.length !== helperLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
     const tokens = list.fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
     if (tokens.length !== list.fixed.length) { return null }
     const names = tokens.map(nameOf)
@@ -1489,6 +1462,35 @@ const entryFunction = ([, list, body]) => {
     if (brokenLine(returned)) { return error(unexpectedToken(assertNotNullish(returned.first))) }
     /** @type {ValueEntryFunction | ValueHasEntryFunction} */
     const helper = has ? ['hasEntry'] : ['entry']
+    return ok(helper)
+}
+
+/**
+ * Recognize the empty reference map
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): the canonical body of
+ * [`./ref_map`](./ref_map/module.f.mjs) under any names, as the whole
+ * initializer of a `const`, whose name the body reads as itself.
+ * `WeakMap` is the global only where no scope binds the word. `null` for
+ * ordinary source resolution where the shape or the names differ; `new`
+ * and the rest are then refused in the usual way. A body that is the map
+ * is still held to JavaScript's line rules, statement by statement, since
+ * no ordinary resolution will read it.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self | null) => Result<ValueRefMap, ParseError> | null}
+ */
+const refMapFunction = (scope, node, self) => {
+    if (self === null || self[2] || !isRefMap(node, self[0]) || resolve(scope, 'WeakMap') !== null) { return null }
+    if (boundNames(node).map(nameOf).some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    for (const block of blocks(node)) {
+        for (const [index, [tag, statement]] of block.entries()) {
+            // every `return` of the map has a value, so its first token is there
+            const next = /** @type {{ readonly start: ModuleTokenWithMetadata, readonly first: ModuleTokenWithMetadata }} */ (statement)
+            if (unterminated(index === 0 ? null : /** @type {{ readonly start: ModuleTokenWithMetadata }} */ (block[index - 1][1]), next)) { return error(unexpectedToken(next.start)) }
+            if (tag === 'return' && brokenLine(next)) { return error(unexpectedToken(next.first)) }
+        }
+    }
+    /** @type {ValueRefMap} */
+    const helper = ['refMap']
     return ok(helper)
 }
 
@@ -1540,6 +1542,20 @@ const templateScope = (scope, node) => {
 }
 
 /**
+ * The empty reference map's trace: its two parameters and its read of
+ * itself. What the body binds inside is the pattern's own and is not
+ * traced, since the function is one node with no body to resolve.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self) => _Scope}
+ */
+const refMapScope = (scope, node, self) => {
+    const { bindings, initialized, sourceOrigins } = assertOk(functionScope(node[1]))
+    /** @type {readonly BindingEvent[]} */
+    const events = [...initialized.map(id => /** @type {BindingEvent} */ (['initialize', id])), ['read', self[1]]]
+    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
+}
+
+/**
  * Enter an ordinary source function, or recognize an admitted whole-function
  * intrinsic. A named whole initializer retains the original declaration as
  * its self binding, unless a parameter or local shadows it.
@@ -1553,6 +1569,8 @@ const entered = (stack, scope, node, self) => {
     if (entry !== null) { return [stack, entry[0] === 'ok' ? templateScope(scope, node) : scope, entry] }
     const intrinsic = intrinsicFunction(node)
     if (intrinsic !== null) { return [stack, templateScope(scope, node), ok(intrinsic)] }
+    const refMap = refMapFunction(scope, node, self)
+    if (refMap !== null) { return [stack, refMap[0] === 'ok' ? refMapScope(scope, node, assertNotNullish(self)) : scope, refMap] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, parameters, rest, late } = bound

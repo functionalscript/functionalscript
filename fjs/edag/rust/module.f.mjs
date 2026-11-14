@@ -11,7 +11,7 @@
  * @import { Exp, ExpOp, Index, StepOver } from '../types.ts'
  * @import { BindingId } from '../../js/ast/types.ts'
  * @import { Block, Value } from '../../js/ast/prepare/types.ts'
- * @import { External, Options, Printed, Scope } from '../../rust/serializer/types.ts'
+ * @import { External, Options, Scope } from '../../rust/serializer/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
@@ -19,22 +19,11 @@ import { identityAnalysis, checked } from '../analysis/module.f.mjs'
 import { fromAnalysis } from '../to_fast/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { functionStringify } from '../../js/ast/serializer/module.f.mjs'
-import { isIntrinsic, isStatic } from '../module.f.mjs'
-import { operandsOf, visit } from '../sharing/module.f.mjs'
+import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'
+import { operandsOf, visit } from '../sharing/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
-import {
-    bindingTagged, braced as serializerBraced, op1Rust as serializerOp1Rust, op2Rust as serializerOp2Rust,
-    op3Rust as serializerOp3Rust, scopeTagged as preparedScope, useLines as serializerUseLines,
-    useLinesTagged as serializerUseLinesTagged, valueTagged,
-} from '../../rust/serializer/module.f.mjs'
-
-export const braced = serializerBraced
-export const op1Rust = serializerOp1Rust
-export const op2Rust = serializerOp2Rust
-export const op3Rust = serializerOp3Rust
-export const useLines = serializerUseLines
-export const useLinesTagged = serializerUseLinesTagged
+import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.mjs'
 
 /** No override to a function's canonical representation. @type {(e: Exp) => string | undefined} */
 const noText = () => undefined
@@ -92,7 +81,7 @@ const converted = (root, shared, text, runtime) => {
 
 /** The primitive/constructor cases expose values; operations expose Results. @type {(root: Exp) => boolean} */
 const resultRoot = root => root instanceof Array && !isStatic(root) && !isIntrinsic(root)
-    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', '=>', '{}'].includes(root[0])
+    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'refMap', '=>', '{}'].includes(root[0])
     && (root[0] !== '[]' || root[1].some(v => v instanceof Array && v[0] === '...'))
 
 /**
@@ -105,17 +94,8 @@ export const expExprTagged = (shared, runtime = null) => root => okThen(({ block
 /** The same expression with presentation tags removed. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>} */
 export const expExpr = (shared, runtime = null) => root => mapOk(untagged)(expExprTagged(shared, runtime)(root))
 
-/** A fragment with no externally supplied bindings. */
-export const nodeExpr = expExpr([])
-
-/** Helper expression with its import-use metadata. @type {(root: Exp) => Result<Printed<string>, readonly unknown[]>} */
-export const helperExpr = root => okThen(({ block, options, external }) => valueTagged(['block', block], options, external, resultRoot(root)))(converted(root, [], noText, null))
-
 /** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: Exp) => string | undefined, runtime?: string | null) => Result<Scope, readonly unknown[]>} */
 export const scopeTagged = (root, text = noText, runtime = null) => okThen(({ block, external, options }) => preparedScope(block, options, external))(converted(root, [], text, runtime))
-
-/** Plain Rust for a graph scope. @type {(root: Exp, runtime?: string | null) => Result<Scope, readonly unknown[]>} */
-export const scope = (root, runtime = null) => mapOk(({ lines, uses }) => ({ lines: lines.map(untagged), uses }))(scopeTagged(root, noText, runtime))
 
 /** A corpus scope over its supplied names, through the same prepared serializer. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<readonly string[], readonly unknown[]>} */
 export const statementsOf = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(({ lines }) => lines.map(untagged))(preparedScope(block, options, external)))(converted(root, shared, noText, runtime))
@@ -123,25 +103,16 @@ export const statementsOf = (shared, runtime = null) => root => okThen(({ block,
 /** A corpus-supplied name uses the target's ordinary prepared binding spelling. @type {(shared: readonly (readonly [Exp, string])[], name: string, runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>} */
 export const bindingLine = (shared, name, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => untagged(text))(bindingTagged(name, ['block', block], options, external)))(converted(root, shared, noText, runtime))
 
-/** Compatibility spelling for a rest-array binding. @type {(length: number) => Printed<string>} */
-export const restLine = length => [`${tagged('keyword')('let')} rest = args.rest(${tagged('number')(`${length}`)});`, []]
-
 /** A graph's own-scope read metadata. @type {(tag: string) => (root: Exp) => boolean} */
 const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => node instanceof Array && node[0] === tag)
 
 /** Whether a fragment reads invocation inputs. @type {(root: Exp) => boolean} */
 export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
-/** Whether a fragment reads its capture frame. @type {(root: Exp) => boolean} */
-export const readsFrame = root => reads('frame')(root)
-/** Whether a fragment reads its enclosing function. @type {(root: Exp) => boolean} */
-export const readsSelf = root => reads('self')(root)
-
 /** Function bodies participate in module capability metadata. @type {(node: readonly unknown[]) => readonly unknown[]} */
 const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /** The public Rust VM capability required by a graph. @type {(root: Exp) => boolean} */
-export const holdsFunction = root => visit(withBodies)([])(root).some(([node]) => node instanceof Array
-    && (node[0] === '=>' || node[0] === 'entry' || node[0] === 'hasEntry' || isIntrinsic(node)))
+export const holdsFunction = root => visit(withBodies)([])(root).some(([node]) => isFunctionNode(node))
 
 /** @type {(step: StepOver<Exp, Index> | undefined, member: boolean) => boolean} */
 const memberCall = (step, member) => step === undefined ? false : step[0] === '|.' ? memberCall(step[2], true) : member || memberCall(step[2], false)
@@ -152,8 +123,8 @@ export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) =>
     const operation = /** @type {ExpOp} */ (node)
     switch (operation[0]) {
         case 'memberPresent': { return true }
-        // the entry check calls the runtime's `in` body
-        case 'in': { return true }
+        // Entry checks and boolean conversion call their shared runtime bodies.
+        case 'in': case 'Boolean': { return true }
         case '.': case '?.': { return memberCall(operation[3], true) }
         case '?.()': { return memberCall(operation[3], false) }
         default: { return false }

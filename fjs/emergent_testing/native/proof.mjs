@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.js'
 
 const runtime = process.versions.deno ? 'deno' : process.versions.bun ? 'bun' : 'node'
 const flags = runtime === 'node' ? ['--test'] : runtime === 'deno' ? ['test', '-A', '--config', fileURLToPath(new URL('../../../deno.json', import.meta.url))] : ['test']
@@ -147,13 +147,13 @@ export const proof = /** @type {const} */ ({
             const result = invoke(root, [cli, 'cov', 'node'], selected)
             assert.equal(result.status, 0, result.output)
             assert.equal(result.output.includes('OUTSIDE_SCOPE'), false, result.output)
-            assert.ok(result.output.includes('--test-coverage-lines=100'), result.output)
-            assert.ok(result.output.includes('--test-coverage-branches=100'), result.output)
-            assert.ok(result.output.includes('--test-coverage-functions=100'), result.output)
-            assert.ok(result.output.includes('one.mjs'), result.output)
-            assert.ok(result.output.includes(`cwd: '${join(selected, 'a module').replaceAll('\\', '/')}'`), result.output)
-            assert.equal(result.output.split('command:').length - 1, 2, result.output)
-            assert.ok(result.output.indexOf('command:') < result.output.indexOf('FIRST_MODULE_PROOF'), result.output)
+            assert.equal(result.output.includes('FIRST_MODULE_PROOF'), false, result.output)
+            assert.equal(result.output.includes('command:'), false, result.output)
+            for (const target of ['a module/demo.f.mjs', 'a module/module.f.js', '/b/module.f.mjs']) {
+                assert.ok(result.output.includes(`${target}: running\n`), result.output)
+                assert.ok(result.output.includes(`${target}: ok,`), result.output)
+            }
+            assert.ok(result.output.includes('Coverage: 2 passed, 0 failed, 2 total'), result.output)
         })
     },
     coverageIsolation: () => {
@@ -178,7 +178,9 @@ export const proof = /** @type {const} */ ({
             assert.equal(combined.status, 0, combined.output)
             const result = invoke(root, [cli, 'cov', 'node'])
             assert.notEqual(result.status, 0, result.output)
-            assert.ok(result.output.includes('LATER_MODULE_PROOF'), result.output)
+            assert.equal(result.output.includes('LATER_MODULE_PROOF'), false, result.output)
+            assert.ok(result.output.includes('/a/module.f.mjs: error,'), result.output)
+            assert.ok(result.output.includes('/b/module.f.mjs: ok,'), result.output)
         })
     },
     coverageFailures: () => {
@@ -202,7 +204,36 @@ export const proof = /** @type {const} */ ({
             })
             const result = invoke(root, [cli, 'cov', 'node'])
             assert.notEqual(result.status, 0, result.output)
-            assert.ok(result.output.includes('TEST_FAILURE'), result.output)
+            assert.equal(result.output.includes('TEST_FAILURE'), true, result.output)
+            assert.ok(result.output.includes('module.f.mjs: error,'), result.output)
+            assert.ok(result.output.includes('command:'), result.output)
+            assert.ok(result.output.includes('exited 1'), result.output)
+        })
+    },
+    coverageFailureLogsStayTogether: () => {
+        if (runtime !== 'node') return
+        withFixture(root => {
+            writeFixture(root, {
+                'a/module.f.mjs': 'export const value = () => 1',
+                'a/proof.f.mjs': 'import { value } from "./module.f.mjs"; export const proof = { fails: () => { value(); console.log("FAILED_STDOUT"); console.error("FAILED_STDERR"); throw Error("FAILED_DETAILS") } }',
+                'b/module.f.mjs': 'export const value = () => 2',
+                'b/proof.f.mjs': 'import { value } from "./module.f.mjs"; export const proof = { passes: () => { value(); console.log("SUCCESS_STDOUT"); console.error("SUCCESS_STDERR") } }',
+            })
+            const result = invoke(root, [cli, 'cov', 'node'])
+            assert.equal(result.status, 1, result.output)
+            const failed = result.output.indexOf('/a/module.f.mjs: error,')
+            const stdout = result.output.indexOf('FAILED_STDOUT')
+            const stderr = result.output.indexOf('FAILED_STDERR')
+            const later = result.output.indexOf('/b/module.f.mjs: ok,')
+            assert.ok(failed >= 0 && stdout > failed && stderr > failed, result.output)
+            assert.ok(later >= 0, result.output)
+            const details = result.output.lastIndexOf('FAILED_DETAILS')
+            const failedBlock = result.output.slice(failed, Math.max(stdout, stderr, details))
+            assert.equal(failedBlock.includes('/b/module.f.mjs:'), false, result.output)
+            assert.ok(result.output.includes('FAILED_DETAILS'), result.output)
+            assert.equal(result.output.includes('SUCCESS_STDOUT'), false, result.output)
+            assert.equal(result.output.includes('SUCCESS_STDERR'), false, result.output)
+            assert.ok(result.output.includes('Coverage: 1 passed, 1 failed, 2 total'), result.output)
         })
     },
     coverageReportAdmission: () => {

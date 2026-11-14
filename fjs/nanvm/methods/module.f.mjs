@@ -36,42 +36,21 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import {
-    allowedCalls,
-    arrayPrototype,
-    bigintPrototype,
-    booleanPrototype,
-    functionPrototype,
-    numberPrototype,
-    objectPrototype,
-    prohibitedCalls,
-    prototypeNames,
-    stringPrototype,
-} from '../../js/prototype/module.f.js'
+import { allowedCalls, prohibitedCalls, prototypeNames, prototypes } from '../../js/prototype/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { statics } from '../../js/static/module.f.js'
 import { _runtimeOnly } from '../../edag/value/method/module.f.mjs'
-import { stringLiteral } from '../../media/rust/module.f.mjs'
+import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { mapOk, okList, unwrap } from '../../types/result/module.f.js'
 
 /**
- * Each type a receiver can have, by the name of its global as
- * `fjs/js/runtime` keys it, and the prototype a call on it looks in. An
- * object's is `Object.prototype`; every other type's is its own, which is
- * where its own member functions are, `toString` among them.
+ * Each type a receiver can have and the prototype a call on it looks in, as
+ * `[type, names]` pairs in `fjs/js/prototype`'s `prototypes` order.
  *
  * @type {readonly (readonly[string, readonly PrototypeName[]])[]}
  */
-export const types = [
-    ['Object', objectPrototype],
-    ['Array', arrayPrototype],
-    ['String', stringPrototype],
-    ['Number', numberPrototype],
-    ['Boolean', booleanPrototype],
-    ['BigInt', bigintPrototype],
-    ['Function', functionPrototype],
-]
+export const types = Object.entries(prototypes)
 
 /**
  * The allowed pairs the VM does not answer yet, by type. A pair leaves this

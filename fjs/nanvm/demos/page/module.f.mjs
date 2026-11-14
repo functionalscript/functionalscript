@@ -40,12 +40,12 @@
  * @import { Marked } from '../../../text/marked/types.ts'
  */
 
-import { sandbox } from '../../../effects/common/module.f.mjs'
-import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.mjs'
-import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
-import { run as mockRun } from '../../../effects/mock/module.f.mjs'
-import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
-import { fromU8List } from '../../../text/utf8/module.f.mjs'
+import { sandbox } from '../../../effects/common/module.f.js'
+import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.js'
+import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.js'
+import { run as mockRun } from '../../../effects/mock/module.f.js'
+import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.js'
+import { fromU8List } from '../../../text/utf8/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
@@ -135,7 +135,7 @@ export const decode = bytes => {
  */
 export const jsPerform = program => {
     /** @type {MemOperationMap<Write, Vec>} */
-    const map = { write: (stream, data) => state => [stream === 'stdout' ? msb.concat(state)(data) : state, ok(undefined)] }
+    const map = { write: (stream, data) => state => [stream === 'stdout' ? msb.concatVec(state)(data) : state, ok(undefined)] }
     return mockRun(map)(empty)(program())
 }
 

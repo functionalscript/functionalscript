@@ -37,8 +37,3 @@ down anywhere, which is how the check set came to differ between copies.
       as a one-line summary
 - [ ] Replace the other copies with links, or change CONTRIBUTING.md's claim
       that the documents do not restate each other
-
-### Related
-
-- [contributor-docs-stale-references](./contributor-docs-stale-references.md)
-  — stale references in the same documents

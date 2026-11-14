@@ -79,9 +79,9 @@ export type Base = {
  * @example
  *
  * ```js
- * import { vec } from '../../types/bit_vec/module.f.mjs'
- * import { utf8 } from '../../text/module.f.mjs'
- * import { computeSync, sha224 } from './module.f.mjs'
+ * import { vec } from '../../types/bit_vec/module.f.js'
+ * import { utf8 } from '../../text/module.f.js'
+ * import { computeSync, sha224 } from './module.f.js'
  *
  * const s = utf8('The quick brown fox jumps over the lazy dog.')
  * const h = computeSync(sha224)([s])
@@ -99,7 +99,7 @@ export type Sha2 = Hash<State>
  * `computeSync` takes any, answering its `R`.
  *
  * A consumer that only sizes buffers and folds blocks takes any hash whose
- * `R` is a `Vec`, whatever its state: [`fjs/crypto/hmac`](../hmac/module.f.mjs)
+ * `R` is a `Vec`, whatever its state: [`fjs/crypto/hmac`](../hmac/module.f.js)
  * is one, so `hmac(sha1)` is HMAC-SHA1 and `hmac(sha256)` is HMAC-SHA256,
  * the RFC 2202 and RFC 4231 vectors for both in its proof. A consumer that
  * reads the digest itself needs `R` to be a `Vec`, which is why the

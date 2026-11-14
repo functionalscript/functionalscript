@@ -1,7 +1,7 @@
 ## A loose object's writer belongs beside its reader
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -33,7 +33,8 @@ is its third spelling, longhand.
 - One exported publish helper — `published(staged, path, chunks)`: write
   exclusively, then rename, with the staged file removed on failure — used by
   `tryWrite`, `packedRewritten` and the loose writer. Its error policy is
-  [compensate-step](../../../effects/todo/compensate-step.md).
+  `fjs/effects`' [`compensateStep`](../../../effects/module.f.js), which all
+  three already use.
 
 `branchCas` then calls the loose writer; `WriteOperation` in `cas/git`'s
 `types.ts` becomes a union of the snapshot, loose-write and `Now` operations.
@@ -43,7 +44,14 @@ gets its writer from `fjs/git` instead of reaching into `fjs/cas/git`.
 
 ### Tasks
 
-- [ ] Move `writeObject` and its proofs here; move `random256` out of `cas`.
+- [x] Move `writeObject` here, as `write(od, oidBytes)` beside `path`, the
+      loose layout `fjs/git/store` now imports; move `random256` out of
+      `cas`, to `fjs/effects/node`. It takes the object directory, as
+      `path` does, since `fjs/git/store` imports this module and so cannot be
+      imported back. Its proofs are here: `path`, a fresh write, an
+      object already present, a file at the path that is not the object, and a
+      failed rename. `fjs/cas/git` keeps the `writeObject*` cases that write
+      through `branchCas` into the repositories it builds.
 - [ ] Export the publish helper and use it at the three sites.
 
 ### Related

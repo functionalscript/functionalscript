@@ -28,6 +28,14 @@
  * where it was is shown the same way: its leaf fades out without it, and in
  * with it again.
  *
+ * **Undo takes the last move back, and costs a move.** The tree goes back to
+ * where that move started, at once, drawn against the tree it undoes; the
+ * count goes up by one, not down, so an undo is a move spent like any other.
+ * Moves are undone newest first, back to the start, and a new tree or level
+ * starts the history again. Only a move that changed the tree can be undone:
+ * one whose key went back where it was is skipped, so an undo always changes
+ * the tree, and is never a move spent on nothing.
+ *
  * **Par is the fewest moves from the start to a perfect tree**, found by a
  * breadth-first search over the move: every tree one move from the start,
  * then two, until one is perfect. At depth 3 that meets thousands of trees,
@@ -51,7 +59,7 @@ import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.mjs'
 import { graphSvg } from '../../demo/graph/module.f.mjs'
 import { button, option, selectField, refusal } from '../../demo/module.f.mjs'
-import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.mjs'
+import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.js'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 
@@ -173,7 +181,7 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, animate: game.animate, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], shown: game.shown + 1, moves: 0, par, last: null, error: null }
+    const started = { depth, animate: game.animate, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], shown: game.shown + 1, moves: 0, history: [], par, last: null, error: null }
     return pureOk(started)
 })
 
@@ -243,7 +251,7 @@ export const move = key => game => {
     const removed = structure.remove(key)(before)
     const moved = structure.insert(key)(removed)
     const changed = !same({ before, after: moved })
-    const counted = { ...landed, moves: landed.moves + 1, last: { key, changed }, error: null }
+    const counted = { ...landed, moves: landed.moves + 1, history: changed ? [...landed.history, before] : landed.history, last: { key, changed }, error: null }
     if (!landed.animate) { return shownNext({ versions: { before, after: moved }, mode: 'still', note: null, base: before })([])(counted) }
     /** @type {readonly [Frame, ...Frame[]]} */
     const [first, ...rest] = [
@@ -253,6 +261,24 @@ export const move = key => game => {
         { versions: { before: removed, after: moved }, mode: 'enter', note: null, base: before },
     ]
     return shownNext(first)(rest)(counted)
+}
+
+/**
+ * The last move that changed the tree taken back: the tree it started from, landed at once and
+ * drawn `still` against the tree it undoes, its nodes built anew blue. An
+ * undo is counted as a move, so the count goes up. A move still showing
+ * lands first. With no move to undo, the game as it was.
+ *
+ * @type {(game: Game) => Game}
+ */
+export const undo = game => {
+    const landed = land(game)
+    const previous = landed.history.at(-1)
+    if (landed.versions === null || previous === undefined) { return landed }
+    const current = landed.versions.after
+    /** @type {Game} */
+    const undone = { ...landed, moves: landed.moves + 1, history: landed.history.slice(0, -1), last: null, error: null }
+    return shownNext({ versions: { before: current, after: previous }, mode: 'still', note: null, base: current })([])(undone)
 }
 /** @type {(n: number) => string} */
 const movesText = n => n === 1 ? '1 move' : `${n} moves`
@@ -396,7 +422,7 @@ const board = game => {
 }
 
 /** @type {Game} */
-const initial = { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
+const initial = { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, history: [], par: null, last: null, error: null }
 
 /** @type {import('../../demo/sharing/types.ts').Sharing<Game>} */
 const sharing = {
@@ -418,6 +444,7 @@ export const demo = {
         if (event.kind === 'start' || (event.kind === 'click' && event.name === 'new')) { return start(game.depth)(game) }
         if (event.kind === 'click' && event.name === 'step') { return pureOk(step(game)) }
         if (event.kind === 'click' && event.name === 'par') { return pureOk(searchTurn(game)) }
+        if (event.kind === 'click' && event.name === 'undo') { return pureOk(undo(game)) }
         if (event.kind === 'input' && event.name === 'animate') { return pureOk(animating(event.value !== '')(game)) }
         const level = event.kind === 'input' && event.name === 'level' ? levelOf(event.value) : undefined
         if (level !== undefined) { return start(level)(game) }
@@ -425,11 +452,13 @@ export const demo = {
         return pureOk(key === null ? game : move(key)(game))
     },
     view: game => ['div',
-        ['p', 'Make the tree perfect: every node full, two keys each. Your one move: click a key, and it is removed and inserted again. A new tree is its keys inserted in random order.'],
+        ['p', 'Make the tree perfect: every node full, two keys each. Your one move: click a key, and it is removed and inserted again. Undo takes back the last move that changed the tree, and counts as a move too. A new tree is its keys inserted in random order.'],
         selectField({ name: 'level', label: 'Level' },
             depths.map(d => option(String(d), `Depth ${d}: ${keyCount(d)} keys`, d === game.depth))),
         ['p',
             button('new', 'New tree'),
+            ' ',
+            button('undo', 'Undo', game.history.length === 0),
             ' ',
             ['label',
                 ['input', { type: 'checkbox', name: 'animate', ...(game.animate ? { checked: '' } : {}) }],

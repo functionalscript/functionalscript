@@ -18,7 +18,7 @@
  */
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
-import { sha256 } from './module.f.mjs'
+import { sha256 } from './module.f.js'
 import { selectField, textField, fieldUpdate } from '../../website/demo/module.f.mjs'
 import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.mjs'
 

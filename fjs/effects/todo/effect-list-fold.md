@@ -15,7 +15,7 @@ element exists in memory before the first `f` runs, and the fold cannot begin
 until the last element has been produced.
 
 That is not the shape the codebase's real sequences have.
-`fjs/effects/list/module.f.mjs` already defines the streaming one:
+`fjs/effects/list/module.f.js` already defines the streaming one:
 
 ```ts
 export type EffectList<O extends Operation, T> = Effect<O, Next<O, T>>
@@ -30,7 +30,7 @@ combinators speak the wrong one. Three consequences:
 in the store lives in memory at once, purely because `foldStep` cannot consume
 anything else.
 
-**The layering is inverted.** `fjs/effects/module.f.mjs` — the core effect module
+**The layering is inverted.** `fjs/effects/module.f.js` — the core effect module
 — imports `fjs/types/list` for `List`, and `concat` / `next` for `walkStep`'s
 loop. The fold combinators and `walkStep` are the module's only dependency on
 the strict list type, so the move below has to take `walkStep` too, or say why
@@ -38,10 +38,10 @@ it stays.
 
 **The stream fold is being hand-written separately.** The *EOF → finalize;
 chunk → fold and recurse* skeleton appears in six places — `detectStream`
-(`fjs/media/type/module.f.mjs`), `collectRead` and `contentKey`
-(`fjs/cas/module.f.mjs`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
-(`fjs/effects/node/module.f.mjs`) and `fileCas.write`'s inner loop
-(`fjs/cas/module.f.mjs`). That is `foldStep` over a stream. The *error item →
+(`fjs/media/type/module.f.js`), `collectRead` and `contentKey`
+(`fjs/cas/module.f.js`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
+(`fjs/effects/node/module.f.js`) and `fileCas.write`'s inner loop
+(`fjs/cas/module.f.js`). That is `foldStep` over a stream. The *error item →
 propagate* case it once also had is gone: an `EffectList` cell carries its own failure,
 and `step` propagates it. The two pure folds fit the plain shape; `writeLoop`
 threads its offset as the accumulator; `fileCas.write` threads
@@ -62,8 +62,8 @@ drop are not part of that clash: they rename the *value* `empty`, not the type,
 and `fjs/media/type/proof` holds `fjs/types/bit_vec`'s `empty` beside it. They
 stay until `empty` itself has a name that says which list it ends.
 
-**2. Move `foldStep` / `forEachStep`** out of `fjs/effects/module.f.mjs` and into
-`fjs/effects/list/module.f.mjs`, retyped over `EffectList`:
+**2. Move `foldStep` / `forEachStep`** out of `fjs/effects/module.f.js` and into
+`fjs/effects/list/module.f.js`, retyped over `EffectList`:
 
 ```ts
 export const foldStep = <O extends Operation, T, Q extends Operation, S>(
@@ -82,7 +82,7 @@ Keep the step-variant shape — effect first, one argument per line when the cal
 wraps. That is not a style preference: a step variant is this module's `do`
 notation, so the argument list is a statement list in execution order and the
 effect comes first because it happens first. The rationale currently lives on
-`foldStep`'s JSDoc and in the `fjs/effects/module.f.mjs` header; carry both over.
+`foldStep`'s JSDoc and in the `fjs/effects/module.f.js` header; carry both over.
 
 **3. Add a strict-list converter.** All six current call sites hold a strict
 list, so the move needs a way in:
@@ -94,9 +94,9 @@ export const fromList = <O extends Operation, T>(items: List<T>): EffectList<O, 
 built from `empty` / `nonEmpty`. The four `pure(...)` call sites below become
 `fromList(...)`.
 
-**Layering.** `fjs/effects/list/module.f.mjs` already imports `pureOk` from
-`../module.f.mjs` and `Effect`/`Operation` from `../types.ts`; adding `step` is
-the same direction, so no cycle. After the move, `fjs/effects/module.f.mjs` drops its
+**Layering.** `fjs/effects/list/module.f.js` already imports `pureOk` from
+`../module.f.js` and `Effect`/`Operation` from `../types.ts`; adding `step` is
+the same direction, so no cycle. After the move, `fjs/effects/module.f.js` drops its
 `fjs/types/list` import entirely and the core effect module no longer depends on
 the strict list type at all.
 
@@ -109,8 +109,8 @@ Six, all currently strict:
 | `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.mjs:202` | `cas.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.mjs:280` | `pure(parents)` | `fromList(parents)` |
-| `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |
-| `fjs/cas/module.f.mjs:310` | `pure([0…7])` | `fromList([0…7])` |
+| `fjs/cas/module.f.js:149` | `pure(expired)` | `fromList(expired)` |
+| `fjs/cas/module.f.js:310` | `pure([0…7])` | `fromList([0…7])` |
 | `fjs/compiler/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
 
 The two `cas.list()` sites are the ones this exists for; converting them is a
@@ -158,11 +158,11 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 - [x] Rename `List<O, T>` → `EffectList<O, T>` in `fjs/effects/list/types.ts`;
       update its importers and drop the `List_` / `List as EffectList` aliases
       of `fjs/types/list`'s `List` that existed only to dodge the name clash.
-- [ ] Add `fromList` to `fjs/effects/list/module.f.mjs`.
+- [ ] Add `fromList` to `fjs/effects/list/module.f.js`.
 - [ ] Move `foldStep` / `forEachStep` there, retyped over `EffectList`, carrying
       their JSDoc and the step-variant rationale.
 - [ ] Remove the now-unused `fjs/types/list` import from
-      `fjs/effects/module.f.mjs`.
+      `fjs/effects/module.f.js`.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
 - [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
 - [ ] Convert the six stream folds — `detectStream`, `collectRead`,
@@ -174,6 +174,6 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 
 - [allreduce-combinator](./allreduce-combinator.md) — the parallel sibling;
   it is specified over `List<T>` and will want the same treatment.
-- `fjs/effects/module.f.mjs` — `foldStep`'s JSDoc carries the step-variant /
+- `fjs/effects/module.f.js` — `foldStep`'s JSDoc carries the step-variant /
   `do`-notation rationale that fixes the argument order; the header carries the
   one-argument-per-line rule it refers to.

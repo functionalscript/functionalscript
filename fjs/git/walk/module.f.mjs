@@ -35,7 +35,7 @@
  * @import { Entry, Read, Step, Target } from './types.ts'
  */
 
-import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { sameItems } from '../../types/list/module.f.js'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'

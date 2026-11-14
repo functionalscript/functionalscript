@@ -1,9 +1,11 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-holds two tables and exports `runtime`, three functions an executor asks:
-two over the tables, and the body of the `in` operator. The `member` table holds, by name, the member
-functions whose **body** is written, `startsWith`: each a
+holds two tables and exports `runtime`, five functions an executor asks:
+two over the tables, the bodies of the `in` and `Boolean` operators, and
+the maker of a reference map.
+The `member` table holds, by name, the member
+functions whose **body** is written, `startsWith`, `codePointAt`, `map` and `concat`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
 for a receiver the name is no member of, or the function of the arguments
 as the call passed them, `undefined` past the end — the body dispatches on
@@ -25,11 +27,46 @@ an executor answers the operator's node by, or
 substitutes natively — the key rule that keeps its answer JavaScript's
 is the parser's ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)). The tables are exported too, for the type pins, the
 proof and the Rust printer; no executor reads them. The proof checks every
-static body against the host's own built-in at the same path. The design
+static body's exact semantic cases against the host's own built-in at the
+same path; `Math.log2` also has numerical reference cases with an error
+tolerance. The design
 of the statics is [`../todo/runtime-static.md`](../todo/runtime-static.md).
-A name without a body is absent, and each VM answers it from its own
+A member name without a body is absent, and each VM answers it from its own
 native table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
+
+`runtime.refMap` answers a new empty reference map
+([`../ref_map`](../ref_map/module.f.js),
+[reference map](../../../spec/built-ins/reference-map/README.md)): the map written in
+FunctionalScript alone, a list of pairs searched with `===`, which an
+executor with no map of its own answers the EDAG's `['refMap']` with,
+calling it wherever the node is established.
+
+`runtime.Boolean` is `value => !!value`. Every `Boolean` conversion evaluates
+its operand and invokes this body, including the zero-argument spelling whose
+operand is `undefined`. Logical negation supplies truthiness without calling
+`valueOf` or `toString`; objects and functions are true, including empty
+containers. The body calls no runtime operation, so it can run during runtime
+initialization. Each executor uses this body, and a missing binding is refused
+as `no binding for the Boolean operator`.
+
+`Object.keys` projects the keys from native `Object.entries` through the same
+typed array `map` body that implements the member function. The runtime captures
+the entries function once and calls both functions directly, without a member
+lookup or a new native keys operation. Enumeration order and undefined-valued
+entries come from the existing primitive. The array mapper copies its immutable
+accumulator, so this reference body costs O(n²).
+
+`concat` dispatches to the typed array and string bodies in
+[`../members`](../members/module.f.js). An array call copies its receiver,
+spreads array arguments one level and appends every other argument whole;
+the result is fresh and retains element identities. A string call appends
+each argument's explicit `String` conversion in order. Both accept any
+number of arguments, preserving the difference between no argument and an
+explicit `undefined`. The bodies use primitive operations and plain helper
+calls, so they can run while the runtime is being initialized. Both
+executors require these shared bodies; their former native implementations
+are removed. Own properties still shadow the built-in through `runtime.dot`.
 
 ## Inside the admitted set
 
@@ -45,9 +82,107 @@ table: one function per name, for every receiver. The keys are not the
 admitted set and need not be: a table keying every admitted name with a
 marker in place of a body would only duplicate the parser's list.
 
+## Math functions
+
+`Math.max` and `Math.min` use Rust's `f64::max` and `f64::min` and core WASM's
+`f64.max` and `f64.min` after converting every argument in order with
+`ToNumber`. The executor handles the JavaScript boundary cases around those
+native comparisons: no arguments return negative infinity for `max` and
+positive infinity for `min`; any `NaN` makes the result `NaN`; positive zero
+wins for `max` and negative zero for `min`. Conversion continues after `NaN`
+or either infinity, so a later conversion failure still throws. Their runtime
+entries are the JavaScript built-ins, and WASM needs no third-party dependency.
+
+`Math.sqrt` and `Math.ceil` are native: Rust provides `f64::sqrt` and
+`f64::ceil`, and core WASM provides `f64.sqrt` and `f64.ceil`. Square root
+preserves negative zero and returns `NaN` for negative nonzero inputs.
+Ceiling rounds toward positive infinity, preserving negative zero for inputs
+between `-1` and zero. Both convert once with `ToNumber` before the numeric
+operation and preserve `NaN`, signed zero and positive infinity.
+
+`Math.imul` is native through Rust's `i32::wrapping_mul` and core WASM's
+`i32.mul`. Each argument is converted in order with `ToNumber`, then to a
+32-bit integer; the low 32 bits of the product are returned as a signed
+integer. Missing, nonfinite and zero arguments convert to zero. All three
+runtime entries hold the JavaScript built-in itself, reject bigint inputs
+including bigint results from conversion, and need no third-party WASM
+dependency.
+
+`Math.abs` is native: Rust provides `f64::abs` and core WASM provides
+`f64.abs`. It returns positive magnitudes, including positive zero for `-0`
+and positive infinity for negative infinity, while preserving `NaN`. The
+runtime table holds the JavaScript built-in itself; represented execution
+and Rust convert once with `ToNumber` before the numeric operation. No
+dependency is added. See the
+[admission record](../../../spec/todo/2360-built-in.md#mathabs-proposal-and-approval).
+
+`Math.floor` is native: Rust provides `f64::floor` and core WASM provides
+`f64.floor`, rounding toward negative infinity. Both zeros, infinities and
+`NaN` are preserved; negative fractions, including negative subnormals, round
+to the next lower integer. As for `Math.trunc`, the runtime table holds the
+JavaScript built-in, and represented execution and Rust convert once with
+`ToNumber` before the numeric operation. No dependency is added. See the
+[admission record](../../../spec/todo/2360-built-in.md#mathfloor-proposal-and-approval).
+
+`Math.trunc` is native: Rust supplies `f64::trunc` and core WASM supplies
+`f64.trunc`, both rounding toward zero while preserving signed zero and
+infinities. The runtime table holds the JavaScript built-in itself. Represented
+execution and Rust apply their existing `ToNumber` conversion before the native
+numeric operation, retaining bigint rejection and conversion failures. WASM
+needs no third-party dependency. See the
+[admission record](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval)
+for the native references and boundary cases.
+
+`Math.log2` has one numerical body here. The represented executor runs it
+and the Rust backend compiles it; Rust does not substitute `f64::log2`.
+The body converts its argument with `ToNumber` and handles JavaScript's
+exact special cases. Its numerical kernel follows the FreeBSD/fdlibm
+polynomial and compensated combination from
+[OpenLibm](https://github.com/JuliaMath/openlibm/blob/master/src/e_log2.c).
+A table of exact powers of two reduces the input to the interval around
+1; a Dekker arithmetic split replaces the source's IEEE word operations.
+It needs no other `Math` function and no third-party runtime dependency.
+
+The proof checks a two-ULP error target against literal references computed
+with mpmath at 100 decimal digits from the exact binary64 inputs. The cases
+include neighbours of 1 and of the reduction boundary, subnormals and
+extreme magnitudes. A separate proof checks every representable power of
+two, from `2 ** -1074` through `2 ** 1023`, exactly. This validates the
+listed cases; it is not a proof of a global two-ULP bound. Ordinary positive
+answers are implementation-approximated under ECMAScript, rather than
+required to match each host engine bit for bit.
+
+To reproduce a reference row `[input, expected, ulp]`, decode the input as
+a binary64 value first, then pass its exact integer ratio to mpmath:
+
+```python
+import math
+import mpmath as mp
+
+mp.mp.dps = 100
+x = float.fromhex('0x1.8p+0')  # exact binary64 input, here 1.5
+numerator, denominator = x.as_integer_ratio()
+expected = float(mp.log(mp.mpf(numerator) / denominator, 2))
+ulp = math.ulp(expected)
+print(x, expected, ulp)
+```
+
+The binary64-rounded reference output determines the ULP, not the input's
+magnitude; using an input-relative tolerance would hide large errors near
+1. Mpmath is a development tool for generating these literals and is not
+an FJS, Rust or WASM dependency.
+
+For further `Math` admissions, use native functions only when compatible
+operations exist in both Rust and core WASM. If either lacks one, write
+its body in the common runtime and use it in Rust too. WASM has no logarithm
+instruction, so both `Math.log2` and a possible supporting `Math.log` need
+shared bodies. Native substitutions can follow later; WASM adds no
+third-party dependencies. This is the rule approved in the
+[Math.log2 admission record](../../../spec/todo/2360-built-in.md#mathlog2-proposal-and-approval).
+
 ## The names without a body
 
-Two kinds, and both are each VM's to bind natively:
+The VMs bind these natively:
 
 - the **primitives**, which no body can define in terms of the rest — for
   a string, the code-unit read `charCodeAt` and the substring `slice`;
@@ -62,6 +197,9 @@ Two kinds, and both are each VM's to bind natively:
   `codePointAt`, whose own body is the one member call and which the
   compiler recognizes whole as a node every executor answers natively, so
   no body of this module makes a member call;
+- the **compatible native math operations** available in both Rust and core
+  WASM, currently `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
+  `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`, under the target rule above;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on
@@ -126,7 +264,10 @@ body, and no other pair is.
   without a body.
 
 The generator also writes the module's EDAG as
-`gen.edag.data.js` beside it, for the one consumer that needs the runtime
+`gen.edag.js` beside it, an ordinary JavaScript module exporting the graph
+as `unknown`. This explicit data boundary prevents TypeScript from
+expanding the shared graph into an oversized inferred API.
+The EDAG is for the one consumer that needs the runtime
 as data without the compiler: the corpus proof
 [`../../nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs), which runs every
 member-function case through `amnesia` with this runtime and against the
@@ -143,7 +284,7 @@ flowchart LR
     src["fjs/js/runtime/module.f.js<br/>the source"]
     compiler["fjs compile<br/>on the host engine, no runtime needed"]
     host["host function<br/>import"]
-    edag["gen.edag.data.js<br/>EDAG"]
+    edag["gen.edag.js<br/>EDAG"]
     rust["nanvm/lib/src/vm/gen.runtime.rs<br/>Rust"]
     proof["runtime proof<br/>the body on host values"]
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]
@@ -185,15 +326,12 @@ takes it from there:
 sequenceDiagram
     participant M as compiled module
     participant L as nanvm-lib call step
-    participant T as native table
     participant R as the runtime value
     M->>L: Any::dot([1], "map").end_call(&runtime, args)
     L->>L: own property? none on an array
     L->>R: runtime.dot(receiver, "map")
-    R-->>L: the function of the arguments, or undefined
-    L->>T: method(receiver, "map"), for undefined
-    T-->>L: the native, while map has no body
-    L->>L: f.call(args), or the TypeError
+    R-->>L: the shared map function of the arguments
+    L->>L: f.call(args)
     L-->>M: the answer, or Err(thrown)
 ```
 
@@ -282,7 +420,7 @@ cycle:
   answers when given none, so the runtime is always compiled with no
   runtime, whatever the pass does elsewhere.
 - **Nothing in the runtime calls a member function or reads a static
-  function: no initializer, and no body.** The module builds closures and
+  function defined by the runtime: no initializer, and no body.** The module builds closures and
   nothing else, and so does every module it imports, transitively — a
   helper shared with the rest of `fjs/` must hold this too, or be inlined —
   so the runtime can be interpreted from nothing. Loading it from source
@@ -295,8 +433,9 @@ cycle:
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
   compiled EDAG — no chain step anywhere in it, and no static node but the
-  natives the table lists as themselves, `Object.entries`, which every
-  executor binds and no body reads. This is what lets NaNVM hold the
+  natives the table lists as themselves. `Object.entries` is captured once,
+  shared with its table entry and called by the keys body; every executor
+  binds it without a runtime. This is what lets NaNVM hold the
   runtime as a value its bodies never name: the runtime printer prints the
   module with no runtime in scope, so a member call or a static read of a
   body anywhere in it, body or initializer, is the backend's refusal, by
@@ -317,4 +456,9 @@ cycle:
    the body through `amnesia` and on NaNVM.
 
 `startsWith` is the first; `codePointAt`, over the intrinsic `charCodeAt`,
-the second.
+the second. Array `map` uses the typed body in
+[`../members/array/map`](../members/array/map/module.f.js), shared with the
+member inventory. It checks the callback before iterating, passes the element,
+index and original array, and propagates the first throw. The interpreter and
+NaNVM have no native `map` fallback. The simple immutable accumulation copies
+the result on each iteration, so it costs O(n²).

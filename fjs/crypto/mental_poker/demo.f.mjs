@@ -35,10 +35,11 @@
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
-import { tryUtf8, utf8 } from '../../text/module.f.mjs'
-import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
-import { computeSync, sha512 } from '../sha2/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
+import { pureOk } from '../../effects/module.f.js'
+import { tryUtf8, utf8 } from '../../text/module.f.js'
+import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
+import { computeSync, sha512 } from '../sha2/module.f.js'
 import { ok, error } from '../../types/result/module.f.js'
 import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.mjs'
 import { secp256k1 } from '../secp/module.f.js'
@@ -171,10 +172,13 @@ export const transition = (state, event) => {
             : { ...state, board: dealStreet(keys, decks[0], last, board) }
 }
 
+/** A coordinate of the curve, a 256-bit number, as its 64 hex digits. */
+const coordinateHex = encodeScalar(64)
+
 /** A locked card by the first hex digits of its `x`.
  * @type {(card: Point) => string}
  */
-const lockedName = card => `${assertNotNullish(card)[0].toString(16).padStart(64, '0').slice(0, 8)}…`
+const lockedName = card => `${coordinateHex(assertNotNullish(card)[0]).slice(0, 8)}…`
 
 /** Cards of each stage's deck the page shows, from the top. */
 const shownCards = 8

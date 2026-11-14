@@ -14,6 +14,6 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b5: Any<A> = (Any::dot(_b768.clone(), f64_any(0x0000000000000000)).end())?;
         let _b6: Any<A> = (_b3.clone() + _b5.clone())?;
         let _b7: Any<A> = (_b2.clone() + f64_any(0x3ff0000000000000))?;
-        if Any::<A>::to_boolean((Any::lt(_b5.clone(), f64_any(0x0000000000000000)))?) { Ok([(<Any<A> as core::ops::Neg>::neg(_b6.clone()))?, _b7.clone()].to_array().to_any()) } else { Ok([_b6.clone(), _b7.clone(), (_b5.clone() * f64_any(0x4000000000000000))?].to_array().to_any()) }
+        if Any::<A>::to_boolean(&(Any::lt(_b5.clone(), f64_any(0x0000000000000000)))?) { Ok([(<Any<A> as core::ops::Neg>::neg(_b6.clone()))?, _b7.clone()].to_array().to_any()) } else { Ok([_b6.clone(), _b7.clone(), (_b5.clone() * f64_any(0x4000000000000000))?].to_array().to_any()) }
     }, 0, Array::default(), Some("(...$0)=>{const $1=[...[0,0]];const $2=$1[1];const $3=$1[0];const $4=$0[0];const $5=$3+$4;const $6=$2+1;return $4<0?[-$5,$6]:[$5,$6,$4*2];}")).to_any())].to_object().to_any())
 }

@@ -38,10 +38,10 @@
 
 import { rust } from '../../ci/config/module.f.js'
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
-import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
-import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
+import { forEachStep, pureOk, step } from '../../effects/module.f.js'
+import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
-import { stringLiteral } from '../../media/rust/module.f.mjs'
+import { stringLiteral } from '../../media/rust/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
 import { samples as importedSamples } from './samples/module.f.js'

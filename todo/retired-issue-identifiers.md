@@ -138,7 +138,7 @@ earlier revision of this issue used it, and it would have reported every
 correctly-resolved citation as outstanding. A resolution takes one of two forms:
 
 ```md
-- [i167](../fjs/types/bit_vec/module.f.mjs) — the identifier as a link label,
+- [i167](../fjs/types/bit_vec/module.f.js) — the identifier as a link label,
   where a document survives to link to.
 - i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs))
   — the identifier with `retired` beside it and the target named, for code.

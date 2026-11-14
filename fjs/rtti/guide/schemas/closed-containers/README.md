@@ -57,10 +57,11 @@ Reading index `0` of `new Array(1)` yields `undefined`, and `undefined` is a
 `readonly Type[]`. The other reading would make `new Array(1)` and `[]` the
 same schema while `[undefined]` stayed different from both.
 
-A tuple schema's **non-index** properties are no positions either:
-`Object.assign([number], { foo: string })` declares one position and nothing
-named `foo`. On the *value* side such a key is an undeclared member like any
-other, so a bare schema rejects it. How the readers walk a tuple schema is in
+Array schemas and DataJS values follow FunctionalScript's container rules:
+arrays carry positions, without named own properties. A foreign value is
+converted before reaching a reader
+([what the readers assume](../../readers/assumptions/README.md)).
+How the readers walk a tuple schema is in
 [`common`'s README](../../../common/README.md#reading-a-tuple-schema).
 
 ## `Ts<>` renders the closed form exactly
@@ -102,7 +103,7 @@ The demo on this page runs the *Closed vs open* lesson: the value
 `{ name: string, age: number }` and accepted by its `open` form. Pick either
 schema to see its graph, its TypeScript type, its JSON Schema and the two
 readers' answers, and the comparison under them reports that the closed
-schema is a subset of the open one. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+schema is a subset of the open one. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference

@@ -6,11 +6,11 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
-import { compress, level3Id } from './id/module.f.mjs'
-import { encode } from './module.f.mjs'
+import { compress, level3Id } from './id/module.f.js'
+import { encode } from './module.f.js'
 import { demo, examples, maxBits, rowWords, stripes, units } from './demo.f.mjs'
-import { htmlToString } from '../media/html/module.f.mjs'
-import { runPure } from '../effects/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
+import { runPure } from '../effects/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { nextStep } from '../types/function/operator/module.f.js'
 import { run as runMachine } from '../types/list/module.f.js'
@@ -22,12 +22,7 @@ const run = bits => {
     /** @type {Add<null>} */
     const add = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol]); return null }
     const enc = encode(add)(null)
-    let [, , s] = enc.init
-    for (const b of bits) {
-        const [, , next] = enc.update(s, b)
-        s = next
-    }
-    const [, , root] = enc.end(s)
+    const [, , root] = enc.end(bits.reduce((state, b) => enc.update(state, b)[2], enc.init[2]))
     return [root, log]
 }
 
@@ -61,7 +56,7 @@ const heightsOf = text => {
 }
 
 /** @type {(n: number) => readonly bigint[]} */
-const zeros = n => new Array(n).fill(0n)
+const zeros = n => Array.from({ length: n }, () => 0n)
 
 export const proof = {
     lifecycle: () => {

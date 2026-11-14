@@ -19,7 +19,7 @@
  */
 
 import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.js'
-import { computeK, fromCurve, sign, verify } from './module.f.mjs'
+import { computeK, fromCurve, sign, verify } from './module.f.js'
 import { algorithmOf, algorithmOption, opensslVerification, sha2Algorithms } from '../../website/demo/hash/module.f.mjs'
 import { button, selectField, caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
@@ -39,15 +39,15 @@ import {
     signVerifierMarker,
 } from '../../website/style/module.f.js'
 import { codePoints, hexDigitsValue } from '../../text/ascii/module.f.js'
-import { tryUtf8 } from '../../text/module.f.mjs'
-import { encode, encodeRaw, constructedSequence, integer, objectIdentifier } from '../../asn.1/module.f.mjs'
-import { encode as base64 } from '../../basen/base64/module.f.mjs'
-import { msb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { reuse } from './nonce_reuse/module.f.mjs'
-import { sha256 } from '../sha2/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.js'
+import { encode, encodeRaw, constructedSequence, integer, objectIdentifier } from '../../asn.1/module.f.js'
+import { encode as base64 } from '../../basen/base64/module.f.js'
+import { msb, vec, vec8 } from '../../types/bit_vec/module.f.js'
+import { reuse } from './nonce_reuse/module.f.js'
+import { sha256 } from '../sha2/module.f.js'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 

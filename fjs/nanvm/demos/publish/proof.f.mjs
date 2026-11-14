@@ -7,12 +7,12 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { exitCode, readUtf8File, readWholeBytes } from '../../../effects/node/module.f.mjs'
+import { exitCode, readUtf8File, readWholeBytes } from '../../../effects/node/module.f.js'
 import { nodeProgramOptions, virtual, virtualAt } from '../../../effects/node/virtual/module.f.mjs'
-import { write } from '../../../media/wasm/binary/write/module.f.mjs'
+import { write } from '../../../media/wasm/binary/write/module.f.js'
 import { emptyModule } from '../../../media/wasm/testlib.f.js'
-import { utf8 } from '../../../text/module.f.mjs'
-import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { utf8 } from '../../../text/module.f.js'
+import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { toText, untagged } from '../../../text/marked/module.f.mjs'
 import { demangleNames, main, publish, sampleWats, usage } from './module.f.mjs'

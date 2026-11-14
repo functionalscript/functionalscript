@@ -35,9 +35,11 @@ import { generate } from '../../../types/array/generate/module.f.js'
 import { abs } from '../../../types/number/abs/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { encodeScalar } from '../../../basen/base16/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { fromTagged, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
+import { charIs, isDigit, isLatinLetter } from '../../../text/ascii/module.f.js'
 
 // kinds: each word is tagged with its kind as it is written, and the tags
 // are resolved at the module's boundary, `text/marked`'s idiom for a writer
@@ -51,15 +53,16 @@ const string = tagged('string')
 
 // strings
 
+/** A one-character string that is a Latin letter or a digit. */
+const isLetterOrDigit = charIs(c => isLatinLetter(c) || isDigit(c))
+
 /**
  * Whether `c` may stand in an identifier unquoted: a letter, a digit, or
  * one of the text format's `idchar` symbols.
  *
  * @type {(c: string) => boolean}
  */
-const isIdChar = c =>
-    (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-    || "!#$%&'*+-./:<=>?@\\^_`|~".includes(c)
+const isIdChar = c => isLetterOrDigit(c) || "!#$%&'*+-./:<=>?@\\^_`|~".includes(c)
 
 /**
  * The contents of a string literal: printable ASCII as itself, and every
@@ -75,10 +78,13 @@ const strContents = text => [...text].map(c => {
 /** @type {(text: string) => string} */
 const str = text => string(`"${strContents(text)}"`)
 
+/** A byte as the two hex digits of a `\hh` escape. */
+const hexByte = encodeScalar(2)
+
 /** Bytes as a string literal, printable ASCII as itself and the rest as `\hh`. @type {(bytes: Bytes) => string} */
 const bytesLiteral = bytes => string(`"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 0x22 && b !== 0x5c
     ? String.fromCharCode(b)
-    : `\\${b.toString(16).padStart(2, '0')}`).join('')}"`)
+    : `\\${hexByte(b)}`).join('')}"`)
 
 // names
 

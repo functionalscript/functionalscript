@@ -46,7 +46,7 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 The website job lives in its own generated workflow, running on pull requests
 (including drafts and forks) and pushes to `main`. Other branches need an open
-PR for previews. Test CI retains its original nine jobs on PRs and merge-group
+PR for previews. Test CI retains its twelve jobs on PRs and merge-group
 events, with no deployment gates or push triggers. The website check is not
 required in the merge queue, so the website workflow does not run there.
 Website concurrency and credentials stay separate from the test workflow.

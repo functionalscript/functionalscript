@@ -12,9 +12,9 @@ import { _crossings, graphOf } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** SVG text tags, including their attributes and text but not the closing tag. @type {(html: string) => readonly string[]} */

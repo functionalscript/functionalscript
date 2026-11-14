@@ -21,7 +21,7 @@
  * @import { BitScheme } from '../../website/demo/bits/types.ts'
  */
 
-import { vecToCBase32 } from './module.f.mjs'
+import { vecToCBase32 } from './module.f.js'
 import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.mjs'
 
 /**

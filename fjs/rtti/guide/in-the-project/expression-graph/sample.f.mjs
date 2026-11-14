@@ -9,8 +9,8 @@
  */
 
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
-import { op1Id } from '../../../../edag/module.f.mjs'
-import { value as edagValue } from '../../../../edag/value/module.f.mjs'
+import { op1Id } from '../../../../edag/module.f.js'
+import { value as edagValue } from '../../../../edag/value/module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

@@ -5,16 +5,16 @@
  * @import { Step } from '../../types/function/operator/types.ts'
  */
 
-import { utf8 } from '../../text/module.f.mjs'
-import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.js'
 import { flip } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { map } from '../../types/list/module.f.js'
-import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
+import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { runPure } from '../../effects/module.f.mjs'
+import { runPure } from '../../effects/module.f.js'
 import { doneStep } from '../../types/function/operator/module.f.js'
 
 /** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */

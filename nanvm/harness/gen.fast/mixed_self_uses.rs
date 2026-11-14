@@ -14,11 +14,11 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let mut _b1045: Any<A> = Nullish::Undefined.to_any();
         '_loop19: loop {
             let _b1008_10: Any<A> = _b1044.clone();
-            if Any::<A>::to_boolean((Any::gt(_b1008_10.clone(), f64_any(0x3ff0000000000000)))?) {
+            if Any::<A>::to_boolean(&(Any::gt(_b1008_10.clone(), f64_any(0x3ff0000000000000)))?) {
                 let _b1046: Any<A> = (_b1008_10.clone() - f64_any(0x3ff0000000000000))?;
                 _b1044 = _b1046.clone();
                 continue '_loop19;
-            } else { if Any::<A>::to_boolean((strict_eq(_b1008_10.clone(), f64_any(0x3ff0000000000000)))?) {
+            } else { if Any::<A>::to_boolean(&(strict_eq(_b1008_10.clone(), f64_any(0x3ff0000000000000)))?) {
                 let _b10: Any<A> = (Any::call(Function::new(_self.clone()).to_any(), [f64_any(0x0000000000000000)].to_array().to_any()))?;
                 let _b1047: Any<A> = [_b10.clone(), _b10.clone()].to_array().to_any();
                 _b1045 = _b1047.clone();

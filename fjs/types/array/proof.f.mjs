@@ -1,4 +1,4 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -210,6 +210,17 @@ export const proof = {
             const { indexOf, lastIndexOf } = occurrences([])
             assertEq(indexOf('a'), -1)
             assertEq(lastIndexOf('a'), -1)
+        },
+        // an inherited name is no occurrence, and `__proto__` is a name
+        // like any other
+        () => {
+            /** @type {readonly string[]} */
+            const names = ['__proto__', 'a', '__proto__']
+            const { indexOf, lastIndexOf } = occurrences(names)
+            /** @type {readonly string[]} */
+            const asked = [...names, 'toString', 'constructor', 'hasOwnProperty']
+            assertStructurallySame(asked.map(indexOf), asked.map(n => names.indexOf(n)))
+            assertStructurallySame(asked.map(lastIndexOf), asked.map(n => names.lastIndexOf(n)))
         },
     ]
 }

@@ -28,11 +28,11 @@
  * @import { Align, Block, Blocks, Bolded, Document, Emphasised, Entry, Image, Inline, Italicised, Label, LinkLabel, ListMarker, Struck } from './types.ts'
  */
 
-import { unmapped } from '../../ebnf/ast/module.f.js'
+import { items } from '../../ebnf/ast/module.f.js'
 import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.mjs'
 import { eof } from '../../ebnf/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { lexeme, units } from '../../ebnf/utf16/module.f.mjs'
+import { lexeme, units } from '../../ebnf/utf16/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 
@@ -45,8 +45,6 @@ const nothing = []
  */
 const parseEntry = parser([entryRule, eof], nothing)
 
-/** @type {(node: unknown) => readonly unknown[]} */
-const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
 
 /**
  * A code span's text: its body, a double-backtick one less the two
@@ -58,8 +56,8 @@ const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
  * @type {(node: unknown) => string}
  */
 const codeText = node => {
-    const [kind, body] = arr(arr(node)[1])
-    const text = kind === 'single' ? lexeme(arr(body)[0]) : lexeme(arr(body)[1]).slice(0, -2)
+    const [kind, body] = items(items(node)[1])
+    const text = kind === 'single' ? lexeme(items(body)[0]) : lexeme(items(body)[1]).slice(0, -2)
     return text.startsWith(' ') && text.endsWith(' ') && [...text].some(c => c !== ' ') ? text.slice(1, -1) : text
 }
 
@@ -70,13 +68,13 @@ const codeText = node => {
  * @type {(node: unknown) => readonly Label[]}
  */
 const labelOf = node => {
-    const [lead, pairs] = arr(node)
+    const [lead, pairs] = items(node)
     /** @type {readonly Label[]} */
-    const head = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
-    return [...head, ...arr(pairs).flatMap(pair => {
-        const [code, tail] = arr(pair)
+    const head = items(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    return [...head, ...items(pairs).flatMap(pair => {
+        const [code, tail] = items(pair)
         /** @type {readonly Label[]} */
-        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        const after = items(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         return [/** @type {Label} */(['code', codeText(code)]), ...after]
     })]
 }
@@ -91,7 +89,7 @@ const targetOf = l => lexeme([l[3], l[4]])
 
 /** A plain link's label and target. @type {(node: unknown) => readonly [readonly Label[], string]} */
 const plainLinkOf = node => {
-    const l = arr(node)
+    const l = items(node)
     return [labelOf(l[1]), targetOf(l)]
 }
 
@@ -134,14 +132,14 @@ const imageOf = ([label, src]) => {
  * @type {(node: unknown) => Result<readonly LinkLabel[], string>}
  */
 const linkLabelOf = node => {
-    const [lead, rest] = arr(node)
+    const [lead, rest] = items(node)
     /** @type {readonly LinkLabel[]} */
-    let out = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
-    for (const part of arr(rest)) {
-        const [tag, body] = arr(part)
-        const [span, tail] = arr(body)
+    let out = items(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    for (const part of items(rest)) {
+        const [tag, body] = items(part)
+        const [span, tail] = items(body)
         /** @type {readonly LinkLabel[]} */
-        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        const after = items(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         if (tag === 'code') {
             out = [...out, ['code', codeText(span)], ...after]
             continue
@@ -164,15 +162,15 @@ const linkLabelOf = node => {
  * @type {(node: unknown) => Result<readonly Emphasised[], string>}
  */
 const emphasisOf = node => {
-    const [tag, body] = arr(node)
-    const [lead, rest] = tag === 'text' ? arr(body) : [undefined, body]
+    const [tag, body] = items(node)
+    const [lead, rest] = tag === 'text' ? items(body) : [undefined, body]
     /** @type {readonly Emphasised[]} */
     let out = lead === undefined ? [] : [['text', lexeme(lead)]]
-    for (const part of arr(rest)) {
-        const [kind, pair] = arr(part)
-        const [span, tail] = arr(pair)
+    for (const part of items(rest)) {
+        const [kind, pair] = items(part)
+        const [span, tail] = items(pair)
         /** @type {readonly Emphasised[]} */
-        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        const after = items(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         if (kind === 'code') {
             out = [...out, ['code', codeText(span)], ...after]
             continue
@@ -191,22 +189,22 @@ const emphasisOf = node => {
  * @type {(node: unknown) => Result<readonly Bolded[], string>}
  */
 const strongOf = node => {
-    const [, first, rest] = arr(node)
+    const [, first, rest] = items(node)
     const lead = emphasisOf(first)
     if (lead[0] === 'error') { return lead }
     /** @type {readonly Bolded[]} */
     let out = lead[1]
     let next = rest
     while (true) {
-        const [kind, body] = arr(arr(next)[1])
+        const [kind, body] = items(items(next)[1])
         if (kind === 'end') { return ok(out) }
-        const [em, , after] = arr(body)
+        const [em, , after] = items(body)
         const read = emphasisOf(em)
         if (read[0] === 'error') { return read }
         out = [...out, ['em', read[1]]]
-        const [tail, more] = arr(after)
+        const [tail, more] = items(after)
         if (tail === 'end') { return ok(out) }
-        const [run, again] = arr(more)
+        const [run, again] = items(more)
         const runRead = emphasisOf(run)
         if (runRead[0] === 'error') { return runRead }
         out = [...out, ...runRead[1]]
@@ -231,9 +229,9 @@ const emOf = node => {
     const flushed = () => text === '' ? out : [...out, ['text', text]]
     let state = node
     while (true) {
-        const [tag, body] = arr(state)
+        const [tag, body] = items(state)
         if (tag === 'close') { return ok(flushed()) }
-        const parts = arr(body)
+        const parts = items(body)
         if (tag === 'word' || tag === 'space') {
             text = text + lexeme(parts[0])
             state = parts[1]
@@ -248,10 +246,10 @@ const emOf = node => {
             const read = emphasisOf(parts[1])
             if (read[0] === 'error') { return read }
             out = [...flushed(), ['strong', read[1]]]
-            const [after, rest] = arr(parts[3])
+            const [after, rest] = items(parts[3])
             if (after === 'close') { return ok(out) }
-            text = lexeme(arr(rest)[0])
-            state = arr(rest)[1]
+            text = lexeme(items(rest)[0])
+            state = items(rest)[1]
             continue
         }
         text = ''
@@ -268,15 +266,15 @@ const emOf = node => {
  * @type {(node: unknown) => Result<Struck, string>}
  */
 const spanOf = node => {
-    const [tag, body] = arr(node)
+    const [tag, body] = items(node)
     if (tag === 'code') { return ok(['code', codeText(body)]) }
     if (tag === 'link') {
-        const l = arr(body)
+        const l = items(body)
         const label = linkLabelOf(l[1])
         if (label[0] === 'error') { return label }
         return ok(['link', label[1], targetOf(l)])
     }
-    const [kind, inner] = arr(arr(body)[1])
+    const [kind, inner] = items(items(body)[1])
     if (kind === 'strong') {
         const read = strongOf(inner)
         return read[0] === 'error' ? read : ok(['strong', read[1]])
@@ -298,13 +296,13 @@ const spanOf = node => {
  * @type {(node: unknown) => Result<readonly Struck[], string>}
  */
 const entryOf = node => {
-    const [lead, rest] = arr(node)
+    const [lead, rest] = items(node)
     /** @type {readonly Struck[]} */
-    let out = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
-    for (const pair of arr(rest)) {
-        const [node, tail] = arr(pair)
+    let out = items(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    for (const pair of items(rest)) {
+        const [node, tail] = items(pair)
         /** @type {readonly Struck[]} */
-        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        const after = items(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         const span = spanOf(node)
         if (span[0] === 'error') { return span }
         const s = span[1]
@@ -902,7 +900,7 @@ const readProse = entry => {
 const parseInline = images => text => {
     const match = parseEntry(units(text))
     if (match[0] === 'error') { return error(`entry: unexpected symbol at ${match[1]}`) }
-    const entry = entryOf(arr(arr(match[1])[0])[0])
+    const entry = entryOf(items(items(match[1])[0])[0])
     if (entry[0] === 'error') { return entry }
     if (!images && hasImage(entry[1])) { return error('an image, which an entry does not hold') }
     const struck = strikethrough(entry[1])

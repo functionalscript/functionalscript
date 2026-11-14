@@ -5,15 +5,15 @@
  * @import { Game, Par, Search } from './types.ts'
  */
 
-import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step } from './module.f.mjs'
+import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step, undo } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { graphOf } from '../../demo/versions/module.f.mjs'
 import { values } from '../../../types/btree/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { commandsOf } from '../../../effects/module.f.mjs'
-import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
+import { commandsOf } from '../../../effects/module.f.js'
+import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 
@@ -41,7 +41,7 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, animate: true, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
+const level2 = { depth: 2, animate: true, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], shown: 0, moves: 0, history: [], par: null, last: null, error: null }
 
 /** A move made and landed. @type {(key: number) => (game: Game) => Game} */
 const played = key => game => land(move(key)(game))
@@ -171,6 +171,58 @@ export const proof = {
         // Before the first tree there is nothing to move.
         noTree: () => {
             assertEq(move(40)(demo.init), demo.init)
+        },
+    },
+    undo: {
+        // Undo takes the last move back, newest first, and counts as a
+        // move: the tree goes back to where the move started, landed at
+        // once and drawn still against the tree it undoes.
+        back: () => {
+            const one = played(40)(level2)
+            const two = played(10)(one)
+            const back = undo(two)
+            assertEq(JSON.stringify([back.moves, back.history.length, back.last, back.mode, back.pending.length]), '[3,1,null,"still",0]')
+            assertEq(JSON.stringify(back.versions), JSON.stringify({ before: assertNotNullish(two.versions).after, after: assertNotNullish(one.versions).after }))
+            assertEq(back.shown, two.shown + 1)
+            const start = undo(back)
+            assertEq(JSON.stringify([start.moves, start.history.length]), '[4,0]')
+            assertEq(JSON.stringify(assertNotNullish(start.versions).after), JSON.stringify(inOrder))
+            assertEq(statusLine(start)(inOrder), '4 moves. Depth 3, goal 2. 7 nodes, goal 4.')
+            // Nothing left to undo: the game as it was.
+            assertEq(undo(start), start)
+            assertEq(undo(demo.init), demo.init)
+        },
+        // A move that changed nothing is not undone: it adds nothing to
+        // the history, so undo takes back the move before it, and with
+        // none before it, there is nothing to undo.
+        skipsNoChange: () => {
+            const same = played(10)(level2)
+            assertEq(JSON.stringify([same.moves, same.history.length]), '[1,0]')
+            assertEq(undo(same), same)
+            assert(html(same).includes('<button type="button" name="undo" disabled="">Undo</button>'), html(same))
+            // After 40 moved, 30 goes back where it was: undo skips it and
+            // takes 40's move back, to the start.
+            const twice = played(30)(played(40)(level2))
+            assertEq(JSON.stringify([twice.moves, twice.last, twice.history.length]), '[2,{"key":30,"changed":false},1]')
+            const back = undo(twice)
+            assertEq(JSON.stringify([back.moves, back.history.length]), '[3,0]')
+            assertEq(JSON.stringify(assertNotNullish(back.versions).after), JSON.stringify(inOrder))
+        },
+        // A move still showing lands, and is the one undone.
+        showing: () => {
+            const back = undo(move(40)(level2))
+            assertEq(JSON.stringify([back.moves, back.history.length]), '[2,0]')
+            assertEq(JSON.stringify(assertNotNullish(back.versions).after), JSON.stringify(inOrder))
+        },
+        // The button is disabled until there is a move to undo, and a
+        // click on it undoes one; a new tree starts the history again.
+        button: () => {
+            assert(html(level2).includes('<button type="button" name="undo" disabled="">Undo</button>'), html(level2))
+            const one = played(40)(level2)
+            assert(html(one).includes('<button type="button" name="undo">Undo</button>'), html(one))
+            const back = update({ kind: 'click', name: 'undo' })(one)
+            assertEq(JSON.stringify([back.moves, back.history.length]), '[2,0]')
+            assertEq(update({ kind: 'click', name: 'new' })(one).history.length, 0)
         },
     },
     status: {

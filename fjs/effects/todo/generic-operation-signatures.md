@@ -25,9 +25,9 @@ parameter and return types are fixed. A type parameter has nowhere to go in
 
 | Site | Cast |
 | --- | --- |
-| `create` in `fjs/effects/memory/module.f.mjs` | `<T>(value: T) => Effect<MemCreate, Key<T>>` |
-| `read` in `fjs/effects/memory/module.f.mjs` | `<T>(key: Key<T>) => Effect<MemRead, T>` |
-| `all` in `fjs/effects/common/module.f.mjs` | `<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O \| All, readonly Result<T, E>[], NotImplemented>` |
+| `create` in `fjs/effects/memory/module.f.js` | `<T>(value: T) => Effect<MemCreate, Key<T>>` |
+| `read` in `fjs/effects/memory/module.f.js` | `<T>(key: Key<T>) => Effect<MemRead, T>` |
+| `all` in `fjs/effects/common/module.f.js` | `<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O \| All, readonly Result<T, E>[], NotImplemented>` |
 
 The contrast is visible in one file: the non-generic constructors are written
 as `/** @type {Func<Stat>} */ const stat = do_('stat')` — an annotated
@@ -67,7 +67,7 @@ with `Operation` written into the declaration, so `Pr` erases nothing — the
 handler is handed the widest listener the type says it may be handed, and
 narrowing it to `NodeOp` is what the cast does. The `<O extends Operation>`
 signature it looks like it should have exists only on the effect constructor
-(`createServer` in `../node/module.f.mjs`), which is itself a cast.
+(`createServer` in `../node/module.f.js`), which is itself a cast.
 
 That makes it a third cause, needing its own answer: whether `CreateServer` can
 carry the listener's op-set instead of pinning `Operation`, and what the

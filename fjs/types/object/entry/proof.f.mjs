@@ -1,3 +1,8 @@
+/**
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Equal } from '../../ts/types.ts'
+ */
+
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from './module.f.js'
 
@@ -24,10 +29,13 @@ export const proof = {
         some({ a: 7 }, 'a', 7)
         none({ a: 7 }, 'b')
         none({}, 'toString')
+        none({}, 'constructor')
+        some({ constructor: 42 }, 'constructor', 42)
         // A computed __proto__ key is an own data field, not a prototype setter.
         some({ ['__proto__']: 42 }, '__proto__', 42)
         some({ length: 3 }, 'length', 3)
         some({ a: undefined }, 'a', undefined)
+        some({ a: null }, 'a', null)
         none({}, 'a')
     },
     // An array's and a string's elements by their canonical index, and
@@ -73,8 +81,12 @@ export const proof = {
     // holding `undefined` takes too, and the presence through `hasEntry`
     // where that matters.
     value: () => {
-        const o = { a: 1, u: undefined }
-        assertEq(entry(o, 'a') ?? 'fallback', 1)
+        const o = /** @type {const} */ ({ a: 1, u: undefined })
+        const read = entry(o, 'a')
+        /** @type {Assert<Equal<typeof read, 1 | undefined>>} */
+        const literalKeyKeepsItsFieldType = true
+        assert(literalKeyKeepsItsFieldType)
+        assertEq(read ?? 'fallback', 1)
         assertEq(entry(o, 'u') ?? 'fallback', 'fallback')
         assertEq(hasEntry(o, 'u') ? entry(o, 'u') : 'fallback', undefined)
         assertEq(entry(o, 'b') ?? 'fallback', 'fallback')

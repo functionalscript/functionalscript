@@ -4,10 +4,8 @@
 two modules in `fjs/types` currently state opposite premises about the same
 input. Nothing is broken for a caller today, which is why it is not P1.
 **Status:** open — the survey is complete and below. The first step is a
-decision and every step that touches a hole waits on it. One does not: the
-`fjs/sul` cleanup is about `fill` and a reassigned local rather than about
-holes, so it lands first and clears the grep of the one site the decision has
-nothing to say about.
+decision and every step that touches a hole waits on it. The one that did
+not, the `fjs/sul` cleanup, has landed.
 
 ### Problem
 
@@ -36,7 +34,7 @@ through; the one place the two differ is noted in it:
 | `fjs/types/range_set/proof.f.mjs` | 3 |
 | `fjs/media/datajs/serializer/proof.f.mjs` | 1 |
 | `fjs/rtti/parse/proof.f.mjs` | 1 |
-| `fjs/sul/proof.f.mjs` | 1 |
+| `fjs/sul/proof.f.mjs` | 1 (since replaced by `Array.from`) |
 | `fjs/git/refname/proof.f.mjs` | 1 |
 | `fjs/git/ref/proof.f.mjs` | 1 |
 | **`fjs/rtti/parse/module.f.mjs`** | **1** |
@@ -108,7 +106,7 @@ module they live in.
   cover the same branches.
 - **Guards that survive.** Leave the code, rewrite the prose to say which
   caller it defends against.
-- **Unrelated subset violations found on the way.** `fjs/sul/proof.f.mjs` has
+- **Unrelated subset violations found on the way.** `fjs/sul/proof.f.mjs` had
   `new Array(n).fill(0n)`, which breaks two rules on one line, since `fill`
   mutates. `Array.from({ length: n }, () => 0n)` is the repository idiom and is
   already used in `fjs/crypto/sha1`.
@@ -124,10 +122,11 @@ module they live in.
       covers `Object.defineProperty` and index assignment on an accumulator,
       which the same function uses. Note the precedent: this exact argument was
       made for the DataJS corpus, acted on, and reversed.
-- [ ] **`fjs/sul` hygiene.** Replace `new Array(n).fill(0n)` with
-      `Array.from`, and drop the `push` and reassigned local in the same
-      helper. No shipped code, no coverage change, unrelated to holes. Lands
-      first to clear the grep.
+- [x] **`fjs/sul` hygiene.** Replace `new Array(n).fill(0n)` with
+      `Array.from`, and drop the reassigned local in the same helper. No
+      shipped code, no coverage change, unrelated to holes. Its `push` is a
+      recorder's, which [proof-recorders-mutate](../fjs/todo/proof-recorders-mutate.md)
+      decides for every proof that has one.
 - [ ] **`fjs/edag`.** Delete the four hole entries and trim the two prose
       clauses that describe `fjs/rtti`'s behaviour rather than `edag`'s.
       Confirm in the pull request that the dense siblings still cover the

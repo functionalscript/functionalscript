@@ -11,7 +11,7 @@
  */
 
 import { isSpread } from '../../js/ast/module.f.mjs'
-import { eagerOperandsOf } from '../sharing/module.f.mjs'
+import { eagerOperandsOf } from '../sharing/module.f.js'
 import { add, empty, has } from '../../types/set/module.f.mjs'
 
 /** @type {(value: unknown) => (set: PersistentSet<unknown>) => boolean} */

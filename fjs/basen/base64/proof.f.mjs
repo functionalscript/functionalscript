@@ -4,10 +4,10 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.mjs'
-import { encode, decode } from './module.f.mjs'
+import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.js'
+import { encode, decode } from './module.f.js'
 import { demo, groupsOf } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 
@@ -130,7 +130,7 @@ export const proof = {
         check('A'.repeat(174_763) + '=', vec(maxLength)(0n))
     },
     // Regression guard: `encode` used to be quadratic in the input size, not
-    // linear. `baseN`'s `vecToString` (`fjs/basen/module.f.mjs`) popped one
+    // linear. `baseN`'s `vecToString` (`fjs/basen/module.f.js`) popped one
     // 6-bit chunk off the front at a time via `popFront`, and each `popFront`
     // re-masked the entire remaining bigint through `vec()`'s `m & ui` —
     // O(remaining length) — so encoding a vector of `n` bits cost O(n²). A
@@ -143,7 +143,7 @@ export const proof = {
     // Fixed by rewriting `vecToString` as a balanced recursive split
     // (`unpackToString`), mirroring the `chunkList`/`unpackChunkList`
     // divide-and-conquer already used by `u8List` and by concatenation
-    // (`msb.concat` / `unpackListToVec`, PR #1192) — true O(n log n) now,
+    // (`msb.concatVec` / `unpackListToVec`, PR #1192) — true O(n log n) now,
     // since each half is masked to its own length before recursing. The same
     // call now takes ~50ms on Node and ~225ms on Bun. No timing assertion
     // (duration varies by engine/machine) — this just exercises the call and

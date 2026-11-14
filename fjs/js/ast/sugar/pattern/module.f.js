@@ -66,8 +66,10 @@ export const planPattern = policy => (target, namespace) => {
         }
         if (hasEntry(item, 'element')) {
             const { element, source } = item
-            if (element[0] === '...') { return error(policy.refused('rest', element[1])) }
-            if (element[0] !== 'elision') { pending = pushed(pending, { target: element, source }) }
+            if (element[0] === '...') {
+                if (element[3] !== undefined) { return error(policy.refused('restComma', element[3])) }
+                pending = pushed(pending, { target: element[2], source: ['slice', source[0], source[1]] })
+            } else if (element[0] !== 'elision') { pending = pushed(pending, { target: element, source }) }
             continue
         }
         const { target: current, source } = item

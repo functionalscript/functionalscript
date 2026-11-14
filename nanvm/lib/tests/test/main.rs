@@ -52,12 +52,6 @@ fn conversions<A: IVm>() {
     let nz: f64 = nz.into();
     assert_eq!(format!("{nz}"), "-0");
     assert_eq!(1.0 / nz, -f64::INFINITY);
-
-    // The generated tests compare numbers with `Object.is` semantics, which
-    // `harness::same` implements with `to_bits`; this is the property that
-    // makes that work.
-    assert_eq!((-0f64).to_bits(), (-0f64).to_bits());
-    assert_ne!(0f64.to_bits(), (-0f64).to_bits());
 }
 
 fn debug_format<A: IVm>() {

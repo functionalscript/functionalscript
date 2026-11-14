@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
+ * @import { PartialMemOperationMap, PartialMemOperationMapWithRunner, RunInstance } from '../../mock/types.ts'
  * @import { MemoryState } from '../../memory/types.ts'
  * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, Overrun, RequestBody, RequestListener, SandboxResult, Server, Underrun, _Gate } from '../types.ts'
  * @import { Effect, IoChannel, Operation } from '../../types.ts'
@@ -16,21 +16,23 @@
  */
 
 import { assert, todo } from '../../../asserts/module.f.js'
-import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.js'
-import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
-import { utf8ToString } from '../../../text/utf8/module.f.mjs'
-import { divUp8 } from '../../../types/bigint/module.f.mjs'
-import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { isProperPrefix, join, parse } from '../../../path/module.f.js'
+import { asciiLowercase } from '../../../text/ascii/module.f.js'
+import { utf8ToString } from '../../../text/utf8/module.f.js'
+import { divUp8 } from '../../../types/bigint/module.f.js'
+import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.js'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import {
-    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, nodeCommands,
+    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, lexicalFileModule, nodeCommands,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, windowRefusal,
-} from '../module.f.mjs'
-import { partialRun } from '../../mock/module.f.mjs'
-import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
+} from '../module.f.js'
+import { partialRun } from '../../mock/module.f.js'
+import { memoryInitial, memoryOperationMap } from '../../memory/module.f.js'
 import { asBase, asNominal } from '../../../types/nominal/module.f.js'
-import { _compareNames } from './readdir/module.f.mjs'
+import { entry as ownEntry } from '../../../types/object/entry/module.f.js'
+import { fromEntries } from '../../../types/object/module.f.js'
+import { _compareNames } from './readdir/module.f.js'
 
 /** @type {State} */
 export const emptyState = {
@@ -54,7 +56,7 @@ export const emptyState = {
  * @param {_Entity} entity
  * @returns {entity is readonly Vec[]}
  */
-const isBinFile = entity => Array.isArray(entity)
+const isBinFile = entity => entity instanceof Array
 
 /**
  * @param {_Entity} entity
@@ -68,12 +70,11 @@ const isJsModule = entity => typeof entity === 'function'
  */
 const isDir = entity => !isBinFile(entity) && !isJsModule(entity)
 
-const { hasOwn } = Object
-
 /**
  * The entry `dir` holds at `name`, or `undefined` if it holds none.
  *
- * **Own names only.** A `Dir` is a plain object, so `dir[name]` also finds
+ * **Enumerable own names only.** A `Dir` is a FunctionalScript record, whose
+ * fields are enumerable own entries. A raw JavaScript `dir[name]` also finds
  * whatever `Object.prototype` holds: `dir['toString']` is a function — which
  * this file system reads as a `JsModule` — and `dir['__proto__']` is an object,
  * which it reads as a directory. A host has no such names, so an empty root
@@ -96,7 +97,7 @@ const { hasOwn } = Object
  *
  * @type {(dir: Dir, name: string) => _Entity | undefined}
  */
-const entryOf = (dir, name) => hasOwn(dir, name) ? dir[name] : undefined
+const entryOf = (dir, name) => ownEntry(dir, name)
 
 /**
  * @template T
@@ -142,6 +143,52 @@ const okVoid = ok(undefined)
  */
 const fail = message => error(ioError({ message }))
 
+/** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
+const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
+
+/** What a POSIX host answers for a path that descends through a name which is
+ * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
+const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
+
+/** A name that is already taken, mirroring `EEXIST`: an exclusive create of an
+ * existing name, or a `mkdir` of one — see {@link mkdirOp}. */
+const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
+
+/**
+ * An empty path names nothing, and `parse` cannot say so: it collapses `''` to
+ * the same empty segment list `.` gives, and `.` is the root. A host answers
+ * `ENOENT` for `''` wherever it answers something else for `.`, so this asks
+ * the question `parse` throws away — before the answer can depend on it.
+ * {@link statOp}, {@link exclusive} and {@link mkdir} are its users.
+ *
+ * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
+ */
+const emptyPathIsAbsent = op => path => path === '' ? state => [state, enoent] : op(path)
+
+/**
+ * What the entry `p` names is, for {@link openOp} — the entity itself, since a
+ * handle records what it opened rather than what kind of thing that was. It is
+ * also what {@link mirrorsToHandles} re-reads after a write, so the two ends of a
+ * handle's life read the name the same way.
+ *
+ * It answers where {@link statPath} answers and refuses where that refuses, and
+ * for the same reasons: a directory arrives as an empty remaining path because
+ * `operation` has already descended into it, a name that is absent is `ENOENT`,
+ * and more than one segment left over means the name before them exists with
+ * nothing under it, which POSIX calls `ENOTDIR`. Both were measured through
+ * `open` itself on Darwin with Node 26.8.1 — an absent name is `ENOENT`, a path
+ * through a regular file is `ENOTDIR`, and a directory opens successfully.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => IoResult<_Entity>}
+ */
+const openEntity = (dir, path) => {
+    if (path.length === 0) { return ok(dir) }
+    const entry = entryOf(dir, path[0])
+    if (entry === undefined) { return enoent }
+    if (path.length !== 1) { return enotdir }
+    return ok(entry)
+}
+
 // ── A handle follows its file ─────────────────────────────────────────────────
 //
 // An open file holds the name it still answers to as well as what that name held
@@ -179,7 +226,7 @@ const fail = message => error(ioError({ message }))
  *
  * @type {(name: readonly string[], prefix: readonly string[]) => boolean}
  */
-const isUnder = (name, prefix) => prefix.every((s, i) => name[i] === s)
+const isUnder = (name, prefix) => prefix.every((s, i) => name[Number(i)] === s)
 
 /**
  * The handles `f` leaves, asked of every one a name still reaches.
@@ -190,7 +237,11 @@ const isUnder = (name, prefix) => prefix.every((s, i) => name[i] === s)
  *
  * @type {(f: (handle: _OpenFile, name: readonly string[]) => _OpenFile) => (handles: readonly _OpenFile[]) => readonly _OpenFile[]}
  */
-const mapNamed = f => handles => handles.map(h => h.name === null ? h : f(h, h.name))
+const mapNamed = f => handles => handles.map(h => {
+    const name = ownEntry(h, 'name')
+    assert(name !== undefined)
+    return name === null ? h : f(h, name)
+})
 
 /**
  * `op`, and then what the path now holds copied into every handle under it —
@@ -270,7 +321,7 @@ const mkdirOp = recursive => (dir, path) => {
     let i = path.length
     while (i > 0) {
         i -= 1
-        d = { [path[i]]: d }
+        d = { [path[Number(i)]]: d }
     }
     dir = { ...dir, ...d }
     return [dir, okVoid]
@@ -288,24 +339,6 @@ const mkdirOp = recursive => (dir, path) => {
  * @type {(recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
  */
 const mkdir = recursive => emptyPathIsAbsent(operation(mkdirOp(recursive)))
-
-/** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
-const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
-
-/**
- * An empty path names nothing, and `parse` cannot say so: it collapses `''` to
- * the same empty segment list `.` gives, and `.` is the root. A host answers
- * `ENOENT` for `''` wherever it answers something else for `.`, so this asks
- * the question `parse` throws away — before the answer can depend on it.
- * {@link statOp}, {@link exclusive} and {@link mkdir} are its users.
- *
- * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
- */
-const emptyPathIsAbsent = op => path => path === '' ? state => [state, enoent] : op(path)
-
-/** What a POSIX host answers for a path that descends through a name which is
- * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
-const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
 /** What a host answers for `rmdir` of a directory that holds anything. */
 const enotempty = error(ioError({ code: 'ENOTEMPTY', message: 'directory not empty' }))
@@ -518,9 +551,9 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
     /** @type {readonly Dirent[]} */
     let result = []
     for (let i = 0; i < queue.length; i += 1) {
-        const [parentPath, d] = queue[i]
+        const [parentPath, d] = queue[Number(i)]
         for (const name of keys(d).toSorted(_compareNames)) {
-            const content = d[name]
+            const content = ownEntry(d, name)
             if (content === undefined) { continue }
             const isFile = !isDir(content)
             result = [...result, { name, parentPath, isFile, isDirectory: !isFile }]
@@ -539,6 +572,13 @@ const access = readOperation((dir, path) => {
     return entryOf(dir, path[0]) !== undefined ? okVoid : enoent
 })
 
+/**
+ * A directory's enumerable own fields except the removed name, preserving
+ * entries holding `undefined` and ordinary names such as `__proto__`.
+ * @type {(dir: Dir, name: string) => Dir}
+ */
+const withoutEntry = (dir, name) => fromEntries(Object.entries(dir).filter(([key]) => key !== name))
+
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
     // Presence before length, as `statPath` does: `operation` hands over the
@@ -556,7 +596,7 @@ const rmOp = (dir, path) => {
     // is always a `Vec[]` or a `JsModule` — never a bare `Dir` — and rm can
     // always proceed. (`rm` on a genuinely non-empty directory instead hits
     // `path.length !== 1` above, once the wrapper has descended into it.)
-    const { [name]: _, ...rest } = dir
+    const rest = withoutEntry(dir, name)
     return [rest, okVoid]
 }
 
@@ -614,7 +654,7 @@ const rmdirBelowRoot = atParent((parent, name) => {
     if (entry === undefined) { return [parent, enoent] }
     if (!isDir(entry)) { return [parent, enotdir] }
     if (!isEmptyDir(entry)) { return [parent, enotempty] }
-    const { [name]: _, ...kept } = parent
+    const kept = withoutEntry(parent, name)
     return [kept, okVoid]
 }, enotdir)
 
@@ -668,7 +708,7 @@ const rmdir = detachesHandles(emptyPathIsAbsent(path => state => {
 const extractBelowRoot = atParent((parent, name) => {
     const entry = entryOf(parent, name)
     if (entry === undefined) { return [parent, enoent] }
-    const { [name]: _, ...rest } = parent
+    const rest = withoutEntry(parent, name)
     return [rest, ok(entry)]
 }, enoent)
 
@@ -764,7 +804,7 @@ const window_ = (chunks, offset, size) => {
         const availableBits = chunkBits - skipInChunk
         const takeBits = availableBits <= toRead ? availableBits : toRead
         const taken = vec(takeBits)(msb.front(takeBits)(msb.removeFront(skipInChunk)(chunk)))
-        result = msb.concat(result)(taken)
+        result = msb.concatVec(result)(taken)
         toSkip = 0n
         toRead -= takeBits
     }
@@ -797,10 +837,6 @@ const directory = ok({ size: 0, isFile: false, isDirectory: true })
  */
 const fileSizeBytes = chunks =>
     chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
-
-/** A name that is already taken, mirroring `EEXIST`: an exclusive create of an
- * existing name, or a `mkdir` of one — see {@link mkdirOp}. */
-const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
 
 /**
  * `O_CREAT|O_EXCL` on a name, creating it with `chunks` where it is free. Both
@@ -905,7 +941,7 @@ const statPath = readOperation((dir, path) => {
     const file = entryOf(dir, path[0])
     if (file === undefined) { return enoent }
     if (path.length !== 1) { return enotdir }
-    // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
+    // `isBinFile` rather than a local `instanceof Array`: which entity kind a name
     // holds is asked in one place now (#1697), and the size calculation uses the same
     // helper as the write path, so the two cannot disagree about the file's end.
     if (!isBinFile(file)) { return notRegular }
@@ -929,30 +965,6 @@ const statOp = emptyPathIsAbsent(statPath)
 // per chunk could join two files into one correctly-sized body. What keeps the
 // contents current instead is the writing end, decorated above
 // ("A handle follows its file").
-
-/**
- * What the entry `p` names is, for {@link openOp} — the entity itself, since a
- * handle records what it opened rather than what kind of thing that was. It is
- * also what {@link mirrorsToHandles} re-reads after a write, so the two ends of a
- * handle's life read the name the same way.
- *
- * It answers where {@link statPath} answers and refuses where that refuses, and
- * for the same reasons: a directory arrives as an empty remaining path because
- * `operation` has already descended into it, a name that is absent is `ENOENT`,
- * and more than one segment left over means the name before them exists with
- * nothing under it, which POSIX calls `ENOTDIR`. Both were measured through
- * `open` itself on Darwin with Node 26.8.1 — an absent name is `ENOENT`, a path
- * through a regular file is `ENOTDIR`, and a directory opens successfully.
- *
- * @type {(dir: Dir, path: readonly string[]) => IoResult<_Entity>}
- */
-const openEntity = (dir, path) => {
-    if (path.length === 0) { return ok(dir) }
-    const entry = entryOf(dir, path[0])
-    if (entry === undefined) { return enoent }
-    if (path.length !== 1) { return enotdir }
-    return ok(entry)
-}
 
 /**
  * Opens `path`, recording what it held and the name it held it under.
@@ -1012,7 +1024,7 @@ const openFile = (state, handle) => {
  * write to that same file does reach the handle now, as it does on a host, and the
  * bound holds either way: a file that grew is read to the declared length and
  * framed by it, and one that shrank ends a read early, which `readChunks`
- * ([`../module.f.mjs`](../module.f.mjs)) fails the cell for rather than ending the
+ * ([`../module.f.js`](../module.f.js)) fails the cell for rather than ending the
  * body short. Nothing in this tree writes to a file it holds open; a program that
  * did would meet a host's own read-while-write race here too, which is the point
  * of modelling it.
@@ -1089,7 +1101,7 @@ const ephemeral = 0
  * The chunks from the first one that has bits, the ones before it dropped.
  *
  * **No bytes is how a pull says *end***: `readChunks` ends an unbounded stream
- * at an empty answer ([`../module.f.mjs`](../module.f.mjs)), so a chunk of no
+ * at an empty answer ([`../module.f.js`](../module.f.js)), so a chunk of no
  * bytes cannot be handed to a listener as a chunk. The Node runner's reader
  * steps over one for that reason — Node's parser owes nobody a promise to keep
  * an empty chunk out of a body — and a fixture chunk with no bits is that
@@ -1129,7 +1141,7 @@ const fromFirstWithBits = rest => {
  * from the next one in the fixture.
  *
  * **A chunk the stream will not take stays where it is.** `readChunks` refuses
- * one that is not whole bytes ([`../module.f.mjs`](../module.f.mjs)) and says
+ * one that is not whole bytes ([`../module.f.js`](../module.f.js)) and says
  * how many bits it had, and a listener may catch that refusal and pull the same
  * cell again. Handed out and dropped, such a chunk left the cursor moved while
  * its nought bytes left the offset alone, so the retry named an offset that
@@ -1148,7 +1160,7 @@ const fromFirstWithBits = rest => {
  */
 const readRequestBytes = (body, offset, _size) => state => {
     const index = /** @type {number} */ (asBase(body))
-    const cursor = state.bodies[index]
+    const cursor = state.bodies[Number(index)]
     if (offset !== cursor.offset) {
         return [state, error(ioError({ message: requestBodyOffsetMessage(offset, cursor.offset) }))]
     }
@@ -1240,15 +1252,15 @@ const createServer = listener => state => {
  * body and answered it. A runner that cannot model a body the host delivers cannot
  * be proven against for it.
  *
- * @type {(bound: Nullable<number>) => (state: State, e: EffectList<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
+ * @type {(run: RunInstance<NodeOp, State>, bound: Nullable<number>) => (state: State, e: EffectList<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
  */
-const pump = bound => (state, e, written, body) => {
+const pump = (run, bound) => (state, e, written, body) => {
     let s = state
     let cursor = e
     let count = written
     let chunks = body
     while (true) {
-        const [next, cell] = virtual(s)(cursor)
+        const [next, cell] = run(s)(cursor)
         s = next
         const step = pumpCell(bound, count, cell)
         if (step[0] === 'stop') { return [s, chunks, step[1]] }
@@ -1283,9 +1295,9 @@ const pump = bound => (state, e, written, body) => {
  * line that goes out. A listener's own `204` rewritten to `500` carries its
  * refusal on a `GET`, which is the host's answer too.
  *
- * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: EffectList<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ * @type {(run: RunInstance<NodeOp, State>, gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: EffectList<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
  */
-const recordResponse = (gate, method) => (state, status, headers, body) => {
+const recordResponse = (run, gate, method) => (state, status, headers, body) => {
     if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
     if (gate[0] !== 'pump') {
         const refused = runnerResponse(refusedStatus, refusalMessage(gate))
@@ -1295,7 +1307,7 @@ const recordResponse = (gate, method) => (state, status, headers, body) => {
             failure: null,
         }]
     }
-    const [next, chunks, failure] = pump(gate[1])(state, body, 0, [])
+    const [next, chunks, failure] = pump(run, gate[1])(state, body, 0, [])
     return [next, { status, headers, body: chunks, failure }]
 }
 
@@ -1308,16 +1320,17 @@ const recordResponse = (gate, method) => (state, status, headers, body) => {
  * that {@link State.handles} is empty once the request is over, which is the leak
  * itself rather than a report of it.
  *
- * @type {(listener: _VirtualListener) => (state: State, request: IncomingMessage) => State}
+ * @type {(run: RunInstance<NodeOp, State>, listener: _VirtualListener) => (state: State, request: IncomingMessage) => State}
  */
-const answerRequest = listener => (state, request) => {
-    const [afterListener, answered] = virtual(state)(listener(request))
+const answerRequest = (run, listener) => (state, request) => {
+    const [afterListener, answered] = run(state)(listener(request))
     const { status, headers, body, release } = unwrap(answered)
     const [afterBody, recorded] = recordResponse(
+        run,
         responseGate(request.method, request.chunkedResponse, status, headers),
         request.method,
     )(afterListener, status, headers, body)
-    const [afterRelease] = virtual(afterBody)(release)
+    const [afterRelease] = run(afterBody)(release)
     return { ...afterRelease, responses: [...afterRelease.responses, recorded] }
 }
 
@@ -1353,9 +1366,9 @@ const answerRequest = listener => (state, request) => {
  * The listener comes out of the handle rather than out of the state, so which
  * server was asked to listen is the one that answers — see {@link createServer}.
  *
- * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
+ * @type {(server: Server, port: number, host: string) => (state: State, run: RunInstance<NodeOp, State>) => readonly[State, IoResult<void>]}
  */
-const listen = (server, port, host) => state => {
+const listen = (server, port, host) => (state, run) => {
     // Asked **first**, as the Node runner asks it: an empty host is refused
     // before anything else is looked at, including whether this server is
     // already listening. Node forms no opinion about `''` at all — it binds —
@@ -1387,8 +1400,10 @@ const listen = (server, port, host) => state => {
     // address, and a host refuses the second bind — checked on Linux with Node
     // 22.22.2 and on Darwin with Node 23.11.0. Unlike the wildcard rules in
     // [address-model](./todo/address-model.md), that equivalence is the same
-    // everywhere, so it is safe to model.
-    const address = `${host.toLowerCase()}:${port}`
+    // everywhere, so it is safe to model. The fold is ASCII's alone, as DNS's
+    // is: `toLowerCase()` would also take `'\u212a'`, the Kelvin sign, for a
+    // `k`, and refuse a bind no host was shown to refuse.
+    const address = `${asciiLowercase(host)}:${port}`
     // Port `0` asks the host for whichever port is free, so two servers that
     // ask both get one — checked on Linux with Node 22.22.2 and on Darwin with
     // Node 23.11.0: they come back bound to different ports.
@@ -1403,7 +1418,7 @@ const listen = (server, port, host) => state => {
     }
     /** @type {State} */
     let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
-    const answer = answerRequest(listener)
+    const answer = answerRequest(run, listener)
     for (const queued of state.requests) {
         // The body's cursor is registered before the listener runs, because the
         // listener is what reads it — the same order the Node runner puts the
@@ -1426,32 +1441,23 @@ const onMemory = f => state => {
     return [{ ...state, memory }, result]
 }
 
-/** Virtual operations, available for composing a runtime with additional capabilities. @satisfies {PartialMemOperationMap<NodeOp, State>} */
-export const virtualOperationMap = {
-    all: (...a) => state => {
-        // Each entry is the effect's whole `Result`: `all`'s own envelope says
-        // only whether the runner could dispatch it, so the inner answers pass
-        // through untouched for `allOk` to collapse.
-        /** @type {readonly Result<unknown, unknown>[]} */
-        let e = []
-        for (const i of a) {
-            const [ns, ei] = virtual(state)(i)
-            state = ns
-            e = [...e, ei]
-        }
-        return [state, ok(e)]
-    },
+/**
+ * Virtual operations that do not re-enter the runner.
+ *
+ * @satisfies {PartialMemOperationMap<NodeOp, State>}
+ */
+const baseOperationMap = /** @type {const} */ ({
     memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
     memRead: key => onMemory(memoryOperationMap.memRead(key)),
     memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
     fetch: url => state => {
-        const result = state.internet[url]
+        const result = ownEntry(state.internet, url)
         return result === undefined ? [state, fail('not found')] : [state, ok(result)]
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
     resolveFileModule: (name, parent) => state => {
-        const path = parent === null ? name : resolveImportPath(parent)(name)
-        return [state, path === null ? fail('invalid module specifier') : ok({ id: normalize(path), path })]
+        const [kind, found] = lexicalFileModule(name, parent)
+        return [state, kind === 'error' ? fail(found) : ok(found)]
     },
     readFile,
     readdir: (path, { recursive }) => readdir(path, recursive === true)(path),
@@ -1472,7 +1478,6 @@ export const virtualOperationMap = {
     pread: preadOp,
     close: closeOp,
     createServer,
-    listen,
     readRequestBytes,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
@@ -1492,7 +1497,8 @@ export const virtualOperationMap = {
     catch: f => state => [state, ok(ok(f()))],
     write: (stream, data) => state => {
         const s = utf8ToString(data)
-        return [{ ...state, [stream]: `${state[stream]}${s}` }, okVoid]
+        const previous = stream === 'stdout' ? state.stdout : state.stderr
+        return [{ ...state, [stream]: `${previous}${s}` }, okVoid]
     },
     read: () => state => {
         const [first, ...rest] = state.stdin
@@ -1500,12 +1506,20 @@ export const virtualOperationMap = {
             ? [state, ok(null)]
             : [{ ...state, stdin: rest }, ok(first)]
     },
-}
+})
+
+/**
+ * The interpreter supplies its runner to `listen` when it steps the transition,
+ * so the map and interpreter can be constructed once without a recursive binding.
+ *
+ * @satisfies {PartialMemOperationMapWithRunner<NodeOp, State>}
+ */
+const operationMap = /** @type {const} */ ({ ...baseOperationMap, listen })
 
 /**
  * The virtual runner.
  *
- * **It implements part of `NodeOp`, and says so.** `exec`, `spawn`, `childWait`,
+ * **It implements part of `NodeOp`, and says so.** `exec`, `capture`, `spawn`, `childWait`,
  * `forever` and `test` have no meaning against an in-memory filesystem, and
  * `inflate` needs a decoder this runner does not carry until
  * [`todo/inflate.md`](../../../../todo/inflate.md) is done. `exec`, `forever`
@@ -1527,7 +1541,22 @@ export const virtualOperationMap = {
  *
  * @type {RunInstance<NodeOp, State>}
  */
-export const virtual = partialRun(nodeCommands)(virtualOperationMap)
+export const virtual = partialRun(nodeCommands)(operationMap)
+
+/**
+ * Virtual operations, available for composing a runtime with additional
+ * capabilities. `all` is not among them: `partialRun` answers it over the
+ * runner a map is composed into, so its effects reach every handler there.
+ *
+ * @satisfies {PartialMemOperationMap<NodeOp, State>}
+ */
+export const virtualOperationMap = /** @type {const} */ ({
+    ...baseOperationMap,
+    listen: (server, port, host) => {
+        const transition = listen(server, port, host)
+        return state => transition(state, virtual)
+    },
+})
 
 /**
  * The virtual runner over {@link emptyState} with `root` as its filesystem: the

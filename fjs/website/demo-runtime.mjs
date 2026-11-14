@@ -17,14 +17,14 @@
  */
 
 import { asyncPartialRun } from '../effects/module.mjs'
-import { commandsOf } from '../effects/module.f.mjs'
+import { commandsOf } from '../effects/module.f.js'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
-import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.mjs'
+import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.js'
 import { editOf } from './demo/mirror/module.f.js'
 import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
 

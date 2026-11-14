@@ -3,7 +3,10 @@
 /// Admitted pairs whose ordinary member resolution requires a runtime implementation.
 #[rustfmt::skip]
 pub const RUNTIME_ONLY: &[(&str, &str)] = &[
+    ("Array", "concat"),
+    ("Array", "map"),
     ("String", "codePointAt"),
+    ("String", "concat"),
     ("String", "startsWith"),
 ];
 
@@ -737,10 +740,20 @@ pub const ABSENT: &[(&str, &str)] = &[
 pub const STATICS: &[&[&str]] = &[
     &["Object", "is"],
     &["Object", "entries"],
+    &["Object", "keys"],
     &["String", "fromCharCode"],
     &["Object", "fromEntries"],
     &["Number", "isInteger"],
     &["Number", "isSafeInteger"],
     &["Number", "isNaN"],
     &["Number", "isFinite"],
+    &["Math", "log2"],
+    &["Math", "trunc"],
+    &["Math", "floor"],
+    &["Math", "abs"],
+    &["Math", "sqrt"],
+    &["Math", "ceil"],
+    &["Math", "imul"],
+    &["Math", "max"],
+    &["Math", "min"],
 ];

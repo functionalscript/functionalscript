@@ -6,17 +6,13 @@
 #[path = "../gen.fast/immutable_joins.rs"]
 mod immutable_joins;
 
-use nanvm_harness::runtime;
 use nanvm_lib::{
     naive::Naive,
     vm::{Any, Array, Function, Object, ToAny, ToArray},
 };
 
 fn exports() -> Object<Naive> {
-    immutable_joins::module::<Naive>(runtime())
-        .unwrap()
-        .try_into()
-        .unwrap()
+    nanvm_lib::vm::exports(immutable_joins::module::<Naive>).unwrap()
 }
 
 fn function(exports: &Object<Naive>, name: &str) -> Function<Naive> {

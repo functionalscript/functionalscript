@@ -13,7 +13,7 @@ map), so every move is a breaking change, and every cross-module import is a
 relative `.f.mjs` path.
 
 The moves agreed so far have landed: the base-N codecs and their factory under
-[`fjs/basen/`](../basen/module.f.mjs), `monoid` under `fjs/common/`, the `fjs`
+[`fjs/basen/`](../basen/module.f.js), `monoid` under `fjs/common/`, the `fjs`
 bin promoted to `fjs/module.f.mjs`, `rtti` promoted from `fjs/types/` to
 `fjs/rtti/`, and the content formats under `fjs/media/` — whose membership,
 dialect and cycle rules are now in [`fjs/media/README.md`](../media/README.md).

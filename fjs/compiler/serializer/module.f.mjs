@@ -12,7 +12,7 @@
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.js'
 import { checked, identityAnalysis } from '../../edag/analysis/module.f.mjs'
-import { isIntrinsic } from '../../edag/module.f.mjs'
+import { isFunctionNode, isHelper } from '../../edag/module.f.js'
 import { fromAnalysis, functionFromAnalysis } from '../../edag/to_fast/module.f.mjs'
 import { sourceReason } from '../../edag/to_fast/source/module.f.mjs'
 import { _sourceLoops } from '../../edag/to_fast/source/loops/module.f.mjs'
@@ -21,8 +21,8 @@ import { functionStringify, render, renderModule } from '../../js/ast/serializer
 import { isIdentifier } from '../../js/identifier/module.f.js'
 import { chunkStrings, chunksMarked, chunksText, fromTagged, withNames } from '../../text/marked/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
-import { _entryText, _hasEntryText, _intrinsicText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
-import { _resolve } from './names/module.f.mjs'
+import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
+import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
 
 const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
 
@@ -57,15 +57,13 @@ export const tryStringify = e => mapOk(chunksText)(_trySerialize(e))
  */
 export const functionText = (a, i) => {
     const node = a.nodes[i]
-    if (node[0] === 'entry') { return chunksText(_resolve([_entryText('function')])) }
-    if (node[0] === 'hasEntry') { return chunksText(_resolve([_hasEntryText('function')])) }
-    if (isIntrinsic(node)) { return chunksText(_resolve([_intrinsicText(node[0])('function')])) }
+    if (isHelper(node)) { return chunksText(_resolve([_helperText(node[0])('function')])) }
     return functionStringify(prepareFunction(functionFromAnalysis(a, i)))
 }
 
 /** Checked code-only text for a supplied graph function. @type {(e: Exp) => import('../../types/result/types.ts').Result<string, string>} */
 export const tryFunctionText = e => {
-    if (!(e instanceof Array) || (e[0] !== '=>' && e[0] !== 'entry' && e[0] !== 'hasEntry' && !isIntrinsic(e))) { return error('not a function') }
+    if (!isFunctionNode(e)) { return error('not a function') }
     return okThen(a => {
         const i = /** @type {Ref} */ (a.root)[1]
         return mapOk(table => functionText(table, i))(checked(a, i))

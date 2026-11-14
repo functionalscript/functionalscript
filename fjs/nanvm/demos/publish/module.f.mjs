@@ -7,7 +7,7 @@
  * directory first, and writes each sample's WAT beside it.
  *
  * **The module is copied as it was built**, its bytes unchanged: the page
- * instantiates what `cargo` wrote, not what [`binary/write`](../../../media/wasm/binary/write/module.f.mjs)
+ * instantiates what `cargo` wrote, not what [`binary/write`](../../../media/wasm/binary/write/module.f.js)
  * would write from it.
  *
  * **A sample's WAT holds only the functions Rust defines in its module**,
@@ -40,15 +40,15 @@
  * @import { _Checked } from './private.ts'
  */
 
-import { errorExit } from '../../../effects/common/module.f.mjs'
-import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.mjs'
-import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
+import { errorExit } from '../../../effects/common/module.f.js'
+import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
+import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.js'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
 import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
 import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.mjs'
 import { toTagged } from '../../../text/marked/module.f.mjs'
-import { u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 /**

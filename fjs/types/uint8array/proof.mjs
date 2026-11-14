@@ -1,6 +1,6 @@
 /** Proofs of JavaScript host typed-array conversions to and from FJS bit vectors. */
 
-import { maxLengthBytes, vec } from '../bit_vec/module.f.mjs'
+import { maxLengthBytes, vec } from '../bit_vec/module.f.js'
 import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.mjs'
 import { strictEqual } from '../function/operator/module.f.js'
 import { equal, fromArrayLike } from '../list/module.f.js'

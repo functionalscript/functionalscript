@@ -1,7 +1,7 @@
 /** New single-quote escapes retain the existing string values and canonical outputs. */
 
 import { assertEq } from '../asserts/module.f.js'
-import { utf8 } from '../text/module.f.mjs'
+import { utf8 } from '../text/module.f.js'
 import { compileSource, fjsRoundTrip, jsonOf, moduleRefused } from './proof.f.mjs'
 
 export const proof = /** @type {const} */ ({

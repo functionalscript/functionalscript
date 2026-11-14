@@ -5,7 +5,7 @@
  *
  * **Discovery is part of the program, not a script beside it.** Which modules
  * a browser can link is decided by reading their source, which
- * [`./browser-source`](./browser-source/module.f.mjs) answers, and reading a
+ * [`./browser-source`](./browser-source/module.f.js) answers, and reading a
  * tree is `readdir` and `readFile` — two operations that already existed. So
  * the whole generator is one effect, and a proof drives it against
  * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a site
@@ -57,69 +57,32 @@
  */
 
 import { codePoints } from '../text/ascii/module.f.js'
-import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.mjs'
-import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
+import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.js'
+import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
+import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.js'
 import { basename, concat as pathConcat, parent } from '../path/module.f.js'
-import { resolve } from '../path/import/module.f.mjs'
+import { resolve } from '../path/import/module.f.js'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.js'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
-import { catch_, import_, log } from '../effects/common/module.f.mjs'
-import { run as runInMemory } from '../effects/mock/module.f.mjs'
+import { catch_, import_, log } from '../effects/common/module.f.js'
+import { run as runInMemory } from '../effects/mock/module.f.js'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse, tryParseBlocks } from '../media/markdown/module.f.mjs'
 import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
-import { pageRefusal } from '../media/html/module.f.mjs'
+import { pageRefusal } from '../media/html/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
-import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, pageHeading, pageHref, prsDir, shell, siteDescription, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
-import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
+import { isAuthored, isThirdParty } from '../dev/module.f.js'
 import { header, isIssue } from './issue/module.f.js'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
-
-/**
- * The root page: the project's name, the catalogue every directory page
- * carries, and the browser test suite under it.
- *
- * It is the repository root's instance of the page rule rather than a page
- * beside it — the sections are the same ones {@link page} writes — but it
- * keeps its own frame, because the heading and the runner are the site's and
- * not the root directory's.
- *
- * **The catalogue sits beside the demo and test suite.** A reader can
- * navigate the directory without a growing demo or report moving its links.
- *
- * The heading is the project, not the suite: the README's title, or the
- * site's name where it has none. The suite is one section of the
- * page — named for what it is, with the prose that introduces it inside —
- * and the page is the repository's root.
- *
- * The repository and the releases are linked from the header every page
- * carries ({@link shell}), not from this page's own frame.
- *
- * @type {(build: Build) => (dir: Dir) => string}
- */
-const rootPage = build => dir => shell(build)({ href: pageHref('.'), title: siteName, description: siteDescription })(directoryLayout(build)(dir)(testsMain(
-    ...pageHeading(dir.readme)(siteName),
-    ...dir.readme,
-    ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...testSection(dir)([
-        ['p',
-            'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
-            ['a',
-                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
-                'Read “Emergent Testing in JavaScript”'
-            ],
-            '.'
-        ],
-    ]),
-)))
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.mjs'
+import { origin } from './origin/module.f.js'
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;
@@ -180,7 +143,7 @@ const authoredModules = tree => allFiles(tree).filter(isAuthored).toSorted()
 /**
  * The module a specifier in `from` leads to, or `null` where a browser could
  * not follow it: a bare package, a `node:` builtin, or a relative specifier
- * [`fjs/path/import`](../path/import/module.f.mjs)'s `resolve` refuses.
+ * [`fjs/path/import`](../path/import/module.f.js)'s `resolve` refuses.
  *
  * That `resolve` is the one the compiler and the virtual host read imports
  * with, so a specifier means the same file here as there: `./x%20y.mjs` is
@@ -649,24 +612,35 @@ const crateDirs = tree => crates => tree
     .map(walked => walked.path)
 
 /**
- * Every issue under a `todo/`, at any depth, with its header, in the walk's
- * order: a `todo/`'s own issues, then each subfolder's.
+ * A file the build reads and parses with `parse`.
  *
- * **An issue whose header cannot be read stops the build**, naming the file,
- * rather than being listed without a status or left out — the same answer
- * {@link writeChangelog} gives a release file that does not parse.
+ * **A file that does not parse stops the build**, naming the file, rather than
+ * being listed without what it would say or left out — an issue without its
+ * status, a release without its notes, a footer without a channel. The build's
+ * channel is `IoChannel`, so the refusal is reported through it rather than
+ * beside it: `exitStep` prints the message and exits 1, as it does for a file
+ * that could not be read.
+ *
+ * @type {<T>(path: string, parse: (text: string) => Result<T, string>) => Effect<ReadFile, T, IoChannel>}
+ */
+const readParsed = (path, parse) => step(readUtf8File(path), text => {
+    const [kind, value] = parse(text)
+    return kind === 'error'
+        ? pureError(ioError({ message: `${path}: ${value}` }))
+        : pureOk(value)
+})
+
+/**
+ * Every issue under a `todo/`, at any depth, with its header, in the walk's
+ * order: a `todo/`'s own issues, then each subfolder's. An issue whose header
+ * cannot be read stops the build ({@link readParsed}).
  *
  * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly { readonly path: string, readonly header: Header }[], IoChannel>}
  */
 const readIssues = tree => foldStep(
     pureOk(tree.filter(walked => isTodoDir(walked.path)).flatMap(walked => walked.files.filter(isIssue).map(inDir(walked)))),
     /** @type {readonly { readonly path: string, readonly header: Header }[]} */ ([]),
-    path => read => step(readUtf8File(path), text => {
-        const found = header(text)
-        return found[0] === 'error'
-            ? pureError(ioError({ message: `${path}: ${found[1]}` }))
-            : pureOk([...read, { path, header: found[1] }])
-    }))
+    path => read => mapStep(readParsed(path, header), found => [...read, { path, header: found }]))
 
 /**
  * What a page needs about one directory, from what the walk found in it and
@@ -732,8 +706,8 @@ const versionOf = name => {
  * out of the tree. A release is not a directory and cannot take the first
  * name, so it takes the second, as `_main.css` does.
  *
- * **A file that does not parse stops the build**, rather than being skipped
- * into a page that quietly lacks a release. The entry format is a convention
+ * **A file that does not parse stops the build** ({@link readParsed}), rather
+ * than being skipped into a page that quietly lacks a release. The entry format is a convention
  * the repository keeps ([`changelog/README.md`](../../changelog/README.md)),
  * so a file that breaks it is a mistake to report, not a case to handle.
  *
@@ -756,17 +730,8 @@ const writeChangelog = build => tree => {
     const versions = dir.files.map(versionOf).filter(v => v !== null)
     return step(
         forEachStep(pureOk(releases(versions)), release => step(
-            readUtf8File(`${changelogDir}/${release.version}.md`),
-            text => {
-                const document = tryParse(text)
-                return document[0] === 'error'
-                    // The build's channel is `IoChannel`, so a refusal of ours
-                    // is reported through it rather than beside it: `exitStep`
-                    // prints the message and exits 1, as it does for a file
-                    // that could not be read.
-                    ? pureError(ioError({ message: `changelog/${release.version}.md: ${document[1]}` }))
-                    : writeUtf8File(releasePath(release.version), releasePage(build)(release)(document[1]))
-            })),
+            readParsed(`${changelogDir}/${release.version}.md`, tryParse),
+            document => writeUtf8File(releasePath(release.version), releasePage(build)(release)(document)))),
         () => step(
             writeUtf8File(pagePath(changelogDir), indexPage(build)(versions)),
             () => log(`releases: ${versions.length}`)))
@@ -774,26 +739,27 @@ const writeChangelog = build => tree => {
 
 /**
  * One directory of rustdoc's output, copied to the same place under
- * {@link cargoDocDir}, its files byte for byte. Whole and in chunks, because
- * a rustdoc page outgrows one `Vec`.
+ * {@link cargoDocDir}. Whole and in chunks, because a rustdoc page outgrows
+ * one `Vec`.
  *
- * @type {(dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(base: string | null) => (dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const copyRustdocDir = dir => {
+const copyRustdocDir = base => dir => {
     const to = `${cargoDocDir}${dir.path.slice(rustdocDir.length)}`
     const made = mkdir(to, { recursive: true })
-    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(dir.path)(to)))
+    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(base)(dir.path)(to)))
 }
 
 /**
  * One file of rustdoc's output, read whole from directory `from` and written
- * under the same name in `to`.
+ * under the same name in `to`: byte for byte, but for a page's `og:url`
+ * ({@link withPageUrl}), which only a page, an `.html` file, is given.
  *
- * @type {(from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(base: string | null) => (from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const copyRustdocFile = from => to => name => step(
+const copyRustdocFile = base => from => to => name => step(
     readWhole(`${from}/${name}`),
-    chunks => writeChunks(`${to}/${name}`, chunks))
+    chunks => writeChunks(`${to}/${name}`, name.endsWith('.html') ? withPageUrl(base)(`/${to}/${name}`)(chunks) : chunks))
 
 /**
  * The crates a walk of rustdoc's output documents: each top-level directory
@@ -809,20 +775,21 @@ const cratesOf = tree => tree
 /** rustdoc's output walked, the walk kept for the steps after it. */
 const rustdocWalked = history(walk(rustdocDir))
 
-/** Every directory of rustdoc's output copied under {@link cargoDocDir}. */
-const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir))
-
 /**
- * rustdoc's output copied, answering the crates it documents.
+ * Every directory of rustdoc's output copied under {@link cargoDocDir},
+ * answering the crates it documents.
  *
- * @type {Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
+ * @type {(base: string | null) => Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
  */
-const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
+const copyRustdocTree = base => mapStep(
+    historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir(base))),
+    ([, tree]) => cratesOf(tree))
 
 /**
- * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
- * it is, answering the crates it documents — or `null` when `cargo doc` was
- * not run, which writes nothing and links nothing.
+ * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir}
+ * with each page's URL under `base`, the build's origin, answering the crates
+ * it documents — or `null` when `cargo doc` was not run, which writes nothing
+ * and links nothing.
  *
  * **Copied, not served from `target/`**, which holds build artifacts beside
  * the docs; and not produced here, because running `cargo` from the
@@ -834,10 +801,10 @@ const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
  * ([virtual-error-codes](../effects/node/virtual/todo/virtual-error-codes.md)).
  * Any other failure of either stops the build.
  *
- * @type {Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
+ * @type {(base: string | null) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
  */
-const copyRustdoc = step(exists(rustdocDir), found =>
-    found ? copyRustdocTree : pureOk(null))
+const copyRustdoc = base => step(exists(rustdocDir), found =>
+    found ? copyRustdocTree(base) : pureOk(null))
 
 /**
  * The Rust API reference, when there is one: rustdoc's output and the index
@@ -845,7 +812,7 @@ const copyRustdoc = step(exists(rustdocDir), found =>
  *
  * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
  */
-const writeCargoDoc = build => step(copyRustdoc, crates =>
+const writeCargoDoc = build => step(copyRustdoc(origin(build.branch)), crates =>
     crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
 
 /**
@@ -905,7 +872,7 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     const writeDir = dir => cards => step(readReadme(build.commit)(isPage)(dir), readme => {
         const written = writeUtf8File(
             pagePath(dir.path),
-            dir.path === '.' ? rootPage(build)({ ...dir, readme }) : page(build)({ ...dir, readme }))
+            page(build)({ ...dir, readme }))
         const content = cardContent(dir.path)(readme)
         return content === null
             ? mapStep(written, () => cards)
@@ -971,19 +938,13 @@ const linksNote = env => commit =>
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
 /**
- * The funding channels in `funding.json`, which is there.
- *
- * A file that cannot be linked stops the build, so the published site never
+ * The funding channels in `funding.json`, which is there. A file that cannot
+ * be linked stops the build ({@link readParsed}), so the published site never
  * quietly lacks a channel.
  *
  * @type {Effect<ReadFile, readonly Funding[], IoChannel>}
  */
-const fundingRead = step(readUtf8File(fundingPath), text => {
-    const funding = parseFunding(text)
-    return funding[0] === 'error'
-        ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
-        : pureOk(funding[1])
-})
+const fundingRead = readParsed(fundingPath, parseFunding)
 
 /**
  * The funding channels every page's footer links, read from `funding.json`.
@@ -1014,15 +975,13 @@ export const _readBuild = env => mapStep(readFunding, funding => ({ commit: comm
 /**
  * The whole build: the walk, then everything written from it.
  *
- * `env` is what the environment says about the build — its commit and
- * branch — and the funding channels are added once the tree has been read,
- * so every page builder receives one whole {@link Build}.
+ * The {@link Build} is read once the tree has been walked
+ * ({@link _readBuild}), so every page builder receives one whole record.
  *
- * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>}
+ * @type {(env: Env) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
-        const build = { ...env, funding }
+    step(log(note), () => step(walk('.'), tree => step(_readBuild(env), build => {
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
@@ -1047,7 +1006,4 @@ const program = env => note => exitStep(mapStep(
     () => undefined))
 
 /** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>} */
-export const main = ({ env }) => {
-    const commit = commitOf(env)
-    return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))
-}
+export const main = ({ env }) => program(env)(linksNote(env)(commitOf(env)))

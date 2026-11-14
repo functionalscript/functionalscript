@@ -6,7 +6,7 @@ import { assertEq } from '../../asserts/module.f.js'
 import { countdown, fold } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { nix, nixToString } from './module.f.mjs'
+import { nix, nixToString } from './module.f.js'
 
 /**
  * A set nested `depth` deep, built without recursion: deeper than any engine's

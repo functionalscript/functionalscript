@@ -70,7 +70,7 @@ already exempt from that rule — [`fjs/effects/node/memory/proof.mjs`](../../ef
 is a live example (it isn't the shape we need here, since it captures a rejected `Promise` via
 `.then(onFulfilled, onRejected)` rather than `try`/`catch`, but it proves the file-type split
 already works and is already discovered by `fjs t` — `shouldLoad` in
-[`fjs/dev/module.f.mjs`](../../dev/module.f.mjs#L44) matches any `*proof.ts` filename alongside
+[`fjs/dev/module.f.js`](../../dev/module.f.js#L44) matches any `*proof.ts` filename alongside
 `*.f.ts` / `*.f.mjs`). AGENTS.md's `.f.mjs` rule needs no change: it never applied to `proof.ts` in the first
 place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.mjs` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,
@@ -105,7 +105,7 @@ export const proof = {
   it can call `assert`/`assertEq`, and throwing (i.e. an assertion failing) is the leaf's real
   failure signal.
 - No raw `try`/`catch` is needed in `module.f.mjs` to implement this: the module already routes
-  every leaf call through the `sandbox` effect (`fjs/effects/node/module.f.mjs`), which is
+  every leaf call through the `sandbox` effect (`fjs/effects/node/module.f.js`), which is
   implemented in the host runtime (not `.f.mjs`) and already exposes the thrown value as
   `SandboxResult.result`'s `error` case. `defaultTest` can sandbox `try`, and on an `error`
   result sandbox `() => catchFn(thrownValue)` as the leaf's real verdict — two effect calls,

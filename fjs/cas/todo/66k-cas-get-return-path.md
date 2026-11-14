@@ -5,12 +5,12 @@
 
 ### Problem
 
-`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`) already streams the stored blob in
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.js`) already streams the stored blob in
 `<=128 KiB` chunks (`readBytes` in a loop, capped by `chunkBytes`/`maxLengthBytes` per
 chunk, not per file), and `cas get` (`fjs/cas/cli/module.f.mjs`) pipes that stream to the
 destination file via `writeFromStream`, so it no longer holds the whole file in memory and
 is not limited to 128 KiB files. `FileCas` also already exposes a `url` method
-(`fjs/cas/module.f.mjs`, and see `fjs/cas/types.ts`) that returns the path to a hash's
+(`fjs/cas/module.f.js`, and see `fjs/cas/types.ts`) that returns the path to a hash's
 shard without reading its content.
 
 What is still missing: `cas get` always copies the blob's bytes into a fresh destination
@@ -45,7 +45,7 @@ after the final `rename` in the upload pipeline. This:
 
 ### Related
 
-- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.mjs`) — streaming upload
+- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.js`) — streaming upload
   pipeline; `cas get` now reads uploaded files back via the streaming `read`
   path (design formerly tracked as `66j-cas-large-file-support`, now
   implemented and deleted)

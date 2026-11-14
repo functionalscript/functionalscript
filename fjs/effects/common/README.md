@@ -7,7 +7,7 @@ Node runner, a demo on a site page
 ([`website/demo-runtime.mjs`](../../website/demo-runtime.mjs)), and the
 SpiderMonkey shell ([`spidermonkey`](../spidermonkey/module.mjs)). A program
 that writes to `stdout` does not run in a page.
-[`module.f.mjs`](./module.f.mjs) declares them, [`types.ts`](./types.ts)
+[`module.f.js`](./module.f.js) declares them, [`types.ts`](./types.ts)
 says which hosts implement which, and [`module.mjs`](./module.mjs) holds the
 handlers the hosts share.
 
@@ -21,7 +21,7 @@ handlers the hosts share.
 |`catch_(f)`                       |runs `f`, answering what it threw as a `Result` error               |Node, page, SpiderMonkey   |
 |`import_(path)`                   |imports a module                                                    |Node, SpiderMonkey         |
 |`randomInt()`                     |a random integer                                                    |Node, page                 |
-|`all(...effects)`, `allOk`, `both`|runs effects side by side, answering every result                   |Node, SpiderMonkey         |
+|`all(...effects)`, `allOk`, `both`|runs effects side by side, answering every result                   |Node, SpiderMonkey, mocks  |
 
 `sandbox` and `catch_` are the only way a FunctionalScript program meets code
 that may throw, such as a test body or a benchmark. A demo uses `sandbox` to

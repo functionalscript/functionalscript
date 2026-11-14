@@ -113,7 +113,7 @@ accepted as-is, the same as `cp`.
       streams and stages under `.cas/_stage`) — no new `KvStore.move` or
       `./cas/stage/` pipeline (both obsolete; see architecture note above).
 - [ ] Define a shared `casOps` (or similar) module/functions in
-      `fjs/cas/ops/module.f.mjs` (or inline in `fjs/cas/module.f.mjs`) that
+      `fjs/cas/ops/module.f.mjs` (or inline in `fjs/cas/module.f.js`) that
       expose typed operations independent of transport. The inline
       (`text`/`base64`) `add` and the hash/store/error plumbing are shared; the
       file-path `add` is a CLI-only entry point, not part of the MCP surface.
@@ -169,7 +169,7 @@ accepted as-is, the same as `cp`.
 - `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed the
   MCP file-path (`url`) source; this issue's shared `add` must keep the
   file-path source CLI-only
-- `fjs/cas/cli/module.f.mjs` — CLI commands; `fjs/cas/module.f.mjs` — the store
+- `fjs/cas/cli/module.f.mjs` — CLI commands; `fjs/cas/module.f.js` — the store
   and core types
 - `fjs/mcp/cas/module.f.mjs` — MCP tool registry and server
 - [`fjs/mcp/todo/remote-url.md`](../../mcp/todo/remote-url.md)

@@ -6,9 +6,9 @@
 
 import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.mjs'
 import { ciWorkflow, main as builtIn } from '../module.f.mjs'
-import { exitCode } from '../../effects/node/module.f.mjs'
+import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -53,7 +53,7 @@ export const proof = {
         assertStructurallySame(generated, repositoryWorkflow)
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
         assertStructurallySame(generated, checks)
-        assertEq(Object.keys(generated.jobs).length, 9)
+        assertEq(Object.keys(generated.jobs).length, 12)
         assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
         const github = state.root['.github']

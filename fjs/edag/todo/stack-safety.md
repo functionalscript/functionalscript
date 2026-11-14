@@ -138,7 +138,7 @@ as does the Rust printer (`closure` → `statements` in
 capture or without one.
 
 The evaluated-function constructor's body copier in
-[`../value/function/module.f.mjs`](../value/function/module.f.mjs) also
+[`../value/function/module.f.js`](../value/function/module.f.js) also
 recurses with the input's array depth. Include it in this investigation;
 its replacement must preserve body sharing and leave evaluated captures
 outside the copy.
@@ -196,7 +196,7 @@ discovered one `RangeError` at a time.
       proof of object nesting needs a deeper fixture of its own. The same
       corpus compiles to `.rs` since a bigint past `i64` has a spelling,
       so the Rust proof is the overflow itself.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

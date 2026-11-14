@@ -46,6 +46,7 @@ export const proof = /** @type {const} */ ({
             ['()', fn, [['...', second], first]],
             ['[]', [['()', fn, []], first]],
             ['[]', [['+', 1, 2], first]],
+            ['[]', [['Boolean', false], first]],
             ['[]', [['throw', 1], first]],
             ['.', null, 'x', ['|()', [first]]],
         ])) {
@@ -54,7 +55,7 @@ export const proof = /** @type {const} */ ({
     },
     operandsBeforeImplicitWork: () => {
         for (const exp of /** @type {readonly Exp[]} */ ([
-            ['+', first, second], ['-', first], ['Number', first], ['String', first], ['throw', first],
+            ['+', first, second], ['-', first], ['Number', first], ['String', first], ['Boolean', first], ['throw', first],
             ['[]', [first, ['...', second]]],
             ['[]', [['...', first], second]],
             ['()', fn, [first, ['...', second]]],

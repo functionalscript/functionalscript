@@ -59,7 +59,7 @@ export interface _ContinuedGuardedCall<V> extends Readonly<['?.()', V, readonly 
 export interface _Call<V> extends Readonly<['()', V, readonly Item<V>[]]> {}
 export interface _Conditional<V> extends Readonly<['?:', V, V, V]> {}
 export interface _Comma<V> extends Readonly<[',', readonly V[]]> {}
-export interface _Leaf extends Readonly<['entry' | 'hasEntry' | IntrinsicId | StaticId]> {}
+export interface _Leaf extends Readonly<['entry' | 'hasEntry' | 'refMap' | IntrinsicId | StaticId]> {}
 
 /** All references name established immutable values, never source variables. */
 export type Value =

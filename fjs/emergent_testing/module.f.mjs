@@ -23,17 +23,17 @@
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
  */
 
-import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, ioError, test } from '../effects/node/module.f.mjs'
-import { catch_, sandbox } from '../effects/common/module.f.mjs'
+import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.js'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, ioError, test } from '../effects/node/module.f.js'
+import { catch_, sandbox } from '../effects/common/module.f.js'
 import {
     attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultStep, step,
     unreadableThrownValue, walkStep,
-} from '../effects/module.f.mjs'
-import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.mjs'
+} from '../effects/module.f.js'
+import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.js'
 import { invert } from '../types/result/module.f.js'
-import { definedEntries } from '../types/object/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.js'
 import { concat } from '../types/list/module.f.js'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.js'
 import { stringLiteral } from '../js/string_escape/module.f.mjs'
@@ -344,7 +344,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // nested walk. Recursing instead left one continuation pending per
         // ancestor, so a leaf returning a deep enough chain of children died
         // with `RangeError` where the fan-out this replaced had not; see
-        // `../effects/module.f.mjs`'s `walkStep`.
+        // `../effects/module.f.js`'s `walkStep`.
         // A failure ends the run, but as a *value*: the walk carries it to the
         // summary, which describes what the run had already collected before
         // the channel gave out. Propagating it instead discarded exactly the
@@ -644,10 +644,22 @@ export const testResult = (file, path, r) => resultOf(testId(file, path), r)
  * it before the leaf ran — so this completes that line rather than repeating
  * it.
  *
- * @type {(r: TestResult, color: string, label: string) => string}
+ * @type {(r: TestResult, throws: boolean) => string}
  */
-const fmtResultEnd = ({ duration }, color, label) =>
-    `${color}${label}${reset}, ${terminalDuration(duration)}`
+const fmtResultEnd = ({ status, duration }, throws) => {
+    const passed = status === 'passed'
+    const label = passed ? `${fgGreen}ok` : `${fgRed}error`
+    return `${label}${reset}, ${terminalDuration(duration)}` + (passed && throws ? ' # EXPECTED TO THROW' : '')
+}
+
+/**
+ * A complete terminal result record, without a trailing newline. Independent
+ * records let concurrent consumers write each result in one operation while
+ * sharing the sequential reporter's status, style and duration formatting.
+ *
+ * @type {(t: TestResult, throws: boolean) => string}
+ */
+export const fmtResult = (t, throws) => `${t.name}: ${fmtResultEnd(t, throws)}`
 
 /**
  * The text of a value that may not want to be read. `String` runs user code, so
@@ -743,10 +755,7 @@ export const defaultReporter = options => {
         // for a second audience — `todo/tty-and-line-consumers.md` — not a
         // reason to reinstate it here.
         start: ({ name }) => out(`${name}: `),
-        result: (t, _r, throws) =>
-            t.status === 'passed'
-                ? csiLog(fmtResultEnd(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
-                : csiLog(fmtResultEnd(t, fgRed, 'error')),
+        result: (t, _r, throws) => csiLog(fmtResultEnd(t, throws)),
         // The details come before the counts, so the numbers a reader is
         // looking for are still the last thing on the screen.
         // A run that was abandoned gets its failures described and no counts:

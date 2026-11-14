@@ -21,6 +21,11 @@ became `fjs/ebnf/README.md`.
 - `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
 
+Grammar record carriers are plain objects built by FunctionalScript or a
+DataJS decoder. Their shape is checked with `isObject`, which rejects null,
+arrays and primitives. Prototype inspection and admission of foreign host
+objects belong at a separately defined host boundary.
+
 ## Why not the classical form
 
 The classical IR in `fjs/bnf/data`, since deleted with that module, was
@@ -247,7 +252,7 @@ tuple is the one way an unvalidated value reaches it:
 |---|---|
 | `null`, EOF | `['set', -1, 0]`, the one set with a negative boundary |
 | `n`, a symbol | `['set', n, n + 1]`; the top ordinary symbol `Number.MAX_SAFE_INTEGER` is the open tail `['set', n]` ([ebnf-range-set](../terminal/todo/ebnf-range-set.md)); any negative number — `-1` included, since EOF is `null` and not a number — a fraction, or an unsafe integer is refused |
-| `'text'` | a `['sequence', …]` of one `['set', c, c + 1]` per code point; `''` is the empty sequence; malformed UTF-16 is refused by `codePoints`, which the front end's `set`, `range` and `literals` and the byte alphabet's `ascii` share |
+| `'text'` | a `['sequence', …]` of one `['set', c, c + 1]` per code point; `''` is the empty sequence; malformed UTF-16 is refused by `text/utf16`'s `codePoints`, which the front end's `set`, `range` and `literals` and the byte alphabet's `ascii` share |
 | `Tuple` | a `['sequence', …]` of the elements' names |
 | `Variant` | a `['variant', …]` of the branches' names |
 | `() => ['const', c]` | `c`, lowered under the thunk's name — the thunk **is** the rule `c` spells, and no rule is generated for the indirection |

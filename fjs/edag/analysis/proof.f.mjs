@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperandsOf, scopeHolds } from './module.f.mjs'
-import { sharedNodesOf } from '../sharing/module.f.mjs'
+import { sharedNodesOf } from '../sharing/module.f.js'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -64,6 +64,10 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    booleanOperand: () => {
+        assertStructurallySame(nodesOf(['Boolean', ['[]', []]]), [['[]', []], ['Boolean', ['#', 0]]])
+        assertStructurallySame(nodesOf(['Boolean', ['undefined']]), [['undefined'], ['Boolean', ['#', 0]]])
+    },
     bigintOperand: () => {
         assertStructurallySame(nodesOf(['BigInt', ['+', 1, 2]]), [['+', 1, 2], ['BigInt', ['#', 0]]])
     },
@@ -84,6 +88,7 @@ export const proof = {
         /** @type {readonly (readonly [Node, readonly Operand[]])[]} */
         const cases = [
             [['undefined'], []], [['args'], []], [['rest'], []],
+            [['entry'], []], [['hasEntry'], []], [['refMap'], []],
             [['arg', 2], []], [['frame', 3], []],
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
@@ -185,6 +190,23 @@ export const proof = {
         const twice = an(['[]', [['()', is, [1]], ['()', ['Object.is'], [2]]]])
         assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
         assertStructurallySame(operandsOf(is), [])
+    },
+    // A Math static is a shared value, not a fresh closure at each read.
+    mathStatics: () => {
+        for (const id of /** @type {const} */ (['Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])) {
+            const fn = /** @type {const} */ ([id])
+            assertOk(checked(an(['=>', 0, [fn], ['.', ['frame', 0], 'length']])))
+            const twice = an(['[]', [fn, [id]]])
+            assertEq(twice.nodes.filter(node => node[0] === id).length, 1)
+            assertStructurallySame(operandsOf(fn), [])
+        }
+    },
+    objectKeys: () => {
+        const keys = /** @type {const} */ (['Object.keys'])
+        const repeated = an(['[]', [keys, ['Object.keys']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'Object.keys').length, 1)
+        assertStructurallySame(operandsOf(keys), [])
+        assertOk(checked(an(['()', keys, [['{}', []]]])))
     },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
@@ -335,6 +357,8 @@ export const proof = {
         // the `entry` helper mints a function, as `=>` does: two are two
         assertEq(nodesOf(['[]', [['entry'], ['entry']]]).length, 3)
         assertEq(nodesOf(['[]', [['hasEntry'], ['hasEntry']]]).length, 3)
+        // and so does the empty reference map: written twice, two maps
+        assertEq(nodesOf(['[]', [['refMap'], ['refMap']]]).length, 3)
         // and so does an intrinsic's helper
         assertEq(nodesOf(['[]', [['slice'], ['slice']]]).length, 3)
     },

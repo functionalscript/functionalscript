@@ -1,9 +1,9 @@
 /**
  * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { SupportedRecord, ObjectIdentifier } from './types.ts'
+ * @import { SupportedRecord, ObjectIdentifier, Sequence } from './types.ts'
  */
 
-import { empty, isVec, length, msb, unpack, vec, vec8 } from '../types/bit_vec/module.f.mjs'
+import { empty, isVec, length, msb, unpack, vec, vec8 } from '../types/bit_vec/module.f.js'
 import { asBase } from '../types/nominal/module.f.js'
 
 import {
@@ -21,11 +21,15 @@ import {
     objectIdentifier,
     encodeObjectIdentifier,
     decodeObjectIdentifier,
-} from './module.f.mjs'
+    encodeSequence,
+    decodeSequence,
+    encodeSet,
+    decodeSet,
+} from './module.f.js'
 
-import { assert, assertEq } from '../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 
-const { concat, popFront: pop, listToVec } = msb
+const { concatVec: concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)
 
 /**
@@ -264,6 +268,34 @@ export const proof = {
             const r = [objectIdentifier, [1n, 2n, 840n, 113_549n]]
             ch0(r, encode(r), empty)
         },
+    },
+    collectionPayloads: () => {
+        /** @type {Sequence} */
+        const records = [[integer, 2n], [integer, 1n]]
+        const sequencePayload = vec(48n)(0x0201_0202_0101n)
+        const setPayload = vec(48n)(0x0201_0102_0102n)
+        assertEq(encodeSequence(...records), sequencePayload)
+        assertEq(encodeSet(...records), setPayload)
+        assertStructurallySame(decodeSequence(sequencePayload), records)
+        assertStructurallySame(decodeSet(setPayload), [[integer, 1n], [integer, 2n]])
+        assertEq(decodeSet, decodeSequence)
+        assertEq(encodeSequence(), empty)
+        assertEq(encodeSet(), empty)
+        assertStructurallySame(decodeSequence(empty), [])
+        assertStructurallySame(decodeSet(empty), [])
+    },
+    nestedCollections: () => {
+        /** @type {SupportedRecord} */
+        const record = [constructedSequence, [
+            [constructedSet, [[integer, 2n], [integer, 1n]]],
+            [boolean, true],
+        ]]
+        const encoded = vec(104n)(0x30_0b31_0602_0101_0201_0201_01ffn)
+        assertEq(encode(record), encoded)
+        assertStructurallySame(decode(encoded), [[constructedSequence, [
+            [constructedSet, [[integer, 1n], [integer, 2n]]],
+            [boolean, true],
+        ]], empty])
     },
     objectIdentifier: {
         simple: () => {

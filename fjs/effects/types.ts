@@ -15,7 +15,7 @@ import type {
     resultStep,
     step,
     unwrapStep,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /**
  * A command name paired with the signature a runner implements it at.
@@ -139,7 +139,7 @@ export type IoResult<T> = Result<T, IoChannel>
  * An `Effect<O, T, E>` is the raw value: a {@link Pure} thunk yielding
  * `Result<T, E>`, or a {@link Do} node describing a command to perform. It is
  * plain data — compose effects with the combinators in
- * [`./module.f.mjs`](./module.f.mjs), which are eager wherever the head
+ * [`./module.f.js`](./module.f.js), which are eager wherever the head
  * is `Pure`.
  *
  * **The error channel is part of the representation, not a wrapper over it.**

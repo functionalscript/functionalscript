@@ -118,7 +118,8 @@ native invocations, see [the runner documentation](./fjs/emergent_testing/README
 | `npm test`                              | Node pin | no             | `tsc` + the repo's runner; needs `tsc`.  |
 | `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
 | `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
-| `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
+| `npm start cov node`                    | Node pin | no             | Isolated coverage with a local Git success cache. |
+| `npm start -- cov node --sync`         | Node pin | yes            | Publish the run's successful manifests as one batch. |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
@@ -141,8 +142,8 @@ the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
 --allow-env --allow-net --allow-sys`). Deno also holds back very recently
 published versions; add `--minimum-dependency-age=0` to force the newest.
 
-CI exercises these same combinations — see the `node26`,
-`deno`, and `bun` jobs, and `ubuntu-arm` for SpiderMonkey, in
+CI exercises these same combinations — see the `node`, `cov`,
+`deno`, `bun`, and `spidermonkey` jobs in
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.
 
@@ -168,8 +169,50 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Each invocation prints its working directory and complete command; failures
-are reported while the remaining modules continue. There are no flags.
+The runner prepares every manifest and completes one cache lookup before
+executing jobs in batches bounded by Node's `os.availableParallelism()`. Children
+in a batch run concurrently; the next batch starts after the current one
+settles. Scheduling capacity is not part of the cache key.
+
+Before each child starts, the runner prints a complete `module.f.js: running`
+line for each measured file by repository-relative path. Files in one directory
+share a child and duration, but each gets its own complete result line when the
+child finishes, using emergent testing's shared result formatter, for example
+`module.f.js: ok, 360.0000 ms`. Successful child output stays hidden. A failed
+result and its working directory, complete command, exit status or signal, and
+captured stdout/stderr are written together, so concurrent children cannot splice
+their diagnostics into that block. The two streams are grouped, so their original
+ordering relative to each other is not preserved. Launch/capture errors are
+reported directly. Exact successful dependency manifests in the local
+`build-cache` branch skip the native child without printing per-file results.
+The final summary includes the cached module count and two test timings.
+`Test real time: 1.2000 s` measures the span from the first child's start to the
+last child's finish, including gaps between jobs and batches. Dependency
+planning, cache lookup and final cache saving/synchronization fall outside this
+span. `Processor time: 2.1000 s` sums child wall-clock durations once per child,
+even when its directory has multiple measured files, including failed runs.
+Cache hits contribute zero; both timings are zero when no child runs. Parallel
+child durations can sum to more than test real time.
+`Concurrency: up to 4 child processes` reports the smaller of available CPU
+capacity and the number of directory jobs. Cache hits can reduce the actual
+number of children that run.
+Manifests include
+working-tree hashes of all sibling authored files and their transitive
+dependencies, plus the runner/runtime contract.
+After validating unchanged inputs, the command collects successful manifests
+and saves them in one batch when all modules finish. Another module's failure
+does not discard those successes; failed coverage contributes no manifest.
+
+Use `npm start -- cov node --sync` to fetch and publish `origin/build-cache`.
+The `--` forwards the synchronization flag through npm. The command fetches the
+remote baseline at startup and publishes one batch at the end, retrying
+concurrent updates and pending local successes. Modules and warm hits do not
+publish individually. Without `--sync`, recording is still batched locally and
+no remote access is needed. A dependency-analysis or manifest-admission failure
+is reported as `CACHE ADMISSION` and makes the command fail, even if native
+proofs pass. The affected proofs and remaining modules still run; independent
+successful manifests are retained. A normal cache miss runs coverage and
+records its success. Unavailable cache storage is reported and runs uncached.
 
 To test only one directory without coverage or discovery below it, use the
 explicit native entry:
@@ -179,21 +222,24 @@ cd ../types/list        # from fjs/basen
 node --test ../../emergent_testing/one.mjs
 ```
 
-The full `npm run cov` remains CI's combined-suite gate during the
-[per-module rollout](./fjs/emergent_testing/todo/per-module-coverage.md).
+CI's additional `cov` job runs `npm start cov node` from the repository root,
+adding `--sync` for permitted same-repository runs outside Dependabot. Forks
+and Dependabot use local caching. The `node` job runs `npm start t` without
+coverage, including proofs outside measured module directories. The dedicated
+`cov` job owns the coverage gate.
 
-Node's `npm run cov` and Deno's `cov` and `cov-html` reports measure
+Node's `npm start cov node` and Deno's `cov` and `cov-html` reports measure
 `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`
 already includes imported demos without a filename filter; CI uses Node's
 100% line, branch and function thresholds as the coverage gate.
 
-`npm run cov` reports through
-[`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs):
-Node's `spec` reporter with the passed tests and the fully covered files
-filtered out, so a green run prints its summary — the test counts and the
-`all files` coverage row — and a red one prints each failure and each file
-under a threshold. The isolated coverage runner uses the same quiet native
-reporting behind its command log and module results.
+The isolated coverage child uses
+[`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs)
+to check the expected targets before delegating to
+[`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs).
+The parent runner displays progress using emergent testing's shared result formatter.
+Successful native reports are hidden; failed reports are replayed after the
+module's result and command, including test failures and uncovered locations.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

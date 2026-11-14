@@ -4,10 +4,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { helpReference } from '../../cli/module.f.mjs'
+import { helpReference } from '../../cli/module.f.js'
 import { commands } from '../../module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
-import { element } from '../../media/html/module.f.mjs'
+import { pureOk } from '../../effects/module.f.js'
+import { element } from '../../media/html/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 import { anchor, catalogue, cliPage, commandSection } from './module.f.mjs'
 
@@ -100,7 +100,7 @@ export const proof = {
     },
     page: () => {
         const html = cliPage(local)
-        assert(html.includes('<title>FunctionalScript CLI</title>'), html)
+        assert(html.includes('<title>CLI · FunctionalScript</title>'), html)
         assert(html.includes('<header>') && html.includes('href="/_main.css"'), html)
         assert(html.includes('npm install -g functionalscript'), html)
         assert(html.includes('npx functionalscript &lt;command&gt; [args]'), html)

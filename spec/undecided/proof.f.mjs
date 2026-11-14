@@ -10,9 +10,9 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../fjs/asserts/module.f.js'
-import { ioError } from '../../fjs/effects/module.f.mjs'
-import { run } from '../../fjs/effects/mock/module.f.mjs'
-import { htmlToString } from '../../fjs/media/html/module.f.mjs'
+import { ioError } from '../../fjs/effects/module.f.js'
+import { run } from '../../fjs/effects/mock/module.f.js'
+import { htmlToString } from '../../fjs/media/html/module.f.js'
 import { error, ok } from '../../fjs/types/result/module.f.js'
 import { demo, init, openRows, registerPath, related, strays, undecidedDemo, verdict } from './demo.f.mjs'
 import { samples } from './samples.f.js'

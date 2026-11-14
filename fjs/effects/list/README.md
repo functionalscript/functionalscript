@@ -2,7 +2,7 @@
 
 `EffectList<O, T, E>` is a stream: a list whose next cell is produced by an
 effect, so reading it may perform operations, such as reading the next chunk of
-a file. [`module.f.mjs`](./module.f.mjs) builds one, and
+a file. [`module.f.js`](./module.f.js) builds one, and
 [`types.ts`](./types.ts) holds the types.
 
 |Function             |Builds                                                       |

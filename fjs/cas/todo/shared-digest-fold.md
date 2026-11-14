@@ -7,9 +7,9 @@
 
 The content-key rule — whole bytes only, SHA-2 over the chunks, one refusal
 for a partial byte — now has shared parts:
-[`wholeByteMachine`](../module.f.mjs) admits each input inside the update of
+[`wholeByteMachine`](../module.f.js) admits each input inside the update of
 `contentKey` and [`gathered`](../git/module.f.mjs), and both run directly on the
-source through the common [`EffectList` machine driver](../../effects/list/module.f.mjs).
+source through the common [`EffectList` machine driver](../../effects/list/module.f.js).
 The old `digested` and `gathered` loops have gone; no recursive source wrapper is
 needed before the driver's stack-safe walk.
 

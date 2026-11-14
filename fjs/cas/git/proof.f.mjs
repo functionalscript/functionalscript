@@ -14,26 +14,26 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { ioError, pureError, pureOk, runPure } from '../../effects/module.f.mjs'
-import { empty, nonEmpty } from '../../effects/list/module.f.mjs'
-import { isNotFound } from '../../effects/node/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
+import { ioError, pureError, pureOk, runPure } from '../../effects/module.f.js'
+import { empty, nonEmpty } from '../../effects/list/module.f.js'
+import { isNotFound } from '../../effects/node/module.f.js'
 import { virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { author as authorOf, parents, tryRead as readCommit } from '../../git/commit/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { hexText, of } from '../../git/oid/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.mjs'
-import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
+import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.js'
 import { compare, write as writeTree } from '../../git/tree/module.f.mjs'
-import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { storedBytes } from '../../zlib/testlib.f.mjs'
+import { storedBytes } from '../../zlib/testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { collectRead, toPath } from '../module.f.mjs'
+import { collectRead, toPath } from '../module.f.js'
 import { _driveCas } from '../proof.f.mjs'
-import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode, writeObject } from './module.f.mjs'
+import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.mjs'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -941,33 +941,16 @@ export const proof = {
         assert(e[0] === 'ioError' && e[1].message === 'invalid buffer size', e)
         assertStructurallySame(s1.root, s0.root)
     },
-    // The loose file is renamed into place once whole, and a rename that
-    // fails takes the temporary file with it: driven with the virtual
-    // filesystem's commands answered by hand, since no filesystem fails a
-    // rename on request. The store's read finds no object yet, the `rename`
-    // fails, and the log shows the `rm` that followed it.
-    writeObjectRenameFails: () => {
-        const drive = _driveCas({
-            writeExclusive: ok(undefined),
-            readWhole: error(ioError({ code: 'ENOENT', message: 'no such file or directory' })),
-        })
-        const boom = ioError({ message: 'boom' })
-        const [r, log] = drive({
-            rename: [error(boom)],
-        })(writeObject(dir, 20)('blob', alpha))
-        assertEq(assertError(r), boom)
-        assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
-    },
     // ## The configured author
     //
     // `user.name` and `user.email` from the repository's `config`, each
     // falling back to `~/.gitconfig`; `null` where either is set in neither,
     // and a `config` Git does not read refused.
     configuredAuthor: () => {
-        /** @type {(local: string | null, global: string | null) => Result<Author | null, IoChannel>} */
-        const found = (local, global) => virtualAt({
+        /** @type {(local: string | null, globalConfig: string | null) => Result<Author | null, IoChannel>} */
+        const found = (local, globalConfig) => virtualAt({
             repo: local === null ? {} : { config: text(local) },
-            home: global === null ? {} : { '.gitconfig': text(global) },
+            home: globalConfig === null ? {} : { '.gitconfig': text(globalConfig) },
         })(configuredAuthor('repo', 'home'))[1]
         assertStructurallySame(assertOk(found('[user]\n\tname = A\n\temail = a@b\n', null)), { name: 'A', email: 'a@b' })
         assertStructurallySame(assertOk(found('[user]\n\tname = A\n', '[user]\n\tname = G\n\temail = g@b\n')), { name: 'A', email: 'g@b' })

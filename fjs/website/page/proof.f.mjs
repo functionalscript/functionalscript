@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { element } from '../../media/html/module.f.mjs'
+import { element } from '../../media/html/module.f.js'
 import { concat, occurrences } from '../../types/string/module.f.js'
 import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHeading, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection, urlPath } from './module.f.mjs'
 import { origin, productionOrigin } from '../origin/module.f.js'

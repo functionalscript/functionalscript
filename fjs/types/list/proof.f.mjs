@@ -11,8 +11,8 @@ import { stringifySorted } from '../../media/json/module.f.mjs'
 import { addition, reduceToScan, nextStep, doneStep } from '../function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, listing, parse } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../result/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */

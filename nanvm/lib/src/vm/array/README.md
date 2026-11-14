@@ -1,13 +1,15 @@
 # `Array` built-ins
 
-The member functions an array answers, one file each, reached from `array` in
+The native member functions an array answers, one file each, reached from `array` in
 [`../lambda/method.rs`](../lambda/method.rs). Each is ECMAScript 2025's algorithm
 on every input a module can build. Behaviour is pinned by the shared corpus in
 [`fjs/nanvm`](../../../../../fjs/nanvm/README.md), which runs every case on a
 JavaScript engine and on this crate. The completeness table
 [`fjs/nanvm/methods`](../../../../../fjs/nanvm/methods/module.f.mjs) generates,
 checked by `completeness` in `method.rs`, keeps this set equal to what the
-compiler admits.
+compiler admits. `map` and `concat` are implemented in the shared FunctionalScript
+runtime ([`fjs/js/runtime`](../../../../../fjs/js/runtime/README.md)); their native
+table entries and Rust implementations have been removed.
 
 ## What is out, by design
 
@@ -49,7 +51,7 @@ member functions.
 
 The EDAG keeps a call's argument count, so `f(x)` and `f(x, undefined)` are two
 calls, and three built-ins answer them differently, as JavaScript does. They read
-the argument through `present` in `method.rs` rather than `argument`:
+the argument through `Array::present` rather than `Array::argument`:
 
 - `lastIndexOf(x)` searches from the end; `lastIndexOf(x, undefined)` from `0`.
 - `reduce(f)` and `reduceRight(f)` throw on an empty array;

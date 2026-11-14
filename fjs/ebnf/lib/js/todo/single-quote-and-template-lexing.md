@@ -166,7 +166,7 @@ position, not in the grammar.
 Two fixtures the tree scan cannot see, because a wrong split there is not an
 error but a template that swallows the rest of the file as text: a
 substitution holding a block body — `map(c => { switch (c) { … } })`, as
-[`media/rust/module.f.mjs`](../../../../media/rust/module.f.mjs) once had —
+[`media/rust/module.f.js`](../../../../media/rust/module.f.js) once had —
 so its first `}` must stay an operator, and `` `${{ x: 1 }.x}` ``, an object
 literal as the whole substitution.
 
@@ -234,7 +234,7 @@ them to FunctionalScript.
 Single quotes, including the bounded `\xHH` and `\v` increment, and templates
 still leave real modules failing, because quoted strings use the rest of the
 JS escape surface too. An example from the original measurement was
-[`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `rootTree`, which
+[`git/testlib.f.mjs`](../../../../git/testlib.f.js)'s `rootTree`, which
 used ordinary data, not a test of escapes:
 
 ```js
@@ -256,7 +256,7 @@ that.
 
 Do not answer this with a longer list, though. The list keeps acquiring rows —
 first `\'`, then the backtick, then `\$` for the escaped substitution opener
-in [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s `indentedPart` —
+in [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s `indentedPart` —
 because JavaScript does not have a list. Its rule is **the listed escapes,
 otherwise the character itself**: `\q` is `q`, `\$` is `$`. JSON's `escape`
 rule does the opposite and refuses, which is right for JSON and is why the JS
@@ -282,7 +282,7 @@ The repository had two, one per module, and **they are not the same case**:
 
 | regex | tokenizes as | cost |
 | --- | --- | --- |
-| [`effects/node`](../../../../effects/node/module.f.mjs)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
+| [`effects/node`](../../../../effects/node/module.f.js)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
 | `text/sgr`'s `str` `` /\x1b\[[0-9;]*m/g ``, since replaced by the scanner `stripSgr` | `invalid token` at the `\` | the module is lost from there on |
 
 Both are `.f.mjs` modules, where regular expressions are ruled out, which is
@@ -365,12 +365,12 @@ the source view rests on.
       change.
 - [ ] Fixtures for that rule, all failing when this was written; the first
       reads since 2460, whose `\'` it needs and nothing more:
-      [`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `mergePayload`
+      [`git/testlib.f.mjs`](../../../../git/testlib.f.js)'s `mergePayload`
       (`'Merge tag \'vt\''`), its `rootTree` (`\0` and `\xNN` in ordinary
       data),
       [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s
       `unrenderable` (escaped backticks in a template), and
-      [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s
+      [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s
       `indentedPart`, which is `` `\${${reference}}` `` — an escaped substitution opener and a
       real substitution on one line, so it pins the two against each other.
 - [x] A template chunk rule, and the nesting context in the reader's scan

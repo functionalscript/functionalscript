@@ -2,7 +2,7 @@
  * A packfile's framing, and the delta instructions inside one.
  *
  * A pack is length-framed throughout, so this is a decoder in the
- * [`fjs/asn.1`](../../asn.1/module.f.mjs) style rather than a grammar over
+ * [`fjs/asn.1`](../../asn.1/module.f.js) style rather than a grammar over
  * the byte alphabet. It has no effects and does not walk the file: an entry's
  * payload is a zlib stream, and nothing can say where one entry ends without
  * inflating it, so walking belongs to the reader that has `inflate` and this
@@ -271,7 +271,7 @@ const selected = (b, at, mask, count, k, value) => {
  * node 22, a delta of 5,000 one-byte inserts — a few kilobytes of pack, since
  * such a stream compresses to almost nothing — died with
  * `RangeError: Maximum call stack size exceeded`, where 3,000 answered. That is
- * the shape [`fjs/effects`](../../effects/module.f.mjs)' `walkStep` removes
+ * the shape [`fjs/effects`](../../effects/module.f.js)' `walkStep` removes
  * for a walk, and the same answer applies here: depth is constant in the
  * instruction count, so what the *loop* is bounded by is the target size the
  * header declares — a number the delta itself states, not one invented here. A

@@ -52,13 +52,13 @@
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
-import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
-import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.js'
+import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.js'
 import { charIs, isDigit, isLatinLetter } from '../../../../text/ascii/module.f.js'
-import { fromVec } from '../../../../text/utf8/module.f.mjs'
+import { fromVec } from '../../../../text/utf8/module.f.js'
 import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
-import { occurrences } from '../../../../types/array/module.f.mjs'
+import { occurrences } from '../../../../types/array/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'

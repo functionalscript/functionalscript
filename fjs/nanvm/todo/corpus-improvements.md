@@ -5,7 +5,7 @@
 
 ### Problem
 
-The call-contract corpus ([`corpus`](../corpus/module.f.mjs): the
+The call-contract corpus ([`corpus`](../corpus/module.f.js): the
 `nanvm-harness` fixtures, each compared between Node, the FJS interpreter and
 the direct AOT output) is now complete as a mechanism: the interpreter agrees
 with Node on every fixture, each fixture has a committed generated
@@ -179,7 +179,7 @@ compared by the existing machinery with nothing retyped.
 
 ### Related
 
-- [`corpus`](../corpus/module.f.mjs) and [`expected`](../expected/module.f.mjs):
+- [`corpus`](../corpus/module.f.js) and [`expected`](../expected/module.f.mjs):
   the rule and the generated expectation this plan extends.
 - `nanvm-lib/todo/callable-function-objects.md`: Stage 8, whose decisions 1 to
   5 govern every item here.

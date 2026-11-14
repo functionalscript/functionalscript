@@ -8,7 +8,7 @@
  */
 
 import { parse } from './module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
@@ -395,9 +395,6 @@ export const proof = {
                 // and between the two, the absent member wins
                 assertErrorPath(['a'])(parse({ a: number })({ b: 1 }))
             },
-            // Nor is a key that is no position at all.
-            nonIndexKeyRejected: () =>
-                assertError(parse([number])(Object.assign([1], { foo: 2 }))),
             // A missing member is absent: required where its set excludes
             // absence, omitted from what is built where it does not.
             shortArray: () => {

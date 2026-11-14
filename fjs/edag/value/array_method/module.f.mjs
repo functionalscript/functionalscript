@@ -12,14 +12,14 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { join } from '../array/module.f.mjs'
-import { at } from '../at/module.f.mjs'
-import { call } from '../call/module.f.mjs'
+import { join } from '../array/module.f.js'
+import { at } from '../at/module.f.js'
+import { call } from '../call/module.f.js'
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
-import { is, isFunction, isUndefined, strictEqual, tagUndefined, truthy } from '../semantics/module.f.mjs'
-import { slice } from '../slice/module.f.mjs'
+import { is, isFunction, isUndefined, strictEqual, tagUndefined, truthy } from '../semantics/module.f.js'
+import { slice } from '../slice/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 
@@ -49,7 +49,6 @@ const visit = (receiver, key, fn, invoke) => {
         const [kind, value] = result
         if (kind === 'error') { return result }
         switch (key) {
-            case 'map': { output = [...output, value]; break }
             case 'flatMap': { output = [...output, ...flatten([value], 1)]; break }
             case 'filter': { if (truthy(value)) { output = [...output, element] } break }
             case 'every': { if (!truthy(value)) { return ok(false) } break }
@@ -61,7 +60,7 @@ const visit = (receiver, key, fn, invoke) => {
         }
     }
     switch (key) {
-        case 'map': case 'flatMap': case 'filter': { return ok(['[]', output]) }
+        case 'flatMap': case 'filter': { return ok(['[]', output]) }
         case 'every': { return ok(true) }
         case 'some': { return ok(false) }
         case 'findIndex': case 'findLastIndex': { return ok(-1) }
@@ -146,7 +145,6 @@ export const arrayMethod = (receiver, key, args, invoke) => {
     const first = tagUndefined(args[0])
     const second = tagUndefined(args[1])
     switch (key) {
-        case 'concat': { return ok(['[]', [...values, ...flatten(args, 1)]]) }
         case 'toReversed': { return ok(['[]', values.toReversed()]) }
         case 'toSorted': { return sorted(values, first, invoke) }
         case 'includes': case 'indexOf': case 'lastIndexOf': { return search(receiver, key, args, invoke) }
@@ -164,11 +162,11 @@ export const arrayMethod = (receiver, key, args, invoke) => {
             const result = toNumber(first, invoke)
             const [kind, number] = result
             if (kind === 'error') { return result }
-            if (key === 'at') { return at(receiver, number) }
+            if (key === 'at') { return ok(at(receiver, number)) }
             if (key === 'slice') {
-                const end = isUndefined(second) ? ok(/** @type {const} */ (['undefined'])) : toNumber(second, invoke)
+                const end = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
                 const [endKind, last] = end
-                return endKind === 'error' ? end : slice(receiver, number, last)
+                return endKind === 'error' ? end : ok(slice(receiver, number, last))
             }
             const relative = toIntegerOrInfinity(number)
             if (key === 'with') {
@@ -183,7 +181,7 @@ export const arrayMethod = (receiver, key, args, invoke) => {
             return ok(['[]', [...values.slice(0, start), ...args.slice(2), ...values.slice(end)]])
         }
         case 'every': case 'filter': case 'find': case 'findIndex': case 'findLast':
-        case 'findLastIndex': case 'flatMap': case 'map': case 'some': case 'reduce': case 'reduceRight': {
+        case 'findLastIndex': case 'flatMap': case 'some': case 'reduce': case 'reduceRight': {
             if (!callable(first)) { return error(['undefined']) }
             return key === 'reduce' || key === 'reduceRight' ? reduce(receiver, key, args, first, invoke) : visit(receiver, key, first, invoke)
         }

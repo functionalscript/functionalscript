@@ -11,20 +11,20 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { writeObject } from '../../cas/git/module.f.mjs'
-import { history, historyStep, ioError, runPure } from '../../effects/module.f.mjs'
-import { partialRun } from '../../effects/mock/module.f.mjs'
-import { nodeCommands, readUtf8File, writeFiles } from '../../effects/node/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
+import { write as writeLoose } from '../../git/loose/module.f.mjs'
+import { history, historyStep, ioError, runPure } from '../../effects/module.f.js'
+import { partialRun } from '../../effects/mock/module.f.js'
+import { nodeCommands, readUtf8File, writeFiles } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import { hexText, of, tryFromHexOf } from '../../git/oid/module.f.mjs'
-import { tryRead as readObject } from '../../git/store/module.f.mjs'
+import { objectsDir, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { u8ListToString } from '../../text/utf8/module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { u8ListToString } from '../../text/utf8/module.f.js'
+import { definedEntries } from '../../types/object/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { jobs } from '../self/module.f.mjs'
@@ -87,9 +87,11 @@ const config = /** @type {const} */ ('[core]\nrepositoryformatversion = 0\n[user
 /** @type {Dir} */
 const root = { '.git': { config: [utf8(config)], objects: { pack: {} } }, tmp: {}, home: {} }
 
+/** The loose writer of the repository's own `objects/`. */
+const write = writeLoose(objectsDir('.git'), 20)
+
 /** The native writer seeds just the tree and commit; no parent or source blob exists. @type {() => State} */
 const seeded = () => {
-    const write = writeObject('.git', 20)
     const t = history(write('tree', tree))
     const c = historyStep(t, () => write('commit', commit))
     const [state, result] = virtualAt(root)(c)

@@ -14,11 +14,11 @@ import { main as depsMain } from './deps/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { commands as ciCacheCommands } from './ci/cache/module.f.mjs'
-import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
-import { dispatch, isMain } from './cli/module.f.mjs'
+import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.js'
+import { dispatch, isMain } from './cli/module.f.js'
 import { casMcpServer } from './mcp/module.f.mjs'
 import { main as webMain } from './web/module.f.mjs'
-import { resultStep } from './effects/module.f.mjs'
+import { resultStep } from './effects/module.f.js'
 
 /** @type {DocumentedCommands<NodeOp>} */
 export const commands = [

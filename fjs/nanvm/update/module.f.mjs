@@ -14,11 +14,11 @@
  */
 
 
-import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
-import { step } from '../../effects/module.f.mjs'
+import { exitStep, writeFiles } from '../../effects/node/module.f.js'
+import { step } from '../../effects/module.f.js'
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
-import { generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
+import { generate as generateCommands, path as commandsPath } from '../commands/module.f.js'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.mjs'

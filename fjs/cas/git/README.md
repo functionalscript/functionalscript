@@ -2,7 +2,7 @@
 
 A Git branch as a content-addressable store: the branch's tree is the map
 from canonical CAS paths — `.cas/ab/cd/<rest>`, the layout
-[`fjs/cas`](../module.f.mjs)'s `toPath` spells — to immutable content, so a
+[`fjs/cas`](../module.f.js)'s `toPath` spells — to immutable content, so a
 commit of the branch *is* a CAS snapshot, and `fjs/cas/git` reads one and
 writes to one through the `Cas<O>` surface every other consumer of
 [`fjs/cas`](../README.md) already uses. The first consumer is the
@@ -98,7 +98,7 @@ siblings would make a write cost what a listing does.
 Everything is native over [`fjs/git`](../../git/README.md): the id width
 from `config`, the refs through the ref store and its writer, the objects
 through the object store and the walk, the trees and commits through their
-writers, the loose file through [`fjs/zlib/stored`](../../zlib/stored/module.f.mjs).
+writers, the loose file through [`fjs/zlib/stored`](../../zlib/stored/module.f.js).
 No `git` runs.
 
 ## Limits

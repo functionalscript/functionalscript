@@ -1,16 +1,16 @@
 /** @import { DemoEvent } from '../../website/demo/types.ts' */
 
 import { powResultMarker, stylesheet } from '../../website/style/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
-import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
-import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
-import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
+import { computeSync, sha224, sha256 } from '../sha2/module.f.js'
+import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, parseNBits, parseNonce } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { concat as stringConcat } from '../../types/string/module.f.js'
-import { element, htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { element, htmlToString } from '../../media/html/module.f.js'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 

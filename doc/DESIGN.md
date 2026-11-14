@@ -260,8 +260,8 @@ wrong-in-the-unsafe-direction estimate reintroduces the exact crash the check wa
 meant to prevent — while the real operation is always exactly right.
 
 Express the fallible operation as a `try*` function returning `Nullable<T>` (see
-`tryUtf8`, `tryListToVec`, `tryU8ListToVec`, `base64Decode` in `fjs/text`,
-`fjs/types/bit_vec`, `fjs/base64`), add a new `try*` variant if one doesn't exist
+`tryUtf8`, `tryListToVec`, `tryU8ListToVec` in `fjs/text` and
+`fjs/types/bit_vec`, and `decode` in `fjs/basen/base64`), add a new `try*` variant if one doesn't exist
 yet for the operation you need (including effect primitives like `write`), and
 have the caller check the `null` result rather than a precomputed bound.
 
@@ -521,6 +521,12 @@ what a built-in answers — is one body of FunctionalScript in the runtime,
 proved on the host, interpreted by the interpreter, and compiled by every
 backend. Correctness is argued there and nowhere else: a backend that
 disagrees with it is wrong by definition, and the corpus is what says so.
+
+For `Math` admissions, the approved
+[target rule](../spec/todo/2360-built-in.md#mathlog2-proposal-and-approval)
+defines the native surface: use compatible native operations when both Rust
+and core WASM provide them; otherwise write the common body and use it in Rust
+too. WASM adds no third-party dependencies.
 
 1. **The source is complete and naive.** It expresses the semantics in the
    simplest correct form, allocating a closure or an object wherever the

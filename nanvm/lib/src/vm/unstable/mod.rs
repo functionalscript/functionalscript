@@ -1,5 +1,9 @@
 #![doc = include_str!("README.md")]
 
+mod ref_map;
+
+pub use ref_map::ref_map;
+
 use crate::{
     sign::Sign,
     vm::{

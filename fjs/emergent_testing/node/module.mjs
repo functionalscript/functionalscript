@@ -3,8 +3,8 @@
  * {@link quiet} filter, so a green run prints its summary and nothing per
  * test, and a red one prints what failed.
  *
- * Node loads it by path — `--test-reporter=./fjs/emergent_testing/node/module.mjs`,
- * as `npm run cov` does — calls the default export with the run's event
+ * Node loads it by path (`--test-reporter=./fjs/emergent_testing/node/module.mjs`),
+ * calls the default export with the run's event
  * stream, and writes what it yields.
  *
  * @module

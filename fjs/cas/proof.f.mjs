@@ -9,18 +9,18 @@
  * @import { Transducer } from '../types/function/operator/types.ts'
  */
 
-import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
-import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
-import { fileCas, casAddFile, collectRead, contentKey, wholeByteMachine } from './module.f.mjs'
-import { runPure } from '../effects/module.f.mjs'
-import { run } from '../effects/mock/module.f.mjs'
-import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
-import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects/node/module.f.mjs'
+import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.js'
+import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.js'
+import { computeSync, sha256 } from '../crypto/sha2/module.f.js'
+import { fileCas, casAddFile, collectRead, contentKey, wholeByteMachine } from './module.f.js'
+import { runPure } from '../effects/module.f.js'
+import { run } from '../effects/mock/module.f.js'
+import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.js'
+import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects/node/module.f.js'
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.js'
-import { nonEmpty, empty, fromList, run as runStream } from '../effects/list/module.f.mjs'
+import { nonEmpty, empty, fromList, run as runStream } from '../effects/list/module.f.js'
 import { doneStep, nextStep } from '../types/function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { assertIoMessage } from '../effects/testlib.f.js'
@@ -228,8 +228,13 @@ export const proof = {
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
         const [, readResult] = virtual(state1)(collectRead(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
-        const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const expected = msb.concatVec(msb.concatVec(chunks[0])(chunks[1]))(chunks[2])
         assertEq(msb.cmp(readResult[1])(expected), 0, 'multi-chunk read content mismatch')
+    },
+    casListMissingStoreIsEmpty: () => {
+        const [state, result] = virtual(emptyState)(fileCas(sha256)('fresh-store').list())
+        assertStructurallySame(result, ok([]))
+        assertStructurallySame(state.root, emptyState.root)
     },
     casWriteDedup: () => {
         // Same content ⇒ same hash; the second upload's replace-`rename` publishes over the
@@ -455,7 +460,7 @@ export const proof = {
         assertEq(msb.cmp(key)(computeSync(sha256)(chunks)), 0, 'contentKey is not the SHA-256 of the bytes')
         // The same bytes in one chunk: the chunking is the stream's business and
         // not the key's.
-        const whole = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const whole = msb.concatVec(msb.concatVec(chunks[0])(chunks[1]))(chunks[2])
         const o1 = runPure(contentKey(sha256)(payload([whole])))
         assert(o1.length === 1)
         assertEq(msb.cmp(key)(unwrapResult(o1[0])), 0, 'rechunked contentKey disagrees')

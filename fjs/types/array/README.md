@@ -1,6 +1,6 @@
 # Array
 
-Helpers for readonly JavaScript arrays. [`module.f.mjs`](./module.f.mjs) holds
+Helpers for readonly JavaScript arrays. [`module.f.js`](./module.f.js) holds
 the functions, and [`types.ts`](./types.ts) the length-typed array types
 (`FixedArray<N, T>`, `BoundedArray`, `OfLength`, `OptionalTailArray`) and
 `Occurrences`.
@@ -10,7 +10,7 @@ one directly. This module is for what a list does not do: index, split and
 check length.
 
 ```js
-import { at, first, last, splitFirst, splitLast, tail } from './module.f.mjs'
+import { at, first, last, splitFirst, splitLast, tail } from './module.f.js'
 
 at(5)([1])            // null: past the end, not undefined
 first([7])            // 7

@@ -143,16 +143,7 @@ impl<A: IVm> Member<A> {
     /// every path, through `Array::try_from` as `Any::call` throws,
     /// before a built-in sees them.
     pub(crate) fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>> {
-        match self.own() {
-            Some(callee) => callee.call(args),
-            None => match self.body(runtime)? {
-                Some(f) => f.call(args),
-                None => match method(&self.receiver, &self.key) {
-                    Some(f) => f(self.receiver, Array::try_from(args)?),
-                    None => Any::undefined().call(args),
-                },
-            },
-        }
+        self.call_with(|m| m.body(runtime), args)
     }
 
     /// The call that asks no runtime: the own property or element, else the
@@ -161,11 +152,26 @@ impl<A: IVm> Member<A> {
     /// the runtime has nothing to add and need not be in scope
     /// (`fjs/js/intrinsic`).
     pub(crate) fn call_native(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
+        self.call_with(|_| Ok(None), args)
+    }
+
+    /// The ladder [`Member::call`] documents, the body lookup deferred:
+    /// `body` is asked only where the receiver owns nothing under the key,
+    /// so an own property is answered before the runtime is, and a runtime
+    /// whose `dot` throws never reaches a receiver that shadows the name.
+    fn call_with(
+        self,
+        body: impl FnOnce(&Self) -> Result<Option<Any<A>>, Any<A>>,
+        args: Any<A>,
+    ) -> Result<Any<A>, Any<A>> {
         match self.own() {
             Some(callee) => callee.call(args),
-            None => match method(&self.receiver, &self.key) {
-                Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => Any::undefined().call(args),
+            None => match body(&self)? {
+                Some(f) => f.call(args),
+                None => match method(&self.receiver, &self.key) {
+                    Some(f) => f(self.receiver, Array::try_from(args)?),
+                    None => Any::undefined().call(args),
+                },
             },
         }
     }
@@ -313,28 +319,35 @@ mod tests {
             object.member_present("at".into(), &answering(seven())),
             Ok(false.to_any())
         );
-        for (_, name) in super::super::methods_table::RUNTIME_ONLY {
-            let text: Any<A> = "abc".into();
+        for (type_, name) in super::super::methods_table::RUNTIME_ONLY {
+            let receiver: Any<A> = match *type_ {
+                "String" => "abc".into(),
+                "Array" => [1.0.to_any()].to_array().to_any(),
+                _ => panic!("no runtime-only test receiver for {type_}"),
+            };
             assert_eq!(
-                text.clone()
+                receiver
+                    .clone()
                     .member_present((*name).into(), &Any::undefined()),
                 Ok(false.to_any())
             );
             assert_eq!(
-                text.clone().member_present((*name).into(), &rt()),
+                receiver.clone().member_present((*name).into(), &rt()),
                 Ok(true.to_any())
             );
             assert_eq!(
-                text.clone()
+                receiver
+                    .clone()
                     .member_present((*name).into(), &answering(Nullish::Null.to_any())),
                 Ok(true.to_any())
             );
             assert_eq!(
-                text.clone().member_present((*name).into(), &throwing()),
+                receiver.clone().member_present((*name).into(), &throwing()),
                 Err("lookup".into())
             );
             assert_eq!(
-                text.clone()
+                receiver
+                    .clone()
                     .dot((*name).into())
                     .option_call(&Any::undefined(), || panic!(
                         "missing runtime skips arguments"
@@ -343,7 +356,8 @@ mod tests {
                 Ok(Any::undefined())
             );
             assert_eq!(
-                text.dot((*name).into())
+                receiver
+                    .dot((*name).into())
                     .end_call(&answering(seven()), no_args),
                 Ok(7.0.to_any())
             );
@@ -388,7 +402,18 @@ mod tests {
     fn own_property_first() {
         let shadowed: Any<A> = [("toString".into(), seven())].to_object().to_any();
         assert_eq!(
-            shadowed.dot("toString".into()).end_call(&rt(), no_args),
+            shadowed
+                .clone()
+                .dot("toString".into())
+                .end_call(&rt(), no_args),
+            Ok(7.0.to_any())
+        );
+        // The own function is answered before the runtime is asked, so a
+        // `dot` that throws is never reached.
+        assert_eq!(
+            shadowed
+                .dot("toString".into())
+                .end_call(&throwing(), no_args),
             Ok(7.0.to_any())
         );
         let not_callable: Any<A> = [("toString".into(), 1.0.to_any())].to_object().to_any();

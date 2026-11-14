@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** on-hold
 
-> **Drift note (2026-06-12).** The `dev/version` module is gone and `fjs/dev/module.f.mjs` no longer reads or writes `deno.json`. The only remaining JSON-file call site is the `ci` write, which is below the second-consumer bar for extracting `writeJsonFile`, and there are no production JSON-file reads at all. On hold until a second real consumer appears; the design below remains valid when it does.
+> **Drift note (2026-06-12).** The `dev/version` module is gone and `fjs/dev/module.f.js` no longer reads or writes `deno.json`. The only remaining JSON-file call site is the `ci` write, which is below the second-consumer bar for extracting `writeJsonFile`, and there are no production JSON-file reads at all. On hold until a second real consumer appears; the design below remains valid when it does.
 
 Three modules independently open-code "read a file, UTF-8 decode it, JSON-parse it" and "JSON-stringify a value, UTF-8 encode it, write the file". This is a single concern currently scattered and copied.
 
@@ -41,7 +41,7 @@ export const writeJsonFile = (path: string) => (value: Unknown): Effect<WriteFil
 
 ### Related
 
-- `fjs/effects/node/module.f.mjs` — `readFile`/`writeFile` effects.
-- `fjs/text/module.f.mjs` — `utf8`; `fjs/text/utf8/module.f.mjs` — `utf8ToString`.
+- `fjs/effects/node/module.f.js` — `readFile`/`writeFile` effects.
+- `fjs/text/module.f.js` — `utf8`; `fjs/text/utf8/module.f.js` — `utf8ToString`.
 - [`fjs/media/json/module.f.mjs`](../../../media/json/module.f.mjs) — `parse` and
   `stringify`, the FunctionalScript pipeline both helpers sit on.

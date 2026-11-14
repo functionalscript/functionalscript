@@ -15,31 +15,20 @@
  * @import { StringSet } from '../../types/string_set/types.ts'
  * @import { DataRule, Rule as FRule, Thunk } from '../types.ts'
  * @import { EmptyTag, EmptyTagMap, GrammarData, Rule, RuleNameMap, RuleSet, RuleVisitor, Sequence, Terminal, Variant } from './types.ts'
- * @import { _Lowered, _State } from './private.ts'
+ * @import { _Lower, _Lowered, _State } from './private.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { errorMask } from '../../text/code_point/module.f.js'
-import { stringToCodePointList } from '../../text/utf16/module.f.js'
+import { codePoints } from '../../text/utf16/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.js'
-import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
+import { definedEntries, isObject, structurallySame } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
-const { entries, fromEntries, keys, getPrototypeOf, is: sameValue, prototype: objectPrototype } = Object
-
-/**
- * A plain record — an object literal's shape — and nothing else that is an
- * object: a `Map` has no own string-keyed entries, so read as a variant it
- * would be an empty one. One realm, one prototype chain, so the prototype
- * is a reliable test. Not a type predicate: both call sites hold a value the
- * type system has already narrowed, and only ask whether to refuse it.
- *
- * @type {(v: unknown) => boolean}
- */
-const isRecord = v => isObject(v) && getPrototypeOf(v) === objectPrototype
+const { entries, fromEntries, keys, is: sameValue } = Object
 
 /**
  * The one discriminator over the data {@link Rule}: each handler receives the
@@ -69,7 +58,7 @@ export const matchRule = v => rule => {
         }
         case 'variant': {
             const [, branches] = rule
-            assert(rule.length === 2 && isRecord(branches), ['not a variant', rule])
+            assert(rule.length === 2 && isObject(branches), ['not a variant', rule])
             return v.variant(branches)
         }
         case 'repeat': {
@@ -89,7 +78,7 @@ export const matchRule = v => rule => {
  *
  * @type {(map: EmptyTagMap) => (item: string) => boolean}
  */
-export const _nullable = map => item => at(item)(map) !== null
+export const _nullable = map => item => entry(map, item) !== undefined
 
 /**
  * The nullability of one rule, given that of the rules it names.
@@ -125,7 +114,7 @@ const emptyTagStep = ruleSet => map => {
  *
  * @type {(names: readonly string[]) => (a: EmptyTagMap, b: EmptyTagMap) => boolean}
  */
-const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)(b))
+const sameTags = names => (a, b) => names.every(name => entry(a, name) === entry(b, name))
 
 /**
  * Computes, for every rule in the set, whether it can match empty input, by
@@ -192,7 +181,7 @@ export const isRepeatBounds = (min, max) =>
  * @type {(ruleSet: RuleSet) => (name: string) => (item: unknown) => void}
  */
 const defined = ruleSet => name => item =>
-    assert(typeof item === 'string' && at(item)(ruleSet) !== null, ['unknown rule', name, item])
+    assert(typeof item === 'string' && fromUndefined(entry(ruleSet, item)) !== null, ['unknown rule', name, item])
 
 /**
  * The checks on one rule, given the name it has, the reference check of its
@@ -207,10 +196,16 @@ const validateVisitor = (name, ref, nullable) => ({
         assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
         return undefined
     },
-    sequence: items => items.forEach(ref),
+    sequence: items => {
+        for (const item of items) { ref(item) }
+        return undefined
+    },
     // Every own entry, so a tag written with no rule under it is refused
     // rather than read as absent.
-    variant: branches => entries(branches).forEach(([, item]) => ref(item)),
+    variant: branches => {
+        for (const [, item] of entries(branches)) { ref(item) }
+        return undefined
+    },
     repeat: (min, max, item) => {
         assert(isRepeatBounds(min, max), ['repeat bounds outside their domain', name, min, max])
         ref(item)
@@ -235,12 +230,12 @@ const validateRule = (ruleSet, empty) => name =>
  * @type {(ruleSet: RuleSet, entry: string) => void}
  */
 export const validate = (ruleSet, entry) => {
-    // The set is data too: an array would answer `at('0')` with its first
+    // The set is data too: an array would answer `entry(array, '0')` with its first
     // element and walk under `entries`, so the carrier is checked first.
-    assert(isRecord(ruleSet), ['not a rule set', ruleSet])
+    assert(isObject(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
-    entries(ruleSet).forEach(([name, r]) => rule(name)(r))
+    for (const [name, r] of entries(ruleSet)) { rule(name)(r) }
     return undefined
 }
 
@@ -289,35 +284,17 @@ const symbolTerminal = n => {
     return n === MAX_SAFE_INTEGER ? ['set', n] : ['set', n, n + 1]
 }
 
-/**
- * The code points of a string, one symbol each: a string rule, and the text
- * the front end's `set`, `range` and `literals` and the byte alphabet's
- * `ascii` read. Malformed UTF-16 is refused rather than encoded as a symbol
- * outside the domain — the decoder tags a lone surrogate with `errorMask`,
- * which makes it negative, so nothing downstream would tell it from a
- * mistake of its own.
- *
- * @throws If `s` holds a lone surrogate.
- *
- * @type {(s: string) => readonly number[]}
- */
-export const codePoints = s => {
-    const list = toArray(stringToCodePointList(s))
-    assert(list.every(c => (c & errorMask) === 0), ['malformed UTF-16', s])
-    return list
-}
-
-/** @type {(parent: string) => (acc: _Lowered<readonly Entry<string>[]>, child: Entry<FRule>) => _Lowered<readonly Entry<string>[]>} */
-const lowerChild = parent => ([state, done], [key, child]) => {
-    const [next, name] = lower(state, childHint(parent, key), child)
+/** @type {(lowerRule: _Lower, parent: string) => (acc: _Lowered<readonly Entry<string>[]>, child: Entry<FRule>) => _Lowered<readonly Entry<string>[]>} */
+const lowerChild = (lowerRule, parent) => ([state, done], [key, child]) => {
+    const [next, name] = lowerRule(state, childHint(parent, key), child)
     return [next, [...done, [key, name]]]
 }
 
-/** @type {(state: _State, parent: string, children: readonly Entry<FRule>[]) => _Lowered<readonly Entry<string>[]>} */
-const lowerChildren = (state, parent, children) => {
+/** @type {(lowerRule: _Lower, state: _State, parent: string, children: readonly Entry<FRule>[]) => _Lowered<readonly Entry<string>[]>} */
+const lowerChildren = (lowerRule, state, parent, children) => {
     /** @type {_Lowered<readonly Entry<string>[]>} */
     const init = [state, []]
-    return children.reduce(lowerChild(parent), init)
+    return children.reduce(lowerChild(lowerRule, parent), init)
 }
 
 /**
@@ -325,10 +302,10 @@ const lowerChildren = (state, parent, children) => {
  * array: `[, 'x']` would lower as a one-element sequence. Spreading makes
  * each hole the `undefined` it is, which is no rule and is refused as one.
  *
- * @type {(state: _State, name: string, items: readonly FRule[]) => _Lowered<Sequence>}
+ * @type {(lowerRule: _Lower, state: _State, name: string, items: readonly FRule[]) => _Lowered<Sequence>}
  */
-const lowerSequence = (state, name, items) => {
-    const [next, named] = lowerChildren(state, name, [...items].map((item, i) => [`${i}`, item]))
+const lowerSequence = (lowerRule, state, name, items) => {
+    const [next, named] = lowerChildren(lowerRule, state, name, [...items].map((item, i) => [`${i}`, item]))
     return [next, ['sequence', ...named.map(([, n]) => n)]]
 }
 
@@ -338,10 +315,10 @@ const lowerSequence = (state, name, items) => {
  * reaches `lowerBody`'s refusal rather than being dropped, which would
  * lower a different grammar than the one written.
  *
- * @type {(state: _State, name: string, branches: import('../types.ts').Variant) => _Lowered<Variant>}
+ * @type {(lowerRule: _Lower, state: _State, name: string, branches: import('../types.ts').Variant) => _Lowered<Variant>}
  */
-const lowerVariant = (state, name, branches) => {
-    const [next, named] = lowerChildren(state, name, entries(branches))
+const lowerVariant = (lowerRule, state, name, branches) => {
+    const [next, named] = lowerChildren(lowerRule, state, name, entries(branches))
     return [next, ['variant', fromEntries(named)]]
 }
 
@@ -350,26 +327,26 @@ const lowerVariant = (state, name, branches) => {
  * string one symbol per code point in sequence, an array a sequence, an
  * object a variant.
  *
- * @type {(state: _State, name: string, dr: DataRule) => _Lowered<Rule>}
+ * @type {(lowerRule: _Lower, state: _State, name: string, dr: DataRule) => _Lowered<Rule>}
  */
-const lowerBody = (state, name, dr) => {
+const lowerBody = (lowerRule, state, name, dr) => {
     switch (typeof dr) {
         case 'number': { return [state, symbolTerminal(dr)] }
-        case 'string': { return lowerSequence(state, name, codePoints(dr)) }
+        case 'string': { return lowerSequence(lowerRule, state, name, codePoints(dr)) }
         case 'object': {
             if (dr === null) { return [state, eof] }
-            if (dr instanceof Array) { return lowerSequence(state, name, dr) }
-            assert(isRecord(dr), ['not a rule', dr])
-            return lowerVariant(state, name, dr)
+            if (dr instanceof Array) { return lowerSequence(lowerRule, state, name, dr) }
+            assert(isObject(dr), ['not a rule', dr])
+            return lowerVariant(lowerRule, state, name, dr)
         }
         default: { throw ['not a rule', dr] }
     }
 }
 
-/** @type {(state: _State, hint: string, dr: DataRule) => _Lowered<string>} */
-const lowerData = (state, hint, dr) => {
+/** @type {(lowerRule: _Lower, state: _State, hint: string, dr: DataRule) => _Lowered<string>} */
+const lowerData = (lowerRule, state, hint, dr) => {
     const name = freshName(state.taken)(hint)
-    const [next, rule] = lowerBody(register(state, name, dr), name, dr)
+    const [next, rule] = lowerBody(lowerRule, register(state, name, dr), name, dr)
     return [emit(next, name, rule), name]
 }
 
@@ -384,9 +361,9 @@ const lowerData = (state, hint, dr) => {
  * refused here rather than dropped: the data form's own arity check never
  * sees the front-end tuple, only what this emitted from it.
  *
- * @type {(state: _State, hint: string, fr: Thunk) => _Lowered<string>}
+ * @type {(lowerRule: _Lower, state: _State, hint: string, fr: Thunk) => _Lowered<string>}
  */
-const lowerThunk = (state, hint, fr) => {
+const lowerThunk = (lowerRule, state, hint, fr) => {
     const name = freshName(state.taken)(fr.name === '' ? hint : fr.name)
     const registered = register(state, name, fr)
     const info = fr()
@@ -397,7 +374,7 @@ const lowerThunk = (state, hint, fr) => {
     switch (tag) {
         case 'const': {
             assert(info.length === 2, ['not a const', name, info])
-            const [next, rule] = lowerBody(registered, name, payload)
+            const [next, rule] = lowerBody(lowerRule, registered, name, payload)
             return [emit(next, name, rule), name]
         }
         case 'set': {
@@ -407,7 +384,7 @@ const lowerThunk = (state, hint, fr) => {
         case 'repeat': {
             const [, min, max, r] = info
             assert(info.length === 4, ['not a repeat', name, info])
-            const [next, item] = lower(registered, childHint(name, 'item'), r)
+            const [next, item] = lowerRule(registered, childHint(name, 'item'), r)
             return [emit(next, name, ['repeat', min, max, item]), name]
         }
         default: { throw ['not a rule', name, info] }
@@ -419,7 +396,7 @@ const lowerThunk = (state, hint, fr) => {
  * by `===`, so a thunk, an array or an object met twice is one named rule,
  * and a number or a string met twice is one rule by value.
  *
- * @type {(state: _State, hint: string, fr: FRule) => _Lowered<string>}
+ * @type {_Lower}
  */
 const lower = (state, hint, fr) => {
     // The memo's `Map` keys by SameValueZero, so `-0` would find `0`'s rule
@@ -427,7 +404,7 @@ const lower = (state, hint, fr) => {
     assert(!sameValue(fr, -0), ['not a symbol', fr])
     const known = state.names.get(fr)
     if (known !== undefined) { return [state, known] }
-    return typeof fr === 'function' ? lowerThunk(state, hint, fr) : lowerData(state, hint, fr)
+    return typeof fr === 'function' ? lowerThunk(lower, state, hint, fr) : lowerData(lower, state, hint, fr)
 }
 
 /** @type {RuleNameMap} */

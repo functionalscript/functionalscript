@@ -36,5 +36,5 @@ Add `fromDecimalParts(sign, intDigits, fracDigits, expSign, expDigits)` (or a
 
 ### Related
 
-- `fjs/types/bigfloat/module.f.mjs` — `decToBin`, the next stage of the same
+- `fjs/types/bigfloat/module.f.js` — `decToBin`, the next stage of the same
   pipeline

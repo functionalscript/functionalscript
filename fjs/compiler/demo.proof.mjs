@@ -9,7 +9,7 @@ import { commonOperationMap } from '../effects/common/module.mjs'
 import { assert, assertEq, assertOk } from '../asserts/module.f.js'
 import { demo } from './demo.f.mjs'
 import { examples } from './examples/module.f.js'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
 import { textOfResult } from '../text/marked/module.f.mjs'
 
 const run = asyncRun(commonOperationMap)
@@ -24,7 +24,7 @@ export const proof = /** @type {const} */ ({
         /** @type {string} */
         const edited = 'const recurse = n => 1 + recurse(n + 1);\nexport default recurse(0);'
         const state = assertOk(await run(demo.update(demo.init)({ kind: 'input', name: 'compiler', value: edited })))
-        assertEq(state.text, edited)
+        assertEq(state.main, edited)
         for (const result of state.panes.slice(0, 2)) {
             const text = textOfResult(result)
             assertEq(result[0], 'error')

@@ -403,17 +403,20 @@ the fold's:
   binding takes the wider `identifierName`, so `const typeof = 1;` still
   reaches the fold, and `{ typeof: 1 }`, `{ new: 1 }`, `a.typeof` and `a.new`
   stay members;
-- a reserved conversion global, `Number` or `String`, bound or referenced
-  anywhere but as the callee of `Number(x)` or `String(x)`
+- a reserved conversion global, `Boolean`, `Number`, `String` or `BigInt`, bound or referenced
+  anywhere but as the callee of its conversion
   ([spec: number conversion](../../../spec/conversions/number/README.md),
-  [string conversion](../../../spec/conversions/string/README.md)) —
+  [string conversion](../../../spec/conversions/string/README.md),
+  [boolean conversion](../../../spec/conversions/boolean/README.md),
+  [bigint conversion](../../../spec/conversions/bigint/README.md)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
   callee's word before resolving it, so the word alone decides, no scope
   ever binding it. `Number()` is the literal `0`, and `String()` is the
-  empty-string literal. Multiple arguments and spreads are refused at the
-  callee with `Number takes one argument` or `String takes one argument`,
+  empty-string literal. `Boolean()` converts `undefined` through its common
+  runtime body; `BigInt()` is refused. Multiple arguments and spreads are refused at the
+  callee with the conversion name and `takes one argument`,
   by design: a conversion is an operator, with a fixed set of operands
   ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
   Guarded calls, by design too, standalone references, and namespace
@@ -496,11 +499,25 @@ the fold's:
   function that is neither helper, by shape or by its names, is resolved
   as every function is, where `Object` is refused as the reserved word it
   is;
+- the empty reference map, matched whole as well
+  ([reference map](../../../spec/built-ins/reference-map/README.md)), by another means, since
+  its body is some thirty lines where a helper's is two statements:
+  [`./ref_map`](./ref_map/module.f.mjs) holds the canonical body as source,
+  parses it with this grammar, and a function is the map where its syntax
+  tree is the canonical one once names and layout are taken out of both —
+  each name read as the depth of what binds it, so any renaming of the
+  same bindings matches, and nothing else does. It is the AST's
+  `['refMap']`. The body reads its own name, so only the whole initializer
+  of a `const` can be the map; `WeakMap` is no reserved word, so a scope
+  that binds it makes the function an ordinary one, in which `new` is
+  refused as everywhere. A body that is the map is read by no ordinary
+  resolution, so the reader holds its statements to JavaScript's line rules
+  itself. The tree is read no deeper than the map is;
 - an intrinsic's helper, matched whole the same way: a function of as many
   bare, distinct names as the intrinsic's `length` whose expression body
   is the one member call of the intrinsic's name on the first with the
   rest, `(s, a, b) => s.slice(a, b)` — the AST's `['slice']`, by the
-  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs)
+  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.js)
   and the helpers [`fjs/js/intrinsic`](../../js/intrinsic/module.f.js). A
   step from the shape is an ordinary function with an ordinary member call.
 

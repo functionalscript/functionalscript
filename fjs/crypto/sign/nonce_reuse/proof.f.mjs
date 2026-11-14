@@ -1,11 +1,11 @@
 /** @import { Vec } from '../../../types/bit_vec/types.ts' */
 
-import { reuse } from './module.f.mjs'
+import { reuse } from './module.f.js'
 import { assert, assertEq, assertNotNullish, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { curve, secp256r1 } from '../../secp/module.f.js'
-import { verify, computeK, all } from '../module.f.mjs'
-import { sha256 } from '../../sha2/module.f.mjs'
-import { utf8 } from '../../../text/module.f.mjs'
+import { verify, computeK, all } from '../module.f.js'
+import { sha256 } from '../../sha2/module.f.js'
+import { utf8 } from '../../../text/module.f.js'
 
 const { mul: pointMul, g, nf: { p: q, mul: scalarMul } } = secp256r1
 const reuseP256 = reuse(secp256r1)(sha256)

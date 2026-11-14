@@ -7,7 +7,7 @@ import {
 } from './module.f.mjs'
 import { images, node, typescript } from '../config/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { definedValues } from '../../types/object/module.f.mjs'
+import { definedValues } from '../../types/object/module.f.js'
 
 const steps = npmPublishJob.steps
 

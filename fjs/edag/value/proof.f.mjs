@@ -7,8 +7,10 @@
 
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { validate } from '../../rtti/validate/module.f.mjs'
-import { exp } from '../module.f.mjs'
-import { _value, value, values, array, property, object, func } from './module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.mjs'
+import { toData, validate as dataValidate } from '../../rtti/data/module.f.mjs'
+import { exp } from '../module.f.js'
+import { _value, value, values, array, property, object, func } from './module.f.js'
 
 /** Every accepted value shape is also an EDAG expression shape. @type {(v: Unknown) => void} */
 const accept = v => {
@@ -19,7 +21,7 @@ const accept = v => {
 /** @type {(v: Unknown) => void} */
 const reject = v => { assertError(validate(value)(v)) }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     primitives: () => {
         for (const v of [null, false, true, 0, -0, NaN, Infinity, '', 'value', 0n]) {
             accept(v)
@@ -32,6 +34,20 @@ export const proof = {
         accept(['{}', []])
         accept(['[]', [1, ['{}', [[':', 'x', ['[]', [['undefined']]]]]]]])
         accept(['{}', [[':', '__proto__', 1], [':', 'undefined', ['undefined']]]])
+    },
+    recursiveConsumers: () => {
+        const dataReader = dataValidate(toData(value))
+        const parser = parse(value)
+        const nested = /** @type {const} */ (['{}', [[':', 'stored', ['[]', [
+            ['=>', 1, [['{}', [[':', 'captured', ['undefined']]]]], ['+', ['arg', 0], ['frame', 0]]],
+        ]]]]])
+        accept(nested)
+        assertOk(parser(nested))
+        assertOk(dataReader(nested))
+        const computationInCapture = /** @type {const} */ (['=>', 0, [['[]', [['+', 1, 2]]]], ['undefined']])
+        reject(computationInCapture)
+        assertError(parser(computationInCapture))
+        assertError(dataReader(computationInCapture))
     },
     functions: () => {
         accept(['=>', 0, [], ['undefined']])
@@ -86,4 +102,4 @@ export const proof = {
         const input = /** @type {const} */ (['[]', [shared, shared]])
         assertEq(assertOk(validate(value)(input)), input)
     },
-}
+})

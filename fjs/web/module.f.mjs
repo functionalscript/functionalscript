@@ -45,16 +45,16 @@
  * @import { Refusal, Resolve, Resolved, Respond, WebOp } from './types.ts'
  */
 
-import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
-import { empty, nonEmpty } from '../effects/list/module.f.mjs'
+import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.js'
+import { empty, nonEmpty } from '../effects/list/module.f.js'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
     isDirectory, isNotFound, listen, log, maxPort, open, plainTextResponse, readChunks, releaseHandle, stat,
-} from '../effects/node/module.f.mjs'
-import { detectPath } from '../media/type/module.f.mjs'
+} from '../effects/node/module.f.js'
+import { detectPath } from '../media/type/module.f.js'
 import { escapes, join, parse } from '../path/module.f.js'
 import { isDigits } from '../text/ascii/module.f.js'
-import { percentDecode, percentEncodePath } from '../text/percent/module.f.mjs'
+import { percentDecode, percentEncodePath } from '../text/percent/module.f.js'
 import { unwrap } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 

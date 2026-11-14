@@ -3,7 +3,7 @@
  */
 
 import { parse, stringify as extendedStringify } from './module.f.mjs'
-import { sort } from '../../../types/object/module.f.mjs'
+import { sort } from '../../../types/object/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 

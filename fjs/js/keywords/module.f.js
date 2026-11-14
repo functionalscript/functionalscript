@@ -72,12 +72,14 @@ export const literalWords = /** @type {const} */ ([
  * ([spec: instanceof](../../../spec/operators/instanceof/README.md)), `Number` as
  * the callee of the conversion `Number(exp)`
  * ([spec: number conversion](../../../spec/conversions/number/README.md)),
- * `Object` and `Number` as the namespaces of the static functions
+ * `Object`, `Number`, `String` and `Math` as the namespaces of the static functions
  * [`../static`](../static/module.f.js) admits, and `Object` as the `entry` helper's
  * `Object.getOwnPropertyDescriptor`
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
- * and `String` as the callee of the conversion `String(exp)`
- * ([spec: string conversion](../../../spec/conversions/string/README.md)).
+ * `String` as the callee of the conversion `String(exp)`
+ * ([spec: string conversion](../../../spec/conversions/string/README.md)), and
+ * `Boolean` as the callee of `Boolean(exp)`
+ * ([spec: boolean conversion](../../../spec/conversions/boolean/README.md)).
  * The first names under
  * [global-names](../../../spec/todo/2365-global-names.md)' rule.
  *
@@ -86,7 +88,7 @@ export const literalWords = /** @type {const} */ ([
  * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
  * name is bound or referenced.
  */
-export const reservedGlobals = /** @type {const} */ (['Array', 'BigInt', 'Number', 'Object', 'String'])
+export const reservedGlobals = /** @type {const} */ (['Array', 'BigInt', 'Boolean', 'Math', 'Number', 'Object', 'String'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]
@@ -117,4 +119,4 @@ export const isKeyword = word => keywords.some(keyword => keyword === word)
  *
  * @type {(word: string) => boolean}
  */
-export const isReservedGlobal = word => reservedGlobals.some(global => global === word)
+export const isReservedGlobal = word => reservedGlobals.some(reservedName => reservedName === word)

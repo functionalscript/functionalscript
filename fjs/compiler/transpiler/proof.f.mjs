@@ -9,27 +9,30 @@
  * @import { ParseError } from '../parser/types.ts'
  * @import { InitializationError } from './types.ts'
  * @import { EdagValue, Runtime } from '../../edag/value/types.ts'
+ * @import { Exp } from '../../edag/types.ts'
  */
 
 import { _transpileDefault, interpret, noRuntime, parse, transpile, runtimeAt } from './module.f.mjs'
 import { _importSources } from '../source/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
 import { invoke } from '../../edag/memo/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { vm } from '../../edag/amnesia/module.f.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
+import { read } from '../../edag/value/property/module.f.js'
 import { compileCommands } from '../../edag/value/to_unknown/module.f.mjs'
 import { factoryStringify } from '../serializer/value/module.f.mjs'
-import { notImplemented, pureOk } from '../../effects/module.f.mjs'
-import { isArray } from '../../types/array/module.f.mjs'
-import { isObject } from '../../types/object/module.f.mjs'
+import { notImplemented, pureOk } from '../../effects/module.f.js'
+import { isArray } from '../../types/array/module.f.js'
+import { isObject } from '../../types/object/module.f.js'
 import { compile, runtimeSource } from '../module.f.mjs'
 import { errorLocation } from '../parser/module.f.mjs'
-import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
+import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.js'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
-import { partialRun } from '../../effects/mock/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.js'
+import { utf8 } from '../../text/module.f.js'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -175,11 +178,17 @@ export const proof = {
             for (const [source, expected] of /** @type {const} */ ([
                 ['const f=x=>x+1; export default f(41);', 42],
                 ['export default false ? null.x : 6*7;', 42],
-                ['export default [1,2].map(x=>x+1);', [2, 3]],
                 ['const add=x=>y=>x+y; export default add(2)(3);', 5],
             ])) {
                 assertStructurallySame(unwrap(run({ main: [utf8(source)] })('main')), { default: expected })
             }
+            // Array map's body comes from the package's common runtime, not
+            // a native fallback in the interpreter.
+            const common = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+            assert(common instanceof Array && common[0] === '{}')
+            const root = /** @type {const} */ ({ main: [utf8('export default [1,2].map(x=>x+1);')] })
+            const [, result] = runtime({ ...emptyState, root })(transpile(pureOk(common))('main'))
+            assertStructurallySame(unwrap(result), { default: [2, 3] })
         },
         completeExports: () => {
             const root = {

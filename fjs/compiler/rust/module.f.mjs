@@ -39,7 +39,8 @@
 
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
-import { holdsFunction, needsRuntime, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.mjs'
+import { useLinesTagged } from '../../rust/serializer/module.f.mjs'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'
 
@@ -165,7 +166,7 @@ export const generate = root => unwrap(generateResult(root))
 
 /**
  * The reason {@link generateResult} refused, as text. Every refusal
- * `scope` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
+ * `scopeTagged` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
  * pair — `lookup`'s convention, kept by every refusal added since — never a
  * bare value, so joining the pair's own `String` forms is exact rather than
  * approximate.

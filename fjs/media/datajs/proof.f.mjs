@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { fromCodePointList } from '../../text/utf8/module.f.mjs'
+import { fromCodePointList } from '../../text/utf8/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { concat, occurrences } from '../../types/string/module.f.js'
@@ -17,8 +17,8 @@ import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySeriali
 import { _graphOf, demo, examples } from './demo.f.mjs'
 import { _crossings } from '../../website/demo/graph/module.f.mjs'
 import { difference } from './vectors/module.f.mjs'
-import { htmlToString } from '../html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { htmlToString } from '../html/module.f.js'
+import { runPure } from '../../effects/module.f.js'
 
 /** A document in normalized form: sharing, and the leaves JSON cannot carry. */
 const document = 'const $0=[1n,undefined,NaN,-0];export default {"a":$0,"b":$0,"c":"é€𐀀"};'

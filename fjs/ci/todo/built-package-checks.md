@@ -5,23 +5,20 @@
 
 ### Problem
 
-The [six-job CI proposal](./six-ci-jobs.md) temporarily removes the installed
-`fjs` runner check and the npm package-consumer check until a better solution
-is selected. Source tests still exercise the repository's own runner, but do
-not establish that the distributed package installs, exposes its CLI and
-imports, and ships usable declarations in a consumer project.
+The source CI builds a tarball in `node` and uploads it for the dedicated
+`package` job. That job installs the exact artifact in an isolated consumer,
+checks declarations and a runtime import, and verifies a negative type control.
+This supersedes the [six-job proposal](./six-ci-jobs.md)'s earlier deferral of
+the npm package-consumer check.
 
-The existing checks also have different subjects. `platformNodeSteps` in
-[`../node/module.f.mjs`](../node/module.f.mjs) installs a pinned published
-FunctionalScript release, then runs it against the current source proofs.
-`packageCheckSteps` in [`../package/module.f.mjs`](../package/module.f.mjs)
-checks a tarball packed from the revision under test. Passing the former does
-not prove the CLI produced by the current revision works.
+The check does not exercise the installed `fjs` CLI, registry delivery, or an
+OS/runtime installation matrix. The former installed-CLI smoke check used a
+pinned published release against current source proofs, which also did not
+prove the current revision's CLI worked; it has been removed.
 
-The replacement belongs in a separate test repository in a different GitHub
-organization. The earlier plan to move package checks into the main CI jobs
-is superseded by the explicit deferral. Its
-rationale and prior installation findings remain available in
+Broader testing remains planned in a separate test repository in a different
+GitHub organization, complementing the source CI's package smoke check. Earlier
+rationale and installation findings remain available in
 [the prior revision](https://github.com/functionalscript/functionalscript/blob/4da35235c90519104738044ca4b7a9e9f7dea1c1/fjs/ci/todo/built-package-checks.md).
 
 ### Proposal
@@ -59,15 +56,15 @@ installation path must account for package preparation. The existing
 [consumer validation notes](../packed-consumer-validation.md) describe useful
 isolation and declaration checks to evaluate for reuse.
 
-Packing and releasing npm packages may continue in the source repository.
-Installed-package tests run in the separate test repository. The source CI
-continues to use its own FJS runner for Bun and SpiderMonkey; its source tests
-do not establish package correctness.
+The source repository retains packing, release publishing and its dedicated
+tarball-consumer smoke check. The proposed separate repository adds broader
+installed-package coverage. Source CI also uses its own FJS runner for Bun and
+SpiderMonkey; those source tests do not establish installation behavior.
 
 ### Tasks
 
-- [ ] Record the installation checks disabled by the six-job migration and the
-      coverage they leave deferred.
+- [ ] Record the removed installed-CLI check and the installation coverage
+      still missing beyond the dedicated tarball-consumer smoke check.
 - [ ] Select the names and create a package-test repository in a different
       GitHub organization.
 - [ ] Investigate Git installation from `main`, installing a tarball packed from
@@ -83,7 +80,8 @@ do not establish package correctness.
 
 ### Related
 
-- [Six CI jobs](./six-ci-jobs.md) — owns removal from the main CI layout.
+- [Six CI jobs](./six-ci-jobs.md) — preserves the dedicated package consumer
+  while consolidating source checks.
 - [Consumer validation](../packed-consumer-validation.md) — existing isolation
   and declaration-validation behavior to assess for reuse.
 - [Package-check limitations](./package-check-unsupported-package-shapes.md) —

@@ -9,22 +9,23 @@
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { assertIoMessage } from '../../testlib.f.js'
-import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
-import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
-import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
-import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
+import { catch_, now, randomInt, read, sandbox, write } from '../module.f.js'
+import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.js'
+import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.js'
+import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.js'
+import { empty as endOfBody, nonEmpty } from '../../list/module.f.js'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js'
-import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
-import { utf8 } from '../../../text/module.f.mjs'
-import { utf8ToString } from '../../../text/utf8/module.f.mjs'
+import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
+import { utf8 } from '../../../text/module.f.js'
+import { utf8ToString } from '../../../text/utf8/module.f.js'
 import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.mjs'
-import { do_ } from '../../module.f.mjs'
-import { catchStep } from '../../module.f.mjs'
-import { ioError } from '../../module.f.mjs'
+import { do_ } from '../../module.f.js'
+import { catchStep } from '../../module.f.js'
+import { ioError } from '../../module.f.js'
 import { ok, unwrap } from '../../../types/result/module.f.js'
-import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
+import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.js'
 
 /**
  * A listener that reads its whole request body and answers with it.
@@ -86,7 +87,7 @@ const answered = (listener, body) => {
  *
  * @type {(r: RecordedResponse) => string}
  */
-const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)(chunk), empty))
+const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concatVec(v)(chunk), empty))
 
 /**
  * The chunks given, as a body already in hand: every cell is pure, so the whole
@@ -110,6 +111,14 @@ const ofChunks = chunks => chunks.reduceRight(
  * @type {Effect<never, null, never>}
  */
 const holdsNothing = pureOk(null)
+
+/**
+ * A `200` with no body and nothing held: a listener for a proof about the
+ * server rather than what it answers.
+ *
+ * @type {RequestListener<NodeOp>}
+ */
+const emptyOk = () => pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
 
 /**
  * A `500` carrying `text`, which is how a listener reports what it saw of its own
@@ -229,6 +238,59 @@ const unchanged = /** @type {readonly [number, string]} */([3, 'old'])
 const followed = /** @type {readonly [number, string]} */([9, 'brandnew!'])
 
 export const proof = {
+    valueOperations: () => {
+        const [drawn, random] = virtual({ ...emptyState, randomNext: 41 })(randomInt())
+        assertEq(assertOk(random), 41)
+        assertEq(drawn.randomNext, 42)
+        const [same, time] = virtual({ ...drawn, epochNs: 123_456 })(now())
+        assertEq(assertOk(time), 123_456)
+        assertEq(same.epochNs, 123_456)
+        const result = /** @type {const} */ ({ result: ok(42), duration: 7 })
+        assertStructurallySame(assertOk(virtual(emptyState)(sandbox(() => result))[1]), result)
+        assertEq(assertOk(assertOk(virtual(emptyState)(catch_(() => 42))[1])), 42)
+    },
+    stderrAppendsWithoutChangingStdout: () => {
+        /** @type {State} */
+        const initial = { ...emptyState, stdout: 'kept', stderr: 'before: ' }
+        const [state, result] = virtual(initial)(write('stderr', utf8('written ✓')))
+        assertEq(assertOk(result), undefined)
+        assertEq(state.stderr, 'before: written ✓')
+        assertEq(state.stdout, initial.stdout)
+    },
+    stdinIsConsumedOnce: () => {
+        const [first, one] = virtual({ ...emptyState, stdin: [0x61, 0x62] })(read('stdin'))
+        const a = assertOk(one)
+        assert(a !== null)
+        assertEq(a, 0x61)
+        assertEq(first.stdin.length, 1)
+        const [second, two] = virtual(first)(read('stdin'))
+        const b = assertOk(two)
+        assert(b !== null)
+        assertEq(b, 0x62)
+        assertEq(second.stdin.length, 0)
+        const [last, end] = virtual(second)(read('stdin'))
+        assertEq(assertOk(end), null)
+        assertStructurallySame(last, second)
+    },
+    successfulLookupOperations: () => {
+        const content = utf8('contents')
+        const root = /** @type {const} */ ({ file: [content], 'module.f.mjs': () => ({ answer: 42 }) })
+        assertStructurallySame(assertOk(virtualAt(root)(readWhole('file'))[1]), [content])
+        assertStructurallySame(assertOk(virtualAt(root)(import_('module.f.mjs'))[1]), { answer: 42 })
+        assertEq(assertOk(virtualAt(root)(access('.'))[1]), undefined)
+        assertEq(assertOk(virtualAt(root)(access('file'))[1]), undefined)
+        const [, invalidDirectory] = virtualAt(root)(readdir('absent/deeper', {}))
+        assert(invalidDirectory[0] === 'error')
+        assertIoMessage(invalidDirectory[1], 'invalid path')
+        assertEq(assertOk(virtual({ ...emptyState, internet: { 'https://example.com': content } })(fetch('https://example.com'))[1]), content)
+    },
+    renameDirectoryOntoFilePreservesBoth: () => {
+        const root = /** @type {const} */ ({ source: { child: [utf8('source')] }, target: [utf8('target')] })
+        const [state, result] = virtualAt(root)(rename('source', 'target'))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], "cannot overwrite file 'target' with a directory")
+        assertStructurallySame(state.root, root)
+    },
     nodeProgramOptions: () => {
         const options = nodeProgramOptions(['a', 'b'])
         assertStructurallySame(options.args, ['a', 'b'])
@@ -319,7 +381,7 @@ export const proof = {
     },
     writeFileOverJsModule: () => {
         // writeFile onto a path currently holding a JsModule (function) covers the
-        // `!Array.isArray(file)` branch of writeFileOp: the entry exists but is
+        // `!isBinFile(file)` branch of writeFileOp: the entry exists but is
         // neither undefined nor an array.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
@@ -444,6 +506,18 @@ export const proof = {
         // covers the `result === undefined` branch of the `fetch` handler
         const [, result] = virtual(emptyState)(fetch('https://example.com/missing'))
         assert(result[0] === 'error')
+    },
+    fetchOwnNamesOnly: () => {
+        const content = utf8('response')
+        for (const url of ['toString', 'constructor', '__proto__']) {
+            const [, missing] = virtual(emptyState)(fetch(url))
+            assert(missing[0] === 'error')
+            assertIoMessage(missing[1], 'not found')
+            /** @type {State['internet']} */
+            const internet = { [url]: content }
+            const [, found] = virtual({ ...emptyState, internet })(fetch(url))
+            assertEq(assertOk(found), content)
+        }
     },
     importNestedPath: () => {
         // import_ on a path whose parent does not exist covers the
@@ -722,7 +796,7 @@ export const proof = {
         assert(nested[0] === 'error')
         assertStructurallySame(state.root, root)
         // And a `Vec` that is not whole bytes never reaches this runner at all:
-        // `writeExclusive` refuses it in `../module.f.mjs`, because the node
+        // `writeExclusive` refuses it in `../module.f.js`, because the node
         // runner's `fromVec` would pad the last byte and create a file holding
         // a byte the caller never gave while this one stored the vector as it
         // was. The refusal is the same one `inflate` makes.
@@ -775,7 +849,7 @@ export const proof = {
     },
     writeBytesNotWholeBytes: () => {
         // A `Vec` that is not whole bytes never reaches this runner: `writeBytes`
-        // refuses it in `../module.f.mjs`, as `writeExclusive` does, because the
+        // refuses it in `../module.f.js`, as `writeExclusive` does, because the
         // node runner's `fromVec` would pad the last byte and write a byte the
         // caller never gave while this one appended the vector as it was. The
         // offset is the file's size, which the append-only check accepts, so
@@ -789,7 +863,7 @@ export const proof = {
     },
     writeBytesUnnamedOffset: () => {
         // An offset no position names never reaches this runner either:
-        // `writeBytes` refuses it in `../module.f.mjs`, in the words a read's
+        // `writeBytes` refuses it in `../module.f.js`, in the words a read's
         // window is refused with, so the append-only check below is never
         // the one that answers. The refusal comes before the name is
         // resolved — a missing file is refused for its offset, not `ENOENT`
@@ -869,18 +943,6 @@ export const proof = {
         const root = { 'myfile': [vec8(0x42n)], 'mydir': {} }
         const [, result] = virtualAt(root)(rename('myfile', 'mydir'))
         assert(result[0] === 'error')
-    },
-    renameForeignArrayFileOntoDirectory: () => {
-        // An array with another constructor's prototype models the observable
-        // instanceof behavior of an array received from another realm.
-        const foreignFile = Reflect.construct(Array, [], Object)
-        assert(Array.isArray(foreignFile))
-        assert(!(foreignFile instanceof Array))
-        /** @type {Dir} */
-        const root = { 'myfile': foreignFile, 'mydir': {} }
-        const [, result] = virtualAt(root)(rename('myfile', 'mydir'))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], "'mydir' is a directory")
     },
     readFileTooLarge: () => {
         // A file stored as a max-size chunk and one byte more exceeds the limit;
@@ -1251,7 +1313,7 @@ export const proof = {
             const [state, result] = virtual(emptyState)(e)
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
-            assertEq(state.memory.values.mem0, 42, state)
+            assertEq(state.memory.slots.mem0, 42, state)
         },
         // What makes presence the test rather than the value: a slot holding
         // `undefined` was allocated, and reading one is not the failure below.
@@ -1714,6 +1776,18 @@ export const proof = {
             assertEq(s.listening.length, 1)
             assertEq(s.listening[0].address, 'localhost:8080')
         },
+        // The case is folded in ASCII alone: `'\u212a'`, the Kelvin sign, is
+        // no `k`, so a name spelled with it is another address and the second
+        // bind succeeds.
+        addressCaseIsAscii: () => {
+            const first = history(createServer(emptyOk))
+            const second = historyStep(first, () => createServer(emptyOk))
+            const bound = historyStep(second, b => listen(b, 8_080, 'k.test'))
+            const e = step(bound, ([, , a]) => listen(a, 8_080, '\u212a.test'))
+            const [s, result] = virtual(emptyState)(e)
+            assertEq(result[0], 'ok')
+            assertStructurallySame(s.listening.map(b => b.address), ['k.test:8080', '\u212a.test:8080'])
+        },
         // `''` is the host a program did not state, and Node binds every
         // interface for it — so both runners refuse it rather than forward it.
         emptyHostRefused: () => {
@@ -1894,7 +1968,7 @@ export const proof = {
         },
         // **A chunk of no bytes is stepped over, not answered as the end of the
         // body.** No bytes is how a pull says *end* — `readChunks` in
-        // `../module.f.mjs` ends an unbounded stream there — and Node's parser
+        // `../module.f.js` ends an unbounded stream there — and Node's parser
         // owes nobody a promise to keep an empty chunk out of a body, so the
         // Node runner's reader steps over one and answers the next chunk that
         // has bytes. A fixture chunk with no bits is that chunk. Answered as

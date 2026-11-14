@@ -151,7 +151,7 @@ adapters (D1) refuse a `Vec` that is not whole bytes the same way.
 
 `serialize` is **not total over `Value`**: a JSON string may hold an unpaired
 surrogate (`"\uD800"`), which UTF-8, and so a CBOR text string, cannot spell,
-and [`fjs/text/utf8`](../../text/utf8/module.f.mjs) round-trips only strings
+and [`fjs/text/utf8`](../../text/utf8/module.f.js) round-trips only strings
 without one. The serializer refuses such a string, with an error that names it,
 and `parse` never produces one, so everything `parse` accepts serializes
 (`isCanonical` below needs that). This is D8.
@@ -211,7 +211,7 @@ which is what makes integers, lengths and tags preferred-form by construction.
 
 #### Strings, arrays, maps
 
-- A text string is UTF-8 by [`fjs/text/utf8`](../../text/utf8/module.f.mjs);
+- A text string is UTF-8 by [`fjs/text/utf8`](../../text/utf8/module.f.js);
   invalid UTF-8, a surrogate sequence included, is a parse error, and a string
   with an unpaired surrogate is a serialize error (D8). Lengths are definite.
 - A map has text keys only. The serializer sorts entries by the **bytewise
@@ -286,7 +286,7 @@ Each is the session's proposal; none is built on until the owner answers.
 
 - **D1. Bytes as a list, not a `Vec`.** `serialize` and `parse` work on
   `List<number>` bytes, as `fjs/git` does, with `Vec` adapters (`serializeVec`,
-  `parseVec`) at the 128 KiB boundary. [`detect`](../type/module.f.mjs) takes
+  `parseVec`) at the 128 KiB boundary. [`detect`](../type/module.f.js) takes
   a `Vec`, and detection of a size-bounded blob is the first consumer. The
   alternative is `Vec` only, which refuses a value that serializes to more than
   128 KiB; a list loses nothing and a `Vec` caps the model.

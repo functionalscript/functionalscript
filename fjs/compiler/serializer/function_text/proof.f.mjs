@@ -7,13 +7,13 @@
 import { conditional } from '../../../edag/testlib.f.js'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
-import { staticIds } from '../../../edag/module.f.mjs'
-import { renderFunction } from './module.f.mjs'
+import { staticIds } from '../../../edag/module.f.js'
+import { functionText } from '../module.f.mjs'
 
 /** @type {(e: FunctionExp) => string} */
 const render = e => {
     const a = assertOk(analysis(e))
-    return renderFunction(a, /** @type {readonly ['#', number]} */ (a.root)[1])
+    return functionText(a, /** @type {readonly ['#', number]} */ (a.root)[1])
 }
 
 /** @type {(body: Exp) => string} */
@@ -73,11 +73,11 @@ export const proof = {
     closure: () => {
         const a = assertOk(analysis(['=>', 0, [1, 2], ['frame', 1]]))
         const i = /** @type {readonly ['#', number]} */ (a.root)[1]
-        assertEq(renderFunction(a, i), '()=>$1')
+        assertEq(functionText(a, i), '()=>$1')
     },
     names: () => {
         const a = assertOk(analysis(['=>', 0, [], 1]))
-        assertEq(renderFunction(a, /** @type {readonly ['#', number]} */ (a.root)[1]), '()=>1')
+        assertEq(functionText(a, /** @type {readonly ['#', number]} */ (a.root)[1]), '()=>1')
         assertEq(render(['=>', 2, [], ['arg', 1]]), '($0,$1)=>$1')
         assertEq(text(['rest']), '(...$0)=>$0')
         assertEq(text(['undefined']), '()=>undefined')
@@ -152,7 +152,7 @@ export const proof = {
         const outer = /** @type {const} */ (['=>', 1, [], inner])
         const table = assertOk(analysis(['[]', [['[]', ['unrelated']], outer]]))
         const index = table.nodes.findIndex(n => n[0] === '=>' && n[3] instanceof Array && table.nodes[n[3][1]][0] === 'frame')
-        assertEq(renderFunction(table, index), render(inner))
+        assertEq(functionText(table, index), render(inner))
     },
     lazySharing: () => {
         const shared = /** @type {const} */ (['[]', []])
@@ -167,6 +167,6 @@ export const proof = {
             ['=>', 1, [], ['[]', [other, other]]], fn, ['=>', 0, [], ['rest']],
         ]]))
         const index = table.nodes.findIndex(n => n[0] === '=>' && n[2].length === 1)
-        assertEq(renderFunction(table, index), withCapture)
+        assertEq(functionText(table, index), withCapture)
     },
 }

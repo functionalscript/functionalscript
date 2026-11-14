@@ -5,9 +5,9 @@
  */
 
 import { decodeQuery, encodeQuery, restoreInputs } from './demo/sharing/module.f.mjs'
-import { definedEntries } from '../types/object/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.js'
 import { revealFragment } from './fragment-runtime.mjs'
-import { scopeMarker } from './demo/control_ids/module.f.mjs'
+import { scopeMarker } from './demo/control_ids/module.f.js'
 import { demoMarker } from './style/module.f.js'
 
 /** Keep the address bar on the demo's inputs. A root without its section's

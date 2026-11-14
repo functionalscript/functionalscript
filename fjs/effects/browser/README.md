@@ -1,7 +1,7 @@
 # Browser effects
 
 The operations a page of the site performs that only a browser has.
-[`module.f.mjs`](./module.f.mjs) declares them, [`types.ts`](./types.ts) says
+[`module.f.js`](./module.f.js) declares them, [`types.ts`](./types.ts) says
 what each does, and [`module.mjs`](./module.mjs) is the page's handlers.
 
 |Operation          |Does                                                              |

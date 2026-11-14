@@ -41,8 +41,8 @@ export const samples = [
         [-2, ['returned', '[2,1]']],
     ] },
     { name: 'destructuring', directory: 'spec/bindings/destructuring', calls: [
-        [1, ['returned', '[1,2,[3,4]]']],
-        [5, ['returned', '[5,10,[3,4]]']],
+        [1, ['returned', '[1,2,[3],[3,4]]']],
+        [5, ['returned', '[5,10,[15],[3,4]]']],
     ] },
     { name: 'member_functions', directory: 'spec/built-ins/member-functions', calls: [
         [0, ['returned', '"10-20-30-40"']],
@@ -51,6 +51,11 @@ export const samples = [
     { name: 'static_functions', directory: 'spec/built-ins/static-functions', calls: [
         [0, ['returned', '[false,true,false,[["0",2],["b",0]]]']],
         [1.5, ['returned', '[false,false,true,[["0",2],["b",1.5]]]']],
+    ] },
+    { name: 'reference_map', directory: 'spec/built-ins/reference-map', calls: [
+        [0, ['returned', '"an object"']],
+        [1, ['returned', '"an array"']],
+        [2, ['returned', 'undefined']],
     ] },
     { name: 'guards', directory: 'spec/control-flow/guards', calls: [
         [-5, ['returned', '"negative"']],
@@ -66,6 +71,10 @@ export const samples = [
         [1, ['returned', '"container"']],
         [2, ['returned', '"text"']],
         [3, ['threw', '["unknown",3]']],
+    ] },
+    { name: 'boolean_conversion', directory: 'spec/conversions/boolean', calls: [
+        [0, ['returned', '[false,false,true,true,true]']],
+        [1, ['returned', '[true,false,true,true,true]']],
     ] },
     { name: 'number_conversion', directory: 'spec/conversions/number', calls: [
         [7, ['returned', '[7,16,1,7]']],

@@ -28,7 +28,10 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The language admits eight static functions. `Object.is` is JavaScript's
+The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`,
+`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min`,
+`Object.is`, `Object.entries`, `Object.keys`, `Object.fromEntries`,
+`String.fromCharCode` and the four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -39,7 +42,19 @@ UTF-16 code units under their index strings, nothing for a number, a
 boolean, a `bigint` or a function, and a failure on `null` and
 `undefined`. An entry holding `undefined` is listed, as JavaScript lists
 it ([undefined-valued properties](../../todo/1010-undefined-property.md)).
-`Object.fromEntries` is its inverse, JavaScript's over an array of entries:
+`Object.keys` returns a fresh array of those keys alone, in the same order:
+`Object.keys({ b: 1, "0": 2 })` is `["0", "b"]`. It includes a key whose
+value is `undefined` and treats `__proto__` as an ordinary own data key.
+Arrays and strings contribute their enumerable index strings; strings use
+UTF-16 indices, so `Object.keys("😀")` is `["0", "1"]`. Numbers, booleans,
+bigints and functions yield an empty array. Null and undefined fail, including
+a call with no argument. The function has `length` 1, ignores additional
+arguments after they are evaluated, and works detached as
+`const { keys } = Object`. Its common-runtime body projects native entries
+through the shared array `map` implementation; no native keys operation is
+added. FunctionalScript values have no getters or proxies, so reading entry
+values while enumerating introduces no additional observation.
+`Object.fromEntries` constructs an object from an array of entries, as in JavaScript:
 a fresh object with each element's `[0]` as a key, converted to a string,
 and its `[1]` as the value, in order, so a key written twice keeps its first
 position and its last value, and `__proto__` is an own key like any other.
@@ -51,7 +66,88 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isSafeInteger` — an integer within `2^53 - 1` of `0` —
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
-`true`. Each is a value, as in JavaScript — passed,
+`true`.
+
+`Math.min(...values)` converts every argument with `ToNumber`, from left to
+right, then returns the least value. No arguments produce positive infinity.
+Any converted `NaN` produces `NaN`, but all remaining arguments are still
+converted, so `Math.min(NaN, 1n)` throws. Conversion also continues after
+negative infinity. Primitive or converted bigints and failed primitive
+conversion throw; argument expressions are evaluated before invocation.
+Negative zero beats positive zero in either order; either zero alone is
+preserved. The function has `length` 2 and native function text, and is native
+in Rust and core WASM. Rust corrects its native `min`'s `NaN` and zero-tie
+behavior in the variadic binding shared with `max`
+([admission](../../todo/2360-built-in.md#mathmin-proposal-and-approval)).
+
+`Math.max(...values)` converts every argument with `ToNumber`, from left to
+right, then returns the greatest value. No arguments produce negative infinity.
+Any converted `NaN` produces `NaN`, but all remaining arguments are still
+converted, so `Math.max(NaN, 1n)` throws. Conversion also continues after
+positive infinity. Primitive or converted bigints and failed primitive
+conversion throw; argument expressions are evaluated before invocation.
+Positive zero beats negative zero in either order; negative zero alone is
+preserved. The function has `length` 2 and native function text, and is native
+in Rust and core WASM. Rust corrects its native `max`'s `NaN` and zero-tie
+behavior before folding it over the arguments
+([admission](../../todo/2360-built-in.md#mathmax-proposal-and-approval)).
+
+`Math.sqrt(x)` converts its first argument with `ToNumber`, then returns its
+non-negative square root: `Math.sqrt("9")` is `3`. Both zeros are preserved,
+including `Math.sqrt(-0)` returning `-0`; positive infinity remains unchanged.
+Negative numbers, negative infinity and `NaN` return `NaN`.
+
+`Math.ceil(x)` converts its first argument with `ToNumber`, then rounds toward
+positive infinity: `Math.ceil("1.1")` is `2`, and `Math.ceil(-0.5)` is `-0`.
+Both zeros, infinities and `NaN` remain unchanged. For both unary functions,
+missing arguments produce `NaN`; primitive or converted bigints and failed
+conversion throw. Extra arguments are evaluated but not converted.
+
+`Math.imul(a, b)` converts `a` and then `b` with `ToUint32`, and returns the
+low 32 product bits as a signed 32-bit integer: `Math.imul(0xffff_ffff, 5)` is
+`-5`. Finite fractions truncate toward zero; integers reduce modulo `2^32`;
+zeros, infinities and `NaN` become zero. Missing operands become zero through
+`undefined`, so `Math.imul()` and `Math.imul(3)` return positive zero. Primitive
+or converted bigints and failed conversion throw, with the first conversion
+completed before the second begins. Extra arguments are evaluated but not
+converted. `imul` has `length` 2; `sqrt` and `ceil` have `length` 1. All three
+use compatible native operations in Rust and core WASM, without dependencies
+([admission](../../todo/2360-built-in.md#mathsqrt-mathceil-and-mathimul-proposal-and-approval)).
+
+`Math.abs(x)` converts its first argument with `ToNumber`, then returns its
+absolute value: `Math.abs("-1.9")` is `1.9`, `Math.abs(-0)` is positive zero,
+and `Math.abs(-Infinity)` is positive infinity. `NaN` remains `NaN`.
+Missing arguments produce `NaN`; primitive or converted bigints and failed
+conversion throw. Extra arguments are evaluated but not converted.
+The numeric operation is native in Rust and core WASM
+([admission](../../todo/2360-built-in.md#mathabs-proposal-and-approval)).
+
+`Math.floor(x)` converts its first argument with `ToNumber`, then rounds
+toward negative infinity: `Math.floor("1.9")` is `1`, and
+`Math.floor(-0.5)` is `-1`. Both zeros and infinities remain unchanged,
+and `NaN` stays `NaN`. Missing arguments, bigint rejection, conversion
+failures and extra arguments follow the same rules as `Math.trunc` below.
+The numeric operation is native in Rust and core WASM
+([admission](../../todo/2360-built-in.md#mathfloor-proposal-and-approval)).
+
+`Math.trunc(x)` converts its first argument with `ToNumber`, then rounds
+toward zero: `Math.trunc("-1.9")` is `-1`, and `Math.trunc(-0.5)` is `-0`.
+Both zeros and infinities remain unchanged, and `NaN` stays `NaN`.
+Omitting the argument produces `NaN`; a bigint or a failed conversion throws.
+Extra arguments are evaluated but not converted. The function is native in
+every executor because Rust and core WASM both supply compatible truncation
+([admission](../../todo/2360-built-in.md#mathtrunc-proposal-and-approval)).
+
+`Math.log2(x)` returns the base-2 logarithm after JavaScript's `ToNumber`
+conversion: `Math.log2("8")` is `3`, while a BigInt argument throws.
+`NaN` and negative numbers return `NaN`, either zero returns `-Infinity`,
+1 returns positive zero, and positive infinity returns itself. Omitting
+the argument returns `NaN`; extra arguments are ignored. Ordinary positive
+results are implementation-approximated, as ECMAScript specifies. The
+common runtime supplies the numerical body for the interpreter and Rust;
+WASM can compile that same body without an external math library.
+
+Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
 read, so `Object.is === Object.is`. A value is a function, not an operator,
 so a call of it takes any number of arguments, as in JavaScript —
@@ -86,7 +182,7 @@ builds with `this` as its constructor — `Promise.resolve`,
 reserved together with the member it admits. A module cannot bind it as a
 `const`, parameter or import, and it is no value: the word alone,
 `const o = Object;`, an array pattern over it, a member the namespace does
-not admit — `Object.keys(o)` — and a computed key, `Object[k]`, are
+not admit — `Object.values(o)` — and a computed key, `Object[k]`, are
 compilation errors (`reserved word`), a namespace being closed at compile
 time. It stands in one other place, the
 [`entry` helper](../../property-access/entries/README.md)'s
@@ -96,17 +192,27 @@ conversion already, is a namespace the same way, beside the call
 `Number(x)` ([number conversion](../../conversions/number/README.md)). Each later member is
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
+`Math` is reserved in the same way and admits `log2`, `trunc`, `floor`, `abs`,
+`sqrt`, `ceil`, `imul`, `max` and `min`.
+`Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
+function, with `length` 1 and text `function log2() { [native code] }`.
+The word alone, namespace guards, computed keys and other `Math` members
+remain refused.
+
 Each read reaches the graph as the node of its name, `['Object.is']` or
 `['Number.isInteger']`, and a call of it as the ordinary call,
 `['()', ['Object.is'], [a, b]]` ([`fjs/edag`](../../../fjs/edag/README.md)). Each
 body is written once, in the `statics` table of
 [`fjs/js/runtime`](../../../fjs/js/runtime/README.md), a VM's and no module's —
-a module calls the built-in — and checked there against the host's own;
+a module calls the built-in — and checked there against the host's own
+for exact semantic cases, with separate numerical accuracy cases for
+`Math.log2`;
 every executor answers the node from it, and an executor with no binding
-for it fails, naming it, rather than answer. `Object.entries` alone has no
-body, since enumerating keys is what no body can do otherwise; the
-others, `Object.fromEntries` among them, have one: every
-executor binds it natively, and its text, `String(Object.entries)`, is
+for it fails, naming it, rather than answer. `Object.entries`,
+`String.fromCharCode` and the admitted `Math` functions other than `log2` are
+native primitives; the others, `Object.keys`, `Object.fromEntries` and
+`Math.log2` among them, have bodies. The native
+primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
 ([function source](../../principles/README.md#function-source-representation-exception)).
@@ -136,7 +242,7 @@ export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0
 
 ## Reference
 
-- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
+- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.keys](https://tc39.es/ecma262/#sec-object.keys), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries>
 
 `String.fromCharCode(...codes)` is a native static that constructs a string

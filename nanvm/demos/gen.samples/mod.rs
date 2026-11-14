@@ -2,6 +2,7 @@
 
 pub mod arrays;
 pub mod bigints;
+pub mod boolean_conversion;
 pub mod call_statements;
 pub mod calls;
 pub mod captures;
@@ -30,6 +31,7 @@ pub mod operators;
 pub mod optional_chaining;
 pub mod parameters;
 pub mod property_access;
+pub mod reference_map;
 pub mod sort;
 pub mod static_functions;
 pub mod string_conversion;
@@ -51,6 +53,12 @@ pub extern "C" fn arrays() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn bigints() -> i32 {
     crate::export(bigints::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `boolean_conversion` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn boolean_conversion() -> i32 {
+    crate::export(boolean_conversion::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `call_statements` sample.
@@ -221,6 +229,12 @@ pub extern "C" fn property_access() -> i32 {
     crate::export(property_access::module::<nanvm_lib::naive::Naive>)
 }
 
+/// Loads the `reference_map` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn reference_map() -> i32 {
+    crate::export(reference_map::module::<nanvm_lib::naive::Naive>)
+}
+
 /// Loads the `sort` sample.
 #[unsafe(no_mangle)]
 pub extern "C" fn sort() -> i32 {
@@ -302,6 +316,13 @@ mod tests {
     }
 
     #[test]
+    fn boolean_conversion() {
+        let entry = crate::load(super::boolean_conversion::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[false,false,true,true,true]"));
+        crate::assert_call(&entry, 1.0, Ok("[true,false,true,true,true]"));
+    }
+
+    #[test]
     fn call_statements() {
         let entry = crate::load(super::call_statements::module::<Naive>).unwrap();
         crate::assert_call(&entry, 2.0, Ok("3"));
@@ -346,8 +367,8 @@ mod tests {
     #[test]
     fn destructuring() {
         let entry = crate::load(super::destructuring::module::<Naive>).unwrap();
-        crate::assert_call(&entry, 1.0, Ok("[1,2,[3,4]]"));
-        crate::assert_call(&entry, 5.0, Ok("[5,10,[3,4]]"));
+        crate::assert_call(&entry, 1.0, Ok("[1,2,[3],[3,4]]"));
+        crate::assert_call(&entry, 5.0, Ok("[5,10,[15],[3,4]]"));
     }
 
     #[test]
@@ -484,6 +505,14 @@ mod tests {
         let entry = crate::load(super::property_access::module::<Naive>).unwrap();
         crate::assert_call(&entry, 0.0, Ok("[80,2]"));
         crate::assert_call(&entry, 1.0, Ok("[443,2]"));
+    }
+
+    #[test]
+    fn reference_map() {
+        let entry = crate::load(super::reference_map::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("\"an object\""));
+        crate::assert_call(&entry, 1.0, Ok("\"an array\""));
+        crate::assert_call(&entry, 2.0, Ok("undefined"));
     }
 
     #[test]

@@ -1,13 +1,15 @@
 /**
  * The native rows of L1 that the bodies in [`..`](../module.f.js) call so
- * far, each with a plain JavaScript body
+ * far, and `numberRemainder`, the row of their `%` on two numbers, each
+ * with a plain JavaScript body
  * ([`l1-design.md`](../../../../../doc/sasha-gil/wasm/l1-design.md#the-operations)).
  * A native row has no FunctionalScript body over the L0 view: the L0 view
- * cannot read a bigint's words, for example. Every runtime implements the
- * rows, and the WASM backend will lower each function here to its
- * `fjs:l1-native` import, as it lowers [`../../l0`](../../l0/module.f.js).
- * On a JavaScript host the bodies run as they are, so the L1 bodies are
- * proved before any WASM exists.
+ * cannot read a bigint's words, for example, and WASM has no instruction
+ * for `%`. Every runtime implements the rows, and the WASM backend lowers
+ * each function here to its `fjs:l1-native` import, as it lowers
+ * [`../../l0`](../../l0/module.f.js), and `%` to `numberRemainder`. On a
+ * JavaScript host the bodies run as they are, so the L1 bodies are proved
+ * before any WASM exists.
  *
  * A row joins with its first caller. Like the L0 view, a body checks its
  * preconditions and throws where WASM would trap, with the text
@@ -17,6 +19,7 @@
  */
 
 import { asBigInt, asNumber, asString } from '../../l0/module.f.js'
+import { error } from '../error/module.f.js'
 
 /**
  * Whether two bigints are equal, the bigint case of `===`.
@@ -24,6 +27,16 @@ import { asBigInt, asNumber, asString } from '../../l0/module.f.js'
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const bigintEquals = (a, b) => asBigInt(a) === asBigInt(b)
+
+/**
+ * [`Number::remainder`](https://tc39.es/ecma262/#sec-numeric-types-number-remainder),
+ * `%` on two numbers, which WASM has no instruction for: the sign is the
+ * dividend's, and the answer is `NaN` where the divisor is zero or the
+ * dividend is infinite.
+ *
+ * @type {(a: unknown, b: unknown) => number}
+ */
+export const numberRemainder = (a, b) => asNumber(a) % asNumber(b)
 
 /**
  * [`Number::toString`](https://tc39.es/ecma262/#sec-numeric-types-number-tostring)
@@ -97,7 +110,7 @@ export const bigintMultiply = (a, b) => {
  */
 export const bigintDivide = (a, b) => {
     const [x, y] = bigints('bigintDivide', a, b)
-    if (y === 0n) { throw 'RangeError: Division by zero' }
+    if (y === 0n) { throw error.divisionByZero }
     return x / y
 }
 

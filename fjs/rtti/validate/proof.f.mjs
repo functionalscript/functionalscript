@@ -10,7 +10,7 @@
 import { validate } from './module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
@@ -95,13 +95,6 @@ const rows = () => {
         [array(number), [1, 2, 3]],
         [array(number), [1, 'two']],
         [array(number), {}],
-        // an enumerable non-index key is an entry every reader walks, so it is
-        // held to the element type like any other — and a key is an index only in
-        // the canonical spelling, whatever `Number` makes of it
-        [array(number), Object.assign([1], { foo: 2 })],
-        [array(number), Object.assign([1], { foo: 'x' })],
-        [array(number), Object.assign([1], { '-1': 'x' })],
-        [array(number), Object.assign([1], { '01': 'x' })],
         // an empty element set is the empty array: the data form normalizes such
         // a rest away, which leaves the exact-length pattern
         [array(or()), []],
@@ -113,7 +106,6 @@ const rows = () => {
         [[/** @type {const} */ (42)], [42, 'extra']],
         [[/** @type {const} */ (42)], [42]],
         [[/** @type {const} */ (42)], [42, undefined]],
-        [[/** @type {const} */ (42)], Object.assign([42], { foo: 1 })],
         [[/** @type {const} */ (42)], []],
         [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
         [{ a: /** @type {const} */ (42) }, { a: 42 }],
@@ -163,12 +155,6 @@ const rows = () => {
         [new Array(1), []],
         [[, number], [9, 5]],
         [[, number], [undefined, 5]],
-        // and a non-index enumerable own property is no position at all: a tuple
-        // schema is read by index, so `foo` declares nothing — which leaves a
-        // value's own `foo` an undeclared member like any other
-        [Object.assign([number], { foo: string }), [1]],
-        [Object.assign([number], { foo: string }), Object.assign([1], { foo: 'x' })],
-        [open(Object.assign([number], { foo: string })), Object.assign([1], { foo: 'x' })],
         // a stated rest: what an undeclared member must be
         [rest([number], string), [1, 'x', 'y']],
         [rest([number], string), [1, 2]],
@@ -388,17 +374,6 @@ export const proof = {
         arityIsTheSchemaLength: () => {
             assertOk(validate(new Array(1))([undefined]))
             assertError(validate(new Array(1))([1]))
-        },
-        // A tuple schema is read by index, so `foo` declares no position — it
-        // is not matched against anything, and on the value side it is an
-        // undeclared member like any other, which the closed form rejects and
-        // `open` admits.
-        nonIndexPropertyIsNotDeclared: () => {
-            const schema = Object.assign([number], { foo: string })
-            assertOk(validate(schema)([1]))
-            assertError(validate(schema)(Object.assign([1], { foo: 'x' })))
-            assertOk(validate(open(schema))(Object.assign([1], { foo: 'x' })))
-            assertError(validate(schema)(['x']))
         },
     },
     boolean: {

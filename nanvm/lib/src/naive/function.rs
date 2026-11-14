@@ -44,6 +44,9 @@ impl IComplex<Naive> for Function {
     fn ptr_eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
+    fn address(&self) -> usize {
+        Rc::as_ptr(&self.0) as usize
+    }
 }
 
 impl IFunction<Naive> for Function {

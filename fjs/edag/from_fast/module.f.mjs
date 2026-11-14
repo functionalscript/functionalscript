@@ -172,9 +172,9 @@ const prefixReads = (parts, divergent = false) => {
     return prefix
 }
 
-/** Calls, coercions, and computed keys may invoke user functions. @type {(value: Operator<Value>) => boolean} */
+/** Calls, runtime operators, coercions, and computed keys can invoke functions. @type {(value: Operator<Value>) => boolean} */
 const invokes = value => {
-    if (value[0] === '()' || value[0] === '?.()') { return true }
+    if (value[0] === '()' || value[0] === '?.()' || value[0] === 'Boolean') { return true }
     if ((value[0] === '.' || value[0] === '?.' || value[0] === 'memberPresent') && value[2] instanceof Array) { return true }
     if (value[0] === 'object' && value[1].some(entry => entry[0] === ':' && typeof entry[1] !== 'string')) { return true }
     if (value.length > 1 && !['array', 'object', '.', '?.', 'memberPresent', '?:', ',', '!', 'typeof', '===', '!==', 'instanceof', 'throw'].includes(value[0])

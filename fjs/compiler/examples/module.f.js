@@ -33,6 +33,7 @@
  * @module
  *
  * @import { Examples } from './types.ts'
+ * @import { Files } from '../demo_files/types.ts'
  */
 
 import principles from '../../../spec/principles/module.f.js'
@@ -72,3 +73,16 @@ export const examples = [
     // 11. Built-ins
     ...builtIns.all,
 ]
+
+/**
+ * The files an example's main module imports, other than the main module:
+ * none for an example of one module. The compiler demo writes each into a box
+ * of its own, so the program links; the stage pages read the main module
+ * alone.
+ *
+ * @type {(id: string) => Files}
+ */
+export const dependenciesOf = id => {
+    const found = modules.files.find(([i]) => i === id)
+    return found === undefined ? [] : found[1]
+}

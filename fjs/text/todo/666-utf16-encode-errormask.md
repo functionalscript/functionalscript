@@ -16,7 +16,7 @@ export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 The UTF-8 *encoder* honors this contract: given an error-tagged / out-of-range
 input it reconstructs the tagged bytes (`codePointToUtf8` in
-`fjs/text/utf8/module.f.mjs`, over the error flags beside it). The
+`fjs/text/utf8/module.f.js`, over the error flags beside it). The
 UTF-16 *encoder* does the opposite — it silently truncates to 16 bits, losing the
 error tag:
 
@@ -64,7 +64,7 @@ resolution is to document *that* divergence in `code_point` instead).
 ### Related
 
 - `fjs/text/code_point/module.f.js` — shared `errorMask` contract
-- `fjs/text/utf8/module.f.mjs`, `codePointToUtf8` — the encoder that preserves
+- `fjs/text/utf8/module.f.js`, `codePointToUtf8` — the encoder that preserves
   the tag (precedent)
 - i666-utf8-continuation-helpers — sibling utf8 cleanup
 - [non-integer-code-points](./non-integer-code-points.md) — a non-integer code

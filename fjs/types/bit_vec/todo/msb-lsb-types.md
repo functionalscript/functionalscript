@@ -8,7 +8,7 @@
 `fjs/types/bit_vec` has one vector type, `Vec`, and two bit orders over it:
 `msb` and `lsb` are both a `BitOrder`, whose every operation takes and answers
 `Vec`. So a vector built most-significant-bit first can be handed to an
-`lsb` operation — `lsb.popFront`, `lsb.concat` — and the type checker says
+`lsb` operation — `lsb.popFront`, `lsb.concatVec` — and the type checker says
 nothing; the answer is simply the bits read in the other order.
 
 ### Proposal

@@ -25,14 +25,14 @@
  * @import { Author, Branch, WriteOperation } from '../types.ts'
  */
 
-import { cBase32ToVec, vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
-import { exactArgs } from '../../../cli/module.f.mjs'
-import { sha256 } from '../../../crypto/sha2/module.f.mjs'
-import { catchStep, forEachStep, history, historyStep, mapStep, orElse, pureOk, refuse, step } from '../../../effects/module.f.mjs'
-import { exitStep, isNotFound, log, writeFromStream } from '../../../effects/node/module.f.mjs'
-import { oidBytes as widthOf } from '../../../git/format/module.f.mjs'
-import { tryCommonDir } from '../../../git/repo/module.f.mjs'
-import { casAddFile } from '../../module.f.mjs'
+import { cBase32ToVec, vecToCBase32 } from '../../../basen/cbase32/module.f.js'
+import { exactArgs } from '../../../cli/module.f.js'
+import { sha256 } from '../../../crypto/sha2/module.f.js'
+import { catchStep, forEachStep, history, historyStep, mapStep, orElse, pureOk, refuse, step } from '../../../effects/module.f.js'
+import { exitStep, isNotFound, log, writeFromStream } from '../../../effects/node/module.f.js'
+import { oidBytes as widthOf } from '../../../git/format/module.f.js'
+import { tryCommonDir } from '../../../git/repo/module.f.js'
+import { casAddFile } from '../../module.f.js'
 import { branchCas, configuredAuthor, snapshot } from '../module.f.mjs'
 
 /** The code the current directory is refused with where it is neither a Git worktree nor a repository directory. */

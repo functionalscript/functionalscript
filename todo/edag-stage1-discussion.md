@@ -5,7 +5,7 @@
 EDAG (expression DAG — see the core invariant).
 Each subject below is resolved separately; once all are **decided**, the
 result is distilled into [`fjs/edag/README.md`](../fjs/edag/README.md) — the
-schema of record is [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and
+schema of record is [`fjs/edag/module.f.js`](../fjs/edag/module.f.js) — and
 this document is deleted.
 
 The original DJS rollout is tracked in
@@ -1000,7 +1000,7 @@ already follow —
 #### 5. Validation
 
 **Status:** open (list agreed in direction). The RTTI schema is written —
-[`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and checks shape only:
+[`fjs/edag/module.f.js`](../fjs/edag/module.f.js) — and checks shape only:
 constants, the single-node body, unknown tags, entry forms and the form of a
 property operand. Complete public validation remains open
 ([interpret-edag](../fjs/compiler/todo/interpret-edag.md)): analysis rejects
@@ -1126,7 +1126,7 @@ control-flow bits — make those families unspellable instead. The shape of
 record and the worked examples are in
 [`fjs/edag/README.md`](../fjs/edag/README.md) — "Chains" — and the JSDoc on
 the lambda schemas in
-[`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
+[`fjs/edag/module.f.js`](../fjs/edag/module.f.js).
 
 **Decided: semantic access classes are not bytecode specializations.**
 Static/numeric access and the runtime enumerable-entry helper have different
@@ -1339,6 +1339,7 @@ the **graph**, not a tree expansion:
   is a cycle *between* functions, which `["self"]` does not reach —
   either the partner is passed as an argument, or the group is hashed
   together with members addressed by index.
+
 #### 10. Free variables: module consts, imports, built-ins
 
 **Status:** open

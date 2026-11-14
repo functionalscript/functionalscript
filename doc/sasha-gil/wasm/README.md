@@ -52,6 +52,13 @@ rest of L1 natively, or by linking the reference bodies.
 
 A runtime may also offer small WASM fragments that the compiler inlines in
 place of a call to it: [inline-fragments.md](./inline-fragments.md).
+A runtime can be assembled from pluggable runtime modules, each with a
+manifest, so that, for example, a string representation can be chosen
+apart from the rest: [modular-runtime.md](./modular-runtime.md).
+L0 itself may be split the same way, into five modules cut by kind, each
+imported or inlined: [modular-l0.md](./modular-l0.md).
+The code IR, which every backend shares, has its own folder:
+[`../ir`](../ir/README.md).
 
 The same three layers already exist in NaNVM's Rust source. The notes for
 each layer say where.
@@ -60,7 +67,11 @@ each layer say where.
 
 Each step ends in a discussion before the next one starts. Steps 1 and 2
 are done as drafts: the designs for [L0](./l0-design.md), [L1](./l1-design.md)
-and [L2](./l2-design.md). The aim since 2026-11-03 is to write as much of
+and [L2](./l2-design.md). Step 3 is mostly done, in `fjs/wasm/runtime` (#3615 to
+#3655): the L0 view, today's natives and a first slice of L1 bodies. L1
+rows such as `instanceof`, `resolveMember`, `%`, `**`, the integer
+operators and `nativeMember` are still to come. Step 4 has started with the code IR, in `fjs/ir` (#3806), and its
+notes are in [`../ir`](../ir/README.md). The aim since 2026-11-03 is to write as much of
 the runtime as possible in FunctionalScript first, and to make it faster
 later by substitution.
 
@@ -77,7 +88,8 @@ later by substitution.
    small program. A host supplies L0 and L1's native rows: NaNVM built as its
    own `.wasm`, or a small runtime in JavaScript. Then the same program
    specialized for NaNVM, with its `to_f64` and `from_f64` inlined as
-   fragments.
+   fragments. The backend starts with a typed IR, written as an eDSL,
+   that a Rust backend can share ([ir-design.md](../ir/ir-design.md)).
 5. **Spec and conformance.** The agreed interface as a spec, and the
    existing harness corpus run against any runtime, in both the portable and
    the specialized mode.
@@ -96,8 +108,16 @@ inliner.
 | 2026-11-02 | Linking and inlining use our own tools, built on `fjs/media/wasm`. Binaryen is at most a later comparison ([inline-fragments.md](./inline-fragments.md#our-own-linker-first)). |
 | 2026-11-03 | The L0 view has builders, `buildArray` and `buildObject`, and L0 has `join`, so a body builds a container or a string of computed size in one pass ([l0-design.md §22](./l0-design.md#22-building-in-one-pass)). |
 | 2026-11-04 | A throw traps: L0 has `throw`, code and `call` answer one `any`, and only the host catches, through host-only exports ([l0-throw-trap.md](./l0-throw-trap.md)). |
+| 2026-11-05 | The WASM backend starts with an eDSL for a typed IR one phase before the target, meant for Rust and later backends too. Its first design is independent; a second round compares it with Binaryen's IR and similar designs ([ir-design.md](../ir/ir-design.md)). |
+| 2026-11-09 | A runtime is assembled from runtime modules with manifests. The first one is the String module: `unpack`, `length` and `at`, in three variants (Naive, NaN CPU-saving, NaN memory-saving) ([modular-runtime.md](./modular-runtime.md)). |
+| 2026-11-09 | An unpacked value borrows its source `any`, which the code generator keeps alive until the last access, so unpacking costs no reference count ([modular-runtime.md](./modular-runtime.md)). |
+| 2026-11-09 | A runtime module's functions are inlined, and its stack frame offsets are local indices fixed at compile time, so no shadow stack is needed ([modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion)). |
+| 2026-11-11 | A NaN-boxed reference is an offset into a heap the runtime owns, on Rust as on WASM: Rust's heap is one buffer read through indexed loads and stores in safe code, and imported bits never become a reference ([pointer-width.md](../ir/pointer-width.md#decision)). |
 
 ## Open questions
+
+Smaller improvements and gaps found in reviews are kept in
+[TODO_DESIGN.md](./TODO_DESIGN.md).
 
 The designs propose an answer to each of the first five. They stay open
 until the owner decides them.
@@ -123,3 +143,15 @@ until the owner decides them.
 6. How small and how simple must an inline fragment be, and how does a
    specialized program name the runtime it was built for? See
    [inline-fragments.md](./inline-fragments.md#open).
+7. Does the Rust backend move to the code IR, calling L0 and L1, or keep
+   today's higher-level `nanvm_lib` API? See
+   [ir-design.md](../ir/ir-design.md#where-it-sits).
+8. If a runtime module's function is ever called rather than inlined, does
+   it take offsets into a shadow stack, or the unpacked value itself as
+   results and arguments? See
+   [modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion).
+   Proposed: neither. A called module function is in import form, which
+   has no slots, so it takes the `any` itself
+   ([modular-l0.md §5](./modular-l0.md#5-import-form-is-the-portable-mode)).
+9. Should L0 be split into modules by kind, with an import name and a
+   version each? See [modular-l0.md](./modular-l0.md).

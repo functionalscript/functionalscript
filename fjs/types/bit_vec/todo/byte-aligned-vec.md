@@ -9,7 +9,7 @@ A file, a zlib stream and a CAS shard hold bytes, and a `Vec` holds bits. So
 every operation that takes a `Vec` as data rather than as a bit string refuses
 one that is not whole bytes at run time, with `isWholeBytes` and the shared
 `invalid buffer size` refusal in
-[`../../../effects/node/module.f.mjs`](../../../effects/node/module.f.mjs):
+[`../../../effects/node/module.f.js`](../../../effects/node/module.f.js):
 `writeFile`, `writeBytes`, `writeExclusive` and `inflate` — and
 `writeFromStream` and `fjs/cas`'s `write` through `writeBytes`. The refusal is
 correct, but it is the type that admits the input in the first place.

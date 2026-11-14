@@ -10,13 +10,13 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { ioError } from '../../../effects/module.f.mjs'
-import { run as mockRun } from '../../../effects/mock/module.f.mjs'
+import { ioError } from '../../../effects/module.f.js'
+import { run as mockRun } from '../../../effects/mock/module.f.js'
 import { codePointListToString } from '../../../text/utf16/module.f.js'
-import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { toHex, tryFromHex } from '../../oid/module.f.mjs'
-import { latin1 } from '../../testlib.f.mjs'
+import { latin1 } from '../../testlib.f.js'
 import { badNameCode, tryResolve, zeroIdCode } from '../module.f.mjs'
 import { badPackedCode, brokenRefCode, idWidthCode, outsideRefsCode, refPrefixCode, tryDelete, tryWrite, unsortedPackedCode, unspellableNameCode } from './module.f.mjs'
 import { a, b, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed, t } from '../testlib.f.mjs'

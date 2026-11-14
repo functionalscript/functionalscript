@@ -4,13 +4,13 @@
  * @import { Dir } from './effects/node/virtual/types.ts'
  */
 
-import { exitCode } from './effects/node/module.f.mjs'
+import { exitCode } from './effects/node/module.f.js'
 import { assert, assertEq } from './asserts/module.f.js'
-import { pureError, pureOk } from './effects/module.f.mjs'
+import { pureError, pureOk } from './effects/module.f.js'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
-import { vec8 } from './types/bit_vec/module.f.mjs'
-import { utf8 } from './text/module.f.mjs'
+import { vec8 } from './types/bit_vec/module.f.js'
+import { utf8 } from './text/module.f.js'
 
 const run = (/** @type {Dir} */ root) => (/** @type {readonly string[]} */ args) =>
     virtualAt(root)(main(nodeProgramOptions(args)))

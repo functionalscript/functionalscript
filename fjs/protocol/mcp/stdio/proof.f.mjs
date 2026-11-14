@@ -7,15 +7,15 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { pure } from '../../../effects/module.f.mjs'
-import { pureOk } from '../../../effects/module.f.mjs'
+import { pure } from '../../../effects/module.f.js'
+import { pureOk } from '../../../effects/module.f.js'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
-import { utf8 } from '../../../text/module.f.mjs'
-import { maxLengthBytes, u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
+import { utf8 } from '../../../text/module.f.js'
+import { maxLengthBytes, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { stdioTransport } from './module.f.mjs'
-import { run as mockRun } from '../../../effects/mock/module.f.mjs'
+import { run as mockRun } from '../../../effects/mock/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 // Extracts the request `id` (a request has one; a notification does not).

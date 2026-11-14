@@ -1,7 +1,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
-import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
-import { inflate } from './module.f.mjs'
+import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.js'
+import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.js'
+import { inflate } from './module.f.js'
 
 /**
  * What a stream read in `pieces` gave: the output as bytes, and the bytes after

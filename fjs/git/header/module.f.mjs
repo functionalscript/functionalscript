@@ -271,10 +271,10 @@ const checked = bytes => {
 /**
  * @throws On a key the format cannot spell — empty, or holding SP or LF —
  * since {@link tryRead} would read what was written as a different header,
- * and on a key or a value holding a number that is no byte, or a hole. A
- * header comes from a read or from a caller that built one, and the type
- * cannot say which numbers it holds, so the writer checks: the key as an
- * array, since its bytes are looked at, the value as the list it is.
+ * and on a key or a value holding anything that is no byte. A header comes
+ * from a read or from a caller that built one, and the type cannot say
+ * which numbers it holds, so the writer checks: the key as an array,
+ * since its bytes are looked at, the value as the list it is.
  *
  * @type {(h: Header) => Bytes}
  */

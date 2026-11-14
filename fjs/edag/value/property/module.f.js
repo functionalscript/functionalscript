@@ -1,0 +1,180 @@
+/**
+ * Property lookup over evaluated EDAG values. Objects expose their stored
+ * fields, arrays their elements and length, strings their UTF-16 code units
+ * and length, and functions their declared length — a static function's
+ * the length of the body the runtime holds at its path, which is why a
+ * read takes the runtime. Missing properties are
+ * tagged undefined; nullish receivers fail with tagged undefined. Stored
+ * values and receiver failures retain their identities.
+ *
+ * This is the lookup kernel for admitted property reads, `read`, and for
+ * a call of the `entry` helper, `entry`: the same lookup less what a value
+ * owns without enumerating it, a `length` and whatever a function has —
+ * and for a call of `hasEntry`, `hasEntry`, the presence alone.
+ * The caller owns operand evaluation order, key conversion to a string and
+ * source-name admission. Reads do not traverse prototypes or expose storage
+ * tuple fields; findProperty supplies stored object-property presence to
+ * operations. Method dispatch remains separate work. Values satisfy the
+ * compiler/admission contract and are not revalidated.
+ *
+ * @module
+ * @import { EdagValue, Values, Object as ValueObject, Property, Runtime, Function as ValueFunction, Static, Closure } from '../types.ts'
+ * @import { Invoke } from '../call/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
+ * @import { ValueResult } from '../control/types.ts'
+ */
+
+import { arrayIndex } from '../../../js/array_index/module.f.js'
+import { isArray } from '../../../types/array/module.f.js'
+import { ok, error } from '../../../types/result/module.f.js'
+import { helperLength, isHelper, isStatic, noStatic } from '../../module.f.js'
+import { isFunction, tagUndefined } from '../semantics/module.f.js'
+import { call } from '../call/module.f.js'
+
+/**
+ * Find a stored object property, retaining its tuple identity. An absent
+ * property returns undefined; a present tagged-undefined value still has a
+ * property tuple. Coercion and method dispatch need that distinction.
+ * @type {(value: ValueObject, key: string) => Property | undefined}
+ */
+export const findProperty = (value, key) => value[1].find(([, name]) => name === key)
+
+/** The element `key` names, an array's or a string's, by its canonical index within the length, or `undefined` where there is none. @type {(values: Values | string, key: string) => EdagValue | undefined} */
+const elementOf = (values, key) => {
+    const index = arrayIndex(key)
+    return index === null || index >= values.length ? undefined : values[Number(index)]
+}
+
+/** The element `key` names, or tagged undefined. @type {(values: Values | string, key: string) => ValueResult} */
+const element = (values, key) => {
+    const found = elementOf(values, key)
+    return ok(tagUndefined(found))
+}
+
+/** An element, or the `length` an array and a string own beside their elements. @type {(values: Values | string, key: string) => ValueResult} */
+const indexed = (values, key) => key === 'length' ? ok(values.length) : element(values, key)
+
+/** The stored field `key` names, or tagged undefined. @type {(value: ValueObject, key: string) => ValueResult} */
+const field = (value, key) => {
+    const property = findProperty(value, key)
+    return ok(property === undefined ? ['undefined'] : property[2])
+}
+
+/**
+ * The function value at a path of keys into an object, or `undefined`
+ * where a key is missing, a step is no object, or the end is no function:
+ * how an executor reads its runtime's functions, `['dot']`, `['static']`
+ * and `['in']`.
+ *
+ * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
+ */
+export const functionAt = (object, path) => {
+    if (object === undefined) { return undefined }
+    if (path.length === 0) { return isFunction(object) ? /** @type {ValueFunction} */ (object) : undefined }
+    if (!isArray(object) || object[0] !== '{}') { return undefined }
+    const entry = findProperty(/** @type {Runtime} */ (object), path[0])
+    return entry === undefined ? undefined : functionAt(entry[2], path.slice(1))
+}
+
+/**
+ * The body of a static function, asked of the runtime's `static` by the
+ * id, `Object.is`: the function the runtime answers, or `undefined` for
+ * no runtime, one without a `static` function, or an id its table lacks —
+ * which a caller refuses by name, never answers with — or the throw of
+ * `static` itself. `Object.entries` is never asked for: no body defines
+ * it, and every executor answers it natively.
+ *
+ * @type {(runtime: Runtime | undefined, fn: Static, invoke: Invoke) => Result<Closure | undefined, EdagValue>}
+ */
+export const staticBody = (runtime, fn, invoke) => {
+    const read = functionAt(runtime, ['static'])
+    if (read === undefined) { return ok(undefined) }
+    const answer = call(ok(read), [() => ok(fn[0])], invoke)
+    if (answer[0] === 'error') { return answer }
+    const body = answer[1]
+    return ok(isArray(body) && body[0] === '=>' ? /** @type {Closure} */ (body) : undefined)
+}
+
+/**
+ * The `length` of a static function, a property every function owns: the
+ * length of the body the runtime's `static` answers for its id, `2` for
+ * `Object.is`; `1` for `Object.entries`, `String.fromCharCode`, `Math.trunc`,
+ * `Math.floor`, `Math.abs`, `Math.sqrt` and `Math.ceil`; `2` for `Math.imul`, `Math.max` and `Math.min`,
+ * which every executor answers natively; and, with no runtime
+ * or no body for the id,
+ * the failure naming the static, as its call would fail.
+ *
+ * @type {(fn: Static, runtime: Runtime | undefined, invoke: Invoke | undefined) => ValueResult}
+ */
+const staticLength = (fn, runtime, invoke) => {
+    if (fn[0] === 'Math.imul' || fn[0] === 'Math.max' || fn[0] === 'Math.min') { return ok(2) }
+    if (fn[0] === 'Object.entries' || fn[0] === 'String.fromCharCode' || fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil') { return ok(1) }
+    const body = invoke === undefined ? ok(undefined) : staticBody(runtime, fn, invoke)
+    if (body[0] === 'error') { return body }
+    return body[1] === undefined ? error(noStatic(fn[0])) : ok(body[1][1])
+}
+
+/** Read a resolved property, preserving a failed receiver unchanged; the runtime, where the reader has one and an invoker to ask it through, answers a static function's `length`. @type {(receiver: ValueResult, key: string, runtime?: Runtime, invoke?: Invoke) => ValueResult} */
+export const read = (receiver, key, runtime, invoke) => {
+    const [kind, value] = receiver
+    if (kind === 'error') { return receiver }
+    if (value === null) { return error(['undefined']) }
+    if (typeof value === 'string') { return indexed(value, key) }
+    if (!isArray(value)) { return ok(['undefined']) }
+    if (isStatic(value)) { return key === 'length' ? staticLength(value, runtime, invoke) : ok(['undefined']) }
+    // a helper owns the `length` every function does, its own
+    if (isHelper(value)) { return ok(key === 'length' ? helperLength(value[0]) : ['undefined']) }
+    switch (value[0]) {
+        case '[]': { return indexed(value[1], key) }
+        case '{}': { return field(value, key) }
+        case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
+        default: { return error(['undefined']) }
+    }
+}
+
+/**
+ * The enumerable own property `key` names, or `undefined` where there is
+ * none: an object's stored field, an array's element or a string's code
+ * unit by its canonical index, and nothing else — a `length` is own but
+ * enumerates nowhere, a function has no entry at all, and neither has any
+ * other primitive. The receiver is not nullish.
+ *
+ * @type {(receiver: EdagValue, key: string) => EdagValue | undefined}
+ */
+const entryOf = (receiver, key) => {
+    if (typeof receiver === 'string') { return elementOf(receiver, key) }
+    if (!isArray(receiver) || isStatic(receiver)) { return undefined }
+    switch (receiver[0]) {
+        case '[]': { return elementOf(receiver[1], key) }
+        case '{}': { return findProperty(receiver, key)?.[2] }
+        default: { return undefined }
+    }
+}
+
+/**
+ * The entry `key` names: what a call of the `entry` helper reads, over a
+ * key already converted to a string — the enumerable own property, as
+ * the helper reads it, `Object.getOwnPropertyDescriptor` followed by
+ * `x?.enumerable ? x.value : undefined`: the property's value,
+ * {@link entryOf}, and `undefined` where there is none. A nullish
+ * receiver fails, as `Object.getOwnPropertyDescriptor` throws on one.
+ *
+ * @type {(receiver: EdagValue, key: string) => ValueResult}
+ */
+export const entry = (receiver, key) => {
+    if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
+    const found = entryOf(receiver, key)
+    return ok(tagUndefined(found))
+}
+
+/**
+ * Whether the entry `key` names is there: what a call of the `hasEntry`
+ * helper reads, `true` for an entry holding `undefined`, the receiver
+ * treated as {@link entry} treats it.
+ *
+ * @type {(receiver: EdagValue, key: string) => ValueResult}
+ */
+export const hasEntry = (receiver, key) => {
+    if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
+    return ok(entryOf(receiver, key) !== undefined)
+}

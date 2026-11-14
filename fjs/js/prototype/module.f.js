@@ -65,11 +65,24 @@ export const functionPrototype = /** @type {const} */ ([
     'apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toString',
 ])
 
+/**
+ * The prototype a call on each receiver type looks in, by the name of the
+ * type's global as `fjs/js/runtime` keys it, in declaration order. An
+ * object's is `Object.prototype`; every other type's is its own, which is
+ * where its own member functions are, `toString` among them.
+ */
+export const prototypes = /** @type {const} */ ({
+    Object: objectPrototype,
+    Array: arrayPrototype,
+    String: stringPrototype,
+    Number: numberPrototype,
+    Boolean: booleanPrototype,
+    BigInt: bigintPrototype,
+    Function: functionPrototype,
+})
+
 /** The seven lists in declaration order, a name shared by two lists once per list. */
-const lists = [
-    objectPrototype, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype,
-    bigintPrototype, functionPrototype,
-].flat()
+const lists = Object.entries(prototypes).flatMap(([, list]) => list)
 
 /**
  * Every name a built-in prototype gives a value, sorted by code unit — the
@@ -136,3 +149,21 @@ export const allowedCalls = /** @type {const} */ ([
     'toExponential', 'toFixed', 'toLowerCase', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced',
     'toString', 'toUpperCase', 'toWellFormed', 'trim', 'trimEnd', 'trimStart', 'with',
 ])
+
+/**
+ * Why an access of the name is refused, or `null` when it is allowed: a
+ * member function a module may not call where the access is a method
+ * call's callee, `method` ({@link prohibitedCalls}), and a name of the
+ * prototype chain where it is read ({@link prototypeNames} but `length`,
+ * which a value owns).
+ *
+ * The rule is the language's, so it has one owner: the parser refuses the
+ * accesses, and the source writer refuses to write one the parser would
+ * not read back, each consumer wrapping the answer in its own error.
+ *
+ * @type {(method: boolean) => (name: string) => 'member function' | 'property name' | null}
+ */
+export const prohibitedAccess = method => name =>
+    method
+        ? (/** @type {readonly string[]} */ (prohibitedCalls).includes(name) ? 'member function' : null)
+        : (name !== 'length' && /** @type {readonly string[]} */ (prototypeNames).includes(name) ? 'property name' : null)

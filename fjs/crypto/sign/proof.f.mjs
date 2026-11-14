@@ -7,19 +7,19 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { utf8 } from '../../text/module.f.mjs'
-import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { hmac } from '../hmac/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.js'
+import { hmac } from '../hmac/module.f.js'
 import { sqrt } from '../../types/prime_field/module.f.js'
 import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.js'
-import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
-import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
+import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.js'
+import { all, computeK, fromCurve, sign, verify } from './module.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, nonceReuse, outgoing, parseHexField, received, signed } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
-import { runPure } from '../../effects/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
+import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 
 const sample = utf8("sample")
 const test = utf8("test")
@@ -31,7 +31,7 @@ const toy4 = curve({ p: 7n, c: [4n, 1n], g: [4n, 3n], n: 5n })
 // `y^2 = x^3 + x + 1`, with a point at `x = 0`.
 const toy1 = curve({ p: 7n, c: [1n, 1n], g: [0n, 1n], n: 5n })
 
-const { concat, listToVec } = msb
+const { concatVec: concat, listToVec } = msb
 
 const x00 = vec8(0x00n)
 const x01 = vec8(0x01n)
@@ -691,7 +691,7 @@ export const proof = {
         const [a, b] = hg
         const t = assertNotNullish(sqrt(pf)(pf.add(1n)(pf.add(a)(2n))), 'no t')
         /** @type {Point} */
-        const forged = [2n, pf.sub(b)(pf.mul(t)(pf.sub(a)(2n)))]
+        const forged = [2n, pf.subtract(b)(pf.mul(t)(pf.subtract(a)(2n)))]
         assertEq(assertNotNullish(c.add(hg)(forged), 'X === null')[0], 1n)
         assertEq(v(forged)(sample)([1n, 1n]), false)
         // a key on the curve with `n·u = O`, but outside the subgroup of `g`:

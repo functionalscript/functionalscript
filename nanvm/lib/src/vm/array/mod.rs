@@ -1,7 +1,6 @@
 mod argument;
 mod at;
 pub(crate) mod callback;
-mod concat;
 pub(crate) mod create;
 mod every;
 mod filter;
@@ -14,7 +13,6 @@ mod index;
 mod index_of;
 mod join;
 mod last_index_of;
-mod map;
 mod member_access;
 mod partial_eq;
 mod reduce;

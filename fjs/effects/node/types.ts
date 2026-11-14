@@ -188,8 +188,14 @@ export type ExecResult = {
 
 export type Exec = readonly['exec', (command: string, stdin?: string) => IoResult<ExecResult>]
 
+/** Optional UTF-8 input and per-output-stream capture bound for an executable. */
+export type ExecFileOptions = {
+    readonly stdin?: string
+    readonly maxBuffer?: number
+}
+
 /** Run an executable with literal argv and capture both streams, without a shell. */
-export type ExecFile = readonly['execFile', (command: string, args: readonly string[]) => IoResult<ExecResult>]
+export type ExecFile = readonly['execFile', (command: string, args: readonly string[], options?: ExecFileOptions) => IoResult<ExecResult>]
 
 // spawn
 
@@ -206,6 +212,7 @@ export type Child =
  * so what it writes reaches the reader as it is written and its two streams
  * keep their order — what the `exec` capture cannot give.
  *
+ * `stdio: 'ignore'` discards child input and output for quiet runners.
  * It is required rather than optional for now: a piped child has no reader
  * until the rest of the family in
  * [`todo/spawn-effect.md`](./todo/spawn-effect.md) lands, and a child whose
@@ -214,7 +221,7 @@ export type Child =
  * process's directory.
  */
 export type SpawnOptions = {
-    readonly stdio: 'inherit'
+    readonly stdio: 'inherit' | 'ignore'
     readonly cwd?: string
 }
 
@@ -234,11 +241,30 @@ export type Spawn = readonly['spawn', (command: string, args: readonly string[],
  */
 export type ExitStatus = readonly['exited', number] | readonly['signaled', string]
 
+/** Working directory for an executable whose two output streams are captured. */
+export type CaptureOptions = {
+    readonly cwd?: string
+}
+
+/** Complete UTF-8 output and termination status of an executable. */
+export type CapturedProcess = {
+    readonly status: ExitStatus
+    readonly stdout: string
+    readonly stderr: string
+}
+
+/**
+ * Run an executable with literal argv and closed input, draining both output
+ * streams until they close. Nonzero exits and signals retain their output in
+ * the successful result; launch or stream failures use the I/O channel.
+ */
+export type Capture = readonly['capture', (command: string, args: readonly string[], options?: CaptureOptions) => IoResult<CapturedProcess>]
+
 /** Waits for `child` to end and answers how; a child already gone answers at once. */
 export type ChildWait = readonly['childWait', (child: Child) => IoResult<ExitStatus>]
 
-/** The subprocess family, so far: start a child and wait for it. */
-export type Subprocess = Spawn | ChildWait
+/** Start and wait for a child, or capture an executable's complete output. */
+export type Subprocess = Spawn | ChildWait | Capture
 
 // access
 
@@ -401,7 +427,7 @@ export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
  *
  * Chunks rather than one value for that ceiling's sake: each is a `Vec` and so
  * at most 128 KiB, and the file is however many of them it takes. The reader in
- * `fjs/effects/node/module.f.mjs` joins them into a byte list, which has no
+ * `fjs/effects/node/module.f.js` joins them into a byte list, which has no
  * bound at all.
  *
  * A path that is no regular file — a FIFO, a device — is refused rather than
@@ -577,7 +603,7 @@ export type RequestBody =
  * worth however many times it is asked for.
  *
  * No bytes means the end, as it does for {@link ReadBytes} read unbounded —
- * `readChunks` in [`./module.f.mjs`](./module.f.mjs) reads both the same way.
+ * `readChunks` in [`./module.f.js`](./module.f.js) reads both the same way.
  *
  * **So a runner never answers no bytes while the body still has some.** A chunk
  * of no bytes is something a source can produce with the stream still running:
@@ -712,7 +738,7 @@ export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effec
  * of the design**, because they overlap: a `HEAD` on a request Node will not
  * chunk, answered with a body whose size the listener does not know, satisfies
  * two of them at once. A runner asks them in the order `responseGate`
- * ([`./module.f.mjs`](./module.f.mjs)) answers in and acts on the first that
+ * ([`./module.f.js`](./module.f.js)) answers in and acts on the first that
  * fires. Both runners read that one function, or they disagree about a request
  * neither of them has any trouble with.
  *
@@ -832,7 +858,7 @@ export type Underrun = readonly['underrun', number]
 
 /**
  * What one pulled cell of a response body does to the pump — see `pumpCell`
- * ([`./module.f.mjs`](./module.f.mjs)).
+ * ([`./module.f.js`](./module.f.js)).
  *
  * @internal
  */
@@ -900,6 +926,9 @@ export type Forever = ['forever', () => OpResult<never>]
 
 export type Now = readonly['now', () => OpResult<number>]
 
+/** The host's estimate of how many tasks this process can run in parallel. */
+export type AvailableParallelism = readonly['availableParallelism', () => IoResult<number>]
+
 // sandbox
 
 /**
@@ -950,6 +979,7 @@ export type Test =
 export type NodeOp =
     | Access
     | All
+    | AvailableParallelism
     | Await
     | Catch
     | Fetch

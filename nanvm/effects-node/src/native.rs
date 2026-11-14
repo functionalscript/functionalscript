@@ -12,7 +12,7 @@ use crate::{
         decode_literal, decode_nullable, decode_number, decode_object, decode_optional,
         decode_string, decode_true, encode_array, encode_bool, encode_bytes, encode_error,
         encode_nothing, encode_nullable, encode_number, encode_object, encode_ok, encode_result,
-        encode_string, encode_tuple, member, optional_argument, required,
+        encode_string, encode_tuple, member, required,
     },
     common,
     files::{self, Dirent, IoError, Stat},
@@ -30,7 +30,7 @@ use std::{
 };
 
 /// `NodeOp`'s commands, printed from `nodeCommands` in
-/// `fjs/effects/node/module.f.mjs`: a command outside them is a malformed
+/// `fjs/effects/node/module.f.js`: a command outside them is a malformed
 /// request, not a missing capability.
 #[path = "gen.commands.rs"]
 mod commands;
@@ -174,7 +174,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
             "mkdir" => {
                 arity(payload, 2)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
-                let recursive = decode_optional(optional_argument(payload, 1), |options| {
+                let recursive = decode_optional(payload.present(1), |options| {
                     let options = decode_object(options, &["recursive"])?;
                     decode_true(required(&options, "recursive")?)
                 })?
@@ -399,8 +399,8 @@ mod test {
     use nanvm_lib::{
         naive::Naive,
         vm::{
-            Nullish, Number, ToAny, ToArray, ToObject,
-            unstable::{bigint_any, bigint_any_words, string_key},
+            Nullish, Number, ToAny, ToArray,
+            unstable::{bigint_any, bigint_any_words},
         },
     };
 
@@ -599,17 +599,12 @@ mod test {
         Native::new(Broken, Vec::new(), Vec::new()).read();
     }
 
-    fn object(members: impl IntoIterator<Item = (&'static str, V)>) -> V {
-        members
-            .into_iter()
-            .map(|(key, value)| (string_key::<Naive>(key), value))
-            .collect::<Vec<_>>()
-            .to_object()
-            .to_any()
+    fn empty_object() -> V {
+        encode_object::<Naive, 0>([])
     }
 
     fn recursive(value: bool) -> V {
-        object([("recursive", value.to_any())])
+        encode_object([Some(("recursive", value.to_any()))])
     }
 
     fn perform<const N: usize>(command: &str, payload: [V; N]) -> Result<V, V> {
@@ -627,11 +622,11 @@ mod test {
         assert_eq!(thrown("mkdir", [path(), recursive(false)]), "not `true`");
         assert_eq!(thrown("mkdir", [path(), string_any("x")]), "not an object");
         assert_eq!(
-            thrown("mkdir", [path(), object([("x", hi())])]),
+            thrown("mkdir", [path(), encode_object([Some(("x", hi()))])]),
             "unexpected member `x`"
         );
         assert_eq!(
-            thrown("mkdir", [path(), object([])]),
+            thrown("mkdir", [path(), empty_object()]),
             "missing member `recursive`"
         );
         assert_eq!(thrown("readdir", [path()]), "missing argument 1, `options`");
@@ -683,7 +678,7 @@ mod test {
         };
         let root = string_any(&dir.path().to_string_lossy());
         assert_eq!(
-            names(ok(perform("readdir", [root.clone(), object([])]))),
+            names(ok(perform("readdir", [root.clone(), empty_object()]))),
             ["a", "b", "f"]
         );
         assert_eq!(

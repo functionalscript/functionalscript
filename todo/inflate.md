@@ -10,7 +10,7 @@ over [RFC 1951](https://www.rfc-editor.org/rfc/rfc1951)), and a packfile
 holds one per object. The decoder for Git objects
 ([`fjs/git`](../fjs/git/README.md)) is pure over the inflated
 bytes, and today the inflating is the host's: `inflate` in
-[`fjs/effects/node`](../fjs/effects/node/module.f.mjs) hands a `Vec` to
+[`fjs/effects/node`](../fjs/effects/node/module.f.js) hands a `Vec` to
 `node:zlib` and gets a `Vec` back. Two modules call it:
 [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) for the one stream a loose
 object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) for each
@@ -50,7 +50,7 @@ That is the right first step and the wrong last one, for two reasons:
 ### Proposal
 
 A DEFLATE decoder in FunctionalScript, in the style of
-[`fjs/asn.1`](../fjs/asn.1/module.f.mjs): length-framed and bit-level, a
+[`fjs/asn.1`](../fjs/asn.1/module.f.js): length-framed and bit-level, a
 hand-written decoder and not a grammar, since a grammar over the byte
 alphabet reads delimiters and DEFLATE has none — the table in
 `fjs/git/README.md` says which side of that line each format falls on.
@@ -86,7 +86,7 @@ blocks, which is a framing and not a compression.
 per byte, where a list of numbers is eight (the measurement above). One `Vec`
 is the bound this issue lifts, but a *list* of them has none, and it is already
 the shape the repository's byte consumers take: a hash is a `Fold<Vec, S>`
-(`computeSync(hash)(list)` in [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs)),
+(`computeSync(hash)(list)` in [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.js)),
 the object reader parses `u8ListMsb(v)`, and `readBytes` hands back a `Vec` a
 window at a time. Rejected: a `List<number>` per byte, for its cost; one `Vec`,
 for its bound.
@@ -129,14 +129,14 @@ fast path.
 ### Tasks
 
 - [x] The design above, for review; the representation is the decision.
-- [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.mjs): the checksum that
+- [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.js): the checksum that
       closes a stream, in the shape of a hash, with its proof against the
       trailer of Node's `zlib.deflateSync`.
-- [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing
+- [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.js): the zlib framing
       and the stored blocks, fed chunks (`init`, `update`, `end`); a malformed
       stream completes with `null`.
 - [x] Fixed and dynamic Huffman blocks with the 32 KiB window
-      ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs), over
+      ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.js), over
       [`bits`](../fjs/zlib/bits/module.f.js),
       [`huffman`](../fjs/zlib/huffman/module.f.js) and
       [`window`](../fjs/zlib/window/module.f.js)): proven against Node's `zlib`
@@ -145,7 +145,7 @@ fast path.
       answer as Node's on each. The Adler-32 is a loop over the bytes now.
 - [x] [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) and
       [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) read through it
-      together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.mjs): a
+      together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.js): a
       loose file by one `readWhole` and a pack entry in windows of a `Vec`, so no
       object read whole is refused for its length. A stream that has made more
       than its header declares is not read on. Checked on this repository's own

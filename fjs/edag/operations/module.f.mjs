@@ -21,22 +21,22 @@
  * @import { _ResolvedMember } from './private.ts'
  */
 
-import { isArray } from '../../types/array/module.f.mjs'
+import { isArray } from '../../types/array/module.f.js'
 import { error, ok, okThen } from '../../types/result/module.f.js'
-import { array } from '../value/array/module.f.mjs'
-import { object } from '../value/object/module.f.mjs'
-import { func } from '../value/function/module.f.mjs'
-import { bind, call, invoker, prepare, settle } from '../value/call/module.f.mjs'
-import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
-import { throwValue } from '../value/control/module.f.mjs'
-import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
-import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
-import { binary as relational } from '../value/relational/module.f.mjs'
+import { array } from '../value/array/module.f.js'
+import { object } from '../value/object/module.f.js'
+import { func } from '../value/function/module.f.js'
+import { bind, call, invoker, prepare, settle } from '../value/call/module.f.js'
+import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.js'
+import { throwValue } from '../value/control/module.f.js'
+import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.js'
+import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.js'
+import { binary as relational } from '../value/relational/module.f.js'
 import { toPrimitive, toString, toNumber } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
-import { staticBody } from '../value/property/module.f.mjs'
-import { ownEntries } from '../value/entries/module.f.mjs'
-import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
+import { staticBody } from '../value/property/module.f.js'
+import { ownEntries } from '../value/entries/module.f.js'
+import { isIntrinsic, isStatic, noRefMap, noStatic } from '../module.f.js'
 
 /**
  * The failure of an `in` node under an executor whose runtime has no
@@ -45,6 +45,9 @@ import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
  */
 /** @type {string} */
 export const noIn = 'no binding for the in operator'
+
+/** The named failure for a missing Boolean conversion body. @type {string} */
+export const noBoolean = 'no binding for the Boolean operator'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -125,6 +128,32 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
             text += String.fromCharCode(converted[1])
         }
         return ok(text)
+    }
+    if (fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil') {
+        const converted = toNumber(values.length === 0 ? ['undefined'] : values[0], invoke)
+        if (converted[0] === 'error') { return converted }
+        if (fn[0] === 'Math.trunc') { return ok(Math.trunc(converted[1])) }
+        if (fn[0] === 'Math.floor') { return ok(Math.floor(converted[1])) }
+        if (fn[0] === 'Math.abs') { return ok(Math.abs(converted[1])) }
+        return ok(fn[0] === 'Math.sqrt' ? Math.sqrt(converted[1]) : Math.ceil(converted[1]))
+    }
+    if (fn[0] === 'Math.max' || fn[0] === 'Math.min') {
+        const maximum = fn[0] === 'Math.max'
+        const select = maximum ? Math.max : Math.min
+        let result = maximum ? -Infinity : Infinity
+        for (const value of values) {
+            const converted = toNumber(value, invoke)
+            if (converted[0] === 'error') { return converted }
+            result = select(result, converted[1])
+        }
+        return ok(result)
+    }
+    if (fn[0] === 'Math.imul') {
+        const left = toNumber(values.length === 0 ? ['undefined'] : values[0], invoke)
+        if (left[0] === 'error') { return left }
+        const right = toNumber(values.length < 2 ? ['undefined'] : values[1], invoke)
+        if (right[0] === 'error') { return right }
+        return ok(Math.imul(left[1], right[1]))
     }
     const body = staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
@@ -301,6 +330,13 @@ export const operation = evaluator => {
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
+            // the empty reference map: a new map of the runtime's, an
+            // ordinary function, asked for wherever the node is
+            // established; with no runtime the read fails naming it
+            case 'refMap': {
+                const make = functionAt(runtime, ['refMap'])
+                return [state, make === undefined ? error(noRefMap) : invoke(make, [], ['[]', []])]
+            }
             // an intrinsic as a value: the node, fresh as `entry` is, its
             // call `intrinsicCall`'s; named here as the statics are below
             case 'slice': case 'charCodeAt': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }
@@ -316,8 +352,8 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
-                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
+            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': case 'Math.sqrt': case 'Math.ceil': case 'Math.imul': case 'Math.max': case 'Math.min': {
+                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs' || node[0] === 'Math.sqrt' || node[0] === 'Math.ceil' || node[0] === 'Math.imul' || node[0] === 'Math.max' || node[0] === 'Math.min') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
             }
@@ -372,6 +408,14 @@ export const operation = evaluator => {
                 const body = functionAt(runtime, ['in'])
                 return then(operand(node[2], state), (value, next) =>
                     [next, body === undefined ? error(noIn) : call(ok(body), [() => ok(node[1]), () => ok(value)], invoke)])
+            }
+            // Conversion is the common runtime's !! body, invoked on the
+            // evaluated operand; it has no independent native implementation.
+            case 'Boolean': {
+                return then(operand(node[1], state), (value, next) => {
+                    const body = functionAt(runtime, ['Boolean'])
+                    return [next, body === undefined ? error(noBoolean) : call(ok(body), [() => ok(value)], invoke)]
+                })
             }
             case 'String': { return then(operand(node[1], state), (value, next) => [next, toString(value, invoke)]) }
             case '~': case 'Number': case 'BigInt': {

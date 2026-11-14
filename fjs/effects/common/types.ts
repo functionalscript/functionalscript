@@ -160,7 +160,7 @@ export type RandomInt = readonly['randomInt', () => OpResult<number>]
  *
  * The nesting is deliberate and belongs to the runner: this envelope says
  * whether `all` itself could be dispatched, and each inner `Result` is what
- * that effect answered. `allOk` (`./module.f.mjs`) is the collapse a fallible
+ * that effect answered. `allOk` (`./module.f.js`) is the collapse a fallible
  * chain wants.
  *
  * **Fan-out is an interpreter's job, not a walk's.** A host that has

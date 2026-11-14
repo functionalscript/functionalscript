@@ -5,13 +5,13 @@
 
 ### Problem
 
-[`fjs/zlib/inflate`](../inflate/module.f.mjs) reads a zlib stream as a push-style
+[`fjs/zlib/inflate`](../inflate/module.f.js) reads a zlib stream as a push-style
 machine using the shared `init`, `update(state, chunk)`, `end` protocol. The
 chunks are `Vec`s, so a chunk is at most what a `Vec` holds (128 KiB); the
 output is emitted in arrays of `Vec` chunks, each at most one decoding step's
 worth. The state between chunks is plain data (a phase, the bytes not yet used,
 the Huffman tables of the block, a 32 KiB window), so it can be kept, fed
-again and compared. [`fjs/git/inflater`](../../git/inflater/module.f.mjs) feeds
+again and compared. [`fjs/git/inflater`](../../git/inflater/module.f.js) feeds
 it from `readWhole` and from the windows of a pack, and everything Git reads
 now stands on that shape, so changing it later is the expensive direction.
 

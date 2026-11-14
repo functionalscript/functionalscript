@@ -104,7 +104,7 @@ request path to a file under it — enough to open the pages this repository
 generates in a browser, where a `file://` URL has no origin. It binds loopback,
 so what it serves stays on the machine it runs on. Both arguments are
 positional; `port` becomes `--port`, and `--host` becomes possible at all, once
-[`fjs/cli`](cli/module.f.mjs) has named options.
+[`fjs/cli`](cli/module.f.js) has named options.
 
 ```
 fjs web            # serve the working directory on http://127.0.0.1:8080/
@@ -121,12 +121,14 @@ fjs run <module> [args...]
 ```
 
 `fjs run` dynamically imports `<module>`, checks its `main` export with `isMain`
-and runs it through `dispatch`, both from [`cli`](cli/module.f.mjs):
+and runs it through `dispatch`, both from [`cli`](cli/module.f.js):
 
-```ts
-isMain(v.main)
-    ? dispatch(v.main)({ ...options, args })
-    : errorExit(`${file}: not a program — no exported \`main\` function or command table`)
+```js
+const { main } = r[1]
+if (!isMain(main)) {
+    return errorExit(`${file}: not a program — no exported \`main\` function or command table`)
+}
+return dispatch(main)({ ...options, args })
 ```
 
 ### Convention: `export const main`
@@ -135,10 +137,11 @@ A module intended to be run with `fjs run` must export a named `main` constant
 of type `Main` (from [`cli/types.ts`](cli/types.ts)): either a `NodeProgram`
 or a `Commands` table. A program is the simple case:
 
-```ts
-import type { NodeProgram } from '../effects/node/types.ts'
+```js
+/** @import { NodeProgram } from '../effects/node/types.ts' */
 
-export const main: NodeProgram = options => {
+/** @type {NodeProgram} */
+export const main = options => {
     // options.args — command-line arguments passed after the module path
     ...
 }
@@ -148,11 +151,14 @@ A module whose interface is a set of subcommands exports the table itself, and
 `fjs run` routes the first argument to the command it names, with `help`
 listing them — no `dispatch` wrapper needed:
 
-```ts
-import type { NodeOp } from '../effects/node/types.ts'
-import type { Commands } from '../cli/types.ts'
+```js
+/**
+ * @import { NodeOp } from '../effects/node/types.ts'
+ * @import { Commands } from '../cli/types.ts'
+ */
 
-export const main: Commands<NodeOp> = [
+/** @type {Commands<NodeOp>} */
+export const main = [
     { names: ['hello'], description: 'Say hello', handler: options => { ... } },
 ]
 ```
@@ -185,5 +191,5 @@ fjs run ./my-tool.f.mjs hello foo bar   # hello's options.args === ['foo', 'bar'
 ```
 fjs/module.mjs         — Node.js entry point (runs main via the node runner)
 fjs/module.f.mjs       — FunctionalScript command dispatcher (Commands list + dispatch)
-fjs/cli/module.f.mjs   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
+fjs/cli/module.f.js   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
 ```
