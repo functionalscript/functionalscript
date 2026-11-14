@@ -139,12 +139,6 @@ const intExpr = (rnd, names, depth) => {
 }
 
 /**
- * Sample inputs for a typed signature: a few edges of each parameter, not
- * the full product, so a run of hundreds of programs stays short.
- *
- * @type {(params: readonly (readonly [string, Type])[], rnd: _Rnd) => readonly (readonly _Value[])[]}
- */
-/**
  * Values distinct by `Object.is`, so `0` and `-0` both stay. `Set` would
  * merge them under SameValueZero.
  *
@@ -152,6 +146,12 @@ const intExpr = (rnd, names, depth) => {
  */
 const distinct = xs => xs.filter((x, i) => xs.findIndex(y => Object.is(y, x)) === i)
 
+/**
+ * Sample inputs for a typed signature: a few edges of each parameter, not
+ * the full product, so a run of hundreds of programs stays short.
+ *
+ * @type {(params: readonly (readonly [string, Type])[], rnd: _Rnd) => readonly (readonly _Value[])[]}
+ */
 const typedInputs = (params, rnd) => {
     const lists = params.map(([, t]) => {
         const all = edges(t)
