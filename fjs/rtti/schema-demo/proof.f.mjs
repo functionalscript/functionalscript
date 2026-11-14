@@ -304,23 +304,33 @@ const demoProof = /** @type {const} */ ({
         // A recursive schema prints its definition as a `type` alias first.
         recursive: () => {
             const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
-            assertEq(toText(o.ts), 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
-            assert(toText(o.jsonSchema).includes('"$defs":{"tree":'), JSON.stringify(o.jsonSchema))
+            assertEq(toText(o.ts), 'type T0 = {readonly"children":readonly(T0)[],readonly"value":number}\nT0')
+            assert(toText(o.jsonSchema).includes('"$defs":{"0":'), JSON.stringify(o.jsonSchema))
             // the alias is marked: `type` a keyword, its name an identifier
-            assertEq(JSON.stringify(o.ts.slice(0, 3)), JSON.stringify([['type', 'keyword'], [' '], ['tree', 'identifier']]))
+            assertEq(JSON.stringify(o.ts.slice(0, 3)), JSON.stringify([['type', 'keyword'], [' '], ['T0', 'identifier']]))
         },
     },
     // The comparison's five verdicts.
     compare: {
         same: () => assertEq(_compare(or(true, false), or(false, true)).verdict, 'One set: the two schemas have one canonical form.'),
-        // Two recursive schemas that differ only in their names: one set,
-        // two canonical forms, which `subset` sees through and `equal` does not.
-        spelled: () => {
+        // Function names do not affect the canonical ordinal rule labels.
+        renamed: () => {
             /** @type {import('../types.ts').Type} */
             const a = () => ['array', a]
             /** @type {import('../types.ts').Type} */
             const b = () => ['array', b]
             const c = _compare(a, b)
+            assertEq(c.verdict, 'One set: the two schemas have one canonical form.')
+            assertEq(c.calls, 'equal → true\nsubset(this)(that) → true\nsubset(that)(this) → true')
+        },
+        // Reversing distinct recursive shapes changes their ordinal labels,
+        // while both unions still describe the same set.
+        spelled: () => {
+            /** @type {import('../types.ts').Type} */
+            const a = () => ['array', a]
+            /** @type {import('../types.ts').Type} */
+            const b = () => ['record', b]
+            const c = _compare(or(a, b), or(b, a))
             assertEq(c.verdict, 'One set, spelled two ways: each schema includes the other.')
             assertEq(c.calls, 'equal → false\nsubset(this)(that) → true\nsubset(that)(this) → true')
         },
