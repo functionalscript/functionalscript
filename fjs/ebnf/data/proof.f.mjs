@@ -367,7 +367,7 @@ export const proof = {
         inferredNamesDoNotAffectIds: () => {
             const first = () => /** @type {const} */ (['const', ['x', 'y']])
             const renamed = () => /** @type {const} */ (['const', ['x', 'y']])
-            const object = { property: () => /** @type {const} */ (['const', ['x', 'y']]) }
+            const object = /** @type {const} */ ({ property: () => /** @type {const} */ (['const', ['x', 'y']]) })
             const [expected, expectedEntry] = toData(first)
             for (const rule of [renamed, object.property]) {
                 const [ruleSet, entry, names] = toData(rule)
