@@ -8,14 +8,15 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first five and the first PR of the sixth: typed
+This directory holds the first five and the first PRs of the sixth: typed
 code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
 module does not export, with records and
-[L1's native rows](./native/module.f.js), and owned values written by hand
-(6a). Next is the rest of counted values (`typeOf`), as stacked PRs in that
-roadmap, the lifetime pass first.
+[L1's native rows](./native/module.f.js), owned values written by hand
+(6a), and the lifetime pass, which writes them (6b). Next is the rest of
+counted values (`typeOf`), as stacked PRs in that roadmap, the lowering of
+the L0 view's functions that answer owned values first.
 
 ## Map of this directory
 
@@ -25,6 +26,7 @@ roadmap, the lifetime pass first.
 |[`.`](./module.f.js)                     |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.js)           |the checker: a type for every term, or the module refused with a reason|
 |[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path    |
+|[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
@@ -128,12 +130,31 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   run on every module that the checker takes: each owned value is consumed
   once on every path, no borrow outlives the owned value that it leans on,
   the arms of a `match` and the exits of a `block` agree, and a loop owns
-  or borrows each parameter as its first value is. A person writes the
-  owned stage until the lifetime pass does.
+  or borrows each parameter as its first value is. A person may write the
+  owned stage, as its proofs do; [the lifetime pass](./lifetime/module.f.js)
+  writes it from the plain stage (6b).
 - **A host that counts** ([`l0/host/count`](./l0/host/count/module.mjs)):
   `dup` and `drop` count a cell, and `from_unit` and `concat` make one.
   Every host proof of the emitter runs on it, and each call that completes
   must leave its arguments' cells as it found them, and no other.
+
+## What 6b adds
+
+- **The lifetime pass** ([`lifetime`](./lifetime/module.f.js)): a module's
+  plain stage, which reads a value of a sealed type as often as it needs
+  and neither copies nor drops one, to its owned stage. A local moves at
+  its last use where its context takes the value over, any other such use
+  is a `dup`, and what a scope still owns is dropped where it ends, after
+  its value. A temporary that a call or a `match` only borrows gets a name
+  first, so that something drops it. Inside a `block` or a `loop` the
+  locals around it are lent, and a `br` drops what the regions that it
+  leaves own. The checker then checks the owned stage that the pass wrote,
+  so a mistake of the pass is a refusal, never a leak; `checkPlain` is the
+  checker without that check, which the pass starts from.
+- **Owned results on the host**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)
+  reads a value of `any` that a function answers, compares it with the
+  twin's, and drops it before it counts the cells, so a host proof may run
+  a function that answers a string.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
@@ -146,7 +167,8 @@ module does not import, a range wider than a word, a division of integers,
 integers mixed with floats, a term of type `never` where a value is used, a
 literal of a sealed type, an `own` parameter of a type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
-whose owned stage does not consume each owned value once on every path,
+whose owned stage does not consume each owned value once on every path, a
+value of a linear type that the lifetime pass would have to copy or drop,
 an interface that names a type or a function twice, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of
 anything but one float, or without the range that it saturates to.

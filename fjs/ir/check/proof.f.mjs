@@ -2,7 +2,7 @@
  * @import { Interface, Module, Param, Term, Type } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, cast, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
@@ -11,7 +11,7 @@ import {
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
 import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { check, typeOf } from './module.f.js'
+import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
 const one = (params, result, body) => ({ imports: [], functions: [['f', fn(params, result, body)]], exports: [] })
@@ -222,9 +222,12 @@ export const proof = {
         assertEq(imports, unknown.imports)
         assertEq(functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '),
             'toBoolean: bool, kindOf: int(0, 8), isNumber: bool, size: u(31), tag: int(0, 8), number: f64c, fail: never, falsy: bool')
-        // `else` is written out as the kinds it takes.
-        const [, , arms] = /** @type {readonly ['match', unknown, readonly (readonly [readonly string[], unknown, unknown])[]]} */ (functions[0][1].body[1])
+        // `else` is written out as the kinds it takes, and each arm keeps the variants as the term wrote them.
+        const [, body] = functions[0][1].body
+        assert(body[0] === 'match')
+        const [, , arms] = body
         assertEq(arms.map(([vs]) => vs.join(' | ')).join(', '), 'boolean, number, string, bigint, array | object | function, undefined | null')
+        assertEq(arms.map(([, , , written]) => written === null ? 'else' : written.join(' | ')).join(', '), 'boolean, number, string, bigint, array | object | function, else')
     },
     sealed: () => {
         const v = get('v')
@@ -268,6 +271,12 @@ export const proof = {
         assertEq(why(overL0([...p, ['o', sealed('Other', 'x')]], f64, match(v, [[['number'], 'x', get('x')], [null, null, get('o')]]), [['Other', other]])),
             'f: match: its arms are any.only(number), x, which no one type holds')
         assertEq(why(overL0([['o', sealed('Other', 'x')]], f64, call('Any', 'kind', [get('o')]), [['Other', other]])), "f: Any.kind's v is any, not x")
+    },
+    // The plain stage reads a value of a sealed type as often as it needs: `checkPlain` types it, and `check` refuses what it leaves over.
+    plain: () => {
+        const m = overL0([['c', u(16)]], u(31), let_('s', call('String', 'from_unit', [get('c')]), s => call('String', 'length', [s])))
+        assertEq(show(assertOk(checkPlain(m)).functions[0][1].body[0]), 'u(31)')
+        assertEq(why(m), 'f: s is left over')
     },
     interfaces: () => {
         const t = sealed('Bad', 't')
