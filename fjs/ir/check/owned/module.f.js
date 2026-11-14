@@ -33,7 +33,9 @@
  *   alive before the loop.
  * - **A `match` lends its operand**, and the name of an arm is a borrow of
  *   it. A product holds borrows only, and no parameter of a loop is a
- *   product that holds a sealed value.
+ *   product that holds a sealed value. A product's borrow leans on every
+ *   field's roots together; projecting one field keeps that aggregate
+ *   ([todo](./todo/product-field-borrow-roots.md)).
  * - **A constant is a borrow that leans on nothing**, since nothing drops
  *   it, and its term gives it an owned value, as a function's body gives
  *   an owned result. So is a string literal, which the module makes once.
