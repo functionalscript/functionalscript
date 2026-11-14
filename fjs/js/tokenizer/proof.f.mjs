@@ -12,7 +12,7 @@ import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, tokensOf } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 

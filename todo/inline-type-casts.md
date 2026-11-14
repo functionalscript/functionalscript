@@ -190,9 +190,9 @@ is the way to refresh this file, not a partial edit.
 | `fjs/effects/memory/module.f.mjs` | 39 | `<T>(key: Key<T>) => Effect<MemRead, T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/memory/module.mjs` | 60 | `ToAsyncOperationMap<MemOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/memory/proof.mjs` | 28 | `import('../../types.ts').ToAsyncOperationMap<MemOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/effects/node/module.f.mjs` | 47 | `<O extends Operation, T>(...a: readonly Effect<O, T>[]) =>…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/effects/node/module.f.mjs` | 57 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/effects/node/module.f.mjs` | 186 | `<O extends Operation>(listener: RequestListener<O>) => Eff…` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
+| `fjs/effects/node/module.f.js` | 47 | `<O extends Operation, T>(...a: readonly Effect<O, T>[]) =>…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/effects/node/module.f.js` | 57 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/effects/node/module.f.js` | 186 | `<O extends Operation>(listener: RequestListener<O>) => Eff…` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
 | `fjs/effects/node/module.mjs` | 287 | `Erl<NodeOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/module.mjs` | 305 | `_Server` | reads an `unknown` the surrounding code has already established |
 | `fjs/effects/node/virtual/module.f.mjs` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |

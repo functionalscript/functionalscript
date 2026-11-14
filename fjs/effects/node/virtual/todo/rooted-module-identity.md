@@ -8,7 +8,7 @@
 This runner's root is its working directory: `readFile('/lib/d.mjs')` and
 `readFile('lib/d.mjs')` read the same stored file. Its module identity does not
 agree. `resolveFileModule` answers with
-[`lexicalFileModule`](../../module.f.mjs), whose identity is the resolved path
+[`lexicalFileModule`](../../module.f.js), whose identity is the resolved path
 normalized *as written*, leading `/` included, so an import of `/lib/d.mjs`
 and one of `./lib/d.mjs` are the identities `/lib/d.mjs` and `lib/d.mjs`. The
 compiler's module walk caches a module by its identity, so it loads and

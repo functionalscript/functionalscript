@@ -6,10 +6,10 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
-import { exitCode } from '../../effects/node/module.f.mjs'
+import { exitCode } from '../../effects/node/module.f.js'
 import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
 import { pureOk, step as ioStep } from '../../effects/module.f.js'
-import { readUtf8File } from '../../effects/node/module.f.mjs'
+import { readUtf8File } from '../../effects/node/module.f.js'
 import {
     defaultNodeProgramOptions,
     emptyState,

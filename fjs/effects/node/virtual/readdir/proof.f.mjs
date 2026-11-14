@@ -14,7 +14,7 @@ import { maxLengthBytes, msb } from '../../../../types/bit_vec/module.f.js'
 import { utf8 } from '../../../../text/module.f.js'
 import { parse } from '../../../../path/module.f.js'
 import { emptyState, virtualOperationMap } from '../module.f.mjs'
-import { _compareNames, _orderDirents } from './module.f.mjs'
+import { _compareNames, _orderDirents } from './module.f.js'
 
 /** @type {readonly []} */
 const file = []

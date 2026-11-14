@@ -74,7 +74,7 @@ import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
-import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
+import { errorSummary, isNotFound } from '../../effects/node/module.f.js'
 import { decodeText, encodeText, dialect, checkReferences, isHash, mapHashes } from '../../media/revision/module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
 

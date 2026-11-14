@@ -14,7 +14,7 @@ import { error, ok } from '../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
 import { assertIoMessage } from './testlib.f.js'
 import { demo, runWords } from './demo.f.mjs'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.

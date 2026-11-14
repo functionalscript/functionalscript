@@ -8,7 +8,7 @@
 
 import { _listing, _panes, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 

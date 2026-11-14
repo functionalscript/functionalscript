@@ -31,6 +31,7 @@ import { utf8ToString } from '../../text/utf8/module.f.js'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.js'
 import { error as resultError, ok } from '../../types/result/module.f.js'
@@ -48,7 +49,7 @@ import {
     compensateStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.js'
 import { normalize, parent } from '../../path/module.f.js'
-import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
+import { resolve as resolveImportPath } from '../../path/import/module.f.js'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
@@ -518,6 +519,55 @@ export const writeExclusiveUtf8File = (path, content) =>
 
 // writeBytes
 
+/**
+ * The largest byte a positional read may name. **Node's own limit, not a
+ * choice**: measured on Darwin with Node 23.11.0, `FileHandle.read` at this
+ * position answers nought bytes for a short file, and at one more it fails
+ * `ERR_OUT_OF_RANGE` — `must be >= -1 && <= 9007199254740991`. A runner that
+ * answered the plausible empty read for the second would hand a caller an
+ * end-of-file branch the host never takes.
+ *
+ * @type {number}
+ */
+export const maxOffset = Number.MAX_SAFE_INTEGER
+
+/**
+ * The refusal of a position no host names, or `null`: the offset half of
+ * {@link windowRefusal} and of {@link writeRefusal}, so a read and a write
+ * refuse the same offsets in the same words.
+ *
+ * @type {(offset: number) => Nullable<string>}
+ */
+const offsetRefusal = offset => {
+    if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
+    if (offset < 0) { return `Offset ${offset} is negative` }
+    if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
+    return null
+}
+
+/**
+ * The refusal a positional write of `size` bytes at `offset` deserves, or
+ * `null` for one every byte of which lands at a position a read may name.
+ *
+ * **Node does not draw this bound for a write; it ignores it.** Measured on
+ * Linux with Node 22.16.0 and again with 26.10.0, `FileHandle.write` at
+ * `2 ** 53`, and at `2 ** 64 - 1`, answers one byte written — at the
+ * descriptor's *cursor*, not at the position asked, so a file holding `[42]`
+ * holds `[7, 7]` after two such writes. Refusing here, before the host is
+ * asked, is what keeps a write from landing somewhere it did not name.
+ *
+ * The last byte, not the first, is the one bounded: a write that starts at a
+ * safe offset and runs past {@link maxOffset} would put bytes where no read
+ * can reach them. An empty write names no byte and is bounded only by its
+ * offset, as the native runner's `write_bytes` is.
+ *
+ * @type {(offset: number, size: bigint) => Nullable<string>}
+ */
+const writeRefusal = (offset, size) => offsetRefusal(offset)
+    ?? (BigInt(offset) + size > BigInt(maxOffset) + 1n
+        ? `Write of ${size} bytes at offset ${offset} exceeds maximum allowed offset of ${maxOffset}`
+        : null)
+
 const writeBytesOp = /** @type {Func<WriteBytes>} */ (do_('writeBytes'))
 
 /**
@@ -598,9 +648,9 @@ const chunkUnits = Math.floor(maxVecBytes / 3) - 1
 export const _pieces = units => s => {
     /** @type {(k: number) => number} */
     const cutAt = k => floorCodePointBoundary(s)(k * units)
-    return Array.from(
-        { length: max(1, Math.ceil(s.length / units)) },
-        (_, k) => s.slice(cutAt(k), cutAt(k + 1)))
+    const count = max(1, Math.ceil(s.length / units))
+    // A NaN count denotes no pieces, matching the original length coercion.
+    return generate(count || 0, k => s.slice(cutAt(k), cutAt(k + 1)))
 }
 
 /**
@@ -609,7 +659,7 @@ export const _pieces = units => s => {
  *
  * @type {(vs: readonly Vec[], i: number) => EffectList<WriteBytes, Vec, IoChannel>}
  */
-export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail: _vecList(vs, i + 1) } : undefined)
+export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[Number(i)], tail: _vecList(vs, i + 1) } : undefined)
 
 /**
  * Writes `chunks` to `path`, one after another, replacing what it held — the
@@ -692,9 +742,9 @@ export const readChunks = (source, bound) => {
     /**
      * What one answered chunk becomes: a refusal, the end, or a cell whose
      * tail continues from where this chunk actually reached.
-     * @type {(chunk: Vec, offset: number) => EffectList<any, Vec, IoChannel>}
+     * @type {(chunk: Vec, offset: number, tailAt: (offset: number) => EffectList<any, Vec, IoChannel>) => EffectList<any, Vec, IoChannel>}
      */
-    const cell = (chunk, offset) => {
+    const cell = (chunk, offset, tailAt) => {
         const bits = length(chunk)
         // A chunk that is not whole bytes is refused rather than rounded down.
         // `_ChunkSource`'s type permits one, and `bytesIn` would report a 1-bit
@@ -712,7 +762,7 @@ export const readChunks = (source, bound) => {
                 ? elEmpty()
                 : pureError(ioError({ message: `read ended at ${offset} of ${bound} bytes` }))
         }
-        return nonEmpty(chunk, loop(offset + got))
+        return nonEmpty(chunk, tailAt(offset + got))
     }
     /** @type {(offset: number) => EffectList<any, Vec, IoChannel>} */
     const loop = offset => {
@@ -724,7 +774,7 @@ export const readChunks = (source, bound) => {
         // the whole chain is constructed up front and a large bound overflows
         // the stack. That is the list representation's property, not this
         // loop's — every chunk source with a real host behind it is a command.
-        return ioStep(source(offset, min(maxVecBytes, remaining)), chunk => cell(chunk, offset))
+        return ioStep(source(offset, min(maxVecBytes, remaining)), chunk => cell(chunk, offset, loop))
     }
     return loop(0)
 }
@@ -745,17 +795,13 @@ export const close = do_('close')
 
 // The window a positional read names, read by both runners
 
-/**
- * The largest byte a positional read may name. **Node's own limit, not a
- * choice**: measured on Darwin with Node 23.11.0, `FileHandle.read` at this
- * position answers nought bytes for a short file, and at one more it fails
- * `ERR_OUT_OF_RANGE` — `must be >= -1 && <= 9007199254740991`. A runner that
- * answered the plausible empty read for the second would hand a caller an
- * end-of-file branch the host never takes.
- *
- * @type {number}
- */
-export const maxOffset = Number.MAX_SAFE_INTEGER
+/** @type {(size: number) => Nullable<string>} */
+const sizeRefusal = size => {
+    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
+    if (size < 0) { return `Chunk size ${size} is negative` }
+    if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
+    return null
+}
 
 /**
  * The refusal a positional read's `offset` and `size` deserve, or `null` for a
@@ -780,51 +826,6 @@ export const maxOffset = Number.MAX_SAFE_INTEGER
  */
 export const windowRefusal = (offset, size) =>
     offsetRefusal(offset) ?? sizeRefusal(size)
-
-/**
- * The refusal of a position no host names, or `null`: the offset half of
- * {@link windowRefusal} and of {@link writeRefusal}, so a read and a write
- * refuse the same offsets in the same words.
- *
- * @type {(offset: number) => Nullable<string>}
- */
-const offsetRefusal = offset => {
-    if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
-    if (offset < 0) { return `Offset ${offset} is negative` }
-    if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
-    return null
-}
-
-/** @type {(size: number) => Nullable<string>} */
-const sizeRefusal = size => {
-    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
-    if (size < 0) { return `Chunk size ${size} is negative` }
-    if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
-    return null
-}
-
-/**
- * The refusal a positional write of `size` bytes at `offset` deserves, or
- * `null` for one every byte of which lands at a position a read may name.
- *
- * **Node does not draw this bound for a write; it ignores it.** Measured on
- * Linux with Node 22.16.0 and again with 26.10.0, `FileHandle.write` at
- * `2 ** 53`, and at `2 ** 64 - 1`, answers one byte written — at the
- * descriptor's *cursor*, not at the position asked, so a file holding `[42]`
- * holds `[7, 7]` after two such writes. Refusing here, before the host is
- * asked, is what keeps a write from landing somewhere it did not name.
- *
- * The last byte, not the first, is the one bounded: a write that starts at a
- * safe offset and runs past {@link maxOffset} would put bytes where no read
- * can reach them. An empty write names no byte and is bounded only by its
- * offset, as the native runner's `write_bytes` is.
- *
- * @type {(offset: number, size: bigint) => Nullable<string>}
- */
-const writeRefusal = (offset, size) => offsetRefusal(offset)
-    ?? (BigInt(offset) + size > BigInt(maxOffset) + 1n
-        ? `Write of ${size} bytes at offset ${offset} exceeds maximum allowed offset of ${maxOffset}`
-        : null)
 
 /**
  * The refusal `readFile` gives a file of `size` bytes at `path`, or `null` for a
@@ -976,6 +977,18 @@ export const declaredLength = headers => {
 export const carriesNoBody = (method, status) =>
     method === 'HEAD' || status === 204 || status === 304 || (status >= 100 && status <= 199)
 
+/** @type {_FramingHeader} */
+const framingHeader = ['framingHeader']
+
+/** @type {_NoBody} */
+const noBody = ['noBody']
+
+/** @type {_Unframed} */
+const unframed = ['unframed']
+
+/** @type {_DoubledLength} */
+const doubledLength = ['doubledLength']
+
 /**
  * What a runner does with a response before it pulls a byte of the body — see
  * {@link _Gate} for the four gates and why their order is the design's rather
@@ -1008,18 +1021,6 @@ export const responseGate = (method, chunkedResponse, status, headers) => {
     if (headerCount(headers, 'content-length') > 1) { return doubledLength }
     return ['pump', declared]
 }
-
-/** @type {_FramingHeader} */
-const framingHeader = ['framingHeader']
-
-/** @type {_NoBody} */
-const noBody = ['noBody']
-
-/** @type {_Unframed} */
-const unframed = ['unframed']
-
-/** @type {_DoubledLength} */
-const doubledLength = ['doubledLength']
 
 /**
  * The status a runner refuses a response it cannot frame with, and the three

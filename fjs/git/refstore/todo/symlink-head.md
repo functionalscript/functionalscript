@@ -128,7 +128,7 @@ together.
 
 ### Proposal
 
-- A `readlink` operation in [`fjs/effects/node`](../../../effects/node/module.f.mjs),
+- A `readlink` operation in [`fjs/effects/node`](../../../effects/node/module.f.js),
   answering the link's target as text — or `lstat`, which answers the kind
   without following. Node has both; nothing in this repository asks for either
   yet.

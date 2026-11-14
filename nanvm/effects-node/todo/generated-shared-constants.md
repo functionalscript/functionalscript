@@ -6,11 +6,11 @@
 ### Problem
 
 The native runner carries hand-written copies of values
-[`fjs/effects/node/module.f.mjs`](../../../fjs/effects/node/module.f.mjs)
+[`fjs/effects/node/module.f.js`](../../../fjs/effects/node/module.f.js)
 exports, each with a doc comment pointing back at its original:
 
 ```rust
-/// `maxOffset` in `fjs/effects/node/module.f.mjs`: `Number.MAX_SAFE_INTEGER`.
+/// `maxOffset` in `fjs/effects/node/module.f.js`: `Number.MAX_SAFE_INTEGER`.
 const MAX_OFFSET: u64 = (1 << 53) - 1;
 ```
 

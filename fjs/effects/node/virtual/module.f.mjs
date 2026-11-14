@@ -26,11 +26,11 @@ import {
     badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, lexicalFileModule, nodeCommands,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, windowRefusal,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { partialRun } from '../../mock/module.f.js'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.js'
 import { asBase, asNominal } from '../../../types/nominal/module.f.js'
-import { _compareNames } from './readdir/module.f.mjs'
+import { _compareNames } from './readdir/module.f.js'
 
 /** @type {State} */
 export const emptyState = {
@@ -1012,7 +1012,7 @@ const openFile = (state, handle) => {
  * write to that same file does reach the handle now, as it does on a host, and the
  * bound holds either way: a file that grew is read to the declared length and
  * framed by it, and one that shrank ends a read early, which `readChunks`
- * ([`../module.f.mjs`](../module.f.mjs)) fails the cell for rather than ending the
+ * ([`../module.f.js`](../module.f.js)) fails the cell for rather than ending the
  * body short. Nothing in this tree writes to a file it holds open; a program that
  * did would meet a host's own read-while-write race here too, which is the point
  * of modelling it.
@@ -1089,7 +1089,7 @@ const ephemeral = 0
  * The chunks from the first one that has bits, the ones before it dropped.
  *
  * **No bytes is how a pull says *end***: `readChunks` ends an unbounded stream
- * at an empty answer ([`../module.f.mjs`](../module.f.mjs)), so a chunk of no
+ * at an empty answer ([`../module.f.js`](../module.f.js)), so a chunk of no
  * bytes cannot be handed to a listener as a chunk. The Node runner's reader
  * steps over one for that reason — Node's parser owes nobody a promise to keep
  * an empty chunk out of a body — and a fixture chunk with no bits is that
@@ -1129,7 +1129,7 @@ const fromFirstWithBits = rest => {
  * from the next one in the fixture.
  *
  * **A chunk the stream will not take stays where it is.** `readChunks` refuses
- * one that is not whole bytes ([`../module.f.mjs`](../module.f.mjs)) and says
+ * one that is not whole bytes ([`../module.f.js`](../module.f.js)) and says
  * how many bits it had, and a listener may catch that refusal and pull the same
  * cell again. Handed out and dropped, such a chunk left the cursor moved while
  * its nought bytes left the offset alone, so the retry named an offset that

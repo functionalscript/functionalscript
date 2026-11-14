@@ -9,7 +9,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, codePoints } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 

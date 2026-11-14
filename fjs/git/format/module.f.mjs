@@ -20,7 +20,7 @@
  */
 
 import { mapStep } from '../../effects/module.f.js'
-import { readUtf8File } from '../../effects/node/module.f.mjs'
+import { readUtf8File } from '../../effects/node/module.f.js'
 import { under } from '../../path/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { map } from '../../types/nullable/module.f.js'

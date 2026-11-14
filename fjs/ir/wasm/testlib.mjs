@@ -25,9 +25,9 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { write } from '../../media/wasm/binary/write/module.f.mjs'
 import { check } from '../check/module.f.mjs'
 import { host } from '../l0/host/module.f.js'
-import { fits } from '../module.f.mjs'
+import { fits } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.f.js'
-import { emit } from './module.f.mjs'
+import { emit } from './module.f.js'
 
 /** @type {(v: _Value) => v is _Any} */
 const isAny = v => typeof v === 'object'

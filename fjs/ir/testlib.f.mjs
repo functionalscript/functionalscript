@@ -1,6 +1,6 @@
 /**
  * Modules that the proofs under `fjs/ir` share, written by hand in the
- * constructors of [`module.f.mjs`](./module.f.mjs): `samples`, functions
+ * constructors of [`module.f.js`](./module.f.js): `samples`, functions
  * of the kind that the first slice is for, among them one for each integer
  * instruction that the emitter writes, `corners`, the forms that the
  * emitter handles once each, `unknown`, functions over values of unknown
@@ -15,12 +15,12 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, l0 } from './l0/module.f.mjs'
+import { any, l0 } from './l0/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
     let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, product, return_, sqrt, sub, trap, true_,
     trunc_sat, u, unit, variant,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
 const far = 1n << 40n

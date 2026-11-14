@@ -16,7 +16,7 @@ import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { conditional } from '../../edag/testlib.f.js'
 
 /** The shared examples the Rust output refuses: the two the front end does, and the imports it has no file set for. */

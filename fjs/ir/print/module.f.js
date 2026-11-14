@@ -27,7 +27,7 @@
  * @import { ArmOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
  */
 
-import { bool, equal, never, unit } from '../module.f.mjs'
+import { bool, equal, never, unit } from '../module.f.js'
 
 // types
 
@@ -42,8 +42,8 @@ const showInt = ([, lo, hi]) => {
         : `int(${lo}, ${hi})`
 }
 
-/** @type {(parts: Parts) => string} */
-const showParts = parts => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
+/** @type {(show: (t: Type) => string, parts: Parts) => string} */
+const showParts = (show, parts) => parts.map(([name, t]) => `${name}: ${show(t)}`).join(', ')
 
 /** A sealed type by its name, and the variants it keeps where it keeps some: `any`, `any.only(number)`. @type {(t: Sealed) => string} */
 const showSealed = ([, , name, only]) => only === null ? name : `${name}.only(${only.join(', ')})`
@@ -59,9 +59,9 @@ export const show = t => {
     switch (t[0]) {
         case 'int': { return showInt(t) }
         case 'f64': case 'f64c': { return t[0] }
-        case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(t[1])} }` }
+        case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(show, t[1])} }` }
         case 'sealed': { return showSealed(t) }
-        default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(t[1])} })` }
+        default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(show, t[1])} })` }
     }
 }
 
@@ -85,11 +85,23 @@ const showLit = (type, value) => {
     return plain ? text : `${text} as ${show(type)}`
 }
 
+/** @type {(module: string, name: string) => string} */
+const callee = (module, name) => module === 'self' ? name : `${module}.${name}`
+
+/** @type {(label: string) => string} */
+const transfer = label => label === 'return' ? 'return' : `br ${label}`
+
+/** Whether a `match` is an `if_`: its arms are `true`, then `false`, and name nothing. @type {(arms: readonly ArmOf<Term>[]) => boolean} */
+const isIf = arms => equal(arms.map(([variants, binder]) => [variants, binder]), [[['true'], null], [['false'], null]])
+
 /** A trap's reason, quoted: `trap('not number')`. @type {(reason: string) => string} */
 const showTrap = reason => {
     const quoted = [...reason].map(c => c === "'" || c === '\\' ? `\\${c}` : c).join('')
     return `trap('${quoted}')`
 }
+
+/** The range that `trunc_sat` saturates to, as the first of its parts, and nothing for any other operator. @type {(t: Int | undefined) => readonly string[]} */
+const target = t => t === undefined ? [] : [show(t)]
 
 /**
  * A term on one line, or `null` where a part of it needs lines of its own:
@@ -136,37 +148,8 @@ const flat = t => {
     }
 }
 
-/** The range that `trunc_sat` saturates to, as the first of its parts, and nothing for any other operator. @type {(t: Int | undefined) => readonly string[]} */
-const target = t => t === undefined ? [] : [show(t)]
-
-/**
- * A loop's parameters, each with its type and its first value: on the line
- * of the label where every first value fits there, else a parameter to a
- * line, and a first value that needs lines below it.
- *
- * @type {(pad: string, label: string, params: readonly (readonly [string, Type, Term])[]) => readonly string[]}
- */
-const loopHead = (pad, label, params) => {
-    const heads = params.map(([k, x]) => `${k}: ${show(x)} =`)
-    const firsts = params.map(([, , first]) => flat(first))
-    return !firsts.includes(null) ? [`${pad}loop ${label} (${heads.map((h, j) => `${h} ${firsts[j]}`).join(', ')})`] : [
-        `${pad}loop ${label} (`,
-        ...params.flatMap(([, , first], j) => comma(headed(`${pad}    `, heads[j], first), j < params.length - 1)),
-        `${pad})`,
-    ]
-}
-
-/** @type {(module: string, name: string) => string} */
-const callee = (module, name) => module === 'self' ? name : `${module}.${name}`
-
-/** @type {(label: string) => string} */
-const transfer = label => label === 'return' ? 'return' : `br ${label}`
-
-/** Whether a `match` is an `if_`: its arms are `true`, then `false`, and name nothing. @type {(arms: readonly ArmOf<Term>[]) => boolean} */
-const isIf = arms => equal(arms.map(([variants, binder]) => [variants, binder]), [[['true'], null], [['false'], null]])
-
-/** A head, then a term: on the same line where it fits there, else on lines of their own below. @type {(pad: string, head: string, x: Term) => readonly string[]} */
-const headed = (pad, head, x) => {
+/** A head, then a term: on the same line where it fits there, else on lines of their own below. @type {(lines: (t: Term, pad: string) => readonly string[], pad: string, head: string, x: Term) => readonly string[]} */
+const headed = (lines, pad, head, x) => {
     const text = flat(x)
     return text === null ? [`${pad}${head}`, ...lines(x, `${pad}    `)] : [`${pad}${head} ${text}`]
 }
@@ -174,11 +157,28 @@ const headed = (pad, head, x) => {
 /** Lines, with a comma after the last where more follows. @type {(ls: readonly string[], more: boolean) => readonly string[]} */
 const comma = (ls, more) => more ? [...ls.slice(0, -1), `${ls.at(-1)},`] : ls
 
+/**
+ * A loop's parameters, each with its type and its first value: on the line
+ * of the label where every first value fits there, else a parameter to a
+ * line, and a first value that needs lines below it.
+ *
+ * @type {(lines: (t: Term, pad: string) => readonly string[], pad: string, label: string, params: readonly (readonly [string, Type, Term])[]) => readonly string[]}
+ */
+const loopHead = (lines, pad, label, params) => {
+    const heads = params.map(([k, x]) => `${k}: ${show(x)} =`)
+    const firsts = params.map(([, , first]) => flat(first))
+    return !firsts.includes(null) ? [`${pad}loop ${label} (${heads.map((h, j) => `${h} ${firsts[Number(j)]}`).join(', ')})`] : [
+        `${pad}loop ${label} (`,
+        ...params.flatMap(([, , first], j) => comma(headed(lines, `${pad}    `, heads[Number(j)], first), j < params.length - 1)),
+        `${pad})`,
+    ]
+}
+
 /** @type {(t: Term, pad: string) => readonly string[]} */
 const lines = (t, pad) => {
     const inner = `${pad}    `
     /** @type {(head: string, x: Term) => readonly string[]} */
-    const after = (head, x) => headed(pad, head, x)
+    const after = (head, x) => headed(lines, pad, head, x)
     /** An application on one line, or its parts on lines of their own, separated by commas. @type {(head: string, parts: readonly Term[], lead?: readonly string[]) => readonly string[]} */
     const apply = (head, parts, lead = []) => {
         const texts = parts.map(flat)
@@ -202,7 +202,7 @@ const lines = (t, pad) => {
             const one = flat(t)
             return one !== null ? [`${pad}${one}`] : [
                 `${pad}{`,
-                ...t[1].flatMap(([k, x], j) => comma(headed(inner, `${k}:`, x), j < t[1].length - 1)),
+                ...t[1].flatMap(([k, x], j) => comma(headed(lines, inner, `${k}:`, x), j < t[1].length - 1)),
                 `${pad}}`,
             ]
         }
@@ -224,7 +224,7 @@ const lines = (t, pad) => {
             ])]
         }
         case 'block': { return [`${pad}block ${t[1]}: ${show(t[2])}`, ...lines(t[3], inner)] }
-        case 'loop': { return [...loopHead(pad, t[1], t[2]), ...lines(t[3], inner)] }
+        case 'loop': { return [...loopHead(lines, pad, t[1], t[2]), ...lines(t[3], inner)] }
         case 'br': { return after(transfer(t[1]), t[2]) }
         default: { return [`${pad}${showTrap(t[1])}`] }
     }

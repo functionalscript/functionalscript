@@ -23,7 +23,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
-import { any } from '../l0/module.f.mjs'
+import { any } from '../l0/module.f.js'
 import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings } from './testlib.mjs'
 

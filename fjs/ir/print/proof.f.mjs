@@ -3,13 +3,13 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { any } from '../l0/module.f.mjs'
+import { any } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, trap, true_, trunc_sat, u, unit, variant,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { print, show } from './module.f.mjs'
+import { print, show } from './module.f.js'
 
 /** @type {Type} */
 const sumType = ['sum', [['a', unit], ['b', f64]]]

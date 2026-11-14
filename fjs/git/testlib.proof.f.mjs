@@ -14,7 +14,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
-import { isNotFound } from '../effects/node/module.f.mjs'
+import { isNotFound } from '../effects/node/module.f.js'
 import { hexBytes, latin1, noFile } from './testlib.f.js'
 
 export const proof = {

@@ -427,7 +427,7 @@ export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
  *
  * Chunks rather than one value for that ceiling's sake: each is a `Vec` and so
  * at most 128 KiB, and the file is however many of them it takes. The reader in
- * `fjs/effects/node/module.f.mjs` joins them into a byte list, which has no
+ * `fjs/effects/node/module.f.js` joins them into a byte list, which has no
  * bound at all.
  *
  * A path that is no regular file — a FIFO, a device — is refused rather than
@@ -603,7 +603,7 @@ export type RequestBody =
  * worth however many times it is asked for.
  *
  * No bytes means the end, as it does for {@link ReadBytes} read unbounded —
- * `readChunks` in [`./module.f.mjs`](./module.f.mjs) reads both the same way.
+ * `readChunks` in [`./module.f.js`](./module.f.js) reads both the same way.
  *
  * **So a runner never answers no bytes while the body still has some.** A chunk
  * of no bytes is something a source can produce with the stream still running:
@@ -738,7 +738,7 @@ export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effec
  * of the design**, because they overlap: a `HEAD` on a request Node will not
  * chunk, answered with a body whose size the listener does not know, satisfies
  * two of them at once. A runner asks them in the order `responseGate`
- * ([`./module.f.mjs`](./module.f.mjs)) answers in and acts on the first that
+ * ([`./module.f.js`](./module.f.js)) answers in and acts on the first that
  * fires. Both runners read that one function, or they disagree about a request
  * neither of them has any trouble with.
  *
@@ -858,7 +858,7 @@ export type Underrun = readonly['underrun', number]
 
 /**
  * What one pulled cell of a response body does to the pump — see `pumpCell`
- * ([`./module.f.mjs`](./module.f.mjs)).
+ * ([`./module.f.js`](./module.f.js)).
  *
  * @internal
  */

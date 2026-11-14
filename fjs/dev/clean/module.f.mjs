@@ -22,7 +22,7 @@
  */
 
 import { step } from '../../effects/module.f.js'
-import { allOk, exitStep, rm } from '../../effects/node/module.f.mjs'
+import { allOk, exitStep, rm } from '../../effects/node/module.f.js'
 import { isThirdParty, walk } from '../module.f.mjs'
 
 /** Whether a file or directory name marks it generated. @type {(name: string) => boolean} */

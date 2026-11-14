@@ -13,7 +13,7 @@
  *
  * **The stripes are the encoder's own.** Each bit's height — how many levels
  * close a word on it — comes from `updateWithHeight` and `endWithHeights`
- * ([`module.f.mjs`](./module.f.mjs)); the demo only draws them.
+ * ([`module.f.js`](./module.f.js)); the demo only draws them.
  *
  * **A hash level's symbol is raw or a hash.** It holds the bits it covers
  * inline while they fit in 253, and is a hash once they do not
@@ -51,7 +51,7 @@
  */
 
 import { withInputs } from '../website/demo/sharing/module.f.mjs'
-import { encode } from './module.f.mjs'
+import { encode } from './module.f.js'
 import { levels } from './level/literal/module.f.js'
 import { isHash, isHashLength, isRaw } from './id/module.f.js'
 import { byteChars } from '../website/demo/bits/module.f.mjs'

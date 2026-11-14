@@ -277,19 +277,101 @@ export const decodeObjectIdentifier = v => {
 // sequence
 
 /**
- * @param {(vec: readonly Vec[]) => readonly Vec[]} map
- * @return {(...records: Sequence) => Vec}
+ * @type {(encode: (record: Record) => Vec) => (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence) => Vec}
  */
-const genericEncodeSequence = map => (...records) =>
+const genericEncodeSequence = encode => map => (...records) =>
     listToVec(map(records.map(encode)))
+
+// codecs
+
+/** @type {<T extends _Tag>(tag: T) => `${T}`} */
+const key = tag => /** @type {const} */ (`${tag}`)
+
+/**
+ * A row of the codec table: `encode` turns a value into a payload, and
+ * `decode` turns a payload into the record tagged `tag`.
+ *
+ * @type {<T extends _Tag, V>(
+ *     tag: T,
+ *     encode: (value: V, encode: (record: Record) => Vec) => Vec,
+ *     decode: (v: Vec, decode: (v: Vec) => readonly [Record, Vec]) => V,
+ * ) => { readonly encode: (value: V, encode: (record: Record) => Vec) => Vec, readonly decode: (v: Vec, decode: (v: Vec) => readonly [Record, Vec]) => readonly[T, V] }}
+ */
+const codec = (tag, encode, decode) => ({ encode, decode: (v, recurse) => [tag, decode(v, recurse)] })
+
+/**
+ * The supported tags, one row each. `_Codecs` requires a row for every
+ * `SupportedRecord` and nothing else, so a tag can be neither encoded
+ * without being decoded nor decoded without being encoded.
+ *
+ * @type {_Codecs}
+ */
+const codecs = {
+    [key(boolean)]: codec(boolean, encodeBoolean, decodeBoolean),
+    [key(integer)]: codec(integer, encodeInteger, decodeInteger),
+    [key(octetString)]: codec(octetString, encodeOctetString, decodeOctetString),
+    [key(objectIdentifier)]: codec(objectIdentifier, encodeObjectIdentifier, decodeObjectIdentifier),
+    [key(constructedSequence)]: codec(constructedSequence,
+        (v, encode) => genericEncodeSequence(encode)(identity)(...v),
+        (v, decode) => decodeAll(decode)(v)),
+    [key(constructedSet)]: codec(constructedSet,
+        (v, encode) => genericEncodeSequence(encode)(items => items.toSorted((a, b) => msb.cmp(a)(b)))(...v),
+        (v, decode) => decodeAll(decode)(v)),
+}
+
+// encode
+
+/**
+ * Generic in the key, so that the row and the value are typed by the same
+ * `K`: indexed by a union of keys, `codecs` would offer a union of encoders,
+ * which no single value can be passed to.
+ *
+ * @template {keyof _Codecs} K
+ * @param {(record: Record) => Vec} encode
+ * @param {K} k
+ * @param {_Records[K][1]} value
+ * @returns {Vec}
+ */
+const encodeValue = (encode, k, value) => /** @type {_Codecs[K]} */ (entry(codecs, k)).encode(value, encode)
+
+/** @type {(encode: (record: Record) => Vec) => (_: SupportedRecord) => Vec} */
+const recordToRaw = encode => ([tag, value]) => encodeValue(encode, key(tag), value)
+
+/**
+ * Encodes a supported ASN.1 record as TLV.
+ *
+ * @type {(record: Record) => Vec}
+ */
+export const encode = record =>
+    isVec(record) ? record : encodeRaw([record[0], recordToRaw(encode)(record)])
+
+// decode
+
+/** @type {(decode: (v: Vec) => readonly [Record, Vec]) => (raw: Raw) => Record} */
+const rawToRecord = decode => raw => {
+    const [tag, value] = raw
+    const c = entry(/** @type {StringMap<_Codecs[keyof _Codecs]>} */ (codecs), key(tag))
+    return c === undefined ? encodeRaw(raw) : c.decode(value, decode)
+}
+
+/**
+ * Decodes one supported ASN.1 record and returns the remaining input.
+ *
+ * @type {(v: Vec) => readonly[Record, Vec]}
+ */
+export const decode = v => {
+    const [raw, rest] = decodeRaw(v)
+    return [rawToRecord(decode)(raw), rest]
+}
+
+// sequence
 
 /**
  * Encodes a SEQUENCE payload from ordered records.
  *
  * @type {(...records: Sequence) => Vec}
  */
-export const encodeSequence =
-    genericEncodeSequence(identity)
+export const encodeSequence = genericEncodeSequence(encode)(identity)
 
 /**
  * Decodes a SEQUENCE payload into records.
@@ -305,8 +387,7 @@ export const decodeSequence = v => decodeAll(decode)(v)
  *
  * @type {(...records: Sequence) => Vec}
  */
-export const encodeSet =
-    genericEncodeSequence(v => v.toSorted((a, b) => msb.cmp(a)(b)))
+export const encodeSet = genericEncodeSequence(encode)(v => v.toSorted((a, b) => msb.cmp(a)(b)))
 
 /**
  * Decodes a SET payload.
@@ -314,80 +395,6 @@ export const encodeSet =
  * @type {(v: Vec) => Sequence}
  */
 export const decodeSet = decodeSequence
-
-// codecs
-
-/** @type {<T extends _Tag>(tag: T) => `${T}`} */
-const key = tag => /** @type {const} */ (`${tag}`)
-
-/**
- * A row of the codec table: `encode` turns a value into a payload, and
- * `decode` turns a payload into the record tagged `tag`.
- *
- * @type {<T extends _Tag, V>(
- *     tag: T,
- *     encode: (value: V) => Vec,
- *     decode: (v: Vec) => V,
- * ) => { readonly encode: (value: V) => Vec, readonly decode: (v: Vec) => readonly[T, V] }}
- */
-const codec = (tag, encode, decode) => ({ encode, decode: v => [tag, decode(v)] })
-
-/**
- * The supported tags, one row each. `_Codecs` requires a row for every
- * `SupportedRecord` and nothing else, so a tag can be neither encoded
- * without being decoded nor decoded without being encoded.
- *
- * @type {_Codecs}
- */
-const codecs = {
-    [key(boolean)]: codec(boolean, encodeBoolean, decodeBoolean),
-    [key(integer)]: codec(integer, encodeInteger, decodeInteger),
-    [key(octetString)]: codec(octetString, encodeOctetString, decodeOctetString),
-    [key(objectIdentifier)]: codec(objectIdentifier, encodeObjectIdentifier, decodeObjectIdentifier),
-    [key(constructedSequence)]: codec(constructedSequence, v => encodeSequence(...v), decodeSequence),
-    [key(constructedSet)]: codec(constructedSet, v => encodeSet(...v), decodeSet),
-}
-
-// encode
-
-/**
- * Generic in the key, so that the row and the value are typed by the same
- * `K`: indexed by a union of keys, `codecs` would offer a union of encoders,
- * which no single value can be passed to.
- *
- * @type {<K extends keyof _Codecs>(k: K, value: _Records[K][1]) => Vec}
- */
-const encodeValue = (k, value) => codecs[k].encode(value)
-
-/** @type {(_: SupportedRecord) => Vec} */
-const recordToRaw = ([tag, value]) => encodeValue(key(tag), value)
-
-/**
- * Encodes a supported ASN.1 record as TLV.
- *
- * @type {(record: Record) => Vec}
- */
-export const encode = record =>
-    isVec(record) ? record : encodeRaw([record[0], recordToRaw(record)])
-
-// decode
-
-/** @type {(raw: Raw) => Record} */
-const rawToRecord = raw => {
-    const [tag, value] = raw
-    const c = entry(/** @type {StringMap<_Codecs[keyof _Codecs]>} */ (codecs), key(tag))
-    return c === undefined ? encodeRaw(raw) : c.decode(value)
-}
-
-/**
- * Decodes one supported ASN.1 record and returns the remaining input.
- *
- * @type {(v: Vec) => readonly[Record, Vec]}
- */
-export const decode = v => {
-    const [raw, rest] = decodeRaw(v)
-    return [rawToRecord(raw), rest]
-}
 
 /*
 TimeStampReq ::= SEQUENCE {

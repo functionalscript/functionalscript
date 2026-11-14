@@ -67,7 +67,7 @@ with `Operation` written into the declaration, so `Pr` erases nothing — the
 handler is handed the widest listener the type says it may be handed, and
 narrowing it to `NodeOp` is what the cast does. The `<O extends Operation>`
 signature it looks like it should have exists only on the effect constructor
-(`createServer` in `../node/module.f.mjs`), which is itself a cast.
+(`createServer` in `../node/module.f.js`), which is itself a cast.
 
 That makes it a third cause, needing its own answer: whether `CreateServer` can
 carry the listener's op-set instead of pinning `Operation`, and what the

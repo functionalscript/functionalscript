@@ -7,7 +7,7 @@ import {
     abs, add, block, bool, br, call, cast, compareIn, div, eq, equal, exact, f64, f64c, false_, fits, float, fn,
     get, i, if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, return_,
     sealed, signature, sqrt, sub, trap, true_, trunc_sat, u, unit, variant,
-} from './module.f.mjs'
+} from './module.f.js'
 
 export const proof = {
     types: () => {

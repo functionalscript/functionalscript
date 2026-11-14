@@ -21,7 +21,7 @@
  *   wrap to 32 bits where the result's word is narrower. A word's arithmetic
  *   is modulo its size, and the checker's range of the result fits the
  *   result's word, so the bits are those of the exact result.
- * - **A comparison runs in the word that [`compareIn`](../module.f.mjs)
+ * - **A comparison runs in the word that [`compareIn`](../module.f.js)
  *   picks**, signed where an operand may be negative.
  * - **A value widens where it meets a wider type**: where it is an operand,
  *   an argument or the value of a `br`, and where an arm or a body meets its
@@ -63,13 +63,13 @@
  * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
  * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedTerm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { _Callee, _Code, _Env, _Target } from './private.ts'
+ * @import { _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { bitsOf } from '../../media/rust/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { compareIn, equal, fits, i, never, u } from '../module.f.mjs'
+import { compareIn, equal, fits, i, never, u } from '../module.f.js'
 
 // values
 
@@ -180,21 +180,88 @@ const convert = t => width(t) === 32
     ? (signed(t) ? ['f64.convert_i32_s'] : ['f64.convert_i32_u'])
     : signed(t) ? ['f64.convert_i64_s'] : ['f64.convert_i64_u']
 
+// terms
+
+/** @type {(code: Expr) => _Code} */
+const just = code => ({ code, locals: [] })
+
+/**
+ * The values of a term of `from` on the stack as those of `to`, a type that
+ * holds it: each scalar widened to its own, through locals named `widen`
+ * where a product has more than one value and one of them is extended.
+ *
+ * @type {(env: _Env, from: Type, to: Type) => _Code}
+ */
+const widenAll = (env, from, to) => {
+    const wide = scalars('', to)
+    const each = scalars('', from).map(([, x], k) => widen(x, wide[Number(k)][1]))
+    if (each.length < 2 || each.every(x => x.length === 0)) { return just(each.flat()) }
+    const kept = localsOf(env.interfaces, 'widen', from)
+    return {
+        code: [...kept.map((_, k) => /** @type {Instruction} */ (['local.set', env.next + k])).toReversed(), ...each.flatMap((w, k) => [/** @type {Instruction} */ (['local.get', env.next + k]), ...w])],
+        locals: kept,
+    }
+}
+
+/**
+ * Terms in their order, each as a value of the type beside it by `value`,
+ * then `after`. Each term's locals follow those of the terms before it.
+ * `value` is `valueOf`, handed in since the two call each other.
+ *
+ * @type {(value: _ValueOf, emitTerm: _EmitTerm, env: _Env, parts: readonly (readonly [Typed, Type])[], after: Expr) => _Code}
+ */
+const sequenceBy = (value, emitTerm, env, parts, after) => {
+    const all = parts.reduce((done, [x, to]) => {
+        const c = value(emitTerm, env, done.locals.length, x, to)
+        return { code: [...done.code, ...c.code], locals: [...done.locals, ...c.locals] }
+    }, just([]))
+    return { code: [...all.code, ...after], locals: all.locals }
+}
+
+/**
+ * A term as a value of `to`, a type that holds the term's: a literal is
+ * written in `to`'s word, a `make` writes each field as a value of `to`'s,
+ * and any other term is widened to it. Its locals come after `taken` more.
+ *
+ * @type {_ValueOf}
+ */
+const valueOf = (emitTerm, env, taken, [type, t], to) => {
+    const here = { ...env, next: env.next + taken }
+    if (t[0] === 'lit') { return just([literal(to, t[2])]) }
+    if (t[0] === 'make') {
+        // The checker types a `make` as a product, which only a product of the same fields holds.
+        assert(to[0] === 'product', to)
+        const fields = to[1]
+        return sequenceBy(valueOf, emitTerm, here, t[1].map(([, x], j) => /** @type {const} */ ([x, fields[Number(j)][1]])), [])
+    }
+    const c = emitTerm(here, [type, t])
+    const w = widenAll({ ...here, next: here.next + c.locals.length }, type, to)
+    return { code: [...c.code, ...w.code], locals: [...c.locals, ...w.locals] }
+}
+
+/**
+ * Terms in their order, each as a value of the type beside it, then
+ * `after`. Each term's locals follow those of the terms before it.
+ *
+ * @type {(emitTerm: _EmitTerm, env: _Env, parts: readonly (readonly [Typed, Type])[], after: Expr) => _Code}
+ */
+const sequence = (emitTerm, env, parts, after) => sequenceBy(valueOf, emitTerm, env, parts, after)
+
 /**
  * `trunc_sat` of a float to `t`: the WASM truncation that saturates to the
  * word of `t`, read as `t` reads it, then a `select` through a local, named
  * `trunc_sat`, for each bound of `t` inside the word's.
  *
- * @type {(env: _Env, t: Int, x: Typed) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, t: Int, x: Typed) => _Code}
  */
-const truncSat = (env, t, x) => {
+const truncSat = (emitTerm, env, t, x) => {
     const bits = width(t)
     const isSigned = signed(t)
     const [, lo, hi] = isSigned ? i(bits) : u(bits)
     /** @type {Instruction} */
     const cut = bits === 32 ? (isSigned ? ['i32.trunc_sat_f64_s'] : ['i32.trunc_sat_f64_u'])
         : isSigned ? ['i64.trunc_sat_f64_s'] : ['i64.trunc_sat_f64_u']
-    const c = sequence(env, [[x, x[0]]], [cut])
+    const c = sequence(emitTerm, env, [[x, x[0]]], [cut])
     const slot = env.next + c.locals.length
     const less = integer('lt', bits, isSigned)
     /** `bound` where `beyond` holds of the value, else the value. @type {(bound: bigint, beyond: Expr) => Expr} */
@@ -212,86 +279,29 @@ const truncSat = (env, t, x) => {
  * An operator: its operands, each made a value of the word that it runs in,
  * then its instruction, and a wrap where its result's word is narrower.
  *
- * @type {(env: _Env, type: Type, name: OpName, args: readonly Typed[]) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, name: OpName, args: readonly Typed[]) => _Code}
  */
-const operator = (env, type, name, args) => {
+const operator = (emitTerm, env, type, name, args) => {
     if (name === 'trunc_sat') {
         // The checker types `trunc_sat` as the range that it saturates to.
         assert(type[0] === 'int', type)
-        return truncSat(env, type, args[0])
+        return truncSat(emitTerm, env, type, args[0])
     }
     const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))
-    if (ints.length === 0) { return sequence(env, own, [float(name)]) }
-    if (name === 'float') { return sequence(env, own, [convert(ints[0])]) }
+    if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
+    if (name === 'float') { return sequence(emitTerm, env, own, [convert(ints[0])]) }
     /** The operands as values of `bits`. @type {(bits: 32 | 64) => readonly (readonly [Typed, Type])[]} */
-    const inWord = bits => args.map((x, k) => [x, word(ints[k], bits)])
+    const inWord = bits => args.map((x, k) => [x, word(ints[Number(k)], bits)])
     if (name === 'eq' || name === 'lt' || name === 'le') {
         const { bits, signed: isSigned } = assertNotNullish(compareIn(ints[0], ints[1]))
-        return sequence(env, inWord(bits), [integer(name, bits, isSigned)])
+        return sequence(emitTerm, env, inWord(bits), [integer(name, bits, isSigned)])
     }
     const words = [type, ...ints].map(t => carrier(env.interfaces, t)[0])
     const bits = words.includes('i64') ? 64 : 32
     /** @type {Expr} */
     const wrap = bits === 64 && words[0] === 'i32' ? [['i32.wrap_i64']] : []
-    return sequence(env, inWord(bits), [integer(name, bits, false), ...wrap])
-}
-
-// terms
-
-/** @type {(code: Expr) => _Code} */
-const just = code => ({ code, locals: [] })
-
-/**
- * The values of a term of `from` on the stack as those of `to`, a type that
- * holds it: each scalar widened to its own, through locals named `widen`
- * where a product has more than one value and one of them is extended.
- *
- * @type {(env: _Env, from: Type, to: Type) => _Code}
- */
-const widenAll = (env, from, to) => {
-    const wide = scalars('', to)
-    const each = scalars('', from).map(([, x], k) => widen(x, wide[k][1]))
-    if (each.length < 2 || each.every(x => x.length === 0)) { return just(each.flat()) }
-    const kept = localsOf(env.interfaces, 'widen', from)
-    return {
-        code: [...kept.map((_, k) => /** @type {Instruction} */ (['local.set', env.next + k])).reverse(), ...each.flatMap((w, k) => [/** @type {Instruction} */ (['local.get', env.next + k]), ...w])],
-        locals: kept,
-    }
-}
-
-/**
- * A term as a value of `to`, a type that holds the term's: a literal is
- * written in `to`'s word, a `make` writes each field as a value of `to`'s,
- * and any other term is widened to it. Its locals come after `taken` more.
- *
- * @type {(env: _Env, taken: number, x: Typed, to: Type) => _Code}
- */
-const valueOf = (env, taken, [type, t], to) => {
-    const here = { ...env, next: env.next + taken }
-    if (t[0] === 'lit') { return just([literal(to, t[2])]) }
-    if (t[0] === 'make') {
-        // The checker types a `make` as a product, which only a product of the same fields holds.
-        assert(to[0] === 'product', to)
-        return sequence(here, t[1].map(([, x], j) => /** @type {const} */ ([x, to[1][j][1]])), [])
-    }
-    const c = term(here, [type, t])
-    const w = widenAll({ ...here, next: here.next + c.locals.length }, type, to)
-    return { code: [...c.code, ...w.code], locals: [...c.locals, ...w.locals] }
-}
-
-/**
- * Terms in their order, each as a value of the type beside it, then
- * `after`. Each term's locals follow those of the terms before it.
- *
- * @type {(env: _Env, parts: readonly (readonly [Typed, Type])[], after: Expr) => _Code}
- */
-const sequence = (env, parts, after) => {
-    const all = parts.reduce((done, [x, to]) => {
-        const c = valueOf(env, done.locals.length, x, to)
-        return { code: [...done.code, ...c.code], locals: [...done.locals, ...c.locals] }
-    }, just([]))
-    return { code: [...all.code, ...after], locals: all.locals }
+    return sequence(emitTerm, env, inWord(bits), [integer(name, bits, false), ...wrap])
 }
 
 /** @type {(env: _Env) => _Env} */
@@ -301,16 +311,16 @@ const deeper = env => ({ ...env, depth: env.depth + 1 })
 const labelled = (env, label, target) => setReplace(label)(/** @type {const} */ ([env.depth, target]))(env.labels)
 
 /** The values on the stack, the last on top, each into its parameter's locals, from the parameter's first. @type {(env: _Env, slots: readonly (readonly [number, Type])[]) => Expr} */
-const setAll = (env, slots) => slots.flatMap(([slot, t]) => carrier(env.interfaces, t).map((_, k) => /** @type {Instruction} */ (['local.set', slot + k]))).reverse()
+const setAll = (env, slots) => slots.flatMap(([slot, t]) => carrier(env.interfaces, t).map((_, k) => /** @type {Instruction} */ (['local.set', slot + k]))).toReversed()
 
 /**
  * A field of a product: of a local, its own locals; of any other term, the
  * term's values, the field's kept in locals named for it, where values come
  * before it, while the rest are dropped.
  *
- * @type {(env: _Env, type: Type, e: Typed, name: string) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, e: Typed, name: string) => _Code}
  */
-const fieldOf = (env, type, e, name) => {
+const fieldOf = (emitTerm, env, type, e, name) => {
     const [of, x] = e
     // The checker reads a field of a product only.
     assert(of[0] === 'product', of)
@@ -322,7 +332,7 @@ const fieldOf = (env, type, e, name) => {
         const index = own.length === 0 ? 0 : assertNotNullish(at(x[1])(env.locals))
         return just(own.map((_, j) => ['local.get', index + start + j]))
     }
-    const c = term(env, e)
+    const c = emitTerm(env, e)
     /** @type {Expr} */
     const later = all.slice(start + own.length).map(() => ['drop'])
     if (start === 0) { return { code: [...c.code, ...later], locals: c.locals } }
@@ -332,7 +342,7 @@ const fieldOf = (env, type, e, name) => {
     return {
         code: [
             ...c.code, ...later,
-            ...own.map((_, j) => /** @type {Instruction} */ (['local.set', slot + j])).reverse(),
+            ...own.map((_, j) => /** @type {Instruction} */ (['local.set', slot + j])).toReversed(),
             ...earlier,
             ...own.map((_, j) => /** @type {Instruction} */ (['local.get', slot + j])),
         ],
@@ -346,15 +356,15 @@ const fieldOf = (env, type, e, name) => {
  * the arms test more than one variant, the tag is read once, into a local
  * named for the operand: `v.kind`.
  *
- * @type {(env: _Env, type: Type, operand: Typed, arms: readonly (readonly [readonly string[], string | null, Typed])[]) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, operand: Typed, arms: readonly (readonly [readonly string[], string | null, Typed])[]) => _Code}
  */
-const sealedMatch = (env, type, operand, arms) => {
+const sealedMatch = (emitTerm, env, type, operand, arms) => {
     const [of, x] = operand
     const sealed = /** @type {Sealed} */ (of)
     const { variants, kind } = definition(env.interfaces, sealed)
     const [kindIndex] = assertNotNullish(at(kind)(assertNotNullish(at(sealed[1])(env.imports))))
     const here = x[0] === 'get' ? assertNotNullish(at(x[1])(env.locals)) : null
-    const c = here === null ? term(env, operand) : just([])
+    const c = here === null ? emitTerm(env, operand) : just([])
     const named = x[0] === 'get' ? x[1] : 'match'
     /** @type {_Code['locals']} */
     const kept = here === null ? [[named, carrier(env.interfaces, of)[0]]] : []
@@ -369,12 +379,12 @@ const sealedMatch = (env, type, operand, arms) => {
     const tag = tests > 1 ? [['local.get', tagSlot]] : readTag
     /** The arms from the `k`th on, as an `if` that tests the `k`th, whose `else` holds the rest. @type {(inner: _Env, k: number, taken: number) => _Code} */
     const chain = (inner, k, taken) => {
-        const [vs, binder, body] = arms[k]
+        const [vs, binder, body] = arms[Number(k)]
         const scoped = binder === null ? inner : { ...inner, locals: setReplace(binder)(slot)(inner.locals) }
-        if (k === arms.length - 1) { return valueOf(scoped, taken, body, type) }
+        if (k === arms.length - 1) { return valueOf(emitTerm, scoped, taken, body, type) }
         /** @type {Expr} */
         const test = vs.flatMap((v, j) => [...tag, ['i32.const', variants.indexOf(v)], ['i32.eq'], ...(j === 0 ? [] : [/** @type {Instruction} */ (['i32.or'])])])
-        const a = valueOf(deeper(scoped), taken, body, type)
+        const a = valueOf(emitTerm, deeper(scoped), taken, body, type)
         const b = chain(deeper(inner), k + 1, taken + a.locals.length)
         return { code: [...test, ['if', blockType(env, type)], ...a.code, ['else'], ...b.code, ['end']], locals: [...a.locals, ...b.locals] }
     }
@@ -389,7 +399,7 @@ const sealedMatch = (env, type, operand, arms) => {
     }
 }
 
-/** @type {(env: _Env, t: Typed) => _Code} */
+/** @type {_EmitTerm} */
 const term = (env, [type, t]) => {
     switch (t[0]) {
         case 'lit': { return just([literal(type, t[2])]) }
@@ -404,7 +414,7 @@ const term = (env, [type, t]) => {
             const v = term(env, value)
             const index = env.next + v.locals.length
             /** @type {Expr} */
-            const set = holds.map((_, k) => /** @type {Instruction} */ (['local.set', index + k])).reverse()
+            const set = holds.map((_, k) => /** @type {Instruction} */ (['local.set', index + k])).toReversed()
             const locals = holds.length === 0 ? env.locals : setReplace(name)(index)(env.locals)
             const b = term({ ...env, locals, next: index + holds.length }, body)
             return {
@@ -412,29 +422,29 @@ const term = (env, [type, t]) => {
                 locals: [...v.locals, ...holds, ...b.locals],
             }
         }
-        case 'op': { return operator(env, type, t[1], t[2]) }
+        case 'op': { return operator(term, env, type, t[1], t[2]) }
         case 'call': {
             const [, module, name, args] = t
             const [index, params] = assertNotNullish(at(name)(module === 'self' ? env.functions : assertNotNullish(at(module)(env.imports))))
-            return sequence(env, args.map((x, k) => [x, params[k]]), [['call', index], ...afterNever(type)])
+            return sequence(term, env, args.map((x, k) => [x, params[Number(k)]]), [['call', index], ...afterNever(type)])
         }
-        case 'make': { return sequence(env, t[1].map(([, x]) => /** @type {const} */ ([x, x[0]])), []) }
-        case 'field': { return fieldOf(env, type, t[1], t[2]) }
+        case 'make': { return sequence(term, env, t[1].map(([, x]) => /** @type {const} */ ([x, x[0]])), []) }
+        case 'field': { return fieldOf(term, env, type, t[1], t[2]) }
         case 'variant': {
             const [, sum, name, payload] = t
-            return sequence(env, [[payload, payload[0]]], [['i32.const', sum[1].findIndex(([k]) => k === name)]])
+            return sequence(term, env, [[payload, payload[0]]], [['i32.const', sum[1].findIndex(([k]) => k === name)]])
         }
         case 'match': {
             const [, operand, arms] = t
-            if (operand[0][0] === 'sealed') { return sealedMatch(env, type, operand, arms) }
+            if (operand[0][0] === 'sealed') { return sealedMatch(term, env, type, operand, arms) }
             const c = term(env, operand)
             if (arms.length === 1) {
-                const b = valueOf(env, c.locals.length, arms[0][2], type)
+                const b = valueOf(term, env, c.locals.length, arms[0][2], type)
                 return { code: [...c.code, ['drop'], ...b.code], locals: [...c.locals, ...b.locals] }
             }
             const [[, , yes], [, , no]] = arms[0][0].includes('true') ? arms : [arms[1], arms[0]]
-            const a = valueOf(deeper(env), c.locals.length, yes, type)
-            const b = valueOf(deeper(env), c.locals.length + a.locals.length, no, type)
+            const a = valueOf(term, deeper(env), c.locals.length, yes, type)
+            const b = valueOf(term, deeper(env), c.locals.length + a.locals.length, no, type)
             return {
                 code: [...c.code, ['if', blockType(env, type)], ...a.code, ['else'], ...b.code, ['end'], ...afterNever(type)],
                 locals: [...c.locals, ...a.locals, ...b.locals],
@@ -442,19 +452,19 @@ const term = (env, [type, t]) => {
         }
         case 'block': {
             const [, label, , body] = t
-            const b = valueOf(deeper({ ...env, labels: labelled(env, label, ['block', type]) }), 0, body, type)
+            const b = valueOf(term, deeper({ ...env, labels: labelled(env, label, ['block', type]) }), 0, body, type)
             return { code: [['block', blockType(env, type)], ...b.code, ['end'], ...afterNever(type)], locals: b.locals }
         }
         case 'loop': {
             const [, label, params, body] = t
-            const firsts = sequence(env, params.map(([, x, first]) => /** @type {const} */ ([first, x])), [])
+            const firsts = sequence(term, env, params.map(([, x, first]) => /** @type {const} */ ([first, x])), [])
             const own = params.map(([k, x]) => localsOf(env.interfaces, k, x))
             const base = env.next + firsts.locals.length
             /** @type {readonly (readonly [number, Type])[]} */
             const slots = params.map(([, x], j) => [base + own.slice(0, j).flat().length, x])
-            const locals = params.reduce((ls, [k], j) => setReplace(k)(slots[j][0])(ls), env.locals)
+            const locals = params.reduce((ls, [k], j) => setReplace(k)(slots[Number(j)][0])(ls), env.locals)
             const inner = deeper({ ...env, locals, next: base + own.flat().length, labels: labelled(env, label, ['loop', slots]) })
-            const b = valueOf(inner, 0, body, type)
+            const b = valueOf(term, inner, 0, body, type)
             return {
                 code: [...firsts.code, ...setAll(env, slots), ['loop', blockType(env, type)], ...b.code, ['end'], ...afterNever(type)],
                 locals: [...firsts.locals, ...own.flat(), ...b.locals],
@@ -465,11 +475,11 @@ const term = (env, [type, t]) => {
             const [depth, target] = assertNotNullish(at(label)(env.labels))
             /** @type {Instruction} */
             const leave = label === 'return' ? ['return'] : ['br', env.depth - depth - 1]
-            if (target[0] === 'block') { return sequence(env, [[value, target[1]]], [leave]) }
+            if (target[0] === 'block') { return sequence(term, env, [[value, target[1]]], [leave]) }
             // The checker takes a `br` to a loop only with a `make` of the loop's parameters.
             const v = value[1]
             assert(v[0] === 'make', v)
-            return sequence(env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][j][1]])), [...setAll(env, target[1]), leave])
+            return sequence(term, env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][Number(j)][1]])), [...setAll(env, target[1]), leave])
         }
         default: { return just([['unreachable']]) }
     }
@@ -535,21 +545,21 @@ const callee = (index, { params }) => [index, params.map(([, t]) => t)]
  */
 export const emit = m => {
     const interfaces = fromEntries(m.imports)
-    const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([name, s]) => ({ module, abi, name, s })))
+    const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
         ...m.functions.map(([, f]) => signature(interfaces, f)),
         ...m.functions.flatMap(([, f]) => blockTypes(interfaces, f.body)),
     ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
-    const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[k])))
+    const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
     const imports = fromEntries(m.imports.map(([module]) => /** @type {const} */ ([
         module,
-        fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.name, callee(k, x.s)])] : [])),
+        fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
     ])))
     const own = imported.length
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
-    const codes = m.functions.map(([, { params, result, body }]) => valueOf({
+    const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
         locals: fromEntries(params.map(([name], k) => [name, k])),
         labels: setReplace('return')(/** @type {const} */ ([-1, ['block', result]]))(empty),
         depth: 0,
@@ -561,7 +571,7 @@ export const emit = m => {
     }, 0, body, result))
     return {
         types,
-        imports: imported.map(({ abi, name }, k) => ({ module: abi, name, desc: ['func', typeOf(k)] })),
+        imports: imported.map(({ abi, member }, k) => ({ module: abi, name: member, desc: ['func', typeOf(k)] })),
         functions: codes.map((c, k) => ({
             type: typeOf(own + k),
             locals: runs(c.locals.map(([, t]) => t)),
@@ -579,10 +589,10 @@ export const emit = m => {
             after: 'code',
             content: ['name', [
                 ['function', [
-                    ...imported.map(({ module, name }, k) => /** @type {const} */ ([k, `${module}.${name}`])),
+                    ...imported.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
                     ...m.functions.map(([name], k) => /** @type {const} */ ([own + k, name])),
                 ]],
-                ['local', m.functions.map(([, f], k) => [own + k, [...f.params.map(([name]) => name), ...codes[k].locals.map(([name]) => name)].map((name, j) => [j, name])])],
+                ['local', m.functions.map(([, f], k) => [own + k, [...f.params.map(([name]) => name), ...codes[Number(k)].locals.map(([name]) => name)].map((name, j) => [j, name])])],
             ]],
         }],
     }

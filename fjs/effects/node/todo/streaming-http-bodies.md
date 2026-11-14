@@ -58,7 +58,7 @@ request the files that cross it.
 ### Proposal
 
 The body is an `EffectList<O, Vec, IoChannel>` on both sides — the shape
-[`writeFromStream`](../module.f.mjs) already consumes and `fjs/cas`'s `read`
+[`writeFromStream`](../module.f.js) already consumes and `fjs/cas`'s `read`
 already produces. Reusing it is most of the design; what is left is one type
 change, a pump in each runner, and one question per side that the existing code
 does not already answer.
@@ -94,7 +94,7 @@ dominates:
 
 | | one inode | lazy |
 |---|---|---|
-| [`readChunks`](../module.f.mjs) over [`readBytes`](../module.mjs) | no — that operation opens the path once per chunk | yes |
+| [`readChunks`](../module.f.js) over [`readBytes`](../module.mjs) | no — that operation opens the path once per chunk | yes |
 | [`readWhole`](../module.mjs) | yes — one `open`, chunked to EOF | no, the whole file is materialized |
 | the handle effect (`open`, `fstat`, `pread`, `close`) | yes | yes |
 
@@ -270,7 +270,7 @@ that fails *after* the status has gone out has none.
 `streamFile` in [`../../../cas/module.f.mjs`](../../../cas/module.f.mjs) are the
 same `readBytes`-at-`chunkBytes` fold, ending the stream on an empty read — and
 `fjs/web` would be the third caller. That is the point at which it moves into
-[`../module.f.mjs`](../module.f.mjs) beside `writeFromStream`, as its mirror,
+[`../module.f.js`](../module.f.js) beside `writeFromStream`, as its mirror,
 rather than being written a third time
 ([DESIGN §4](../../../../doc/DESIGN.md#4-reuse-dry-and-separation-of-concerns)).
 
@@ -985,8 +985,8 @@ stream. So this side needed a new operation over a request-scoped handle — a
 over a `RequestBody` handle, answering the next bytes of the body and no bytes at
 its end. `readBytes`'s shape on purpose: it is what
 [`_ChunkSource`](../types.ts) asks for, so the body list is
-[`readChunks`](../module.f.mjs) unbounded rather than a second fold —
-`requestBody` in [`../module.f.mjs`](../module.f.mjs) is one line, both runners
+[`readChunks`](../module.f.js) unbounded rather than a second fold —
+`requestBody` in [`../module.f.js`](../module.f.js) is one line, both runners
 build the listener's body with it, and the empty-read-is-the-end convention is
 the one `fjs/cas` already reads by.
 
@@ -1074,7 +1074,7 @@ buffering half is what this stage answered.
 
 ### Tasks
 
-- [x] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
+- [x] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.js` beside
       `writeFromStream`, generic in the op-set its chunk source names, with its
       byte bound, its advance by the actual chunk length, its chunk source as a
       parameter rather than a path, and proof coverage, and read `cas` through
@@ -1097,7 +1097,7 @@ buffering half is what this stage answered.
       `RecordedResponse` with its `Overrun` and its `Underrun`, mirroring the
       gates, their order, the count, and the release. — The predicates both
       runners read are `headerValue`, `carriesNoBody` and `responseGate` in
-      [`../module.f.mjs`](../module.f.mjs), so the gate order is the design's and
+      [`../module.f.js`](../module.f.js), so the gate order is the design's and
       not each runner's, and `pumpCell` beside them decides each body cell for
       both, so the count is too; the Node runner's `recordClose`, `park`, `pumpBody` and
       `deliver` are in [`../module.mjs`](../module.mjs), and `release` runs in a
@@ -1160,7 +1160,7 @@ buffering half is what this stage answered.
       what an undrained body does. — [`ReadRequestBytes`](../types.ts),
       `(body, offset, size)` over a `RequestBody` handle, which is
       [`_ChunkSource`](../types.ts)'s shape, so the body list is
-      [`readChunks`](../module.f.mjs) unbounded rather than a second fold. Its
+      [`readChunks`](../module.f.js) unbounded rather than a second fold. Its
       `offset` is a claim about where the reader is rather than a place to seek
       to, and a mismatch is refused — which is also the answer to a second pull
       on a cell already read, where the next chunk handed over as the one already
@@ -1196,7 +1196,7 @@ for a method nobody serves costs nothing — and left the five-minute
 - [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) — waiting on
   nothing here since stage 2: an arbitrary-size `add` reads the request body as a
   stream, and a `get` writes the response body as one without holding the blob.
-- `fjs/effects/node/module.f.mjs` — `writeFromStream`, the chunk-list shape a
+- `fjs/effects/node/module.f.js` — `writeFromStream`, the chunk-list shape a
   streamed body should follow.
 - [`fjs/effects/list`](../../list/types.ts) — `EffectList`, why a failure belongs to
   the cell rather than to the item it would otherwise be carried beside, the cell

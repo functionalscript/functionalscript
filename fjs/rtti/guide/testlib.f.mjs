@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { _readersOf } from '../schema-demo/module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { validate } from '../validate/module.f.mjs'

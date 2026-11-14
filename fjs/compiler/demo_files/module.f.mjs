@@ -36,7 +36,7 @@
 import { error, ok } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { escapes, normalize, root } from '../../path/module.f.js'
-import { resolve, specifierKind } from '../../path/import/module.f.mjs'
+import { resolve, specifierKind } from '../../path/import/module.f.js'
 import { parse as parseJson, stringifySorted } from '../../media/json/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { utf8 } from '../../text/module.f.js'

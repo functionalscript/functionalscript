@@ -73,7 +73,7 @@ use the standalone combinators: `allOk(...)` returns a raw `Effect`, which has
 no `.step` method.
 
 **`allOk` moved with them**, which is what makes that placement work: an
-`allVoid` built on an `allOk` left in `fjs/effects/node/module.f.mjs` would have
+`allVoid` built on an `allOk` left in `fjs/effects/node/module.f.js` would have
 made the shared module import from `fjs/effects/node`, the inversion the
 lowering exists to remove. `allOk` belongs there by the layering issue's own
 test: it is `step(all(…), rs => pure(okList(rs)))`, concurrency plumbing with no

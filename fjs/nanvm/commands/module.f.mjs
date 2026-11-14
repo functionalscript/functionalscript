@@ -4,13 +4,13 @@
  * A native host answers `notImplemented` to a command of the declared set it
  * has no operation for, and refuses a command outside it, as `partialMatch`
  * does (`fjs/effects/module.f.js`). The set is
- * [`nodeCommands`](../../effects/node/module.f.mjs), so it is printed from
+ * [`nodeCommands`](../../effects/node/module.f.js), so it is printed from
  * there rather than written twice.
  *
  * @module
  */
 
-import { nodeCommands } from '../../effects/node/module.f.mjs'
+import { nodeCommands } from '../../effects/node/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
@@ -32,7 +32,7 @@ export const path = 'nanvm/effects-node/src/gen.commands.rs'
 export const generate = () => [
     generatedHeader(
         '`npm run gen` from `fjs/nanvm/commands/module.f.mjs`',
-        '`nodeCommands` in `fjs/effects/node/module.f.mjs` is the source'),
+        '`nodeCommands` in `fjs/effects/node/module.f.js` is the source'),
     '',
     unwrap(constSlice(
         "Every command of `NodeOp`: the set a request's command must belong to.",

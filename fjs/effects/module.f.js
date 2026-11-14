@@ -691,7 +691,7 @@ export const compensateStep = (e, cleanup) => catchStep(e, err => resultStep(cle
  * one — parameters are contravariant — so widening becomes a compile error at
  * the site that chose to panic, which is the site that has to choose again.
  *
- * The `IoChannel` renderer is `errorSummary` (`./node/module.f.mjs`); pass a
+ * The `IoChannel` renderer is `errorSummary` (`./node/module.f.js`); pass a
  * narrower one where the channel is narrower. An inline `e => String(e)`
  * accepts anything and gives the old behaviour back — that is an escape hatch,
  * and being written out at the call site is the point.

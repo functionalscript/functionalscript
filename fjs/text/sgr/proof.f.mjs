@@ -4,7 +4,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { fgRed, reset, bold, sgr, csiWrite, stripSgr } from './module.f.mjs'
+import { fgRed, reset, bold, sgr, csiWrite, stripSgr } from './module.f.js'
 import { run as mockRun } from '../../effects/mock/module.f.js'
 import { utf8ToString } from '../utf8/module.f.js'
 import { ok } from '../../types/result/module.f.js'
@@ -57,5 +57,11 @@ export const proof = [
         const [written] = runner('')(writeFn(fgRed + 'hello' + reset))
         const expected = fgRed + 'hello' + reset
         assertEq(written, expected, ['expected ANSI preserved', written])
+    },
+    () => {
+        // The selected stream's TTY setting controls stripping.
+        const writeFn = csiWrite({ stdout: { isTTY: true }, stderr: { isTTY: false } })('stderr')
+        const [written] = runner('')(writeFn(fgRed + 'hello' + reset))
+        assertEq(written, 'hello')
     },
 ]

@@ -8,7 +8,7 @@ import type { Kind } from '../../../wasm/runtime/l0/types.ts'
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
- * L0](../module.f.mjs) bind, each on a handle, as the WebAssembly
+ * L0](../module.f.js) bind, each on a handle, as the WebAssembly
  * JavaScript API passes an `i64`: a `bigint`. A `bool` goes back as `0` or
  * `1`, and a length and a unit as the numbers they are, as an index comes.
  */

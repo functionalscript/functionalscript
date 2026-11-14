@@ -10,7 +10,7 @@ over [RFC 1951](https://www.rfc-editor.org/rfc/rfc1951)), and a packfile
 holds one per object. The decoder for Git objects
 ([`fjs/git`](../fjs/git/README.md)) is pure over the inflated
 bytes, and today the inflating is the host's: `inflate` in
-[`fjs/effects/node`](../fjs/effects/node/module.f.mjs) hands a `Vec` to
+[`fjs/effects/node`](../fjs/effects/node/module.f.js) hands a `Vec` to
 `node:zlib` and gets a `Vec` back. Two modules call it:
 [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) for the one stream a loose
 object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) for each
@@ -50,7 +50,7 @@ That is the right first step and the wrong last one, for two reasons:
 ### Proposal
 
 A DEFLATE decoder in FunctionalScript, in the style of
-[`fjs/asn.1`](../fjs/asn.1/module.f.mjs): length-framed and bit-level, a
+[`fjs/asn.1`](../fjs/asn.1/module.f.js): length-framed and bit-level, a
 hand-written decoder and not a grammar, since a grammar over the byte
 alphabet reads delimiters and DEFLATE has none — the table in
 `fjs/git/README.md` says which side of that line each format falls on.

@@ -5,7 +5,7 @@
  *
  * **Discovery is part of the program, not a script beside it.** Which modules
  * a browser can link is decided by reading their source, which
- * [`./browser-source`](./browser-source/module.f.mjs) answers, and reading a
+ * [`./browser-source`](./browser-source/module.f.js) answers, and reading a
  * tree is `readdir` and `readFile` — two operations that already existed. So
  * the whole generator is one effect, and a proof drives it against
  * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a site
@@ -57,11 +57,11 @@
  */
 
 import { codePoints } from '../text/ascii/module.f.js'
-import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.mjs'
+import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.js'
 import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
-import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
+import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.js'
 import { basename, concat as pathConcat, parent } from '../path/module.f.js'
-import { resolve } from '../path/import/module.f.mjs'
+import { resolve } from '../path/import/module.f.js'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.js'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
@@ -70,7 +70,7 @@ import { run as runInMemory } from '../effects/mock/module.f.js'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse, tryParseBlocks } from '../media/markdown/module.f.mjs'
 import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
-import { pageRefusal } from '../media/html/module.f.mjs'
+import { pageRefusal } from '../media/html/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
@@ -143,7 +143,7 @@ const authoredModules = tree => allFiles(tree).filter(isAuthored).toSorted()
 /**
  * The module a specifier in `from` leads to, or `null` where a browser could
  * not follow it: a bare package, a `node:` builtin, or a relative specifier
- * [`fjs/path/import`](../path/import/module.f.mjs)'s `resolve` refuses.
+ * [`fjs/path/import`](../path/import/module.f.js)'s `resolve` refuses.
  *
  * That `resolve` is the one the compiler and the virtual host read imports
  * with, so a specifier means the same file here as there: `./x%20y.mjs` is

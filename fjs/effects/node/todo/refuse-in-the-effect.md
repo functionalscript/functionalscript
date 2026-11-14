@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) already knows how to keep a refusal out of
+[`module.f.mjs`](../module.f.js) already knows how to keep a refusal out of
 the runners: `writeBytes` is a wrapper over the raw `do_('writeBytes')`
 operation that asks `writeRefusal` first and answers `pureError` itself, so
 the Node runner, the virtual runner and the native one each see only a write

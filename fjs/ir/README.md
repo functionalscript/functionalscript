@@ -10,7 +10,7 @@ It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md)). This directory holds the first
 five: typed code written by hand, the same code lowered from normalized
 FAST ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
-through [the interfaces of L0](./l0/module.f.mjs), loops, and functions
+through [the interfaces of L0](./l0/module.f.js), loops, and functions
 that a module does not export, with records and
 [L1's native rows](./native/module.f.mjs).
 
@@ -19,12 +19,12 @@ that a module does not export, with records and
 |Module                                    |Holds                                                                  |
 |------------------------------------------|-----------------------------------------------------------------------|
 |[`types.ts`](./types.ts)                  |the data: types, terms, functions, modules, and the checker's answer   |
-|[`.`](./module.f.mjs)                     |the constructors, and the facts about types that the stages share      |
+|[`.`](./module.f.js)                     |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.mjs)           |the checker: a type for every term, or the module refused with a reason|
-|[`print`](./print/module.f.mjs)           |the IR as text, for review and golden proofs                           |
-|[`wasm`](./wasm/module.f.mjs)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
+|[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
+|[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
-|[`l0`](./l0/module.f.mjs)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
+|[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
 |[`l0/host`](./l0/host/module.f.js)        |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
 |[`native`](./native/module.f.mjs)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.f.js)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
@@ -32,9 +32,9 @@ that a module does not export, with records and
 ```js
 import { unwrap } from '../types/result/module.f.js'
 import { write } from '../media/wasm/binary/write/module.f.mjs'
-import { f64, fn, if_, lt } from './module.f.mjs'
+import { f64, fn, if_, lt } from './module.f.js'
 import { check } from './check/module.f.mjs'
-import { emit } from './wasm/module.f.mjs'
+import { emit } from './wasm/module.f.js'
 
 const max = fn([['a', f64], ['b', f64]], f64, (a, b) => if_(lt(a, b), b, a))
 const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], exports: ['max'] }))))
@@ -49,7 +49,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **Terms**: `lit`, `get`, `let`, `op`, a `call` of a function of the same
   module, `make` with no field, a `variant` of `bool`, a `match` of a `bool`
   whose arms name no operand, `block` and `br`. The derived forms of
-  [`module.f.mjs`](./module.f.mjs) (`if_`, `not`, `ne`, `return_`) are these.
+  [`module.f.js`](./module.f.js) (`if_`, `not`, `ne`, `return_`) are these.
 - **Operators**: `add`, `sub`, `mul`, `eq`, `lt` and `le` of two integers,
   each exact, its result's range found by interval arithmetic; `add`, `sub`,
   `mul`, `div`, `neg`, `abs`, `sqrt`, `eq`, `lt` and `le` of floats; and
@@ -58,7 +58,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 ## What the third slice adds
 
 - **A sealed type**: `any`, a value of unknown kind, which the interface
-  `Any` of [L0](./l0/module.f.mjs) seals, and `only(any, ...kinds)`, a
+  `Any` of [L0](./l0/module.f.js) seals, and `only(any, ...kinds)`, a
   value of some of its nine kinds. A module may write a sealed type only
   where it imports the interface that names it.
 - **Imports**: interfaces, by name, each of them data: the ABI that binds
@@ -88,7 +88,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   float holds no integer of `T`, as L0 checks an index.
 - **String's `unit`**: the UTF-16 unit of a string at an index of
   `u(31)`, which traps at or past the end, in
-  [the interfaces of L0](./l0/module.f.mjs) and
+  [the interfaces of L0](./l0/module.f.js) and
   [the host](./l0/host/module.f.js).
 
 ## What the fifth slice adds
@@ -108,7 +108,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   [L1's own rows](../wasm/runtime/l1/native/module.f.js), which gain
   `numberRemainder`.
 - **`Any.same`**: whether two arrays, objects or functions are the same
-  value, in [the interfaces of L0](./l0/module.f.mjs) and
+  value, in [the interfaces of L0](./l0/module.f.js) and
   [the host](./l0/host/module.f.js).
 
 Everything else is refused with the function's name and the reason, never
@@ -151,7 +151,7 @@ A loop's parameters are locals: their first values are set before a WASM
 `loop`, and a `br` to it sets them all from its fields, then branches to
 the loop's start. `trunc_sat` is the saturating truncation of the range's
 word, signed or unsigned, then clamped to the range's ends where they lie
-inside the word's. The [emitter's](./wasm/module.f.mjs) module
+inside the word's. The [emitter's](./wasm/module.f.js) module
 documentation has the rest.
 
 ## Proofs

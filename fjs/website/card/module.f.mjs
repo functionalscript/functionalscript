@@ -24,7 +24,7 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  */
 
-import { htmlDocument } from '../../media/html/module.f.mjs'
+import { htmlDocument } from '../../media/html/module.f.js'
 import { concat as pathConcat } from '../../path/module.f.js'
 import { lang, readmeArticle, siteDescription, siteName } from '../page/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.js'

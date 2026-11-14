@@ -39,5 +39,5 @@ namespace only.
 
 ### Related
 
-- `pageRefusal` in [`../module.f.mjs`](../module.f.mjs): the refusal that
+- `pageRefusal` in [`../module.f.js`](../module.f.js): the refusal that
   already holds the rule for one caller.

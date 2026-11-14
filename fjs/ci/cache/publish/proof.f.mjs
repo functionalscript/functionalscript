@@ -8,7 +8,7 @@
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError } from '../../../effects/module.f.js'
 import { partialRun } from '../../../effects/mock/module.f.js'
-import { exitCode, exitStep, nodeCommands } from '../../../effects/node/module.f.mjs'
+import { exitCode, exitStep, nodeCommands } from '../../../effects/node/module.f.js'
 import { defaultNodeProgramOptions } from '../../../effects/node/virtual/module.f.mjs'
 import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'

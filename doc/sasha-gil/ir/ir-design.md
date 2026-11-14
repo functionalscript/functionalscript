@@ -88,7 +88,7 @@ through its own table, `self`. `bigintPair` is private, so it keeps the
 an `l1` import:
 
 ```js
-import { func, get, if_, let_, self } from '…/ir/module.f.mjs'
+import { func, get, if_, let_, self } from '…/ir/module.f.js'
 import { any } from '…/ir/type/module.f.mjs'
 import { prim } from '…/ir/prim/module.f.mjs'
 import { l0 } from '…/ir/l0/module.f.mjs'

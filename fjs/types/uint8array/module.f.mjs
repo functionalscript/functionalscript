@@ -20,6 +20,7 @@ import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.js'
 import { compose } from '../function/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 import { next } from '../list/module.f.js'
+import { generate } from '../array/generate/module.f.js'
 
 // Both conversions go through the bigint's hexadecimal spelling, two digits
 // a byte, rather than through a list of bytes: one `BigInt` or one
@@ -32,7 +33,7 @@ import { next } from '../list/module.f.js'
 const hexOfByte = encodeScalar(2)
 
 /** @type {(bytes: Uint8Array) => string} */
-const hexOf = bytes => Array.from(bytes, hexOfByte).join('')
+const hexOf = bytes => generate(bytes.length, i => hexOfByte(bytes[Number(i)])).join('')
 
 /**
  * Concatenates a list of `Uint8Array` values into one MSB-first bit vector.

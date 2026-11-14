@@ -10,7 +10,7 @@
  * - **A row's parameters take what its body checks.** `bigintEquals` takes
  *   two bigints, so a module casts a value of unknown kind first, as it does
  *   for L0's `to_f64`. Its values of `any` are sealed by
- *   [L0's Any](../l0/module.f.mjs), which a module that imports this
+ *   [L0's Any](../l0/module.f.js), which a module that imports this
  *   imports too.
  * - **A row of numbers takes and gives floats.** `numberRemainder` is `%`
  *   on two numbers, which WASM has no instruction for. It takes and gives
@@ -24,8 +24,8 @@
  * @import { Interface } from '../types.ts'
  */
 
-import { any } from '../l0/module.f.mjs'
-import { bool, f64, only, signature } from '../module.f.mjs'
+import { any } from '../l0/module.f.js'
+import { bool, f64, only, signature } from '../module.f.js'
 
 /** A bigint. */
 const bigint = only(any, 'bigint')

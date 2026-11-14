@@ -9,7 +9,7 @@ import { commonOperationMap } from '../effects/common/module.mjs'
 import { assert, assertEq, assertOk } from '../asserts/module.f.js'
 import { demo } from './demo.f.mjs'
 import { examples } from './examples/module.f.js'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
 import { textOfResult } from '../text/marked/module.f.mjs'
 
 const run = asyncRun(commonOperationMap)

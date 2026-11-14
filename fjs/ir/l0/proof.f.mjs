@@ -1,8 +1,8 @@
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, kind as viewKind } from '../../wasm/runtime/l0/module.f.js'
 import { check } from '../check/module.f.mjs'
-import { show } from '../print/module.f.mjs'
-import { any, kinds, l0 } from './module.f.mjs'
+import { show } from '../print/module.f.js'
+import { any, kinds, l0 } from './module.f.js'
 
 export const proof = {
     // The variants of `any` are the L0 view's kinds in the order of its tags, which `kind` answers.

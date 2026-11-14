@@ -21,7 +21,7 @@
  */
 
 import { ioError, pureError, pureOk, resultStep } from '../../effects/module.f.js'
-import { writeFiles } from '../../effects/node/module.f.mjs'
+import { writeFiles } from '../../effects/node/module.f.js'
 import { runtimeSource } from '../../compiler/module.f.mjs'
 import { runtimeAt } from '../../compiler/transpiler/module.f.mjs'
 import { resolve } from '../../compiler/edag/module.f.mjs'

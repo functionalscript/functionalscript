@@ -6,7 +6,7 @@
 ### Problem
 
 "This channel error carries code X" is spelled at every site that asks it.
-[`node`](../node/module.f.mjs) exports four such predicates, two by
+[`node`](../node/module.f.js) exports four such predicates, two by
 destructuring and two by index:
 
 ```js

@@ -69,23 +69,6 @@ export const specifierKind = specifier =>
     : 'bare'
 
 /**
- * Resolve an import's URL-path spelling against its importing file, or return
- * null for unsupported syntax or a surviving unsupported segment. URL dot
- * processing precedes decoding and filesystem validation, so `bad%/../dep`
- * names `dep`. Decode only the surviving specifier components, once; the
- * importing path is already a filesystem path and is never decoded again.
- *
- * This is the virtual host's lexical path profile. Native file URL identities
- * come from the host resolution effect, not from this helper.
- *
- * @type {(path: string) => (specifier: string) => string | null}
- */
-export const resolve = path => specifier => {
-    const decoded = decode(specifier)
-    return decoded === null ? null : pathConcat(pathConcat(path)('..'))(decoded)
-}
-
-/**
  * Reduce URL dot segments and decode portable path components without resolving
  * a module identity. Refuse raw colons, backslashes and URL suffixes before
  * dot processing: suffix text must neither be decoded nor canceled as a path.
@@ -105,3 +88,20 @@ export const decode = specifier =>
     || root(specifier) === '//'
         ? null
         : importFoldRejoin(specifier)
+
+/**
+ * Resolve an import's URL-path spelling against its importing file, or return
+ * null for unsupported syntax or a surviving unsupported segment. URL dot
+ * processing precedes decoding and filesystem validation, so `bad%/../dep`
+ * names `dep`. Decode only the surviving specifier components, once; the
+ * importing path is already a filesystem path and is never decoded again.
+ *
+ * This is the virtual host's lexical path profile. Native file URL identities
+ * come from the host resolution effect, not from this helper.
+ *
+ * @type {(path: string) => (specifier: string) => string | null}
+ */
+export const resolve = path => specifier => {
+    const decoded = decode(specifier)
+    return decoded === null ? null : pathConcat(pathConcat(path)('..'))(decoded)
+}

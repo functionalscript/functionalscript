@@ -43,7 +43,7 @@ import { commonOperationMap } from '../../effects/common/module.mjs'
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { specifierKind } from '../../path/import/module.f.mjs'
+import { specifierKind } from '../../path/import/module.f.js'
 
 /**
  * The shared {@link failureOf}, run.

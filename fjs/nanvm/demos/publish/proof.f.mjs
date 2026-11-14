@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { exitCode, readUtf8File, readWholeBytes } from '../../../effects/node/module.f.mjs'
+import { exitCode, readUtf8File, readWholeBytes } from '../../../effects/node/module.f.js'
 import { nodeProgramOptions, virtual, virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { write } from '../../../media/wasm/binary/write/module.f.mjs'
 import { emptyModule } from '../../../media/wasm/testlib.f.js'

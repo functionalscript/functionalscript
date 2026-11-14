@@ -9,10 +9,10 @@
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { functions, wat } from '../../media/wasm/wat/module.f.mjs'
-import { add, bool, f64, f64c, fn, get, i, int, let_, lit, n, u } from '../module.f.mjs'
+import { add, bool, f64, f64c, fn, get, i, int, let_, lit, n, u } from '../module.f.js'
 import { check } from '../check/module.f.mjs'
 import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { emit } from './module.f.mjs'
+import { emit } from './module.f.js'
 
 /** @type {(m: Module) => ReturnType<typeof emit>} */
 const emitted = m => emit(assertOk(check(m)))

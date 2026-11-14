@@ -7,9 +7,9 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
 import { compress, level3Id } from './id/module.f.js'
-import { encode } from './module.f.mjs'
+import { encode } from './module.f.js'
 import { demo, examples, maxBits, rowWords, stripes, units } from './demo.f.mjs'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.js'
 import { runPure } from '../effects/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { nextStep } from '../types/function/operator/module.f.js'

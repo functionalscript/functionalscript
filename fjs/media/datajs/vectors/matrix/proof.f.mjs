@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { foldStep, mapStep, pureOk, step as ioStep } from '../../../../effects/module.f.js'
-import { exitCode, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { exitCode, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.js'
 import {
     defaultNodeProgramOptions,
     emptyState,

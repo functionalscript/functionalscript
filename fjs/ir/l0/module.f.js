@@ -35,7 +35,7 @@
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, f64c, int, only, sealed, signature, u } from '../module.f.mjs'
+import { bool, f64c, int, only, sealed, signature, u } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')

@@ -1,5 +1,5 @@
 import { option, selectField, button } from './module.f.js'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.js'
 import { assertEq } from '../../../asserts/module.f.js'
 
 export const proof = {

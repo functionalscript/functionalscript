@@ -98,7 +98,7 @@ const magicStep = (m, byte) => {
     if (m.tag !== 'scan') { return m }
     const { pos } = m
     const viable = m.viable.filter(s => {
-        const p = s.pattern[pos]
+        const p = s.pattern[Number(pos)]
         return p === null || p === byte
     })
     for (const s of viable) {
@@ -109,41 +109,6 @@ const magicStep = (m, byte) => {
 
 /** @type {(m: _MagicState) => Nullable<string>} */
 const magicMime = m => m.tag === 'matched' ? m.mime : null
-
-/**
- * Detects the MIME type of `bytes` from its leading magic-byte signature, as
- * the magic projection of the streaming detector below — one fold, read two
- * ways, rather than a second copy of it.
- *
- * The two agree because `magicStep` returns a non-`scan` state unchanged, so
- * both absorbing states are its fixed points. `detect`'s old loop stopped at
- * the first one; `update` stops only once the *whole* verdict is settled and may
- * keep folding for the UTF-8 factor after the magic state is `dead` — but a
- * `dead` or `matched` magic cannot move again, so the final magic is the same
- * either way. A signature still in `scan` at the end of the `Vec` — a prefix
- * too short to complete any signature — reads as `null`.
- *
- * Cost follows `update`, which stops only once the whole verdict is settled, not
- * once the magic state is. On a signature match or on non-text bytes that is
- * still an early exit; on valid text it now reads the whole `Vec`, because the
- * shared machine is still tracking the UTF-8 factor this function ignores
- * (measured: 100 KB of ASCII, 1.2 ms before, 82 ms after). That is the same
- * work {@link detectVec} already does on the same bytes, and `Vec` is capped at
- * `maxLength`, so the cost is bounded rather than unbounded — but a caller
- * scanning many large text blobs for signatures alone should know it is paying
- * for the UTF-8 fold too.
- *
- * The bytes come from `u8ListMsb`, so a `Vec` whose length is not a whole number of
- * bytes has its trailing partial byte zero-padded — the same reading of a ragged
- * `Vec` the streaming detector already uses.
- *
- * @returns the MIME type string for a recognized format, or `null` when the
- *   leading bytes match no known signature (including any `Vec` shorter than
- *   the signature it might otherwise match).
- *
- * @type {(bytes: Vec) => Nullable<string>}
- */
-export const detect = bytes => magicMime(update(initial, bytes).magic)
 
 // ── Streaming detector ────────────────────────────────────────────────────────────
 //
@@ -228,6 +193,41 @@ const update = (s, chunk) => {
     }
     return { length: s.length + bits, magic, utf8 }
 }
+
+/**
+ * Detects the MIME type of `bytes` from its leading magic-byte signature, as
+ * the magic projection of the streaming detector below — one fold, read two
+ * ways, rather than a second copy of it.
+ *
+ * The two agree because `magicStep` returns a non-`scan` state unchanged, so
+ * both absorbing states are its fixed points. `detect`'s old loop stopped at
+ * the first one; `update` stops only once the *whole* verdict is settled and may
+ * keep folding for the UTF-8 factor after the magic state is `dead` — but a
+ * `dead` or `matched` magic cannot move again, so the final magic is the same
+ * either way. A signature still in `scan` at the end of the `Vec` — a prefix
+ * too short to complete any signature — reads as `null`.
+ *
+ * Cost follows `update`, which stops only once the whole verdict is settled, not
+ * once the magic state is. On a signature match or on non-text bytes that is
+ * still an early exit; on valid text it now reads the whole `Vec`, because the
+ * shared machine is still tracking the UTF-8 factor this function ignores
+ * (measured: 100 KB of ASCII, 1.2 ms before, 82 ms after). That is the same
+ * work {@link detectVec} already does on the same bytes, and `Vec` is capped at
+ * `maxLength`, so the cost is bounded rather than unbounded — but a caller
+ * scanning many large text blobs for signatures alone should know it is paying
+ * for the UTF-8 fold too.
+ *
+ * The bytes come from `u8ListMsb`, so a `Vec` whose length is not a whole number of
+ * bytes has its trailing partial byte zero-padded — the same reading of a ragged
+ * `Vec` the streaming detector already uses.
+ *
+ * @returns the MIME type string for a recognized format, or `null` when the
+ *   leading bytes match no known signature (including any `Vec` shorter than
+ *   the signature it might otherwise match).
+ *
+ * @type {(bytes: Vec) => Nullable<string>}
+ */
+export const detect = bytes => magicMime(update(initial, bytes).magic)
 
 /**
  * Reads the answer off the final state (`λ`). Reproduces the three-way result of

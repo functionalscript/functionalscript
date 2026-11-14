@@ -3,13 +3,13 @@
  */
 
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
-import { any, l0 } from '../l0/module.f.mjs'
+import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, cast, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
     match, mul, n, neg, never, next, only, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
     variant,
-} from '../module.f.mjs'
-import { show } from '../print/module.f.mjs'
+} from '../module.f.js'
+import { show } from '../print/module.f.js'
 import { corners, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { check, typeOf } from './module.f.mjs'
 

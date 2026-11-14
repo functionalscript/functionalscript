@@ -1,6 +1,6 @@
 /**
  * Renders a `media/html` element into a DOM — the impure sibling of
- * [`./module.f.mjs`](./module.f.mjs), which renders the same element to text.
+ * [`./module.f.js`](./module.f.js), which renders the same element to text.
  * It also holds {@link macrotask}, the yield a page renders across.
  *
  * **Built, not parsed.** A page that serialized an element and assigned the
@@ -45,7 +45,7 @@
 
 import { asciiLowercase } from '../../text/ascii/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
-import { isRawText, isVoidTag, parseElement, rawTextContent, scriptRefusal } from './module.f.mjs'
+import { isRawText, isVoidTag, parseElement, rawTextContent, scriptRefusal } from './module.f.js'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'
 
@@ -184,7 +184,7 @@ const namespaceFor = (rules, tag) =>
  *
  * **The serializer's rules for content.** A void element such as `br` gets no
  * children, and a `style` gets only its text, with element children dropped —
- * both by the helpers [`./module.f.mjs`](./module.f.mjs) serializes with, so
+ * both by the helpers [`./module.f.js`](./module.f.js) serializes with, so
  * the same element reads the same whichever way it reaches the page.
  *
  * A `template`'s children go into its `content`, and a `script` is refused;

@@ -5,10 +5,10 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.mjs'
-import { any, l0 } from '../l0/module.f.mjs'
-import { bool, f64, i, only as subset, signature, u } from '../module.f.mjs'
+import { any, l0 } from '../l0/module.f.js'
+import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.mjs'
-import { print } from '../print/module.f.mjs'
+import { print } from '../print/module.f.js'
 import { lower } from './module.f.mjs'
 import { runtime, sourceOf } from './testlib.f.mjs'
 

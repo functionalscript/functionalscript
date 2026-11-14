@@ -21,7 +21,7 @@
  * @import { Progress, Refusal } from './types.ts'
  */
 
-import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
+import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.js'
 import { bytesIn, length, u8ListMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { flat, map, reverse, run } from '../../types/list/module.f.js'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'

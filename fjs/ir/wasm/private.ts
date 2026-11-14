@@ -6,7 +6,7 @@
 
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Expr, FuncType, ValType } from '../../media/wasm/types.ts'
-import type { Interface, Type } from '../types.ts'
+import type { Interface, Type, Typed } from '../types.ts'
 
 /** A function that a module calls, its own or an imported one: its index and its parameters' types. */
 export type _Callee = readonly [index: number, params: readonly Type[]]
@@ -42,3 +42,9 @@ export type _Code = {
     readonly code: Expr
     readonly locals: readonly (readonly [name: string, type: ValType])[]
 }
+
+/** Emit one typed term in its current scope. */
+export type _EmitTerm = (env: _Env, term: Typed) => _Code
+
+/** `valueOf` of the emitter: a term as a value of a type that holds the term's. */
+export type _ValueOf = (emitTerm: _EmitTerm, env: _Env, taken: number, x: Typed, to: Type) => _Code

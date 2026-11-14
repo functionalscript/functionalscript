@@ -66,15 +66,15 @@ const escapeTable = /** @type {const} */ ({
 
 /** @type {(code: number) => string} */
 const escapeCharCode = code =>
-    escapeTable[code] ?? codeUnitToString(code)
+    escapeTable[Number(code)] ?? codeUnitToString(code)
 
 const escape = compose(stringToList)(map(escapeCharCode))
 
-/** @type {(n: Node) => List<string>} */
-const node = n =>
-    typeof n === 'string' ? escape(n) : element(n)
+/** @type {(render: (e: Element) => List<string>, n: Node) => List<string>} */
+const node = (render, n) => typeof n === 'string' ? escape(n) : render(n)
 
-const nodes = flatMap(node)
+/** @type {(render: (e: Element) => List<string>, n: List<Node>) => List<string>} */
+const nodes = (render, n) => flatMap(child => node(render, child))(n)
 
 /** @type {(n: Node) => string} */
 const raw = n =>
@@ -249,7 +249,7 @@ export const element = e => {
     if (isVoidTag(tag)) {
         return open
     }
-    return flat([open, isRawText(tag) ? [rawTextContent(n)] : nodes(n), ['</', tag, '>']])
+    return flat([open, isRawText(tag) ? [rawTextContent(n)] : nodes(element, n), ['</', tag, '>']])
 }
 
 /**

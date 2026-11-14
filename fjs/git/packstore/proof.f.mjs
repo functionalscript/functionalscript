@@ -13,7 +13,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.js'
 import { run } from '../../effects/mock/module.f.js'
-import { inflateTrailingCode, inflateTrailingMessage, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
+import { inflateTrailingCode, inflateTrailingMessage, notAFileCode, notAFileMessage } from '../../effects/node/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'

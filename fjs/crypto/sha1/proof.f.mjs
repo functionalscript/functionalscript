@@ -11,7 +11,7 @@ import { map } from '../../types/list/module.f.js'
 import { computeSync } from '../sha2/module.f.js'
 import { sha1 } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 

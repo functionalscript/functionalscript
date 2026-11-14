@@ -17,7 +17,7 @@ import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySeriali
 import { _graphOf, demo, examples } from './demo.f.mjs'
 import { _crossings } from '../../website/demo/graph/module.f.mjs'
 import { difference } from './vectors/module.f.mjs'
-import { htmlToString } from '../html/module.f.mjs'
+import { htmlToString } from '../html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 
 /** A document in normalized form: sharing, and the leaves JSON cannot carry. */

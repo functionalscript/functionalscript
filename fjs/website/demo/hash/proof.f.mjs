@@ -2,7 +2,7 @@ import { digestOf, hashOutput, hexOf, hashAlgorithms, algorithmOf, algorithmOpti
 import { maxLengthBytes, vec } from '../../../types/bit_vec/module.f.js'
 import { sha1 } from '../../../crypto/sha1/module.f.js'
 import { sha256 } from '../../../crypto/sha2/module.f.js'
-import { htmlToString } from '../../../media/html/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 
 const sha1Output = hashOutput({ name: 'SHA-1', hash: sha1, openssl: 'sha1' })

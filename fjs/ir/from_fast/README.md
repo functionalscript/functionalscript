@@ -16,7 +16,7 @@ recommends, and as the owner chose to assume on 2026-11-13.
 ```js
 import { unwrap } from '../../types/result/module.f.js'
 import { check } from '../check/module.f.mjs'
-import { f64, signature } from '../module.f.mjs'
+import { f64, signature } from '../module.f.js'
 import { lower } from './module.f.mjs'
 import { sourceOf } from './testlib.f.mjs'
 
@@ -32,7 +32,7 @@ function that it lowers, by its name: the names and types of its
 parameters and the type of its result, as a TypeScript signature has them.
 A `number` is an `f64`, a `boolean` a `bool`, a `bigint` the integer range
 that its signature gives it, and a value of unknown kind `any`, which
-[L0](../l0/module.f.mjs) seals; the checker then finds the range of every
+[L0](../l0/module.f.js) seals; the checker then finds the range of every
 result and refuses one wider than a word. A `number` is never an integer
 range in these slices.
 
@@ -167,7 +167,7 @@ The caller names the runtime, the specifiers by which the module imports
 the [L0 view](../../wasm/runtime/l0/module.f.js) and
 [L1's native rows](../../wasm/runtime/l1/native/module.f.js), since the
 lowering resolves no path, and the module then imports
-[the interfaces of L0](../l0/module.f.mjs) and
+[the interfaces of L0](../l0/module.f.js) and
 [of the rows](../native/module.f.mjs). Every function of the view that it
 reads takes a value of `any` first.
 

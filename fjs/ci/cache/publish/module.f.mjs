@@ -10,7 +10,7 @@
  */
 
 import { attemptStep, finallyStep, history, historyStep, mapStep, pureError, pureOk, refuse, step } from '../../../effects/module.f.js'
-import { childWait, execFile, exitStep, spawn } from '../../../effects/node/module.f.mjs'
+import { childWait, execFile, exitStep, spawn } from '../../../effects/node/module.f.js'
 import { join } from '../../../path/module.f.js'
 
 const pushAttempts = /** @type {const} */ (10)

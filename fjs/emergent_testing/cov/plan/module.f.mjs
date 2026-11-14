@@ -10,7 +10,7 @@
  */
 
 import { foldStep, history, historyStep, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.js'
-import { error, errorMessage } from '../../../effects/node/module.f.mjs'
+import { error, errorMessage } from '../../../effects/node/module.f.js'
 
 /** Failed admission fails only the directory whose inputs could not be named.
  * @type {(command: Command, cache: CoverageCache) => Effect<NodeOp, Planned, IoChannel>}

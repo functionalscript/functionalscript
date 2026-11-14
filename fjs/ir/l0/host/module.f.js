@@ -1,6 +1,6 @@
 /**
  * A JavaScript host for the `fjs:l0` imports that [the interfaces of
- * L0](../module.f.mjs) bind, so that a module of the IR runs on any
+ * L0](../module.f.js) bind, so that a module of the IR runs on any
  * WebAssembly engine of a JavaScript host before NaNVM runs it.
  *
  * - **A value of `any` is a handle**: the index of the value in a table that

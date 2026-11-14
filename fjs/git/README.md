@@ -493,7 +493,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
-  [`fjs/effects/node`](../effects/node/module.f.mjs)'s `readWhole` is one
+  [`fjs/effects/node`](../effects/node/module.f.js)'s `readWhole` is one
   operation: the host opens the path once, reads it to the end under that
   descriptor, and answers the chunks it took — each a `Vec` and so within the
   cap, the file however many it takes — which `readWholeBytes` joins into a byte
@@ -533,5 +533,5 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   alphabet of the pipeline; ident and `mergetag` are layers over it.
 - [`fjs/ebnf/ll1/README.md`](../ebnf/ll1/README.md) — the backend, its
   conflicts, and the rewrite set the mappings are written against.
-- [`fjs/asn.1`](../asn.1/module.f.mjs) — the length-framed precedent, the
+- [`fjs/asn.1`](../asn.1/module.f.js) — the length-framed precedent, the
   shape a packfile decoder takes.

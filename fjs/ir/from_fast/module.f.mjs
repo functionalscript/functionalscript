@@ -23,7 +23,7 @@
  * - **An import of the L0 view is L0, and one of L1's native rows is
  *   `Native`.** The caller names the runtime, the specifiers of the view
  *   and of the rows, and the module then imports
- *   [the interfaces of L0](../l0/module.f.mjs) and
+ *   [the interfaces of L0](../l0/module.f.js) and
  *   [of the rows](../native/module.f.mjs). JavaScript reads a tag and a
  *   length as numbers, so each is a float here: `kind(v)` is
  *   `float(Any.kind(v))`, and a tag such as `BOOLEAN` is its float.
@@ -83,13 +83,13 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.mjs'
-import { any, kinds, l0, lengths } from '../l0/module.f.mjs'
+import { any, kinds, l0, lengths } from '../l0/module.f.js'
 import {
     add, bool, call, cast, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, trap, true_, u,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { native } from '../native/module.f.mjs'
-import { show } from '../print/module.f.mjs'
+import { show } from '../print/module.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
 const count = (k, noun) => k === 1 ? `one ${noun}` : `${k} ${noun}s`

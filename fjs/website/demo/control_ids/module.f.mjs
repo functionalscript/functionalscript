@@ -6,7 +6,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { foldElement, mapElement } from '../../../media/html/module.f.mjs'
+import { foldElement, mapElement } from '../../../media/html/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.js'
 
 /** @type {string} */

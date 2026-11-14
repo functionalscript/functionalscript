@@ -5,7 +5,7 @@ import { parseSyntax } from '../parser/syntax/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { _line, _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
