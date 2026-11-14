@@ -1,7 +1,7 @@
 # Replace Map and Set in remaining leaf modules
 
 **Status:** wip
-**Priority:** medium
+**Priority:** P3
 
 Eleven authored `module.f.mjs` leaves still construct JavaScript `Map` or
 `Set`, which the FJS compiler rejects. Replace those collections with the
