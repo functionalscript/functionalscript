@@ -21,8 +21,9 @@ const pair = () => {
 const { chosen, ...pairedRest } = pair();
 /** @type {readonly (() => unknown)[]} */
 let readers = [];
+// Capture both bindings per iteration; the copied object must exclude drop.
 for (const { drop, ...rest } of [{ drop: 1, kept: shared }, { drop: 2, kept: changed }]) {
-    readers = [...readers, () => rest.kept];
+    readers = [...readers, () => [drop, rest]];
 }
 export default [
     [capture.length, first() === first(), first() !== second(),
