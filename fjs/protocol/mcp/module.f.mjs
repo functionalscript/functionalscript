@@ -33,7 +33,7 @@ import {
     errorResponseOf, successResponseOf,
 } from '../json_rpc/module.f.js'
 import { parse } from '../../rtti/parse/module.f.js'
-import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
+import { toJsonSchema } from '../../media/json/schema/module.f.js'
 import { unknown } from '../../media/json/rtti/module.f.js'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────

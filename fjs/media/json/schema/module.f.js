@@ -26,6 +26,7 @@
 import { assert } from '../../../asserts/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { encodeURIComponent } from '../../../text/percent/module.f.js'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.js'
 import {
     admitsAbsence,

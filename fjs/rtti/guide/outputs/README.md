@@ -21,5 +21,5 @@ declaration:
 
 ## Where it is implemented
 
-[`ts`](../../ts/module.f.js), [`media/json/schema`](../../../media/json/schema/module.f.mjs)
+[`ts`](../../ts/module.f.js), [`media/json/schema`](../../../media/json/schema/module.f.js)
 and [`data`](../../data/module.f.js).

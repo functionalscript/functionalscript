@@ -37,7 +37,7 @@ class of accidental overflows without touching the rest of `Ts<T>`.
 ## A `WithOut` phantom output type
 
 For recursive schemas (e.g. the JSON Schema `unknown` type in
-`fjs/media/json/schema/module.f.mjs`) even the non-`any` walk overflows because the
+`fjs/media/json/schema/module.f.js`) even the non-`any` walk overflows because the
 schema references itself. The fix is to annotate the schema with its output type
 once, at construction time, and have `Ts<T>` read that annotation directly —
 one indexed-access, no structural walk.
@@ -59,7 +59,7 @@ a string key `$out` would have to extend `Type`. A symbol key is excluded from
 string index signatures, so `WithOut<S, Out>` is valid for any `Out` regardless
 of whether `Out` extends `Type`.
 
-Usage (abbreviated from `fjs/media/json/schema/module.f.mjs`):
+Usage (abbreviated from `fjs/media/json/schema/module.f.js`):
 
 ```ts
 const unknownThunk = () => ['const', unknownConst] as const

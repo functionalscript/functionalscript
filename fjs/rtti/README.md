@@ -22,7 +22,7 @@ declaration:
 | the static TypeScript type | `Ts<typeof s>` | [`ts/types.ts`](./ts/types.ts) |
 | the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.js`](./ts/module.f.js) |
 | a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.js) |
-| a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
+| a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.js) |
 
 ```js
 import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.js'

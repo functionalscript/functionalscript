@@ -20,7 +20,7 @@ What has landed, and where it is documented:
 - `tools/list` and `tools/call`, with `text` and embedded-resource content;
 - the stdio transport — [`../stdio/module.f.mjs`](../stdio/module.f.mjs);
 - the rtti → JSON Schema printer that derives a tool's `inputSchema` —
-  `fjs/media/json/schema/module.f.mjs`.
+  `fjs/media/json/schema/module.f.js`.
 
 What remains is the rest of the protocol.
 

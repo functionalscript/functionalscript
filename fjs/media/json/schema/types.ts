@@ -8,10 +8,10 @@
 
 import type { Assert } from '../../../asserts/types.ts'
 import type { Check, Ts } from '../../../rtti/ts/types.ts'
-import type { _unknownThunk, unknown as schemaUnknown } from './module.f.mjs'
+import type { _unknownThunk, unknown as schemaUnknown } from './module.f.js'
 
 /**
- * A JSON Schema (draft 2020-12) document, as `./module.f.mjs`'s `unknown`
+ * A JSON Schema (draft 2020-12) document, as `./module.f.js`'s `unknown`
  * schema renders it: what `toJsonSchema` answers with, and what a caller
  * writes a schema of its own against.
  */
