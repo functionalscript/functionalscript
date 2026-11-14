@@ -7,7 +7,7 @@
 import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, _walk, jsonValue, parse, readSource } from './module.f.mjs'
 import { pureError, pureOk } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.mjs'
+import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.js'
 import { partialRun } from '../../effects/mock/module.f.js'
 import { nodeCommands } from '../../effects/node/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'

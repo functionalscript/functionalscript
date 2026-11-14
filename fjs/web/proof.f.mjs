@@ -8,7 +8,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import { createServer, exitCode, ioError, listen, open, readBytes } from '../effects/node/module.f.js'
-import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../effects/node/virtual/module.f.js'
 import { nodeCommands } from '../effects/node/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
 import { step } from '../effects/module.f.js'

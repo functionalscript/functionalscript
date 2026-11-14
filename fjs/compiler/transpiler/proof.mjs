@@ -13,7 +13,7 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { javascriptOperationMap } from '../../edag/value/to_unknown/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
-import { emptyState, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
+import { emptyState, virtualOperationMap } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { isObject } from '../../types/object/module.f.js'
 import { noRuntime, transpile } from './module.f.mjs'

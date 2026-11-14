@@ -519,7 +519,7 @@ else in the name has moved DISOT semantics into Git's namespace.
   string in the store.
 - [`fjs/git/store`](../../store/module.f.mjs) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
-- [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs) —
+- [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.js) —
   `mkdirOp`, the virtual `mkdir` this write no longer reaches, which now refuses
   a file in its path with the host's `ENOTDIR` or `EEXIST` rather than replacing
   it with a directory.

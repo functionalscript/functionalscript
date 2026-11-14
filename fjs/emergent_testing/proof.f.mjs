@@ -10,7 +10,7 @@
 
 import { exitCode } from '../effects/node/module.f.js'
 import { log } from '../effects/node/module.f.js'
-import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.js'
 import { assert, assertEq, todo } from '../asserts/module.f.js'
 import { fgGreen, fgRed, reset } from '../text/sgr/module.f.js'
 import {

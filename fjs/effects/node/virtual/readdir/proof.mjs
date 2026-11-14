@@ -14,7 +14,7 @@ import { ok } from '../../../../types/result/module.f.js'
 import { readdir } from '../../module.f.js'
 import { runEffect } from '../../module.mjs'
 import { withTemporary } from '../../testlib.mjs'
-import { emptyState, virtualOperationMap } from '../module.f.mjs'
+import { emptyState, virtualOperationMap } from '../module.f.js'
 
 export const proof = {
     posixBackslashNames: async () => {

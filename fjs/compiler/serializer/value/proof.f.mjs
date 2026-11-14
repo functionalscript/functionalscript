@@ -60,6 +60,9 @@ export const proof = {
     statics: () => {
         assertEq(stringify(['Object.entries']), 'export default Object.entries;')
         assertEq(stringify(['Object.keys']), 'export default Object.keys;')
+        assertEq(stringify(['Object.values']), 'export default Object.values;')
+        assertEq(stringify(['[]', [['Object.values'], ['Object.values']]]), 'export default [Object.values,Object.values];')
+        assertEq(factoryStringify(['Object.values']), 'export default()=>{return Object.values;};')
         assertEq(stringify(['Object.is']), 'export default Object.is;')
         assertEq(stringify(['Number.isNaN']), 'export default Number.isNaN;')
         assertEq(stringify(['Math.trunc']), 'export default Math.trunc;')

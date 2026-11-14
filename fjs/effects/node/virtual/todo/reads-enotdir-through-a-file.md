@@ -5,7 +5,7 @@
 
 ### Problem
 
-`resolveFile` in [`../module.f.mjs`](../module.f.mjs) answers `ENOENT` for every
+`resolveFile` in [`../module.f.js`](../module.f.js) answers `ENOENT` for every
 remaining path that is not exactly one segment. Two different situations reach
 that guard, and a host distinguishes them:
 
@@ -220,7 +220,7 @@ Whichever option is chosen, then:
 
 ### Related
 
-- `statPath` in [`../module.f.mjs`](../module.f.mjs) — the `ENOTDIR` argument
+- `statPath` in [`../module.f.js`](../module.f.js) — the `ENOTDIR` argument
   this diverges from, made for `stat` and not carried to the reads.
 - [lexical-path-resolution](./lexical-path-resolution.md) — traversal rather
   than kind, and a **precondition** of this issue's `EISDIR` option rather than

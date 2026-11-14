@@ -277,7 +277,7 @@ Open for review before code:
 - [x] `deno.json`: `--allow-run` on the tasks that run the suite, unscoped,
       so the missing-command proof surfaces as the host's `ENOENT` rather than
       a Deno permission error.
-- [x] `../virtual/module.f.mjs`: the not-implemented list names `spawn` and
+- [x] `../virtual/module.f.js`: the not-implemented list names `spawn` and
       `childWait`.
 - [ ] `tsc`, `npm test`, `npm start cov node`.
 

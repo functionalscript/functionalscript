@@ -99,7 +99,7 @@ contains its represented payload. File, resolution and parse failures keep
 their existing error channels. Resource limits belong to
 [interpreter hardening](./bound-edag-interpreter-resources.md).
 
-Use the existing [virtual runner](../../effects/node/virtual/module.f.mjs) for
+Use the existing [virtual runner](../../effects/node/virtual/module.f.js) for
 file and resolution effects in FunctionalScript proofs. Execute the actual
 parser, lowering and evaluator over those fixtures, and assert their successful
 and failing results. The evaluator handles language failures as data, so these

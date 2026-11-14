@@ -781,6 +781,36 @@ export const proof = /** @type {const} */ ({
         assertError(evaluate(['()', keys, []]))
         failure(keys, noStatic('Object.keys'))
     },
+    objectValues: () => {
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        /** @type {(node: Exp) => ValueResult} */
+        const evaluate = node => vm({ ...context, runtime })(node)
+        const values = /** @type {const} */ (['Object.values'])
+        assertStructurallySame(evaluate(['()', values, [['{}', [
+            [':', '10', 1], [':', '2', 2], [':', 'present', ['undefined']], [':', '__proto__', 3],
+        ]]]]), ['ok', ['[]', [2, 1, ['undefined'], 3]]])
+        assertStructurallySame(evaluate(['()', values, ['😀a\ud800']]), ['ok', ['[]', ['\ud83d', '\ude00', 'a', '\ud800']]])
+        assertStructurallySame(evaluate(['()', values, [['[]', [['undefined'], 7]]]]), ['ok', ['[]', [['undefined'], 7]]])
+        assertStructurallySame(evaluate(['[]', [
+            ['===', values, ['Object.values']], ['typeof', values], ['.', values, 'length'], ['String', values],
+        ]]), ['ok', ['[]', [true, 'function', 1, 'function values() { [native code] }']]])
+        /** @type {readonly Exp[]} */
+        const emptyInputs = [0, true, 1n, '', ['[]', []], ['{}', []], ['=>', 0, [], 1]]
+        for (const input of emptyInputs) { assertStructurallySame(evaluate(['()', values, [input]]), ['ok', ['[]', []]]) }
+        assertStructurallySame(evaluate(['===', ['()', values, [['{}', []]]], ['()', values, [['{}', []]]]]), ['ok', false])
+        // The returned container is fresh, but its values retain their identities.
+        assertStructurallySame(evaluate(['()', ['=>', 1, [], ['===',
+            ['.', ['()', values, [['{}', [[':', 'child', ['arg', 0]]]]]], 0], ['arg', 0],
+        ]], [['{}', []]]]), ['ok', true])
+        // Every argument is read before the body attempts to enumerate its first.
+        assertStructurallySame(evaluate(['()', values, [null, ['throw', 'extra argument']]]), ['error', 'extra argument'])
+        assertError(evaluate(['()', values, [null]]))
+        assertError(evaluate(['()', values, [['undefined']]]))
+        assertError(evaluate(['()', values, []]))
+        failure(values, noStatic('Object.values'))
+        assertStructurallySame(under(['{}', []], values), ['error', noStatic('Object.values')])
+    },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])
         eq(['()', identity, [1]], 1)

@@ -5,7 +5,7 @@
 
 import { exitCode } from '../effects/node/module.f.js'
 import { pureError, pureOk } from '../effects/module.f.js'
-import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.js'
 import { dispatch, exactArgs, helpReference, isMain } from './module.f.js'
 import { assert, assertEq } from '../asserts/module.f.js'
 

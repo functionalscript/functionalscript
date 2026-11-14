@@ -5,7 +5,7 @@
 
 import { assert, assertEq, todo } from '../asserts/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
-import { virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../effects/node/virtual/module.f.js'
 import { fromEntries } from '../types/object/module.f.js'
 import { allFiles, isAuthored, isHostProof, isThirdParty, loadDirectoryModuleMap, loadModuleMap, shouldLoad, shouldLoadOn } from './module.f.js'
 

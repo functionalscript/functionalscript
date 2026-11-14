@@ -43,7 +43,7 @@ its parameters alone, where `unknown` is the accepting side.
 operation's signature with `infer P` / `infer R`, and inference through a
 generic signature instantiates its type parameter at the constraint. So the
 handler an operation map writes receives `T = unknown` and has to cast its way
-back: the `sandbox` handler in `fjs/effects/node/virtual/module.f.mjs` is
+back: the `sandbox` handler in `fjs/effects/node/virtual/module.f.js` is
 `f => state => [state, ok(/** @type {SandboxResult<unknown>} */ (f()))]`, and
 without the cast `f()` is `unknown`, which `OpResult<SandboxResult<unknown>>`
 will not take.

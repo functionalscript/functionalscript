@@ -8,7 +8,7 @@
 
 import { exitCode } from '../effects/node/module.f.js'
 import { isTodoDir, main, startRounds } from './module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.js'
 import { nodeCommands } from '../effects/node/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'

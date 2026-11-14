@@ -50,5 +50,5 @@ in its own pull request.
   simpler half of that — no disclosure to close and no platform split — so it
   follows the same two steps and needs no root re-check, since a too-long name
   says nothing about the root.
-- `fjs/effects/node/virtual/module.f.mjs` — the file system that would grow the
+- `fjs/effects/node/virtual/module.f.js` — the file system that would grow the
   limit.

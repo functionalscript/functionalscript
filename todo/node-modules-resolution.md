@@ -10,7 +10,7 @@ A program cannot import an installed package by name. The specifier
 `node_modules/functionalscript/fjs/module.f.js`, as Node's native ESM does, but
 every FJS host implements `resolveFileModule` for file paths only: the
 [Node runner](../fjs/effects/node/module.mjs), the
-[virtual runner](../fjs/effects/node/virtual/module.f.mjs) and native
+[virtual runner](../fjs/effects/node/virtual/module.f.js) and native
 `resolve_file_module` in [`resolve.rs`](../nanvm/effects-node/src/resolve.rs).
 Native implements no `import` effect; its module loading is the
 [FJS module loader](../fjs/compiler/todo/load-modules-without-import-effect.md),

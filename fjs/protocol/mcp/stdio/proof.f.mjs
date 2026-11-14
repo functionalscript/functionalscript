@@ -9,7 +9,7 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { pure } from '../../../effects/module.f.js'
 import { pureOk } from '../../../effects/module.f.js'
-import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
+import { emptyState, virtual } from '../../../effects/node/virtual/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.js'
 import { maxLengthBytes, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'

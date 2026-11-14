@@ -68,7 +68,7 @@ name not yet decided, or, where it says so, never admitted.
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
       its own. `Object.entries` is admitted too, native in every executor,
-      and `Object.fromEntries` and `Object.keys`, their bodies in the runtime
+      and `Object.fromEntries`, `Object.keys`, and `Object.values`, their bodies in the runtime
       (the records below)
 - [ ] `Function`
 - [x] `Boolean` — the conversion operator `Boolean(value)`, implemented by
@@ -288,6 +288,53 @@ implementation of `Object.keys` based on `.map`, in a new pull request, in
 
 The runtime host proofs and the Object.keys harness fixtures hold the shared
 body, represented interpreters and generated NaNVM code to JavaScript.
+
+##### `Object.values` proposal and approval
+
+**Status:** approved and implemented.
+
+**Problem.** `Object.values` is refused even though the common runtime can
+derive it from admitted operations. It currently blocks compilation of the
+virtual filesystem's empty-directory check.
+
+**Proposal.** Admit `Object.values`, `Object["values"]`, and namespace
+destructuring as the same static function value, with `length` 1, stable
+identity, detached calls, optional calls, and ignored extra arguments as for
+`Object.keys`. Implement its one common-runtime body by applying the shared
+array mapper to native `Object.entries` and selecting each pair's value.
+Add no native operation or separate backend implementation.
+
+The result is a fresh array of own enumerable string-keyed values in
+JavaScript enumeration order. Preserve entries holding `undefined` and
+references to objects, arrays, and functions. Arrays contribute their present
+enumerable entries; strings contribute UTF-16 code units. Other non-nullish
+primitives contribute no entries, and nullish inputs (including no argument)
+throw. These semantics cover FunctionalScript values, whose constructed
+objects have no accessors, proxies, or symbol keys.
+
+**Benefits.** Preserve a familiar JavaScript operation, remove a real module
+conversion blocker, and reuse the same semantic body across JavaScript,
+represented execution, and NaNVM.
+
+**Drawbacks.** The initial implementation allocates an intermediate entries
+array as well as the result, just as `Object.keys` does. The shared mapper
+copies its immutable accumulator, so the reference body costs O(n²). Admission
+adds one static id and requires the parser, runtime, serialization, corpus, and
+specification inventories to stay consistent. Native substitution can be
+considered separately if measurements justify it.
+
+**Language-design approval.** **sergey-shandar** requested this admission:
+"Can we admit `Object.values` in common runtime?" in the
+[working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033).
+This records the designer's direct request for the feature under DESIGN §12.
+
+**Tasks.**
+
+- [x] Record the proposal, benefits, drawbacks, and designer's request.
+- [x] Add the common-runtime body and static admission.
+- [x] Cover JavaScript parity, represented execution, and native/WASI results.
+- [x] Regenerate affected outputs, update the specification and examples, and
+      check newly compilable modules for `.f.js` promotion.
 
 #### Number and Math
 

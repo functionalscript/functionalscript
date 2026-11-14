@@ -195,7 +195,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/effects/node/module.f.js` | 186 | `<O extends Operation>(listener: RequestListener<O>) => Eff…` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
 | `fjs/effects/node/module.mjs` | 287 | `Erl<NodeOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/module.mjs` | 305 | `_Server` | reads an `unknown` the surrounding code has already established |
-| `fjs/effects/node/virtual/module.f.mjs` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/effects/node/virtual/module.f.js` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/proof.f.mjs` | 85 | `(value: number) => Effect<never, import('../types/result/t…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/module.f.mjs` | 64 | `TestFn` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/proof.f.mjs` | 333 | `Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockS…` | cast overrides the inferred type — needs a type/API change, not a different cast |

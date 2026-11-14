@@ -20,7 +20,7 @@ import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js
 import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.js'
-import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.js'
 import { do_ } from '../../module.f.js'
 import { catchStep } from '../../module.f.js'
 import { ioError } from '../../module.f.js'

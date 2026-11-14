@@ -7,7 +7,7 @@ import { assert, assertEq, assertOk, assertError, assertStructurallySame } from 
 import { exitCode, nodeCommands } from '../effects/node/module.f.js'
 import { ioError } from '../effects/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
-import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.js'
 import { utf8 } from '../text/module.f.js'
 import { vec8 } from '../types/bit_vec/module.f.js'
 import { error } from '../types/result/module.f.js'

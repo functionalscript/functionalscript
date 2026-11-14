@@ -18,7 +18,7 @@ import { _transpileDefault } from '../../../../compiler/transpiler/module.f.mjs'
 import { pureOk } from '../../../../effects/module.f.js'
 import { vm } from '../../../../edag/amnesia/module.f.mjs'
 import { read } from '../../../../edag/value/property/module.f.js'
-import { virtualAt } from '../../../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../../../effects/node/virtual/module.f.js'
 import runtimeEdag from '../../../../js/runtime/gen.edag.js'
 import { utf8 } from '../../../../text/module.f.js'
 import {

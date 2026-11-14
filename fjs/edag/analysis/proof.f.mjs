@@ -208,6 +208,14 @@ export const proof = {
         assertStructurallySame(operandsOf(keys), [])
         assertOk(checked(an(['()', keys, [['{}', []]]])))
     },
+    objectValues: () => {
+        const values = /** @type {const} */ (['Object.values'])
+        const repeated = an(['[]', [values, ['Object.values']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'Object.values').length, 1)
+        assertStructurallySame(operandsOf(values), [])
+        assertOk(checked(an(['=>', 0, [values], ['.', ['frame', 0], 'length']])))
+        assertOk(checked(an(['()', values, [['{}', []]]])))
+    },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
             ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],

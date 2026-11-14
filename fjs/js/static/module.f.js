@@ -35,8 +35,8 @@
  */
 
 /**
- * Every admitted static path: `Object.is`, `Object.entries`, `Object.keys` and
- * `Object.fromEntries`
+ * Every admitted static path: `Object.is`, `Object.entries`, `Object.keys`,
+ * `Object.values` and `Object.fromEntries`
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectfromentries-proposal-and-approval)),
  * `String.fromCharCode` for native UTF-16 construction,
  * the four `Number` predicates, none of which converts its argument
@@ -49,6 +49,7 @@ export const statics = /** @type {const} */ ([
     ['Object', 'is'],
     ['Object', 'entries'],
     ['Object', 'keys'],
+    ['Object', 'values'],
     ['String', 'fromCharCode'],
     ['Object', 'fromEntries'],
     ['Number', 'isInteger'],

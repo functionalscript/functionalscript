@@ -15,7 +15,7 @@ import {
     emptyState,
     virtual,
     virtualAt,
-} from '../../effects/node/virtual/module.f.mjs'
+} from '../../effects/node/virtual/module.f.js'
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.js'

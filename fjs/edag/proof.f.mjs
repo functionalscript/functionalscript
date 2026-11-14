@@ -101,7 +101,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'refMap', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'refMap', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.keys', 'Object.values', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw'])
@@ -229,7 +229,8 @@ export const proof = {
         assertOk(v(['[]', [['Object.is'], ['Object.is']]]))
         assertNoMatch(v(['Object.is', 1]))
         assertOk(v(['Object.keys']))
-        assertNoMatch(v(['Object.values']))
+        assertOk(v(['Object.values']))
+        assertNoMatch(v(['Object.assign']))
         assertNoMatch(v(['Number.MAX_VALUE']))
         assertNoMatch(v(['static', ['Object', 'is']]))
     },
@@ -263,8 +264,8 @@ export const proof = {
         for (const node of [['Object.is'], ['slice', 1], ['[]', []], 'entry', [], null]) { assert(!isFunctionNode(node), node) }
     },
     staticIds: () => {
-        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2'], ['Math', 'trunc'], ['Math', 'floor'], ['Math', 'abs'], ['Math', 'sqrt'], ['Math', 'ceil'], ['Math', 'imul'], ['Math', 'max'], ['Math', 'min']])
-        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function keys() { [native code] }', 'function fromCharCode() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }', 'function log2() { [native code] }', 'function trunc() { [native code] }', 'function floor() { [native code] }', 'function abs() { [native code] }', 'function sqrt() { [native code] }', 'function ceil() { [native code] }', 'function imul() { [native code] }', 'function max() { [native code] }', 'function min() { [native code] }'])
+        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['Object', 'values'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2'], ['Math', 'trunc'], ['Math', 'floor'], ['Math', 'abs'], ['Math', 'sqrt'], ['Math', 'ceil'], ['Math', 'imul'], ['Math', 'max'], ['Math', 'min']])
+        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function keys() { [native code] }', 'function values() { [native code] }', 'function fromCharCode() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }', 'function log2() { [native code] }', 'function trunc() { [native code] }', 'function floor() { [native code] }', 'function abs() { [native code] }', 'function sqrt() { [native code] }', 'function ceil() { [native code] }', 'function imul() { [native code] }', 'function max() { [native code] }', 'function min() { [native code] }'])
         assertEq(noStatic('Object.is'), 'no binding for the static Object.is')
         assertEq(noRefMap, 'no reference map in this executor')
         for (const id of staticIds) { assert(isStatic([id]), id) }

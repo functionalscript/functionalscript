@@ -9,7 +9,7 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { fileCas } from '../../cas/module.f.js'
 import { sha256 } from '../../crypto/sha2/module.f.js'
-import { virtual } from '../../effects/node/virtual/module.f.mjs'
+import { virtual } from '../../effects/node/virtual/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { pureError } from '../../effects/module.f.js'
 import { unwrap as unwrapResult } from '../../types/result/module.f.js'

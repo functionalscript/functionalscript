@@ -2,7 +2,7 @@
 
 import { assertEq, assertError } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.js'
-import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { interpret, noRuntime } from './module.f.mjs'
 
 export const proof = /** @type {const} */ ({

@@ -27,7 +27,7 @@ const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unkn
  * arguments, and a numerical approximation needing an accuracy bound.
  * @type {readonly string[]}
  */
-const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Math.log2']
+const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2']
 
 /**
  * Correctly rounded log2 and the output's ULP, computed from the exact
@@ -437,7 +437,7 @@ export const proof = /** @type {const} */ ({
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.values', 'Math.cbrt', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.assign', 'Math.cbrt', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -526,6 +526,31 @@ export const proof = /** @type {const} */ ({
         const input = /** @type {const} */ ({ a: 1 })
         assert(body(input, undefined) !== body(input, undefined))
         assertEq(runtime.static('Object.keys'), statics['Object.keys'])
+    },
+    // Projection keeps undefined entries and identities while copying the array.
+    objectValues: () => {
+        const body = table['Object.values']
+        assertEq(body.length, values.length)
+        /** @type {readonly {}[]} */
+        const cases = [
+            ...samples.filter(value => value !== null && value !== undefined),
+            { b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4, '01': 5, '': 6 },
+            { ['constructor']: undefined, length: 1 }, [undefined], 'a😀', '\ud800',
+            { object, array, f },
+        ]
+        for (const input of cases) {
+            assertStructurallySame(body(input, undefined), Object.values(input), input)
+            assertStructurallySame(body(input, 'ignored'), values(input), input)
+        }
+        assertStructurallySame(body({ b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4 }, undefined), [3, 2, 1, undefined, 4])
+        assertStructurallySame(body('a😀', undefined), ['a', '\ud83d', '\ude00'])
+        const input = /** @type {const} */ ({ object, array, f })
+        const first = /** @type {readonly unknown[]} */ (body(input, undefined))
+        assert(first !== body(input, undefined))
+        assertEq(first[0], object)
+        assertEq(first[1], array)
+        assertEq(first[2], f)
+        assertEq(runtime.static('Object.values'), statics['Object.values'])
     },
     // The two values `===` reads the other way, which `Object.is` exists
     // for, and none of the four predicates converting its argument, are the
@@ -684,7 +709,7 @@ export const proof = /** @type {const} */ ({
     // through an intrinsic, `slice` in `found` and `charCodeAt` in
     // `codePointAt`, called as a function. Native static bindings are read
     // once: `Object.entries` is shared by its own table entry and the keys
-    // body, which calls that captured native and the shared map function
+    // and values bodies, which call that captured native and the shared map function
     // directly. Neither needs a runtime lookup, so the module can be
     // evaluated with no runtime, and NaNVM can hold it as a value whose
     // bodies never name it (`../runtime/README.md`, "How NaNVM finds
@@ -802,5 +827,7 @@ export const proof = /** @type {const} */ ({
         fromEntriesNotArray: () => { statics['Object.fromEntries']('') },
         objectKeysNull: () => { table['Object.keys'](null, undefined) },
         objectKeysUndefined: () => { table['Object.keys'](undefined, undefined) },
+        objectValuesNull: () => { table['Object.values'](null, undefined) },
+        objectValuesUndefined: () => { table['Object.values'](undefined, undefined) },
     },
 })
