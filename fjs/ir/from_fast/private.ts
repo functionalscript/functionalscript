@@ -5,7 +5,7 @@
  */
 
 import type { Result } from '../../types/result/types.ts'
-import type { BindingId, Block, Function as FastFunction, Item, LoopTarget, Value } from '../../js/ast/types.ts'
+import type { BindingId, Block, Function as FastFunction, Item, LoopTarget, Statement, Value } from '../../js/ast/types.ts'
 import type { OpName, Scope, Term } from '../types.ts'
 
 /**
@@ -72,3 +72,13 @@ export type _LowerValue = (scope: _Scope, v: Value) => Result<Term, string>
 
 /** Lower a block, using the recursive value lowering for its values. */
 export type _LowerBlock = (lowerValue: _LowerValue, scope: _Scope, b: Block, tail: _Tail) => Result<Term, string>
+
+/** Lower a statement around the continuation in the scope that it leaves. */
+export type _LowerStatement = (
+    lowerValue: _LowerValue,
+    lowerBlock: _LowerBlock,
+    scope: _Scope,
+    s: Statement,
+    tail: _Tail,
+    rest: (scope: _Scope) => Result<Term, string>,
+) => Result<Term, string>
