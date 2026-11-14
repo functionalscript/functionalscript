@@ -44,7 +44,7 @@ shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
 representation; [EDAG values](values.md) records its construction, identity,
 failure and runtime-compilation contracts.
-[`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
+[`validateMetadata`](value/metadata/module.f.js) checks unique, correctly
 ordered object keys in evaluated data and captures,
 preserving value identity.
 [`validateClosure`](value/closure/module.f.mjs) checks closure bindings,
