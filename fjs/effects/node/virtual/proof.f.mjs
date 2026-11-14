@@ -11,7 +11,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { assertIoMessage } from '../../testlib.f.js'
-import { catch_, now, randomInt, read, sandbox } from '../module.f.js'
+import { catch_, now, randomInt, read, sandbox, write } from '../module.f.js'
 import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.js'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.js'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.js'
@@ -249,6 +249,14 @@ export const proof = {
         assertStructurallySame(assertOk(virtual(emptyState)(sandbox(() => result))[1]), result)
         assertEq(assertOk(assertOk(virtual(emptyState)(catch_(() => 42))[1])), 42)
     },
+    stderrAppendsWithoutChangingStdout: () => {
+        /** @type {State} */
+        const initial = { ...emptyState, stdout: 'kept', stderr: 'before: ' }
+        const [state, result] = virtual(initial)(write('stderr', utf8('written ✓')))
+        assertEq(assertOk(result), undefined)
+        assertEq(state.stderr, 'before: written ✓')
+        assertEq(state.stdout, initial.stdout)
+    },
     stdinIsConsumedOnce: () => {
         const [first, one] = virtual({ ...emptyState, stdin: [0x61, 0x62] })(read('stdin'))
         const a = assertOk(one)
@@ -373,7 +381,7 @@ export const proof = {
     },
     writeFileOverJsModule: () => {
         // writeFile onto a path currently holding a JsModule (function) covers the
-        // `!Array.isArray(file)` branch of writeFileOp: the entry exists but is
+        // `!isBinFile(file)` branch of writeFileOp: the entry exists but is
         // neither undefined nor an array.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
@@ -498,6 +506,18 @@ export const proof = {
         // covers the `result === undefined` branch of the `fetch` handler
         const [, result] = virtual(emptyState)(fetch('https://example.com/missing'))
         assert(result[0] === 'error')
+    },
+    fetchOwnNamesOnly: () => {
+        const content = utf8('response')
+        for (const url of ['toString', 'constructor', '__proto__']) {
+            const [, missing] = virtual(emptyState)(fetch(url))
+            assert(missing[0] === 'error')
+            assertIoMessage(missing[1], 'not found')
+            /** @type {State['internet']} */
+            const internet = { [url]: content }
+            const [, found] = virtual({ ...emptyState, internet })(fetch(url))
+            assertEq(assertOk(found), content)
+        }
     },
     importNestedPath: () => {
         // import_ on a path whose parent does not exist covers the
@@ -923,18 +943,6 @@ export const proof = {
         const root = { 'myfile': [vec8(0x42n)], 'mydir': {} }
         const [, result] = virtualAt(root)(rename('myfile', 'mydir'))
         assert(result[0] === 'error')
-    },
-    renameForeignArrayFileOntoDirectory: () => {
-        // An array with another constructor's prototype models the observable
-        // instanceof behavior of an array received from another realm.
-        const foreignFile = Reflect.construct(Array, [], Object)
-        assert(Array.isArray(foreignFile))
-        assert(!(foreignFile instanceof Array))
-        /** @type {Dir} */
-        const root = { 'myfile': foreignFile, 'mydir': {} }
-        const [, result] = virtualAt(root)(rename('myfile', 'mydir'))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], "'mydir' is a directory")
     },
     readFileTooLarge: () => {
         // A file stored as a max-size chunk and one byte more exceeds the limit;

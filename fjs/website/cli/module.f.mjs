@@ -13,7 +13,7 @@
  */
 
 import { commands } from '../../module.f.mjs'
-import { helpMeta, helpReference } from '../../cli/module.f.mjs'
+import { helpMeta, helpReference } from '../../cli/module.f.js'
 import { cliDir, fileHref, pageHref, pageTitle, shell, siteDescription } from '../page/module.f.mjs'
 import { codeBlock } from '../demo/code/module.f.js'
 

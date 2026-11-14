@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
-import { dispatch } from '../../../cli/module.f.mjs'
+import { dispatch } from '../../../cli/module.f.js'
 import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { exitCode } from '../../../effects/node/module.f.js'
 import { nodeProgramOptions, virtual, virtualAt } from '../../../effects/node/virtual/module.f.mjs'

@@ -145,7 +145,7 @@ fast path.
       answer as Node's on each. The Adler-32 is a loop over the bytes now.
 - [x] [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) and
       [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) read through it
-      together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.mjs): a
+      together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.js): a
       loose file by one `readWhole` and a pack entry in windows of a `Vec`, so no
       object read whole is refused for its length. A stream that has made more
       than its header declares is not read on. Checked on this repository's own

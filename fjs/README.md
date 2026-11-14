@@ -104,7 +104,7 @@ request path to a file under it — enough to open the pages this repository
 generates in a browser, where a `file://` URL has no origin. It binds loopback,
 so what it serves stays on the machine it runs on. Both arguments are
 positional; `port` becomes `--port`, and `--host` becomes possible at all, once
-[`fjs/cli`](cli/module.f.mjs) has named options.
+[`fjs/cli`](cli/module.f.js) has named options.
 
 ```
 fjs web            # serve the working directory on http://127.0.0.1:8080/
@@ -121,7 +121,7 @@ fjs run <module> [args...]
 ```
 
 `fjs run` dynamically imports `<module>`, checks its `main` export with `isMain`
-and runs it through `dispatch`, both from [`cli`](cli/module.f.mjs):
+and runs it through `dispatch`, both from [`cli`](cli/module.f.js):
 
 ```js
 const { main } = r[1]
@@ -191,5 +191,5 @@ fjs run ./my-tool.f.mjs hello foo bar   # hello's options.args === ['foo', 'bar'
 ```
 fjs/module.mjs         — Node.js entry point (runs main via the node runner)
 fjs/module.f.mjs       — FunctionalScript command dispatcher (Commands list + dispatch)
-fjs/cli/module.f.mjs   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
+fjs/cli/module.f.js   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
 ```

@@ -28,6 +28,7 @@ import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { inflate } from '../../zlib/inflate/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 const { init: [, , initialState], update: updateInflate, end: endInflate } = inflate
 
@@ -65,9 +66,9 @@ const pieceBytes = 0x400
  */
 const piecesOf = chunk => {
     const bytes = u8ArrayMsb(chunk)
-    return Array.from(
-        { length: Math.ceil(bytes.length / pieceBytes) },
-        (_, i) => u8ListToVecMsb(bytes.slice(i * pieceBytes, (i + 1) * pieceBytes)))
+    return generate(
+        Math.ceil(bytes.length / pieceBytes),
+        i => u8ListToVecMsb(bytes.slice(i * pieceBytes, (i + 1) * pieceBytes)))
 }
 
 /**

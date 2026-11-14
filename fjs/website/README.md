@@ -100,7 +100,7 @@ continue to identify sections and bookmark links.
 Usage, examples, explanatory notes and documentation paths live beside each
 handler in the CLI's `DocumentedCommands` tables. The type requires these fields
 for every built-in command and nested subcommand. Implicit help reference text
-comes from `helpReference` in `fjs/cli/module.f.mjs`, using the canonical parent
+comes from `helpReference` in `fjs/cli/module.f.js`, using the canonical parent
 path. The website consumes these fields directly; it has no separate guide list
 or name-based documentation lookup. A command metadata change therefore appears
 in the next website build, including displayed snippets and copied text.

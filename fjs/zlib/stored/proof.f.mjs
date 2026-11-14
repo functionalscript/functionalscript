@@ -1,5 +1,5 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { bytesOf, inflateAll } from '../../git/inflater/module.f.mjs'
+import { bytesOf, inflateAll } from '../../git/inflater/module.f.js'
 import { u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { noise, storedBytes, text } from '../testlib.f.js'

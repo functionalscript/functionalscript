@@ -2,7 +2,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.mjs'
 import { l0 } from '../l0/module.f.js'
 import { show } from '../print/module.f.js'
-import { native } from './module.f.mjs'
+import { native } from './module.f.js'
 
 export const proof = {
     // A row takes what its body checks: bigints of `any`, or floats.

@@ -26,7 +26,7 @@
  */
 
 import { cBase32ToVec, vecToCBase32 } from '../../../basen/cbase32/module.f.js'
-import { exactArgs } from '../../../cli/module.f.mjs'
+import { exactArgs } from '../../../cli/module.f.js'
 import { sha256 } from '../../../crypto/sha2/module.f.js'
 import { catchStep, forEachStep, history, historyStep, mapStep, orElse, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { exitStep, isNotFound, log, writeFromStream } from '../../../effects/node/module.f.js'

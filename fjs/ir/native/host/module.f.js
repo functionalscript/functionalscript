@@ -1,6 +1,6 @@
 /**
  * A JavaScript host for the `fjs:l1-native` imports that [the interface of
- * L1's native rows](../module.f.mjs) binds, beside the
+ * L1's native rows](../module.f.js) binds, beside the
  * [host of L0](../../l0/host/module.f.js), whose table of values it reads.
  *
  * Each import is the [row](../../../wasm/runtime/l1/native/module.f.js)
