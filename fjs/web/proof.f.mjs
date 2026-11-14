@@ -17,7 +17,7 @@ import { utf8ToString } from '../text/utf8/module.f.js'
 import { empty as elEmpty } from '../effects/list/module.f.js'
 import { length, u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
-import { main, resolve, respond } from './module.f.mjs'
+import { main, resolve, respond } from './module.f.js'
 
 /** @type {string} */
 const page = '<h1>hi</h1>'
@@ -480,7 +480,7 @@ export const proof = {
         // missing one, and one whose `index.html` is no regular file answer the
         // same URL alike. This covers what the virtual file system can hold; a
         // permission-denied or looping directory stays a `500` on a POSIX host
-        // (see `answer` in `./module.f.mjs`).
+        // (see `answer` in `./module.f.js`).
         noIndexDisclosesNothing: () => {
             /** @type {(root: Dir) => string} */
             const fjs = root => {
@@ -643,7 +643,7 @@ export const proof = {
         // failure. It is not decided from the *code*: one errno wears four names
         // across the hosts and runtimes this suite runs on, so a list of them would
         // answer `404` on some and `500` on others for one request. See `answer` in
-        // [`./module.f.mjs`](./module.f.mjs) for the four, and
+        // [`./module.f.js`](./module.f.js) for the four, and
         // `socketIsAnsweredAsAbsent` in [`./proof.mjs`](./proof.mjs) for a real
         // socket measured on all three runtimes.
         //

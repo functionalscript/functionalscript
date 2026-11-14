@@ -496,7 +496,7 @@ export type Handle =
  * as `EOPNOTSUPP` on Bun 1.4.2 and as `UNKNOWN` on Deno 2.8.3, all measured on
  * Darwin arm64 against one socket made by listening on a path. What every host
  * does answer alike is a `stat` of the name, which `fjs/web` asks — see `answer`
- * in [`../../web/module.f.mjs`](../../web/module.f.mjs).
+ * in [`../../web/module.f.js`](../../web/module.f.js).
  */
 export type Open = readonly['open', (path: string) => IoResult<Handle>]
 

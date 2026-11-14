@@ -12,7 +12,7 @@ format defines as ASCII case-insensitive through `toLowerCase()`, which folds
 beyond ASCII — `'K'`, the Kelvin sign, lowercases to `k` — so a name the
 format's own reader refuses or keeps apart is taken for another:
 
-- [`fjs/web`](../../../web/module.f.mjs) — the authority's host and the
+- [`fjs/web`](../../../web/module.f.js) — the authority's host and the
   scheme, both ASCII case-insensitive in RFC 3986.
 - [`fjs/media/type`](../../../media/type/module.f.js) — a path's extension.
 - [`fjs/media/mermaid`](../../../media/mermaid/module.f.js) — the `<br` tag.
