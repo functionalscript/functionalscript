@@ -99,7 +99,7 @@ Everything here is additive in `fjs/ebnf/`.
       nothing waits on.
 - [ ] Leave `range`, `set` and `unicodeMax` in `fjs/ebnf/module.f.mjs`
       (**Amended** above); keep byte-container interpretation out of the
-      front end and out of `fjs/ebnf/data/module.f.mjs`.
+      front end and out of `fjs/ebnf/data/module.f.js`.
 - [ ] Keep EOF generic and width-independent: `fjs/ebnf/terminal/`'s
       `EOF = -1`, and every alphabet adapter restricted to ordinary
       non-negative symbols without reserving the maximal value.

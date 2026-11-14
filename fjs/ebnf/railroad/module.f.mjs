@@ -42,7 +42,7 @@
  * @import { StringMap } from '../../types/object/types.ts'
  */
 
-import { matchRule } from '../data/module.f.mjs'
+import { matchRule } from '../data/module.f.js'
 import { definedValues } from '../../types/object/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'

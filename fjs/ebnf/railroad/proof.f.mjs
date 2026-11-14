@@ -6,7 +6,7 @@
 
 import { branch, codePoints, tokens, toDiagrams } from './module.f.mjs'
 import { encoding } from '../token_symbol/module.f.js'
-import { toData } from '../data/module.f.mjs'
+import { toData } from '../data/module.f.js'
 import { mapGet } from '../../types/map/module.f.js'
 import { eof, join, option, range, rangeEncode, repeat, repeatFrom, repeatFrom0, repeatFrom1, set, times } from '../module.f.mjs'
 import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'

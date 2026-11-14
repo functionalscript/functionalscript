@@ -193,8 +193,8 @@ docs, mirroring the existing `throws` plumbing:
   record, so no signature change — `defaultReporter` just prints the new field
   (`pass / fail / todo`). The `register` path is unchanged — no cross-test
   tally there.
-- **No `fn.name === 'todo'` check** — `todo` is structural-key-only, matching the
-  guidance around the legacy `fn.name === 'throw'` path.
+- **No `fn.name === 'todo'` check** — `todo` is structural-key-only, matching
+  `throw`'s structural-key-only rule.
 
 ### Migration
 

@@ -7,8 +7,8 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { one as c } from '../../text/ascii/module.f.js'
 import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
-import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
-import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.mjs'
+import { digit, json, string, uint, value, ws, wsSymbol } from '../lib/json/module.f.mjs'
+import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.js'
 import { mapGet, size as mapSize } from '../../types/map/module.f.js'
 
 const { keys } = Object
@@ -351,18 +351,30 @@ export const proof = {
                 item: ['set', c('0'), c('9') + 1],
             })
         },
-        // A thunk with a name is named by it, and a `const` thunk is the rule
-        // its body spells, under that name, with no rule for the indirection.
+        // A `const` thunk is the rule its body spells, with no rule for the
+        // indirection; its root name is structural, as for any other rule.
         constThunk: () => {
             const digits = () => /** @type {const} */ (['const', [range('09'), 'x']])
             const [ruleSet, entry] = toData(digits)
-            assertEq(entry, 'digits')
+            assertEq(entry, '')
             assertStructurallySame(ruleSet, {
-                digits: ['sequence', 'digits.0', 'digits.1'],
-                'digits.0': ['set', c('0'), c('9') + 1],
-                'digits.1': ['sequence', 'digits.1.0'],
-                'digits.1.0': one('x'),
+                '': ['sequence', '0', '1'],
+                '0': ['set', c('0'), c('9') + 1],
+                '1': ['sequence', '1.0'],
+                '1.0': one('x'),
             })
+        },
+        inferredNamesDoNotAffectIds: () => {
+            const first = () => /** @type {const} */ (['const', ['x', 'y']])
+            const renamed = () => /** @type {const} */ (['const', ['x', 'y']])
+            const object = { property: () => /** @type {const} */ (['const', ['x', 'y']]) }
+            const [expected, expectedEntry] = toData(first)
+            for (const rule of [renamed, object.property]) {
+                const [ruleSet, entry, names] = toData(rule)
+                assertStructurallySame(ruleSet, expected)
+                assertEq(entry, expectedEntry)
+                assertEq(mapGet(names, rule), entry)
+            }
         },
         // A rule that names itself is registered before its body is read, so
         // the body finds it; a repeat whose item reaches the repeat is the
@@ -371,15 +383,15 @@ export const proof = {
             /** @type {Thunk} */
             const parens = () => ['const', { pair: ['(', parens, ')'], none: [] }]
             const [ruleSet, entry] = toData(parens)
-            assertEq(entry, 'parens')
+            assertEq(entry, '')
             assertStructurallySame(ruleSet, {
-                parens: ['variant', { pair: 'parens.pair', none: 'parens.none' }],
-                'parens.pair': ['sequence', 'parens.pair.0', 'parens', 'parens.pair.2'],
-                'parens.pair.0': ['sequence', 'parens.pair.0.0'],
-                'parens.pair.0.0': one('('),
-                'parens.pair.2': ['sequence', 'parens.pair.2.0'],
-                'parens.pair.2.0': one(')'),
-                'parens.none': ['sequence'],
+                '': ['variant', { pair: 'pair', none: 'none' }],
+                pair: ['sequence', 'pair.0', '', 'pair.2'],
+                'pair.0': ['sequence', 'pair.0.0'],
+                'pair.0.0': one('('),
+                'pair.2': ['sequence', 'pair.2.0'],
+                'pair.2.0': one(')'),
+                none: ['sequence'],
             })
         },
         recursiveRepeat: () => {
@@ -387,12 +399,12 @@ export const proof = {
             const nest = () => ['repeat', 0, Infinity, ['(', nest, ')']]
             const [ruleSet] = toData(nest)
             assertStructurallySame(ruleSet, {
-                nest: ['repeat', 0, Infinity, 'nest.item'],
-                'nest.item': ['sequence', 'nest.item.0', 'nest', 'nest.item.2'],
-                'nest.item.0': ['sequence', 'nest.item.0.0'],
-                'nest.item.0.0': one('('),
-                'nest.item.2': ['sequence', 'nest.item.2.0'],
-                'nest.item.2.0': one(')'),
+                '': ['repeat', 0, Infinity, 'item'],
+                item: ['sequence', 'item.0', '', 'item.2'],
+                'item.0': ['sequence', 'item.0.0'],
+                'item.0.0': one('('),
+                'item.2': ['sequence', 'item.2.0'],
+                'item.2.0': one(')'),
             })
         },
         // Sharing is by identity: a rule held twice is one named rule, and
@@ -439,29 +451,30 @@ export const proof = {
             assertEq(name(thunk), items[10])
             assertEq(items[10], items[11])
         },
-        // A thunk may be named as `{}`'s prototype names things, and the
+        // A branch may be named as `{}`'s prototype names things, and the
         // rule set and the identity map both read it as their own entry.
         inheritedName: () => {
             const constructor = () => /** @type {const} */ (['const', 'x'])
-            const [ruleSet, entry, names] = toData(constructor)
-            assertEq(entry, 'constructor')
+            const [ruleSet, entry, names] = toData({ constructor })
+            assertEq(entry, '')
             assertEq(mapGet(names, constructor), 'constructor')
             assertStructurallySame(ruleSet, {
+                '': ['variant', { constructor: 'constructor' }],
                 constructor: ['sequence', 'constructor.0'],
                 'constructor.0': one('x'),
             })
         },
-        // Two thunks with one name: the second gets a counter.
+        // Different structural paths can spell one hint when tags hold dots.
+        // The second rule gets a counter rather than replacing the first.
         sameName: () => {
-            const first = /** @type {const} */ ({ a: () => /** @type {const} */ (['const', 'x']) })
-            const second = /** @type {const} */ ({ a: () => /** @type {const} */ (['const', 'y']) })
-            const [ruleSet] = toData([first.a, second.a])
+            const [ruleSet] = toData({ a: { b: 'x' }, 'a.b': 'y' })
             assertStructurallySame(ruleSet, {
-                '': ['sequence', 'a', 'a1'],
-                a: ['sequence', 'a.0'],
-                'a.0': one('x'),
-                a1: ['sequence', 'a1.0'],
-                'a1.0': one('y'),
+                '': ['variant', { a: 'a', 'a.b': 'a.b1' }],
+                a: ['variant', { b: 'a.b' }],
+                'a.b': ['sequence', 'a.b.0'],
+                'a.b.0': one('x'),
+                'a.b1': ['sequence', 'a.b1.0'],
+                'a.b1.0': one('y'),
             })
         },
         // A hand-written set is clipped to the domain: a generic
@@ -470,7 +483,7 @@ export const proof = {
             /** @type {Thunk} */
             const below = () => ['set', -Infinity, 5]
             const [ruleSet] = toData(below)
-            assertStructurallySame(ruleSet, { below: ['set', 0, 5] })
+            assertStructurallySame(ruleSet, { '': ['set', 0, 5] })
         },
         throw: {
             // A symbol is a non-negative safe integer; EOF is `null`, not
@@ -519,7 +532,7 @@ export const proof = {
             const [ruleSet, entry, names] = toData(json)
             assertEq(entry, '')
             const name = nameOf(names)
-            assertStructurallySame(ruleSet[entry], ['sequence', name(ws), 'value', name(ws)])
+            assertStructurallySame(ruleSet[entry], ['sequence', name(ws), name(value), name(ws)])
             assertStructurallySame(ruleSet[name(ws)], ['repeat', 0, Infinity, name(wsSymbol)])
             assertStructurallySame(ruleSet[name(wsSymbol)], ['set', 9, 11, 13, 14, 32, 33])
             assertStructurallySame(ruleSet[name(digit)], ['set', c('0'), c('9') + 1])
@@ -529,7 +542,7 @@ export const proof = {
             }])
             // The string rule is held by the `string` alternative and by an
             // object's property, so both name the one rule.
-            assertEq(matchRule(stringBranch)(ruleSet.value), name(string))
+            assertEq(matchRule(stringBranch)(ruleSet[name(value)]), name(string))
             assertEq(keys(ruleSet).length, 81)
         },
         dataJs: () => {

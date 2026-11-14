@@ -42,7 +42,7 @@ import { bunSteps } from './bun/module.f.js'
 import { denoSteps } from './deno/module.f.js'
 import { spiderMonkeySteps } from './spidermonkey/module.f.js'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
-import { miseJobs } from './mise/module.f.mjs'
+import { miseJobs } from './mise/module.f.js'
 import { smartJobs } from './smart/module.f.mjs'
 
 /**

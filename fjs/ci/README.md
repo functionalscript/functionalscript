@@ -64,7 +64,7 @@ these whole-check gates. Unsupported dependency analysis remains uncached.
 
 - `config/module.f.js`: exact accepted tool versions and runner/action pins.
 - `environment/module.f.js`: manager-independent command assembly.
-- `mise/module.f.mjs`: locked setup and command execution, including supplements.
+- `mise/module.f.js`: locked setup and command execution, including supplements.
 - `rust`, `node`, `bun`, `deno`, `spidermonkey`: check builders.
 - `package`: isolated declaration and runtime consumer steps.
 - `smart`: successful-check caching; `cache`: input classification and keys.

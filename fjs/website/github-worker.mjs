@@ -6,7 +6,7 @@
  *
  * @module
  *
- * @import { ExchangeFailure, WorkerEnv, WorkerHost } from './github/types.ts'
+ * @import { CallbackUrl, ExchangeFailure, WorkerEnv, WorkerHost } from './github/types.ts'
  */
 
 import { parse } from '../rtti/parse/module.f.js'
@@ -31,7 +31,17 @@ const callback = value => {
     if (value === undefined) { return null }
     try {
         const url = new URL(value)
-        return validCallback(url) ? url : null
+        /** @type {CallbackUrl} */
+        const parts = {
+            protocol: url.protocol,
+            hostname: url.hostname,
+            pathname: url.pathname,
+            search: url.search,
+            hash: url.hash,
+            username: url.username,
+            password: url.password,
+        }
+        return validCallback(parts) ? url : null
     } catch {
         return null
     }
