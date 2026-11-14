@@ -9,7 +9,7 @@ The screenshot server in [`cards.mjs`](../cards.mjs) answers the
 `content-type` a file name implies from a private `types` table of six
 extensions, with `application/octet-stream` as the default.
 [`fjs/media/type`](../../media/type/module.f.js)'s `detectPath` answers
-the same question for the whole site, and [`fjs/web`](../../web/module.f.mjs)'s
+the same question for the whole site, and [`fjs/web`](../../web/module.f.js)'s
 `fileResponse` already serves the same tree through it. The second table
 is a subset: it has no `wasm`, `json` or `jpg`, which a card page may
 reference, and it adds the charset by hand.

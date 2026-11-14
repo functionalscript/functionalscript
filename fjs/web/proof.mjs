@@ -22,7 +22,7 @@ import { join } from 'node:path'
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import { isBun, loopback, within, withServer, withTemporary } from '../effects/node/testlib.mjs'
-import { respond } from './module.f.mjs'
+import { respond } from './module.f.js'
 
 /**
  * The file the two byte-for-byte proofs read: sixteen 131,072-byte chunks and a

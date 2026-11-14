@@ -168,7 +168,7 @@ rather than around — framing, the no-body gate, `release`, and the
 [`fjs/web`](../../../web/README.md) corrections. This is that pass, kept here so
 that the handle-effect sections below go on speaking for the route they describe.
 **It is written in the past tense from here on**, because it is not what
-[`fjs/web`](../../../web/module.f.mjs) does: that reads through an open file. What
+[`fjs/web`](../../../web/module.f.js) does: that reads through an open file. What
 the eager route was is `ServerResponse.body` as `readonly Vec[]` — the shape
 [`ReadWhole`](../types.ts) answers and the shape a `Dir` already stores a file in
 ([`../virtual/types.ts`](../virtual/types.ts), `_Entity`) — with the body read
@@ -185,7 +185,7 @@ with it — the count and the bytes are the same measurement taken once. The
 `fstat`-declared, read-bounded framing the sections below describe is what a
 *lazy* body needs instead, and it needs it for the reason those sections give: a
 lazy body has no length to sum. `response` in
-[`../../../web/module.f.mjs`](../../../web/module.f.mjs) says so where the header
+[`../../../web/module.f.js`](../../../web/module.f.js) says so where the header
 is built.
 
 **The no-body gate had nothing to hold.** Its whole point is the read it saves —
@@ -197,7 +197,7 @@ method was, and Node dropped the body of a `HEAD`, a `204`, a `304` or a `1xx`
 itself. The gate exists now, so the runner declines before Node is offered a byte,
 and [`../proof.mjs`](../proof.mjs) pins that against the host
 (`createServer.suppressesABodyNodeWillNotCarry`) where it used to pin Node's own
-dropping. [`fjs/web`](../../../web/module.f.mjs) answers a `HEAD` exactly like a
+dropping. [`fjs/web`](../../../web/module.f.js) answers a `HEAD` exactly like a
 `GET` either way — which party drops the body is the runner's business, not the
 listener's.
 
@@ -672,7 +672,7 @@ speed of the disk to send nothing, and never finishes at all for a producer that
 does not end. So the pump does not start where Node will not carry a body. It is
 the runner that checks and not the listener, which stays method-agnostic:
 `fjs/web` answers `HEAD` exactly like `GET`
-([`../../../web/module.f.mjs`](../../../web/module.f.mjs)) and goes on doing so,
+([`../../../web/module.f.js`](../../../web/module.f.js)) and goes on doing so,
 now that `Content-Length` comes from the `stat` rather than from the body. What
 that costs is the handle the listener opened for a body the runner then drops,
 and the `release` below is who gives it back.
@@ -854,7 +854,7 @@ descriptor moved that kind out of its reach — and while `fjs/web` mapped only
 `stat`/`isFile` route had answered `404`. It is answered from the failed open now,
 by a `stat` of the name rather than by its code: one errno wears four names, `ENXIO`
 on Linux and three different renderings of Darwin's −102 across the three runtimes.
-See `answer` in [`../../../web/module.f.mjs`](../../../web/module.f.mjs) and the
+See `answer` in [`../../../web/module.f.js`](../../../web/module.f.js) and the
 table in [`../../../web/README.md`](../../../web/README.md) for which guard each
 kind meets.
 
