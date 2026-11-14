@@ -10,7 +10,7 @@
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Signature, Type } from '../../types.ts'
  * @import { _Twin, _Value } from '../../wasm/types.ts'
- * @import { _Outcome, _Rnd } from './private.ts'
+ * @import { _Outcome, _Rnd } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
