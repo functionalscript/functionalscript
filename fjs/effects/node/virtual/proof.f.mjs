@@ -1,6 +1,7 @@
 /**
  * @import { Dir, RecordedResponse, State, _QueuedRequest } from './types.ts'
- * @import { All, Handle, IncomingMessage, IoResult, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
+ * @import { All, Handle, IncomingMessage, IoResult, NodeOp, Now, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
+ * @import { PartialMemOperationMap } from '../../mock/types.ts'
  * @import { Effect } from '../../types.ts'
  * @import { EffectList, Next } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -11,7 +12,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { assertIoMessage } from '../../testlib.f.js'
-import { catch_, now, randomInt, read, sandbox } from '../module.f.js'
+import { catch_, nodeCommands, now, randomInt, read, sandbox } from '../module.f.js'
 import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.js'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.js'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.js'
@@ -20,7 +21,8 @@ import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js
 import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.js'
-import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt, virtualOperationMap } from './module.f.mjs'
+import { partialRun } from '../../mock/module.f.js'
 import { do_ } from '../../module.f.js'
 import { catchStep } from '../../module.f.js'
 import { ioError } from '../../module.f.js'
@@ -130,6 +132,9 @@ const emptyOk = () => pureOk({ status: 200, headers: {}, body: endOfBody(), rele
 const reportedText = text =>
     ({ status: 500, headers: {}, body: ofChunks([utf8(text)]), release: holdsNothing })
 
+/** A listener whose recorded body identifies the clock handler it reached. @type {RequestListener<Now>} */
+const reportedNow = () => resultMapStep(now(), r => ok(reportedText(String(assertOk(r)))))
+
 /**
  * What `release` writes when it runs, so that a proof can say **once** rather than
  * "at least once": `stdout` records every write in order, so two would show.
@@ -238,6 +243,24 @@ const unchanged = /** @type {readonly [number, string]} */([3, 'old'])
 const followed = /** @type {readonly [number, string]} */([9, 'brandnew!'])
 
 export const proof = {
+    composedMapKeepsListenerRunner: () => {
+        /** @type {number} */
+        const clock = 123_456
+        const customClock = clock + 1
+        /** @type {PartialMemOperationMap<NodeOp, State>} */
+        const operations = {
+            ...virtualOperationMap,
+            now: () => state => [state, ok(customClock)],
+        }
+        const run = partialRun(nodeCommands)(operations)
+        const served = step(createServer(reportedNow), server => listen(server, 8_080, '127.0.0.1'))
+        const [state, result] = run({ ...emptyState, epochNs: clock, requests: [requested('GET')] })(both(now())(served))
+        const [outer, listening] = assertOk(result)
+        assertEq(assertOk(outer), customClock)
+        assertEq(assertOk(listening), undefined)
+        assertEq(state.responses.length, 1)
+        assertEq(responseText(state.responses[0]), String(clock))
+    },
     valueOperations: () => {
         const [drawn, random] = virtual({ ...emptyState, randomNext: 41 })(randomInt())
         assertEq(assertOk(random), 41)

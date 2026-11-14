@@ -29,3 +29,13 @@ export type RunInstance<O extends Operation, S> =
     (state: S) =>
     <O1 extends O, T, E>(effect: Effect<O1, T, E>) =>
     readonly[S, Result<T, E>]
+
+/**
+ * A partial operation map whose transitions may run nested effects through the
+ * interpreter executing them. State-only transitions remain valid handlers;
+ * the interpreter supplies its stable runner as the second argument.
+ */
+export type PartialMemOperationMapWithRunner<O extends Operation, S> = {
+    readonly [K in O[0]]?: (...payload: Pr<O, K>[0]) =>
+        (state: S, run: RunInstance<O, S>) => readonly[S, Pr<O, K>[1]]
+}
