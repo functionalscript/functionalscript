@@ -125,7 +125,7 @@ the transition. A transition that returns its unchanged parameter needs no
 write and has `mutable: false`. This preserves the existing source loop
 spelling while keeping slot selection common to both targets.
 
-The shared [`plain-loop plan`](../loop/plain/module.f.mjs) also recognizes a
+The shared [`plain-loop plan`](../loop/plain/module.f.js) also recognizes a
 one-state helper with required entry definitions, a terminal condition, a
 define-only continuing arm and one computed normal result. This is the shape
 of aggregate helpers for plain source loops. Entry computations run in the

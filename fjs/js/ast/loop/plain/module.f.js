@@ -54,7 +54,8 @@ const prefixForUses = (prefix, block) => {
     /** @type {readonly Definition[]} */
     let selected = []
     for (const id of freeBindings(block)) {
-        const remaining = prefix.filter(definition => !selected.some(previous => previous[1] === definition[1]))
+        const s = selected
+        const remaining = prefix.filter(definition => !s.some(previous => previous[1] === definition[1]))
         selected = [...selected, ...prefixFor(remaining, { statements: [], exit: ['yield', [['ref', id]]] })]
     }
     return selected

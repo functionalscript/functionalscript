@@ -12,7 +12,7 @@
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
-import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
+import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.js'
 import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'
 import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.js'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.js'
