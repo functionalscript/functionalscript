@@ -5,7 +5,7 @@
 import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
 import { typescript } from '../config/module.f.js'
 import { packageConsumer } from '../self/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { isDigits } from '../../text/ascii/module.f.js'
 
 const steps = packageCheckSteps(packageConsumer)
@@ -113,7 +113,7 @@ export const proof = {
         assert(!bare.some(step => step.run?.includes('.mts') === true), 'expected no consumer step without a consumer')
         assertEq(bare.length, steps.length - 5)
         for (const [i, step] of bare.entries()) {
-            assertEq(JSON.stringify(step), JSON.stringify(steps[i]))
+            assertStructurallySame(step, steps[i])
         }
     },
     // The consumer's half of the check, in the order a consumer meets it: the
