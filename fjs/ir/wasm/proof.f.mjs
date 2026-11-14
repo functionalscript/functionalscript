@@ -4,12 +4,12 @@
  * compute what their twins compute is [`proof.mjs`](./proof.mjs)'s, since
  * FunctionalScript runs no WebAssembly.
  *
- * @import { Module, OpName, Param, Term, Type } from '../types.ts'
+ * @import { Interface, Module, OpName, Param, Term, Type } from '../types.ts'
  */
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { functions, wat } from '../../media/wasm/wat/module.f.mjs'
-import { add, bool, call, f64, f64c, fn, get, i, int, let_, lit, n, u } from '../module.f.js'
+import { add, bool, call, f64, f64c, fn, get, i, int, let_, lit, n, only, sealed, signature, u } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { l0, string } from '../l0/module.f.js'
 import { constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
@@ -1890,4 +1890,20 @@ export const proof = {
     ")",
     "",
     ].join('\n')),
+    // A literal of a type of one variant is made once whether its type is written in full or as that variant.
+    sole: () => {
+        const label = sealed('Label', 'label')
+        /** @type {Interface} */
+        const interfaceOf = {
+            abi: 'test:label',
+            types: [['label', { variants: ['text'], kind: 'k', carrier: 'i64', literal: { variant: 'text', module: 'String', member: 'make_string' } }]],
+            functions: [['k', signature([['l', label]], int(0n, 0n))]],
+        }
+        const m = emitted({
+            imports: [...l0, ['Label', interfaceOf]],
+            functions: [['f', fn([], f64, let_('a', lit(label, 'x'), () => let_('b', lit(only(label, 'text'), 'x'), () => lit(f64, 0))))]],
+            exports: [],
+        })
+        assertEq(m.globals.length, 1)
+    },
 }
