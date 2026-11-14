@@ -4,21 +4,22 @@
  * of the kind that the first slice is for, among them one for each integer
  * instruction that the emitter writes, `corners`, the forms that the
  * emitter handles once each, `unknown`, functions over values of unknown
- * kind, as the third slice reads them, and `loops`, the fourth slice's.
+ * kind, as the third slice reads them, `loops`, the fourth slice's, and
+ * `records`, the fifth's.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
  * Data only, so no proof of its own: what each module is, is checked
  * wherever it is read.
  *
- * @import { Module, Term } from './types.ts'
+ * @import { Module, Term, Type } from './types.ts'
  */
 
 import { any, l0 } from './l0/module.f.js'
 import {
-    abs, add, block, bool, br, call, cast, div, eq, exact, f64, f64c, false_, float, fn, get, i, if_, int, le, let_,
-    lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, return_, sqrt, sub, trap, true_, trunc_sat,
-    u, variant,
+    abs, add, block, bool, br, call, cast, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
+    let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, product, return_, sqrt, sub, trap, true_,
+    trunc_sat, u, unit, variant,
 } from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -217,4 +218,67 @@ export const loops = {
         'stringEquals', 'stringLess', 'factorial', 'triangle', 'kindAfter', 'index', 'indexOfSum', 'three',
         'toU31', 'toI32', 'toU32', 'toSmall', 'toU64', 'toI64', 'toWide', 'toNegative',
     ],
+}
+
+/** A product of `f64` fields, by their names. @type {(...names: readonly string[]) => Type} */
+const floats = (...names) => product(names.map(k => /** @type {const} */ ([k, f64])))
+
+/**
+ * Records: L1's `stringIndex` by hand, whose loop's one parameter is a
+ * product of its counter and its value, and the forms that the emitter
+ * writes once each for a product: a local of one, a loop whose value is
+ * one, a `match` of one whose arms meet in a wider field, a field of a term
+ * that is no local, first or after others, a product that widens where it
+ * is no `make`, a field of `unit` and a product in a product, a loop of a
+ * product beside other parameters, a `match` of `any` whose arms are
+ * products, and a product of values of `any`.
+ *
+ * @type {Module}
+ */
+export const records = {
+    imports: l0,
+    functions: [
+        ['stringIndex', fn([['s', string]], f64, s =>
+            let_('n', float(lengthOf('String')(s)), length =>
+            if_(if_(eq(length, c(0)), true_, if_(lt(c(1), length), eq(float(unitAt(s, c(0), 'first')), c(0x30)), false_)),
+                c(-1),
+                field(loop('L', [['r', floats('i', 'value'), make([['i', c(0)], ['value', c(0)]])]], r =>
+                    if_(if_(lt(field(r, 'i'), length), le(c(0), field(r, 'value')), false_),
+                        let_('u', float(unitAt(s, field(r, 'i'), 'i')), u =>
+                        let_('d', if_(if_(le(c(0x30), u), le(u, c(0x39)), false_), sub(u, c(0x30)), c(-1)), d =>
+                        let_('value', if_(lt(d, c(0)), c(-1), add(mul(field(r, 'value'), c(10)), d)), value =>
+                        next('L', [['r', make([['i', add(field(r, 'i'), c(1))], ['value', if_(lt(c(0xffff_ffff), value), c(-1), value)]])]])))),
+                        r)), 'value'))))],
+        ['midpoint', fn([['a', f64], ['b', f64]], f64, (a, b) =>
+            let_('p', make([['lo', a], ['hi', b]]), p => div(add(field(p, 'lo'), field(p, 'hi')), c(2))))],
+        ['fib', fn([['x', f64]], f64, x =>
+            field(loop('L', [['r', floats('a', 'b', 'k'), make([['a', c(0)], ['b', c(1)], ['k', c(0)]])]], r =>
+                if_(lt(field(r, 'k'), x),
+                    next('L', [['r', make([['a', field(r, 'b')], ['b', add(field(r, 'a'), field(r, 'b'))], ['k', add(field(r, 'k'), c(1))]])]]),
+                    r)), 'a'))],
+        ['choose', fn([['k', bool], ['x', u(8)], ['y', u(64)]], u(64), (k, x, y) =>
+            field(if_(k, make([['v', x], ['w', true_]]), make([['v', y], ['w', false_]])), 'v'))],
+        ['middle', fn([['k', bool], ['x', f64]], f64, (k, x) =>
+            field(if_(k, make([['a', x], ['b', c(2)], ['d', c(3)]]), make([['a', c(4)], ['b', neg(x)], ['d', x]])), 'b'))],
+        ['widened', fn([['x', u(8)], ['y', u(32)]], u(64), (x, y) =>
+            let_('r', make([['a', x], ['b', y]]), r =>
+            field(block('B', product([['a', u(64)], ['b', u(64)]]), br('B', r)), 'b')))],
+        ['nested', fn([['x', f64]], f64, x =>
+            let_('r', make([['u', make([])], ['p', make([['a', x], ['b', mul(x, x)]])]]), r =>
+            let_('none', field(r, 'u'), () =>
+            sub(field(field(r, 'p'), 'b'), field(field(r, 'p'), 'a')))))],
+        ['steps', fn([['x', f64]], f64, x =>
+            loop('L', [['u', unit, make([])], ['k', f64, x], ['r', floats('lo', 'hi'), make([['lo', c(0)], ['hi', c(1)]])]], (u, k, r) =>
+                if_(lt(c(0), k),
+                    next('L', [['u', u], ['k', sub(k, c(1))], ['r', make([['lo', field(r, 'hi')], ['hi', add(field(r, 'lo'), field(r, 'hi'))]])]]),
+                    field(r, 'lo'))))],
+        ['describe', fn([['v', any]], f64, v =>
+            field(match(v, [
+                [['number'], 'x', make([['k', c(1)], ['n', call('Any', 'to_f64', [get('x')])]])],
+                [null, null, make([['k', c(0)], ['n', c(0)]])],
+            ]), 'n'))],
+        ['kindOfFirst', fn([['v', any], ['w', any]], int(0n, 8n), (v, w) =>
+            let_('r', make([['p', v], ['q', w]]), r => kindOf(field(r, 'p'))))],
+    ],
+    exports: ['stringIndex', 'midpoint', 'fib', 'choose', 'middle', 'widened', 'nested', 'steps', 'describe', 'kindOfFirst'],
 }

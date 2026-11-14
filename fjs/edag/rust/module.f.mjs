@@ -81,7 +81,7 @@ const converted = (root, shared, text, runtime) => {
 
 /** The primitive/constructor cases expose values; operations expose Results. @type {(root: Exp) => boolean} */
 const resultRoot = root => root instanceof Array && !isStatic(root) && !isIntrinsic(root)
-    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', '=>', '{}'].includes(root[0])
+    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'refMap', '=>', '{}'].includes(root[0])
     && (root[0] !== '[]' || root[1].some(v => v instanceof Array && v[0] === '...'))
 
 /**

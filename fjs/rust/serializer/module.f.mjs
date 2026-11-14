@@ -16,7 +16,7 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
+import { helperLength, isHelper, isStatic, noRefMap, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
 import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
@@ -502,6 +502,9 @@ const operation = (s, n, result) => {
         // the arity and the text are the helper table's; only the native
         // body is this writer's own
         const id = /** @type {import('../../edag/types.ts').HelperId} */ (tag)
+        // NaNVM holds no reference map yet: refused, never written as a
+        // function that is not one
+        if (id === 'refMap') { return error([noRefMap, n]) }
         const length = helperLength(id)
         const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']

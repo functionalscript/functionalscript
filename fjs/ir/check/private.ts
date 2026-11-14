@@ -22,3 +22,6 @@ export type _Env = {
 
 /** Check one term in its current scope. */
 export type _CheckTerm = (env: _Env, term: Term) => Result<Typed, string>
+
+/** The narrowest type that holds two types, or null where none does. */
+export type _Join = (env: _Env, a: Type, b: Type) => Type | null

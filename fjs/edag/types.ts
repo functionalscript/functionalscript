@@ -244,12 +244,12 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | IntrinsicId | StaticId
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | 'refMap' | IntrinsicId | StaticId
 
 /** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.js`. */
 export type IntrinsicId = (typeof intrinsics)[number][0]
 
-/** A helper's tag: `'entry'`, `'hasEntry'` or an intrinsic's. The list is `helpers` in `module.f.js`. */
+/** A helper's tag: `'entry'`, `'hasEntry'`, `'refMap'` or an intrinsic's. The list is `helpers` in `module.f.js`. */
 export type HelperId = (typeof helpers)[number][0]
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */

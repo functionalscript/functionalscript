@@ -499,6 +499,20 @@ the fold's:
   function that is neither helper, by shape or by its names, is resolved
   as every function is, where `Object` is refused as the reserved word it
   is;
+- the empty reference map, matched whole as well
+  ([proposal](../../../spec/todo/reference-map.md)), by another means, since
+  its body is some thirty lines where a helper's is two statements:
+  [`./ref_map`](./ref_map/module.f.mjs) holds the canonical body as source,
+  parses it with this grammar, and a function is the map where its syntax
+  tree is the canonical one once names and layout are taken out of both —
+  each name read as the depth of what binds it, so any renaming of the
+  same bindings matches, and nothing else does. It is the AST's
+  `['refMap']`. The body reads its own name, so only the whole initializer
+  of a `const` can be the map; `WeakMap` is no reserved word, so a scope
+  that binds it makes the function an ordinary one, in which `new` is
+  refused as everywhere. A body that is the map is read by no ordinary
+  resolution, so the reader holds its statements to JavaScript's line rules
+  itself. The tree is read no deeper than the map is;
 - an intrinsic's helper, matched whole the same way: a function of as many
   bare, distinct names as the intrinsic's `length` whose expression body
   is the one member call of the intrinsic's name on the first with the
