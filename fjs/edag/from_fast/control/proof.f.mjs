@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { exitValues, freeBindings, freeLoopBindings } from './module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     compatibility: () => {

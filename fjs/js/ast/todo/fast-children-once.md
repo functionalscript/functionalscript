@@ -9,7 +9,7 @@
 `operatorOperands`, but the block and statement half of "what are this node's
 children" is re-spelled by every pass that walks FAST. The same two
 expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
-`freeBindings` in [`control`](../control/module.f.mjs), `_hasReturn` in
+`freeBindings` in [`control`](../control/module.f.js), `_hasReturn` in
 [`memo/cells`](../memo/cells/module.f.mjs), `ownsMemo` in
 [`memo`](../memo/module.f.mjs), `references` in
 [`sugar`](../sugar/module.f.mjs), `facts` in

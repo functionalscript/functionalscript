@@ -55,7 +55,7 @@ nobody has written once.
 
 ### Proposal
 
-A `postorder` in [`control`](../module.f.mjs), beside `foldNodes` and
+A `postorder` in [`control`](../module.f.js), beside `foldNodes` and
 `someBlock`, the preorder walks:
 
 ```ts

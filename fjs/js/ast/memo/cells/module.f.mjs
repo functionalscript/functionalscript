@@ -15,7 +15,7 @@
  * @import { _DeferredBinding, _DeferredBlock, _DeferredScope, _DeferredSummary, _LoopInfo, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer } from './private.ts'
  */
 
-import { exitValues, freeBindings, freeLoopBindings, someBlock } from '../../control/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings, someBlock } from '../../control/module.f.js'
 import { concat } from '../../../../types/list/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { mapOperator, operatorOperands } from '../../module.f.js'
