@@ -33,7 +33,7 @@
  * @import { Loop } from './types.ts'
  */
 
-import { mergeable, ownOperandsOf, scopeHolds } from '../analysis/module.f.mjs'
+import { mergeable, ownOperandsOf, scopeHolds } from '../analysis/module.f.js'
 
 /**
  * The node an operand names where it is reached by one edge, and `null`

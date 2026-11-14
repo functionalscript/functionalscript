@@ -391,10 +391,10 @@ const walk = scope => (state, e) => {
         const handler = /** @type {_Handlers[K]} */ (assertNotNullish(ownEntry(handlers, e[0])))
         // The handler's recursive walk accepts every expression, not only K.
         const [walked, n] = handler(nextScope => (nextState, next) => walk(nextScope)(nextState, next))(scope)(state, e)
-        const [entries, i] = entry(walked.merges, scope, n)(walked.entries)
+        const [entries, i] = entry(walked.merges, scope, n)(assertNotNullish(ownEntry(walked, 'entries')))
         return [{ ...walked, entries, visited: mapSet(walked.visited, e, i) }, ref(i)]
     }
-    const checked = state.entries[Number(known)].scope === scope ? state : {
+    const checked = assertNotNullish(ownEntry(state, 'entries'))[Number(known)].scope === scope ? state : {
         ...state, problem: state.problem ?? 'a node shared across a function boundary',
     }
     return [checked, ref(known)]
@@ -565,7 +565,9 @@ const expsOf = (merges, nodes, visited) => merges
  * @type {(merges: boolean) => (e: Exp) => Result<Analysis, string>}
  */
 const table = merges => e => {
-    const [{ visited, entries, problem }, root] = walk(null)(start(merges), e)
+    const [walked, root] = walk(null)(start(merges), e)
+    const { visited, problem } = walked
+    const entries = assertNotNullish(ownEntry(walked, 'entries'))
     if (problem !== null) { return error(problem) }
     const nodes = entries.map(x => x.node)
     return ok({
@@ -631,7 +633,8 @@ const withinScope = (scope, root, i) => {
  * @type {(a: Analysis, root?: number) => string | null}
  */
 const bindingError = ({ nodes, scope }, root = -1) => {
-    for (const [i, node] of nodes.entries()) {
+    for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[Number(i)]
         if (root !== -1 && !withinScope(scope, root, i)) { continue }
         const owner = scope[Number(i)] === -1 ? null : nodes[Number(scope[Number(i)])]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }

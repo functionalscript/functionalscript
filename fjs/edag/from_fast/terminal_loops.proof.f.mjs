@@ -5,7 +5,7 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { fromFast } from './module.f.mjs'
 import { completeTransfers } from './loop/completions/module.f.js'
-import { identityAnalysis } from '../analysis/module.f.mjs'
+import { identityAnalysis } from '../analysis/module.f.js'
 import { evaluate, failure } from './member_returns/proof.f.mjs'
 import { proof as operandOrder } from './operand_order/proof.f.mjs'
 import { proof as objectSpread } from './object_spread_returns/proof.f.mjs'

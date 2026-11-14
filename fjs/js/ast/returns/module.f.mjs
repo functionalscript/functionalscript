@@ -10,6 +10,8 @@
  * @import { _ChainEnd, _ChainRegion, _ChainSource, _ChainValueTask, _Context, _Expansion, _Region, _ResultMode, _Sequence, _Value, _ValueTask } from './private.ts'
  */
 
+import { assertNotNullish } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
 import { isHelper, isStatic } from '../../../edag/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../module.f.js'
@@ -85,7 +87,7 @@ const eagerTask = (valueTask, source, destination, owner, permitted, expose = fa
         if (!result.lifted && !expose) { return done(plain(source, callee)) }
         return done({
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
-                ? ['yield', [mapOperator((_, index) => result.values[Number(index)])(source)]] : ['yield', []] }],
+                ? ['yield', [mapOperator((_, index) => assertNotNullish(entry(result, 'values'))[Number(index)])(source)]] : ['yield', []] }],
             value: ref(destination), normal: result.normal, callee: !result.normal || callee,
         })
     })
@@ -98,7 +100,7 @@ const captureTask = (valueTask, source, destination, owner, permitted) => {
         if (!result.lifted) { return done(plain(source)) }
         return done({
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
-                ? ['yield', [['function', { ...fn, captures: fn.captures.map((capture, index) => ({ ...capture, value: result.values[Number(index)] })) }]]]
+                ? ['yield', [['function', { ...fn, captures: fn.captures.map((capture, index) => ({ ...capture, value: assertNotNullish(entry(result, 'values'))[Number(index)] })) }]]]
                 : ['yield', []] }],
             value: ref(destination), normal: result.normal, callee: true,
         })
@@ -170,7 +172,7 @@ const chainGuard = (test, reached, end) => {
 const chainArguments = (chainValue, valueTask, args, invoke, step, owner, end, permitted) =>
     bind(sequenceTask(valueTask, args.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, args.map(itemExpansion)), result => {
         if (!result.normal) { return done({ block: { statements: result.statements, exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
-        const value = invoke(mappedItems(args, result.values))
+        const value = invoke(mappedItems(args, assertNotNullish(entry(result, 'values'))))
         if (step === undefined) { return done({ block: { statements: result.statements, exit: ['yield', [value]] }, normal: true, lifted: result.lifted, callee: true }) }
         const id = binding()
         return bind(chainValue(valueTask, ref(id), step, owner, end, permitted), tail => done(chainPrefix([
@@ -220,7 +222,7 @@ const forcedChain = (valueTask, region, end, owner, permitted) => {
     return bind(sequenceTask(valueTask, items.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, items.map(itemExpansion)), /** @returns {Task<_ChainRegion>} */ args => {
         const prefix = /** @type {readonly Statement[]} */ ([['block', ids, region.block], ...args.statements])
         if (!args.normal) { return done({ block: { statements: prefix, exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
-        const values = mappedItems(items, args.values)
+        const values = mappedItems(items, assertNotNullish(entry(args, 'values')))
         const plainCall = /** @type {Value} */ (['()', end.member ? undefined : ref(ids[0]), values])
         if (!end.member) { return done({ block: { statements: prefix, exit: ['yield', [plainCall]] }, normal: true, lifted: region.lifted || args.lifted, callee: true }) }
         const key = /** @type {Key<Value>} */ (end.key instanceof Array ? ['Number', ref(ids[2])] : end.key)
@@ -266,7 +268,7 @@ const blockTask = (valueTask, source, context, mode) => {
                     return bind(blockTask(valueTask, loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), body => {
                         /** @type {Exit} */
                         const mapped = !initial.lifted && body.block === loop.body ? exit
-                            : ['loop', { ...loop, initial: initial.lifted ? initial.values : loop.initial, body: body.block }]
+                            : ['loop', { ...loop, initial: initial.lifted ? assertNotNullish(entry(initial, 'values')) : loop.initial, body: body.block }]
                         return finish(next, mapped, false, returns || context.operand || initial.lifted || body.returns,
                             lifted || initial.lifted || body.lifted, changed || mapped !== exit || initial.lifted)
                     })
@@ -292,7 +294,7 @@ const blockTask = (valueTask, source, context, mode) => {
                     if (!result.lifted) { return complete(exit, statements, false) }
                     const next = result.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements)
                     if (!result.normal) { return finish(next, ['yield', []], false, true, true, true) }
-                    return complete(exit[0] === 'yield' ? ['yield', result.values] : [exit[0], exit[1], result.values], next, true, result.callee)
+                    return complete(exit[0] === 'yield' ? ['yield', assertNotNullish(entry(result, 'values'))] : [exit[0], exit[1], assertNotNullish(entry(result, 'values'))], next, true, result.callee)
                 })
             }
             if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || mode === 'value')) {
@@ -332,7 +334,7 @@ const blockTask = (valueTask, source, context, mode) => {
                 }
                 return bind(blockTask(valueTask, loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), result => append(
                     !initial.lifted && result.block === loop.body ? statement
-                        : ['loop', { ...loop, initial: initial.lifted ? initial.values : loop.initial, body: result.block }],
+                        : ['loop', { ...loop, initial: initial.lifted ? assertNotNullish(entry(initial, 'values')) : loop.initial, body: result.block }],
                     true, initial.lifted || result.returns, initial.lifted || result.lifted, initial.lifted ? initial.statements : []))
             })
         }

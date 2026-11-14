@@ -1,7 +1,7 @@
 /** Compound assignment through parsing, source desugaring and EDAG execution. */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { apply, compile, execute, value } from './proof.f.mjs'

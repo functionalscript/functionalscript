@@ -80,7 +80,7 @@ export type Mapping<I, O> =
 export type RewriteSet<I, O> = readonly Mapping<I, O>[]
 
 /**
- * The constructor of a layer's mappings: `mapping` in `./module.f.mjs`, bound
+ * The constructor of a layer's mappings: `mapping` in `./module.f.js`, bound
  * once to the layer's metadata types by annotating a binding of it as
  * `Mappings<Cp, Tok>`, so that `f` is typed from the rule it is keyed by
  * under that `I` and `O`, where a function inside a list literal gets no

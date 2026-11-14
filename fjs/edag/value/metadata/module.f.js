@@ -9,7 +9,7 @@
  *
  * Input must be a shape-checked value graph. This walk checks data and
  * captures; function bodies remain opaque expressions. Function lengths,
- * bindings and body scopes belong to `../closure/module.f.mjs`.
+ * bindings and body scopes belong to `../closure/module.f.js`.
  *
  * @module
  * @import { EdagValue, Values, Property } from '../types.ts'

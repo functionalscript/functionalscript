@@ -5,7 +5,7 @@
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.js'

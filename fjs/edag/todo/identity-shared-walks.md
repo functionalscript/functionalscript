@@ -5,7 +5,7 @@
 
 ### Current ownership
 
-[`analysis`](../analysis/module.f.mjs) builds a table that merges structurally
+[`analysis`](../analysis/module.f.js) builds a table that merges structurally
 equal identity-free nodes within each scope; `identityAnalysis` retains source
 node identity. The latter uses [`sharing`](../sharing/module.f.js)'s
 `sharedNodesOf` for repeated source-object counts. Distinct equal allocations

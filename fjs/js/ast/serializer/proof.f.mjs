@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { invoke, memo } from '../../../edag/memo/module.f.mjs'
 import { call } from '../../../edag/value/call/module.f.js'
 import { ok } from '../../../types/result/module.f.js'

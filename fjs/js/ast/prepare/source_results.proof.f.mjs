@@ -9,7 +9,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.mjs'
 import { parse } from '../../../compiler/source/module.f.mjs'
-import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'

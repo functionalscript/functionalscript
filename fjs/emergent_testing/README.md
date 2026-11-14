@@ -508,7 +508,7 @@ FunctionalScript, which by convention has no promises.
 receives a `SandboxResult`, so the host value never reaches the logic. That is
 the discipline `fjs/effects` applies to a live HTTP server, which pure code
 holds as a content-hashed handle while the interpreter keeps the object. The
-browser now works the same way — `browser/module.f.mjs` is the logic,
+browser now works the same way — `browser/module.f.js` is the logic,
 `browser/module.mjs` the host — and `instanceof Promise` lives only in
 interpreters. See [`doc/plan/capl.md`](../../doc/plan/capl.md) for the general
 form, and

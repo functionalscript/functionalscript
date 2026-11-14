@@ -304,8 +304,9 @@ const dataToTagged = mut => ([rules, entry]) => {
  * ```js
  * const list = () => ['array', list]
  * dataToTs()(toData(list))
- * // [[['list', 'readonly(list)[]']], 'list']
- * // i.e. `type list = readonly(list)[]` and the entry expression `list`
+ * // [[['T0', 'readonly(T0)[]']], 'T0']
+ * // i.e. `type T0 = readonly(T0)[]` and the entry expression `T0`;
+ * // the data form's numeric rule ordinal is mapped to a valid identifier
  * ```
  *
  * @type {(mut?: true) => (data: Data) => readonly [readonly (readonly [string, string])[], string]}
@@ -377,7 +378,7 @@ export const dataToTsMarked = mut => data => {
  * toTs({ x: string })              // '{readonly"x":string}'
  *
  * const list = () => ['array', list]
- * toTs(list)                       // 'list' — see `dataToTs` for the definition
+ * toTs(list)                       // 'T0' — see `dataToTs` for the definition
  *
  * const toTsMut = printer(true)
  * toTsMut(array(number))           // '(number)[]'

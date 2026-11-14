@@ -8,7 +8,7 @@ import { normalize } from '../../js/ast/sugar/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { stringify } from '../../js/ast/serializer/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 

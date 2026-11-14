@@ -630,7 +630,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Use the current `['=>', length, slots, body]` schema, with `slots` an array
       operand of `exp`s, `['frame', i]` the read of slot `i`, and fixed/rest invocation bindings.
       Metadata and binding validation are owned by
-      [`fjs/edag/analysis`](../../edag/analysis/module.f.mjs).
+      [`fjs/edag/analysis`](../../edag/analysis/module.f.js).
 - [x] Lower both non-capturing functions (no slots) and captured values through
       enclosing-scope slots. The original null-only restriction is
       superseded by `captures` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs).

@@ -16,7 +16,7 @@ and the direct Rust writer have been retired. Their disagreement is no longer
 a reason to export a second placement API. Remaining core representations still
 have different uses:
 
-- [`analysis`](../analysis/module.f.mjs) supplies operands of analyzed `Node`s.
+- [`analysis`](../analysis/module.f.js) supplies operands of analyzed `Node`s.
 - [`sharing`](../sharing/module.f.js) queries linked `Exp` objects by identity.
 - [`operations`](../operations/module.f.mjs) implements reference evaluation and
   its operational operand-demand order.

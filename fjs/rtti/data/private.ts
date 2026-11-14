@@ -38,8 +38,8 @@ export type _Key = Exclude<Type, Primitive>
  * The conversion state, threaded functionally:
  *
  * - `converting` — thunks whose union is being computed (the recursion stack).
- * - `names` — rule names, assigned to a thunk the moment something needs to
- *   reference it (a cycle, or a deferred merge).
+ * - `names` — decimal ordinals assigned on the first required reference to a
+ *   thunk (a cycle or deferred merge), reused by thunk identity.
  * - `done` — computed unions, memoized by identity.
  * - `deferred` — union merges `target ∪= source` that could not run eagerly
  *   because `source`'s union was not final; resolved by `fixpoint`.
