@@ -2,7 +2,7 @@
  * @import { List } from '../../../types/list/types.ts'
  */
 
-import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
+import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { sort } from '../../../types/object/module.f.js'
 import { chunksText } from '../../../text/marked/module.f.js'

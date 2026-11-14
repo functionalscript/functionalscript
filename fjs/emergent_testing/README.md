@@ -145,7 +145,7 @@ deno test -A ../../emergent_testing/one.mjs
 ```
 
 For coverage, run `fjs cov node` or `npm start cov node` from the directory
-whose modules you want to check. The runner discovers `module.f.mjs`,
+whose modules you want to check. The runner discovers `module.f.js`,
 `module.f.js` and `demo.f.mjs` beneath that directory, then runs each module
 directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage

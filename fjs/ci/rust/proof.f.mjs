@@ -9,7 +9,7 @@ import {
     shellRustCommands,
     shellRustVersionSteps,
     wasmTargets,
-} from './module.f.mjs'
+} from './module.f.js'
 
 export const proof = {
     // 32-bit *Linux* comes from the shell now, so the only platform job that

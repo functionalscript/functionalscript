@@ -19,7 +19,7 @@
 `fjs t` opens a leaf's line before the leaf runs — `name:` and a space, with no newline —
 and closes it when the leaf lands: `ok, 1.2345 ms`. That is the right shape for
 someone watching a terminal, and it is what the start event landed — see
-`defaultReporter`'s `start` in [`../module.f.mjs`](../module.f.mjs).
+`defaultReporter`'s `start` in [`../module.f.js`](../module.f.js).
 
 It is not a record until the newline arrives, and two of the reasons the
 announcement exists are reasons a *consumer* needs it, not a reader:
@@ -102,7 +102,7 @@ into one flag.
 
 ### Related
 
-- `defaultReporter`'s `start` in [`../module.f.mjs`](../module.f.mjs) — where
+- `defaultReporter`'s `start` in [`../module.f.js`](../module.f.js) — where
   the open-line format is, and the trade it made
 - [reporter modes](211-reporter-modes.md) — the mode system this belongs in,
   including the dynamic-progress reporter a TTY mode overlaps with

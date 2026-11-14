@@ -28,7 +28,7 @@ The same split is in `exitTask` of [`memo`](../../memo/module.f.mjs),
 `blockTask` of
 [`fjs/edag/to_fast/source/loops`](../../../../edag/to_fast/source/loops/module.f.mjs)
 and `exitTask` of
-[`fjs/edag/from_fast/loop/owning`](../../../../edag/from_fast/loop/owning/module.f.mjs),
+[`fjs/edag/from_fast/loop/owning`](../../../../edag/from_fast/loop/owning/module.f.js),
 where it is spread over two `if`s. A new `Exit` variant is a reader change
 in one place and a writer change in five.
 

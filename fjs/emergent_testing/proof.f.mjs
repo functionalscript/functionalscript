@@ -17,7 +17,7 @@ import {
     testAll, runEntries, zeroState, fmtPath, fmtImport, fmtResult, ghEscape,
     registerModule, parseTestSet,
     addResult, defaultReporter, defaultTest, formatDuration, main, register, registerOne, testResult, text, zeroTotals,
-} from './module.f.mjs'
+} from './module.f.js'
 import { run as mockRun, runAll } from '../effects/mock/module.f.js'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.js'
 import { parse as parseJson } from '../media/json/module.f.mjs'
@@ -858,7 +858,7 @@ export const registerOneRejectsEmpty = () => {
     const [, emptyCode] = virtualAt({})(registerOne(options('elsewhere')))
     assertEq(exitCode(emptyCode), 1)
     for (const value of [undefined, {}, { data: 7 }, { takesArgument: (/** @type {number} */ x) => x }]) {
-        const [state, code] = virtualAt({ 'module.f.mjs': () => ({ proof: value }) })(registerOne(options('elsewhere')))
+        const [state, code] = virtualAt({ 'module.f.js': () => ({ proof: value }) })(registerOne(options('elsewhere')))
         assertEq(exitCode(code), 1)
         assert(state.stderr.includes('No runnable proofs'), state.stderr)
     }
@@ -866,9 +866,9 @@ export const registerOneRejectsEmpty = () => {
 
 /** A failed import remains a failing registered proof, not an absent module. */
 export const registerOneLoadFailure = () => {
-    const calls = runRegister(registerNoopCtx, ['module.f.mjs'], loadFails, false, undefined, true)
+    const calls = runRegister(registerNoopCtx, ['module.f.js'], loadFails, false, undefined, true)
     assertEq(calls.length, 1)
-    assertEq(calls[0][1], 'import("./module.f.mjs").proof()')
+    assertEq(calls[0][1], 'import("./module.f.js").proof()')
 }
 
 /**

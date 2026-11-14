@@ -99,7 +99,7 @@ import { fromUndefined } from '../types/nullable/module.f.js'
  * `toString`, a getter, a proxy trap — throws when it is read. Every route
  * that meets one says this, a host's I/O (`_describeThrown` in
  * `./module.mjs`) and a test report (`text` in
- * [`fjs/emergent_testing`](../emergent_testing/module.f.mjs)) alike, so a
+ * [`fjs/emergent_testing`](../emergent_testing/module.f.js)) alike, so a
  * reader meets one phrase rather than a spelling per runner.
  */
 export const unreadableThrownValue = 'thrown value could not be read'

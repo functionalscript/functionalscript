@@ -30,7 +30,7 @@ The Bun adapter remains necessary for its nested-test behavior.
 - **`fjs t`**: recursively runs generated proof sub-trees through the FunctionalScript
   runner and reporter. A sub-tree is read only after its parent leaf passes, and
   each of its leaves is then run as a leaf of its own, in sequence — not inside
-  the parent's call (`runEntries` in `../module.f.mjs`). Most other runners
+  the parent's call (`runEntries` in `../module.f.js`). Most other runners
   execute a sub-test inside its parent, which drives it.
 - **Node** and **Deno**: run generated tests as native sub-tests.
 - **Deno** caveat: sub-tests are not counted toward the total test count.

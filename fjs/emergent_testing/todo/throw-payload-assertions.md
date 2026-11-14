@@ -11,7 +11,7 @@ marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f
 (FunctionalScript itself has no `try`/`catch` and isn't planning one soon). Codex flagged the
 regression this causes on that PR
 ([`fjs/asserts/proof.f.mjs:22`](../../asserts/proof.f.mjs#L22)): `defaultTest` in
-[`module.f.mjs`](../module.f.mjs) treats *any* caught exception under `throw` as a pass — it
+[`module.f.mjs`](../module.f.js) treats *any* caught exception under `throw` as a pass — it
 never inspects *what* was thrown. The `try`/`catch` versions it replaced did:
 
 ```ts
@@ -154,7 +154,7 @@ Playwright bridge.
 **Step 2 — long-term fix (B), only if payload checks prove common:**
 
 - [ ] Add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
-      `fjs/emergent_testing/module.f.mjs`, wire `defaultTest` to sandbox `catch` on a caught
+      `fjs/emergent_testing/module.f.js`, wire `defaultTest` to sandbox `catch` on a caught
       throw, and extend only the surviving process-framework registration paths.
 - [ ] Implement identical `{ try, catch }` behavior in the shared browser-side runner and
       include its result in the serializable browser report.

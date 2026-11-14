@@ -6,7 +6,7 @@
 ### Problem
 
 A module that throws while loading is now a failed test on `fjs t`, Node,
-Bun and Deno: `proofEntries` in `../module.f.mjs` turns the failed import
+Bun and Deno: `proofEntries` in `../module.f.js` turns the failed import
 into a proof whose one leaf throws the load error. Two related gaps remain.
 
 1. **`all.test.mjs` ignores `register`'s exit code.** It runs
