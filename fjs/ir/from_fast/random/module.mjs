@@ -423,19 +423,25 @@ export const anyProgram = rnd => {
 /**
  * Whether a refusal is one the generators expect today: an integer-signed
  * body's range past its signature, which the checker finds by interval
- * arithmetic. The signature's result must be an integer range, so a
- * regression that gives an integer body where `f64` or `bool` was declared
- * is not counted as expected.
+ * arithmetic. The printer may spell that range as `int(lo, hi)`, `i(n)` or
+ * `u(n)`. The signature's result must be an integer range, so a regression
+ * that gives an integer body where `f64` or `bool` was declared is not
+ * counted as expected.
  *
  * @type {(reason: string, result: Type) => boolean}
  */
 const expectedRefusal = (reason, result) => {
     if (result[0] !== 'int') { return false }
-    // `f: the body is int(-65535, 0), not u(16)`
+    // `f: the body is int(-65535, 0), not u(16)` or `… is i(17), not i(16)`
     const colon = reason.indexOf(':')
     if (colon < 0) { return false }
     const rest = reason.slice(colon + 1).trimStart()
-    return rest.startsWith('the body is int(') && rest.includes('), not ')
+    if (!rest.startsWith('the body is ')) { return false }
+    const body = rest.slice('the body is '.length)
+    const cut = body.indexOf(', not ')
+    if (cut < 0) { return false }
+    const got = body.slice(0, cut)
+    return got.startsWith('int(') || got.startsWith('i(') || got.startsWith('u(')
 }
 
 /**

@@ -36,4 +36,14 @@ export const proof = {
         assertEq(out.programs, typedCount + anyCount)
         assertEq(out.seed, seed)
     },
+
+    /**
+     * A seed that produces a signed body whose inferred range prints as
+     * `i(n)`, not `int(...)`: that refusal is expected, not a wrong answer.
+     */
+    namedRangeRefusal: () => {
+        const out = compare(70, 20, 10)
+        assert(out.wrong === null, out.wrong)
+        assert(out.refused > 0, out)
+    },
 }
