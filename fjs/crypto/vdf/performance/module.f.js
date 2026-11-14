@@ -4,7 +4,7 @@
  * @module
  */
 
-import { formatDuration } from '../../../emergent_testing/module.f.mjs'
+import { formatDuration } from '../../../emergent_testing/module.f.js'
 
 const durationText = formatDuration(2)
 

@@ -60,7 +60,7 @@ and static calls. Neither migration approves new language semantics.
 
 The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
 represented [`value`](../../edag/value/types.ts) operations and the
-[`analysis`](../../edag/analysis/module.f.mjs) table. The requirements below govern
+[`analysis`](../../edag/analysis/module.f.js) table. The requirements below govern
 its remaining entry-point and integration work, not a second interpreter for an
 older function representation.
 

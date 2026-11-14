@@ -11,7 +11,7 @@
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { isSpread, operatorOperands } from '../../../js/ast/module.f.js'
-import { exitValues } from '../../../js/ast/control/module.f.mjs'
+import { exitValues } from '../../../js/ast/control/module.f.js'
 import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 
 /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
@@ -101,12 +101,12 @@ const recipeTask = source => call(() => {
     if (definitions.length === 0) { return done(null) }
     const uses = recipeUses(source)
     const reads = definitions.map(definition => uses.filter(use => use.binding === definition[1]))
-    const roots = definitions.filter((_, index) => reads[index].length !== 0 && reads[index].every(use => use.tail && use.owner === null))
+    const roots = definitions.filter((_, index) => reads[Number(index)].length !== 0 && reads[Number(index)].every(use => use.tail && use.owner === null))
     if (roots.length === 0) { return done(null) }
     const owners = new Map(definitions.flatMap((definition, index) => {
-        const first = reads[index][0]
+        const first = reads[Number(index)][0]
         return first !== undefined && first.tail && first.owner !== null && definitions.some(definition => definition[1] === first.owner)
-            && reads[index].every(use => use.tail && use.owner === first.owner) ? [/** @type {const} */ ([definition[1], first.owner])] : []
+            && reads[Number(index)].every(use => use.tail && use.owner === first.owner) ? [/** @type {const} */ ([definition[1], first.owner])] : []
     }))
     /** @type {(binding: BindingId) => readonly _Recipe[]} */
     const childrenOf = binding => definitions.filter(child => owners.get(child[1]) === binding)
@@ -126,13 +126,13 @@ const recipeTask = source => call(() => {
         /** @type {(index: number, statements: readonly Statement[]) => Task<_Recipe>} */
         const each = (index, statements) => call(() => index === children.length
             ? done(statements.length === 0 ? definition : ['define', definition[1], ['block', { statements, exit: ['yield', [definition[2]]] }], 'lazy'])
-            : bind(expand(children[index]), statement => each(index + 1, [...statements, statement])))
+            : bind(expand(children[Number(index)]), statement => each(index + 1, [...statements, statement])))
         return each(0, [])
     })
     const block = { ...source, statements: source.statements.filter(statement => statement[0] !== 'define' || !movedBindings.includes(statement[1])) }
     /** @type {(index: number, recipes: readonly _Recipe[]) => Task<_Plan>} */
     const each = (index, recipes) => call(() => index === roots.length ? done({ block, recipes })
-        : bind(expand(roots[index]), recipe => each(index + 1, [...recipes, recipe])))
+        : bind(expand(roots[Number(index)]), recipe => each(index + 1, [...recipes, recipe])))
     return each(0, [])
 })
 
@@ -200,7 +200,7 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
         }))
     })
     /** Every reached recipe transfers; the final arm is the remaining choice. @type {(recipes: readonly _Recipe[], selected: BindingId, index: number) => Task<Block>} */
-    const dispatchTask = (recipes, selected, index) => call(() => bind(valueTask(recipes[index][2]), continuation => index + 1 === recipes.length
+    const dispatchTask = (recipes, selected, index) => call(() => bind(valueTask(recipes[Number(index)][2]), continuation => index + 1 === recipes.length
         ? done(continuation.block)
         : bind(dispatchTask(recipes, selected, index + 1), otherwise => done({
             statements: [['if', [], ['===', ['ref', selected], index], continuation.block, otherwise]], exit: ['yield', []],

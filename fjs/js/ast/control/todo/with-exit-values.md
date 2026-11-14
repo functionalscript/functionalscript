@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`control`](../module.f.mjs)'s `exitValues` is the one reader of an
+[`control`](../module.f.js)'s `exitValues` is the one reader of an
 `Exit`'s operands: `yield` carries a list, `break` and `continue` a target
 and a list, `return` a target and one value, `throw` one value. The writer,
 "this exit with its operands replaced", has no owner, so every pass that
@@ -28,7 +28,7 @@ The same split is in `exitTask` of [`memo`](../../memo/module.f.mjs),
 `blockTask` of
 [`fjs/edag/to_fast/source/loops`](../../../../edag/to_fast/source/loops/module.f.mjs)
 and `exitTask` of
-[`fjs/edag/from_fast/loop/owning`](../../../../edag/from_fast/loop/owning/module.f.mjs),
+[`fjs/edag/from_fast/loop/owning`](../../../../edag/from_fast/loop/owning/module.f.js),
 where it is spread over two `if`s. A new `Exit` variant is a reader change
 in one place and a writer change in five.
 

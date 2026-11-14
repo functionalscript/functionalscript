@@ -27,12 +27,12 @@
  * @import { _FirstState, _Follows, _Frame, _Mappers, _RepeatFrame, _Visit } from './private.ts'
  */
 
-import { assert } from '../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { definedEntries, definedValues, structurallySame } from '../../types/object/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
+import { entry as ownEntry } from '../../types/object/entry/module.f.js'
 import { contains, difference, empty, intersection, union } from '../../types/range_set/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.js'
@@ -58,7 +58,7 @@ const { isSafeInteger } = Number
 const firstOf = (ruleSet, nullable) => {
     /** @type {(current: StringSet) => (map: FirstMap, name: string) => _FirstState} */
     const first = current => (map, name) => {
-        const known = entry(map, name)
+        const known = ownEntry(map, name)
         if (known !== undefined) { return [map, known] }
         assert(!visiting(name)(current), ['left recursion', name])
         const inner = first(visit(name)(current))
@@ -97,7 +97,7 @@ const firstOf = (ruleSet, nullable) => {
             // set is empty and its item is not in first position.
             repeat: (_min, max, item) => max === 0 ? [map, empty] : inner(map, item),
         }
-        const [next, f] = matchRule(v)(ruleSet[name])
+        const [next, f] = matchRule(v)(assertNotNullish(ownEntry(ruleSet, name)))
         return [{ ...next, [name]: f }, f]
     }
     return first
@@ -160,7 +160,7 @@ const references = {
  */
 const reach = ruleSet => (found, name) => found.includes(name)
     ? found
-    : matchRule(references)(ruleSet[name]).reduce(reach(ruleSet), [...found, name])
+    : matchRule(references)(assertNotNullish(ownEntry(ruleSet, name))).reduce(reach(ruleSet), [...found, name])
 
 /**
  * What one rule says about the symbols that may follow the rules it names,
@@ -178,11 +178,11 @@ const followsOf = (first, nullable) => own => ({
         /** @type {(acc: readonly [_Follows, RangeSet, boolean], item: string) => readonly [_Follows, RangeSet, boolean]} */
         (([follows, after, open], item) => [
             [...follows, [item, open ? union(after)(own) : after]],
-            union(first[item])(nullable(item) ? after : empty),
+            union(assertNotNullish(ownEntry(first, item)))(nullable(item) ? after : empty),
             open && nullable(item)]),
         [[], empty, true])[0],
     variant: branches => definedValues(branches).map(item => [item, own]),
-    repeat: (_min, max, item) => max === 0 ? [] : [[item, union(own)(max > 1 ? first[item] : empty)]],
+    repeat: (_min, max, item) => max === 0 ? [] : [[item, union(own)(max > 1 ? assertNotNullish(ownEntry(first, item)) : empty)]],
 })
 
 /**
@@ -198,10 +198,10 @@ const followMap = (ruleSet, first, nullable, names) => {
     const follows = followsOf(first, nullable)
     /** @type {(follow: FirstMap) => FirstMap} */
     const step = follow => names
-        .flatMap(name => matchRule(follows(follow[name]))(ruleSet[name]))
+        .flatMap(name => matchRule(follows(assertNotNullish(ownEntry(follow, name))))(assertNotNullish(ownEntry(ruleSet, name))))
         .reduce(
             /** @type {(m: FirstMap, entry: readonly [string, RangeSet]) => FirstMap} */
-            ((m, [name, symbols]) => ({ ...m, [name]: union(m[name])(symbols) })),
+            ((m, [name, symbols]) => ({ ...m, [name]: union(assertNotNullish(ownEntry(m, name)))(symbols) })),
             follow)
     // `structurallySame`, not `===`: a round rebuilds every set it unions
     // into, whether or not its contents changed.
@@ -224,12 +224,12 @@ const followMap = (ruleSet, first, nullable, names) => {
  * @type {(first: FirstMap, nullable: (name: string) => boolean) => (name: string) => RuleVisitor<RangeSet>}
  */
 const decisionOf = (first, nullable) => name => {
-    const skip = nullable(name) ? first[name] : empty
+    const skip = nullable(name) ? assertNotNullish(ownEntry(first, name)) : empty
     return {
         set: () => skip,
         sequence: () => skip,
         variant: () => skip,
-        repeat: (min, max, item) => union(skip)(max > min ? first[item] : empty),
+        repeat: (min, max, item) => union(skip)(max > min ? assertNotNullish(ownEntry(first, item)) : empty),
     }
 }
 
@@ -247,11 +247,10 @@ const decisionOf = (first, nullable) => name => {
 const checkFollow = (ruleSet, first, nullable, names, greedy) => {
     const follow = followMap(ruleSet, first, nullable, names)
     const decision = decisionOf(first, nullable)
-    names.forEach(name => {
-        const clash = difference(intersection(matchRule(decision(name))(ruleSet[name]))(follow[name]))(greedy)
+    for (const name of names) {
+        const clash = difference(intersection(matchRule(decision(name))(assertNotNullish(ownEntry(ruleSet, name))))(assertNotNullish(ownEntry(follow, name))))(greedy)
         assert(clash.length === 0, ['first/follow conflict', name, clash])
-        return undefined
-    })
+    }
     return undefined
 }
 
@@ -335,8 +334,8 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
          */
         const symbolAt = pos => {
             if (pos >= length) { return eofSymbol }
-            const { symbol } = symbols[pos]
-            assert(isSymbol(symbol), ['not a symbol', pos, symbols[pos]])
+            const { symbol } = symbols[Number(pos)]
+            assert(isSymbol(symbol), ['not a symbol', pos, symbols[Number(pos)]])
             return symbol
         }
 
@@ -349,7 +348,7 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
         const accepts = s => pos => pos <= length && contains(s)(symbolAt(pos))
 
         /** @type {(name: string) => (pos: number) => boolean} */
-        const starts = name => accepts(first[name])
+        const starts = name => accepts(assertNotNullish(ownEntry(first, name)))
 
         /**
          * Consuming a symbol contributes the symbol as it arrived, its
@@ -358,7 +357,7 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
          *
          * @type {(pos: number) => unknown}
          */
-        const leafAt = pos => pos < length ? symbols[pos] : []
+        const leafAt = pos => pos < length ? symbols[Number(pos)] : []
 
         /**
          * A round is forced while fewer than `min` have matched, and optional
@@ -371,7 +370,8 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
          * @type {(frame: _RepeatFrame, pos: number) => _Visit}
          */
         const round = (frame, pos) => {
-            const { name, min, max, item, rounds, count } = frame
+            const name = assertNotNullish(ownEntry(frame, 'name'))
+            const { min, max, item, rounds, count } = frame
             return [pos, count < min || (count < max && starts(item)(pos))
                 ? ['push', frame, item]
                 : ok(emit(name, toArray(rounds)))]
@@ -406,7 +406,7 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
                 repeat: (min, max, item) =>
                     round({ kind: 'repeat', name, min, max, item, rounds: null, count: 0 }, pos),
             }
-            return matchRule(v)(ruleSet[name])
+            return matchRule(v)(assertNotNullish(ownEntry(ruleSet, name)))
         }
 
         /**
@@ -421,10 +421,10 @@ const build = (ruleSet, empty, entry, mappers, greedy) => {
                     const done = [...top.done, ast]
                     const index = top.index + 1
                     return [pos, index < top.items.length
-                        ? ['push', { ...top, index, done }, top.items[index]]
-                        : ok(emit(top.name, done))]
+                        ? ['push', { ...top, index, done }, top.items[Number(index)]]
+                        : ok(emit(assertNotNullish(ownEntry(top, 'name')), done))]
                 }
-                case 'variant': { return [pos, ok(emit(top.name, [top.tag, ast]))] }
+                case 'variant': { return [pos, ok(emit(assertNotNullish(ownEntry(top, 'name')), [top.tag, ast]))] }
                 // `'repeat'`, the one kind left: every frame is built above
                 default: {
                     return round({ ...top, rounds: concat(top.rounds)([ast]), count: top.count + 1 }, pos)

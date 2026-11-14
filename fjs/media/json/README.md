@@ -115,7 +115,7 @@ deliberate difference: `-0` is written `-0`, not `0`. It is valid JSON, the
 reader keeps its sign, and so a standard round trip keeps both zeros apart.
 `NaN` and the infinities are written `null`, as `JSON.stringify` writes them.
 The finite spelling has one owner, `numberSerialize` in
-[`serializer/module.f.mjs`](./serializer/module.f.mjs); DataJS writes its
+[`serializer/module.f.js`](./serializer/module.f.js); DataJS writes its
 finite numbers through it and spells the non-finite ones as words.
 
 Extended: bare integer syntax becomes a `bigint`, exactly, whatever its

@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { invariantState } from './module.f.mjs'
+import { invariantState } from './module.f.js'
 
 const stable = /** @type {const} */ ({ index: 0 })
 const changing = /** @type {const} */ ({ index: 0 })

@@ -5,7 +5,7 @@
 
 ### Problem
 
-Two walks in [`../module.f.mjs`](../module.f.mjs) take one stack frame, or
+Two walks in [`../module.f.js`](../module.f.js) take one stack frame, or
 several, per rule they pass through:
 
 - `firstOf` recurses into every item in first position, so its depth is the

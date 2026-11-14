@@ -344,7 +344,7 @@ type Get0<T extends ExpOp, K extends ExpOp[0]> =
  * table with a non-generic union key still yields the uncallable union, so
  * dispatch must go through such a `K`; `operation` in
  * [`operations`](./operations/module.f.mjs) and the walk in
- * [`analysis`](./analysis/module.f.mjs) both do.
+ * [`analysis`](./analysis/module.f.js) both do.
  */
 export type TagMap = { readonly[K in ExpOp[0]]: Get0<ExpOp, K> }
 

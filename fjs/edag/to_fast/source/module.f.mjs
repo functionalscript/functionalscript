@@ -10,9 +10,9 @@
  * @import { Task } from './private.ts'
  */
 
-import { itemOperand, operandsOf } from '../../analysis/module.f.mjs'
+import { itemOperand, operandsOf } from '../../analysis/module.f.js'
 import { operatorOperands } from '../../../js/ast/module.f.js'
-import { exitValues } from '../../../js/ast/control/module.f.mjs'
+import { exitValues } from '../../../js/ast/control/module.f.js'
 import { prohibitedAccess } from '../../../js/prototype/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 
@@ -23,7 +23,7 @@ const keyReason = (a, key, method) => {
         return why === null ? null : `a prohibited ${why}`
     }
     if (typeof key === 'number') { return Number.isFinite(key) && !Object.is(key, -0) ? null : 'a number key no literal reads back' }
-    const node = key instanceof Array ? a.nodes[key[1]] : null
+    const node = key instanceof Array ? a.nodes[Number(key[1])] : null
     if (node === null || node[0] !== 'Number') { return 'an access key that is no literal' }
     return a.shared.includes(/** @type {readonly ['#', number]} */ (key)[1]) ? 'a shared computed key' : null
 }
@@ -33,14 +33,14 @@ const callStep = step => step !== undefined && step[0] !== '|.'
 
 /** A graph key holds a conversion operand, not a separate source expression. @type {(a: Analysis, key: Operand) => readonly Operand[]} */
 const keyValues = (a, key) => {
-    const node = key instanceof Array ? a.nodes[key[1]] : null
+    const node = key instanceof Array ? a.nodes[Number(key[1])] : null
     return node !== null && node[0] === 'Number' ? [node[1]] : []
 }
 
 /** Primitives have no identity key; invocation reads name the same value even as distinct nodes. @type {(a: Analysis, slot: Operand) => string | null} */
 const captureKey = (a, slot) => {
     if (!(slot instanceof Array)) { return null }
-    const node = a.nodes[slot[1]]
+    const node = a.nodes[Number(slot[1])]
     if (node[0] === 'undefined') { return null }
     return ['arg', 'rest', 'frame', 'self'].includes(node[0])
         ? `${node[0]}:${node[0] === 'arg' || node[0] === 'frame' ? node[1] : 0}`
@@ -52,7 +52,7 @@ const captureReason = (a, index, node) => {
     const slots = node[2]
     const names = slots.map(slot => captureKey(a, slot)).filter(key => key !== null)
     if (new Set(names).size !== names.length) { return 'a frame slot that repeats another' }
-    return slots.some((_, k) => !a.nodes.some((read, j) => a.scope[j] === index && read[0] === 'frame' && read[1] === k)) ? 'a frame slot the body never reads' : null
+    return slots.some((_, k) => !a.nodes.some((read, j) => a.scope[Number(j)] === index && read[0] === 'frame' && read[1] === k)) ? 'a frame slot the body never reads' : null
 }
 
 /** The graph-specific restrictions which survive the common migration. @type {(a: Analysis, module: boolean) => string | null} */
@@ -72,13 +72,13 @@ const graphReason = (a, module) => {
             if (seen.some(([i, module]) => i === index && module === current.module)) { pending = rest; continue }
             seen = [...seen, [index, current.module]]
         }
-        const node = a.nodes[index]
+        const node = a.nodes[Number(index)]
         if (node[0] === 'args') { return 'a args node' }
         if (node[0] === 'memberPresent') { return 'an internal member-presence query' }
         if (node[0] === '+' && node.length === 2) { return 'a unary + node' }
         if (node[0] === ',') {
             if (node[1].length < 2) { return 'a comma with fewer than two operands' }
-            if (!current.module && node[1].slice(0, -1).some(value => value instanceof Array && ['rest', 'arg', 'frame', 'self'].includes(a.nodes[value[1]][0]))) { return 'an anchor that is a name' }
+            if (!current.module && node[1].slice(0, -1).some(value => value instanceof Array && ['rest', 'arg', 'frame', 'self'].includes(a.nodes[Number(value[1])][0]))) { return 'an anchor that is a name' }
             pending = [...node[1].map(value => ({ value, module: current.module })), ...rest]
             continue
         }

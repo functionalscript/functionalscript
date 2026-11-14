@@ -7,7 +7,7 @@
 
 import { conditional } from '../../testlib.f.js'
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
-import { validateClosure } from './module.f.mjs'
+import { validateClosure } from './module.f.js'
 
 /** @type {(value: EdagValue) => void} */
 const accept = value => { assertEq(Object.is(assertOk(validateClosure(value)), value), true) }

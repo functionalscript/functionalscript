@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.js'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate, itemTagged, toRust } from './module.f.mjs'
 import { toText, untagged } from '../../text/marked/module.f.js'

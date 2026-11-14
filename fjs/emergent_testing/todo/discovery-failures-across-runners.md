@@ -6,7 +6,7 @@
 ### Problem
 
 A module that throws while loading is now a failed test on `fjs t`, Node,
-Bun and Deno: `proofEntries` in `../module.f.mjs` turns the failed import
+Bun and Deno: `proofEntries` in `../module.f.js` turns the failed import
 into a proof whose one leaf throws the load error. Two related gaps remain.
 
 1. **`all.test.mjs` ignores `register`'s exit code.** It runs
@@ -18,7 +18,7 @@ into a proof whose one leaf throws the load error. Two related gaps remain.
    Before load failures became tests, this is how `node --test` reported a
    failing module-level `assert` as a pass.
 2. **The browser stops the whole suite when one module fails to load.**
-   `loadProofs` in `../browser/module.f.mjs` answers `['failed', rejected]`
+   `loadProofs` in `../browser/module.f.js` answers `['failed', rejected]`
    when any module is rejected ("a partial suite reported as a whole one is
    worse than a refusal"). The Node-side runners now report the failure as
    one failed test and run the remaining modules. The two policies disagree,

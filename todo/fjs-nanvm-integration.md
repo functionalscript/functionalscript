@@ -142,6 +142,11 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Leaf indices and captures
+
+#3868 uses `Number(...)` indices and a constant alias for selected prefixes.
+`js/ast/loop/{invariant,plain}` now use `.f.js`.
+
 #### Array rest lowering
 
 #3800 (`29a1645bc`) lowers array rest to a slice of the existing iterable

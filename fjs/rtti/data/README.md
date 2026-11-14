@@ -80,9 +80,11 @@ two spellings a bare container reaches are `{ prefix }` and
 `UnionSet` or the name of a rule. Unlike `fjs/ebnf/data`, only definitions that
 are actually cyclic become rules — everything else is inlined — so a
 non-recursive schema is a pure tree with an empty rule set, and structural
-identity does not depend on traversal order. Rule names come from the
-defining functions' names (a recursive thunk is necessarily a named binding),
-disambiguated with a counter on collision.
+identity does not depend on traversal order. Recursive rule names are decimal
+ordinals (`"0"`, `"1"`, …), assigned when a cycle or deferred merge first
+requires a reference. The same thunk reuses its ordinal, independent of its
+JavaScript function name. After unused rules are pruned, the surviving names
+are compacted to remove gaps while preserving the lexical order of references.
 
 ## Canonical form
 
@@ -109,20 +111,21 @@ disambiguated with a counter on collision.
   `list` — and a re-stated fixpoint collapses: for
   `list = readonly list[]`, `array(list)` is `list` itself.
 
-Schema identity is a property of this form, not of thunks: two `or(a, b)`
-calls produce distinct thunks, but `toData(or(a, b))` and `toData(or(b, a))`
-are structurally identical, and `equal`/`cmp` decide identity and canonical
-order with plain structural comparison. Two known limits, both accepted by
-design:
+Schema identity is a property of this form, not of thunk identity:
+`equal`/`cmp` compare structure and decide its canonical order. For
+non-recursive schemas, `toData(or(a, b))` and `toData(or(b, a))` are
+structurally identical despite their distinct thunks. Recursive schemas retain
+two limits:
 
-- rule *names* are part of the structure, so two recursive schemas that
-  differ only in the names of their defining functions are semantically equal
-  yet structurally distinct — full graph canonicalization is
-  bisimulation-grade work the simple form deliberately avoids. `subset`
-  resolves references coinductively, so such a pair is a mutual `subset`
-  without being `equal` — mutual inclusion implies equality of the *sets*,
-  not of the spellings — and their union normalizes to whichever spelling
-  sorts first;
+- rule *names* are part of the structure. Reversing a union of two distinct
+  recursive shapes can swap their ordinals, so the results remain
+  `equivalent` but are not `equal`. Function names no longer affect the
+  result: independently converted self-recursive lists both
+  use `"0"`. Full graph canonicalization is bisimulation-grade work the
+  simple form deliberately avoids. `subset` resolves references
+  coinductively; mutual inclusion compares the *sets*, while `equal` compares
+  their spellings. When a union contains mutually included patterns, it keeps
+  the first canonical spelling;
 - a reference is never recognized as `unknown` or `never`, so e.g. a cyclic
   rule whose fixpoint happens to be the whole domain is not collapsed to
   `unknown`.
@@ -136,7 +139,7 @@ whole form, including `bigint` literal sets and `NaN`, `±Infinity` and `-0`
 literal members. JSON is narrower. It has no `bigint`, and its number model
 writes a `NaN` or `±Infinity` literal member as `null`, so a schema using one
 does not round-trip through JSON text. The repository's own JSON serializer
-([`fjs/media/json`](../../media/json/serializer/module.f.mjs)) keeps `-0`;
+([`fjs/media/json`](../../media/json/serializer/module.f.js)) keeps `-0`;
 the host's `JSON.stringify` writes it as `0`.
 
 ## `subset` is sound and deliberately incomplete

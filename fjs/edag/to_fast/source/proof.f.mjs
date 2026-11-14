@@ -9,7 +9,7 @@
 
 import { conditional } from '../../testlib.f.js'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
-import { identityAnalysis } from '../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../analysis/module.f.js'
 import { fromAnalysis } from '../module.f.mjs'
 import { fromFast } from '../../from_fast/module.f.mjs'
 import { sourceReason } from './module.f.mjs'

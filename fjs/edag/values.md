@@ -49,8 +49,8 @@ no cycle preflight or repeated result-validation pipeline is needed.
 
 An explicit boundary accepting EDAG supplied as FJS data checks constructible
 errors in shape, metadata, bindings and scope while preserving sharing. The
-existing [metadata](value/metadata/module.f.mjs),
-[closure](value/closure/module.f.mjs), and [analysis](analysis/module.f.mjs)
+existing [metadata](value/metadata/module.f.js),
+[closure](value/closure/module.f.js), and [analysis](analysis/module.f.js)
 checks serve those boundaries. Object normalization applies to evaluated data
 and captures; object expressions inside bodies retain construction semantics.
 The proposed public interpreter admission API

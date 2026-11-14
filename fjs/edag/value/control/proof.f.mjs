@@ -10,7 +10,7 @@ import { assert, assertEq, assertOk, assertError, assertStructurallySame } from 
 import { ok, error } from '../../../types/result/module.f.js'
 import { throwValue, conditional, sequence } from './module.f.js'
 import { conditional as sourceConditional } from '../../testlib.f.js'
-import { analysis } from '../../analysis/module.f.mjs'
+import { analysis } from '../../analysis/module.f.js'
 import { memo } from '../../memo/module.f.mjs'
 
 /** Canonical graph fixtures, with source logical lowering kept outside this module. @type {(graph: Exp) => ReturnType<ReturnType<typeof memo>>} */

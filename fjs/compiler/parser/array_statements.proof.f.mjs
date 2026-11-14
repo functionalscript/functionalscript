@@ -7,7 +7,7 @@ import { parseSyntax } from './syntax/module.f.mjs'
 import { parseFromTokens } from './module.f.mjs'
 import { _evaluate, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 

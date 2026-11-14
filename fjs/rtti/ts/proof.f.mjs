@@ -61,8 +61,8 @@ export const proof = {
             /** @type {_List} */
             const list = () => ['array', list]
             eqMarked(toData(list), [
-                [[[['list', 'identifier']], [['readonly', 'keyword'], ['('], ['list', 'identifier'], [')[]']]]],
-                [['list', 'identifier']],
+                [[[['T0', 'identifier']], [['readonly', 'keyword'], ['('], ['T0', 'identifier'], [')[]']]]],
+                [['T0', 'identifier']],
             ])
         },
     },
@@ -237,8 +237,8 @@ export const proof = {
             /** @typedef {() => readonly ['array', _List]} _List */
             /** @type {_List} */
             const list = () => ['array', list]
-            eq(list, 'list')
-            eqData(toData(list), [[['list', 'readonly(list)[]']], 'list'])
+            eq(list, 'T0')
+            eqData(toData(list), [[['T0', 'readonly(T0)[]']], 'T0'])
         },
         mutual: () => {
             /** Mutual recursion through a container. */
@@ -248,15 +248,15 @@ export const proof = {
             const tree = () => ['or', number, forest]
             /** @type {_Forest} */
             const forest = () => ['array', tree]
-            eqData(toData(tree), [[['tree', 'number|readonly(tree)[]']], 'tree'])
-            eqData(toData(forest), [[['tree', 'number|readonly(tree)[]']], 'readonly(tree)[]'])
+            eqData(toData(tree), [[['T0', 'number|readonly(T0)[]']], 'T0'])
+            eqData(toData(forest), [[['T0', 'number|readonly(T0)[]']], 'readonly(T0)[]'])
         },
         recursiveUnion: () => {
             /** A recursive list: `type list = readonly list[]`. */
             /** @typedef {() => readonly ['array', _List]} _List */
             /** @type {_List} */
             const list = () => ['array', list]
-            eqData(toData(or(number, list)), [[['list', 'readonly(list)[]']], 'number|readonly(list)[]'])
+            eqData(toData(or(number, list)), [[['T0', 'readonly(T0)[]']], 'number|readonly(T0)[]'])
         },
         mutable: () => {
             /** A recursive list: `type list = readonly list[]`. */
@@ -264,38 +264,29 @@ export const proof = {
             /** @type {_List} */
             const list = () => ['array', list]
             const [defs, entry] = dataToTs(true)(toData(list))
-            assertEq(JSON.stringify([defs, entry]), JSON.stringify([[['list', '(list)[]']], 'list']))
+            assertEq(JSON.stringify([defs, entry]), JSON.stringify([[['T0', '(T0)[]']], 'T0']))
         },
     },
     identifiers: {
         // the empty rule name is not an identifier — generated `T0`
         emptyName: () => {
-            /** A cycle closing through an anonymous `or` thunk — an empty rule name. */
-            /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
-            /** @type {_Lock} */
-            const lock = () => ['record', or(string, lock)]
-            eqData(toData(lock), [
+            eqData([
+                { '': { string: true, object: [{ props: {}, rest: '' }] } },
+                { object: [{ props: {}, rest: '' }] },
+            ], [
                 [['T0', 'string|{readonly[k in string]?:T0}']],
                 '{readonly[k in string]?:T0}',
             ])
         },
         // a predefined type name cannot name an alias — generated `T0`
         predefinedName: () => {
-            /** A recursive rule whose function name is the predefined type name `string`. */
-            /** @typedef {() => readonly ['array', _StringNamed]} _StringNamed */
-            /** @type {{ readonly string: _StringNamed }} */
-            const stringNamedHolder = { string: () => ['array', stringNamedHolder.string] }
-            const stringNamed = stringNamedHolder.string
-            eqData(toData(stringNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
+            eqData([{ string: { array: [{ prefix: [], rest: 'string' }] } }, 'string'],
+                [[['T0', 'readonly(T0)[]']], 'T0'])
         },
         // reserved words cannot name an alias either — generated `T0`
         reservedName: () => {
-            /** A recursive rule whose function name is the reserved word `if`. */
-            /** @typedef {() => readonly ['array', _IfNamed]} _IfNamed */
-            /** @type {{ readonly if: _IfNamed }} */
-            const ifNamedHolder = { if: () => ['array', ifNamedHolder.if] }
-            const ifNamed = ifNamedHolder.if
-            eqData(toData(ifNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
+            eqData([{ if: { array: [{ prefix: [], rest: 'if' }] } }, 'if'],
+                [[['T0', 'readonly(T0)[]']], 'T0'])
         },
         typeOperatorName: () => {
             eqData([{ infer: { array: [{ prefix: [], rest: 'infer' }] } }, 'infer'],
@@ -310,16 +301,13 @@ export const proof = {
         },
         // a generated identifier skips names already kept
         generatedCollision: () => {
-            /** A recursive rule whose function name is `T0` — the first generated identifier. */
-            /** @typedef {() => readonly ['array', _T0Named]} _T0Named */
-            /** @type {{ readonly T0: _T0Named }} */
-            const t0NamedHolder = { T0: () => ['array', t0NamedHolder.T0] }
-            const t0Named = t0NamedHolder.T0
-            /** A cycle closing through an anonymous `or` thunk — an empty rule name. */
-            /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
-            /** @type {_Lock} */
-            const lock = () => ['record', or(string, lock)]
-            eqData(toData(/** @type {const} */ ([t0Named, lock])), [
+            eqData([
+                {
+                    '': { string: true, object: [{ props: {}, rest: '' }] },
+                    T0: { array: [{ prefix: [], rest: 'T0' }] },
+                },
+                { array: [{ prefix: ['T0', { object: [{ props: {}, rest: '' }] }] }] },
+            ], [
                 [['T1', 'string|{readonly[k in string]?:T1}'], ['T0', 'readonly(T0)[]']],
                 'readonly[T0,{readonly[k in string]?:T1}]',
             ])

@@ -26,14 +26,14 @@
 
 import { isSpread, mapOperator, operatorOperands } from '../module.f.js'
 import { scalarLoopOf } from '../loop/module.f.js'
-import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
-import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
+import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.js'
+import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
-import { _immutableJoin } from './joins/module.f.mjs'
+import { _immutableJoin } from './joins/module.f.js'
 import { _recoverOnePassJoin } from './one_pass/module.f.mjs'
 
 /** @type {(node: _Node) => _Facts} */

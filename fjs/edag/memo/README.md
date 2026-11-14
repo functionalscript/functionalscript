@@ -5,7 +5,7 @@ evaluated once and its value reused, so a `const` read twice is computed once
 and a shared `{}` is one object. [`module.f.mjs`](./module.f.mjs) holds it.
 
 ```js
-import { identityAnalysis } from '../analysis/module.f.mjs'
+import { identityAnalysis } from '../analysis/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { memo } from './module.f.mjs'
 

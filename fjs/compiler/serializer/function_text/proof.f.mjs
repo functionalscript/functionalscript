@@ -6,7 +6,7 @@
 
 import { conditional } from '../../../edag/testlib.f.js'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
-import { analysis } from '../../../edag/analysis/module.f.mjs'
+import { analysis } from '../../../edag/analysis/module.f.js'
 import { staticIds } from '../../../edag/module.f.js'
 import { functionText } from '../module.f.mjs'
 

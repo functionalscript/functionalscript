@@ -18,7 +18,7 @@ import { maxLength } from '../../../../types/function/length/module.f.js'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.js'
 import { _restArguments } from '../../../../js/ast/invocation/module.f.js'
-import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.mjs'
+import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 
 /** Validate reached statement transfers without crossing hidden transfer owners. @type {(block: Block, length: number, target: LoopTarget) => Task<_RestResult>} */

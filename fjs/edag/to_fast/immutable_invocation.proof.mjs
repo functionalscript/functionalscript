@@ -12,7 +12,7 @@
 import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { identityAnalysis } from '../analysis/module.f.mjs'
+import { identityAnalysis } from '../analysis/module.f.js'
 import { _controlFlowFunctions } from '../from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { _counting } from '../from_fast/proof.f.mjs'

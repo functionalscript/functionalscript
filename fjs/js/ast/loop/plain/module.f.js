@@ -10,7 +10,7 @@
  * @import { Task } from '../../task/types.ts'
  */
 
-import { freeBindings } from '../../control/module.f.mjs'
+import { freeBindings } from '../../control/module.f.js'
 import { run } from '../../task/module.f.js'
 import { terminalTree } from '../terminal/module.f.js'
 
@@ -54,7 +54,8 @@ const prefixForUses = (prefix, block) => {
     /** @type {readonly Definition[]} */
     let selected = []
     for (const id of freeBindings(block)) {
-        const remaining = prefix.filter(definition => !selected.some(previous => previous[1] === definition[1]))
+        const s = selected
+        const remaining = prefix.filter(definition => !s.some(previous => previous[1] === definition[1]))
         selected = [...selected, ...prefixFor(remaining, { statements: [], exit: ['yield', [['ref', id]]] })]
     }
     return selected
@@ -86,7 +87,7 @@ const withPrefix = (prefix, step) => {
  */
 export const plainLoopOf = loop => {
     if (loop.results.length !== 1 || loop.body.statements.length === 0) { return null }
-    const statement = loop.body.statements[loop.body.statements.length - 1]
+    const statement = loop.body.statements[Number(loop.body.statements.length - 1)]
     const before = loop.body.statements.slice(0, -1)
     if (statement[0] !== 'if' || statement[1].length !== 0
         || !before.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }

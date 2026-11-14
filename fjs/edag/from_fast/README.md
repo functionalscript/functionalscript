@@ -266,7 +266,7 @@ inside a lazy value operand.
 
 ## Owning returns in value regions
 
-At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.mjs) pass lifts owning
+At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.js) pass lifts owning
 returns in direct plain value blocks and conditionals used as required
 initializers or return payloads. Within an exposed region, a single yielded
 value can expose another such region. Statement blocks and conditionals bind

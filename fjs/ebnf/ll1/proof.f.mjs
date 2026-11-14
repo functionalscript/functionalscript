@@ -16,7 +16,7 @@ import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, t
 import { toData } from '../data/module.f.js'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { json } from '../lib/json/module.f.mjs'
-import { firstMap, mapping, parser, parserRuleSet } from './module.f.mjs'
+import { firstMap, mapping, parser, parserRuleSet } from './module.f.js'
 
 const { keys } = Object
 
@@ -339,6 +339,26 @@ export const proof = {
                 document: [...sign, ...digits],
                 eof: [-1, 0],
             })
+        },
+        // Names are own grammar entries even when Object.prototype also
+        // names them. FIRST/FOLLOW maps carry those same names through a parse.
+        prototypeNames: () => {
+            /** @type {RuleSet} */
+            const ruleSet = /** @type {const} */ ({
+                constructor: ['sequence', 'toString', '__proto__'],
+                toString: one('x'),
+                ['__proto__']: ['repeat', 0, 1, 'hasOwnProperty'],
+                hasOwnProperty: one('y'),
+            })
+            assertStructurallySame(firstMap(ruleSet), {
+                constructor: [c('x'), c('x') + 1],
+                toString: [c('x'), c('x') + 1],
+                ['__proto__']: [c('y'), c('y') + 1],
+                hasOwnProperty: [c('y'), c('y') + 1],
+            })
+            const parse = parserRuleSet(ruleSet, 'constructor')
+            assertStructurallySame(parse(cps('xy')), ['ok', [[s('x'), [s('y')]], 2]])
+            assertStructurallySame(parse(cps('x')), ['ok', [[s('x'), []], 1]])
         },
         // Every rule the lowering emits gets a first set, and the entry's is
         // what a document may begin with: whitespace or a value.

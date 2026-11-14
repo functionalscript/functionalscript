@@ -15,7 +15,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { identityAnalysis, checked } from '../analysis/module.f.mjs'
+import { identityAnalysis, checked } from '../analysis/module.f.js'
 import { fromAnalysis } from '../to_fast/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { functionStringify } from '../../js/ast/serializer/module.f.mjs'

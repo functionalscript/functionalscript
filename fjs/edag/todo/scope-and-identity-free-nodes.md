@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`analysis`](../analysis/module.f.mjs) refuses a node reached from two
+[`analysis`](../analysis/module.f.js) refuses a node reached from two
 scopes — `a node shared across a function boundary` — and the refusal is
 structural: it asks where a node is reached from, never what the node is.
 

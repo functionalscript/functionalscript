@@ -11,7 +11,7 @@ import { Buffer } from 'node:buffer'
 import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare } from '../../../js/ast/prepare/module.f.mjs'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs'

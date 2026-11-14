@@ -9,7 +9,7 @@ a bounded repeat is matched — and it is the mapping layer: a mapped rule's
 node is handed to its mapping as it comes into existence, and the mapping's
 result stands in its place.
 
-- `module.f.mjs` — `firstMap`, `parserRuleSet`, `parser`, `mapping`;
+- `module.f.js` — `firstMap`, `parserRuleSet`, `parser`, `mapping`;
 - `types.ts` — `FirstMap`, `MatchResult`, `Parser`, `Mapping`,
   `RewriteSet`, `Mappings`.
 

@@ -10,7 +10,7 @@
  * @import { EdagValue } from '../../edag/value/types.ts'
  */
 
-import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
+import { identityAnalysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate as generateRust } from '../../compiler/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'

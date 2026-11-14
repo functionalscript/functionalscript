@@ -197,7 +197,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/effects/node/module.mjs` | 305 | `_Server` | reads an `unknown` the surrounding code has already established |
 | `fjs/effects/node/virtual/module.f.js` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/proof.f.mjs` | 85 | `(value: number) => Effect<never, import('../types/result/t…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/module.f.mjs` | 64 | `TestFn` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/module.f.js` | 64 | `TestFn` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/proof.f.mjs` | 333 | `Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockS…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/proof.f.mjs` | 341 | `readonly [_RegisterMockState, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/emergent_testing/proof.f.mjs` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |

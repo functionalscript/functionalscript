@@ -84,20 +84,6 @@ export const shellRustVersionSteps = (v, a) =>
         ]
         : []
 
-/**
- * Native checks, plus i686 on Intel Linux and formatting/WASM on ARM Linux.
- * @type {(v: Os, a: Architecture) => readonly string[]}
- */
-export const shellRustCommands = (v, a) => {
-    const wasm = wasmPlatform(v, a)
-    return [
-        ...(wasm ? ['cargo fmt -- --check'] : []),
-        ...rustPlatformCommands,
-        ...(v === 'ubuntu' && a === 'intel' ? targetCheckCommands(i686Linux) : []),
-        ...(wasm ? wasmTargets.flatMap(wasmTargetCommands) : []),
-    ]
-}
-
 const wasmerConfig = /** @type {const} */ ('.cargo/config.wasmer.toml')
 
 const wasmerOnlyTarget = /** @type {const} */ ('wasm32-wasip1-threads')
@@ -123,3 +109,17 @@ const wasmTargetCommands = target =>
             ...targetCheckCommands(target),
             ...cargoPair('test', target, wasmerConfig),
         ]
+
+/**
+ * Native checks, plus i686 on Intel Linux and formatting/WASM on ARM Linux.
+ * @type {(v: Os, a: Architecture) => readonly string[]}
+ */
+export const shellRustCommands = (v, a) => {
+    const wasm = wasmPlatform(v, a)
+    return [
+        ...(wasm ? ['cargo fmt -- --check'] : []),
+        ...rustPlatformCommands,
+        ...(v === 'ubuntu' && a === 'intel' ? targetCheckCommands(i686Linux) : []),
+        ...(wasm ? wasmTargets.flatMap(wasmTargetCommands) : []),
+    ]
+}

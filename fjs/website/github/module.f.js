@@ -176,7 +176,7 @@ export const workerConfig = (env, { redirect, preview }) => {
     }
     return error({
         error: 'GitHub login is not configured.',
-        missingBindings: bindingNames.filter(name => !present(env[name])),
+        missingBindings: bindingNames.filter(name => !present(entry(env, name))),
         invalidRedirectUri: present(env.GITHUB_REDIRECT_URI) && !redirect,
         ...(previewConfigured ? { invalidPreviewRedirectUri: !preview } : {}),
     })

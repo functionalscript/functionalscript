@@ -9,7 +9,7 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
-import { identityAnalysis } from '../../analysis/module.f.mjs'
+import { identityAnalysis } from '../../analysis/module.f.js'
 import { vm } from '../../amnesia/module.f.mjs'
 import { memo } from '../../memo/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body } from '../proof.f.mjs'

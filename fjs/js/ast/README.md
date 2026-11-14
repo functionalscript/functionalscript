@@ -83,7 +83,7 @@ occurrences inside operands, so locally owned cells stay within their selected
 evaluation region. The scan follows eager regions and capture expressions;
 ordinary function bodies and deferred initializers keep separate boundaries.
 [`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
-[`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
+[`control`](./control/module.f.js) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.
 
 `break` and `continue` payload expressions can return to the enclosing function.
@@ -117,7 +117,7 @@ by the value inside a computed `['Number', value]` key; literal keys remain
 metadata. It resolves the member without evaluating call arguments or checking
 callability. The graph conversion and runtime writers support this form;
 source admission has no spelling for it. The shared
-[`returns`](./returns/module.f.mjs) pass lifts owning returns through member and
+[`returns`](./returns/module.f.js) pass lifts owning returns through member and
 optional-call operands before graph construction or physical preparation. It
 retains required lookup, receiver binding and optional-region boundaries;
 target writers consume the resulting explicit control flow.

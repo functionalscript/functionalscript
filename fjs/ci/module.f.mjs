@@ -27,7 +27,7 @@ import {
     rustPlatformSteps,
     shellRustCommands,
     shellRustVersionSteps,
-} from './rust/module.f.mjs'
+} from './rust/module.f.js'
 import {
     coverageJob,
     installNode,
