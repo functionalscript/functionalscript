@@ -12,7 +12,7 @@ five: typed code written by hand, the same code lowered from normalized
 FAST ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, and functions
 that a module does not export, with records and
-[L1's native rows](./native/module.f.mjs).
+[L1's native rows](./native/module.f.js).
 
 ## Map of this directory
 
@@ -26,7 +26,7 @@ that a module does not export, with records and
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
 |[`l0/host`](./l0/host/module.f.js)        |a JavaScript host for the `fjs:l0` imports, over the L0 view           |
-|[`native`](./native/module.f.mjs)         |the interface of L1's native rows as data, `Native`                    |
+|[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.f.js)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
 ```js
@@ -100,7 +100,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `block` or a `loop`, but no signature, of the module or of an interface,
   names one. A product is a subtype of another of the same fields, in the
   same order, each a subtype, and two join field by field.
-- **L1's native rows**: [the interface `Native`](./native/module.f.mjs),
+- **L1's native rows**: [the interface `Native`](./native/module.f.js),
   of the ABI `fjs:l1-native`, whose functions are typed by what their
   bodies check: `bigintEquals` takes two values of `any.only(bigint)`, and
   `numberRemainder`, the row of `%`, two floats. Its

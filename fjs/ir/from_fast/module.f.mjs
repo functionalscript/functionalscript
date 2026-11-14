@@ -24,7 +24,7 @@
  *   `Native`.** The caller names the runtime, the specifiers of the view
  *   and of the rows, and the module then imports
  *   [the interfaces of L0](../l0/module.f.js) and
- *   [of the rows](../native/module.f.mjs). JavaScript reads a tag and a
+ *   [of the rows](../native/module.f.js). JavaScript reads a tag and a
  *   length as numbers, so each is a float here: `kind(v)` is
  *   `float(Any.kind(v))`, and a tag such as `BOOLEAN` is its float.
  *   `asBoolean`, `asNumber` and `asString` are casts, to `to_bool`,
@@ -88,7 +88,7 @@ import {
     add, bool, call, cast, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, trap, true_, u,
 } from '../module.f.js'
-import { native } from '../native/module.f.mjs'
+import { native } from '../native/module.f.js'
 import { show } from '../print/module.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
