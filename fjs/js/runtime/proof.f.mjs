@@ -544,7 +544,7 @@ export const proof = /** @type {const} */ ({
         }
         assertStructurallySame(body({ b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4 }, undefined), [3, 2, 1, undefined, 4])
         assertStructurallySame(body('a😀', undefined), ['a', '\ud83d', '\ude00'])
-        const input = { object, array, f }
+        const input = /** @type {const} */ ({ object, array, f })
         const first = /** @type {readonly unknown[]} */ (body(input, undefined))
         assert(first !== body(input, undefined))
         assertEq(first[0], object)
