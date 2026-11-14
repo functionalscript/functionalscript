@@ -70,7 +70,7 @@ export type GrammarData = readonly [
 
 /**
  * One handler per rule kind, each receiving the rule's payload without its
- * tag. `matchRule` in `./module.f.mjs` is the one place the tag is read.
+ * tag. `matchRule` in `./module.f.js` is the one place the tag is read.
  */
 export type RuleVisitor<R> = {
     readonly set: (s: RangeSet) => R

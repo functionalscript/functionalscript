@@ -16,7 +16,7 @@ export const commandPrefix = 'env '
 export const environmentCommand = command => `${commandPrefix}${command}`
 ```
 
-`migratedStep` in [`mise`](../mise/module.f.mjs) recovers the intent by
+`migratedStep` in [`mise`](../mise/module.f.js) recovers the intent by
 matching it:
 
 ```js

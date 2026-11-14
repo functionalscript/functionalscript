@@ -13,7 +13,7 @@ both. An LR(1) backend needs a current motivation — a grammar in the tree
 that LL(1) refuses — before it is worth building.
 
 The parser targets the EBNF front end, [../module.f.mjs](../module.f.mjs),
-and its serializable form, [../data/module.f.mjs](../data/module.f.mjs), as
+and its serializable form, [../data/module.f.js](../data/module.f.js), as
 a sibling of the LL(1) backend [../ll1/](../ll1/README.md). It produces the
 AST every backend owes a grammar, `Ast<R, I, O>` — see
 [`../ast`](../ast/README.md) for its shape.

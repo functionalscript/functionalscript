@@ -402,6 +402,9 @@ in its path. Because the expectation is encoded in the path, no separate marker
 is needed in the output — `fjs test` appends `# EXPECTED TO THROW` to such a case
 when it passes.
 
+Only keys in the proof path set the expectation. Place an aliased function
+under a `throw` key when it is expected to throw.
+
 ### Return value as a sub-tree
 
 When a non-throw test case returns an object or another function, the return

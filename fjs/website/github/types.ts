@@ -19,7 +19,7 @@ export type CallbackOrigin = {
     readonly port: string
 }
 
-/** The parsed callback URL's components `validCallback` reads. */
+/** Plain enumerable own-data components the host supplies to `validCallback`. */
 export type CallbackUrl = {
     readonly protocol: string
     readonly hostname: string
