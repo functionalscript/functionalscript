@@ -134,6 +134,12 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `dup` and `drop` count a cell, and `from_unit` and `concat` make one.
   Every host proof of the emitter runs on it, and each call that completes
   must leave its arguments' cells as it found them, and no other.
+- **Ownership on the host**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)
+  gives a parameter that owns its argument a `dup` of it, so the caller
+  keeps its own count, reads a value of `any` that a function answers,
+  compares it with the twin's and drops it, and treats a `unit` result as
+  `undefined`, before it counts the cells. A host proof may run a function
+  that owns a parameter, answers a string, or answers `unit`.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
