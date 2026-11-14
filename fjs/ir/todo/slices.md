@@ -91,10 +91,11 @@ literal of strings, and array reads need a bounds path to `undefined`. The
 stack below brings that machinery forward. Each PR is stacked on the one
 before it and proved end to end on its own.
 
-- [ ] **Seeded random comparison** (before 6a). A host proof of a few hundred
-  programs a run, covering what the slices lower; extend it as later slices
-  land. It found the three defects that example proofs at 100% coverage
-  missed. Tighten the trap oracle before slice 7 makes throws meaningful.
+- [x] **Seeded random comparison** (before 6a). A host proof of a few hundred
+  programs a run under [`from_fast/random`](../from_fast/random/README.md);
+  extend it as later slices land. It found the three defects that example
+  proofs at 100% coverage missed. Tighten the trap oracle before slice 7
+  makes throws meaningful.
 - [ ] **6a. Owned values, by hand.** Copy and counted kinds; `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage; a host that counts every value.
