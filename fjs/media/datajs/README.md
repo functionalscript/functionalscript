@@ -24,7 +24,8 @@ The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
 `tryParseBytes` read a document into the value it denotes, `trySerialize` and
 `tryStringify` write a value as one, `tryJsonSerialize` and
 `tryJsonStringify` write it as the JSON document its graph unfolds to, and
-the value types are in [`types.ts`](./types.ts). The reader lives in
+`tryMarked` and `tryJsonMarked` keep the token kinds for display. The data
+value types are in [`types.ts`](./types.ts). The reader lives in
 [`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
 [`serializer/module.f.mjs`](./serializer/module.f.mjs). Neither owes
 anything further: both issues are retired into this file, which keeps what
@@ -38,48 +39,49 @@ uses.
 
 ```text
 fjs/media/datajs/
-    module.f.mjs      the public surface: the six entry points below
+    module.f.mjs      the public surface: the entry points below
     types.ts          Primitive, Unknown
     parser/           the reader — tryParse over code units, tryParseBytes over bytes
     serializer/       the writer — trySerialize as chunks, tryStringify as one string,
                       and the same read under JSON's leaf rule — tryJsonSerialize,
-                      tryJsonStringify
+                      tryJsonStringify, plus their marked forms
     vectors/          the corpus's record types, and difference
 ```
 
-A caller may legitimately hand a reader text that is no document, and a
-writer a value its type cannot see the whole of, so each entry point returns
-a `Result` and refuses rather than approximating — a reader says where the
-parse failed or which rule the document breaks, a writer names what it could
-not write:
+A reader may receive text that is no document. A writer receives a
+FunctionalScript value, which may contain a function that DataJS cannot
+represent or a leaf that JSON cannot represent. Each entry point returns a
+`Result`: a reader says where the parse failed or which rule the document
+breaks, and a writer names the leaf it could not write.
 
 ```ts
 export const tryParse:      (text: string)    => Result<Unknown, string>
 export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
-export const trySerialize:  (value: Unknown)  => Result<List<string>, string>
-export const tryStringify:  (value: Unknown)  => Result<string, string>
-export const tryJsonSerialize: (value: Unknown) => Result<List<string>, string>
-export const tryJsonStringify: (value: Unknown) => Result<string, string>
+export const trySerialize:  (value: unknown)  => Result<List<string>, string>
+export const tryStringify:  (value: unknown)  => Result<string, string>
+export const tryMarked:     (value: unknown)  => Result<Marked, string>
+export const tryJsonSerialize: (value: unknown) => Result<List<string>, string>
+export const tryJsonStringify: (value: unknown) => Result<string, string>
+export const tryJsonMarked:    (value: unknown) => Result<Marked, string>
 ```
 
-**The writer takes the data model's `Unknown`, not `unknown`.** Its first
-draft took `unknown`, on the ground that refusing what is outside the model is
-the writer's job and a signature taking `Unknown` would assert what the writer
-has to check. That left a gap nothing could close: a corpus set is a DataJS
-data module, so no vector can carry a function, an accessor or a cycle, and
-[`fjs/AGENTS.md`](../../AGENTS.md) §1.6 keeps host-built values out of a
-`.f.mjs` proof, so the refusals only a host can reach had no proof but the one
-over the data such a value would carry. Narrowing the parameter closes it. The
-type is the contract at the call — a FunctionalScript caller cannot hand the
-writer a value outside the model — and what the type cannot see is still
-refused, a hole, a symbol key, an accessor, a non-enumerable property, an
-extra own property on an array, a non-plain object, a cycle, because the
-specification refuses each and a host that casts is owed a refusal rather
-than a wrong document. The writer's proof hands it those values cast, as a
-host boundary would.
+**The writers take FunctionalScript values, spelled `unknown` in TypeScript.**
+This input domain includes functions, so it is wider than the data model's
+`Unknown`, which describes what a DataJS document denotes and what the reader
+returns. A function at the root or inside a container is refused. The JSON
+writers also refuse `undefined`, `bigint`, `NaN` and the infinities, retaining
+their stricter leaf rule and the first refusal in traversal order.
 
-The prefix is one decision for all six, taken when the surface landed: the
-reader's two had landed bare, and renaming half of the names before the
+The input already satisfies FunctionalScript's container invariants:
+immutable acyclic container graphs, dense arrays containing only their elements, and
+objects containing enumerable own string-keyed data properties. The writer
+does not establish those invariants through host reflection. JavaScript host
+values outside that domain, including accessors, sparse arrays and cycles,
+are outside its contract; the `unknown` annotation does not add a host
+validation boundary.
+
+The prefix is one decision for the entry points, taken when the surface
+landed: the reader's two had landed bare, and renaming half of the names before the
 surface existed would have been the inconsistency the surface exists to
 settle. There is no `tokenizer/` — the grammar is the reader, below — and no
 `tryNormalize`, because the one writer *is* the normalized one.
@@ -111,23 +113,22 @@ export default {};                // an object with none
 Only the runtime enumerator tells them apart, which is a proof obligation on
 each side rather than a note. The reader builds a member holding `undefined`
 as a present property — through `Object.fromEntries`, which no type checks, so
-its proof pins it. The writer reads an object through its own property
-descriptors, not through `definedEntries`, which drops such a member before
-any other seam runs, and not through `Object.entries`, which invokes a getter
-while collecting its value — the next two sections say why that one mechanism
-answers both.
+its proof pins it. The writer reads an object through `Object.entries`, which
+keeps a member holding `undefined` and preserves JavaScript enumeration order.
+`definedEntries` would drop that member before any other step could see it.
+The JSON writer encounters it too and refuses it under JSON's leaf rule.
 
 ## The writer reads the value into a graph first
 
 ```text
-unknown
+FunctionalScript value
    |
    v
-read                      serializer/module.f.mjs, one traversal: classify, validate from
-   |                      property descriptors, and read every container once
+read                      serializer/module.f.mjs, one traversal: array elements or
+   |                      Object.entries, reading every container once
    v
-link                      the host objects replaced by node indices, in post-order
-   |                      a reference forwards is a cycle, which is refused here
+link                      container references replaced by node indices, in post-order
+   |
    v
 write                     the shared nodes as const statements, then export default
    |
@@ -139,17 +140,10 @@ A document denotes a DAG, so the writer cannot spell a value as it walks
 it: a node more than one reference reaches has to become a `const`, and a
 `const` has to precede every use of it. Neither is a question the walk can
 answer while it is still walking, so the value is read into a flat graph
-first and both become questions about data — which node index appears more
-than once, and whether every reference points backwards.
-
-That is also what makes the rules provable. No value FunctionalScript can
-build carries an accessor, a non-enumerable property, an own property on an
-array besides its elements, or a cycle, so each of those refusals is a
-function over the descriptors, the names or the graph such a value *would*
-have — `_memberValue`, `_elementNames` and `_link`, exported and proved
-against that data directly. They carry the `_` prefix because that export is
-linkage rather than API: `trySerialize` and `tryStringify` are what the
-module promises.
+first. Post-order traversal puts each container after its children, and the
+reference occurrences say which nodes need a name. Acyclicity comes from the
+FunctionalScript input contract. Linking is an internal representation step,
+and the public proofs exercise it through the writer's entry points.
 
 Both passes keep the reader's depth contract, so a document the reader
 accepts is one the writer writes back. The read walks an explicit stack, a
@@ -168,25 +162,6 @@ reference occurrences rather than by an `indexOf` per occurrence. `fjs
 compile` writes every module through this writer, which is why a document
 with a hundred thousand containers has to be a second's work rather than a
 minute's.
-
-## Nothing is read before it is known to be data
-
-Reading the caller's graph means following its edges, and following an edge
-on an ordinary enumerator reads the property, which invokes an enumerable
-getter — the effect the data model refuses. So a container is taken as its
-own property descriptors and only the values of the descriptors that
-survive validation are followed. The same mechanism answers a question no
-type can: a descriptor exists exactly when the property does, so
-`{a: undefined}` is an object with a member where `{}` is not, and
-`definedEntries`, which [JSON's walk](../json/serializer/module.f.js)
-reads objects through, would drop it.
-
-Container kind is settled before the descriptors, because descriptors
-cannot settle it: `new Date()`, `new Map()`, `new Set()` and `new Number(1)`
-each carry zero own property descriptors and zero own symbols, exactly as
-`{}` does. A writer classifying by descriptors would write any of them as
-`{}` — a document denoting something else, silently, which is what this
-format refuses in place of `JSON.stringify`'s `null`.
 
 ## What the writer emits is normalized form
 
