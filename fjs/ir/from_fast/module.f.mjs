@@ -62,6 +62,10 @@
  *   in whose scope the arguments after it are lowered. Its captures stand
  *   for what they read where the call stands, and the `return` that ends
  *   its body for its value.
+ * - **A definition that only one function reads comes in a block around
+ *   that function**, where the normalization puts it: a `const` that only a
+ *   loop reads, or an import that only one function of the module reads.
+ *   The block's statements stand where the function is defined.
  * - **A cast narrows the rest of its block**
  *   ([definition.md, rule 4](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
  *   Where the first thing that a definition's value does is a cast of a
@@ -158,6 +162,22 @@ const bind = (scope, b, r, rest) => {
 const completes = ({ statements, exit }) => exit[0] === 'yield' && statements.every(s =>
     s[0] === 'block' ? completes(s[2]) : s[0] === 'if' ? completes(s[3]) || completes(s[4]) : true)
 
+/**
+ * A value past the blocks that the normalization puts around it, where only
+ * the value reads a binding, and the statements of those blocks, which
+ * define the bindings: a function that alone reads an import, or a loop
+ * that alone reads a `const`, comes in one.
+ *
+ * @type {(v: Value) => readonly [readonly Statement[], Value]}
+ */
+const unwrapped = v => {
+    if (!(v instanceof Array) || v[0] !== 'block') { return [[], v] }
+    const { statements, exit } = v[1]
+    if (exit[0] !== 'yield' || exit[1].length !== 1) { return [[], v] }
+    const [inner, w] = unwrapped(exit[1][0])
+    return [[...statements, ...inner], w]
+}
+
 /** @type {(scope: _Scope, s: Statement, tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>} */
 const statement = (scope, s, tail, rest) => {
     const no = refuse(scope)
@@ -165,7 +185,12 @@ const statement = (scope, s, tail, rest) => {
         case 'define': {
             const [, b, v, kind] = s
             if (kind === 'lazy') { return no('a lazy definition is not in this slice') }
-            if (v instanceof Array && v[0] === 'function') { return rest(standsFor(scope, b, ['inline', v[1]])) }
+            // A function is inlined where it is called. The statements of the blocks around it stand where it is defined.
+            const [around, f] = unwrapped(v)
+            if (f instanceof Array && f[0] === 'function') {
+                const [, inlined] = f
+                return sequence(scope, around, tail, next => rest(standsFor(next, b, ['inline', inlined])))
+            }
             const op = v instanceof Array && v.length === 1 ? staticOp(v[0]) : null
             if (op !== null) { return rest(standsFor(scope, b, ['op', op])) }
             const c = firstCast(scope, v)
@@ -238,10 +263,18 @@ const exitTerm = (scope, exit, tail) => {
  *
  * @type {(scope: _Scope, b: Block, tail: _Tail) => Result<Term, string>}
  */
-const block = (scope, { statements, exit }, tail) => {
-    if (statements.length === 0) { return exitTerm(scope, exit, tail) }
+const block = (scope, { statements, exit }, tail) => sequence(scope, statements, tail, next => exitTerm(next, exit, tail))
+
+/**
+ * Statements in their order, each around those after it, and then `rest`,
+ * which stands in the scope that they leave.
+ *
+ * @type {(scope: _Scope, statements: readonly Statement[], tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>}
+ */
+const sequence = (scope, statements, tail, rest) => {
+    if (statements.length === 0) { return rest(scope) }
     const [s, ...more] = statements
-    return statement(scope, s, tail, next => block(next, { statements: more, exit }, tail))
+    return statement(scope, s, tail, next => sequence(next, more, tail, rest))
 }
 
 /** @type {(scope: _Scope, c: Value, a: Block, b: Block, tail: _Tail) => Result<Term, string>} */
@@ -817,14 +850,30 @@ const imported = (source, imports, args, v) => {
 }
 
 /**
- * What each binding that the module's statements define stands for. A
- * binding that no statement defines holds the module's imports, and so
- * does a definition that only names it; a definition that reads an import
- * from one of them is that import.
+ * A statement of a module, and before it the statements of the blocks that
+ * the normalization puts around the value that it defines, which define
+ * bindings of the module too.
+ *
+ * @type {(s: Statement) => readonly Statement[]}
+ */
+const flat = s => {
+    if (s[0] !== 'define') { return [s] }
+    const [, b, v, kind] = s
+    const [around, w] = unwrapped(v)
+    return [...around.flatMap(flat), ['define', b, w, kind]]
+}
+
+/**
+ * What each binding that the module's statements define stands for, those
+ * of the blocks around a definition's value among them. A binding that no
+ * statement defines holds the module's imports, and so does a definition
+ * that only names it; a definition that reads an import from one of them is
+ * that import.
  *
  * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], statements: readonly Statement[]) => readonly (readonly [BindingId, _Global])[]}
  */
-const globals = (source, imports, statements) => {
+const globals = (source, imports, wrapped) => {
+    const statements = wrapped.flatMap(flat)
     /** @type {(s: Statement) => readonly BindingId[]} */
     const results = s => s[0] === 'define' ? [s[1]] : s[0] === 'loop' ? s[1].results : s[1]
     const defined = statements.flatMap(results)
@@ -840,21 +889,6 @@ const globals = (source, imports, statements) => {
             : imported(source, imports, args, s[2]) ?? ['refused', 'a module constant is not in this slice']
         return results(s).map(b => /** @type {const} */ ([b, g]))
     })
-}
-
-/**
- * An export's value past the blocks that the normalization puts around it,
- * where only the export reads a binding, and the statements of those
- * blocks, which define bindings of the module.
- *
- * @type {(v: Value) => readonly [readonly Statement[], Value]}
- */
-const unwrapped = v => {
-    if (!(v instanceof Array) || v[0] !== 'block') { return [[], v] }
-    const { statements, exit } = v[1]
-    if (exit[0] !== 'yield' || exit[1].length !== 1) { return [[], v] }
-    const [inner, w] = unwrapped(exit[1][0])
-    return [[...statements, ...inner], w]
 }
 
 /**

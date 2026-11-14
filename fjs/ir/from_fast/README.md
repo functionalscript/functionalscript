@@ -142,6 +142,29 @@ named past them: in `mid(a + 1, sq(b + 1))`, `a + 1` is `#0`, and the
 locals of `sq(b + 1)` start at `#1`. The arguments of `unit`, of `same`
 and of a native row are lowered so too.
 
+The normalization puts a definition that only one function reads in a
+block around that function: a `const` that only a loop reads, or an import
+that only one function of the module reads. The lowering reads the
+function past such blocks, and their statements stand where the function
+is defined, as locals of the function around it or as bindings of the
+module.
+
+```js
+export const steps = a => {
+    const limit = a * 2
+    let i = 0
+    while (i < limit) { i = i + 1 }
+    return i
+}
+```
+
+```
+fn steps(a: f64) -> f64 =
+    let #0 = mul(a, 2.0)
+    loop L0 (#1: f64 = 0.0)
+        if lt(#1, #0) then br L0 { #1: add(#1, 1.0) } else #1
+```
+
 A loop's parameters are locals of the types of their first values, a float
 widened to `f64`, since a later round may give any float, and so is each
 float of a record. An integer range
@@ -269,7 +292,8 @@ that leaves its function.
   signatures of [`testlib.f.mjs`](./testlib.f.mjs), and runs them as WASM
   against the functions themselves, on the edges of their parameters'
   types, and so does [`helpers.f.js`](./helpers.f.js), lowered over the
-  runtime: functions that call functions it does not export, records, and
+  runtime: functions that call functions it does not export, records, a
+  loop that alone reads a `const`, and
   `%`, with a copy of L1's `numberIndex`, which only L1's `get` calls. It
   lowers L1's `toBoolean`, `stringEquals`, `stringLess`, `strictEquals`
   and `stringIndex` from [L1's own text](../../wasm/runtime/l1/module.f.js)

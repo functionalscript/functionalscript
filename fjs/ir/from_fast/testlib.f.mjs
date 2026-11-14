@@ -102,4 +102,5 @@ export const helpers = {
     meanOfSquare: signature(f2, f64),
     middle: signature([['a', f64], ['b', f64], ['c', f64], ['d', f64]], f64),
     gcd: signature(f2, f64),
+    steps: signature([['a', f64]], f64),
 }

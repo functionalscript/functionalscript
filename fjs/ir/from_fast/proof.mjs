@@ -59,13 +59,15 @@ const inputs = { pow: product([edges(['f64']), [0, -0, 1, 2, 10, -1, 0.5, 3.5]])
  * `gcd` loops until a remainder is `0`, which a NaN or an infinity never
  * gives, so its inputs are finite: integers of both signs, and fractions
  * that divide each other. `index` reads the bounds of an index beside the
- * edges of `f64`.
+ * edges of `f64`. `steps` counts by `1` to twice its input, so its inputs
+ * are small, a fraction and NaN among them.
  *
  * @type {StringMap<readonly (readonly _Value[])[]>}
  */
 const helperInputs = {
     gcd: product([[0, -0, 1, 2, 6, 9, 12, -4, 0.5, 1.5, 1e300], [0, 1, 4, 6, -9, 0.25, 1.5]]),
     index: [...edges(['f64']), 4294967294, 4294967295, 4294967296, 4294967295.5, 1.5, -1].map(x => [x]),
+    steps: [0, -0, 1, 2.25, 10, -3, -Infinity, NaN].map(x => [x]),
 }
 
 /**
@@ -572,6 +574,11 @@ export const proof = {
             'fn remainder(a: f64, b: f64) -> f64 =',
             '    Native.numberRemainder(a, b)',
             '',
+            'fn steps(a: f64) -> f64 =',
+            '    let #0 = mul(a, 2.0)',
+            '    loop L0 (#1: f64 = 0.0)',
+            '        if lt(#1, #0) then br L0 { #1: add(#1, 1.0) } else #1',
+            '',
             'fn sumOfTwice(a: f64, b: f64) -> f64 =',
             '    add(',
             '        add(a, a),',
@@ -579,7 +586,7 @@ export const proof = {
             '        add(#0, #0)',
             '    )',
             '',
-            'export doubleBoth, gcd, index, meanOfSquare, middle, mod3, quadruple, remainder, sumOfTwice',
+            'export doubleBoth, gcd, index, meanOfSquare, middle, mod3, quadruple, remainder, steps, sumOfTwice',
             '',
         ].join('\n'))
     },

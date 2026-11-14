@@ -350,6 +350,22 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // The normalization puts an import that only one function reads in a block around that
+        // function, which is a function of the module all the same.
+        assertEq(irOver(only([['v', any]], f64), `${imports}const g = v => asNumber(v)\nexport const f = v => g(v) + 1`), [
+            'fn f(v: any) -> f64 =',
+            '    add(',
+            '        match v',
+            '          number as v.number =>',
+            '            Any.to_f64(v.number)',
+            '          else =>',
+            "            trap('not number'),",
+            '        1.0',
+            '    )',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // Normalized FAST makes a loop of a function that calls itself last; one that calls itself
         // otherwise would be inlined forever.
         assertEq(ir(fa, fast('const g = x => x < 1 ? x : g(x - 1)\nexport const f = a => g(a)')), [
@@ -626,6 +642,17 @@ export const proof = {
             'fn f(a: f64) -> f64 =',
             '    loop L0 (#0: f64 = 0.0)',
             '        if lt(#0, a) then br L0 { #0: add(#0, 1.0) } else #0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // The normalization puts a `const` that only a loop reads in a block around the loop's
+        // function: its statements stand where the function is defined.
+        assertEq(ir(fa, fast('export const f = a => {\n    const k = a * 2\n    let i = 0\n    while (i < k) { i = i + 1 }\n    return i\n}')), [
+            'fn f(a: f64) -> f64 =',
+            '    let #0 = mul(a, 2.0)',
+            '    loop L0 (#1: f64 = 0.0)',
+            '        if lt(#1, #0) then br L0 { #1: add(#1, 1.0) } else #1',
             '',
             'export f',
             '',
@@ -967,6 +994,19 @@ export const proof = {
             '          else =>',
             "            trap('not string')",
             '    mul(float(String.length(#0)), float(String.length(#0)))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A cast that only a loop reads stands where the loop's function is defined, and narrows the loop.
+        assertEq(irOver(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    let i = 0\n    while (i < length(s)) { i = i + 1 }\n    return i\n}`), [
+            'fn f(v: any) -> f64 =',
+            '    match v',
+            '      string as v.string =>',
+            '        loop L0 (#0: f64 = 0.0)',
+            '            if lt(#0, float(String.length(v.string))) then br L0 { #0: add(#0, 1.0) } else #0',
+            '      else =>',
+            "        trap('not string')",
             '',
             'export f',
             '',

@@ -2,7 +2,8 @@
  * The FunctionalScript originals of the fifth slice: functions that call
  * functions the module does not export, which the lowering inlines at each
  * call, typed by what the call gives, records that stay inside a function,
- * and `%`, which is L1's native row `numberRemainder`. The
+ * `%`, which is L1's native row `numberRemainder`, and a loop that alone
+ * reads a `const`. The
  * [host proof](./proof.mjs) lowers this text over the runtime and runs it
  * as WASM against the functions themselves. Their signatures are in
  * [`testlib.f.mjs`](./testlib.f.mjs).
@@ -80,4 +81,16 @@ export const gcd = (a, b) => {
         r = { x: r.y, y: r.x % r.y }
     }
     return r.x
+}
+
+// a `const` that only a loop reads
+
+/** The steps of `1` from `0` to twice `a`: its loop alone reads `limit`, which the normalization puts in a block around it. @type {(a: number) => number} */
+export const steps = a => {
+    const limit = a * 2
+    let i = 0
+    while (i < limit) {
+        i = i + 1
+    }
+    return i
 }
