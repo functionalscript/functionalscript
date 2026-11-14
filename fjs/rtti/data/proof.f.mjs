@@ -681,13 +681,13 @@ export const proof = {
             ])
         },
         compactNames: () => {
-            const refs = [mkRec(), mkRec(), mkRec(), mkRec(), mkRec(), mkRec(),
-                mkRec(), mkRec(), mkRec(), mkRec(), mkRec(), mkRec()]
+            const refs = /** @type {const} */ ([mkRec(), mkRec(), mkRec(), mkRec(), mkRec(), mkRec(),
+                mkRec(), mkRec(), mkRec(), mkRec(), mkRec(), mkRec()])
             // Rule 0 is discovered inside the first element but absorbed by
             // unknown. The other twelve stay reachable and must be renamed
             // consistently in their bodies and in the tuple's references.
             const actual = toData([or(unknownRtti, mkRec()), ...refs])
-            const ids = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+            const ids = /** @type {const} */ (['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'])
             assertData(actual)([
                 Object.fromEntries(ids.map(id => [id, { array: [{ prefix: [], rest: id }] }])),
                 { array: [{ prefix: [unknown, '0', '2', '3', '4', '5', '6', '7', '8', '9', '1', '10', '11'] }] },
