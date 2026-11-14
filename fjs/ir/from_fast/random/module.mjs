@@ -10,6 +10,7 @@
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Signature, Type } from '../../types.ts'
  * @import { _Twin, _Value } from '../../wasm/types.ts'
+ * @import { _Outcome, _Rnd } from './private.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -24,8 +25,6 @@ import { bool, f64, i, signature, u } from '../../module.f.js'
 import { edges, held, run } from '../../wasm/testlib.mjs'
 import { lower } from '../module.f.js'
 import { runtime, sourceOf } from '../testlib.f.mjs'
-
-/** @typedef {() => number} _Rnd */
 
 /**
  * A Mulberry32 generator from `seed`. Each call answers a float in `[0, 1)`.
@@ -77,7 +76,13 @@ const floatExpr = (rnd, names, depth) => {
     }
     const a = floatExpr(rnd, names, depth - 1)
     const b = floatExpr(rnd, names, depth - 1)
-    const op = pick(rnd, ['+', '-', '*', '/', '%', '<', '<=', '>', '>=', '===', '!=='])
+    // One pick covers binary ops, comparisons wrapped as floats, and the
+    // unary / Math / block forms; each arm is reachable.
+    const op = pick(rnd, [
+        '+', '-', '*', '/', '%',
+        '<', '<=', '>', '>=', '===', '!==',
+        'neg', 'abs', 'sqrt', 'cond', 'sq',
+    ])
     if (op === '%' || op === '/' || op === '+' || op === '-' || op === '*') {
         return `(${a} ${op} ${b})`
     }
@@ -85,13 +90,11 @@ const floatExpr = (rnd, names, depth) => {
         // a comparison is a bool; wrap as a float choice for a float result
         return `((${a} ${op} ${b}) ? ${a} : ${b})`
     }
-    return pick(rnd, [
-        `(-(${a}))`,
-        `Math.abs(${a})`,
-        `Math.sqrt(Math.abs(${a}))`,
-        `(${a} < ${b} ? ${a} : ${b})`,
-        `(() => { const s = ${a} + ${b}; return s * s })()`,
-    ])
+    if (op === 'neg') { return `(-(${a}))` }
+    if (op === 'abs') { return `Math.abs(${a})` }
+    if (op === 'sqrt') { return `Math.sqrt(Math.abs(${a}))` }
+    if (op === 'cond') { return `(${a} < ${b} ? ${a} : ${b})` }
+    return `(() => { const s = ${a} + ${b}; return s * s })()`
 }
 
 /**
@@ -418,17 +421,27 @@ export const anyProgram = rnd => {
 }
 
 /**
- * What one comparison of a program answers: it ran, it was refused as the
- * slices state, or it disagreed with JavaScript.
+ * Whether a refusal is one the generators expect today: an integer body's
+ * range past the signature's, which the checker finds by interval
+ * arithmetic. Any other refusal is a regression against what the slices
+ * already lower.
  *
- * @typedef {readonly ['ran', number] | readonly ['refused', string] | readonly ['wrong', string]} _Outcome
+ * @type {(reason: string) => boolean}
  */
+const expectedRefusal = reason => {
+    // `f: the body is int(-65535, 0), not u(16)`
+    const colon = reason.indexOf(':')
+    if (colon < 0) { return false }
+    const rest = reason.slice(colon + 1).trimStart()
+    return rest.startsWith('the body is int(') && rest.includes('), not ')
+}
 
 /**
- * Lower, check, emit and run one program against its twin. A refusal from
- * the lowering or the checker is an outcome, not a failure of the
- * comparison: the slices may refuse a valid program that needs a later
- * slice, such as a product of two ranges past one word.
+ * Lower, check, emit and run one program against its twin. A known refusal
+ * from the checker (an integer range past the signature) is an outcome, not
+ * a failure: the generators still write such bodies. Any other refusal is
+ * reported as wrong, so a regression that refuses a supported category
+ * fails the proof.
  *
  * @type {(program: ReturnType<typeof typedProgram>) => _Outcome}
  */
@@ -437,12 +450,16 @@ export const compareOne = program => {
     if (parsed[0] === 'error') { return ['wrong', `parse: ${parsed[1]}`] }
     const { fast, imports } = parsed[1]
     const ir = lower(program.signatures, program.runtime)(fast, imports)
-    if (ir[0] === 'error') { return ['refused', ir[1]] }
+    if (ir[0] === 'error') {
+        return expectedRefusal(ir[1]) ? ['refused', ir[1]] : ['wrong', `refused: ${ir[1]}`]
+    }
     // Refuse here if the checker does; `run` checks again on the plain IR, as
     // the other host proofs pass it, and a module that `check` already typed
     // is not what `run` emits.
     const checked = check(ir[1])
-    if (checked[0] === 'error') { return ['refused', checked[1]] }
+    if (checked[0] === 'error') {
+        return expectedRefusal(checked[1]) ? ['refused', checked[1]] : ['wrong', `refused: ${checked[1]}`]
+    }
     try {
         run(ir[1], { f: program.twin }, program.inputs)
     } catch (e) {
