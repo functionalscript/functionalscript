@@ -65,7 +65,7 @@ is not inlined whole: the recursion comes out as a `$defs` rule with ordinal
 cycle.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../../media/json/schema/module.f.mjs) derives the
+[`toJsonSchema`](../../media/json/schema/module.f.js) derives the
 `inputSchema` advertised in `tools/list`, and
 [`parse`](../../rtti/parse/module.f.js) decodes the
 `arguments` object in `tools/call` — the same pattern as

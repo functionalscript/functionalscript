@@ -13,7 +13,7 @@ import { revisionSchema } from '../../../../media/revision/module.f.mjs'
 import { lockSchema } from '../../../../media/lock/module.f.mjs'
 import { noteSchema } from '../../../../media/note/module.f.mjs'
 import { unknown as jsonValue } from '../../../../media/json/rtti/module.f.js'
-import { unknown as jsonSchema } from '../../../../media/json/schema/module.f.mjs'
+import { unknown as jsonSchema } from '../../../../media/json/schema/module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [
@@ -49,7 +49,7 @@ export const lessons = [
         id: 'json-schema',
         name: 'JSON Schema',
         about: 'A JSON Schema (draft 2020-12) object, the target toJsonSchema converts rtti schemas into. Recursive: a schema\'s properties and items are schemas.',
-        schemas: projectSchema('unknown', 'media/json/schema/module.f.mjs', jsonSchema),
+        schemas: projectSchema('unknown', 'media/json/schema/module.f.js', jsonSchema),
         value: 'export default {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]};',
     },
 ]

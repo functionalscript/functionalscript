@@ -5,7 +5,7 @@
 
 import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../rtti/module.f.js'
 import { stringify } from '../module.f.mjs'
-import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
+import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.js'
 import { absentBit, unitBit } from '../../../rtti/data/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 
@@ -378,8 +378,10 @@ export const proof = {
                 '%2F': { number: true },
                 'a b': { number: true },
                 'é': { number: true },
+                "!'()*": { number: true },
+                '😀': { number: true },
             },
-            { array: [{ prefix: ['a~b', 'a/b', '%2F', 'a b', 'é'] }] },
+            { array: [{ prefix: ['a~b', 'a/b', '%2F', 'a b', 'é', "!'()*", '😀'] }] },
         ]
         return eqData(d, {
             type: 'array',
@@ -389,8 +391,10 @@ export const proof = {
                 { $ref: '#/$defs/%252F' },
                 { $ref: '#/$defs/a%20b' },
                 { $ref: '#/$defs/%C3%A9' },
+                { $ref: "#/$defs/!'()*" },
+                { $ref: '#/$defs/%F0%9F%98%80' },
             ],
-            minItems: 5,
+            minItems: 7,
             items: false,
             $defs: {
                 'a~b': { type: 'number' },
@@ -398,10 +402,13 @@ export const proof = {
                 '%2F': { type: 'number' },
                 'a b': { type: 'number' },
                 'é': { type: 'number' },
+                "!'()*": { type: 'number' },
+                '😀': { type: 'number' },
             },
         })
     })(),
     throw: {
+        malformedReference: () => dataToJsonSchema([{ '\uD800': { number: true } }, '\uD800']),
         missingRootDefinition: () => dataToJsonSchema([{}, 'nope']),
         // an `Object.prototype` member name is still a missing definition
         missingPrototypeDefinition: () => dataToJsonSchema([{}, 'toString']),

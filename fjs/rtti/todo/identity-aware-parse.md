@@ -114,7 +114,7 @@ work for that input again:
   `$ref`-style back-references, or a JS value someone else already deduplicated) — a
   purely textual/byte serialization needs its own explicit sharing encoding
   (back-references by index, similar to `$defs`/`$ref` in
-  `../../media/json/schema/module.f.mjs`) before there is anything to key a
+  `../../media/json/schema/module.f.js`) before there is anything to key a
   `WeakMap` on.
 - For `validate`, the memo only needs to record "already validated this reference, and
   it passed" — no output to reuse, since `validate` returns the input as-is. This is a

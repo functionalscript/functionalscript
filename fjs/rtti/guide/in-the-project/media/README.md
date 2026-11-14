@@ -12,7 +12,7 @@ The repository's blob formats, and JSON itself, are schemas:
   matches a blob against the format schemas and declares none of its own;
 - the JSON data model, in [`media/json/rtti`](../../../../media/json/rtti/module.f.js),
   and JSON Schema itself, in
-  [`media/json/schema`](../../../../media/json/schema/module.f.mjs) — both
+  [`media/json/schema`](../../../../media/json/schema/module.f.js) — both
   [recursive](../../schemas/recursion/README.md).
 
 A format someone may extend says `open`, with the reason written beside it, so
