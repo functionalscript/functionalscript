@@ -50,7 +50,7 @@
  * **A delta chain is walked, not recursed.** Each link reads one entry, and a
  * delta's base is the next item of the same walk rather than a nested read, for
  * the reason [`fjs/effects`](../../effects/module.f.js)' `walkStep` loops and
- * [`fjs/git/walk`](../walk/module.f.mjs) repeats: a `Read` that answers values
+ * [`fjs/git/walk`](../walk/module.f.js) repeats: a `Read` that answers values
  * resumes inside the caller, so a recursion costs a frame per link and a long
  * chain exhausts the stack. `--depth` is 50 by default and takes any number.
  *

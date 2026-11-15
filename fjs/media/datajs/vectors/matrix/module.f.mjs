@@ -59,6 +59,7 @@ import { fromVec } from '../../../../text/utf8/module.f.js'
 import { tryParse } from '../../module.f.js'
 import { difference } from '../module.f.js'
 import { occurrences } from '../../../../types/array/module.f.js'
+import { entry } from '../../../../types/object/entry/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
@@ -323,7 +324,9 @@ const unrenderable = ({ roles, notApplicable }) => [
  * @type {(names: readonly string[], say: (n: string) => string) => readonly string[]}
  */
 const twiceNamed = (names, say) => {
-    const { indexOf, lastIndexOf } = occurrences(names)
+    const positions = occurrences(names)
+    const indexOf = assertNotNullish(entry(positions, 'indexOf'))
+    const lastIndexOf = assertNotNullish(entry(positions, 'lastIndexOf'))
     return names.flatMap((n, i) => i === indexOf(n) || i !== lastIndexOf(n) ? [] : [say(n)])
 }
 

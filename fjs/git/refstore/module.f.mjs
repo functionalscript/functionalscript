@@ -199,6 +199,7 @@
  * @import { _Scope } from './scope/types.ts'
  */
 
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
 import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
 import { under } from '../../path/module.f.js'
@@ -206,10 +207,24 @@ import { occurrences } from '../../types/array/module.f.js'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { tryPacked, tryRef } from '../ref/module.f.js'
 import { hasRefComponents, isWholeName } from '../refname/module.f.js'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.js'
 import { dirOf, sharedScope, worktreeScope } from './scope/module.f.js'
+
+/**
+ * A record's required own name, preserving `null` as the empty byte list.
+ *
+ * @template T
+ * @param {{ readonly name: T }} named
+ * @returns {T}
+ */
+const requiredName = named => {
+    const name = /** @type {T | undefined} */ (entry(named, 'name'))
+    assert(name !== undefined)
+    return name
+}
 
 /**
  * The bytes of a file, or `null` where there is no loose *file* at that name.
@@ -343,8 +358,8 @@ const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
  * @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>}
  */
 const packedId = (packed, name) => {
-    const hits = packed.filter(e => sameItems(e.name)(name))
-    return hits.length === 0 ? null : hits[hits.length - 1].id
+    const hits = packed.filter(e => sameItems(requiredName(e))(name))
+    return hits.length === 0 ? null : hits[Number(hits.length - 1)].id
 }
 
 /**
@@ -392,6 +407,53 @@ const targetAllowed = (text, r) =>
  * @type {(id: Nullable<Oid>, packed: Nullable<readonly PackedRef[]>) => readonly [_Lookup, List<Bytes>]}
  */
 const answered = (id, packed) => [{ id, left: 0, packed }, null]
+
+/**
+ * The code a repository is refused with when its `HEAD` is not a regular file.
+ *
+ * The listing is what sees it, because every other way this module can ask about
+ * a path follows a link: `readFile` reads what the link names and `stat` answers
+ * for the file at the other end, where a directory entry carries the kind of the
+ * entry itself.
+ */
+export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
+
+/**
+ * Refuses with {@link headKindCode}, in the words `effects/node`'s
+ * `notAFileMessage` gives any path that is no regular file: the code says
+ * which refusal it is, and the message is the one the runners already use.
+ */
+const refuseHeadKind = refuse(headKindCode)
+
+/**
+ * Whether the gitdir's listing shows a `HEAD` this module may read: absent is
+ * fine, a regular file is fine, and anything else is not.
+ *
+ * **A symlink `HEAD` is the case this refuses, and Git refuses most of it too.**
+ * The legacy spelling of a symbolic ref is a symlink, and Git still reads one
+ * that points under `refs/` — measured on 2.43.0, where `.git/HEAD` linked to
+ * `refs/heads/master` answers both `rev-parse HEAD` and `symbolic-ref HEAD`. A
+ * link pointing anywhere else stops the directory being a repository at all:
+ * with `.git/HEAD` linked to a file beside it holding an id, every one of
+ * `rev-parse HEAD`, `show-ref` and `status` answers
+ * `not a git repository`.
+ *
+ * This reader cannot tell those two apart, because nothing in the effects it has
+ * reads a link's target: `readFile` follows it, and the bytes that come back are
+ * the bytes at the other end. So it refuses both, which is narrower than Git for
+ * a spelling Git has not written since before 1.5 — and the alternative is worse
+ * than narrow. Following the link is how a repository makes this module read a
+ * file that is not in it: `.git/HEAD` naming `/etc/passwd` would be answered as
+ * a detached `HEAD` if its first line happened to read as an id, which is the
+ * boundary this module's header claims two rules earlier and a link walks
+ * straight through.
+ *
+ * [`todo/symlink-head.md`](./todo/symlink-head.md) is what a `readlink` would buy
+ * back, and the half of this that the lookup cannot see.
+ *
+ * @type {(entries: readonly Dirent[]) => boolean}
+ */
+const headIsFile = entries => entries.every(d => requiredName(d) !== head || d.isFile)
 
 /**
  * `HEAD`'s bytes, or a refusal where it is not a regular file.
@@ -446,6 +508,42 @@ const headBytes = dirs => catchStep(
 export const isDirectoryAt = path => catchStep(
     mapStep(stat(path), s => s.isDirectory),
     orElse(leadsNowhere, false))
+
+/**
+ * What a name with no loose file resolves to: its `packed-refs` line, or nothing.
+ *
+ * **The packed file is read here and not before the loose one**, which is the
+ * order a `git pack-refs` running underneath makes matter. That command writes
+ * the new packed file and then prunes the loose refs it packed — `--prune` is
+ * its default and `git gc` runs it — so a lookup that snapshots `packed-refs`
+ * first can see neither copy of a ref that existed throughout: not the snapshot,
+ * which predates the pack, and not the loose file, which is gone by the time it
+ * is read. Read in this order the ref is found either way round, and
+ * {@link tryRoots} takes the same order for the same reason.
+ *
+ * It is read *once* per resolution, not once per link: a `packed-refs` entry is
+ * always a direct id, so a link that reads one ends the chain, and the state
+ * carries the lines for the only other reader of them — {@link tryResolve}'s
+ * check that the file is one Git reads at all. {@link resolveWith} seeds that
+ * state, so a listing resolves its symbolic refs against the file it has already
+ * read rather than reading it again.
+ *
+ * `FETCH_HEAD` and `MERGE_HEAD` do not fall back to a packed line of that name,
+ * and so do not read the file at all: Git reads those two from their own file —
+ * see {@link special}.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes, text: string, name: Bytes, state: _Lookup) => Effect<ReadWhole, readonly [_Lookup, List<Bytes>], IoChannel>}
+ */
+const fromPacked = (dirs, oidBytes, text, name, state) => {
+    if (special.includes(text)) { return pureOk(answered(null, state.packed)) }
+    if (state.packed !== null) { return pureOk(answered(packedId(state.packed, name), state.packed)) }
+    return mapStep(tryPackedRefs(dirs, oidBytes), packed => packed === null
+        // a `packed-refs` Git refuses is every name's answer, which is Git's:
+        // measured, `git rev-parse refs/heads/master` on a repository with a
+        // malformed file answers `unexpected line` and resolves nothing
+        ? answered(null, state.packed)
+        : answered(packedId(packed, name), packed))
+}
 
 /**
  * One link of the walk down a symbolic chain: the file the name sits in, read,
@@ -519,42 +617,6 @@ const lookupOf = (dirs, oidBytes, readRef) => name => state => {
             : step(isDirectoryAt(path), dir => dir
                 ? noFile()
                 : pureOk(stepped(bytes))))
-}
-
-/**
- * What a name with no loose file resolves to: its `packed-refs` line, or nothing.
- *
- * **The packed file is read here and not before the loose one**, which is the
- * order a `git pack-refs` running underneath makes matter. That command writes
- * the new packed file and then prunes the loose refs it packed — `--prune` is
- * its default and `git gc` runs it — so a lookup that snapshots `packed-refs`
- * first can see neither copy of a ref that existed throughout: not the snapshot,
- * which predates the pack, and not the loose file, which is gone by the time it
- * is read. Read in this order the ref is found either way round, and
- * {@link tryRoots} takes the same order for the same reason.
- *
- * It is read *once* per resolution, not once per link: a `packed-refs` entry is
- * always a direct id, so a link that reads one ends the chain, and the state
- * carries the lines for the only other reader of them — {@link tryResolve}'s
- * check that the file is one Git reads at all. {@link resolveWith} seeds that
- * state, so a listing resolves its symbolic refs against the file it has already
- * read rather than reading it again.
- *
- * `FETCH_HEAD` and `MERGE_HEAD` do not fall back to a packed line of that name,
- * and so do not read the file at all: Git reads those two from their own file —
- * see {@link special}.
- *
- * @type {(dirs: Dirs, oidBytes: OidBytes, text: string, name: Bytes, state: _Lookup) => Effect<ReadWhole, readonly [_Lookup, List<Bytes>], IoChannel>}
- */
-const fromPacked = (dirs, oidBytes, text, name, state) => {
-    if (special.includes(text)) { return pureOk(answered(null, state.packed)) }
-    if (state.packed !== null) { return pureOk(answered(packedId(state.packed, name), state.packed)) }
-    return mapStep(tryPackedRefs(dirs, oidBytes), packed => packed === null
-        // a `packed-refs` Git refuses is every name's answer, which is Git's:
-        // measured, `git rev-parse refs/heads/master` on a repository with a
-        // malformed file answers `unexpected line` and resolves nothing
-        ? answered(null, state.packed)
-        : answered(packedId(packed, name), packed))
 }
 
 /**
@@ -715,16 +777,16 @@ export const lossyNameMessage = (path, name) => `${path} lists two entries named
  * @type {(entries: readonly Dirent[]) => Nullable<string>}
  */
 const twiceNamed = entries => {
-    const names = entries.map(d => d.name)
-    const { lastIndexOf } = occurrences(names)
+    const names = entries.map(d => requiredName(d))
+    const lastIndexOf = assertNotNullish(entry(occurrences(names), 'lastIndexOf'))
     const twice = names.find((n, i) => lastIndexOf(n) !== i)
     return twice === undefined ? null : twice
 }
 
 /** @type {(parent: _Entry) => (d: Dirent) => _Entry} */
 const childOf = parent => d => ({
-    path: under(parent.path, d.name),
-    name: `${parent.name}/${d.name}`,
+    path: under(parent.path, requiredName(d)),
+    name: `${requiredName(parent)}/${requiredName(d)}`,
     isFile: d.isFile,
     isDirectory: d.isDirectory,
 })
@@ -840,7 +902,7 @@ const looseOf = (oidBytes, scope) => {
     return item => state => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
-        const name = nameBytes(item.name)
+        const name = nameBytes(requiredName(item))
         // The two file-name conventions are asked before anything else — before
         // the kind, and before a directory is descended into — and the whole-name
         // rule after the kind: see the doc above.
@@ -848,11 +910,11 @@ const looseOf = (oidBytes, scope) => {
         if (item.isDirectory) {
             // and the scope's own prefix rule, so a walk lists no directory it
             // has no name to take from: see `./scope`'s `holdsPerWorktreeOnly`
-            return scope.descend(item.name)
+            return scope.descend(requiredName(item))
                 ? descendInto(item, found)
                 : pureOk(walked(found, null))
         }
-        if (!scope.keep(item.name)) { return pureOk(walked(found, null)) }
+        if (!scope.keep(requiredName(item))) { return pureOk(walked(found, null)) }
         /**
          * The root this loose ref file names, and the name it adds to the walk
          * either way.
@@ -951,9 +1013,9 @@ const zeroRoot = roots => roots.find(r => zeroId(r.id)) ?? null
  * @type {(packed: readonly PackedRef[]) => Nullable<Bytes>}
  */
 const packedDisagreement = packed => {
-    const byName = new Map(packed.map(p => [nameKey(p.name), p.id]))
-    const hit = packed.find(p => byName.get(nameKey(p.name)) !== p.id)
-    return hit === undefined ? null : hit.name
+    const byName = new Map(packed.map(p => [nameKey(requiredName(p)), p.id]))
+    const hit = packed.find(p => byName.get(nameKey(requiredName(p))) !== p.id)
+    return hit === undefined ? null : requiredName(hit)
 }
 
 /**
@@ -969,7 +1031,7 @@ const packedDisagreement = packed => {
  */
 const packedHeadCollision = (headFound, packed) =>
     toArray(headFound.names).some(n => sameItems(n)(headName))
-    && packed.some(p => sameItems(p.name)(headName))
+    && packed.some(p => sameItems(requiredName(p))(headName))
 
 /**
  * The roots the walk found, then the packed lines nothing hides.
@@ -990,15 +1052,15 @@ const packedHeadCollision = (headFound, packed) =>
 const combine = (found, packed) => {
     const shadowed = new Set(toArray(found.names).map(nameKey))
     // The last line of each name, as one pass.
-    const { lastIndexOf } = occurrences(packed.map(p => nameKey(p.name)))
+    const lastIndexOf = assertNotNullish(entry(occurrences(packed.map(p => nameKey(requiredName(p)))), 'lastIndexOf'))
     return [
         ...toArray(found.roots),
         ...packed
             .filter((p, i) => {
-                const k = nameKey(p.name)
+                const k = nameKey(requiredName(p))
                 return !shadowed.has(k) && lastIndexOf(k) === i
             })
-            .map(p => ({ name: p.name, id: p.id })),
+            .map(p => ({ name: requiredName(p), id: p.id })),
     ]
 }
 
@@ -1041,7 +1103,7 @@ const refsDir = /** @type {const} */ ('refs')
  * @type {(dirs: Dirs, entries: readonly Dirent[]) => Effect<Stat, readonly _Entry[], IoChannel>}
  */
 const ownRefs = (dirs, entries) => {
-    const d = entries.find(e => e.name === refsDir)
+    const d = entries.find(e => requiredName(e) === refsDir)
     if (d === undefined) { return pureOk(/** @type {readonly _Entry[]} */ ([])) }
     const path = under(dirs.gitdir, refsDir)
     /** @type {readonly _Entry[]} */
@@ -1052,23 +1114,6 @@ const ownRefs = (dirs, entries) => {
         mapStep(stat(path), s => s.isDirectory ? walk : /** @type {readonly _Entry[]} */ ([])),
         orElse(leadsNowhere, []))
 }
-
-/**
- * The code a repository is refused with when its `HEAD` is not a regular file.
- *
- * The listing is what sees it, because every other way this module can ask about
- * a path follows a link: `readFile` reads what the link names and `stat` answers
- * for the file at the other end, where a directory entry carries the kind of the
- * entry itself.
- */
-export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
-
-/**
- * Refuses with {@link headKindCode}, in the words `effects/node`'s
- * `notAFileMessage` gives any path that is no regular file: the code says
- * which refusal it is, and the message is the one the runners already use.
- */
-const refuseHeadKind = refuse(headKindCode)
 
 /**
  * The code a listing is refused with when `packed-refs` names `HEAD` and a
@@ -1146,36 +1191,6 @@ const packedTwiceMessage = (dirs, name) =>
 /** @type {(dirs: Dirs) => string} */
 const packedHeadMessage = dirs =>
     `${under(dirs.common, packedRefs)} names ${head} beside ${under(dirs.gitdir, head)}`
-
-/**
- * Whether the gitdir's listing shows a `HEAD` this module may read: absent is
- * fine, a regular file is fine, and anything else is not.
- *
- * **A symlink `HEAD` is the case this refuses, and Git refuses most of it too.**
- * The legacy spelling of a symbolic ref is a symlink, and Git still reads one
- * that points under `refs/` — measured on 2.43.0, where `.git/HEAD` linked to
- * `refs/heads/master` answers both `rev-parse HEAD` and `symbolic-ref HEAD`. A
- * link pointing anywhere else stops the directory being a repository at all:
- * with `.git/HEAD` linked to a file beside it holding an id, every one of
- * `rev-parse HEAD`, `show-ref` and `status` answers
- * `not a git repository`.
- *
- * This reader cannot tell those two apart, because nothing in the effects it has
- * reads a link's target: `readFile` follows it, and the bytes that come back are
- * the bytes at the other end. So it refuses both, which is narrower than Git for
- * a spelling Git has not written since before 1.5 — and the alternative is worse
- * than narrow. Following the link is how a repository makes this module read a
- * file that is not in it: `.git/HEAD` naming `/etc/passwd` would be answered as
- * a detached `HEAD` if its first line happened to read as an id, which is the
- * boundary this module's header claims two rules earlier and a link walks
- * straight through.
- *
- * [`todo/symlink-head.md`](./todo/symlink-head.md) is what a `readlink` would buy
- * back, and the half of this that the lookup cannot see.
- *
- * @type {(entries: readonly Dirent[]) => boolean}
- */
-const headIsFile = entries => entries.every(d => d.name !== head || d.isFile)
 
 /**
  * What `HEAD` contributes to the walk's findings: one root where it holds an id,
@@ -1267,7 +1282,7 @@ const resolvePending = (dirs, oidBytes, packed, found) => {
             id => ({
                 roots: id === null
                     ? state.roots
-                    : concat(state.roots)([{ name: p.name, id }]),
+                    : concat(state.roots)([{ name: requiredName(p), id }]),
                 names: state.names,
                 pending: state.pending,
             })))
@@ -1463,6 +1478,6 @@ export const tryRoots = (dirs, oidBytes) => {
         const zero = zeroRoot(roots)
         return zero === null
             ? pureOk(roots)
-            : refuseZeroId(zeroIdMessage(zero.name))
+            : refuseZeroId(zeroIdMessage(requiredName(zero)))
     })
 }

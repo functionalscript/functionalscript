@@ -5,7 +5,7 @@
 
 ### Problem
 
-`tryEntry` in [`module.f.mjs`](../module.f.mjs) folds a path over trees:
+`tryEntry` in [`module.f.js`](../module.f.js) folds a path over trees:
 items of `{ name, last }`, a `lost` state, a `componentStep` under `foldStep`,
 `mapStep(walked, s => s.found)`, descending only through `isSubtree(found)`.
 At `ad3fb2dc` nothing outside this directory imports the module.

@@ -109,7 +109,7 @@ what a grammar can and cannot do for the formats.
   index's question and `packidx`'s `after`, and the inflater finds the end of the
   stream inside it; and a
   delta chain is walked rather than recursed, for the reason
-  [`walk/`](walk/module.f.mjs) walks. A `refDelta` names its base by id and may
+  [`walk/`](walk/module.f.js) walks. A `refDelta` names its base by id and may
   name one stored *after* it, which is where `index-pack --fix-thin` appends
   the base a fetched pack arrived without, so nothing here assumes a base
   precedes the delta and a chain is bounded by the pack's object count instead.
@@ -147,7 +147,7 @@ what a grammar can and cannot do for the formats.
   ([`alternates/todo/alternates-line-quirks.md`](alternates/todo/alternates-line-quirks.md)). `objectsDirs` answers that list
   and `readIn` reads over it, so a caller reading many objects resolves the
   borrowings once instead of per object.
-- [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
+- [`walk/`](walk/module.f.js) — the three steps from a name to bytes,
   over whatever reads objects: `peel`, a tag to what it names;
   `tryEntries`, a commit or a tree to the entries of its tree; and
   `tryEntry`, the entry a path names. It reads no object it need not, so

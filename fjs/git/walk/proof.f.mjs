@@ -20,7 +20,7 @@ import { hexText, of, tryFromHex } from '../oid/module.f.js'
 import { objectPath, objectsDir, readIn } from '../store/module.f.mjs'
 import { latin1, noFile } from '../testlib.f.js'
 import { mode, write as writeTree } from '../tree/module.f.js'
-import { peel, tryEntries, tryEntry } from './module.f.mjs'
+import { peel, tryEntries, tryEntry } from './module.f.js'
 
 const dir = /** @type {const} */ ('repo')
 
