@@ -22,7 +22,7 @@ compiler, one file deleted between the two runs:
 | Tree | `tsc` |
 | --- | --- |
 | with generated `.d.mts` present | exit 0, no diagnostics |
-| declarations deleted first | `fjs/ci/node/module.f.mjs(75,7): error TS2322` |
+| declarations deleted first | `fjs/ci/node/module.f.js(75,7): error TS2322` |
 
 CI caught it, which is the system working — but a cycle later than a
 contributor's own check should have, and the local pass is what made the push
@@ -63,5 +63,5 @@ since that number decides whether the first option is tolerable.
 - [`../package.json`](../package.json) — `prepack` runs the emit, then re-checks
   with declarations present.
 - [`../.gitignore`](../.gitignore) — why CI never sees a stale declaration.
-- [`../fjs/ci/node/module.f.mjs`](../fjs/ci/node/module.f.mjs) — `node` runs
+- [`../fjs/ci/node/module.f.js`](../fjs/ci/node/module.f.js) — `node` runs
   `tsc` on a fresh clone, which is why it disagreed.

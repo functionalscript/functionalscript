@@ -9,7 +9,7 @@ import { map } from '../../list/module.f.js'
 import { toArray } from '../../list/alt/module.f.js'
 import { cmp } from '../../string/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 import { squares } from '../testlib.f.js'
 import { values } from '../module.f.js'
 

@@ -150,7 +150,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   stream against a JSON *string literal*.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
-- `stringifySorted` in [`../module.f.mjs`](../module.f.mjs) — the canonical,
+- `stringifySorted` in [`../module.f.js`](../module.f.js) — the canonical,
   key-sorted serializer, for the key-order question phase 3 meets at every
   comparison site.
 - `parse`'s per-container call-stack cost was found while migrating the reading

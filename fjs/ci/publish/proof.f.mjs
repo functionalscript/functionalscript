@@ -4,7 +4,7 @@ import {
     npmPublishPath,
     npmPublishWorkflow,
     publishBranch,
-} from './module.f.mjs'
+} from './module.f.js'
 import { images, node, typescript } from '../config/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { definedValues } from '../../types/object/module.f.js'

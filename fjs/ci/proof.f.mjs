@@ -9,13 +9,13 @@ import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virt
 import { partialRun } from '../effects/mock/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'
 import { error, unwrap } from '../types/result/module.f.js'
-import { parse as jsonParse } from '../media/json/module.f.mjs'
+import { parse as jsonParse } from '../media/json/module.f.js'
 import { install, test, parseGitHubAction, uses } from './common/module.f.js'
 import { images, jobTimeout, node, typescript } from './config/module.f.js'
 import { rustPlatformCommands, wasmTargets } from './rust/module.f.js'
 import { empty } from '../types/bit_vec/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'
-import { coverageSyncFlag, packageJobId } from './node/module.f.mjs'
+import { coverageSyncFlag, packageJobId } from './node/module.f.js'
 /** @type {(root: Dir, names: readonly string[]) => Dir} */
 const directory = (root, names) => names.reduce((dir, name) => {
     const value = dir[name]

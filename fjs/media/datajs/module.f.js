@@ -33,7 +33,7 @@
  *
  * The two writers are one writer. `trySerialize` yields the document as
  * chunks and `tryStringify` is its `concat`, mirroring
- * [`fjs/media/json`](../json/module.f.mjs)'s pair. What either writes is
+ * [`fjs/media/json`](../json/module.f.js)'s pair. What either writes is
  * [normalized form](../../../spec/datajs/README.md#normalized-form) — one
  * line, one byte spelling per value — so there is no `tryNormalize` beside
  * them: with one layout the two would be one function. A readable layout is

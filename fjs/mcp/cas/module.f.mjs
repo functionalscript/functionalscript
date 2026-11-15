@@ -122,7 +122,7 @@
  */
 
 import { string, option, or, boolean } from '../../rtti/module.f.js'
-import { stringify } from '../../media/json/module.f.mjs'
+import { stringify } from '../../media/json/module.f.js'
 import { pureOk, resultStep } from '../../effects/module.f.js'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.js'

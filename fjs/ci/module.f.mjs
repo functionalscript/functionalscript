@@ -36,12 +36,12 @@ import {
     packageJob,
     packageJobId,
     platformNodeSteps,
-} from './node/module.f.mjs'
+} from './node/module.f.js'
 import { environmentCommand, environmentSteps } from './environment/module.f.js'
 import { bunSteps } from './bun/module.f.js'
 import { denoSteps } from './deno/module.f.js'
 import { spiderMonkeySteps } from './spidermonkey/module.f.js'
-import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.js'
 import { miseJobs } from './mise/module.f.js'
 import { smartJobs } from './smart/module.f.js'
 

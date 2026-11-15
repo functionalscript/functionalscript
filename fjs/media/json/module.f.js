@@ -89,7 +89,7 @@ export const stringifySorted = stringify(sort)
  *
  * @type {NumberPolicy<number>}
  */
-const numberPolicy = lexeme => ok(parseFloat(lexeme))
+const numberPolicy = lexeme => ok(Number(lexeme))
 
 /**
  * Parses `text` as JSON with this module's own pure reader over the JSON

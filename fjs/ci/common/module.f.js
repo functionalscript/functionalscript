@@ -55,7 +55,7 @@ export const stepSchema = /** @type {const} */ ({
     env: or(option, record(string)),
     // The directory a `run` step starts in, when it is not the checkout. The
     // packed-package check is the one user: it runs as a consumer, in a
-    // directory outside the repository. See `../package/module.f.mjs`.
+    // directory outside the repository. See `../package/module.f.js`.
     'working-directory': or(option, string),
     'continue-on-error': or(option, true)
 })

@@ -1050,7 +1050,7 @@ and a link per channel — built by `footer` in
   on every page, where a reader arriving from a search lands, without
   competing with the site's navigation.
 - **Read from** [`funding.json`](../../funding.json), by
-  [`funding/module.f.mjs`](./funding/module.f.mjs): one link per channel, its
+  [`funding/module.f.js`](./funding/module.f.js): one link per channel, its
   `description` the text and its `address` the target. `.github/FUNDING.yml`
   holds only usernames, and turning those into links would mean copying
   GitHub's unpublished per-platform URL patterns; it stays for GitHub's own
