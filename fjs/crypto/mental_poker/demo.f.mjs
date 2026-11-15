@@ -33,7 +33,7 @@
  * @import { DemoState, Deck, Key, Pocket } from './types.ts'
  */
 
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 import { pureOk } from '../../effects/module.f.js'

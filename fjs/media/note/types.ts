@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/media/note/module.f.mjs`: `Note` and `NoteError`.
+ * Type-level API for `fjs/media/note/module.f.js`: `Note` and `NoteError`.
  */
 
 import type { Assert } from '../../asserts/types.ts'
@@ -8,7 +8,7 @@ import type { Ts } from '../../rtti/ts/types.ts'
 import type { Rest, Type } from '../../rtti/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { JsonDialect } from '../types.ts'
-import type { decodeText, encodeText, mediaType, noteSchema, validate } from './module.f.mjs'
+import type { decodeText, encodeText, mediaType, noteSchema, validate } from './module.f.js'
 
 /** The TypeScript type derived from `noteSchema` — the single source of truth. */
 export type Note = Ts<typeof noteSchema>

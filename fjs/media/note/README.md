@@ -12,7 +12,7 @@ starting minimal is what keeps every extension additive (see
 [Extending the format](#extending-the-format)).
 
 ```ts
-import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
+import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.js'
 ```
 
 ## Shape

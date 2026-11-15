@@ -34,7 +34,7 @@
  */
 
 import { permalink } from '../permalink/module.f.js'
-import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.mjs'
+import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.js'
 import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.js'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'

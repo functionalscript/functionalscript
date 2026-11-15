@@ -64,6 +64,7 @@ import { assert, assertNotNullish } from '../asserts/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { toData, unionFold } from '../rtti/data/module.f.js'
 import { definedEntries, definedValues, isObject } from '../types/object/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 import { findMap } from '../types/list/module.f.js'
 import { error, ok, okThen } from '../types/result/module.f.js'
 
@@ -155,7 +156,7 @@ const jsonNode = n => {
  *
  * @type {(data: Data) => boolean}
  */
-const jsonData = ([rules, entry]) => [...definedValues(rules), entry].every(jsonNode)
+const jsonData = ([rules, root]) => [...definedValues(rules), root].every(jsonNode)
 
 /**
  * The path to the first leaf of a runtime value `leaf` refuses, or `null`.
@@ -310,7 +311,7 @@ export const detect = dialects => bytes => {
     const text = assertNotNullish(fromVec(bytes), 'detect: type text implies fromVec succeeds')
     const [tag, value] = parse(text)
     if (tag === 'error') { return base }
-    const matched = dialects.find(({ match }) => match(value))
+    const matched = dialects.find(dialect => assertNotNullish(entry(dialect, 'match'))(value))
     return matched === undefined
         ? base
         : { ...base, mime_type: dialectMediaType(matched.dialect) }

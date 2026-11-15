@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/media/module.f.mjs`: the `DialectEntry` registry
+ * Type-level API for `fjs/media/module.f.js`: the `DialectEntry` registry
  * shape `detect` shares with every registered dialect, and the `JsonDialect`
  * kit `jsonDialect` derives for a `vnd.fjs.*`+json one.
  *
@@ -13,7 +13,7 @@ import type { Result } from '../types/result/types.ts'
 import type { Unknown as JsonUnknown } from './json/types.ts'
 import type { Assert } from '../asserts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
-import type { jsonDialect } from './module.f.mjs'
+import type { jsonDialect } from './module.f.js'
 
 /**
  * One registered dialect: the name it tags itself with, and a predicate

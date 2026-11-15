@@ -11,7 +11,7 @@
  */
 
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { hmac } from './module.f.js'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.js'

@@ -349,7 +349,7 @@ const packageName = 'functionalscript'
 /**
  * A single schema as a code block. One the project uses is the import that
  * brings it in —
- * `import { noteSchema } from 'functionalscript/fjs/media/note/module.f.mjs'` —
+ * `import { noteSchema } from 'functionalscript/fjs/media/note/module.f.js'` —
  * one line of code saying both which export and which module, and one that
  * resolves when copied into a project that depends on the package. The module
  * specifier is a link to the module's page on the site; the href is the
