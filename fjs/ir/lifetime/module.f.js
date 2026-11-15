@@ -37,7 +37,9 @@
  *   is computed: a `let`'s local, an `own` parameter, a loop's parameter.
  *   What one arm of a `match` consumed, each other arm drops. A term of
  *   type `never` does not complete, so nothing is dropped after it: a `br`
- *   drops what it leaves first, and a `trap` abandons it.
+ *   drops what it leaves first, and so does a call that answers `never`,
+ *   as a throw does, of what the function owns and the call does not
+ *   borrow, while a `trap` abandons it.
  * - **Inside a `block` or a `loop`, the locals of the regions around it are
  *   lent**, and a `br` drops what the regions that it leaves own, after its
  *   value, which a local holds meanwhile.
@@ -505,6 +507,40 @@ const brStep = (go, env, label, value, owned, n) => {
     return ok({ term: names.reduceRight(hold, exit), owned: o, n: n3 })
 }
 
+/**
+ * A call that answers `never`, as a throw does: it never returns, so what
+ * the function owns would be abandoned. Its arguments, then the drops of
+ * what the function owns but what the call borrows, each argument held by
+ * a new local meanwhile, then the call, so that a throw leaves nothing
+ * behind but the value that it takes over
+ * ([slice 7's choice 4](../todo/slices.md#decisions-for-slice-7)).
+ *
+ * @type {(env: _Env, module: string, name: string, args: readonly Term[], lent: readonly string[], owned: readonly string[], n: number) => Result<_Step, string>}
+ */
+const failStep = (env, module, name, args, lent, owned, n) => {
+    const all = env.frames.reduce((x, [, outer]) => union(x, outer), owned)
+    const borrowed = lent.reduce((r, x) => union(r, leansOn(env, x)), lent)
+    const leaving = minus(all, borrowed)
+    if (leaving.length === 0) { return ok({ term: ['call', module, name, args], owned, n }) }
+    const drops = okList(leaving.map(x => dropOf(env, x)))
+    if (drops[0] === 'error') { return drops }
+    const [names, n1] = args.reduce(
+        /** @type {(acc: readonly [readonly (string | null)[], number], x: Term) => readonly [readonly (string | null)[], number]} */
+        ([done, m], x) => {
+            if (isValue(x)) { return [[...done, null], m] }
+            const [y, m1] = fresh(env.taken, m)
+            return [[...done, y], m1]
+        },
+        [[], n])
+    const [exit, n2] = chain(env, drops[1], ['call', module, name, args.map((x, j) => {
+        const y = names[Number(j)]
+        return y === null ? x : ['get', y]
+    })], n1)
+    /** @type {(rest: Term, y: string | null, j: number) => Term} */
+    const hold = (rest, y, j) => y === null ? rest : ['let', y, args[Number(j)], rest]
+    return ok({ term: names.reduceRight(hold, exit), owned, n: n2 })
+}
+
 /** @type {_Go} */
 const go = (env, typed, mode, owned, live, n) => {
     const [type, t] = typed
@@ -528,7 +564,7 @@ const go = (env, typed, mode, owned, live, n) => {
             const r = sequence(go, env, items, owned, union(live, lent), n)
             if (r[0] === 'error') { return r }
             const { terms, owned: o, n: n1 } = r[1]
-            return ok({ term: ['call', module, name, terms], owned: o, n: n1 })
+            return completes(typed) ? ok({ term: ['call', module, name, terms], owned: o, n: n1 }) : failStep(env, module, name, terms, lent, o, n1)
         }
         case 'make': {
             const r = sequence(go, env, reading(t[1].map(([, x]) => x)), owned, live, n)

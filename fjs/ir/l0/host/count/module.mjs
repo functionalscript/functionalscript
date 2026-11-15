@@ -28,6 +28,19 @@
  *   ends the builder and makes a cell of the array, which the caller owns.
  *   A push past `n` items, a seal of fewer, and a handle of no builder, or
  *   of one that is sealed, throw. `builders` tells which are not sealed.
+ * - **A throw keeps its value**
+ *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
+ *   `throw` takes over a cell, as `push` does, keeps its value and
+ *   returns, so that the `unreachable` after its call traps. The host then
+ *   asks `has_thrown`, and `thrown` makes a cell of the value, which the
+ *   caller owns. `recover` frees what the frames that the trap abandoned
+ *   held: each cell that is not kept, each kept one counted more than it
+ *   was kept at, back to that count, and each builder that is not sealed,
+ *   and it forgets a value that no one asked for. It answers the cells
+ *   that it freed, each with the counts it took away, so a proof tells a
+ *   throw that left nothing behind. It cannot give back a count that a
+ *   module took away from a cell that it borrowed, so `live` still shows
+ *   one.
  * - **The host makes the memory**, as a loader does
  *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
  *   the region of a module's data segments starts at `data_base`, past
@@ -109,6 +122,8 @@ export const counting = (values, data = 0) => {
         kept.set(h, 1)
         return new WebAssembly.Global({ value: 'i64', mutable: false }, h)
     }
+    /** The value that a throw keeps, until `thrown` or `recover` takes it. @type {{ readonly value: unknown } | null} */
+    let held = null
     const v = view(read)
     const memory = new WebAssembly.Memory({ initial: Math.ceil((dataBase + data) / 0x1_0000) })
     /** @type {(ptr: number, len: number) => string} */
@@ -157,6 +172,36 @@ export const counting = (values, data = 0) => {
                 builders.delete(b)
                 return make(items)
             },
+            throw: h => {
+                if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
+                const value = read(h)
+                drop(h)
+                held = { value }
+            },
+        },
+        has_thrown: () => held === null ? 0 : 1,
+        thrown: () => {
+            if (held === null) { throw 'fjs:l0 host: nothing was thrown' }
+            const { value } = held
+            held = null
+            return make(value)
+        },
+        recover: () => {
+            held = null
+            builders.clear()
+            /** @type {(readonly [bigint, number])[]} */
+            const freed = []
+            for (const [h, { value, count }] of [...cells]) {
+                const k = kept.get(h) ?? 0
+                if (count <= k) { continue }
+                freed.push([h, count - k])
+                if (k === 0) {
+                    cells.delete(h)
+                } else {
+                    cells.set(h, { value, count: k })
+                }
+            }
+            return freed
         },
         read,
         keep: () => {

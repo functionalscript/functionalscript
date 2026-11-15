@@ -55,13 +55,25 @@
  *   it. An `i32` carries it. `push` gives back the builder it owns, so its
  *   import takes it once and answers nothing. Pushing more items than `n`,
  *   sealing with fewer, or a builder that is sealed already traps.
+ * - **A throw is Functions' `throw`**
+ *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
+ *   it takes over a value, which the host keeps, and fails, so it answers
+ *   `never`, and the emitter writes an `unreachable` after its call. The
+ *   host reads the value after the trap, by `has_thrown` and `thrown`, and
+ *   `recover` frees what the frames that the trap abandoned held.
+ * - **A function that may fail says so**
+ *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
+ *   `throw`, and the functions that trap where the view throws, which
+ *   definition.md marks: String's `unit` and `substring`, and Containers'
+ *   `item`, `push` and `seal`. Every other function of L0 completes on
+ *   the values of its parameters' types.
  *
  * @module
  *
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, f64c, int, only, own, sealed, signature, u, unit } from '../module.f.js'
+import { bool, f64c, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
@@ -127,10 +139,10 @@ const lengthOf = (param, kinds, more, types) => ({
  * @type {Interface['functions']}
  */
 const strings = [
-    ['unit', signature([['s', string], ['i', index]], u(16))],
+    ['unit', mayFail(signature([['s', string], ['i', index]], u(16)))],
     ['from_unit', signature([['c', u(16)]], string)],
     ['concat', signature([['a', string], ['b', string]], string)],
-    ['substring', signature([['s', string], ['start', index], ['end', index]], string)],
+    ['substring', mayFail(signature([['s', string], ['start', index], ['end', index]], string))],
 ]
 
 /**
@@ -143,10 +155,20 @@ const strings = [
  * @type {Interface['functions']}
  */
 const containers = [
-    ['item', signature([['c', only(any, 'array', 'object')], ['i', index]], any)],
+    ['item', mayFail(signature([['c', only(any, 'array', 'object')], ['i', index]], any))],
     ['begin_array', signature([['n', index]], builder)],
-    ['push', signature([own('b', builder), own('v', any)], builder, 'b')],
-    ['seal', signature([own('b', builder)], array)],
+    ['push', mayFail(signature([own('b', builder), own('v', any)], builder, 'b'))],
+    ['seal', mayFail(signature([own('b', builder)], array))],
+]
+
+/**
+ * Functions' functions besides its `length`: `throw`, which takes over a
+ * value and fails, so that it answers `never`.
+ *
+ * @type {Interface['functions']}
+ */
+const functions = [
+    ['throw', mayFail(signature([own('v', any)], never))],
 ]
 
 /**
@@ -155,7 +177,7 @@ const containers = [
  *
  * @type {readonly (readonly [string, Interface['functions'], Interface['types']])[]}
  */
-const more = [['String', strings, []], ['Containers', containers, [['builder', { variants: ['builder'], carrier: 'i32' }]]]]
+const more = [['String', strings, []], ['Containers', containers, [['builder', { variants: ['builder'], carrier: 'i32' }]]], ['Functions', functions, []]]
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
 export const l0 = [

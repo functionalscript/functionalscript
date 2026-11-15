@@ -58,6 +58,20 @@ and on that merge for the post-fix run; three refusal defects fixed in
 | Linear and copy variants of `any` | Linear now, since 6e needs it; copy variants of `any` after slice 6, so every `any` is counted through 6f |
 | The random comparison | Keep it as a seeded host proof, in a PR of its own before 6a, and extend it with each later slice |
 
+### Decisions for slice 7 (2026-11-15)
+
+Owner decided seven choices on the shape of slice 7, failure.
+
+| Choice | Decision |
+| --- | --- |
+| Where L1's errors come from | Read from L1's text: the error table that L1 imports is a module of string constants, and `error.k` lowers to the string literal |
+| What a throw is in the IR | `never` is the empty sum, and a throw is a call of L0's `Functions.throw(own v: any) -> never`, which may fail |
+| When the effect bit lands | Now: each interface function declares whether it may fail, as [definition.md](../../../doc/sasha-gil/ir/definition.md#one-effect) marks it, and the checker infers the bit for each function of a module, to a fixed point. Being explicit on what throws, early |
+| What a throw leaves | The lifetime pass drops what a function owns before a call that answers `never`, but what the call borrows. A callee's throw, and a trap, still abandon what the callers hold, which the host's `recover` frees |
+| The host's side | As [L0 §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps): `throw` keeps the value and returns, the `unreachable` after its call traps, and the host reads the value by `has_thrown` and `thrown`, then calls `recover` |
+| The oracle | Three outcomes: the same value, a throw of the same value, or a trap of both, where a twin's trap is a misuse of the L0 view or a `trap` of the twin. A function that cannot fail never fails, and the cells are checked after every outcome |
+| How slice 7 is cut | Two PRs: 7a, throwing by hand; 7b, the lowering of `throw` and of L1's error table, with the subjects `functionText` and `bigintPair` |
+
 ### Roadmap
 
 Tick a box when its pull request merges. Slice numbers in parentheses are the
@@ -134,10 +148,21 @@ before it and proved end to end on its own.
   A receiver of another kind waits: `undefined` and `null` throw (slice 7),
   and an object or a string reads by a string.
 
+#### Next — failure
+
+Slice 7, cut in two as decided above.
+
+- [ ] **7a. Throwing, by hand.** L0's `Functions.throw(own v: any) ->
+  never`, which may fail; the effect bit, which interfaces declare and the
+  checker infers; drops before a throw; the host's `throw`, `has_thrown`,
+  `thrown` and `recover`; the three-outcome oracle under every host proof
+  and the random comparison.
+- [ ] **7b. Throwing, lowered.** `throw x` of FAST and L1's error table as
+  string constants, read from L1's text. Subjects: `functionText` and
+  `bigintPair`.
+
 #### Later
 
-- [ ] **Failure** (7). `throw`, L1's error table and the trap ABI of NaNVM's
-  L0. Subjects: `functionText` and `bigintPair`.
 - [ ] **Builders** (8). What is left after 6e: `buildArray` and `buildObject`
   with their callbacks inlined, object literals and spread. Subjects:
   `toIterable` and `objectSpread`.

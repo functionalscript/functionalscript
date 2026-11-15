@@ -10,8 +10,8 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
 import { any, builder, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, next, only, own, return_,
-    sealed, signature, trap, true_, trunc_sat, u, unit, variant,
+    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, never, next, only, own,
+    return_, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
 import { lifetime } from './module.f.js'
@@ -507,6 +507,62 @@ export const proof = {
                 '        if lt(i, float(k)) then br L { b: Containers.push(b, Any.dup(a)), i: add(i, 1.0 as f64) } else Containers.seal(b)',
             ]),
         },
+        // A call that answers never, as a throw does, drops what the function owns first, after its arguments, but what
+        // it borrows: what the regions around it own, and a loop's parameters, which it does not take over.
+        throws: {
+            drops: () => golden(module_([own('v', any), ['a', string]], never, let_('t', concat(a, a), () => throw_(lit(string, 'no')))), [
+                'fn f(own v: any, a: any.only(string)) -> never =',
+                '    let t = String.concat(a, a)',
+                '    let $0 = Any.dup("no")',
+                '    let $1 = Any.drop(v)',
+                '    let $2 = Any.drop(t)',
+                '    Functions.throw($0)',
+            ]),
+            lends: () => golden(module_([own('v', any), ['a', string]], never, let_('t', concat(a, a), t => call('self', 'g', [t])),
+                [['g', fn([['x', any]], never, x => throw_(x))]]), [
+                'fn g(x: any) -> never =',
+                '    Functions.throw(Any.dup(x))',
+                '',
+                'fn f(own v: any, a: any.only(string)) -> never =',
+                '    let t = String.concat(a, a)',
+                '    let $0 = Any.drop(v)',
+                '    g(t)',
+            ]),
+            block: () => golden(module_([['a', string], ['b', bool]], f64, let_('t', concat(a, a), t =>
+                add(float(length(t)), block('L', f64, let_('s', concat(t, t), s => if_(b, throw_(s), br('L', float(length(s))))))))), [
+                'fn f(a: any.only(string), b: bool) -> f64 =',
+                '    let t = String.concat(a, a)',
+                '    let $3 =',
+                '        add(',
+                '            float(String.length(t)),',
+                '            block L: f64',
+                '                let s = String.concat(t, t)',
+                '                if b',
+                '                then',
+                '                    let $0 = Any.drop(t)',
+                '                    Functions.throw(s)',
+                '                else',
+                '                    let $1 = float(String.length(s))',
+                '                    let $2 = Any.drop(s)',
+                '                    br L $1',
+                '        )',
+                '    let $4 = Any.drop(t)',
+                '    $3',
+            ]),
+            loop: () => golden(module_([['a', string], ['k', f64]], f64, loop('L', [['s', string, concat(a, a)], ['i', f64, zero]], (s, i) =>
+                if_(lt(i, k), next('L', [['s', concat(s, s)], ['i', add(i, one)]]), throw_(s)))), [
+                'fn f(a: any.only(string), k: f64) -> f64 =',
+                '    loop L (s: any.only(string) = String.concat(a, a), i: f64 = 0.0 as f64)',
+                '        if lt(i, k)',
+                '        then',
+                '            let $0 = String.concat(s, s)',
+                '            let $1 = add(i, 1.0 as f64)',
+                '            let $2 = Any.drop(s)',
+                '            br L { s: $0, i: $1 }',
+                '        else',
+                '            Functions.throw(s)',
+            ]),
+        },
     },
     // What the pass refuses: a copy or a drop of a value of a linear type.
     refuse: {
@@ -526,6 +582,8 @@ export const proof = {
         exit: () => refused(module_([], f64, block('L', f64, let_('r', open, r => br('L', peek(r))))), leftOver('r')),
         // A parameter of a loop of the linear type, left over where the loop ends.
         loop: () => refused(module_([], f64, loop('L', [['r', res, open]], r => peek(r))), leftOver('r')),
+        // A throw that would have to drop a value of a linear type.
+        throwing: () => refused(module_([], never, let_('r', open, () => throw_(lit(string, 'no')))), leftOver('r')),
         // A br that leaves before the call takes a linear value over would have to drop it.
         leaving: () => refused(module_([], unit, call('Lin', 'give', [open, away])), leftOver('$0')),
         // A refusal inside each kind of term reaches the function.

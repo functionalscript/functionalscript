@@ -122,8 +122,34 @@ export const proof = {
         assertEq(`${JSON.stringify(h.read(t))} ${cells(h)}`, `[["a","b"]] 1:1,${t}:1`)
         assertEq(JSON.stringify(h.read(h.imports.seal(h.imports.begin_array(0)))), '[]')
     },
+    // A throw takes over a cell and keeps its value, which `thrown` gives the caller as a cell of its own.
+    thrown: () => {
+        const h = counting(['x', 'y'])
+        h.keep()
+        assertEq(h.has_thrown(), 0)
+        h.imports.throw(h.imports.dup(0n))
+        assertEq(`${h.has_thrown()} ${cells(h)}`, '1 ')
+        const t = h.thrown()
+        assertEq(`${h.read(t)} ${h.has_thrown()} ${cells(h)}`, `x 0 ${t}:1`)
+        h.imports.drop(t)
+        assertEq(cells(h), '')
+    },
+    // `recover` frees what a trap abandoned, back to the counts at which cells were kept, ends open builders, forgets a value
+    // that no one asked for, and answers what it freed. It cannot give back a count that a module took from a kept cell.
+    recover: () => {
+        const h = counting(['x', 'y'])
+        h.keep()
+        h.imports.dup(0n)
+        const s = h.imports.from_unit(0x61)
+        h.imports.begin_array(1)
+        h.imports.throw(h.imports.dup(1n))
+        assertEq(`${h.recover().map(([k, n]) => `${k}:${n}`).join()} ${cells(h)} ${h.builders().length} ${h.has_thrown()}`, `0:1,${s}:1  0 0`)
+        assertEq(h.recover().length, 0)
+        h.imports.drop(1n)
+        assertEq(`${h.recover().length} ${cells(h)}`, '0 1:0')
+    },
     // A handle of no cell throws, and so does one whose cell a drop freed, units past the memory, a handle of no builder or of
-    // a sealed one, a push past a builder's length and a seal of fewer items.
+    // a sealed one, a push past a builder's length, a seal of fewer items, a throw after a throw and `thrown` after none.
     throw: {
         none: () => { counting([]).read(0n) },
         freed: () => {
@@ -150,6 +176,12 @@ export const proof = {
             const h = counting([])
             h.imports.seal(h.imports.begin_array(1))
         },
+        twice: () => {
+            const h = counting(['x', 'y'])
+            h.imports.throw(0n)
+            h.imports.throw(1n)
+        },
+        nothing: () => { counting([]).thrown() },
     },
     // concat of a borrowed string answers an owned one, which the caller drops.
     concat: () => {

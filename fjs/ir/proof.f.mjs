@@ -5,8 +5,8 @@
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
-    get, i, if_, inside, int, isOwn, le, leaves, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, return_,
-    sealed, signature, sqrt, sub, terms, trap, true_, trunc_sat, u, unit, variant,
+    get, i, if_, inside, int, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
+    sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
 export const proof = {
@@ -172,6 +172,14 @@ export const proof = {
         assert(equal([f.params, f.result, f.body], [params, f64, get('a')]))
         const s = signature(params, bool)
         assert(equal([s.params, s.result], [params, bool]))
+    },
+    // An interface's function that may fail says so, and a throw is a call of `Functions.throw`.
+    fails: () => {
+        const v = own('v', sealed('Any', 'any'))
+        const s = mayFail(signature([v], never))
+        assert(equal([s.params, s.result, s.fails], [[v], never, true]))
+        assertEq(signature([v], never).fails, undefined)
+        assert(equal(throw_(get('x')), ['call', 'Functions', 'throw', [get('x')]]))
     },
     // A parameter that the callee owns says so, and a plain one borrows.
     own: () => {

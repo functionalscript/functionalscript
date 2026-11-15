@@ -29,7 +29,9 @@
  * literals names the variant that one holds and the function that makes it:
  * `literal: string by String.make_string`. A type with no tag names its
  * carrier alone, and a function that gives back a parameter says so after
- * its result: `-> builder, gives back b`.
+ * its result: `-> builder, gives back b`. A function of an interface that
+ * may fail says so last, as definition.md marks it:
+ * `fn throw(own v: any) -> never may fail`.
  *
  * The text is for people and for golden proofs. Nothing reads it back: the
  * IR passes from one stage to the next as data.
@@ -278,8 +280,8 @@ const lines = (t, pad) => {
 }
 
 /** A signature after `fn` and its name. @type {(name: string, s: Signature) => string} */
-const showSignature = (name, { params, result, returns }) =>
-    `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}${returns === undefined ? '' : `, gives back ${returns}`}`
+const showSignature = (name, { params, result, returns, fails }) =>
+    `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}${returns === undefined ? '' : `, gives back ${returns}`}${fails === true ? ' may fail' : ''}`
 
 /** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
 const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]

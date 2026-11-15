@@ -23,3 +23,13 @@ export type _Value = bigint | number | boolean | undefined | _Any
 
 /** A function's JavaScript twin, on its arguments in their order. */
 export type _Twin = (xs: readonly _Value[]) => _Value
+
+/**
+ * What a call answers, or its twin: a value; a throw of a value, which a
+ * module throws by `Functions.throw` and a twin by `throw`; or a trap with
+ * nothing thrown, and what the engine or the twin threw for it.
+ */
+export type _Outcome =
+    | readonly ['ok', _Value]
+    | readonly ['threw', _Any]
+    | readonly ['trapped', unknown]

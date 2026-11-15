@@ -42,12 +42,20 @@
  * - **A function of an interface may give back a parameter that it owns**,
  *   whose type is the function's result: Containers' `push` gives back its
  *   builder, which its import takes once and does not answer.
+ * - **A call may fail, or it cannot**
+ *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)).
+ *   A function of an interface declares it, and one that answers `never`,
+ *   as `Functions.throw`, declares it so. The checker infers it for each
+ *   function of a module: one may fail where its body has a `trap` or a
+ *   call of a function that may fail, of an interface or of the module,
+ *   repeating over the module until no function changes. The module that
+ *   it answers writes the bit beside each function.
  *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { ArmOf, Checked, CheckedFn, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
  * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
@@ -576,7 +584,8 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  * `n` variants, a counted type names both of its counting functions: a
  * `dup` that borrows a value and answers one of the type, and a `drop` that
  * owns one and answers `unit`, and a function that gives back a parameter
- * owns it, and the parameter is of the type of its result.
+ * owns it, and the parameter is of the type of its result, and a function
+ * that answers `never` may fail.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
@@ -602,6 +611,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
     const unmaking = types.find(([, { variants, literal }]) => literal !== undefined && !variants.includes(literal.variant))
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     const unreturned = functions.find(([, { params, result, returns }]) => returns !== undefined && !params.some(p => p[0] === returns && isOwn(p) && equal(p[1], result)))
+    const silent = functions.find(([, { result, fails }]) => isNever(result) && fails !== true)
     return type !== undefined ? `${name}: two types are named ${type}`
         : constant !== undefined ? `${name}: two constants are named ${constant}`
         : named !== undefined ? `${name}: two functions are named ${named}`
@@ -613,6 +623,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         : unmaking !== undefined ? `${name}: ${unmaking[0]}'s literals hold ${unmaking[1].literal?.variant}, which is none of its variants`
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : unreturned !== undefined ? `${name}: ${unreturned[0]} gives back ${unreturned[1].returns}, which is no parameter that it owns of the type of its result`
+        : silent !== undefined ? `${name}: ${silent[0]} answers never, so it fails, and it does not say that it may`
         : null
 }
 
@@ -779,13 +790,56 @@ const unordered = (constants, functions) => {
     }).find(x => x !== null) ?? null
 }
 
+// the effect
+
+/** Whether a function of an interface that a module imports may fail, as the interface declares. @type {(imports: OrderedMap<Interface>, module: string, name: string) => boolean} */
+const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at(module)(imports)).functions.find(([k]) => k === name))[1].fails === true
+
+/**
+ * What a typed term does that may fail: whether it may fail itself, by a
+ * `trap` or by a call of a function of an interface that may fail, and the
+ * module's functions that it calls, each once.
+ *
+ * @type {(imports: OrderedMap<Interface>) => (x: Typed) => readonly [boolean, readonly string[]]}
+ */
+const failures = imports => ([, t]) => {
+    const itself = t[0] === 'trap' || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
+    /** @type {readonly [boolean, readonly string[]]} */
+    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : []]
+    return inside(t).reduce(([f, fs], x) => {
+        const [g, gs] = failures(imports)(x)
+        return [f || g, union(fs, gs)]
+    }, start)
+}
+
+/**
+ * The functions of a module that may fail: those that may fail by
+ * themselves, then those that call one that may, again until no function
+ * changes. A function that calls itself and nothing that may fail cannot.
+ *
+ * @type {(imports: OrderedMap<Interface>, functions: readonly (readonly [string, FunctionOf<Typed>])[]) => readonly string[]}
+ */
+const failing = (imports, functions) => {
+    const direct = functions.map(([f, { body }]) => /** @type {const} */ ([f, failures(imports)(body)]))
+    /** @type {(known: readonly string[]) => readonly string[]} */
+    const grow = known => {
+        const next = direct.flatMap(([f, [itself, calls]]) => itself || calls.some(g => known.includes(g)) ? [f] : [])
+        return next.length === known.length ? known : grow(next)
+    }
+    return grow([])
+}
+
+/** A function's effect, written beside it. @type {(fails: readonly string[]) => (entry: readonly [string, FunctionOf<Typed>]) => readonly [string, CheckedFn]} */
+const withEffect = fails => ([name, f]) => [name, { ...f, fails: fails.includes(name) }]
+
 /**
  * A module's plain stage, checked: the interfaces it imports, its constants
  * and its functions of distinct names, each typed, exports that name its
  * functions once each, and no function named `init`, which the module
  * exports to evaluate its constants in their order. The answer is the
- * module with every term typed, which is what the
- * [lifetime pass](../lifetime/module.f.js) reads to write the owned stage.
+ * module with every term typed and each function's effect, which is what
+ * the [lifetime pass](../lifetime/module.f.js) reads to write the owned
+ * stage.
  * Nothing here asks how often a value is used.
  *
  * @type {(m: Module) => Result<Checked, string>}
@@ -817,7 +871,9 @@ export const checkPlain = m => {
     const values = okList(declared.map(checkConstant(functions, imports, constants)))
     if (values[0] === 'error') { return values }
     const late = unordered(values[1], typed[1])
-    return late !== null ? error(late) : ok({ imports: m.imports, constants: values[1], functions: typed[1], exports: m.exports })
+    if (late !== null) { return error(late) }
+    const fails = failing(imports, typed[1])
+    return ok({ imports: m.imports, constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
 }
 
 /**

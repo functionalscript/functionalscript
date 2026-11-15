@@ -33,7 +33,7 @@
  * @import { Module, Type } from '../types.ts'
  * @import { Counting } from '../l0/host/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { _Any, _Twin, _Value } from './types.ts'
+ * @import { _Any, _Outcome, _Twin, _Value } from './types.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
@@ -169,14 +169,69 @@ const sameHeld = given => (a, b) => Object.is(a, b)
 /** Whether two values are the same: by `Object.is`, and two values of `any` by what they hold. @type {(given: ReadonlySet<unknown>) => (a: _Value, b: _Value) => boolean} */
 const same = given => (a, b) => isAny(a) && isAny(b) ? sameHeld(given)(a.any, b.any) : Object.is(a, b)
 
-/** What a call answers, or that it threw. @type {(f: () => _Value) => readonly ['ok', _Value] | readonly ['threw']} */
-const attempt = f => {
+/** The traps that twins throw: each a token of its own, which no FunctionalScript value is. @type {WeakSet<object>} */
+const traps = new WeakSet()
+
+/**
+ * A twin's trap, where the module traps with nothing thrown, as an `exact`
+ * of a fraction does: a throw of a token that no FunctionalScript value is,
+ * which holds the reason for a failed proof to show.
+ *
+ * @type {(reason: string) => never}
+ */
+export const trap = reason => {
+    const token = { trap: reason }
+    traps.add(token)
+    throw token
+}
+
+/**
+ * What a twin answers: a value; a throw of a FunctionalScript value, which
+ * the module must throw too; or a trap, which is a `trap` of the twin or a
+ * misuse of the L0 view, which throws a reason that starts with `l0.`, as
+ * a host's import of it does.
+ *
+ * @type {(f: () => _Value) => _Outcome}
+ */
+const expect = f => {
     try {
         return ['ok', f()]
-    } catch {
-        return ['threw']
+    } catch (e) {
+        return typeof e === 'object' && e !== null && traps.has(e) ? ['trapped', e]
+            : typeof e === 'string' && e.startsWith('l0.') ? ['trapped', e]
+            : ['threw', { any: e }]
     }
 }
+
+/**
+ * What a call of a module answers: a value; a throw, whose value the host
+ * keeps and which `thrown` hands over, the caller reading it and dropping
+ * it; or a trap with nothing thrown, and what the engine threw for it.
+ *
+ * @type {(f: () => _Value, h: Counting) => _Outcome}
+ */
+const outcome = (f, h) => {
+    try {
+        return ['ok', f()]
+    } catch (e) {
+        if (h.has_thrown() === 0) { return ['trapped', e] }
+        const t = h.thrown()
+        const any = h.read(t)
+        h.imports.drop(t)
+        return ['threw', { any }]
+    }
+}
+
+/**
+ * Whether a call's outcome is its twin's: the same value, a throw of the
+ * same value, or a trap of both, for the same reason where the module's
+ * trap was a throw of an import of the view, whose reason is a string.
+ *
+ * @type {(given: ReadonlySet<unknown>) => (got: _Outcome, expected: _Outcome) => boolean}
+ */
+const agrees = given => (got, expected) => got[0] === 'trapped'
+    ? expected[0] === 'trapped' && (typeof got[1] !== 'string' || got[1] === expected[1])
+    : expected[0] !== 'trapped' && got[0] === expected[0] && same(given)(got[1], expected[1])
 
 /** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
 const ulebs = bytes => {
@@ -210,15 +265,21 @@ export const dataOf = m => {
 
 /**
  * Checks and emits a module, compiles it on the host's engine, and calls
- * each function that it exports on its inputs, comparing it with its twin,
- * and where the twin throws, the call must fail too, by a trap or by a
- * throw of the host. A
- * function's inputs are the edges of its parameters' types, unless `inputs`
- * gives them.
+ * each function that it exports on its inputs, comparing its outcome with
+ * its twin's: the same value, a throw of the same value, or a trap of both
+ * ([slice 7's choice 6](../todo/slices.md#decisions-for-slice-7)). A
+ * function's inputs are the edges of its parameters' types, unless
+ * `inputs` gives them. A function that the checker says cannot fail never
+ * fails. After a throw or a trap, the host recovers what the call
+ * abandoned, and the cells must then be as the call found them, as after a
+ * value: a module that freed what it borrows shows. A throw abandons
+ * nothing, since the lifetime pass drops what a function owns before it
+ * throws, but where the function's callee throws while it holds a value:
+ * `abandons` names the functions that may.
  *
- * @type {(m: Module, twins: StringMap<_Twin>, inputs: StringMap<readonly (readonly _Value[])[]>) => void}
+ * @type {(m: Module, twins: StringMap<_Twin>, inputs: StringMap<readonly (readonly _Value[])[]>, abandons?: readonly string[]) => void}
  */
-export const run = (m, twins, inputs) => {
+export const run = (m, twins, inputs, abandons = []) => {
     const [tag, checked] = check(m)
     assert(tag === 'ok', checked)
     const bytes = new Uint8Array(write(emit(checked)))
@@ -226,7 +287,7 @@ export const run = (m, twins, inputs) => {
     const compiled = new WebAssembly.Module(bytes)
     const data = dataOf(compiled)
     for (const name of checked.exports) {
-        const [, { params, result }] = assertNotNullish(checked.functions.find(([k]) => k === name))
+        const [, { params, result, fails }] = assertNotNullish(checked.functions.find(([k]) => k === name))
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
@@ -245,12 +306,15 @@ export const run = (m, twins, inputs) => {
                 return isOwn(params[k]) ? h.imports.dup(handle) : handle
             }
             const args = xs.map(arg)
-            const got = attempt(() => fromHost(result, f(...args), h))
-            const expected = attempt(() => twin(xs))
-            const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(arraysIn(values))(got[1], expected[1])
-            assert(agree, [name, xs, got, expected])
-            const cells = [...h.live().map(([k, count]) => `${k}:${count}`), ...h.builders().map(b => `builder ${b}`)].join()
-            assert(got[0] === 'threw' || cells === '', [name, xs, cells])
+            const got = outcome(() => fromHost(result, f(...args), h), h)
+            const expected = expect(() => twin(xs))
+            assert(agrees(arraysIn(values))(got, expected), [name, xs, got, expected])
+            assert(got[0] === 'ok' || fails, [name, xs, 'cannot fail, and it did'])
+            const open = h.builders().map(b => `builder ${b}`)
+            const abandoned = got[0] === 'ok' ? [] : [...h.recover().map(([k, count]) => `${k}:+${count}`), ...open]
+            assert(got[0] !== 'threw' || abandoned.length === 0 || abandons.includes(name), [name, xs, 'a throw abandoned', abandoned.join()])
+            const cells = [...h.live().map(([k, count]) => `${k}:${count}`), ...(got[0] === 'ok' ? open : [])].join()
+            assert(cells === '', [name, xs, cells])
         }
     }
 }

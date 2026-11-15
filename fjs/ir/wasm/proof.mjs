@@ -27,7 +27,7 @@ import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/run
 import { any, array, l0 } from '../l0/module.f.js'
 import { call, fn, get, n } from '../module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { edges, held, product, run, spellings } from './testlib.mjs'
+import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays
 
@@ -117,7 +117,7 @@ const steps = x => {
 
 /** The integer that a float holds exactly, in `lo` to `hi`; a throw for any other float. @type {(lo: number, hi: number) => (x: number) => bigint} */
 const exactly = (lo, hi) => x => {
-    if (!Number.isInteger(x) || x < lo || hi < x) { throw 'inexact' }
+    if (!Number.isInteger(x) || x < lo || hi < x) { trap('inexact') }
     return BigInt(x)
 }
 
@@ -184,7 +184,7 @@ const twins = {
     size: ([v]) => [STRING, ARRAY, OBJECT, FUNCTION].includes(kind(held(v))) ? BigInt(length(held(v))) : 0n,
     tag: ([v]) => BigInt(kind(held(v))),
     number: ([v]) => asNumber(held(v)),
-    fail: () => { throw 'no answer' },
+    fail: () => trap('no answer'),
     falsy: ([v]) => !toBoolean(held(v)),
     stringEquals: ([a, b]) => stringEquals(held(a), held(b)),
     stringLess: ([a, b]) => stringLess(held(a), held(b)),
