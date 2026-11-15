@@ -439,7 +439,7 @@ export const anyProgram = rnd => {
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
     if (form === 12) {
         // a read of an array at a number key, by L1's `get`: the item at an index of it, and `undefined` at anything else
-        const fixed = ['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")']
+        const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
         /** An array of `atoms`, of up to three items. @type {(atoms: readonly string[]) => string} */
         const arrayText = atoms => `[${Array.from({ length: below(rnd, 4) }, () => pick(rnd, atoms)).join(', ')}]`
         const lines = rnd() < 0.3 ? [`const a = ${arrayText(fixed)}`] : []

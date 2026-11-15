@@ -14,7 +14,7 @@
  */
 
 /** An array that the module defines. */
-const letters = ['a', 'b', 'c']
+const letters = /** @type {const} */ (['a', 'b', 'c'])
 
 /** One of two values, at an index. @type {(a: unknown, b: unknown, k: number) => unknown} */
 export const pick = (a, b, k) => [a, b][Number(k)]
