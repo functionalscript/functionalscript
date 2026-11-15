@@ -11,9 +11,12 @@
  *
  * - **Temporaries get names first.** A value of a sealed type that is only
  *   lent, as a borrowed argument or the operand of a `match`, is bound to a
- *   local, so that something drops it after the call or the arms. Every
- *   argument before it that does something is bound too, which keeps the
- *   order of evaluation.
+ *   local, so that something drops it after the call or the arms. So is an
+ *   argument, a loop's first value or a repeat's next value that may leave,
+ *   by a `br` out of the call or the loop, so that nothing is taken over
+ *   before it leaves: what the parts before it give is still in locals
+ *   then, which the `br` drops. Every part before either that does
+ *   something is bound too, which keeps the order of evaluation.
  * - **A local moves at its last use** where its context takes the value
  *   over: an `own` argument, a `let`, a loop's first or next value, a
  *   function's result or a region's value. Any other such use, and such a
@@ -48,7 +51,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ConstantOf, FunctionOf, Interface, LoopParamOf, Module, Sealed, SealedDef, Signature, Term, Type, Typed, TypedArm } from '../types.ts'
+ * @import { ConstantOf, FunctionOf, Interface, LoopParamOf, Module, Sealed, SealedDef, Signature, Term, Type, Typed, TypedArm, TypedTerm } from '../types.ts'
  * @import { _Env, _Frame, _Go, _Local, _Mode, _Name, _Step, _Steps } from './private.ts'
  */
 
@@ -56,7 +59,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { checkPlain } from '../check/module.f.js'
-import { equal, isOwn, never } from '../module.f.js'
+import { equal, isOwn, leaves, never } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 
 // sets of names, as lists
@@ -217,17 +220,15 @@ const after = (env, term, names, n) => {
 // the first pass: temporaries
 
 /**
- * A call, its temporaries named: each argument that its parameter borrows,
- * of a sealed type and no value already, and every argument before the last
- * of those that does something, bound to a new local around the call.
+ * A term of parts, those up to the `last` that do something each bound to a
+ * new local around it, in their order, so that they are done before it:
+ * `make` writes the term from its parts, each so bound one a `get` of its
+ * local.
  *
- * @type {(env: _Env, type: Type, module: string, name: string, args: readonly Typed[], n: number) => readonly [Typed, number]}
+ * @type {(env: _Env, type: Type, parts: readonly Typed[], last: number, n: number, make: (parts: readonly Typed[]) => TypedTerm) => readonly [Typed, number]}
  */
-const namedCall = (env, type, module, name, args, n) => {
-    const { params } = signatureOf(env, module, name)
-    const lent = args.map((x, k) => !isOwn(params[Number(k)]) && x[0][0] === 'sealed' && !isSimple(x))
-    const last = lent.lastIndexOf(true)
-    const [names, n1] = args.reduce(
+const settle = (env, type, parts, last, n, make) => {
+    const [names, n1] = parts.reduce(
         /** @type {(acc: readonly [readonly (string | null)[], number], x: Typed, k: number) => readonly [readonly (string | null)[], number]} */
         ([done, m], x, k) => {
             if (k > last || isSimple(x)) { return [[...done, null], m] }
@@ -236,13 +237,33 @@ const namedCall = (env, type, module, name, args, n) => {
         },
         [[], n])
     /** @type {Typed} */
-    const call = [type, ['call', module, name, args.map((x, k) => {
+    const term = [type, make(parts.map((x, k) => {
         const y = names[Number(k)]
         return y === null ? x : [x[0], ['get', y]]
-    })]]
+    }))]
     /** @type {(body: Typed, y: string | null, k: number) => Typed} */
-    const wrap = (body, y, k) => y === null ? body : [type, ['let', y, args[Number(k)], body]]
-    return [names.reduceRight(wrap, call), n1]
+    const wrap = (body, y, k) => y === null ? body : [type, ['let', y, parts[Number(k)], body]]
+    return [names.reduceRight(wrap, term), n1]
+}
+
+/** The last of some parts that may leave the term that they make, by a `br` out of it, or `-1`. @type {(parts: readonly Typed[]) => number} */
+const lastLeaving = parts => parts.findLastIndex(x => leaves(x).length > 0)
+
+/** The greater of two indices. @type {(a: number, b: number) => number} */
+const later = (a, b) => a > b ? a : b
+
+/**
+ * A call, its temporaries named: each argument that its parameter borrows,
+ * of a sealed type and no value already, and each argument that may leave
+ * the call, and every argument before the last of those that does
+ * something, bound to a new local around the call.
+ *
+ * @type {(env: _Env, type: Type, module: string, name: string, args: readonly Typed[], n: number) => readonly [Typed, number]}
+ */
+const namedCall = (env, type, module, name, args, n) => {
+    const { params } = signatureOf(env, module, name)
+    const lent = args.map((x, k) => !isOwn(params[Number(k)]) && x[0][0] === 'sealed' && !isSimple(x))
+    return settle(env, type, args, later(lent.lastIndexOf(true), lastLeaving(args)), n, xs => ['call', module, name, xs])
 }
 
 /** @type {_Name} */
@@ -296,11 +317,14 @@ const named = (env, typed, n) => {
         case 'loop': {
             const [firsts, n1] = each(t[2].map(([, , first]) => first), n)
             const [[body], n2] = each([t[3]], n1)
-            return [[type, ['loop', t[1], t[2].map(([k, x], j) => [k, x, firsts[Number(j)]]), body]], n2]
+            return settle(env, type, firsts, lastLeaving(firsts), n2, xs => ['loop', t[1], t[2].map(([k, x], j) => [k, x, xs[Number(j)]]), body])
         }
         case 'br': {
             const [[e], n1] = each([t[2]], n)
-            return [[type, ['br', t[1], e]], n1]
+            const [of, v] = e
+            if (v[0] !== 'make') { return [[type, ['br', t[1], e]], n1] }
+            const fields = v[1].map(([, x]) => x)
+            return settle(env, type, fields, lastLeaving(fields), n1, xs => ['br', t[1], [of, ['make', v[1].map(([k], j) => [k, xs[Number(j)]])]]])
         }
         default: { return [typed, n] }
     }

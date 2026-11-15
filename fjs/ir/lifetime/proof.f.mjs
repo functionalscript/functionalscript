@@ -23,8 +23,9 @@ const res = sealed('Lin', 'res')
 
 /**
  * A linear type, which nothing copies or drops: `open` makes a value of it,
- * `peek` borrows one and `close` owns one, `it` is a constant of it, and
- * its interface makes its literals.
+ * `peek` borrows one and `close` owns one, `give` owns one and a value of
+ * `any`, `it` is a constant of it, and its interface makes its literals.
+ * `both` owns two values of `any`.
  *
  * @type {readonly [string, Interface]}
  */
@@ -37,6 +38,8 @@ const linear = ['Lin', {
         ['open', signature([], res)],
         ['peek', signature([['r', res]], f64)],
         ['close', signature([own('r', res)], unit)],
+        ['give', signature([own('r', res), own('v', any)], unit)],
+        ['both', signature([own('a', any), own('b', any)], unit)],
     ],
 }]
 
@@ -99,6 +102,12 @@ const one = lit(f64, 1)
 const zero = lit(f64, 0)
 const none = make([])
 const letterA = lit(u(16), 0x61n)
+
+/** @type {(x: Term, y: Term) => Term} */
+const both = (x, y) => call('Lin', 'both', [x, y])
+
+/** A string that is never made: its block leaves the function first. */
+const away = block('B', string, return_(none))
 
 /** A term that the pass refuses: a value of the linear type that is left over. @type {(name: string) => Term} */
 const left = name => let_(name, open, r => peek(r))
@@ -410,6 +419,62 @@ export const proof = {
             '    let d = Lin.close(r)',
             '    x',
         ]),
+        // A part that may leave by a br is bound, after what the parts before it give, which the br drops: an
+        // argument, an owned local that the call would take over, a loop's first value and a repeat's next value.
+        leaving: {
+            argument: () => golden(module_([['c', u(16)]], unit, both(fromUnit(c), away)), [
+                'fn f(c: u(16)) -> unit =',
+                '    let $0 = String.from_unit(c)',
+                '    let $1 =',
+                '        block B: any.only(string)',
+                '            let $2 = {}',
+                '            let $3 = Any.drop($0)',
+                '            return $2',
+                '    Lin.both($0, $1)',
+            ]),
+            moved: () => golden(module_([['c', u(16)]], unit, let_('s', fromUnit(c), s => both(s, away))), [
+                'fn f(c: u(16)) -> unit =',
+                '    let s = String.from_unit(c)',
+                '    let $0 =',
+                '        block B: any.only(string)',
+                '            let $1 = {}',
+                '            let $2 = Any.drop(s)',
+                '            return $1',
+                '    Lin.both(s, $0)',
+            ]),
+            first: () => golden(module_([['c', u(16)]], unit, loop('L', [['x', any, fromUnit(c)], ['y', any, away]], (x, y) => both(x, y))), [
+                'fn f(c: u(16)) -> unit =',
+                '    let $0 = String.from_unit(c)',
+                '    let $1 =',
+                '        block B: any.only(string)',
+                '            let $2 = {}',
+                '            let $3 = Any.drop($0)',
+                '            return $2',
+                '    loop L (x: any = $0, y: any = $1)',
+                '        Lin.both(x, y)',
+            ]),
+            next: () => golden(module_([['c', u(16)], ['k', f64]], unit, loop('L', [['s', string, fromUnit(c)], ['i', f64, zero]], (s, i) =>
+                if_(lt(i, k), next('L', [['s', concat(s, s)], ['i', block('B', f64, return_(none))]]), none))), [
+                'fn f(c: u(16), k: f64) -> unit =',
+                '    loop L (s: any.only(string) = String.from_unit(c), i: f64 = 0.0 as f64)',
+                '        let $6 =',
+                '            if lt(i, k)',
+                '            then',
+                '                let $0 = String.concat(s, s)',
+                '                let $1 =',
+                '                    block B: f64',
+                '                        let $2 = {}',
+                '                        let $3 = Any.drop(s)',
+                '                        let $4 = Any.drop($0)',
+                '                        return $2',
+                '                let $5 = Any.drop(s)',
+                '                br L { s: $0, i: $1 }',
+                '            else',
+                '                {}',
+                '        let $7 = Any.drop(s)',
+                '        $6',
+            ]),
+        },
     },
     // What the pass refuses: a copy or a drop of a value of a linear type.
     refuse: {
@@ -427,6 +492,8 @@ export const proof = {
         exit: () => refused(module_([], f64, block('L', f64, let_('r', open, r => br('L', peek(r))))), leftOver('r')),
         // A parameter of a loop of the linear type, left over where the loop ends.
         loop: () => refused(module_([], f64, loop('L', [['r', res, open]], r => peek(r))), leftOver('r')),
+        // A br that leaves before the call takes a linear value over would have to drop it.
+        leaving: () => refused(module_([], unit, call('Lin', 'give', [open, away])), leftOver('$0')),
         // A refusal inside each kind of term reaches the function.
         inside: {
             letValue: () => refused(module_([], f64, let_('y', left('r'), y => y)), leftOver('r')),

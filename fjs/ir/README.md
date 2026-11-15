@@ -153,9 +153,11 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   its last use where its context takes the value over, any other such use
   is a `dup`, and what a scope still owns is dropped where it ends, after
   its value. A temporary that a call or a `match` only borrows gets a name
-  first, so that something drops it. Inside a `block` or a `loop` the
-  locals around it are lent, and a `br` drops what the regions that it
-  leaves own. The checker then checks the owned stage that the pass wrote,
+  first, so that something drops it, and so does an argument, a first
+  value or a next value that may leave by a `br`, with every part before
+  it that does something, so that the `br` drops what they gave. Inside a
+  `block` or a `loop` the locals around it are lent, and a `br` drops what
+  the regions that it leaves own. The checker then checks the owned stage that the pass wrote,
   so a mistake of the pass is a refusal, never a leak; `checkPlain` is the
   checker without that check, which the pass starts from.
 - **L0's functions that answer owned values, lowered**: String's

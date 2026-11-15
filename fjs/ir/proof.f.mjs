@@ -5,7 +5,7 @@
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
-    get, i, if_, inside, int, isOwn, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, return_,
+    get, i, if_, inside, int, isOwn, le, leaves, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, return_,
     sealed, signature, sqrt, sub, terms, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
@@ -108,6 +108,24 @@ export const proof = {
             [['constant', 'self', 'c'], []],
         ]
         assert(typed.every(([t, parts]) => equal(inside(t), parts)))
+    },
+    // A term leaves to the labels of its `br`s that no region inside it binds, however deep they stand.
+    leaves: () => {
+        /** @type {Typed} */
+        const one = [f64, ['lit', f64, 1]]
+        /** @type {(label: string) => Typed} */
+        const out = label => [never, ['br', label, one]]
+        /** @type {readonly (readonly [Typed, readonly string[]])[]} */
+        const cases = [
+            [one, []],
+            [out('return'), ['return']],
+            [[f64, ['op', 'add', [one, out('L')]]], ['L']],
+            [[f64, ['block', 'L', f64, out('L')]], []],
+            [[f64, ['block', 'L', f64, [f64, ['op', 'add', [out('L'), out('M')]]]]], ['M']],
+            [[f64, ['loop', 'L', [['i', f64, out('M')]], out('L')]], ['M']],
+            [[f64, ['let', 'x', one, [never, ['br', 'return', out('L')]]]], ['return', 'L']],
+        ]
+        assert(cases.every(([t, labels]) => equal(leaves(t), labels)))
     },
     sealed: () => {
         const any = sealed('Any', 'any')
