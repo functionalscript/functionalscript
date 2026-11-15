@@ -125,7 +125,7 @@ export const proof = {
         // A path can cross a sequence and another variant without relying
         // on a source identity for either nested rule.
         nestedPath: () => {
-            const grammar = { signed: ['+', { digit }] }
+            const grammar = /** @type {const} */ ({ signed: ['+', { digit }] })
             const { init, view } = grammarDemo({
                 grammar, alphabet: codePoints, description: '', guide: '',
                 selections: [['root', grammar], ['digit', grammar, 'signed', 1, 'digit']],
