@@ -11,7 +11,8 @@ note takes it up.
 Since 2026-11-13, [`fjs/ir`](../../../fjs/ir/README.md) builds
 definition.md's answers as code, in the slices of
 [`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md). Slices 1 to 6
-and 7a follow its answer to nine of the ten contradictions below, and take up
+and 7a follow its answer to eight of the ten contradictions below; for
+item 8 they follow a plan of their own, and item 10 is open. They take up
 seven of the nine design gaps, which have moved to
 [Taken up by fjs/ir](#taken-up-by-fjsir). In the notes these answers are
 still proposed. The stale statements are in notes that wait for the

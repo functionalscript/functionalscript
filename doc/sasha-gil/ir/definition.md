@@ -737,7 +737,7 @@ counts every value.
 
 | Step of the order of work | In fjs/ir |
 | --- | --- |
-| 1. Types and interfaces as data | partly: [`module.f.js`](../../../fjs/ir/module.f.js) has every type but `code`, which waits for slice 9; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, without `key`, `find`, `text`, `join` and the builders' callbacks, and no proof that every function of the view has a row; L1's native rows are in [`native`](../../../fjs/ir/native/module.f.js) |
+| 1. Types and interfaces as data | partly: [`module.f.js`](../../../fjs/ir/module.f.js) has every type but `code`, which waits for slice 9; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, without `key`, `find`, `text`, `join` and the builders' callbacks, and no proof that every function of the view has a row; [`native`](../../../fjs/ir/native/module.f.js) has the two L1 native rows that the slices use so far, `bigintEquals` and `numberRemainder`, of L1's eleven |
 | 2. Terms and the checker | built but `code` and `call_ref`, which wait for slice 9: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7 |
 | 3. The lifetime pass | built: [`lifetime`](../../../fjs/ir/lifetime/module.f.js), and the owned-stage check |
 | 4. The WASM emitter for import form | built: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs) |
