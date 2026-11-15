@@ -362,5 +362,10 @@ verification/UI behavior.
   hash-security assumptions" above do not hold for SHA-1, which the hosts
   DISOT targets all use; what the signed payload must cover so that they
   hold anyway is decided there.
+- [git-trusted-timestamp-branch](./git-trusted-timestamp-branch.md) —
+  timestamps over existing SHA-1 history without these headers, and the
+  risk analysis under which DISOT timestamps SHA-1 names before a SHA-256
+  map exists; [git-sha256-map-branch](./git-sha256-map-branch.md) adds the
+  map afterwards.
 - [RFC 3161](https://www.rfc-editor.org/rfc/rfc3161.html) — trusted timestamp
   request/response and `TimeStampToken` semantics.
