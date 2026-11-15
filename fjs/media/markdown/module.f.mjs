@@ -1,7 +1,7 @@
 /**
  * A changelog entry's Markdown, as the spans it denotes.
  *
- * The grammar is [`fjs/ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs)
+ * The grammar is [`fjs/ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.js)
  * and the subset it recognises is described there. This module is its two
  * halves of processing: the block layer that decides what one entry's text
  * is, which runs **before** the grammar, and the fold from a match to
@@ -29,7 +29,7 @@
  */
 
 import { items } from '../../ebnf/ast/module.f.js'
-import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.mjs'
+import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.js'
 import { eof } from '../../ebnf/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.js'
 import { lexeme, units } from '../../ebnf/utf16/module.f.js'
@@ -45,6 +45,187 @@ const nothing = []
  */
 const parseEntry = parser([entryRule, eof], nothing)
 
+
+/** Whether a character is a letter or a digit, in any script. @type {(c: string | undefined) => boolean} */
+const isWordChar = c => c !== undefined
+    && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c.toLowerCase() !== c.toUpperCase())
+
+/** The schemes an autolink is read with here. */
+const autolinkSchemes = ['https://', 'http://']
+
+/**
+ * Whether an `&` at `i` opens an entity: a name or a number and a `;`.
+ *
+ * @type {(text: string, i: number) => boolean}
+ */
+const entityAt = (text, i) => {
+    if (text[Number(i)] !== '&') { return false }
+    const semi = text.indexOf(';', i)
+    const name = semi === -1 ? '' : text.slice(i + 1, semi)
+    const body = name.startsWith('#') ? name.slice(1) : name
+    return body !== '' && [...body].every(isWordChar)
+}
+
+/**
+ * Refuse shortcode candidates rather than maintain a copy of GitHub's emoji
+ * catalogue. Code spans and link destinations are checked outside prose.
+ *
+ * @type {(text: string, i: number) => boolean}
+ */
+const shortcodeAt = (text, i) => {
+    if (text[Number(i)] !== ':') { return false }
+    const end = text.indexOf(':', i + 1)
+    return end > i + 1 && [...text.slice(i + 1, end)].every(c => isWordChar(c) || c === '_' || c === '+' || c === '-')
+}
+
+/** Whether a character may stand in an email address's domain. @type {(c: string | undefined) => boolean} */
+const isDomainChar = c => c !== undefined && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c === '-' || c === '_')
+
+/**
+ * Whether an `@` at `i` is the middle of an email address GitHub links: a
+ * local part's character before it, and a domain of at least two labels
+ * after it.
+ *
+ * @type {(text: string, i: number) => boolean}
+ */
+const emailAt = (text, i) => {
+    const before = text[Number(i - 1)]
+    if (before === undefined || !(isDomainChar(before) || '.+'.includes(before))) { return false }
+    let j = i + 1
+    while (isDomainChar(text[Number(j)])) { j += 1 }
+    return j > i + 1 && text[Number(j)] === '.' && isDomainChar(text[Number(j + 1)])
+}
+
+/** What GitHub drops from the end of an extended autolink. */
+const urlTrailing = '?!.,:*_~\'"'
+
+/**
+ * The `http://` or `https://` URL `text` opens, as GitHub's extended
+ * autolink reads it: up to the first space or `<`, less the punctuation
+ * GitHub leaves after a link — `?!.,:*_~'"`, and a `)` that closes no `(`
+ * of the URL's own. `null` where GitHub would read it otherwise: a host with
+ * no dot, or a character outside letters, digits, `.`, `-` and `_`, or an
+ * end like an entity, `&name;`.
+ *
+ * @type {(text: string) => string | null}
+ */
+export const bareUrl = text => {
+    let end = 0
+    while (end < text.length && text[Number(end)] !== ' ' && text[Number(end)] !== '\t' && text[Number(end)] !== '<') { end += 1 }
+    let url = text.slice(0, end)
+    let trimmed = true
+    while (trimmed) {
+        trimmed = false
+        const last = url[Number(url.length - 1)]
+        if (last !== undefined && urlTrailing.includes(last)) {
+            url = url.slice(0, -1)
+            trimmed = true
+        } else if (last === ')' && url.split(')').length > url.split('(').length) {
+            url = url.slice(0, -1)
+            trimmed = true
+        }
+    }
+    if (url.endsWith(';')) { return null }
+    const scheme = url.indexOf('://') + 3
+    const hostEnd = [...url.slice(scheme)].findIndex(c => c === '/' || c === '?' || c === '#')
+    const host = url.slice(scheme, hostEnd === -1 ? url.length : scheme + hostEnd)
+    if (!host.includes('.') || [...host].some(c => !(isWordChar(c) || c === '.' || c === '-' || c === '_'))) { return null }
+    return url
+}
+
+/**
+ * What GitHub reads in a run of prose that the grammar reads as text, found
+ * in one scan after recognition — the place {@link hasImage} asks what a
+ * rule with one symbol of lookahead cannot.
+ *
+ * **Each is refused, or read as GitHub reads it; none is passed through as
+ * text.** Passed through, each is a document GitHub does not build
+ * ([`commonmark-constructs`](../../ebnf/lib/markdown/todo/commonmark-constructs.md)):
+ *
+ * - `_` opens or closes emphasis there unless a letter or digit stands on
+ *   both sides of it, so only `snake_case` is admitted;
+ * - a `~` is left as it is: whether tildes are GitHub's strikethrough is
+ *   a question of the whole entry, which {@link strikethrough} answers;
+ * - `&` before a name or a number and a `;` is an entity, read as the
+ *   character it names;
+ * - `<` before a letter, `/`, `!` or `?` is raw HTML — unless it opens an
+ *   `http` autolink, which is read as the link it is;
+ * - a bare `http://` or `https://` URL is a link there too, GitHub's
+ *   extended autolink, and is read as one where it stands after a space,
+ *   a `(` or nothing and its host has a dot ({@link bareUrl}); a bare
+ *   `www.`, and a bare URL anywhere else, is refused.
+ *
+ * `autolinks` says whether this run may hold an autolink: a link's label is
+ * prose too, but a link inside a link is a reading neither side has.
+ *
+ * @type {(autolinks: boolean) => (text: string) => Result<readonly Inline[], string>}
+ */
+export const proseSpans = autolinks => text => {
+    /** @type {readonly Inline[]} */
+    let out = []
+    let start = 0
+    for (let i = 0; i < text.length; i += 1) {
+        const c = text[Number(i)]
+        const rest = text.slice(i)
+        if (c === '_' && !(isWordChar(text[Number(i - 1)]) && isWordChar(text[Number(i + 1)]))) {
+            return error(`an underscore that GitHub may read as emphasis at ${i}`)
+        }
+        if (entityAt(text, i)) { return error(`an entity, which GitHub reads as the character it names, at ${i}`) }
+        if (shortcodeAt(text, i)) { return error(`an emoji shortcode candidate at ${i}`) }
+        if (autolinks && c === '@' && emailAt(text, i)) { return error(`an email address, which GitHub reads as a link, at ${i}`) }
+        if (rest.startsWith('http://') || rest.startsWith('https://') || rest.startsWith('www.')) {
+            if (text[Number(i - 1)] !== '<') {
+                const before = text[Number(i - 1)]
+                const url = autolinks && !rest.startsWith('www.') && (before === undefined || before === ' ' || before === '(') ? bareUrl(rest) : null
+                if (url === null) { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
+                out = [...out, ...(i === start ? [] : [/** @type {Inline} */(['text', text.slice(start, i)])]),
+                    ['link', [['text', url]], url]]
+                start = i + url.length
+                i = start - 1
+                continue
+            }
+        }
+        if (c === '<') {
+            const close = text.indexOf('>', i)
+            const target = close === -1 ? '' : text.slice(i + 1, close)
+            if (autolinks && autolinkSchemes.some(scheme => target.startsWith(scheme))
+                && !target.includes(' ') && !target.includes('<')) {
+                out = [...out, ...(i === start ? [] : [/** @type {Inline} */(['text', text.slice(start, i)])]),
+                    ['link', [['text', target]], target]]
+                start = close + 1
+                i = close
+                continue
+            }
+            const next = text[Number(i + 1)]
+            if (next !== undefined && (charIs(isLatinLetter)(next) || '/!?'.includes(next))) {
+                return error(`raw HTML at ${i}`)
+            }
+        }
+    }
+    return ok([...out, ...(start === text.length ? [] : [/** @type {Inline} */(['text', text.slice(start)])])])
+}
+
+/**
+ * Whether two code spans stand side by side: that is `a``b` between single
+ * backticks, and CommonMark reads the double run as content of one span.
+ *
+ * @type {(spans: readonly (Inline | Label)[]) => boolean}
+ */
+const codeSideBySide = spans => spans.some((s, i) => i !== 0 && s[0] === 'code' && spans[Number(i - 1)][0] === 'code')
+
+/**
+ * Whether a link's label or an image's alternative text holds two tildes
+ * in its text. A label is a scope of its own for GitHub's strikethrough,
+ * which this does not read there, so a pair in one is refused; code is no
+ * prose, so its tildes are not counted.
+ *
+ * @type {(spans: readonly (Inline | Label)[]) => boolean}
+ */
+const proseTildePair = spans => {
+    const text = spans.flatMap(s => s[0] === 'text' ? [s[1]] : []).join('')
+    const first = text.indexOf('~')
+    return first !== -1 && text.indexOf('~', first + 1) !== -1
+}
 
 /**
  * A code span's text: its body, a double-backtick one less the two
@@ -144,7 +325,7 @@ const linkLabelOf = node => {
             out = [...out, ['code', codeText(span)], ...after]
             continue
         }
-        const before = beforeBang(out[out.length - 1])
+        const before = beforeBang(out[Number(out.length - 1)])
         if (before === null) { return error('a link inside a link') }
         const image = imageOf(plainLinkOf(span))
         if (image[0] === 'error') { return image }
@@ -175,7 +356,7 @@ const emphasisOf = node => {
             out = [...out, ['code', codeText(span)], ...after]
             continue
         }
-        if (beforeBang(out[out.length - 1]) !== null) { return error('an image inside bold or emphasis') }
+        if (beforeBang(out[Number(out.length - 1)]) !== null) { return error('an image inside bold or emphasis') }
         out = [...out, ['link', ...plainLinkOf(span)], ...after]
     }
     return ok(out)
@@ -306,7 +487,7 @@ const entryOf = node => {
         const span = spanOf(node)
         if (span[0] === 'error') { return span }
         const s = span[1]
-        const before = s[0] === 'link' ? beforeBang(out[out.length - 1]) : null
+        const before = s[0] === 'link' ? beforeBang(out[Number(out.length - 1)]) : null
         if (s[0] !== 'link' || before === null) {
             out = [...out, s, ...after]
             continue
@@ -354,7 +535,7 @@ export const entryTexts = text => {
     let blankAt = -1
     let contentIndent = 2
     for (let i = 0; i < lines.length; i += 1) {
-        const line = lines[i]
+        const line = lines[Number(i)]
         const refuse = /** @type {(why: string) => Result<readonly string[], string>} */(
             why => error(`line ${i + 1}: ${why}`))
         if (line.trim() === '') { blankAt = blankAt === -1 ? i : blankAt }
@@ -398,170 +579,11 @@ export const entryTexts = text => {
             if (marker.startsWith('- ') || marker.startsWith('* ') || marker.startsWith('+ ')) {
                 return refuse('a nested list item')
             }
-            out = [...out.slice(0, -1), `${out[out.length - 1]} ${content}`]
+            out = [...out.slice(0, -1), `${out[Number(out.length - 1)]} ${content}`]
         }
         else { return refuse('neither an entry nor a continuation of one') }
     }
     return ok(out)
-}
-
-/** Whether a character is a letter or a digit, in any script. @type {(c: string | undefined) => boolean} */
-const isWordChar = c => c !== undefined
-    && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c.toLowerCase() !== c.toUpperCase())
-
-/** The schemes an autolink is read with here. */
-const autolinkSchemes = ['https://', 'http://']
-
-/**
- * Whether an `&` at `i` opens an entity: a name or a number and a `;`.
- *
- * @type {(text: string, i: number) => boolean}
- */
-const entityAt = (text, i) => {
-    if (text[i] !== '&') { return false }
-    const semi = text.indexOf(';', i)
-    const name = semi === -1 ? '' : text.slice(i + 1, semi)
-    const body = name.startsWith('#') ? name.slice(1) : name
-    return body !== '' && [...body].every(isWordChar)
-}
-
-/**
- * Refuse shortcode candidates rather than maintain a copy of GitHub's emoji
- * catalogue. Code spans and link destinations are checked outside prose.
- *
- * @type {(text: string, i: number) => boolean}
- */
-const shortcodeAt = (text, i) => {
-    if (text[i] !== ':') { return false }
-    const end = text.indexOf(':', i + 1)
-    return end > i + 1 && [...text.slice(i + 1, end)].every(c => isWordChar(c) || c === '_' || c === '+' || c === '-')
-}
-
-/** Whether a character may stand in an email address's domain. @type {(c: string | undefined) => boolean} */
-const isDomainChar = c => c !== undefined && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c === '-' || c === '_')
-
-/**
- * Whether an `@` at `i` is the middle of an email address GitHub links: a
- * local part's character before it, and a domain of at least two labels
- * after it.
- *
- * @type {(text: string, i: number) => boolean}
- */
-const emailAt = (text, i) => {
-    const before = text[i - 1]
-    if (before === undefined || !(isDomainChar(before) || '.+'.includes(before))) { return false }
-    let j = i + 1
-    while (isDomainChar(text[j])) { j += 1 }
-    return j > i + 1 && text[j] === '.' && isDomainChar(text[j + 1])
-}
-
-/** What GitHub drops from the end of an extended autolink. */
-const urlTrailing = '?!.,:*_~\'"'
-
-/**
- * The `http://` or `https://` URL `text` opens, as GitHub's extended
- * autolink reads it: up to the first space or `<`, less the punctuation
- * GitHub leaves after a link — `?!.,:*_~'"`, and a `)` that closes no `(`
- * of the URL's own. `null` where GitHub would read it otherwise: a host with
- * no dot, or a character outside letters, digits, `.`, `-` and `_`, or an
- * end like an entity, `&name;`.
- *
- * @type {(text: string) => string | null}
- */
-export const bareUrl = text => {
-    let end = 0
-    while (end < text.length && text[end] !== ' ' && text[end] !== '\t' && text[end] !== '<') { end += 1 }
-    let url = text.slice(0, end)
-    let trimmed = true
-    while (trimmed) {
-        trimmed = false
-        const last = url[url.length - 1]
-        if (last !== undefined && urlTrailing.includes(last)) {
-            url = url.slice(0, -1)
-            trimmed = true
-        } else if (last === ')' && url.split(')').length > url.split('(').length) {
-            url = url.slice(0, -1)
-            trimmed = true
-        }
-    }
-    if (url.endsWith(';')) { return null }
-    const scheme = url.indexOf('://') + 3
-    const hostEnd = [...url.slice(scheme)].findIndex(c => c === '/' || c === '?' || c === '#')
-    const host = url.slice(scheme, hostEnd === -1 ? url.length : scheme + hostEnd)
-    if (!host.includes('.') || [...host].some(c => !(isWordChar(c) || c === '.' || c === '-' || c === '_'))) { return null }
-    return url
-}
-
-/**
- * What GitHub reads in a run of prose that the grammar reads as text, found
- * in one scan after recognition — the place {@link hasImage} asks what a
- * rule with one symbol of lookahead cannot.
- *
- * **Each is refused, or read as GitHub reads it; none is passed through as
- * text.** Passed through, each is a document GitHub does not build
- * ([`commonmark-constructs`](../../ebnf/lib/markdown/todo/commonmark-constructs.md)):
- *
- * - `_` opens or closes emphasis there unless a letter or digit stands on
- *   both sides of it, so only `snake_case` is admitted;
- * - a `~` is left as it is: whether tildes are GitHub's strikethrough is
- *   a question of the whole entry, which {@link strikethrough} answers;
- * - `&` before a name or a number and a `;` is an entity, read as the
- *   character it names;
- * - `<` before a letter, `/`, `!` or `?` is raw HTML — unless it opens an
- *   `http` autolink, which is read as the link it is;
- * - a bare `http://` or `https://` URL is a link there too, GitHub's
- *   extended autolink, and is read as one where it stands after a space,
- *   a `(` or nothing and its host has a dot ({@link bareUrl}); a bare
- *   `www.`, and a bare URL anywhere else, is refused.
- *
- * `autolinks` says whether this run may hold an autolink: a link's label is
- * prose too, but a link inside a link is a reading neither side has.
- *
- * @type {(autolinks: boolean) => (text: string) => Result<readonly Inline[], string>}
- */
-export const proseSpans = autolinks => text => {
-    /** @type {readonly Inline[]} */
-    let out = []
-    let start = 0
-    for (let i = 0; i < text.length; i += 1) {
-        const c = text[i]
-        const rest = text.slice(i)
-        if (c === '_' && !(isWordChar(text[i - 1]) && isWordChar(text[i + 1]))) {
-            return error(`an underscore that GitHub may read as emphasis at ${i}`)
-        }
-        if (entityAt(text, i)) { return error(`an entity, which GitHub reads as the character it names, at ${i}`) }
-        if (shortcodeAt(text, i)) { return error(`an emoji shortcode candidate at ${i}`) }
-        if (autolinks && c === '@' && emailAt(text, i)) { return error(`an email address, which GitHub reads as a link, at ${i}`) }
-        if (rest.startsWith('http://') || rest.startsWith('https://') || rest.startsWith('www.')) {
-            if (text[i - 1] !== '<') {
-                const before = text[i - 1]
-                const url = autolinks && !rest.startsWith('www.') && (before === undefined || before === ' ' || before === '(') ? bareUrl(rest) : null
-                if (url === null) { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
-                out = [...out, ...(i === start ? [] : [/** @type {Inline} */(['text', text.slice(start, i)])]),
-                    ['link', [['text', url]], url]]
-                start = i + url.length
-                i = start - 1
-                continue
-            }
-        }
-        if (c === '<') {
-            const close = text.indexOf('>', i)
-            const target = close === -1 ? '' : text.slice(i + 1, close)
-            if (autolinks && autolinkSchemes.some(scheme => target.startsWith(scheme))
-                && !target.includes(' ') && !target.includes('<')) {
-                out = [...out, ...(i === start ? [] : [/** @type {Inline} */(['text', text.slice(start, i)])]),
-                    ['link', [['text', target]], target]]
-                start = close + 1
-                i = close
-                continue
-            }
-            const next = text[i + 1]
-            if (next !== undefined && (charIs(isLatinLetter)(next) || '/!?'.includes(next))) {
-                return error(`raw HTML at ${i}`)
-            }
-        }
-    }
-    return ok([...out, ...(start === text.length ? [] : [/** @type {Inline} */(['text', text.slice(start)])])])
 }
 
 /** Whether a character is ASCII punctuation. @type {(c: string) => boolean} */
@@ -577,7 +599,7 @@ const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ?
  *
  * @type {(span: Inline) => string}
  */
-const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'em' || span[0] === 'strong' ? '*' : span[0] === 'del' ? '~' : ')'
+const lastChar = span => span[0] === 'text' ? span[1][Number(span[1].length - 1)] : span[0] === 'code' ? '`' : span[0] === 'em' || span[0] === 'strong' ? '*' : span[0] === 'del' ? '~' : ')'
 
 /**
  * Whether an asterisk run between `outer` and `inner` fails to open or close
@@ -590,28 +612,6 @@ const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span
  */
 const unflanked = outer => inner => !isWordChar(inner) && inner !== ' '
     && outer !== undefined && outer !== ' ' && !isAsciiPunctuation(outer)
-
-/**
- * Whether two code spans stand side by side: that is `a``b` between single
- * backticks, and CommonMark reads the double run as content of one span.
- *
- * @type {(spans: readonly (Inline | Label)[]) => boolean}
- */
-const codeSideBySide = spans => spans.some((s, i) => i !== 0 && s[0] === 'code' && spans[i - 1][0] === 'code')
-
-/**
- * Whether a link's label or an image's alternative text holds two tildes
- * in its text. A label is a scope of its own for GitHub's strikethrough,
- * which this does not read there, so a pair in one is refused; code is no
- * prose, so its tildes are not counted.
- *
- * @type {(spans: readonly (Inline | Label)[]) => boolean}
- */
-const proseTildePair = spans => {
-    const text = spans.flatMap(s => s[0] === 'text' ? [s[1]] : []).join('')
-    const first = text.indexOf('~')
-    return first !== -1 && text.indexOf('~', first + 1) !== -1
-}
 
 /** Whether a link's or an image's address holds an entity. @type {(address: string) => boolean} */
 const entityIn = address => [...address].some((_, i) => entityAt(address, i))
@@ -687,8 +687,8 @@ const tildeRun = (text, at, length) => {
     const url = inBareUrl(text, at, length)
     if (url === 'tail') { return error('a tilde at the end of a bare URL, which GitHub may read otherwise') }
     if (url === 'inside') { return ok('text') }
-    const before = delimiterSide(text[at - 1])
-    const after = delimiterSide(text[at + length])
+    const before = delimiterSide(text[Number(at - 1)])
+    const after = delimiterSide(text[Number(at + length)])
     if (before === null || after === null) { return error('a tilde beside a character whose kind GitHub may read otherwise') }
     if (length > 2) { return error('a run of three or more tildes, which GitHub may read otherwise') }
     const opens = after !== 'space' && (after !== 'punctuation' || before !== 'word')
@@ -720,23 +720,23 @@ const strikethrough = entry => {
     /** The start of each span in `text`. @type {readonly number[]} */
     const starts = texts.map((_, k) => texts.slice(0, k).join('').length)
     /** The entry's own text span a position is in, or `-1`. @type {(at: number) => number} */
-    const spanAt = at => entry.findIndex((s, k) => s[0] === 'text' && starts[k] <= at && at < starts[k] + s[1].length)
+    const spanAt = at => entry.findIndex((s, k) => s[0] === 'text' && starts[Number(k)] <= at && at < starts[Number(k)] + s[1].length)
     /** @type {readonly (readonly [number, number])[]} */
     let open = []
     /** Each pair's two runs, as `[at, length]`. @type {readonly (readonly [readonly [number, number], readonly [number, number]])[]} */
     let pairs = []
     let i = 0
     while (i < text.length) {
-        if (text[i] !== '~') { i = i + 1; continue }
+        if (text[Number(i)] !== '~') { i = i + 1; continue }
         let end = i
-        while (text[end] === '~') { end = end + 1 }
+        while (text[Number(end)] === '~') { end = end + 1 }
         const run = /** @type {const} */ ([i, end - i])
         i = end
         const [tag, kind] = tildeRun(text, ...run)
         if (tag === 'error') { return error(kind) }
         if (kind === 'open') { open = [...open, run]; continue }
         if (kind === 'text' || open.length === 0) { continue }
-        const opener = open[open.length - 1]
+        const opener = open[Number(open.length - 1)]
         if (opener[1] !== run[1]) { return error('tilde runs of two lengths, which GitHub may pair otherwise') }
         open = open.slice(0, -1)
         pairs = [...pairs, [opener, run]]
@@ -761,7 +761,7 @@ const strikethrough = entry => {
         let cut = []
         let from = 0
         for (const [[at, length], end] of cuts.filter(([[at]]) => spanAt(at) === k)) {
-            const to = at - starts[k]
+            const to = at - starts[Number(k)]
             cut = [...cut, ...(to > from ? [/** @type {Struck} */ (['text', span[1].slice(from, to)])] : []), end]
             from = to + length
         }
@@ -784,28 +784,6 @@ const strikethrough = entry => {
 }
 
 /**
- * Each emphasis inside a bold body, or bold inside an emphasised one,
- * checked as {@link readProse} checks it on its own, and against the spans
- * beside it in the body: its asterisks must open and close it on GitHub as
- * they would outside. The grammar never lets one open the other's body, so
- * a span stands before each one.
- *
- * @type {(body: readonly (Bolded | Italicised)[]) => Result<void, string>}
- */
-const nestedEmphasis = body => {
-    for (const [i, b] of body.entries()) {
-        if (b[0] !== 'em' && b[0] !== 'strong') { continue }
-        if (unflanked(lastChar(body[i - 1]))(firstChar(b[1][0]))
-            || unflanked(i === body.length - 1 ? undefined : firstChar(body[i + 1]))(lastChar(b[1][b[1].length - 1]))) {
-            return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
-        }
-        const read = readProse([b])
-        if (read[0] === 'error') { return read }
-    }
-    return ok(undefined)
-}
-
-/**
  * An entry's spans with every prose run read by {@link proseSpans}: a text
  * run may become text and autolinks, a bold, emphasised or label run is
  * checked and kept. A link with an empty label is refused here, the one
@@ -814,6 +792,28 @@ const nestedEmphasis = body => {
  * @type {(entry: Entry) => Result<Entry, string>}
  */
 const readProse = entry => {
+    /**
+     * Each emphasis inside a bold body, or bold inside an emphasised one,
+     * checked as {@link readProse} checks it on its own, and against the spans
+     * beside it in the body: its asterisks must open and close it on GitHub as
+     * they would outside. The grammar never lets one open the other's body, so
+     * a span stands before each one.
+     *
+     * @type {(body: readonly (Bolded | Italicised)[]) => Result<void, string>}
+     */
+    const nestedEmphasis = body => {
+        for (const [i, b] of body.entries()) {
+            if (b[0] !== 'em' && b[0] !== 'strong') { continue }
+            if (unflanked(lastChar(body[Number(i - 1)]))(firstChar(b[1][0]))
+                || unflanked(i === body.length - 1 ? undefined : firstChar(body[Number(i + 1)]))(lastChar(b[1][Number(b[1].length - 1)]))) {
+                return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+            }
+            const read = readProse([b])
+            if (read[0] === 'error') { return read }
+        }
+        return ok(undefined)
+    }
+
     /** @type {readonly Inline[]} */
     let out = []
     if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
@@ -827,12 +827,12 @@ const readProse = entry => {
             continue
         }
         // `*a**b*` is one emphasis holding `**` in CommonMark, not two.
-        if ((span[0] === 'strong' || span[0] === 'em') && i !== 0 && (entry[i - 1][0] === 'strong' || entry[i - 1][0] === 'em')) {
+        if ((span[0] === 'strong' || span[0] === 'em') && i !== 0 && (entry[Number(i - 1)][0] === 'strong' || entry[Number(i - 1)][0] === 'em')) {
             return error('bold or emphasis side by side, which GitHub reads otherwise')
         }
         if ((span[0] === 'strong' || span[0] === 'em')
-            && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(firstChar(span[1][0]))
-                || unflanked(i === entry.length - 1 ? undefined : firstChar(entry[i + 1]))(lastChar(span[1][span[1].length - 1])))) {
+            && (unflanked(i === 0 ? undefined : lastChar(entry[Number(i - 1)]))(firstChar(span[1][0]))
+                || unflanked(i === entry.length - 1 ? undefined : firstChar(entry[Number(i + 1)]))(lastChar(span[1][Number(span[1].length - 1)])))) {
             return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
         }
         if (span[0] === 'text') {
@@ -853,7 +853,7 @@ const readProse = entry => {
         // delimiter at all, so `a * b * c` is prose there and a body
         // padded with a space is refused here, not read as emphasis.
         const first = span[1][0]
-        const last = span[1][span[1].length - 1]
+        const last = span[1][Number(span[1].length - 1)]
         if (span[0] !== 'link' && ((first[0] === 'text' && first[1].startsWith(' ')) || (last[0] === 'text' && last[1].endsWith(' ')))) {
             return error('bold or emphasis padded with a space')
         }
@@ -946,8 +946,8 @@ export const tryParse = text => {
  */
 const headingLevel = line => {
     let level = 0
-    while (line[level] === '#') { level += 1 }
-    return level >= 1 && level <= 6 && (line[level] === ' ' || line[level] === '\t' || line.length === level) ? level : 0
+    while (line[Number(level)] === '#') { level += 1 }
+    return level >= 1 && level <= 6 && (line[Number(level)] === ' ' || line[Number(level)] === '\t' || line.length === level) ? level : 0
 }
 
 /**
@@ -970,9 +970,9 @@ const isFence = line => line.startsWith('```')
 /** A closing fence permits up to three leading spaces and trailing whitespace. @type {(line: string) => boolean} */
 const isClosingFence = line => {
     let indent = 0
-    while (line[indent] === ' ') { indent += 1 }
+    while (line[Number(indent)] === ' ') { indent += 1 }
     let end = line.length
-    while (line[end - 1] === ' ' || line[end - 1] === '\t') { end -= 1 }
+    while (line[Number(end - 1)] === ' ' || line[Number(end - 1)] === '\t') { end -= 1 }
     const fence = line.slice(indent, end)
     return indent <= 3 && fence.length >= 3 && [...fence].every(c => c === '`')
 }
@@ -1021,9 +1021,9 @@ const foreignBlock = line => {
         return 'a list marked other than with `- `'
     }
     let digits = 0
-    while (charIs(isDigit)(trimmed[digits] ?? '')) { digits += 1 }
-    if (digits !== 0 && (trimmed[digits] === '.' || trimmed[digits] === ')')
-        && (trimmed[digits + 1] === ' ' || trimmed[digits + 1] === '\t' || trimmed.length === digits + 1)) { return 'a numbered list' }
+    while (charIs(isDigit)(trimmed[Number(digits)] ?? '')) { digits += 1 }
+    if (digits !== 0 && (trimmed[Number(digits)] === '.' || trimmed[Number(digits)] === ')')
+        && (trimmed[Number(digits + 1)] === ' ' || trimmed[Number(digits + 1)] === '\t' || trimmed.length === digits + 1)) { return 'a numbered list' }
     if (trimmed.length !== 0 && '-=*_'.includes(trimmed[0])
         && [...trimmed].every(c => c === trimmed[0] || c === ' ')) {
         return 'a thematic break or a heading underline'
@@ -1058,14 +1058,14 @@ const cells = row => {
     let out = []
     let cell = ''
     for (let k = 0; k < inner.length; k += 1) {
-        if (inner[k] === '\\' && inner[k + 1] === '|') {
+        if (inner[Number(k)] === '\\' && inner[Number(k + 1)] === '|') {
             cell = `${cell}|`
             k += 1
-        } else if (inner[k] === '|') {
+        } else if (inner[Number(k)] === '|') {
             out = [...out, cell.trim()]
             cell = ''
         } else {
-            cell = `${cell}${inner[k]}`
+            cell = `${cell}${inner[Number(k)]}`
         }
     }
     return [...out, cell.trim()]
@@ -1110,9 +1110,9 @@ const tableAligns = (header, delimiter) => {
 const listMarker = line => {
     if (line.startsWith('- ')) { return { delimiter: '-', start: null, width: 2 } }
     let digits = 0
-    while (digits < 10 && charIs(isDigit)(line[digits] ?? '')) { digits += 1 }
-    const delimiter = line[digits]
-    if (digits === 0 || digits > 9 || (delimiter !== '.' && delimiter !== ')') || line[digits + 1] !== ' ') { return null }
+    while (digits < 10 && charIs(isDigit)(line[Number(digits)] ?? '')) { digits += 1 }
+    const delimiter = line[Number(digits)]
+    if (digits === 0 || digits > 9 || (delimiter !== '.' && delimiter !== ')') || line[Number(digits + 1)] !== ' ') { return null }
     return { delimiter, start: Number(line.slice(0, digits)), width: digits + 2 }
 }
 
@@ -1160,7 +1160,7 @@ const readBlocks = (base, container) => lines => {
     /** @type {(at: number, why: string) => Result<readonly (readonly [Block, number, number])[], string>} */
     const refuseAt = (at, why) => error(`line ${base + at + 1}: ${why}`)
     while (i < lines.length) {
-        const line = lines[i]
+        const line = lines[Number(i)]
         const at = base + i + 1
         if (line.trim() === '') { i += 1; continue }
         if (isFence(line)) {
@@ -1193,15 +1193,15 @@ const readBlocks = (base, container) => lines => {
             let end = i
             /** @type {readonly string[]} */
             let body = []
-            while (end < lines.length && lines[end].startsWith('>')) {
-                const rest = lines[end].slice(1)
+            while (end < lines.length && lines[Number(end)].startsWith('>')) {
+                const rest = lines[Number(end)].slice(1)
                 // A tab after the marker counts columns this reader does not.
                 if (rest.startsWith('\t')) { return refuseAt(end, 'a tab after a block quote marker') }
                 body = [...body, rest.startsWith(' ') ? rest.slice(1) : rest]
                 end += 1
             }
             // GitHub continues a quote's paragraph on a line with no `>`.
-            if (end < lines.length && lines[end].trim() !== '') {
+            if (end < lines.length && lines[Number(end)].trim() !== '') {
                 return refuseAt(end, 'a line right after a block quote, which GitHub may read as part of it')
             }
             const read = readBlocks(base + i, 'a block quote')(body)
@@ -1231,9 +1231,9 @@ const readBlocks = (base, container) => lines => {
             let more = true
             while (more) {
                 const start = j
-                const width = /** @type {ListMarker} */ (sameList(lines[j])).width
+                const width = /** @type {ListMarker} */ (sameList(lines[Number(j)])).width
                 const indent = ' '.repeat(width)
-                const marked = lines[j].slice(width)
+                const marked = lines[Number(j)].slice(width)
                 // A marker with nothing after it, or with more than one
                 // space, sets the item's text at a column its other lines
                 // would have to match; every item here is written `- text`.
@@ -1248,15 +1248,15 @@ const readBlocks = (base, container) => lines => {
                 /** @type {readonly string[]} */
                 let body = [first]
                 j += 1
-                while (j < lines.length && sameList(lines[j]) === null) {
-                    const l = lines[j]
+                while (j < lines.length && sameList(lines[Number(j)]) === null) {
+                    const l = lines[Number(j)]
                     if (l.slice(0, l.length - l.trimStart().length).includes('\t')) { return refuseAt(j, 'a tab in an indent') }
                     if (l.trim() === '') {
                         // A blank line stays in the item when an indented
                         // line follows it, and ends the list otherwise.
                         let k = j
-                        while (k < lines.length && lines[k].trim() === '') { k += 1 }
-                        if (k === lines.length || !lines[k].startsWith(indent)) { break }
+                        while (k < lines.length && lines[Number(k)].trim() === '') { k += 1 }
+                        if (k === lines.length || !lines[Number(k)].startsWith(indent)) { break }
                         body = [...body, ...lines.slice(j, k).map(() => '')]
                         j = k
                         continue
@@ -1276,13 +1276,13 @@ const readBlocks = (base, container) => lines => {
                     return refuseAt(start, 'a task item whose text is not a paragraph')
                 }
                 // A blank line between two blocks of one item loosens it.
-                loose = loose || placed.some((p, k) => k !== 0 && p[1] > placed[k - 1][2] + 1)
+                loose = loose || placed.some((p, k) => k !== 0 && p[1] > placed[Number(k - 1)][2] + 1)
                 /** @type {Blocks} */
                 const task = checked === null ? [] : [['task', checked]]
                 items = [...items, [...task, ...placed.map(p => p[0])]]
                 let k = j
-                while (k < lines.length && lines[k].trim() === '') { k += 1 }
-                more = k < lines.length && sameList(lines[k]) !== null
+                while (k < lines.length && lines[Number(k)].trim() === '') { k += 1 }
+                more = k < lines.length && sameList(lines[Number(k)]) !== null
                 // So does one between two items.
                 loose = loose || (more && k !== j)
                 j = more ? k : start + body.length
@@ -1293,10 +1293,10 @@ const readBlocks = (base, container) => lines => {
             i = j
             continue
         }
-        const aligns = tableAligns(line, lines[i + 1])
+        const aligns = tableAligns(line, lines[Number(i + 1)])
         if (aligns !== null) {
             let end = i + 2
-            while (end < lines.length && lines[end].trim() !== '') { end += 1 }
+            while (end < lines.length && lines[Number(end)].trim() !== '') { end += 1 }
             const rows = lines.slice(i, end)
             /** @type {(readonly Entry[])[]} */
             let read = []
@@ -1324,13 +1324,13 @@ const readBlocks = (base, container) => lines => {
         const foreign = foreignBlock(line)
         if (foreign !== null) { return refuseAt(i, foreign) }
         let end = i + 1
-        while (end < lines.length && lines[end].trim() !== ''
-            && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')
-            && !opensNumberedList(lines[end])
+        while (end < lines.length && lines[Number(end)].trim() !== ''
+            && headingLevel(lines[Number(end)]) === 0 && !isFence(lines[Number(end)]) && !lines[Number(end)].startsWith('- ')
+            && !opensNumberedList(lines[Number(end)])
             // A quote ends a paragraph, as GitHub reads it, and so does a
             // thematic break but `---`, which underlines the paragraph.
-            && !lines[end].startsWith('>') && !(isThematicBreak(lines[end]) && lines[end][0] !== '-')) {
-            const continued = foreignBlock(lines[end].trimStart())
+            && !lines[Number(end)].startsWith('>') && !(isThematicBreak(lines[Number(end)]) && lines[Number(end)][0] !== '-')) {
+            const continued = foreignBlock(lines[Number(end)].trimStart())
             if (continued !== null) { return refuseAt(end, continued) }
             end += 1
         }

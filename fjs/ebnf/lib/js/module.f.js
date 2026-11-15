@@ -157,24 +157,36 @@ const templateCharacter = remove(any, set('`$\\'))
  * A template chunk's content, including its closing backtick or `${`.
  * A dollar is left-factored: its following `{` starts a substitution;
  * every other following character is ordinary template content.
+ * Its after-dollar state is local: it names itself and this content rule,
+ * so lowering reaches a finite cycle without mutually captured bindings.
  *
  * @type {TemplateContent}
  */
-export const templateContent = () => ['const', {
-    end: '`',
-    dollar: ['$', templateAfterDollar],
-    escape: [templateEscape, templateContent],
-    other: [templateCharacter, templateContent],
-}]
+export const templateContent = () => {
+    /** @type {TemplateAfterDollar} */
+    const afterDollar = () => ['const', {
+        substitution: '{',
+        end: '`',
+        dollar: ['$', afterDollar],
+        escape: [templateEscape, templateContent],
+        other: [remove(templateCharacter, set('{')), templateContent],
+    }]
+    return ['const', {
+        end: '`',
+        dollar: ['$', afterDollar],
+        escape: [templateEscape, templateContent],
+        other: [templateCharacter, templateContent],
+    }]
+}
 
-/** @type {TemplateAfterDollar} */
-export const templateAfterDollar = () => ['const', {
-    substitution: '{',
-    end: '`',
-    dollar: ['$', templateAfterDollar],
-    escape: [templateEscape, templateContent],
-    other: [remove(templateCharacter, set('{')), templateContent],
-}]
+/**
+ * A standalone after-dollar rule. A lowering of {@link templateContent}
+ * creates its own local state; this export lets a caller parse that state
+ * directly without exposing a forward reference between the two bindings.
+ *
+ * @type {TemplateAfterDollar}
+ */
+export const templateAfterDollar = templateContent()[1].dollar[1]
 
 /** A no-substitution template or a template head, starting at its backtick. */
 export const template = /**@type {const}*/(['`', templateContent])
@@ -227,32 +239,31 @@ const notStar = remove(remove(any, set('*')), separators)
 const notStarSlash = remove(remove(any, set('*/')), separators)
 
 /**
- * What follows a `*` inside a block comment: `/` ends the comment, another
- * `*` is looked at the same way, anything else is content — and the end
- * of input leaves the comment unterminated, which the tag says.
- *
- * @type {AfterStar}
- */
-const afterStar = () => ['const', {
-    end: '/',
-    star,
-    other: [notStarSlash, content],
-    unterminated: '',
-}]
-
-/**
  * The content of a block comment after its `/*`, up to and including the
  * `*​/` that ends it — or to the end of input, tagged `unterminated`.
+ * Its after-star state closes over this rule, with its own self reference
+ * for another `*`; neither state reads a later binding.
  *
  * @type {Content}
  */
-export const content = () => ['const', {
-    star,
-    other: [notStar, content],
-    unterminated: '',
-}]
-
-const star = /**@type {const}*/(['*', afterStar])
+export const content = () => {
+    /**
+     * `/` ends the comment; another `*` stays here, and anything else is
+     * content. The end of input leaves the comment unterminated.
+     * @type {AfterStar}
+     */
+    const afterStar = () => ['const', {
+        end: '/',
+        star: ['*', afterStar],
+        other: [notStarSlash, content],
+        unterminated: '',
+    }]
+    return ['const', {
+        star: ['*', afterStar],
+        other: [notStar, content],
+        unterminated: '',
+    }]
+}
 
 /**
  * Every token that begins with `/`: a line comment, a block comment, the

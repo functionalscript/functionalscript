@@ -5,7 +5,7 @@
 
 ### Problem
 
-`operator` in [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) is the
+`operator` in [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.js) is the
 prefix tree of `operators`: it reads the longest operator its lookahead leads
 to, `?.` included. ECMAScript's `OptionalChainingPunctuator` is `?.` not
 followed by a decimal digit, so JavaScript reads `a?.5:1` as `a ? .5 : 1`, a

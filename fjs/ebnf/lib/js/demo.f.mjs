@@ -8,11 +8,12 @@
  * the grammar is a change to the picture.
  *
  * **Some rules are titled by their branch.** A string's two quotings, and
- * `star` — the `*` inside a comment, which `content` and it reach each other
- * through — are written inline and not exported, so they are found as the
- * branches that reach them. `star` needs its title: the two recurse into
- * each other, and a cycle has to pass through a box. The rules shared with
- * JSON get diagrams here too, so no box leads off the page.
+ * `star` — the `*` inside a comment — are written inline and not exported,
+ * so they are found as the branches that reach them. The local after-dollar
+ * and after-star states are selected through those sequences: the actual
+ * states this lowering reached, rather than a fresh expansion's identities.
+ * They need titles because their cycles have to pass through boxes. The
+ * rules shared with JSON get diagrams here too, so no box leads off the page.
  *
  * **`operator` is the prefix tree `literals` builds**, one branch per first
  * character, so `>`, `>>`, `>>=`, `>>>` and `>>>=` share a track for as long
@@ -23,7 +24,7 @@
  * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
-import { content, id, newLine, number, operator, slash, string, stringEscape, unicodeEscape, template, templateAfterDollar, templateContent, templateEscape, token, ws } from './module.f.mjs'
+import { content, id, newLine, number, operator, slash, string, stringEscape, unicodeEscape, template, templateContent, templateEscape, token, ws } from './module.f.js'
 import { hex } from '../json/module.f.js'
 import { codePoints } from '../../railroad/module.f.js'
 import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.js'
@@ -43,12 +44,13 @@ export const diagrams = [
     ['single', string, 'single'],
     ['template', template],
     ['templateContent', templateContent],
-    ['templateAfterDollar', templateAfterDollar],
+    ['templateAfterDollar', templateContent, 'dollar', 1],
     ['templateEscape', templateEscape],
     ['id', id],
     ['slash', slash],
     ['content', content],
     ['star', content, 'star'],
+    ['afterStar', content, 'star', 1],
     ['operator', operator],
     ['ws', ws],
     ['newLine', newLine],

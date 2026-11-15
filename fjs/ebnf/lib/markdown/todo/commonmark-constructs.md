@@ -119,7 +119,7 @@ Take them in the order that a writer is likely to want them.
 Emphasis inside bold and bold inside emphasis are read, one level deep:
 documents stress a word in a bold sentence, `**… *be* …**`, and in an
 emphasised one, `*… **constrains** …*` (`strongRest` and `emAfterWord` in
-[the grammar](../module.f.mjs)). Any deeper nesting is out of scope for
+[the grammar](../module.f.js)). Any deeper nesting is out of scope for
 all of it: CommonMark allows it,
 no file has used it, and it is what makes the rule recursive rather than
 one level deep.
@@ -136,6 +136,6 @@ one level deep.
 
 ### Related
 
-- [`../module.f.mjs`](../module.f.mjs) — `emphasised`, `code` and `link`, which
+- [`../module.f.js`](../module.f.js) — `emphasised`, `code` and `link`, which
   name this file
 - [CommonMark](https://spec.commonmark.org/) — the readings being matched

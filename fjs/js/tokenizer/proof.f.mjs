@@ -6,7 +6,7 @@
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.js'
-import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
+import { token as ebnfToken } from '../../ebnf/lib/js/module.f.js'
 import { string as jsonString } from '../../ebnf/lib/json/module.f.js'
 import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'

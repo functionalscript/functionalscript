@@ -64,7 +64,7 @@ beyond a literal:
 - `not` — difference against the Unicode universe, returning a terminal
   rule as the front end's `set`, `range`, `union` and `remove` do
   ([ebnf-range-set](../../terminal/todo/ebnf-range-set.md), **Amended**).
-  The `djs` tokenizer's grammar, [`../../lib/js`](../../lib/js/module.f.mjs),
+  The `djs` tokenizer's grammar, [`../../lib/js`](../../lib/js/module.f.js),
   spells its complements today as `remove` over `range('\0' + unicodeMax)`,
   which is what `not` names.
 

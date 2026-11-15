@@ -107,5 +107,5 @@ it outright but require an Enterprise plan.
   inputs include descriptions, diffs, and optional release-note sections
 - [`fjs/media/markdown`](../fjs/media/markdown/module.f.mjs) — the changelog
   Markdown-subset parser the section validator reuses, and
-  [`fjs/ebnf/lib/markdown`](../fjs/ebnf/lib/markdown/module.f.mjs) the grammar
+  [`fjs/ebnf/lib/markdown`](../fjs/ebnf/lib/markdown/module.f.js) the grammar
   it reads the subset with

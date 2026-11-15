@@ -1,6 +1,6 @@
 /**
  * The JavaScript tokenizer: the token grammar
- * [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs), read one token at a
+ * [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js), read one token at a
  * time, and the fold that makes a `JsToken` stream of what it read.
  *
  * ```text
@@ -54,7 +54,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { items, variant } from '../../ebnf/ast/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.js'
-import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
+import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.js'
 import { isKeyword } from '../keywords/module.f.js'
 import { escapeToCodePoint } from '../string_escape/module.f.js'
 import {
@@ -198,13 +198,13 @@ const lex = path => cp => {
     let templates = []
     while (pos < cp.length) {
         const active = templates.at(-1)
-        const continuation = active !== undefined && active.braces === 0 && cp[pos] === one('}')
+        const continuation = active !== undefined && active.braces === 0 && cp[Number(pos)] === one('}')
         const match = continuation ? parseTemplateContinuation(symbols, pos) : parseToken(symbols, pos)
-        const previous = pos === 0 ? undefined : cp[pos - 1]
+        const previous = pos === 0 ? undefined : cp[Number(pos - 1)]
         if (match[0] === 'error') {
             /** @type {_Failure} */
             const failure = {
-                number: isDigit(cp[pos]),
+                number: isDigit(cp[Number(pos)]),
                 start: metadata,
                 at: advance(metadata)(previous)(cp.slice(pos, match[1])),
             }
@@ -231,7 +231,7 @@ const lex = path => cp => {
         pos = end
     }
     if (templates.length !== 0) {
-        const active = templates[templates.length - 1]
+        const active = templates[Number(templates.length - 1)]
         assert(active !== undefined)
         return { lexemes: toArray(lexemes), failure: { number: false, start: active.start, at: metadata }, final: metadata }
     }
