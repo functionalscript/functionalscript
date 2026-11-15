@@ -1210,7 +1210,10 @@ export const errorTable = ({ exit }) => {
     const [table] = exports[1].flatMap(x => x[0] === ':' && x[1] === 'error' ? [x[2]] : [])
     if (!(table instanceof Array) || table[0] !== 'object') { return error('the module exports no object literal error') }
     const entries = table[1].flatMap(x => x[0] === ':' && typeof x[1] === 'string' && typeof x[2] === 'string' ? [/** @type {const} */ ([x[1], x[2]])] : [])
-    return entries.length === table[1].length ? ok(entries) : error('an error that is not a string of a name is not in this slice')
+    return entries.length !== table[1].length ? error('an error that is not a string of a name is not in this slice')
+        // JavaScript reads the last of two entries of one name, and a lowering that read the first would throw another text.
+        : entries.some(([k], i) => entries.findIndex(([j]) => j === k) !== i) ? error('the error table names an error twice')
+        : ok(entries)
 }
 
 /**
