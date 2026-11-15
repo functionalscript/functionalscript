@@ -32,7 +32,7 @@ import { bind, call, done, run } from '../task/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
-import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
+import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.js'
 import { _immutableJoin } from './joins/module.f.js'
 import { _recoverOnePassJoin } from './one_pass/module.f.js'
 
@@ -104,7 +104,7 @@ const completion = (node, children) => {
     if (node[0] === 'function') { return { normal: true, breaks: children.slice(0, -1).flatMap(child => child.breaks) } }
     if (node[0] === 'loop') {
         const initial = sequential(children.slice(0, -1))
-        const body = children[children.length - 1]
+        const body = children[Number(children.length - 1)]
         return {
             normal: body.breaks.includes(node[1].target),
             breaks: [...new Set([...initial.breaks, ...body.breaks.filter(target => target !== node[1].target)])],
@@ -279,9 +279,9 @@ const constructorTask = value => call(() => {
     const input = operatorOperands(value)
     /** @type {(index: number, values: readonly Value[], statements: readonly Statement[]) => _Task<{ readonly value: Value, readonly statements: readonly Statement[] }>} */
     const each = (index, values, statements) => call(() => index === input.length
-        ? done({ value: values.every((item, index) => item === input[index]) ? value : mapOperator((_, index) => values[index])(value), statements })
+        ? done({ value: values.every((item, index) => item === input[Number(index)]) ? value : mapOperator((_, index) => values[Number(index)])(value), statements })
         : bind(value[0] === '?.' && index !== 0 || value[0] === '.' && value.length === 4 && index >= 1 + (value[2] instanceof Array ? 1 : 0)
-            ? done({ value: input[index], statements: [] }) : constructorTask(input[index]), result =>
+            ? done({ value: input[Number(index)], statements: [] }) : constructorTask(input[Number(index)]), result =>
             each(index + 1, [...values, result.value], [...statements, ...result.statements])))
     return each(0, [], [])
 })
@@ -291,7 +291,7 @@ const packedStatements = statements => {
     /** @type {(index: number, output: readonly Statement[]) => _Task<readonly Statement[]>} */
     const each = (index, output) => call(() => {
         if (index === statements.length) { return done(output) }
-        const statement = statements[index]
+        const statement = statements[Number(index)]
         return statement[0] === 'define'
             ? bind(constructorTask(statement[2]), value => each(index + 1, [...output, ...value.statements,
                 value.value === statement[2] ? statement : ['define', statement[1], value.value]]))
@@ -305,15 +305,15 @@ const values = (input, context, snapshots = []) => {
     /** @type {(index: number, next: number, previous: List<_Value>) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
     const each = (index, next, previous) => call(() => {
         if (index < input.length) {
-            return bind(prepareValue(input[index], { ...context, next }), result => each(index + 1, result.next, { first: result, tail: previous }))
+            return bind(prepareValue(input[Number(index)], { ...context, next }), result => each(index + 1, result.next, { first: result, tail: previous }))
         }
         const prepared = toArray(previous).toReversed()
         const lastPrelude = prepared.findLastIndex(result => result.statements.length !== 0)
         if (lastPrelude === -1) { return done({ value: prepared.map(result => result.value), statements: [], next }) }
         const temporaries = fresh(next, lastPrelude)
         return done({
-            value: prepared.map((result, index) => index < lastPrelude ? ['ref', temporaries[index]] : result.value),
-            statements: prepared.flatMap((result, index) => [...result.statements, ...index < lastPrelude ? [/** @type {Statement} */ (['define', temporaries[index], snapshot(result.value, snapshots[index])])] : []]),
+            value: prepared.map((result, index) => index < lastPrelude ? ['ref', temporaries[Number(index)]] : result.value),
+            statements: prepared.flatMap((result, index) => [...result.statements, ...index < lastPrelude ? [/** @type {Statement} */ (['define', temporaries[Number(index)], snapshot(result.value, snapshots[Number(index)])])] : []]),
             next: next + temporaries.length,
         })
     })
@@ -335,7 +335,7 @@ const functionValue = (input, context) => call(() => {
     /** @type {_Context} */
     const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
     return bind(values(value.captures.map(capture => capture.value), local), prepared => {
-    const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[index] }))
+    const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[Number(index)] }))
     return bind(prepareBlock(normalized, { ...local, sourceBranchTarget, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body => {
         // Source functions require a terminal return even after a loop that
         // cannot complete. Retaining its result keeps invocation roots exact.
@@ -405,7 +405,7 @@ const prepareValue = (value, context) => call(() => {
                 }
                 throw ['unsupported FAST preparation', 'a nonlocal transfer in a chain operand']
             }
-            return bind(values(input, context, snapshots), prepared => done({ value: mapOperator((_, index) => prepared.value[index])(operation), statements: prepared.statements, next: prepared.next }))
+            return bind(values(input, context, snapshots), prepared => done({ value: mapOperator((_, index) => prepared.value[Number(index)])(operation), statements: prepared.statements, next: prepared.next }))
         }
     }
 })
@@ -421,10 +421,10 @@ const transfer = (input, slots, context) => call(() => bind(values(input, contex
     return done({
         value: [
             ...prepared.statements,
-            ...prepared.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[index], value])),
+            ...prepared.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[Number(index)], value])),
             // An abrupt-only normalized region can retain an unreachable
             // empty yield. There are no normal values to distribute there.
-            ...slots.slice(0, temporaries.length).map((slot, index) => /** @type {Statement} */ (['write', slot, ['ref', temporaries[index]]])),
+            ...slots.slice(0, temporaries.length).map((slot, index) => /** @type {Statement} */ (['write', slot, ['ref', temporaries[Number(index)]]])),
         ],
         next: prepared.next + temporaries.length,
     })
@@ -520,13 +520,13 @@ const statementTask = (statement, context) => call(() => {
                 const bindings = fresh(initial.next, computed ? 2 * width + 2 : 2)
                 const slot = bindings[0]
                 const conditionParameters = bindings.slice(1, width + 1)
-                const finalState = bindings[width + 1]
+            const finalState = bindings[Number(width + 1)]
                 const finalParameters = bindings.slice(width + 2)
                 const conditionBlock = /** @type {NormalValue} */ (['block', { statements: plain.prefix, exit: ['yield', [iteration.condition]] }])
                 return bind(prepareValue(conditionBlock, {
                     ...context,
                     next: initial.next + bindings.length,
-                    reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, conditionParameters[index]]))],
+                    reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, conditionParameters[Number(index)]]))],
                 }), condition => {
                     const mutable = hasState ? packed || !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0]) : iteration.next !== undefined
                     const step = /** @type {NormalBlock} */ ({ statements: iteration.step.statements, exit: ['yield', mutable ? [iteration.next] : []] })
@@ -539,7 +539,7 @@ const statementTask = (statement, context) => call(() => {
                             target: loop.target,
                             slot,
                             initial: initial.value,
-                            condition: ['block', { statements: [...loop.parameters.map((_, index) => /** @type {Statement} */ (['define', conditionParameters[index], snapshot(slot, index)])), ...condition.statements], exit: ['yield', [condition.value]] }],
+                            condition: ['block', { statements: [...loop.parameters.map((_, index) => /** @type {Statement} */ (['define', conditionParameters[Number(index)], snapshot(slot, index)])), ...condition.statements], exit: ['yield', [condition.value]] }],
                             body: { statements: [...loop.parameters.map((parameter, index) => /** @type {Statement} */ (['define', parameter, snapshot(slot, index)])), ...statements], exit: body.value.exit },
                             result: computed ? finalState : loop.results[0],
                             mutable,
@@ -547,7 +547,7 @@ const statementTask = (statement, context) => call(() => {
                         if (!computed) { return done({ value: [...initial.statements, physical], next: body.next }) }
                         const normal = /** @type {NormalBlock} */ ({ statements: [], exit: ['yield', [plain.result]] })
                         const resultBlock = /** @type {NormalValue} */ (['block', {
-                            statements: [...loop.parameters.map((_, index) => /** @type {NormalStatement} */ (['define', finalParameters[index], snapshot(finalState, index), 'required'])), ...plain.resultPrefix],
+                            statements: [...loop.parameters.map((_, index) => /** @type {NormalStatement} */ (['define', finalParameters[Number(index)], snapshot(finalState, index), 'required'])), ...plain.resultPrefix],
                             exit: normal.exit,
                         }])
                         // Expose a scalar source result's leading total recipes
@@ -556,7 +556,7 @@ const statementTask = (statement, context) => call(() => {
                         return bind(prepareValue(resultBlock, {
                             ...context,
                             next: body.next,
-                            reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, finalParameters[index]]))],
+                            reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, finalParameters[Number(index)]]))],
                         }), result => bind(context.sourceLoops && loop.parameters.length === 1
                             && plain.result instanceof Array && plain.result[0] === 'block'
                             ? constructorTask(result.value) : done({ value: result.value, statements: [] }), exposed => done({
@@ -589,7 +589,7 @@ const statementTask = (statement, context) => call(() => {
             }), body => {
                 const block = /** @type {Block} */ ({
                     statements: [...loop.parameters.map((id, index) => /** @type {Statement} */ (['define', id, packed
-                        ? ['.', ['ref', parameters[0]], index] : ['ref', parameters[index]]])), ...body.value.statements],
+                        ? ['.', ['ref', parameters[0]], index] : ['ref', parameters[Number(index)]]])), ...body.value.statements],
                     exit: body.value.exit,
                 })
                 const physical = /** @type {Statement} */ (shared ? ['while', {
@@ -599,11 +599,11 @@ const statementTask = (statement, context) => call(() => {
                 return done({
                     value: [
                         ...initial.statements,
-                        ...initial.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[index], value])),
-                        ...shared ? [] : parameters.map((id, index) => /** @type {Statement} */ (['slot', id, ['ref', temporaries[index]], false])),
+                        ...initial.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[Number(index)], value])),
+                        ...shared ? [] : parameters.map((id, index) => /** @type {Statement} */ (['slot', id, ['ref', temporaries[Number(index)]], false])),
                         ...shared ? [] : results.map(id => /** @type {Statement} */ (['slot', id, undefined, false])),
                         physical,
-                        ...shared ? [] : loop.results.slice(0, results.length).map((id, index) => /** @type {Statement} */ (['define', id, ['ref', results[index]]])),
+                        ...shared ? [] : loop.results.slice(0, results.length).map((id, index) => /** @type {Statement} */ (['define', id, ['ref', results[Number(index)]]])),
                     ],
                     next: body.next,
                 })
@@ -623,7 +623,7 @@ const statementTask = (statement, context) => call(() => {
         value: [
             ...slots.map(id => /** @type {Statement} */ (['slot', id, undefined, false])),
             ...prepared.value,
-            ...statement[1].map((id, index) => /** @type {Statement} */ (['define', id, ['ref', slots[index]]])),
+            ...statement[1].map((id, index) => /** @type {Statement} */ (['define', id, ['ref', slots[Number(index)]]])),
         ],
         next: prepared.next,
     }))
@@ -645,7 +645,7 @@ const prepareBlock = (block, context) => {
                 next: result.next,
             }))
         }
-        const statement = block.statements[index]
+        const statement = block.statements[Number(index)]
         return bind(statementValue(statement, current), result => result.normal ? each(index + 1, {
             ...current,
             next: result.next,

@@ -145,7 +145,7 @@ sharing normalization and repeated conversions stabilize.
 
 ## Shared lazy demand state
 
-[`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity
+[`loop/memo`](./loop/memo/module.f.js) preserves lazy identity
 across normal-exit helpers. Its lexical inventory selects deferred recipes used
 free by loops throughout the owner's eager statement and value regions; direct
 lazy reference aliases share the original cell. Selection also inspects deferred

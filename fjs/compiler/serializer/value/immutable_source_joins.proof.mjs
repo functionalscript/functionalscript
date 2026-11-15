@@ -17,7 +17,7 @@ import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
 import { tryStringify } from '../module.f.mjs'
-import { tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { tokenize } from '../../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 

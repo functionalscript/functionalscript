@@ -2,7 +2,7 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { tokenize } from './module.f.mjs'
+import { tokenize } from './module.f.js'
 
 /** @type {(source: string) => readonly import('../../ebnf/lib/js/types.ts').JsToken[]} */
 const tokens = source => toArray(tokenize(stringToList(source))('octal.f.js')).map(record => record.token)

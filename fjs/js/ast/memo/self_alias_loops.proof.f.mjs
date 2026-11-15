@@ -11,7 +11,7 @@ import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { prepareFunction } from '../prepare/module.f.mjs'
 import { functionStringify } from '../serializer/module.f.mjs'
-import { _freshSelf, normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
+import { _freshSelf, normalizeLazyReturns, normalizeMemo } from './module.f.js'
 
 /** @type {(kind: 'ordinary' | 'terminal' | 'nested' | 'nested-terminal' | 'lazy' | 'lazy-loop' | 'recipe-lazy' | 'recipe-lazy-loop', mode: Definition[3], capture: boolean) => FastFunction} */
 const fixture = (kind, mode, capture) => {

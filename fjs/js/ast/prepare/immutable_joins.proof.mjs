@@ -15,7 +15,7 @@ import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare, prepareFunction } from './module.f.mjs'
 import { functionStringify, stringify } from '../serializer/module.f.mjs'
-import { tokenize } from '../../tokenizer/module.f.mjs'
+import { tokenize } from '../../tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 

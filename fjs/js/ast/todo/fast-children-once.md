@@ -11,7 +11,7 @@ children" is re-spelled by every pass that walks FAST. The same two
 expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
 `freeBindings` in [`control`](../control/module.f.js), `_hasReturn` in
 [`memo/cells`](../memo/cells/module.f.js), `ownsMemo` in
-[`memo`](../memo/module.f.mjs), `references` in
+[`memo`](../memo/module.f.js), `references` in
 [`sugar`](../sugar/module.f.js), `facts` in
 [`prepare`](../prepare/module.f.mjs), `definitions` in
 [`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs), `children` in

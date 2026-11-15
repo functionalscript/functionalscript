@@ -4,11 +4,11 @@
 strings, templates, punctuation, comments and whitespace. It reads with the
 token grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js), one token
 at a time, and folds what it read into a `JsToken` stream.
-[`module.f.mjs`](./module.f.mjs) holds it, and the token types are in
+[`module.f.js`](./module.f.js) holds it, and the token types are in
 [`ebnf/lib/js/types.ts`](../../ebnf/lib/js/types.ts).
 
 ```js
-import { tokenize } from './module.f.mjs'
+import { tokenize } from './module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 

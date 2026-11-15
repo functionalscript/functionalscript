@@ -9,7 +9,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { repository } from '../page/module.f.mjs'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { tryParse } from '../../media/markdown/module.f.mjs'
+import { tryParse } from '../../media/markdown/module.f.js'
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.js'
 import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'

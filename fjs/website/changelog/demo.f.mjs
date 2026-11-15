@@ -27,7 +27,7 @@
  */
 
 import { textDemo, refusal } from '../demo/module.f.mjs'
-import { tryParse } from '../../media/markdown/module.f.mjs'
+import { tryParse } from '../../media/markdown/module.f.js'
 import { entryNode, linked } from './module.f.mjs'
 
 /**

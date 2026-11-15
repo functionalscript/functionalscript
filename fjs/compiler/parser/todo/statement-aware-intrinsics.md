@@ -16,7 +16,7 @@ A newline patch inside that matcher would leave the architectural problem.
 This is a proposed-design correction, not a demonstrated current miscompile.
 At `0944e91bcec22d1f41b372bbe4b20219a096ab04`,
 [`grammar/module.f.mjs`](../grammar/module.f.mjs)'s `sameLine` is used after
-`return` and before `=>`. The [JavaScript tokenizer](../../../js/tokenizer/module.f.mjs)
+`return` and before `=>`. The [JavaScript tokenizer](../../../js/tokenizer/module.f.js)
 preserves `nl`, including CR/LF within a block comment, and
 [`grammar/proof.f.mjs`](../grammar/proof.f.mjs) covers those refusals. Unicode
 line/paragraph separators are rejected outside strings in the current subset.

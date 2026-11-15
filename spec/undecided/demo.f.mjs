@@ -29,7 +29,7 @@
  */
 
 import { mapStep, pureOk } from '../../fjs/effects/module.f.js'
-import { tryParseBlocks } from '../../fjs/media/markdown/module.f.mjs'
+import { tryParseBlocks } from '../../fjs/media/markdown/module.f.js'
 import { basename, parent } from '../../fjs/path/module.f.js'
 import { error, ok } from '../../fjs/types/result/module.f.js'
 import { compileAs, fetchFile, reportText } from '../../fjs/compiler/refused_demo/module.f.mjs'

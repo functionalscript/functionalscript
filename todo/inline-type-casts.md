@@ -204,8 +204,8 @@ is the way to refresh this file, not a partial edit.
 | `fjs/emergent_testing/proof.f.mjs` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/emergent_testing/proof.f.mjs` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/compiler/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/js/tokenizer/module.f.mjs` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/js/tokenizer/module.f.mjs` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/js/tokenizer/module.f.js` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/js/tokenizer/module.f.js` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/mcp/cas/proof.f.mjs` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |
 | `fjs/mcp/cas/proof.f.mjs` | 38 | `unknown` | arrived on `main` after the audit — not measured here |
 | `fjs/mcp/cas/proof.f.mjs` | 65 | `Parameters<typeof match>[0]` | arrived on `main` after the audit — not measured here |

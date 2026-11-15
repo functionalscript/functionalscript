@@ -9,7 +9,7 @@
  *
  * **A README the reader refuses keeps its page, and the page says why.** The
  * refusal is the block reader's
- * ([`media/markdown`](../../media/markdown/module.f.mjs)'s `tryParseBlocks`):
+ * ([`media/markdown`](../../media/markdown/module.f.js)'s `tryParseBlocks`):
  * one line GitHub reads as something these blocks cannot hold. A rendering
  * that differs from GitHub's is the plausible wrong value
  * [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)

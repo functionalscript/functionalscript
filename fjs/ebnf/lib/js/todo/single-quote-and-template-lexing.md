@@ -35,7 +35,7 @@ bounded `\xHH` and `\v` increment. The measurement below predates both and
 template support, when `'x'` and templates were `invalid token`s too.
 
 The original measurement over every `.mjs` under `fjs/` and `spec/` through
-[`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
+[`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.js)'s `tokenize`, the
 grammar's reader (it was `compiler/tokenizer`'s `tokenizeJs` when measured; the
 same code, moved) found that **nearly every module stopped at an error token;
 a handful tokenized cleanly**. They were the small ones and the data modules —
@@ -108,7 +108,7 @@ The grammar has three readers, and the widening reaches each differently.
   the compiler checks against its accepted escape subset. The quoted-string
   grammar currently recognises only admitted spellings, so its provenance
   and the corresponding compiler check land with the future widening.
-- [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
+- [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.js), the general
   JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
@@ -314,7 +314,7 @@ not reconstruct the text it came from, and it anchored each token at its
 **end**, so the old issue spent a section on the slicing rule that recovers
 the text from end positions. The grammar route keeps the first two — a
 `string` token is still its cooked value, and trivia is still valueless — but
-not the third: [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)
+not the third: [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.js)
 reads a token's text as "the input between where it began and where it
 ended" and anchors the token at its start, and only an `error` token carries
 an end. Since trivia is emitted rather than skipped, the stream is
