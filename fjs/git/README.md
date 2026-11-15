@@ -98,9 +98,9 @@ what a grammar can and cannot do for the formats.
 - [`loose/`](loose/module.f.js) — a loose object file read whole, inflated by
   that and past its envelope, and written: the envelope as one stored zlib
   stream, under a temporary name renamed into place. One of the two places a
-  real repository meets the decoder; [`packstore/`](packstore/module.f.mjs)
+  real repository meets the decoder; [`packstore/`](packstore/module.f.js)
   below is the other, and is the one a clone actually takes.
-- [`packstore/`](packstore/module.f.mjs) — the same for the other place an
+- [`packstore/`](packstore/module.f.js) — the same for the other place an
   object lives: from an id to the object a pack below `objects/pack/` holds,
   through the `.idx` beside it. Two rules here are the effects' and not the
   format's. An entry carries no length — its header says what the object
@@ -130,9 +130,9 @@ what a grammar can and cannot do for the formats.
   [`config/`](config/module.f.js)'s readers: `extensions.objectFormat`
   absent is SHA-1, `sha256` under `repositoryformatversion = 1` is SHA-256,
   and a repository format Git refuses is refused.
-- [`store/`](store/module.f.mjs) — from an id to the object it names,
+- [`store/`](store/module.f.js) — from an id to the object it names,
   checked: the loose file at the id's path or the packs through
-  [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
+  [`packstore/`](packstore/module.f.js), whichever answers, hashed with
   `oid`'s `of` and refused where the hash is not the id. The loose file is read first and anything but a good object there
   — no file, no stream, no object, another object — asks the packs, since Git
   answers a packed copy over a loose one that cannot be read and the hash
@@ -299,7 +299,7 @@ payload.
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
 | zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.js), fed chunks and read over the effects by [`inflater/`](inflater/module.f.js) |
-| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.js) and [`packidx/`](packidx/module.f.js), read over the effects by [`packstore/`](packstore/module.f.mjs) |
+| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.js) and [`packidx/`](packidx/module.f.js), read over the effects by [`packstore/`](packstore/module.f.js) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
 a tree entry is 20 raw bytes and may spell anything, a file name is
@@ -443,7 +443,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **A `refDelta` whose base is not in the pack that names it** is refused, and
   that is the answer rather than a gap. Packs are read —
-  [`packstore/`](packstore/module.f.mjs) answers from the `.idx` and the pack
+  [`packstore/`](packstore/module.f.js) answers from the `.idx` and the pack
   beside it, and `store` reads them beside the loose path — and such a pack is
   one `index-pack --fix-thin` did not complete. Git refuses it too, with the
   base in reach: measured on 2.43.0 over two hand-built packs alike but for

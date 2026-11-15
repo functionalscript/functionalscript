@@ -369,7 +369,7 @@ nonexistent object`, and a file holding such an id makes `show-ref` answer
 `bad ref`, `for-each-ref` and `rev-list --all` exit 128, and `fsck` report
 `invalid sha1 pointer`. So the check is worth having, and it makes a writer of
 refs a reader of objects: the id would have to be looked up through
-[`fjs/git/store`](../../store/module.f.mjs), which nothing in `refstore` imports
+[`fjs/git/store`](../../store/module.f.js), which nothing in `refstore` imports
 today. A caller that wrote the object knows it is there, which is why this is
 deferred rather than done with the write.
 
@@ -517,7 +517,7 @@ else in the name has moved DISOT semantics into Git's namespace.
   in a loose file. A symbolic write's `ref: <name>\n` belongs beside it, as a
   `writeSymbolic` proved by its round trip through `tryRef`, not as a format
   string in the store.
-- [`fjs/git/store`](../../store/module.f.mjs) — from an id to the object a ref
+- [`fjs/git/store`](../../store/module.f.js) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
 - [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.js) —
   `mkdirOp`, the virtual `mkdir` this write no longer reaches, which now refuses

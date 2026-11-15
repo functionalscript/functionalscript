@@ -144,7 +144,7 @@ Skeleton:
 - [ ] The timestamp request, reusing the RFC 3161 handling
       [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
       defines.
-- [ ] The walk over [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
+- [ ] The walk over [`fjs/git/store`](../fjs/git/store/module.f.js) and
       [`fjs/git/walk`](../fjs/git/walk/module.f.js), with a proof that a
       second run over an unchanged repository records only the renewal.
 - [ ] A loose-object writer: nothing in [`fjs/git`](../fjs/git/README.md)
