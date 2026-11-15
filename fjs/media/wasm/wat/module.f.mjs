@@ -36,6 +36,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
 import { abs } from '../../../types/number/abs/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
+import { fromBits, fromBits32 } from '../../../types/number/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { encodeScalar } from '../../../basen/base16/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -272,9 +273,7 @@ const float = (width, bits) => {
     const biased = abs >> mantissaWidth
     const fraction = abs & ((1n << mantissaWidth) - 1n)
     const bias = (1n << (expWidth - 1n)) - 1n
-    const value = width === 32
-        ? new Float32Array(new Uint32Array([Number(bits)]).buffer)[0]
-        : new Float64Array(new BigUint64Array([bits]).buffer)[0]
+    const value = width === 32 ? fromBits32(bits) : fromBits(bits)
     const decimal = width === 32
         ? display(value, y => Math.fround(y) === value)
         : display(value, y => y === value)
