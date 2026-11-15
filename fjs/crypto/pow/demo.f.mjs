@@ -20,7 +20,7 @@ import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/modul
 import { pureOk } from '../../effects/module.f.js'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
-import { hexOf } from '../../website/demo/hash/module.f.mjs'
+import { hexOf } from '../../website/demo/hash/module.f.js'
 import { sha256 } from '../sha2/module.f.js'
 import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.js'
 
