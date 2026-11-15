@@ -19,7 +19,7 @@ Resolving the base through [`fjs/git/store`](../../store/module.f.mjs)'s
 
 - **For:** it could not answer *wrongly* — whatever the delta produces is
   hashed against the id asked for — so it is unlike the inputs
-  [`fjs/git/pack`](../../pack/module.f.mjs)'s delta floor refuses.
+  [`fjs/git/pack`](../../pack/module.f.js)'s delta floor refuses.
 - **Against:** `git fsck` reports such a pack, so reading it silently hides
   what Git reports; no Git command writes one (`index-pack --fix-thin` appends
   the bases a fetched pack lacked); and it would make `fjs/git/store` and

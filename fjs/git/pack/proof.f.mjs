@@ -10,7 +10,7 @@ import { hexText, of, tryFromHex } from '../oid/module.f.js'
 import {
     latin1, packDelta, packDeltaBase, packEntryObject, packEntryOfsDelta, packHeader,
 } from '../testlib.f.js'
-import { maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from './module.f.mjs'
+import { maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from './module.f.js'
 
 const entry = tryEntry(20)
 
