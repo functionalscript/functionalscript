@@ -159,7 +159,7 @@ toolStep(c.write(content), () => 'write', hash => resultStep(
 
 ## The CAS MCP Server: A Real-World Example
 
-The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.mjs`) demonstrates the pattern in production:
+The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.js`) demonstrates the pattern in production:
 
 1. Define argument schemas (`casAddArgs`, `casGetArgs`, `casListArgs`)
 2. Build a registry with `toolEntry` and type-safe handlers

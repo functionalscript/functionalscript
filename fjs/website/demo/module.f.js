@@ -49,36 +49,6 @@ export const selectField = controlSelectField
 export const button = controlButton
 
 /**
- * A demo whose state is the text in a labelled textarea, followed by what
- * `render` draws from it.
- *
- * @type {(o: TextDemoOptions) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
- */
-export const textDemo = options => {
-    const { intro, label, rows, init, examples, highlight } = options
-    const name = assertNotNullish(entry(options, 'name'))
-    return render => {
-        if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
-        const picker = examples === undefined ? undefined : examplePicker(examples)
-        return {
-            sharing: textSharing(name, init, examples),
-            init,
-            update: picker === undefined
-                ? state => event => pureOk(event.kind === 'input' ? event.value : state)
-                : state => event => pureOk(event.kind !== 'input' ? state
-                    : assertNotNullish(entry(event, 'name')) === exampleName ? picker.pick(event.value)
-                        : event.value),
-            view: text => ['div',
-                ['p', intro],
-                ...(picker === undefined ? [] : [picker.view(text)]),
-                textField({ name, label, rows, highlight }, text),
-                ...render(text),
-            ],
-        }
-    }
-}
-
-/**
  * What a field that holds code asks of the browser: no spell checking, which
  * underlines every keyword it does not know — and the textarea's own text is
  * transparent, so the reader sees a squiggle with no word under it — and no
@@ -110,6 +80,36 @@ export const textField = (options, text) => {
         ['span', { [mirrorMarker]: '', 'aria-hidden': 'true' }, ...highlight(text), '\u200b'],
         area]
     return ['p', ['label', { for: name }, `${label} `], field]
+}
+
+/**
+ * A demo whose state is the text in a labelled textarea, followed by what
+ * `render` draws from it.
+ *
+ * @type {(o: TextDemoOptions) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
+ */
+export const textDemo = options => {
+    const { intro, label, rows, init, examples, highlight } = options
+    const name = assertNotNullish(entry(options, 'name'))
+    return render => {
+        if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
+        const picker = examples === undefined ? undefined : examplePicker(examples)
+        return {
+            sharing: textSharing(name, init, examples),
+            init,
+            update: picker === undefined
+                ? state => event => pureOk(event.kind === 'input' ? event.value : state)
+                : state => event => pureOk(event.kind !== 'input' ? state
+                    : assertNotNullish(entry(event, 'name')) === exampleName ? picker.pick(event.value)
+                        : event.value),
+            view: text => ['div',
+                ['p', intro],
+                ...(picker === undefined ? [] : [picker.view(text)]),
+                textField({ name, label, rows, highlight }, text),
+                ...render(text),
+            ],
+        }
+    }
 }
 
 /** A labelled single-line field filling its containing column.

@@ -31,7 +31,7 @@
 
 import { isDigits } from '../../text/ascii/module.f.js'
 import { codeMarker } from '../../website/style/module.f.js'
-import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
+import { textDemo, caption, refusal } from '../../website/demo/module.f.js'
 import { addition } from '../function/operator/module.f.js'
 import { error, ok } from '../result/module.f.js'
 import { cycle, entries, filter, fold, foldScan, intersperse, map, reverse, take, zip } from './module.f.js'

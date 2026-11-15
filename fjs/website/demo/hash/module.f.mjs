@@ -14,7 +14,7 @@ import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
 import { tryUtf8 } from '../../../text/module.f.js'
 import { codeBlock } from '../code/module.f.js'
 import { tryShellQuote } from '../../../text/shell/module.f.js'
-import { caption, option, refusal } from '../module.f.mjs'
+import { caption, option, refusal } from '../module.f.js'
 import { encodeScalar } from '../../../basen/base16/module.f.js'
 
 /** Format a hash's bits as hex, preserving its complete width.

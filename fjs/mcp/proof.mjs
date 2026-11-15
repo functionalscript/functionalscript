@@ -12,7 +12,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { assertEq } from '../asserts/module.f.js'
-import { casConfig } from './module.f.mjs'
+import { casConfig } from './module.f.js'
 
 export const proof = {
     serverInfoVersion: async () => {

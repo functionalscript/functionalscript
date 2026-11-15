@@ -3,7 +3,7 @@
  */
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
-import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios, dragAxis, dragAxisAttributes, dragValue } from './module.f.mjs'
+import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios, dragAxis, dragAxisAttributes, dragValue } from './module.f.js'
 import { name as exampleName } from './examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'

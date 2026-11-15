@@ -51,17 +51,16 @@ export const hash = string
  * rtti schema for a lock map: an open map whose every value is either a
  * direct hash string or a nested lock map, to any depth.
  *
- * Self-referential through {@link lockValue}, which is a module-level
- * constant rather than a union rebuilt inside the thunk: the rtti data form
- * (`fjs/rtti/data`, which `toJsonSchema` routes through) closes
- * reference cycles by *identity*, so a schema handing out a fresh union thunk
- * on every call would present an infinite graph and never terminate.
+ * The value union points back to this stable `lock` function. The rtti data
+ * form (`fjs/rtti/data`, which `toJsonSchema` routes through) closes reference
+ * cycles by identity, so it stops when that backlink reaches `lock` again.
+ * Each expansion creates its value union locally; recursion stays finite
+ * without a forward reference between two module-level constants.
  *
- * The named `@type` — rather than `@type {const}` — is what a self-referential
- * schema needs twice over: a `const` cannot reference itself in its own
- * initializer at all, and naming the recursive position is also what keeps
- * declaration emit from inlining the structure and giving up at depth (see
- * `fjs/AGENTS.md` §3.2 and `../json/rtti/module.f.js`).
+ * The named `@type` — rather than `@type {const}` — supplies the recursive
+ * function type that inference cannot resolve on its own. Naming the recursive
+ * position also keeps declaration emit from inlining the structure and giving
+ * up at depth (see `fjs/AGENTS.md` §3.2 and `../json/rtti/module.f.js`).
  *
  * Like `hash`, this is `string` at the structural level; cbase32 decodability
  * of every direct value, at every depth, is enforced by
@@ -69,27 +68,22 @@ export const hash = string
  *
  * @type {LockSchema}
  */
-export const lock = () => ['record', lockValue]
-
-/**
- * One lock-map value: a direct hash, or a nested lock map. Written as the
- * union tuple rather than as `or(string, lock)` so the thunk carries the name
- * `lockValue`: this is where the reference cycle closes, and the data form
- * names a rule after its defining function — an anonymous thunk would publish
- * the recursion as `$defs: { '': … }` in every derived JSON Schema.
- *
- * @type {() => readonly['or', RttiString, LockSchema]}
- */
-const lockValue = () => ['or', string, lock]
+export const lock = () => {
+    /** One lock-map value: a direct hash or the same recursive lock map.
+     * @type {() => readonly['or', RttiString, LockSchema]}
+     */
+    const lockValue = () => ['or', string, lock]
+    return ['record', lockValue]
+}
 
 /**
  * rtti schema for a revision's `lock` **field**: the bindings inline as a lock
  * map, or a hash naming a `vnd.fjs.lock` blob (`fjs/media/lock`) that holds
  * one to share — see [Shared lock references](./README.md#shared-lock-references).
  *
- * Structurally identical to {@link lockValue}, and deliberately a separate
- * name: the two positions mean different things. A string *inside* a map is a
- * dependency's content hash; a string in this position is a lock blob's hash,
+ * Structurally identical to a lock map's value union, and deliberately a
+ * separate name: the two positions mean different things. A string *inside*
+ * a map is a dependency's content hash; a string in this position is a lock blob's hash,
  * i.e. where the whole map lives. Only the top level is widened, so a nested
  * string keeps meaning exactly what it always did and no position is
  * ambiguous.

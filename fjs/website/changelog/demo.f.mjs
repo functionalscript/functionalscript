@@ -26,7 +26,7 @@
  * @import { Document } from '../../media/markdown/types.ts'
  */
 
-import { textDemo, refusal } from '../demo/module.f.mjs'
+import { textDemo, refusal } from '../demo/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.js'
 import { entryNode, linked } from './module.f.mjs'
 

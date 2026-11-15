@@ -25,7 +25,7 @@
 import { codeMarker } from '../../website/style/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { caption, textDemo } from '../../website/demo/module.f.mjs'
+import { caption, textDemo } from '../../website/demo/module.f.js'
 import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { tokenize } from './module.f.js'
 import { stringLiteral } from '../string_escape/module.f.js'

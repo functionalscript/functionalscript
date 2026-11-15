@@ -5,7 +5,7 @@
  * without shelling out to the `cas` CLI. The store itself
  * (`fjs/cas/module.f.js`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. This registry is one of the tool sets
- * `fjs/mcp/module.f.mjs` composes into the FJS MCP server — see that module
+ * `fjs/mcp/module.f.js` composes into the FJS MCP server — see that module
  * for the full tool table (including `fjs/mcp/evo`'s `evo_*` tools) and the
  * server entry point.
  *
@@ -129,8 +129,8 @@ import { decode as base64Decode, encode as base64Encode } from '../../basen/base
 import { tryUtf8 } from '../../text/module.f.js'
 import { detectStream } from '../../media/type/module.f.js'
 import { detect } from '../../media/module.f.js'
-import { revisionDialect } from '../../media/revision/module.f.mjs'
-import { lockDialect } from '../../media/lock/module.f.mjs'
+import { revisionDialect } from '../../media/revision/module.f.js'
+import { lockDialect } from '../../media/lock/module.f.js'
 import { noteDialect } from '../../media/note/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import {
@@ -141,7 +141,7 @@ import { errorSummary } from '../../effects/node/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
-import { syncRevision } from '../../cas/evo/module.f.mjs'
+import { syncRevision } from '../../cas/evo/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────

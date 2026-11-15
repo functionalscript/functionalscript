@@ -6,7 +6,7 @@
  */
 
 import { digestOf, hashOutput, sha1Algorithm } from '../../website/demo/hash/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo } from '../../website/demo/module.f.js'
 
 export const digest = digestOf(sha1Algorithm.hash)
 

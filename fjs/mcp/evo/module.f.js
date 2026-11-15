@@ -1,5 +1,5 @@
 /**
- * MCP tool definitions for the Evo API (`fjs/cas/evo/module.f.mjs`): subjects,
+ * MCP tool definitions for the Evo API (`fjs/cas/evo/module.f.js`): subjects,
  * revision heads, and the typed read of a single revision over the
  * content-addressable store, backed by the in-memory cache the core module
  * maintains.
@@ -50,15 +50,15 @@
  */
 
 import { array, option, or, string } from '../../rtti/module.f.js'
-import { lockField } from '../../media/revision/module.f.mjs'
-import { evoSummary } from '../../cas/evo/module.f.mjs'
+import { lockField } from '../../media/revision/module.f.js'
+import { evoSummary } from '../../cas/evo/module.f.js'
 import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.js'
 import { stringify } from '../../media/json/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 //
-// Closed, as the bare form says, for the reason `../cas/module.f.mjs` gives:
+// Closed, as the bare form says, for the reason `../cas/module.f.js` gives:
 // a tool's argument list is a vocabulary this server defines rather than a
 // format a client extends.
 

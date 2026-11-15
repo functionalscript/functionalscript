@@ -41,7 +41,7 @@ import { tryUtf8, utf8 } from '../../text/module.f.js'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { computeSync, sha512 } from '../sha2/module.f.js'
 import { ok, error } from '../../types/result/module.f.js'
-import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.mjs'
+import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.js'
 import { secp256k1 } from '../secp/module.f.js'
 import { lockAndShuffle, mentalPoker, shuffle, unlockAll } from './module.f.js'
 

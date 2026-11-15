@@ -5,7 +5,7 @@
  * @import { Demo, DemoEvent } from './types.ts'
  */
 
-import { button, caption, option, selectField } from './module.f.mjs'
+import { button, caption, option, selectField } from './module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { textSharing } from './sharing/module.f.js'
 
