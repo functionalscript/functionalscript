@@ -496,7 +496,7 @@ export const proof = {
         const entry = 'f: an entry of an object that is not a name and its value is not in this slice'
         assertEq(why(fa, fast('export const f = a => ({ [a]: 1 }).x')), entry)
         assertEq(why(fa, fast('export const f = a => ({ 1: a }).x')), entry)
-        assertEq(why(fa, fast('export const f = a => {\n    const r = { x: a }\n    return ({ ...r }).x\n}')), entry)
+        assertEq(why(fa, fast('export const f = a => {\n    const r = { x: a }\n    return ({ ...r }).x\n}')), 'f: a spread in an object literal is not in this slice')
         assertEq(why(fa, fast('export const f = a => ({ x: "s" }).x')), noString)
         assertEq(why(fa, fast('export const f = a => a.x')), 'f: .x of f64 is not in this slice')
         assertEq(why(fa, fast('export const f = a => ({ x: a })[0]')), "f: a read of { x: f64 } at a number is not in this slice: only an array's is")
@@ -1106,8 +1106,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(checked(only([['v', any]], subset(any, 'array')), 'export const f = v => []'), [
-            'fn f(v: any) -> any.only(array) =',
+        assertEq(checked(only([['v', any]], subset(any, 'array', 'object')), 'export const f = v => []'), [
+            'fn f(v: any) -> any.only(array, object) =',
             '    Containers.seal(Containers.begin_array(0))',
             '',
             'export f',
@@ -1118,9 +1118,10 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => [v, 1]')), 'f: an item of an array is a value of any, and item 1 is f64c')
         assertEq(assertError(over(av, `${imports}export const f = v => [kind(v) === NUMBER]`)), 'f: an item of an array is a value of any, and item 0 is bool')
         assertEq(assertError(over(av, 'export const f = v => [...v]')), 'f: a spread in an array literal is not in this slice')
-        // An item that is pure but does not type-check is refused with its own error.
-        assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: { a: any } has no field b')
-        assertEq(assertError(over(av, 'export const f = v => [{ a: v, a: v }]')), 'f: a product names a twice')
+        // A Containers object has no product fields; a record of floats still does.
+        assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: .b of any.only(array, object) is not in this slice')
+        // Duplicate keys in a Containers object are sealed with the last value, not refused as a product would be.
+        assertEq(assertOk(over(av, 'export const f = v => [{ a: v, a: v }]')).exports.join(), 'f')
         assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)
         // The parser refuses a hole.
         assertEq(assertError(sourceOf('export const f = v => [v, , v]')), 'parse: array hole')
@@ -1144,7 +1145,7 @@ export const proof = {
         // `get` of any other kind than an array throws or reads by a string.
         assertEq(assertError(over(av, 'export const f = v => v[0]')), "f: a read of any at a number is not in this slice: only an array's is")
         // A receiver that is pure but does not type-check is refused with its own error.
-        assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: { a: any } has no field b')
+        assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: .b of any.only(array, object) is not in this slice')
         assertEq(assertError(over(av, 'export const f = v => [v][Number(v)]')), 'f: Number of any is not in this slice')
         // A member read of a name or a number is in this slice, and one that goes on to a call is not.
         assertEq(assertError(over(av, 'export const f = v => v.x(1)')), 'f: a member read with a further step, such as a call of the member, is not in this slice')

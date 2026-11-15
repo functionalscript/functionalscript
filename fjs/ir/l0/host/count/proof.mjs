@@ -104,7 +104,8 @@ export const proof = {
         assertEq(`${h.read(s)} ${JSON.stringify(h.read(e))} ${cells(h)}`, `a\u{1F600} "" ${s}:1,${e}:1`)
     },
     // A builder is a handle of its own: push takes over a count of a cell as its next item, and seal ends the builder and
-    // makes a cell of the array, which holds an array that it holds as its value.
+    // makes a cell of the array, which holds an array that it holds as its value. So does begin_object with push_property,
+    // and a repeated key keeps its first position and its last value.
     builders: () => {
         const h = counting(['a', 'b'])
         const b = h.imports.begin_array(2)
@@ -121,6 +122,14 @@ export const proof = {
         const t = h.imports.seal(c)
         assertEq(`${JSON.stringify(h.read(t))} ${cells(h)}`, `[["a","b"]] 1:1,${t}:1`)
         assertEq(JSON.stringify(h.read(h.imports.seal(h.imports.begin_array(0)))), '[]')
+        const o = h.imports.begin_object(3)
+        h.imports.push_property(o, h.imports.dup(0n), h.imports.dup(1n))
+        const k = h.imports.from_unit(0x61)
+        h.imports.push_property(o, k, h.imports.dup(0n))
+        h.imports.push_property(o, h.imports.dup(0n), h.imports.from_unit(0x63))
+        const p = h.imports.seal(o)
+        assertEq(`${JSON.stringify(h.read(p))} ${cells(h)}`, `{"a":"c","b":"a"} 1:1,${t}:1,${p}:1`)
+        assertEq(JSON.stringify(h.read(h.imports.seal(h.imports.begin_object(0)))), '{}')
     },
     // A throw takes over a cell and keeps its value, which `thrown` gives the caller as a cell of its own.
     thrown: () => {

@@ -29,7 +29,10 @@
  * [`throws.f.js`](./throws.f.js), which throw, over L1's error table, which
  * the lowering reads from the table's text, and so does L1's
  * `functionText`: each throws what its original throws, and leaves every
- * cell as it found it.
+ * cell as it found it. So do the functions of [`objects.f.js`](./objects.f.js),
+ * which make records and Containers objects, and L1's `toIterable` and
+ * `objectSpread`, lowered from L1's text over the runtime and the table:
+ * each builds what L1's own builds.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -38,7 +41,9 @@
 
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { functionText, strictEquals, stringEquals, stringIndex, stringLess, toBoolean, typeOf } from '../../wasm/runtime/l1/module.f.js'
+import {
+    functionText, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, toBoolean, toIterable, typeOf,
+} from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
@@ -54,8 +59,9 @@ import * as arrays from './arrays.f.js'
 import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
 import {
-    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, l1Runtime, l1Throws, literals as literalSignatures,
-    reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime, throws as throwSignatures, throwsRuntime,
+    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, l1Builders, l1Runtime, l1Throws,
+    literals as literalSignatures, objects as objectSignatures, reads as readSignatures, runtime, signatures, sourceOf,
+    strings as stringSignatures, stringsRuntime, throws as throwSignatures, throwsRuntime,
 } from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
@@ -96,6 +102,12 @@ const fromThrows = () => assertOk(lifetime(fromText(new URL('./throws.f.js', imp
 
 /** The owned stage of the module that the lowering makes of L1's text for the functions that throw its errors, over the runtime and the table. @type {() => Module} */
 const fromL1Throws = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Throws, l1Runtime(errors))))
+
+/** The owned stage of the module that the lowering makes of the objects' text, over the runtime. @type {() => Module} */
+const fromObjects = () => assertOk(lifetime(fromText(new URL('./objects.f.js', import.meta.url), objectSignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of L1's builders, over the runtime and the table. @type {() => Module} */
+const fromL1Builders = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Builders, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -371,8 +383,10 @@ export const proof = {
         '    fn length(c: any.only(array, object)) -> u(31)',
         '    fn item(c: any.only(array, object), i: u(31)) -> any may fail',
         '    fn begin_array(n: u(31)) -> builder',
+        '    fn begin_object(n: u(31)) -> builder',
         '    fn push(own b: builder, own v: any) -> builder, gives back b may fail',
-        '    fn seal(own b: builder) -> any.only(array) may fail',
+        '    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail',
+        '    fn seal(own b: builder) -> any.only(array, object) may fail',
         '',
         'import Functions from fjs:l0',
         '    fn length(f: any.only(function)) -> u(31)',
@@ -381,8 +395,9 @@ export const proof = {
         'import Native from fjs:l1-native',
         '    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool',
         '    fn numberRemainder(a: f64, b: f64) -> f64',
+        '    fn numberToString(n: f64) -> any.only(string)',
         '',
-        'const #c0: any.only(array) =',
+        'const #c0: any.only(array, object) =',
         '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(9), "undefined"), "object"), "boolean"), "number"), "string"), "bigint"), "object"), "object"), "function"))',
         '',
         'fn strictEquals(a: any, b: any) -> bool =',
@@ -1023,7 +1038,7 @@ export const proof = {
         const m = fromArrays()
         assertStructurallySame(m.imports, [...l0, ['Native', native]])
         assertEq(print({ ...m, imports: [] }), [
-            'const #c0: any.only(array) =',
+            'const #c0: any.only(array, object) =',
             '    Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup("a")), Any.dup("b")))',
             '',
             'fn both() -> any =',
@@ -1048,10 +1063,10 @@ export const proof = {
             '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), Any.dup(v)))',
             '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), #0), Any.dup("x")), Any.dup(Any.undefined)), Any.dup(Any.null)))',
             '',
-            'fn none() -> any.only(array) =',
+            'fn none() -> any.only(array, object) =',
             '    Containers.seal(Containers.begin_array(0))',
             '',
-            'fn pair(a: any, b: any) -> any.only(array) =',
+            'fn pair(a: any, b: any) -> any.only(array, object) =',
             '    Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup(a)), Any.dup(b)))',
             '',
             'fn second(a: any, b: any) -> any =',
@@ -1071,7 +1086,7 @@ export const proof = {
         const m = fromReads()
         assertStructurallySame(m.imports, [...l0, ['Native', native]])
         assertEq(print({ ...m, imports: [] }), [
-            'const #c0: any.only(array) =',
+            'const #c0: any.only(array, object) =',
             '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), Any.dup("a")), Any.dup("b")), Any.dup("c")))',
             '',
             'fn inner(a: any, k: f64) -> any =',
@@ -1188,4 +1203,32 @@ export const proof = {
         strictEquals: product([anyValues, anyValues]),
         stringIndex: [...spellings, ...[[], ['a'], {}, 1, 0n, undefined].map(any => ({ any }))].map(s => [s]),
     }),
+    // Object literals: a record of floats, and Containers objects of values of any.
+    objects: () => assertEq(print({ ...fromObjects(), imports: [] }).includes('Containers.begin_object'), true),
+    objectsRun: () => run(fromObjects(), {
+        area: ([x, y]) => /** @type {number} */ (x) * /** @type {number} */ (y),
+        empty: () => ({ any: {} }),
+        pair: ([a, b]) => ({ any: { a: held(a), b: held(b) } }),
+        nested: ([v]) => ({ any: { inner: { v: held(v) } } }),
+    }, {
+        area: product([[0, 1, -2, 0.5], [0, 1, 3, -0.5]]),
+        nested: anyValues.map(v => [v]),
+    }),
+    // L1's toIterable and objectSpread, lowered from L1's text: each builds what L1's own builds.
+    l1Builders: () => {
+        const m = fromL1Builders()
+        assert(print({ ...m, imports: [] }).includes('Containers.begin_array'))
+        assert(print({ ...m, imports: [] }).includes('Containers.begin_object'))
+    },
+    l1BuildersRun: () => run(fromL1Builders(), {
+        toIterable: ([v]) => ({ any: toIterable(held(v)) }),
+        objectSpread: ([v]) => ({ any: objectSpread(held(v)) }),
+    }, {
+        toIterable: [
+            ...[[], [1], [1, 2], 'a', 'ab', '\uD800\uDC00', '\uD800'].map(any => [{ any }]),
+        ],
+        objectSpread: [
+            ...[{}, { a: 1 }, [], [1, 2], 'ab', 1, null, undefined].map(any => [{ any }]),
+        ],
+    }, ['toIterable']),
 }

@@ -19,7 +19,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { tryUnresolved } from '../../compiler/edag/module.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
 import { toFast } from '../../edag/to_fast/module.f.mjs'
-import { any, array } from '../l0/module.f.js'
+import { any, array, container } from '../l0/module.f.js'
 import { bool, f64, i, int, only, signature, u } from '../module.f.js'
 
 /**
@@ -85,6 +85,17 @@ export const l1 = {
 /** The signatures of the functions of L1 that throw its errors, which slice 7b lowers over `l1Runtime`. @type {Readonly<Record<string, Signature>>} */
 export const l1Throws = {
     functionText: signature([['t', any]], any),
+}
+
+/**
+ * The signatures of L1's one-pass builders, which slice 8 lowers over
+ * `l1Runtime`: `toIterable` answers an array, `objectSpread` an object.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Builders = {
+    toIterable: signature([['v', any]], container),
+    objectSpread: signature([['v', any]], container),
 }
 
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
@@ -157,8 +168,8 @@ export const literals = {
 
 /** The signatures of `arrays.f.js`, which the lowering reads over the runtime: an array is `any.only(array)`. @type {Readonly<Record<string, Signature>>} */
 export const arrays = {
-    none: signature([], array),
-    pair: signature(any2, array),
+    none: signature([], container),
+    pair: signature(any2, container),
     nested: signature([['v', any]], any),
     counted: signature([['s', any]], f64),
     second: signature(any2, any),
@@ -189,4 +200,12 @@ export const throws = {
     rethrow: signature([['v', any]], any),
     bigints: signature(any2, bool),
     sign: signature([['x', f64]], f64),
+}
+
+/** The signatures of `objects.f.js`, which the lowering reads over the runtime. @type {Readonly<Record<string, Signature>>} */
+export const objects = {
+    area: signature(f2, f64),
+    empty: signature([], container),
+    pair: signature(any2, container),
+    nested: signature([['v', any]], any),
 }

@@ -58,9 +58,13 @@
  *   the checker types its value as `any`. A read of L1's error table,
  *   `error.k`, is the string literal of its text, which the runtime gives
  *   from the table's own text, so that the module throws what L1 throws.
- * - **An object literal is a record**, a product of its keys in their
- *   order, and `r.k` its field. A record stays in its function: the checker
- *   refuses one in a signature.
+ * - **An object literal of names and values whose fields are not all
+ *   values of `any` is a record**, a product of its keys in their order,
+ *   and `r.k` its field. A record stays in its function: the checker
+ *   refuses one in a signature. One whose every value is of `any`, with the
+ *   runtime, is built by Containers as an object. A spread in an object
+ *   literal is not in this slice: L1's `objectSpread` is the subject that
+ *   builds what `{ ...v }` copies.
  * - **An array literal is built by Containers**
  *   ([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
  *   its items first, each lowered where it stands as an argument is, then
@@ -69,6 +73,12 @@
  *   so the builder, which is linear, is never left behind. An item is a
  *   value of `any`: a number or a boolean is refused, and so are a spread
  *   and an array in a module lowered without the runtime.
+ * - **`buildArray` and `buildObject` of the L0 view**, whose `next` and
+ *   `at` (and `keyAt` / `valueAt`) are arrow literals, lower to
+ *   `begin_array` or `begin_object`, a loop that keeps the state, `push` or
+ *   `push_property` of each item, and `seal`
+ *   ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)),
+ *   with no closure allocated.
  * - **A read of an array at a number key is L1's `get` for that case**:
  *   the item where the key is an index of the array, an integer from `0`
  *   up to its length, and `undefined` where it is anything else. A
@@ -126,7 +136,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
-import { any, kinds, l0, lengths, string } from '../l0/module.f.js'
+import { any, builder, kinds, l0, lengths, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
@@ -228,7 +238,7 @@ const unwrapped = v => {
 // casts
 
 /** The casts of the L0 view, each with the kind that it narrows to. @type {readonly (readonly [string, string])[]} */
-const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string']]
+const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string'], ['asArray', 'array'], ['asObject', 'object']]
 
 /** Whether a local holds a value of a sealed type that has `kind` and other kinds too, which a cast to `kind` narrows. @type {(scope: _Scope, name: string, kind: string) => boolean} */
 const wider = (scope, name, kind) => {
@@ -547,8 +557,10 @@ const lengthOf = (x, held, base) => {
 
 /** The functions of the L0 view that the lowering reads, beside its tags, each with how many arguments it takes. @type {readonly (readonly [string, number])[]} */
 const viewFunctions = [
-    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['length', 1], ['unit', 2], ['same', 2],
+    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['asArray', 1], ['asObject', 1],
+    ['length', 1], ['unit', 2], ['same', 2],
     ['fromUnit', 1], ['concat', 2], ['substring', 3], ['item', 2],
+    ['buildArray', 4], ['buildObject', 5],
 ]
 
 /** The parameters of a function of an interface of L0. @type {(module: string, name: string) => readonly Param[]} */
@@ -632,6 +644,8 @@ const viewTerm = (scope, name, args) => {
         case 'asBoolean': { return ok(as('boolean', y => call('Any', 'to_bool', [y]))) }
         case 'asNumber': { return ok(as('number', y => call('Any', 'to_f64', [y]))) }
         case 'asString': { return ok(as('string', y => y)) }
+        case 'asArray': { return ok(as('array', y => y)) }
+        case 'asObject': { return ok(as('object', y => y)) }
         case 'length': {
             return lengths.some(([, , ks]) => ks.some(k => held.includes(k))) ? ok(lengthOf(x, held, base))
                 : no(`length of ${show(type)}: none of its kinds has a length`)
@@ -675,9 +689,123 @@ const viewCall = (lowerValue, scope, name, vs) => {
     if (vs.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${vs.length}`) }
     if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
     if (name === 'concat') { return castCall(lowerValue, scope, 'String', 'concat', paramsOf('String', 'concat'), vs) }
+    if (name === 'buildArray') { return buildOf(lowerValue, scope, 'array', vs) }
+    if (name === 'buildObject') { return buildOf(lowerValue, scope, 'object', vs) }
     if (arity > 1) { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
     const xs = values(lowerValue, scope, vs)
     return xs[0] === 'error' ? xs : name === 'fromUnit' ? fromUnitTerm(scope, xs[1][0]) : viewTerm(scope, name, xs[1])
+}
+
+/** Whether a value is an arrow that the lowering can inline at a call. @type {(v: Value) => v is readonly ['function', FastFunction]} */
+const isArrow = v => v instanceof Array && v[0] === 'function'
+
+/**
+ * An arrow of one parameter applied to a term that does nothing: its body,
+ * with the parameter standing for the term and its captures for what they
+ * read where the call stands.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction, arg: Term) => Result<Term, string>}
+ */
+const applyArrow = (lowerValue, scope, f, arg) => {
+    const no = refuse(scope)
+    if (f.rest !== null) { return no('a rest parameter is not in this slice') }
+    if (f.self !== null || scope.inlining.includes(f)) { return no('a function that calls itself is not in this slice') }
+    if (f.parameters.length !== 1) {
+        return no(`a callback of buildArray or buildObject takes one argument, and this one takes ${f.parameters.length}`)
+    }
+    const captured = okList(f.captures.map(({ binding, value: v }) => {
+        const m = local(scope)(v)
+        return m[0] === 'error' ? no(m[1]) : ok(/** @type {const} */ ([binding, m[1]]))
+    }))
+    if (captured[0] === 'error') { return captured }
+    return block(lowerValue, {
+        ...scope,
+        bindings: [...scope.bindings, ...captured[1], [f.parameters[0], argument(arg)]],
+        inlining: [f, ...scope.inlining],
+    }, f.body, ['return'])
+}
+
+/**
+ * `buildArray` or `buildObject` of the L0 view
+ * ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
+ * `begin_array` or `begin_object` of `n`, a loop that keeps the state and
+ * the builder, `push` or `push_property` of each item from the arrow
+ * callbacks, and `seal`. The callbacks must be arrow literals; anything
+ * else waits for calling function values.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, kind: 'array' | 'object', vs: readonly Value[]) => Result<Term, string>}
+ */
+const buildOf = (lowerValue, scope, kind, vs) => {
+    const no = refuse(scope)
+    if (!scope.ir.imports.some(([k]) => k === 'Containers')) {
+        return no(`${kind === 'array' ? 'buildArray' : 'buildObject'} is a value that Containers builds, which a module lowered without the runtime does not import`)
+    }
+    const nextV = vs[2]
+    const atV = vs[3]
+    const valueAtV = kind === 'object' ? vs[4] : null
+    if (!isArrow(nextV) || !isArrow(atV) || (valueAtV !== null && !isArrow(valueAtV))) {
+        return no(`${kind === 'array' ? 'buildArray' : 'buildObject'} inlines its callbacks only where they are arrow literals`)
+    }
+    const [, nextF] = nextV
+    const [, atF] = atV
+    const valueAtF = valueAtV === null ? null : valueAtV[1]
+    return settled(lowerValue, scope, [vs[0], vs[1]], (s0, [nTerm, sTerm]) => {
+        const types = okList([typeOf(s0.ir)(nTerm), typeOf(s0.ir)(sTerm)])
+        if (types[0] === 'error') { return types }
+        const [nType, sType] = types[1]
+        if (!isFloat(nType)) { return no(`${kind === 'array' ? 'buildArray' : 'buildObject'} of ${show(nType)} items is not in this slice`) }
+        const state = loose(sType)
+        if (state === null) { return no(`a build state of ${show(sType)} is not in this slice`) }
+        const { ir, depth } = s0
+        const label = `B${depth}`
+        // Names that cannot collide with `#n` locals the surrounding function already holds.
+        const bName = `${label}.b`
+        const sName = `${label}.s`
+        const iName = `${label}.i`
+        const used = ir.locals.flatMap(([k]) => {
+            const m = /^#(\d+)$/.exec(k)
+            return m === null ? [] : [Number(m[1])]
+        })
+        // Past every `#n` already in scope: the checker refuses a local that shadows one.
+        const free = (used.length === 0 ? 0 : Math.max(...used) + 1)
+        /** Locals of the loop, for typing each callback that reads the state. @type {_Scope['ir']} */
+        const loopIr = { ...ir, locals: [...ir.locals, [bName, builder], [sName, state], [iName, f64]] }
+        /** A scope inside the loop at `d`, so each callback's locals do not collide. @type {(d: number) => _Scope} */
+        const atDepth = d => ({ ...s0, ir: loopIr, depth: d })
+        // Each arrow gets its own depth band so their `#n` locals do not collide when composed.
+        const at = applyArrow(lowerValue, atDepth(free), atF, get(sName))
+        if (at[0] === 'error') { return at }
+        const step = applyArrow(lowerValue, atDepth(free + 0x40), nextF, get(sName))
+        if (step[0] === 'error') { return step }
+        const valueAt = valueAtF === null ? null : applyArrow(lowerValue, atDepth(free + 0x80), valueAtF, get(sName))
+        if (valueAt !== null && valueAt[0] === 'error') { return valueAt }
+        let nextBound = 0
+        /** A term bound to a fresh local around `rest` where it does something. @type {(x: Term, rest: (x: Term) => Term) => Term} */
+        const bound = (x, rest) => {
+            if (isPure(x)) { return rest(x) }
+            const name = `${label}.x${nextBound}`
+            nextBound += 1
+            return let_(name, x, rest(get(name)))
+        }
+        return ok(exact(u(31), nTerm, `${kind === 'array' ? 'buildArray' : 'buildObject'}.n`, n => {
+            const begun = call('Containers', kind === 'array' ? 'begin_array' : 'begin_object', [n])
+            /** @type {(b: Term, s: Term) => Term} */
+            const cont = (b, s) => next(label, [[bName, b], [sName, s], [iName, add(get(iName), lit(f64c, 1))]])
+            /** @type {(b: Term) => Term} */
+            const again = b => if_(
+                lt(add(get(iName), lit(f64c, 1)), float(n)),
+                cont(b, step[1]),
+                cont(b, get(sName)),
+            )
+            const pushed = kind === 'array'
+                ? bound(at[1], v => bound(call('Containers', 'push', [get(bName), v]), again))
+                : bound(at[1], k => bound(/** @type {Term} */ (valueAt?.[1]), v =>
+                    bound(call('Containers', 'push_property', [get(bName), k, v]), again)))
+            const body = if_(lt(get(iName), float(n)), pushed, call('Containers', 'seal', [get(bName)]))
+            const built = loop(label, [[bName, builder, begun], [sName, state, sTerm], [iName, f64, lit(f64c, 0)]], body)
+            return built
+        }))
+    })
 }
 
 // L1's native rows
@@ -713,10 +841,10 @@ const remainder = (lowerValue, scope, a, b) => {
         : ok(call('Native', 'numberRemainder', xs[1]))
 }
 
-// records
+// records and objects
 
 /**
- * An object literal, as a product of its keys in their order: each entry a
+ * An object literal as a product of its keys in their order: each entry a
  * key that is a name and its value. A record never leaves its function, so
  * nothing reads it as an object, and the checker refuses a name given
  * twice.
@@ -731,6 +859,65 @@ const record = (lowerValue, scope, entries) => {
         return x[0] === 'error' ? x : ok(/** @type {const} */ ([k, x[1]]))
     }))
     return fields[0] === 'error' ? fields : ok(make(fields[1]))
+}
+
+/**
+ * An object literal built by Containers: each name:value as a
+ * `push_property` of a string literal and a value of `any`. Where a value
+ * is not of `any`, the literal is a record instead. The choice is made
+ * before any `let` binds a field: falling back to a record from inside
+ * `settled` would re-lower fields under those binds and shadow their `#n`
+ * names. A spread is refused here — see `objectLiteral`.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
+ */
+const objectOf = (lowerValue, scope, entries) => {
+    const no = refuse(scope)
+    if (!scope.ir.imports.some(([k]) => k === 'Containers')) {
+        return no('an object is a value that Containers builds, which a module lowered without the runtime does not import')
+    }
+    if (entries.some(e => e[0] === '...')) {
+        return no('a spread in an object literal is not in this slice')
+    }
+    const parsed = okList(entries.map(e => {
+        if (e[0] !== ':' || typeof e[1] !== 'string') { return no('an entry of an object that is not a name and its value is not in this slice') }
+        return ok(/** @type {const} */ ([e[1], e[2]]))
+    }))
+    if (parsed[0] === 'error') { return parsed }
+    const named = parsed[1]
+    // Peek each field as a sibling term (same scope): decide record vs Containers
+    // before `settled` binds any of them.
+    const peeked = okList(named.map(([, v]) => lowerValue(scope, v)))
+    if (peeked[0] === 'error') { return peeked }
+    const typed = okList(peeked[1].map(x => typeOf(scope.ir)(x)))
+    if (typed[0] === 'error') { return typed }
+    if (typed[1].some(t => !isAny(t))) {
+        return ok(make(named.map(([k], i) => /** @type {const} */ ([k, peeked[1][Number(i)]]))))
+    }
+    // Every value is `any`: bind each that does something before begin/push/seal,
+    // so the builder stays linear between those calls.
+    return settled(lowerValue, scope, named.map(([, v]) => v), (s, xs) => {
+        const begun = call('Containers', 'begin_object', [n(BigInt(xs.length))])
+        return ok(call('Containers', 'seal', [xs.reduce(
+            (b, x, i) => call('Containers', 'push_property', [b, lit(string, named[Number(i)][0]), x]),
+            begun,
+        )]))
+    })
+}
+
+/**
+ * An object literal: a Containers object where every value is of `any` and
+ * the runtime is present, otherwise a record. A spread is refused: L1's
+ * `objectSpread` is the subject that builds what `{ ...v }` copies.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
+ */
+const objectLiteral = (lowerValue, scope, entries) => {
+    if (entries.some(e => e[0] === '...')) {
+        return refuse(scope)('a spread in an object literal is not in this slice')
+    }
+    if (!scope.ir.imports.some(([k]) => k === 'Containers')) { return record(lowerValue, scope, entries) }
+    return objectOf(lowerValue, scope, entries)
 }
 
 /**
@@ -841,7 +1028,8 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
-    return !isAny(t) || held === null || held.length !== 1 || held[0] !== 'array' ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
+    // `seal` of a `begin_array` is typed array|object; a literal array still reads as an array.
+    return !isAny(t) || held === null || !held.includes('array') ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
         : ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
 })
 
@@ -986,7 +1174,7 @@ const value = (scope, v) => {
         case '*': { return binary(value, scope, mul, v[1], v[2]) }
         case '/': { return binary(value, scope, div, v[1], v[2]) }
         case '%': { return remainder(value, scope, v[1], v[2]) }
-        case 'object': { return record(value, scope, v[1]) }
+        case 'object': { return objectLiteral(value, scope, v[1]) }
         case 'array': { return arrayOf(value, scope, v[1]) }
         case '.': {
             const key = v[2]

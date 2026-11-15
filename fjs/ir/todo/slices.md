@@ -168,12 +168,13 @@ Slice 7, cut in two as decided above.
 
 #### Next — builders
 
-- [ ] **Builders** (8). Containers' `begin_object` / `push_property` (and
+- [x] **Builders** (8). Containers' `begin_object` / `push_property` (and
   `seal` into an object) as the supporting primitives; `buildArray` and
   `buildObject` with their callbacks inlined
   ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass));
-  object literals with spread; subjects `toIterable` and `objectSpread`.
-  Float records stay products.
+  object literals of values of `any` (float records stay products); subjects
+  `toIterable` and `objectSpread` (object spread). A `{ ...v }` literal waits
+  for a later cut; `objectSpread` is what it copies.
 
 #### Later
 

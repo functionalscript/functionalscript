@@ -44,17 +44,22 @@
  *   ([L0 design §10](../../../doc/sasha-gil/wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
  *   `item` and `substring` trap where the view throws: at or past the end,
  *   and where `start` is past `end`.
- * - **A builder makes an array**
+ * - **A builder makes an array or an object**
  *   ([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
- *   `begin_array(n)` answers a builder of `n` items, each `push` owns it
- *   and an item and gives it back, and `seal` owns it and answers the
- *   array, owned. A builder is linear
+ *   `begin_array(n)` answers a builder of `n` items and `begin_object(n)`
+ *   one of `n` properties; each `push` or `push_property` owns it and the
+ *   value (and the key, a string) and gives it back, and `seal` owns it
+ *   and answers the array or the object, owned
+ *   ([§9](../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered):
+ *   a repeated key keeps its first position and its last value). A builder
+ *   is linear
  *   ([definition.md](../../../doc/sasha-gil/ir/definition.md#ownership-is-two-capabilities)):
  *   Containers names no `dup` and no `drop` for it, so each path consumes
- *   it once, by a `push` or a `seal`, and no `kind`, so nothing branches on
- *   it. An `i32` carries it. `push` gives back the builder it owns, so its
- *   import takes it once and answers nothing. Pushing more items than `n`,
- *   sealing with fewer, or a builder that is sealed already traps.
+ *   it once, by a `push`, a `push_property` or a `seal`, and no `kind`, so
+ *   nothing branches on it. An `i32` carries it. `push` and `push_property`
+ *   give back the builder they own, so their imports take it once and
+ *   answer nothing. Pushing more items than `n`, sealing with fewer, or a
+ *   builder that is sealed already traps.
  * - **A throw is Functions' `throw`**
  *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   it takes over a value, which the host keeps, and fails, so it answers
@@ -65,8 +70,8 @@
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
  *   `throw`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
- *   `item`, `push` and `seal`. Every other function of L0 completes on
- *   the values of its parameters' types.
+ *   `item`, `push`, `push_property` and `seal`. Every other function of L0
+ *   completes on the values of its parameters' types.
  *
  * @module
  *
@@ -90,10 +95,16 @@ const reference = only(any, 'array', 'object', 'function')
 /** A string, the type of a string literal. */
 export const string = only(any, 'string')
 
-/** An array, which `seal` answers. */
+/** An array, which `seal` of a `begin_array` answers. */
 export const array = only(any, 'array')
 
-/** A builder of an array, which nothing copies or drops. */
+/** An object, which `seal` of a `begin_object` answers. */
+export const object = only(any, 'object')
+
+/** An array or an object, which `seal` answers. */
+export const container = only(any, 'array', 'object')
+
+/** A builder of an array or an object, which nothing copies or drops. */
 export const builder = sealed('Containers', 'builder')
 
 /** A boolean. */
@@ -148,17 +159,20 @@ const strings = [
 /**
  * Containers' functions besides its `length`: `item`, the item `i` of an
  * array or the value of the property `i` of an object, owned; and the
- * builder's: `begin_array`, a builder of `n` items, `push`, which owns the
- * builder and an item and gives the builder back, and `seal`, which owns
- * the builder and answers the array.
+ * builder's: `begin_array` and `begin_object`, a builder of `n` items or
+ * properties, `push` and `push_property`, which own the builder and an
+ * item or a key and a value and give the builder back, and `seal`, which
+ * owns the builder and answers the array or the object.
  *
  * @type {Interface['functions']}
  */
 const containers = [
-    ['item', mayFail(signature([['c', only(any, 'array', 'object')], ['i', index]], any))],
+    ['item', mayFail(signature([['c', container], ['i', index]], any))],
     ['begin_array', signature([['n', index]], builder)],
+    ['begin_object', signature([['n', index]], builder)],
     ['push', mayFail(signature([own('b', builder), own('v', any)], builder, 'b'))],
-    ['seal', mayFail(signature([own('b', builder)], array))],
+    ['push_property', mayFail(signature([own('b', builder), own('k', string), own('v', any)], builder, 'b'))],
+    ['seal', mayFail(signature([own('b', builder)], container))],
 ]
 
 /**

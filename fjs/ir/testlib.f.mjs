@@ -17,7 +17,7 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, array, builder, l0 } from './l0/module.f.js'
+import { any, array, builder, container, l0 } from './l0/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
     let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, product, return_, sqrt, sub, throw_, trap,
@@ -384,14 +384,14 @@ const seal = b => call('Containers', 'seal', [b])
 export const arrays = {
     imports: l0,
     constants: [
-        ['letters', { type: array, value: seal(push(push(begin(n(2n)), dup(lit(string, 'a'))), dup(lit(string, 'b')))) }],
+        ['letters', { type: container, value: seal(push(push(begin(n(2n)), dup(lit(string, 'a'))), dup(lit(string, 'b')))) }],
     ],
     functions: [
-        ['emptyArray', fn([], array, seal(begin(n(0n))))],
-        ['pairOf', fn([['a', any], ['b', any]], array, (a, b) => seal(push(push(begin(n(2n)), dup(a)), dup(b))))],
-        ['lettersAnd', fn([['v', any]], array, v => seal(push(push(begin(n(2n)), dup(self('letters'))), dup(v))))],
-        ['bound', fn([['v', any]], array, v => let_('b', begin(n(1n)), b => let_('c', push(b, dup(v)), seal)))],
-        ['repeated', fn([['v', any], ['k', u(8)]], array, (v, k) =>
+        ['emptyArray', fn([], container, seal(begin(n(0n))))],
+        ['pairOf', fn([['a', any], ['b', any]], container, (a, b) => seal(push(push(begin(n(2n)), dup(a)), dup(b))))],
+        ['lettersAnd', fn([['v', any]], container, v => seal(push(push(begin(n(2n)), dup(self('letters'))), dup(v))))],
+        ['bound', fn([['v', any]], container, v => let_('b', begin(n(1n)), b => let_('c', push(b, dup(v)), seal)))],
+        ['repeated', fn([['v', any], ['k', u(8)]], container, (v, k) =>
             loop('L', [['b', builder, begin(k)], ['i', f64, c(0)]], (b, i) =>
                 if_(lt(i, float(k)), next('L', [['b', push(b, dup(v))], ['i', add(i, c(1))]]), seal(b))))],
         ['itemCount', fn([['v', any]], u(31), v =>

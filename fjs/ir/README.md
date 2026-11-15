@@ -235,6 +235,24 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   empty string, a unit past ASCII and a pair of surrogates, run against
   JavaScript, and so do the random comparison's programs of literals.
 
+## What 8 adds
+
+- **Object builders**: Containers' `begin_object`, `push_property` and
+  `seal` into an object
+  ([L0 design §8](../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal));
+  `seal` answers an array or an object. Object literals of values of `any`
+  lower to those; float records stay products.
+- **`buildArray` / `buildObject`**: arrow callbacks inline to begin / loop /
+  push / seal
+  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)),
+  with no closure allocated.
+- **`numberToString`**: L1's native row that object spread uses as an index
+  key, an owned string from a float.
+- **Subjects**: L1's `toIterable` and `objectSpread` run as WASM against
+  L1's own. A `{ ...v }` literal waits for a later cut; `objectSpread` is
+  what it copies. [`objects.f.js`](./from_fast/objects.f.js) holds records
+  and Containers object literals.
+
 ## What 7b adds
 
 - **`throw x` lowered**: a `throw` of FAST is `Functions.throw` of its
