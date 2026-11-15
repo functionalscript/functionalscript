@@ -34,7 +34,7 @@ at the site's own view, and GitHub can stay as a second link.
   spends, for output that is stale the moment a module changes.
 - **One tokenization serves both views.** The source view and the doc view are
   two renderings of the same token list, read from the JS token grammar
-  [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) the way the compiler's
+  [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js) the way the compiler's
   [`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.mjs) reads it: comments
   and trivia are tokens, every token knows where it begins, and the stream is
   contiguous, so a token's text runs from its start to the next token's — the
@@ -117,6 +117,6 @@ at the site's own view, and GitHub can stay as a second link.
   — the full type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
 - [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the token stream
-  both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs).
+  both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js).
 - [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
   — the prerequisite, as its own issue.

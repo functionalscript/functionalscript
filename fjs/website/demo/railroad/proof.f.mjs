@@ -122,6 +122,19 @@ export const proof = {
                 railroadSection(['arrow', ['sequence', [['category', 'id'], t('=>')]]]),
             ])
         },
+        // A path can cross a sequence and another variant without relying
+        // on a source identity for either nested rule.
+        nestedPath: () => {
+            const grammar = { signed: ['+', { digit }] }
+            const { init, view } = grammarDemo({
+                grammar, alphabet: codePoints, description: '', guide: '',
+                selections: [['root', grammar], ['digit', grammar, 'signed', 1, 'digit']],
+            })
+            assertStructurallySame(view(init), ['div', ['p', ' '],
+                railroadSection(['root', ['sequence', [t('+'), box('digit')]]]),
+                railroadSection(['digit', t('0 … 9')]),
+            ])
+        },
         throw: {
             // A diagram of no kind is refused, not measured as `undefined`.
             notADiagram: () => railroadSvg(/** @type {never} */ (['bogus'])),
@@ -139,6 +152,22 @@ export const proof = {
             noSuchBranch: () => grammarDemo({
                 grammar: number, alphabet: codePoints, description: '', guide: codePointGuide,
                 selections: [['zero', number, 'zero']],
+            }),
+            notASequence: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: '',
+                selections: [['item', number, 0]],
+            }),
+            negativeIndex: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: '',
+                selections: [['item', number, 'signed', -1]],
+            }),
+            fractionalIndex: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: '',
+                selections: [['item', number, 'signed', 0.5]],
+            }),
+            missingItem: () => grammarDemo({
+                grammar: number, alphabet: codePoints, description: '', guide: '',
+                selections: [['item', number, 'signed', 2]],
             }),
         },
     },

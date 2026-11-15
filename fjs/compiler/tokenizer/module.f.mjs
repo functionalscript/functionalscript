@@ -7,7 +7,7 @@
  *             ==fold: keywords demoted, trivia dropped, newlines marked==> ModuleToken stream
  * ```
  *
- * The grammar is [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) and
+ * The grammar is [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js) and
  * the tokens are its too, `fjs/ebnf/lib/js/types.ts`; the two layers below
  * this one — the grammar read one token at a time, and the fold that
  * merges trivia, classifies words and checks the number boundary — are
@@ -51,7 +51,7 @@
  * @import { ModuleToken, ModuleTokenWithMetadata } from './types.ts'
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
-import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
+import { isTrivia } from '../../ebnf/lib/js/module.f.js'
 import { isKeyword } from '../../js/keywords/module.f.js'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.js'
 import { flat, stateScan } from '../../types/list/module.f.js'

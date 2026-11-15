@@ -6,7 +6,7 @@ boundaries and shared FAST migration contracts. The
 and transfer owners to the existing representations and conformance proofs.
 
 The front end: a grammar-based tokenizer over
-[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js), the
 [parser](./parser/README.md), shared [FAST](../js/ast/README.md), and the
 [transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
 from `fjs/djs` when the parsers and serializers were restructured, and its
@@ -376,7 +376,7 @@ value output, which reads the value the constructor built, never sees it.
 
 ## Both grammars use predictive parsing
 
-The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs),
+The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js),
 and the parser's, [`parser/grammar`](./parser/grammar/module.f.mjs), are read
 by [`fjs/ebnf/ll1`](../ebnf/ll1/README.md), which checks one-symbol choices before any input. Its default policy refuses
 conflicts; the source parser explicitly prefers indexing continuations on `[`
@@ -679,7 +679,7 @@ it does not change the extension contract for repository source.
 
 Decided with the retirement of the hand-written scanner, and not to reopen
 without a reason. The grammar's tokens,
-[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) read by
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) read by
 [`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
 JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a

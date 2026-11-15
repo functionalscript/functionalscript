@@ -1,14 +1,32 @@
 /**
  * @import { RewriteSet } from '../../ll1/types.ts'
  * @import { Utf16 } from '../../utf16/types.ts'
+ * @import { Const, DataRule, Tuple, Variant } from '../../types.ts'
  */
 
 import { eof } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
 import { units } from '../../utf16/module.f.js'
-import { entry } from './module.f.mjs'
+import { emAfterSpace, emAfterSpan, emAfterWord, entry } from './module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
 import { assertRecognizes, diagramPage, recognizer } from '../../testlib.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { isObject } from '../../../types/object/module.f.js'
+import { entry as ownEntry } from '../../../types/object/entry/module.f.js'
+
+/** @type {(rule: Const<DataRule>) => Variant} */
+const choiceOf = rule => {
+    const [tag, value] = rule()
+    assert(tag === 'const' && isObject(value))
+    return /** @type {Variant} */ (value)
+}
+
+/** @type {(choice: Variant, tag: string) => Tuple} */
+const sequenceOf = (choice, tag) => {
+    const value = ownEntry(choice, tag)
+    assert(value instanceof Array)
+    return value
+}
 
 /** @type {RewriteSet<Utf16, never>} */
 const nothing = []
@@ -38,6 +56,29 @@ const refuses = text => recognize([[text, false]])
 const tick = String.fromCharCode(96)
 
 export const proof = {
+    // Each forced space state closes over itself and the one outer span.
+    // Fresh continuations on these edges would make lowering unbounded.
+    emphasisStateGraph: () => {
+        const span = choiceOf(emAfterSpan)
+        const localSpace = /** @type {Const<DataRule>} */ (sequenceOf(span, 'space')[1])
+        const space = choiceOf(localSpace)
+        assertEq(sequenceOf(span, 'code')[1], emAfterSpan)
+        assertEq(sequenceOf(space, 'code')[1], emAfterSpan)
+        assertEq(sequenceOf(space, 'link')[1], emAfterSpan)
+        const afterBold = /** @type {Variant} */ (sequenceOf(space, 'strong')[3])
+        assertEq(sequenceOf(afterBold, 'space')[1], localSpace)
+        const afterWord = /** @type {Variant} */ (sequenceOf(space, 'word')[1])
+        assertEq(sequenceOf(afterWord, 'space')[1], localSpace)
+        assertEq(sequenceOf(afterWord, 'code')[1], emAfterSpan)
+    },
+    // Embedding a word state's data must not add or remove AST nesting:
+    // media/markdown walks these tags and tuple positions directly.
+    emphasisStateAst: () => {
+        const tail = ['word', [units('a'), ['close', units('*')]]]
+        assertStructurallySame(assertOk(parser(emAfterSpan)(units('a*'), 0)), [tail, 2])
+        assertStructurallySame(assertOk(parser(emAfterSpace)(units('a*'), 0)), [tail, 2])
+        assertStructurallySame(assertOk(parser(emAfterWord)(units(' a*'), 0)), [['space', [[units(' ')], tail]], 3])
+    },
     // The shapes the tree actually contains, one of each.
     accepts: {
         empty: () => accepts(''),

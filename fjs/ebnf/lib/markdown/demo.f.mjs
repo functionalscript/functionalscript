@@ -12,13 +12,15 @@
  * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
-import { code, doubleBody, emAfterSpace, emAfterSpan, emAfterWord, emphasis, entry as markdown, link, span, strongRest, text } from './module.f.mjs'
+import { code, doubleBody, emAfterSpace, emAfterSpan, emAfterWord, emphasis, entry as markdown, link, span, strongRest, text } from './module.f.js'
 import { codePoints } from '../../railroad/module.f.js'
 import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.js'
 
 /**
  * Each diagram's title and the rule it draws, in the order the page
  * shows them: the entry, then the text and spans it alternates.
+ * The span state owns a separate space state. Its path selects that
+ * nested instance, so its recursive boxes link to its own diagram.
  *
  * @type {readonly Selection[]}
  */
@@ -32,6 +34,7 @@ export const diagrams = [
     ['strongRest', strongRest],
     ['emAfterWord', emAfterWord],
     ['emAfterSpan', emAfterSpan],
+    ['emAfterSpanSpace', emAfterSpan, 'space', 1],
     ['emAfterSpace', emAfterSpace],
     ['link', link],
 ]

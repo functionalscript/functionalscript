@@ -54,12 +54,12 @@ export type BoxKind = Extract<Diagram, readonly [string, string]>[0]
  * A rule a grammar's page draws, under its title:
  *
  * - `[title, rule]` — a source rule, the grammar itself or one it reaches;
- * - `[title, rule, tag]` — the branch `tag` of the source variant `rule`,
- *   a rule the grammar writes inline rather than names.
+ * - `[title, rule, ...path]` — a rule nested beneath that source rule;
+ *   each string selects a variant branch and each number a sequence item,
+ *   starting at zero. The path follows the one lowered grammar, so it can
+ *   name a local recursive thunk without creating another instance.
  */
-export type Selection =
-    | readonly [string, Rule]
-    | readonly [string, Rule, string]
+export type Selection = readonly [string, Rule, ...readonly (string | number)[]]
 
 /**
  * What `grammarDemo` needs to draw a grammar's page:

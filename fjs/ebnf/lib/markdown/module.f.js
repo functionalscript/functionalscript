@@ -39,7 +39,7 @@
  *
  * @module
  *
- * @import { Const, DataRule, Rule } from '../../types.ts'
+ * @import { Const, DataRule, Rule, Variant } from '../../types.ts'
  */
 
 import { option, range, remove, repeatFrom0, repeatFrom1, set, unicodeMax } from '../../module.f.js'
@@ -207,6 +207,72 @@ const word = repeatFrom1(remove(any, set(' *`[\\')))
 const spaces = repeatFrom1(' ')
 
 /**
+ * The word state's branches, with the span and space states it continues at.
+ * A `const` thunk and its payload produce the same AST, so embedding these
+ * branches keeps the word/space/span tags without another recursive identity.
+ *
+ * @type {(afterSpan: Const<DataRule>, afterSpace: Const<DataRule>) => Variant}
+ */
+const wordAfter = (afterSpan, afterSpace) => ({
+    space: [spaces, afterSpace],
+    code: [code, afterSpan],
+    link: [plainLink, afterSpan],
+    close: '*',
+})
+
+/**
+ * What follows a space in emphasis: a word, a code span, a link, or bold,
+ * `**…**`, then a space or the asterisk that closes the emphasis,
+ * `*a **b***`. The bold holds what a body holds, and no emphasis.
+ *
+ * **An asterisk after a space never closes the emphasis**: CommonMark
+ * would not close it there, and GitHub reads `a * b * c` as prose. Bold
+ * needs a space before it for the same reason: `*a**b** c*` is a closing
+ * asterisk and an opening one, a reading neither side shares.
+ *
+ * Each space state closes over its span state and itself. The lowerer reads
+ * the thunk once and records that identity before following either edge.
+ *
+ * @type {(afterSpan: Const<DataRule>) => Const<DataRule>}
+ */
+const spaceAfter = afterSpan => {
+    /** @type {Const<DataRule>} */
+    const afterSpace = () => ['const', {
+        word: [word, wordAfter(afterSpan, afterSpace)],
+        code: [code, afterSpan],
+        link: [plainLink, afterSpan],
+        strong: ['**', emphasised, '**', { space: [spaces, afterSpace], close: '*' }],
+    }]
+    return afterSpace
+}
+
+/**
+ * What follows a code span or a link in emphasis: what follows a word, or a
+ * word, `` *(an `exp`)* ``. A word cannot follow a word, as a word runs to
+ * the symbol that ends it, so the two are states of their own.
+ *
+ * The span state is the outer recursive identity. Its space state captures
+ * it and itself; word states are data referring to those two identities.
+ * That finite graph needs no forward reference between declarations.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterSpan = () => {
+    const afterSpace = spaceAfter(emAfterSpan)
+    const afterWord = wordAfter(emAfterSpan, afterSpace)
+    return ['const', { word: [word, afterWord], ...afterWord }]
+}
+
+/**
+ * The space state for an emphasis body that starts with spaces, sharing the
+ * span state above. The space nested inside {@link emAfterSpan} is a separate
+ * instance of the same rule, with its own stable recursive identity.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterSpace = spaceAfter(emAfterSpan)
+
+/**
  * What follows a word, a code span or a link in emphasis: a space, another
  * span, or the asterisk that closes it.
  *
@@ -219,50 +285,9 @@ const spaces = repeatFrom1(' ')
  * space, so after a word the asterisk closes it, and after a space
  * ({@link emAfterSpace}) it opens bold.
  *
- * Its states name each other, so it is a thunk, as {@link doubleBody} is.
- *
  * @type {Const<DataRule>}
  */
-export const emAfterWord = () => ['const', {
-    space: [spaces, emAfterSpace],
-    code: [code, emAfterSpan],
-    link: [plainLink, emAfterSpan],
-    close: '*',
-}]
-
-/**
- * What follows a code span or a link in emphasis: what follows a word, or a
- * word, `` *(an `exp`)* ``. A word cannot follow a word, as a word runs to
- * the symbol that ends it, so the two are states of their own.
- *
- * @type {Const<DataRule>}
- */
-export const emAfterSpan = () => ['const', {
-    word: [word, emAfterWord],
-    space: [spaces, emAfterSpace],
-    code: [code, emAfterSpan],
-    link: [plainLink, emAfterSpan],
-    close: '*',
-}]
-
-/**
- * What follows a space in emphasis: a word, a code span, a link, or bold,
- * `**…**`, then a space or the asterisk that closes the emphasis,
- * `*a **b***`. The bold holds what a body holds, and no emphasis.
- *
- * **An asterisk after a space never closes the emphasis**: CommonMark
- * would not close it there, and GitHub reads `a * b * c` as prose. Bold
- * needs a space before it for the same reason: `*a**b** c*` is a closing
- * asterisk and an opening one, a reading neither side shares.
- *
- * @type {Const<DataRule>}
- */
-export const emAfterSpace = () => ['const', {
-    word: [word, emAfterWord],
-    code: [code, emAfterSpan],
-    link: [plainLink, emAfterSpan],
-    strong: ['**', emphasised, '**', { space: [spaces, emAfterSpace], close: '*' }],
-}]
+export const emAfterWord = () => ['const', wordAfter(emAfterSpan, emAfterSpace)]
 
 /**
  * Bold or emphasis, **factored through the asterisk they share**. Written as

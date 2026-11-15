@@ -34,7 +34,7 @@
  * @import { _Frame } from './private.ts'
  */
 
-import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
+import { isTrivia } from '../../ebnf/lib/js/module.f.js'
 
 /** The words a type literal's member may open with before its key. */
 const modifiers = ['readonly', 'get', 'set']

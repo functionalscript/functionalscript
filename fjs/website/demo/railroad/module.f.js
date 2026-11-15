@@ -50,8 +50,9 @@ import { max } from '../../../types/number/max/module.f.js'
 import { sum } from '../../../types/number/module.f.js'
 import { toData } from '../../../ebnf/data/module.f.js'
 import { mapGet } from '../../../types/map/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.js'
-import { assertNotNullish } from '../../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 
 const boxHalf = 11
 const arc = 10
@@ -312,20 +313,31 @@ export const codePointGuide = 'Follow a track from left to right; a pill is text
  * `alphabet`.
  *
  * A selection `[title, rule]` draws a source rule — the grammar itself, or
- * any rule it reaches — and `[title, rule, tag]` the branch `tag` of the
- * variant `rule`, a rule the grammar writes inline. A page names rules by
- * identity and branches by tag, never by the names lowering makes up.
+ * any rule it reaches. Subsequent strings select variant branches and
+ * numbers select sequence items from zero. A page names rules by identity
+ * and nested rules by their path, never by the names lowering makes up.
+ * Paths follow the one lowered graph, including local recursive thunks
+ * whose identities belong to that expansion of the source rule.
  *
  * @throws If a rule is not one the grammar reaches, if a branch's rule is
- * not a variant or has no such tag, or if `toDiagrams` refuses the titles.
+ * not a variant or has no such tag, if a sequence step has the wrong kind
+ * or index, or if `toDiagrams` refuses the titles.
  *
  * @type {(page: GrammarPage) => Demo<null, DemoEvent>}
  */
 export const grammarDemo = ({ grammar, alphabet, description, guide, selections }) => {
-    const [ruleSet, entry, names] = toData(grammar)
+    const [ruleSet, root, names] = toData(grammar)
     /** @type {(rule: Rule) => string} */
-    const nameOf = rule => rule === grammar ? entry : assertNotNullish(mapGet(names, rule))
+    const nameOf = rule => rule === grammar ? root : assertNotNullish(mapGet(names, rule))
+    /** @type {(name: string, step: string | number) => string} */
+    const follow = (name, step) => {
+        if (typeof step === 'string') { return branch(ruleSet)(name, step) }
+        const rule = assertNotNullish(entry(ruleSet, name))
+        assert(rule[0] === 'sequence', ['not a sequence', name])
+        assert(Number.isInteger(step) && step >= 0, ['not a sequence index', step])
+        return assertNotNullish(rule[Number(step + 1)], ['no such sequence item', name, step])
+    }
     /** @type {(selection: Selection) => readonly [string, string]} */
-    const titled = ([title, rule, tag]) => [title, tag === undefined ? nameOf(rule) : branch(ruleSet)(nameOf(rule), tag)]
+    const titled = ([title, rule, ...path]) => [title, path.reduce(follow, nameOf(rule))]
     return railroadDemo(`${description} ${guide}`)(toDiagrams(alphabet)(ruleSet)(selections.map(titled)))
 }

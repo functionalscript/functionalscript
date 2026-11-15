@@ -9,7 +9,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { repeatFrom0 } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
-import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
+import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
 import { diagramPage } from '../../testlib.f.mjs'
 import { items, unmapped, variant } from '../../ast/module.f.js'
@@ -63,6 +63,33 @@ export const proof = {
         parser(templateContent)
         parser(templateAfterDollar)
         parser(templateEscape)
+    },
+    // Every local state's recursive edges return to itself or its outer
+    // content rule, so lowering reaches a finite graph with stable edges.
+    recursiveStates: () => {
+        const [, templateBody] = templateContent()
+        const afterDollar = templateBody.dollar[1]
+        const [, dollarBody] = afterDollar()
+        assertEq(dollarBody.dollar[1], afterDollar)
+        assertEq(dollarBody.escape[1], templateContent)
+        assertEq(dollarBody.other[1], templateContent)
+        const [, commentBody] = content()
+        const afterStar = commentBody.star[1]
+        const [, starBody] = afterStar()
+        assertEq(starBody.star[1], afterStar)
+        assertEq(starBody.other[1], content)
+    },
+    // Re-enter content after a dollar run, retaining the variant/sequence
+    // nesting the token reader walks to find a template's closing delimiter.
+    templateShape: () => {
+        const [node, end] = unwrap(parser(templateContent)(cps('a$$b`')))
+        const [a, first] = variant(node)
+        const [dollar, second] = variant(items(first)[1])
+        const [another, third] = variant(items(second)[1])
+        const [b, fourth] = variant(items(third)[1])
+        const [close] = variant(items(fourth)[1])
+        assertStructurallySame([a, dollar, another, b, close], ['other', 'dollar', 'dollar', 'other', 'end'])
+        assertEq(end, 5)
     },
     // Every kind reads its whole token and no more: the text is the symbols
     // under the node, and the end is where the next token begins.
