@@ -88,7 +88,7 @@ though `**/*.js` deliberately stays in `package.json`'s `files`. Stage 2 can
 therefore use `.f.js` as authored compiler-compatible FunctionalScript.
 Standalone authored `.f.js` source is directly checked, gets `.d.ts`, is
 packed, and resolves for a clean consumer, which the packed-package check
-in the `package` job ([`../package/module.f.mjs`](../package/module.f.mjs))
+in the `package` job ([`../package/module.f.js`](../package/module.f.js))
 proves on every run.
 
 ### Stage-1 TypeScript configuration
@@ -197,7 +197,7 @@ source.f.js -> source.f.js + source.f.d.ts
 TypeScript with `allowJs` / `checkJs` must include authored `.f.js` directly in
 its checked source roots and declaration emission. NPM and clean-consumer tests
 must cover both runtime and declarations. They hold: the packed-package check
-([`../package/module.f.mjs`](../package/module.f.mjs)) imports a published
+([`../package/module.f.js`](../package/module.f.js)) imports a published
 `.f.js` from a clean consumer, runs it and type-checks a use of its
 declaration with a negative control.
 
@@ -231,7 +231,7 @@ declaration with a negative control.
   ordering and the extension contract.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
-- [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
+- [`../package/module.f.js`](../package/module.f.js) — the packed-package
   check in the `package` job, the clean-consumer check of the packed
   package and its published `.f.js`.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative FunctionalScript

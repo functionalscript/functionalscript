@@ -10,7 +10,7 @@ import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse as jsonParse } from '../../media/json/module.f.mjs'
+import { parse as jsonParse } from '../../media/json/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { parseGitHubAction } from '../common/module.f.js'
 

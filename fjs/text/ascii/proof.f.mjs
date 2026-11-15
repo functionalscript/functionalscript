@@ -2,7 +2,7 @@ import {
     asciiLowercase, charIs, codePoints, decimalValue, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
     isLatinLetter, lowerHexDigitValue, one, range,
 } from './module.f.js'
-import { stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]

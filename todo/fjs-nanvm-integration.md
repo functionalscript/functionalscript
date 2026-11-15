@@ -93,7 +93,7 @@ without running it during compilation.
 **Blocked by:** nothing. Package support for authored `.f.js` is complete,
 the packed-package check closing the `node` CI job importing a published
 `.f.js` from a clean consumer
-([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
+([`fjs/ci/package/module.f.js`](../fjs/ci/package/module.f.js)).
 
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
@@ -1260,7 +1260,7 @@ relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Every read of the `sub` field, `acc.sub` in `subStep` first, a prohibited property name |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | The loop in `exponentOf`: two `let` variables, an `if … else` assigning inside it, `Math.floor`; `Math.abs`; `Array(…).keys()`, a reserved word and a prohibited call; four forward references, `utf16Literal` to `utf16Units`, `f64Bits` to `bitsOf`, `u64Words` to `u64WordItems`, `u64WordItems` to `words` |
 | `nanvm/methods/module.f.mjs` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
@@ -1312,7 +1312,7 @@ Locations are `line:column`; paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `emergent_testing/node/module.f.mjs` | 25:18 | Destructured parameter in `coverage` | The computed key `file[cwd.length]` in `located`, no `Number(...)`; a destructured parameter in `log` |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Destructured parameters in `lineStep`, `valueAt` and `extensionAt` |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, four forward references |
@@ -1365,7 +1365,7 @@ Locations are `line:column`; paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `emergent_testing/node/module.f.mjs` | 26:11 | Destructuring `const { summary } = data` in `coverage` | A destructured parameter before it, more destructuring after |
 | `git/config/module.f.mjs` | 473:11 | Destructuring `const { sub, after }` in `trySub` | `toLowerCase` at six sites, a prohibited member call; four more destructuring sites |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, `toLowerCase`, four forward references |
@@ -1429,7 +1429,7 @@ names what it reached before the compiler refused again. Locations are
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites, `toLowerCase` at six, five more destructuring sites |
 | `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, `Array(n)`, `let`/`while`, `Math`, `Number.isNaN`, `Object.is`, `toLowerCase`, four forward references |
 | `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
@@ -1513,7 +1513,7 @@ large text templates or substantially rewrite the remaining modules.
 
 | Leaf file | Location | First refused construct |
 | --- | ---: | --- |
-| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `ci/package/module.f.js` | 32:56 | Template literal in `consumerDirectory` |
 | `git/config/module.f.mjs` | 400:60 | Template literal extending `pending` |
 | `media/rust/module.f.mjs` | 65:44 | Template literal producing a Rust Unicode escape |
 | `nanvm/member/module.f.mjs` | 335:13 | Template literal in a generated test name |
@@ -1566,7 +1566,7 @@ the file. Locations are `line:column`; paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct |
 | --- | ---: | --- |
-| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `ci/package/module.f.js` | 32:56 | Template literal in `consumerDirectory` |
 | `git/bytes/module.f.mjs` | 25:35 | Computed key `b[at]`; it must use `Number(...)` |
 | `git/config/module.f.mjs` | 90:57 | `\v` escape |
 | `js/keywords/module.f.mjs` | 103:24 | `new Set(keywords)` |
@@ -1878,7 +1878,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       runtime/type tests — the packed-package check imports
       `fjs/js/prototype/module.f.js` from a clean consumer, runs it, and
       type-checks a use of `PrototypeName` with a negative control
-      ([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
+      ([`fjs/ci/package/module.f.js`](../fjs/ci/package/module.f.js)).
 - [x] Verify `.js` is trackable and authored `.f.js` is a first-class package
       source before the first compiler-compatibility rename — proved first on
       a synthetic package fixture, tracked, type-checked, declared, packed
@@ -1917,7 +1917,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 
 ### Related
 
-- [`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs) — the
+- [`fjs/ci/package/module.f.js`](../fjs/ci/package/module.f.js) — the
   packed-package check closing the `node` CI job, the clean-consumer check
   of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the

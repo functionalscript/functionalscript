@@ -5,7 +5,7 @@
 import { set as setSet } from './module.f.js'
 import { cmp } from '../../string/module.f.js'
 import { assertEq } from '../../../asserts/module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 import { expectedSquares, set, squares } from '../testlib.f.js'
 
 /** @type {(node: TNode<string>) => (value: string) => (g: (v: string | null) => string) => TNode<string>} */

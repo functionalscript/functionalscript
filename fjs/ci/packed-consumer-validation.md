@@ -3,7 +3,7 @@
 This is the manual method used by
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520). Its
 Node half runs in CI now: `node` packs and uploads the tarball, then the
-`package` job ([`package/module.f.mjs`](./package/module.f.mjs)) downloads and
+`package` job ([`package/module.f.js`](./package/module.f.js)) downloads and
 installs it for a clean consumer, imports a published `.f.js`, runs it and type-checks a use of
 its declaration with a negative control. The Deno and Bun halves below remain
 manual.

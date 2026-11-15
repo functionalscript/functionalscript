@@ -78,7 +78,7 @@ import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from 
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.js'
-import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
+import { fundingPath, parse as parseFunding } from './funding/module.f.js'
 import { isAuthored, isThirdParty } from '../dev/module.f.js'
 import { header, isIssue } from './issue/module.f.js'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.mjs'

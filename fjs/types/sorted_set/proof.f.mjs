@@ -1,5 +1,5 @@
 import { has, intersect, toKey, union } from './module.f.js'
-import { stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.js'
 import { countdown, length } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 import { flip } from '../function/module.f.js'

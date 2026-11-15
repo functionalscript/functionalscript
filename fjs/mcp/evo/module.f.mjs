@@ -53,7 +53,7 @@ import { array, option, or, string } from '../../rtti/module.f.js'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { evoSummary } from '../../cas/evo/module.f.mjs'
 import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.js'
-import { stringify } from '../../media/json/module.f.mjs'
+import { stringify } from '../../media/json/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────

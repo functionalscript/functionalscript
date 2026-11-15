@@ -65,7 +65,7 @@ import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 
 /**
  * Every node's rank: the longest path from a source, so every edge points

@@ -2,7 +2,7 @@
  * @import { PackageConsumer } from '../types.ts'
  */
 
-import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
+import { consumerDirectory, packageCheckSteps } from './module.f.js'
 import { typescript } from '../config/module.f.js'
 import { packageConsumer } from '../self/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'

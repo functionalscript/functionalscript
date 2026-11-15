@@ -12,7 +12,7 @@
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
 import { gitHubActionSchema } from '../../../../ci/common/module.f.js'
 import { jobTimeout } from '../../../../ci/config/module.f.js'
-import { fundingSchema } from '../../../../website/funding/module.f.mjs'
+import { fundingSchema } from '../../../../website/funding/module.f.js'
 import { pullsSchema } from '../../../../website/prs/module.f.mjs'
 
 /** @type {readonly DemoExample[]} */
@@ -28,7 +28,7 @@ export const lessons = [
         id: 'funding-channels',
         name: 'Funding channels',
         about: 'funding.json as the site footer reads it: only the funding channels. open() at every level, because the format carries much more and none of it is the footer\'s business.',
-        schemas: projectSchema('fundingSchema', 'website/funding/module.f.mjs', fundingSchema),
+        schemas: projectSchema('fundingSchema', 'website/funding/module.f.js', fundingSchema),
         value: 'export default {"version":"v1.0.0","funding":{"channels":[{"guid":"github","type":"other","address":"https://github.com/sponsors/sergey-shandar","description":"GitHub Sponsors"}]}};',
     },
     {

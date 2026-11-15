@@ -1,4 +1,4 @@
-import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJob, packageJobId, platformNodeSteps } from './module.f.mjs'
+import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJob, packageJobId, platformNodeSteps } from './module.f.js'
 import { toSteps } from '../common/module.f.js'
 import { environmentCommand } from '../environment/module.f.js'
 import { actions, node } from '../config/module.f.js'

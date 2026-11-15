@@ -27,7 +27,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { marked, parse } from './module.f.mjs'
+import { marked, parse } from './module.f.js'
 import { mapOk } from '../../types/result/module.f.js'
 import { sort } from '../../types/object/module.f.js'
 import { textDemo } from '../../website/demo/module.f.mjs'

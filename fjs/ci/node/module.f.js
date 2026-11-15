@@ -11,7 +11,7 @@
 import { images, jobTimeout, node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.js'
 import { environmentCommand, environmentSteps, environmentVersionStep } from '../environment/module.f.js'
-import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
+import { consumerDirectory, packageCheckSteps } from '../package/module.f.js'
 
 /**
  * The isolated consumer job, after the source job uploads its tarball.
