@@ -72,6 +72,20 @@ Owner decided seven choices on the shape of slice 7, failure.
 | The oracle | Three outcomes: the same value, a throw of the same value, or a trap of both, where a twin's trap is a misuse of the L0 view or a `trap` of the twin. A function that cannot fail never fails, and the cells are checked after every outcome |
 | How slice 7 is cut | Two PRs: 7a, throwing by hand; 7b, the lowering of `throw` and of L1's error table, with the subjects `functionText` and `bigintPair` |
 
+### Decisions for slice 8 (2026-11-15)
+
+Owner decided six choices on the shape of slice 8, builders, from a
+choices doc.
+
+| Choice | Decision |
+| --- | --- |
+| What slice 8 covers | The builders and `{}` only. An object literal with keys stays a record. Object literals as values, and spread in array and object literals, move to slice 11, since no L1 body uses them |
+| How a builder call lowers | As [L0 §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass): `begin_array(n)` or `begin_object(n)`, one IR `loop` over the index, the state and the builder, and `seal`. No new IR term |
+| Which callbacks | Arrow literals written in the call, inlined where the loop calls them. Anything else is refused until slice 9 |
+| The order of the callbacks' calls | The L0 view calls them in the order of one loop: an item before the next state, and a key, its check, then its value. The view changes to match, in 8a |
+| `numberToString` | A new native row, `numberToString(x: f64) -> string`, as slice 5's rows are |
+| How slice 8 is cut | Three PRs: 8a, the view's order; 8b, `buildArray` with `toIterable`; 8c, `buildObject` and `{}` with `objectSpread` |
+
 ### Roadmap
 
 Tick a box when its pull request merges. Slice numbers in parentheses are the
@@ -166,17 +180,31 @@ Slice 7, cut in two as decided above.
   copy, since L1 calls it only from arithmetic, which a later slice
   lowers. The random comparison gains a form that throws.
 
+#### Next — builders
+
+Slice 8, cut in three as decided above.
+
+- [ ] **8a. The order of the builders' calls.** The L0 view calls `at` of a
+  state before `next` of it, and `keyAt`, the key's check, then `valueAt`,
+  as one loop does; a host proof shows the order by what a failing
+  callback throws.
+- [ ] **8b. `buildArray`, lowered.** Arrow-literal callbacks inlined into
+  one loop over `begin_array`, `push` and `seal`; the `asArray` cast.
+  Subject: `toIterable`.
+- [ ] **8c. `buildObject` and `{}`, lowered.** Containers' `begin_object`
+  and `push_property`, in the IR and the counting host; the `asObject`
+  cast; the `numberToString` row. Subject: `objectSpread`.
+
 #### Later
 
-- [ ] **Builders** (8). What is left after 6e: `buildArray` and `buildObject`
-  with their callbacks inlined, object literals and spread. Subjects:
-  `toIterable` and `objectSpread`.
 - [ ] **Calling function values** (9). L0's `call` from WASM into the host
   and back. Subjects: `toPrimitive`, `toNumber`, `toNumeric`, `toString` and
   `call`.
 - [ ] **The whole L1 module** (10), against the cases of its parity proof.
 - [ ] **Programs** (11). Operators on unknown types as calls of L1, closures
-  as values, and a program as one module linked with L1.
+  as values, and a program as one module linked with L1. Object literals
+  as values, and spread in array and object literals, moved here from
+  slice 8.
 - [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
 
 ### Related
