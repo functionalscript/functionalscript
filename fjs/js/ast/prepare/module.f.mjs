@@ -35,6 +35,7 @@ import { pushAll } from '../../../types/stack_walk/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.js'
 import { _immutableJoin } from './joins/module.f.js'
 import { _recoverOnePassJoin } from './one_pass/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 
 /** @type {(node: _Node) => _Facts} */
 const facts = node => {
@@ -179,7 +180,7 @@ const flows = (root, known = new Map()) => {
 }
 
 /** @type {(next: number, count: number) => readonly BindingId[]} */
-const fresh = (next, count) => Array.from({ length: count }, (_, index) => ({ index: next + index }))
+const fresh = (next, count) => generate(count, index => ({ index: next + index }))
 
 /** Whether statements in this region physically write one of its slots. @type {(block: Block, id: BindingId) => boolean} */
 const writes = (block, id) => {

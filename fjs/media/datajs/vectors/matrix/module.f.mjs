@@ -62,12 +62,16 @@ import { occurrences } from '../../../../types/array/module.f.js'
 import { entry } from '../../../../types/object/entry/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
+import { stringify } from '../../../json/module.f.js'
+import { identity } from '../../../../types/function/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.js'
 import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.js'
 import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.js'
 import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.js'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.js'
+
+const toJson = stringify(identity)
 
 /** Where the matrix is written. @type {string} */
 export const directory = 'spec/datajs/vectors'
@@ -287,8 +291,8 @@ const isName = onlyFrom(nameMarks)
  */
 const showable = (ok, kind, what, s) =>
     s.trim() === ''
-        ? [`${what}: ${JSON.stringify(s)} shows nothing at all`]
-        : ok(s) ? [] : [`${what}: ${JSON.stringify(s)} is not ${kind} the table can show as written`]
+        ? [`${what}: ${toJson(s)} shows nothing at all`]
+        : ok(s) ? [] : [`${what}: ${toJson(s)} is not ${kind} the table can show as written`]
 
 /**
  * Every string the corpus puts in a cell, checked before any of them is
@@ -396,8 +400,8 @@ const duplicated = ({ notApplicable }) =>
  *
  * `showScope` takes a scope apart, and the whole point of the check below is
  * that a reason may not carry one — so naming the offender cannot go through
- * it. It cannot go through `JSON.stringify` either, which throws on a bigint,
- * nor through `String` or a template on anything but a primitive: `{"toString":
+ * it. JSON cannot represent a bigint, and `String` or a template cannot name
+ * every non-primitive: `{"toString":
  * 1}` is an ordinary DataJS object, and coercing it calls a hook that is not a
  * function and throws. So everything but a string and an array is named by its
  * `typeof` in angle brackets rather than by its value, which is what a writer
@@ -407,7 +411,7 @@ const duplicated = ({ notApplicable }) =>
  */
 const show = x =>
     x instanceof Array ? `[${x.map(show).join(', ')}]`
-        : typeof x === 'string' ? JSON.stringify(x)
+        : typeof x === 'string' ? toJson(x)
         : x === null ? 'null'
         : `<${typeof x}>`
 

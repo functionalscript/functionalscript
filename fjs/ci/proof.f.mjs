@@ -1,7 +1,7 @@
 /** @import { Dir, State } from '../effects/node/virtual/types.ts'
  * @import { GitHubAction, MetaStep, Os, Architecture } from './common/types.ts'
  */
-import { ci, main } from './module.f.mjs'
+import { ci, main } from './module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.js'

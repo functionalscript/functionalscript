@@ -109,7 +109,7 @@ is speculative generality.
 
 - [`../node/module.f.js`](../node/module.f.js) — `nodeVersionJobs`, the job in
   question.
-- [`../module.f.mjs`](../module.f.mjs) — `ci(setup)` and `canonicalJobs`, where
+- [`../module.f.js`](../module.f.js) — `ci(setup)` and `canonicalJobs`, where
   the jobs are assembled and `nodeExtra` stops short.
 - [`../publish/module.f.js`](../publish/module.f.js) — the publishing
   workflow, written unconditionally and with no way to decline it.

@@ -57,6 +57,21 @@ where they are decided, in
 [`fjs/ebnf/lib/json`](../../ebnf/lib/json/module.f.js) and the parser's
 proofs.
 
+## Indented output
+
+`stringifyIndented('  ')(identity)(value)` writes the standard codec's JSON
+with two spaces per nesting level and the original property order. Pass `sort`
+instead of `identity` for canonical key order. The indentation unit is a literal
+string, neither coerced nor truncated; use spaces or tabs for JSON whitespace.
+An empty unit keeps compact output. Empty containers remain `[]` and `{}`, and
+no final newline is added.
+
+The shared serializer accepts the same unit as the optional second argument to
+`codec(leaf, indent)` and `treeSerialize(leaf, indent)`. Compact and indented
+output share the container walk, leaf spellings, omission of undefined object
+fields and explicit `-0` policy. `serialize` and `marked` retain the chosen
+layout too.
+
 ## Losslessness starts at the grammar
 
 The `number` rule's mapping hands the codec's policy the lexeme and nothing

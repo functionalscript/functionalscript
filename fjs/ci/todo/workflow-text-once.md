@@ -9,7 +9,7 @@ Two small rules of this generator are written in more than one module and
 must agree.
 
 The serialisation of a workflow, JSON with two-space indent, is documented
-on `workflowText` in [`module.f.mjs`](../module.f.mjs) and spelled there
+on `workflowText` in [`module.f.mjs`](../module.f.js) and spelled there
 in `writeWorkflows`; `main` in [`self`](../self/module.f.mjs) spells
 `JSON.stringify(workflow, null, '  ')` twice more for its own two
 workflows, and builds its two jobs by hand, restating `runs-on`,
