@@ -171,9 +171,9 @@ const showScope = ([tag, name]) => `${tag} ${name}`
 const reasonOf = ({ roles, notApplicable }, role, c) => {
     let best = -1
     for (let i = 0; i < notApplicable.length; i += 1) {
-        const n = notApplicable[i]
+        const n = notApplicable[Number(i)]
         if (n.role !== role || !reaches(roles, n.scope, c)) { continue }
-        if (best === -1 || specificity(n.scope) > specificity(notApplicable[best].scope)) { best = i }
+        if (best === -1 || specificity(n.scope) > specificity(notApplicable[Number(best)].scope)) { best = i }
     }
     return best
 }
@@ -565,13 +565,13 @@ const table = ({ roles, notApplicable }) => rows => {
         '',
         '| role | sets | classes covered | not applicable | awaiting |',
         '| - | - | -: | -: | -: |',
-        ...roles.map((r, i) => summary(r, rows.map(row => row[i]))),
+        ...roles.map((r, i) => summary(r, rows.map(row => row[Number(i)]))),
         '',
         `${classes.length} classes.`,
         '',
         `| class | ${header.join(' | ')} |`,
         `| - |${header.map(() => ' - |').join('')}`,
-        ...classes.map((c, i) => `| ${code(c)} | ${rows[i].map(render).join(' | ')} |`),
+        ...classes.map((c, i) => `| ${code(c)} | ${rows[Number(i)].map(render).join(' | ')} |`),
         '',
         '## Notes',
         '',

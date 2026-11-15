@@ -22,7 +22,7 @@ what a grammar can and cannot do for the formats.
   value, `name SP <email> SP time SP tz`, read as a second pass over the
   bytes a header holds: a `try*` reader that refuses what `git fsck`
   refuses, and a writer.
-- [`tree/`](tree/module.f.mjs) — a tree's entries, `mode SP name NUL id`,
+- [`tree/`](tree/module.f.js) — a tree's entries, `mode SP name NUL id`,
   for a repository's id width: a reader that reads what `git fsck` would
   flag, a `validate` that refuses it the way `fsck` does, `mode` as the
   number an entry's digits spell, and a writer.
@@ -31,7 +31,7 @@ what a grammar can and cannot do for the formats.
   rule each component between slashes must pass. A tag's `tag` header is a
   ref name, which is why the tag module asks, and `HEAD`, a loose ref and a
   `packed-refs` line carry one too.
-- [`ref/`](ref/module.f.mjs) — the three files a repository keeps its refs
+- [`ref/`](ref/module.f.js) — the three files a repository keeps its refs
   in, each as the grammar it is: a loose ref, a symbolic ref such as `HEAD`,
   and `packed-refs`. The three do not agree with each other — a loose ref
   need not end in LF and ignores anything after its first line, where
@@ -45,7 +45,7 @@ what a grammar can and cannot do for the formats.
   `ofsDelta`'s distance back, most significant group first with a `+ 1` per
   continuation byte, which is what makes its spelling unique and what decides
   whether a base lands in the right place.
-- [`packidx/`](packidx/module.f.mjs) — a pack index, `.idx`, from an object
+- [`packidx/`](packidx/module.f.js) — a pack index, `.idx`, from an object
   id to where its entry begins in the `.pack` beside it. Length-framed and so
   a decoder rather than a grammar. Both live versions are read into one
   shape — version 2 with its magic and separate tables, version 1 with its
@@ -299,7 +299,7 @@ payload.
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
 | zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.js), fed chunks and read over the effects by [`inflater/`](inflater/module.f.js) |
-| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.mjs), read over the effects by [`packstore/`](packstore/module.f.mjs) |
+| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.js), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
 a tree entry is 20 raw bytes and may spell anything, a file name is
@@ -456,7 +456,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   either.
 - **Appending to the reflog**:
   [`refstore/todo/ref-writing.md`](refstore/todo/ref-writing.md). Reading the refs is done, and
-  so are writing and deleting one — [`ref/`](ref/module.f.mjs) for the file
+  so are writing and deleting one — [`ref/`](ref/module.f.js) for the file
   grammars, [`refstore/`](refstore/module.f.mjs)'s `tryRoots` and `tryResolve`,
   and [`refstore/write/`](refstore/write/module.f.mjs)'s `tryWrite` and
   `tryDelete` over the effects. Every way the two writers are

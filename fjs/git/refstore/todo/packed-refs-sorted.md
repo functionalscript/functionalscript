@@ -38,7 +38,7 @@ What is worth having is the *other* half — the lookup that does not scan.
 
 ### Proposal
 
-- [`fjs/git/ref`](../../ref/module.f.mjs)'s `tryPacked` answers the traits beside
+- [`fjs/git/ref`](../../ref/module.f.js)'s `tryPacked` answers the traits beside
   the records, rather than skipping the header comment. That is a change to what
   it returns, so explain the API change in whichever PR makes it. A breaking
   notice is optional before 1.0.
@@ -56,7 +56,7 @@ What is worth having is the *other* half — the lookup that does not scan.
 
 ### Related
 
-- [`fjs/git/ref`](../../ref/module.f.mjs) — the grammar, and the header comment
+- [`fjs/git/ref`](../../ref/module.f.js) — the grammar, and the header comment
   the traits live in.
 - [`fjs/git/refstore`](../module.f.mjs) — `packedId`, the scan this would
   replace, and `tryRoots`, the iteration that must keep seeing every line.

@@ -8,7 +8,7 @@ import { codePointListToString } from '../../text/utf16/module.f.js'
 import { u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.js'
 import { latin1, packIdx1, packIdx2 } from '../testlib.f.js'
-import { after, holdsEntryAt, offsetOf, tryIdx } from './module.f.mjs'
+import { after, holdsEntryAt, offsetOf, tryIdx } from './module.f.js'
 
 const read = tryIdx(20)
 

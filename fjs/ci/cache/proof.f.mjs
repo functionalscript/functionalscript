@@ -20,7 +20,7 @@ import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOpera
 import { ascii } from '../../ebnf/byte/module.f.js'
 import { hexText, of, tryFromHexOf } from '../../git/oid/module.f.js'
 import { objectsDir, tryRead as readObject } from '../../git/store/module.f.mjs'
-import { write as writeTree } from '../../git/tree/module.f.mjs'
+import { write as writeTree } from '../../git/tree/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { utf8 } from '../../text/module.f.js'
 import { u8ListToString } from '../../text/utf8/module.f.js'

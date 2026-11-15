@@ -42,7 +42,7 @@ import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
 import { tryTreeAt } from '../commit/module.f.js'
 import { ofWidth } from '../oid/module.f.js'
 import { tryTargetAt } from '../tag/module.f.js'
-import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
+import { isSubtree, tryRead as readTree } from '../tree/module.f.js'
 
 /**
  * The entries of the tree an id names, where it names a tree: read, and

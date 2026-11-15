@@ -2,7 +2,7 @@
  * The refs a repository holds, over the effects: which ids it keeps
  * reachable, and what one ref name resolves to.
  *
- * [`fjs/git/ref`](../ref/module.f.mjs) reads the bytes of one ref file and
+ * [`fjs/git/ref`](../ref/module.f.js) reads the bytes of one ref file and
  * has no effects. This module finds and opens the files, which is the half
  * that needs a filesystem, and it is where every rule lives that no reader of
  * a single file can decide: which of two files holding the same name wins,
@@ -176,7 +176,7 @@
  * on its probe sequence, so two readers that both honour the trait can disagree
  * about the same bytes. What is worth taking from the trait is the lookup that
  * does not scan, and that wants the traits carried out of
- * [`fjs/git/ref`](../ref/module.f.mjs) —
+ * [`fjs/git/ref`](../ref/module.f.js) —
  * [`todo/packed-refs-sorted.md`](./todo/packed-refs-sorted.md).
  *
  * **Writing and deleting a ref are [`./write`](./write/module.f.mjs)**, which
@@ -206,7 +206,7 @@ import { occurrences } from '../../types/array/module.f.js'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { tryPacked, tryRef } from '../ref/module.f.mjs'
+import { tryPacked, tryRef } from '../ref/module.f.js'
 import { hasRefComponents, isWholeName } from '../refname/module.f.js'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.js'
 import { dirOf, sharedScope, worktreeScope } from './scope/module.f.js'
@@ -315,7 +315,7 @@ export const maxLookups = /** @type {const} */ (5)
  * merge record answers the *first* line's id to `git rev-parse FETCH_HEAD`,
  * so there is nothing to choose between the records here.
  *
- * This is why [`fjs/git/ref`](../ref/module.f.mjs) takes both as symbolic
+ * This is why [`fjs/git/ref`](../ref/module.f.js) takes both as symbolic
  * targets and leaves the question to this module: whether such a target
  * resolves depends on the file being there, which the bytes of the ref
  * naming it cannot say.

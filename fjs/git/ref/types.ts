@@ -21,7 +21,7 @@ export type Ref =
 
 /**
  * What taking one name out of `packed-refs` comes to — see `tryPackedWithout`
- * in `./module.f.mjs`: a file Git refuses, a file whose header claims an order
+ * in `./module.f.js`: a file Git refuses, a file whose header claims an order
  * its lines do not have, no entry by that name, or the file without it.
  */
 export type PackedWithout =
