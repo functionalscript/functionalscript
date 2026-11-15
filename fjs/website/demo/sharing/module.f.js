@@ -10,7 +10,7 @@
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.js'
-import { entry } from '../../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 import { parse } from '../../../media/json/module.f.js'
 import { percentDecode, percentEncodeComponent } from '../../../text/percent/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
@@ -27,7 +27,7 @@ export const defaultsOf = fields => fromEntries(entries(fields).map(([name, fiel
 export const validateInputs = (fields, inputs) => {
     const invalid = entries(inputs).find(([name, value]) => {
         const field = entry(fields, name)
-        return !Object.hasOwn(fields, name) || field === undefined
+        return !hasEntry(fields, name) || field === undefined
             || typeof value !== typeof field.default
             || typeof value === 'number' && !Number.isFinite(value)
             || field.choices !== undefined && !field.choices.includes(/** @type {string} */ (value))
@@ -76,12 +76,13 @@ const checked = (sharing, inputs) => {
 export const restoreInputs = (sharing, query) => {
     if (query.kind === 'defaults') { return checked(sharing, {}) }
     const { fields } = sharing
-    const id = query.values.example
+    const queryValues = assertNotNullish(entry(query, 'values'))
+    const id = queryValues.example
     const example = sharing.examples.find(e => e.id === id)
-    if (id !== undefined && example === undefined && !Object.hasOwn(fields, 'example')) { return error(`Unknown or retired demo example: ${id}`) }
-    const parsed = entries(query.values).filter(([name]) => name !== 'example' || Object.hasOwn(fields, name)).map(([name, value]) => {
+    if (id !== undefined && example === undefined && !hasEntry(fields, 'example')) { return error(`Unknown or retired demo example: ${id}`) }
+    const parsed = entries(queryValues).filter(([name]) => name !== 'example' || hasEntry(fields, name)).map(([name, value]) => {
         const field = entry(fields, name)
-        return /** @type {const} */ ([name, !Object.hasOwn(fields, name) || field === undefined
+        return /** @type {const} */ ([name, !hasEntry(fields, name) || field === undefined
             ? error(`Unknown input: ${name}`) : inputValue(field, value)])
     })
     const invalid = parsed.find(([, result]) => result[0] === 'error')
@@ -90,7 +91,7 @@ export const restoreInputs = (sharing, query) => {
     return checked(sharing, { ...example?.inputs, ...inputs })
 }
 /** @type {(a: Inputs, b: Inputs) => boolean} */
-const same = (a, b) => keys(a).length === keys(b).length && entries(a).every(([name, value]) => Object.hasOwn(b, name) && entry(b, name) === value)
+const same = (a, b) => keys(a).length === keys(b).length && entries(a).every(([name, value]) => hasEntry(b, name) && entry(b, name) === value)
 /** One `name=value` query parameter, or `null` when either holds a lone surrogate.
  * @type {(pair: readonly [string, string]) => Nullable<string>}
  */
@@ -109,7 +110,7 @@ export const encodeQuery = (sharing, inputs) => {
     const [, validInputs] = valid
     if (same(validInputs, defaultsOf(sharing.fields))) { return ok('#demo') }
     const example = sharing.examples.find(e => same(validInputs, { ...defaultsOf(sharing.fields), ...fromEntries(entries(e.inputs)) })
-        && (!Object.hasOwn(sharing.fields, 'example') || validInputs.example === e.id))
+        && (!hasEntry(sharing.fields, 'example') || validInputs.example === e.id))
     if (Object.values(validInputs).some(v => typeof v === 'string' && v.length > queryLimit)) { return error('Inputs exceed the 16 KiB sharing limit') }
     /** @type {readonly (readonly [string, string])[]} */
     const pairs = example !== undefined ? [['example', example.id]]
@@ -133,7 +134,7 @@ export const textSharing = (name, init, examples = []) => ({
  */
 export const recordSharing = (init, fields, names = {}, examples = []) => {
     /** @type {(name: string) => string} */
-    const keyOf = name => Object.hasOwn(names, name) ? entry(names, name) ?? name : name
+    const keyOf = name => hasEntry(names, name) ? entry(names, name) ?? name : name
     return {
         fields, examples,
         read: state => fromEntries(entries(fields).map(([name]) => [name,
@@ -147,7 +148,7 @@ export const recordSharing = (init, fields, names = {}, examples = []) => {
 export const withInputs = (demo, names, choices = {}, examples = []) => {
     const init = /** @type {Inputs} */ (/** @type {unknown} */ (demo.init))
     const fields = fromEntries(names.map(/** @param {string} name */ name => {
-        const allowed = Object.hasOwn(choices, name) ? entry(choices, name) : undefined
+        const allowed = hasEntry(choices, name) ? entry(choices, name) : undefined
         return [name, { default: assertNotNullish(entry(init, name)), ...(allowed === undefined ? {} : { choices: allowed }) }]
     }))
     return { ...demo, sharing: recordSharing(demo.init, fields, {}, examples) }

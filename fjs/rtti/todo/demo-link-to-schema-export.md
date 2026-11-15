@@ -10,7 +10,7 @@
 The demo shows each schema the project uses as the import that brings it in,
 
 ```js
-import { noteSchema } from 'functionalscript/fjs/media/note/module.f.mjs'
+import { noteSchema } from 'functionalscript/fjs/media/note/module.f.js'
 ```
 
 and the quoted module path links to the module's page on the site. That page

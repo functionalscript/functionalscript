@@ -11,7 +11,7 @@
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
 import { revisionSchema } from '../../../../media/revision/module.f.mjs'
 import { lockSchema } from '../../../../media/lock/module.f.mjs'
-import { noteSchema } from '../../../../media/note/module.f.mjs'
+import { noteSchema } from '../../../../media/note/module.f.js'
 import { unknown as jsonValue } from '../../../../media/json/rtti/module.f.js'
 import { unknown as jsonSchema } from '../../../../media/json/schema/module.f.js'
 
@@ -35,7 +35,7 @@ export const lessons = [
         id: 'note',
         name: 'Note',
         about: 'vnd.fjs.note: a note, todo or issue as a blob: its text, what it depends on, and a priority from P1 to P5.',
-        schemas: projectSchema('noteSchema', 'media/note/module.f.mjs', noteSchema),
+        schemas: projectSchema('noteSchema', 'media/note/module.f.js', noteSchema),
         value: 'export default {"dialect":"vnd.fjs.note","text":"Show the project\'s own schemas in the rtti demo","priority":"P2"};',
     },
     {

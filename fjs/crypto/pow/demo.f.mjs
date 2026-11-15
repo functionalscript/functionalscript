@@ -12,7 +12,7 @@
  * @import { DemoState } from './types.ts'
  */
 
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.js'
 import { tryUtf8 } from '../../text/module.f.js'

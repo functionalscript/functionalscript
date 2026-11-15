@@ -33,7 +33,7 @@ It also stands in the way of converting authored modules to `.f.js`. At
 defaults in 14 files, and 7 defaults inside binding patterns, 4 of them in
 parameters; the proofs hold at least as many again. Several read a name of
 the module around them, `extraValidate = always` and
-`checkReferences = ok` in [`fjs/media`](../../fjs/media/module.f.mjs)'s
+`checkReferences = ok` in [`fjs/media`](../../fjs/media/module.f.js)'s
 `dialectEntry` and `jsonDialect`. A default parameter was the one refusal
 of [`fjs/website/demo/code`](../../fjs/website/demo/code/module.f.js)'s
 `codeBlock`, a leaf of the

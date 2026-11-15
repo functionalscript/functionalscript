@@ -7,8 +7,8 @@ The repository's blob formats, and JSON itself, are schemas:
 - `vnd.fjs.revision`, `vnd.fjs.lock` and `vnd.fjs.note`, in
   [`media/revision`](../../../../media/revision/module.f.mjs),
   [`media/lock`](../../../../media/lock/module.f.mjs) and
-  [`media/note`](../../../../media/note/module.f.mjs);
-- the dialect registry in [`media`](../../../../media/module.f.mjs), which
+  [`media/note`](../../../../media/note/module.f.js);
+- the dialect registry in [`media`](../../../../media/module.f.js), which
   matches a blob against the format schemas and declares none of its own;
 - the JSON data model, in [`media/json/rtti`](../../../../media/json/rtti/module.f.js),
   and JSON Schema itself, in

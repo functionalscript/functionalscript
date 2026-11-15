@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { dialect, mediaType, decodeText, encodeText, noteDialect, priorities, validate } from './module.f.mjs'
+import { dialect, mediaType, decodeText, encodeText, noteDialect, priorities, validate } from './module.f.js'
 import { dialect as lockDialect } from '../lock/module.f.mjs'
 
 export const proof = {

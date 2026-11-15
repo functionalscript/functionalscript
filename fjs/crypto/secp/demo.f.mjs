@@ -10,7 +10,7 @@
  * @import { State, RealPoint, Construction } from '../../website/demo/secp/types.ts'
  */
 
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'

@@ -10,7 +10,7 @@ import { runPure } from '../../effects/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
-import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.mjs'
+import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.js'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])

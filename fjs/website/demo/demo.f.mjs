@@ -7,7 +7,7 @@
 
 import { button, caption, option, selectField } from './module.f.mjs'
 import { pureOk } from '../../effects/module.f.js'
-import { textSharing } from './sharing/module.f.mjs'
+import { textSharing } from './sharing/module.f.js'
 
 /** @type {Demo<string, DemoEvent>} */
 export const demo = {

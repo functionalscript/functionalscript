@@ -50,7 +50,7 @@
  * @import { _DemoState, _DemoStripes, _DemoUnit, EncodeState } from './types.ts'
  */
 
-import { withInputs } from '../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../website/demo/sharing/module.f.js'
 import { encode } from './module.f.js'
 import { levels } from './level/literal/module.f.js'
 import { isHash, isHashLength, isRaw } from './id/module.f.js'
