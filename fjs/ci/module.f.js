@@ -46,6 +46,8 @@ import { miseJobs } from './mise/module.f.js'
 import { smartJobs } from './smart/module.f.js'
 import { assertNotNullish } from '../asserts/module.f.js'
 import { entry } from '../types/object/entry/module.f.js'
+import { stringifyIndented } from '../media/json/module.f.js'
+import { identity } from '../types/function/module.f.js'
 
 /**
  * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
@@ -56,12 +58,11 @@ export const ciPath = /** @type {const} */ (`${_workflowsDirectory}/gen.ci.yml`)
 
 /**
  * A workflow as the file the generator writes. JSON, which every YAML reader
- * accepts, so nothing here has to decide how a string is quoted or how deep a
- * block is indented.
+ * accepts, with two-space indentation and original property order.
  *
  * @type {(gha: GitHubAction) => string}
  */
-const workflowText = gha => JSON.stringify(gha, null, '  ')
+const workflowText = stringifyIndented('  ')(identity)
 
 /**
  * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}

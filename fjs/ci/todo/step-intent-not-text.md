@@ -32,7 +32,7 @@ if (['cargo ', 'npm ', 'node ', 'fjs ', 'tsc'].some(command => run.startsWith(co
 and `checkId` in [`smart`](../smart/module.f.js) parses the result a
 third time, through `shellPrefixes` and a chain of `startsWith` and `===`
 against whole commands, to decide a step's cache rung. `intelMacSteps` in
-[`module.f.mjs`](../module.f.mjs) spells the Node version test by hand in
+[`module.f.mjs`](../module.f.js) spells the Node version test by hand in
 exactly the form `migratedStep` must recognise, and `mise`'s `action` and
 `smart`'s `isAction` are the same predicate under two names.
 

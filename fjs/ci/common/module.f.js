@@ -51,7 +51,7 @@ export const stepSchema = /** @type {const} */ ({
     // Environment for one step. The generator writes it in exactly one
     // place: an injected command travels here rather than inside the quotes
     // of the command that runs it, so a value GitHub substitutes into it is
-    // never read back as shell source. See `../module.f.mjs`'s `inShell`.
+    // never read back as shell source. See `../module.f.js`'s `inShell`.
     env: or(option, record(string)),
     // The directory a `run` step starts in, when it is not the checkout. The
     // packed-package check is the one user: it runs as a consumer, in a
@@ -84,6 +84,9 @@ export const jobSchema = /** @type {const} */ ({
 
 export const jobsSchema = record(jobSchema)
 
+/** A trigger with no configuration fields; `{}` alone is the unconstrained schema. */
+const emptyTrigger = record(or())
+
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     // Every trigger any generated workflow uses, all optional, because no
@@ -91,14 +94,14 @@ export const gitHubActionSchema = /** @type {const} */ ({
     // workflow fires on a push to a branch. `push` carries the branch list;
     // without it a push to any branch would publish.
     on: {
-        pull_request: or(option, {}),
+        pull_request: or(option, emptyTrigger),
         // Runs the workflow as the base branch defines it, never as the pull
         // request does: the personal-notes approval relies on it, since a
         // workflow a pull request could rewrite could approve itself.
         // `edited` is named because a changed base branch changes the files
         // a pull request carries without a new commit.
         pull_request_target: or(option, { types: array(string) }),
-        merge_group: or(option, {}),
+        merge_group: or(option, emptyTrigger),
         push: or(option, { branches: array(string) })
     },
     // A condition cancels superseded PR checks while keeping production uploads running.

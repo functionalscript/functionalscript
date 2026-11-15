@@ -47,6 +47,7 @@ import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/modu
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 import { textDemo, refusal } from '../module.f.js'
 
 /**
@@ -99,7 +100,7 @@ export const byteChars = text => {
 const groups = ({ width, stop }) => bits => {
     const n = bits.length
     const count = stop ? Math.floor(n / width) + 1 : Math.ceil(n / width)
-    return Array.from({ length: count }, (_, i) => {
+    return generate(count, i => {
         const data = bits.slice(i * width, (i + 1) * width)
         const rest = width - data.length
         return rest === 0 ? { data, stop: '', fill: '' }
@@ -197,9 +198,9 @@ const boxes = ({ width, block }) => ({ groups, encoded }) => {
     const all = groups.map((g, i) => box(g, encoded[i]))
     if (block === undefined) { return ['div', { 'data-bit-groups': '' }, ...all] }
     const count = Math.ceil(all.length / block)
-    const padded = [...all, ...Array.from({ length: count * block - all.length }, () => placeholder(width))]
+    const padded = [...all, ...generate(count * block - all.length, () => placeholder(width))]
     return ['div', { 'data-bit-groups': '', 'data-bit-blocks': '' },
-        ...Array.from({ length: count }, (_, i) =>
+        ...generate(count, i =>
             /** @type {Element} */ (['div', { 'data-bit-block': '' }, ...padded.slice(i * block, (i + 1) * block)]))]
 }
 

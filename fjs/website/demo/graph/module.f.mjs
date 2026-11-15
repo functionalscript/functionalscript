@@ -812,7 +812,7 @@ const layout = left => nodes => (edges, center, table) => {
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
     /** @type {readonly (readonly _Slot[])[]} */
-    const columns = Array.from({ length: maxRank + 1 }, (_, rank) => [
+    const columns = generate(maxRank + 1, rank => [
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
@@ -958,7 +958,7 @@ const routesOf = placed => {
         const points = back !== undefined ? around(back) : [
             [right, y],
             ...(right < placed.ends[Number(from.rank)] ? [/** @type {_Point} */ ([placed.ends[Number(from.rank)], y])] : []),
-            ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
+            ...generate(to.rank - from.rank - 1, i => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
