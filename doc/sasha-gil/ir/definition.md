@@ -11,9 +11,10 @@ leave open a point that the FAST-to-WASM path needs,
 Nothing here is decided.
 
 Since 2026-11-13, [`fjs/ir`](../../../fjs/ir/README.md) builds this
-definition as code, in vertical slices. Slices 1 to 6 and 7a cover steps 1 to 5
-of the [order of work](#order-of-work), and differ from this note in a few
-names and places, which [What fjs/ir builds](#what-fjsir-builds) lists.
+definition as code, in vertical slices. Slices 1 to 6 and 7a cover most
+of steps 1 to 5 of the [order of work](#order-of-work), and differ from
+this note in a few names and places, which
+[What fjs/ir builds](#what-fjsir-builds) lists.
 
 A prototype checks the definition. Its checker, lifetime pass and WASM
 emitter take seven functions, three of them bodies of the L1 module, to a
@@ -736,10 +737,10 @@ counts every value.
 
 | Step of the order of work | In fjs/ir |
 | --- | --- |
-| 1. Types and interfaces as data | built: [`module.f.js`](../../../fjs/ir/module.f.js), the interfaces of L0's five modules in [`l0`](../../../fjs/ir/l0/module.f.js), L1's native rows in [`native`](../../../fjs/ir/native/module.f.js) |
+| 1. Types and interfaces as data | partly: [`module.f.js`](../../../fjs/ir/module.f.js) has every type but `code`, which waits for slice 9; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, without `key`, `find`, `text`, `join` and the builders' callbacks, and no proof that every function of the view has a row; L1's native rows are in [`native`](../../../fjs/ir/native/module.f.js) |
 | 2. Terms and the checker | built but `code` and `call_ref`, which wait for slice 9: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7 |
 | 3. The lifetime pass | built: [`lifetime`](../../../fjs/ir/lifetime/module.f.js), and the owned-stage check |
-| 4. The WASM emitter for import form | built: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host`](../../../fjs/ir/l0/host/module.f.js) |
+| 4. The WASM emitter for import form | built: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs) |
 | 5. The lowering from normalized FAST | in progress: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers the L1 bodies that slices.md names, and refuses the rest |
 | 6 to 11 | not started; slices 11 and 12 are step 6 |
 
