@@ -1209,6 +1209,7 @@ export const proof = {
         assertEq(assertError(check(assertOk(over(fa, 'export const f = a => { throw a }')))), "f: Functions.throw's v is any, not f64")
         // The table is an object literal of strings that the module exports as error.
         assertEq(assertError(errorTable(fast('export const x = 1'))), 'the module exports no object literal error')
+        assertEq(assertError(errorTable(fast("export const error = { a: 'a' }\nexport const other = 1"))), 'an error module exports error and nothing else')
         assertEq(assertError(errorTable(fast('export const error = { a: 1 }'))), 'an error that is not a string of a name is not in this slice')
         assertEq(assertError(errorTable(fast("export const error = { x: 'first', x: 'second' }"))), 'the error table names an error twice')
         assertEq(assertError(errorTable({ statements: [], exit: ['yield', []] })), 'a module that yields no object of exports has no error table')

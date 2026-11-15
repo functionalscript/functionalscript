@@ -1199,7 +1199,7 @@ const keep = ([later, needed], c) => needed.includes(c[0]) ? [[c, ...later], [..
  * L1's error table, from the normalized FAST of its module's text
  * ([`l1/error`](../../wasm/runtime/l1/error/module.f.js)): the export
  * `error`, an object literal of the text of each error, by its name, in
- * their order. The runtime gives it to [`lower`](#lower), which writes a
+ * their order. The module exports nothing else, and no name twice. The runtime gives it to [`lower`](#lower), which writes a
  * read of one, `error.k`, as the string literal of its text.
  *
  * @type {(fast: Block) => Result<readonly (readonly [string, string])[], string>}
@@ -1207,7 +1207,9 @@ const keep = ([later, needed], c) => needed.includes(c[0]) ? [[c, ...later], [..
 export const errorTable = ({ exit }) => {
     const exports = exit[0] === 'yield' && exit[1].length === 1 ? exit[1][0] : null
     if (!(exports instanceof Array) || exports[0] !== 'object') { return error('a module that yields no object of exports has no error table') }
-    const [table] = exports[1].flatMap(x => x[0] === ':' && x[1] === 'error' ? [x[2]] : [])
+    if (exports[1].length !== 1) { return error('an error module exports error and nothing else') }
+    const [only] = exports[1]
+    const table = only[0] === ':' && only[1] === 'error' ? only[2] : null
     if (!(table instanceof Array) || table[0] !== 'object') { return error('the module exports no object literal error') }
     const entries = table[1].flatMap(x => x[0] === ':' && typeof x[1] === 'string' && typeof x[2] === 'string' ? [/** @type {const} */ ([x[1], x[2]])] : [])
     return entries.length !== table[1].length ? error('an error that is not a string of a name is not in this slice')
