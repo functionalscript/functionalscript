@@ -31,8 +31,10 @@ A program whose **integer** signature's body range past that signature the
 checker refuses is counted and not run. The same diagnostic against an
 `f64` or `bool` signature is a failure, so a regression that gives an
 integer body where a float or bool was declared fails the proof. Any other
-refusal is a failure too. Where JavaScript throws, the comparison accepts
-any trap, as [`testlib.mjs`](../../wasm/testlib.mjs) does today; a stricter
-match of traps waits until slice 7 makes throws meaningful.
+refusal is a failure too. Since 7a, each call is judged as
+[`testlib.mjs`](../../wasm/testlib.mjs) judges one, by three outcomes:
+the same value, a throw of the same value, or a trap of both, where the
+body traps as JavaScript by a misuse of the L0 view, which throws a reason
+that starts with `l0.`.
 
 Prefer `node --test` for [`proof.mjs`](./proof.mjs).
