@@ -24,7 +24,7 @@
 
 **Layer 1 — Base (done)**
 - `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.mjs` ✓
-- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.mjs` ✓
+- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.js` ✓
 - `fjs mcp` CLI command registered in `fjs/module.f.mjs`, running
   `casMcpServer` from `fjs/mcp/module.f.mjs` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape

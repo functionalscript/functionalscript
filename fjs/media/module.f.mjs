@@ -124,28 +124,29 @@ const dialectMediaType = dialect => `application/${dialect}+json`
  *
  * @type {(n: Node) => boolean}
  */
-const jsonNode = n => typeof n === 'string' || jsonUnion(n)
-
-/**
- * What {@link jsonNode} says about each part of a union: a JSON kind — `null`,
- * a boolean, a number, a string, an array or object of such — passes;
- * `undefined`, a `bigint`, and the top (which admits both) do not.
- *
- * @type {UnionAlgebra<boolean>}
- */
-const jsonKinds = {
-    top: false,
-    unit: name => name !== 'undefined',
-    whole: kind => kind === 'number' || kind === 'string',
-    number: () => true,
-    string: () => true,
-    bigint: () => false,
-    array: ({ prefix, rest }) => [...prefix, ...(rest === undefined ? [] : [rest])].every(jsonNode),
-    object: ({ props, rest }) => [...definedValues(props), ...(rest === undefined ? [] : [rest])].every(jsonNode),
-    join: members => members.every(m => m),
+const jsonNode = n => {
+    if (typeof n === 'string') { return true }
+    /**
+     * What each part of a union admits: a JSON kind — `null`, a boolean,
+     * a number, a string, an array or object of such — passes; `undefined`,
+     * a `bigint`, and the top (which admits both) do not. Keeping the algebra
+     * here closes its recursion through this node reader's self-reference.
+     *
+     * @type {UnionAlgebra<boolean>}
+     */
+    const jsonKinds = {
+        top: false,
+        unit: name => name !== 'undefined',
+        whole: kind => kind === 'number' || kind === 'string',
+        number: () => true,
+        string: () => true,
+        bigint: () => false,
+        array: ({ prefix, rest }) => [...prefix, ...(rest === undefined ? [] : [rest])].every(jsonNode),
+        object: ({ props, rest }) => [...definedValues(props), ...(rest === undefined ? [] : [rest])].every(jsonNode),
+        join: members => members.every(m => m),
+    }
+    return unionFold(jsonKinds)(n)
 }
-
-const jsonUnion = unionFold(jsonKinds)
 
 /**
  * Whether a schema's data form admits JSON values only: its entry and every
@@ -166,14 +167,15 @@ const jsonData = ([rules, entry]) => [...definedValues(rules), entry].every(json
  */
 const refusedLeaf = leaf => {
     /** @type {(path: Path) => (v: unknown) => Path | null} */
-    const walk = path => v =>
-        v instanceof Array ? first(path)(v.map((x, i) => [`${i}`, x]))
-        : isObject(v) ? first(path)(Object.entries(v))
-        : leaf(v) ? null
-        : path
-    /** @type {(path: Path) => (children: readonly (readonly [string, unknown])[]) => Path | null} */
-    const first = path => children =>
-        findMap(([k, x]) => walk([...path, k])(x))(children)
+    const walk = path => {
+        /** @type {(children: readonly (readonly [string, unknown])[]) => Path | null} */
+        const first = children => findMap(([k, x]) => walk([...path, k])(x))(children)
+        return v =>
+            v instanceof Array ? first(v.map((x, i) => [`${i}`, x]))
+            : isObject(v) ? first(Object.entries(v))
+            : leaf(v) ? null
+            : path
+    }
     return walk
 }
 

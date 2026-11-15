@@ -195,7 +195,7 @@ a name for its location because there is no file. Use a fixed pseudo-path such a
 **A result too large to encode is the transport's failure, not the tool's.**
 The input cap does not bound the output. At `940eff9`, a 420-byte module of
 eighteen `const aN = aM + aM;` doublings evaluated to a string whose JSON text
-is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.mjs) answers
+is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.js) answers
 a response line over its 128 KiB `maxLength` with a JSON-RPC `-32603` that
 keeps the request's `id`. The server stays up, but the client gets a transport
 error, not an `errorResult`. That is the outcome every JSON-returning tool has

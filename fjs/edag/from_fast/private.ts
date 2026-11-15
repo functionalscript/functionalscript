@@ -5,6 +5,7 @@ import type { Stack } from '../../common/monoid/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { Exp } from '../types.ts'
 import type { Environment, Lowered, Transfer } from './types.ts'
+import type { Task } from '../../js/ast/task/types.ts'
 
 export type Binding = Environment[number]
 
@@ -64,6 +65,10 @@ export type Context = {
     /** External graph substitutions need not already have been evaluated. */
     readonly external: readonly BindingId[]
 }
+
+export type _ValueTask = (value: Value, context: Context) => Task<Lowered>
+export type _BlockTask = (block: Block, context: Context) => Task<Lowered>
+export type _ControlTask = (block: Block, context: Context, expected: number | null) => Task<_Control>
 
 /** Region control keeps normal joins separate from terminal evaluations. */
 export type _Control = { readonly normal: boolean; readonly node: _ControlNode }
