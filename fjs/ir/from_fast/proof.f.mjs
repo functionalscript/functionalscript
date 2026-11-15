@@ -10,9 +10,10 @@ import { lifetime } from '../lifetime/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
-import { lower } from './module.f.js'
+import { errorTable, lower } from './module.f.js'
 import { inner, letter, only as onlyItem, pick } from './reads.f.js'
-import { runtime, sourceOf } from './testlib.f.mjs'
+import { l1Runtime, runtime, sourceOf } from './testlib.f.mjs'
+import { bigints, rethrow, sign, textLength } from './throws.f.js'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
@@ -239,7 +240,7 @@ export const proof = {
         // `null` and `undefined` are constants of Any, which a module lowered without the runtime does not import.
         assertEq(why(fa, fast('export const f = a => null')), 'f: null is a constant of Any, which a module lowered without the runtime does not import')
         assertEq(why(fa, fast('export const f = a => undefined')), 'f: undefined is a constant of Any, which a module lowered without the runtime does not import')
-        assertEq(why(fa, fast('export const f = a => { throw a }')), 'f: throw is not in this slice')
+        assertEq(why(fa, fast('export const f = a => { throw a }')), 'f: a throw is a call of Functions, which a module lowered without the runtime does not import')
         assertEq(why(fa, fast('export const f = a => a < 0 ? "s" : a')), noString)
         assertEq(why(fa, fast('export const f = a => a % 2 + 1')), noNative)
         // What the checker refuses in a part, the lowering refuses where it asks for the part's type.
@@ -1163,6 +1164,72 @@ export const proof = {
         assertEq(letter(-1), undefined)
         assertStructurallySame(inner(true, 0), [true])
         assertEq(inner(true, 1), 'x')
+    },
+    // A throw is `Functions.throw` of its value, and a read of L1's error table the string literal of its text.
+    throws: () => {
+        const av = only([['v', any]], any)
+        const table = assertOk(errorTable(fast("export const error = { a: 'TypeError: a', b: 'RangeError: b' }")))
+        assertStructurallySame(table, [['a', 'TypeError: a'], ['b', 'RangeError: b']])
+        const errors = "import { error } from './error/module.f.js'\n"
+        /** @type {(text: string) => string} */
+        const lowered = text => {
+            const m = assertOk(over(av, text, l1Runtime(table)))
+            assertOk(check(assertOk(lifetime(m))))
+            return print({ ...m, imports: [] })
+        }
+        assertEq(lowered('export const f = v => { throw v }'), 'fn f(v: any) -> any =\n    Functions.throw(v)\n\nexport f\n')
+        assertEq(lowered(`${errors}${imports}export const f = v => {\n    if (kind(v) === NUMBER) { throw error.b }\n    return v\n}`), [
+            'fn f(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 3.0) then Functions.throw("RangeError: b") else v',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A module constant may read an error too.
+        assertEq(lowered(`${errors}const e = error.a\nexport const f = v => { throw e }`), [
+            'const #c0: any.only(string) =',
+            '    "TypeError: a"',
+            '',
+            'fn f(v: any) -> any =',
+            '    Functions.throw(self.#c0)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // An error that the table has not, the table as a value or called, another export of its module, and a throw of
+        // a value that is no `any`.
+        assertEq(assertError(over(av, `${errors}export const f = v => { throw error.c }`, l1Runtime(table))), "f: L1's error table has no c")
+        assertEq(assertError(over(av, `${errors}export const f = v => error`, l1Runtime(table))), "f: L1's error table as a value is not in this slice: a term reads one of its errors")
+        assertEq(assertError(over(av, `${errors}export const f = v => error.a(v)`, l1Runtime(table))), "f: a read of L1's error table at a computed key, or with a further step, is not in this slice")
+        assertEq(assertError(over(av, `${errors}export const f = v => error(v)`, l1Runtime(table))), "f: a call of L1's error table is not in this slice")
+        // A member read of a primitive is the read of its type's field, which no primitive has.
+        assertEq(assertError(over(av, "export const f = v => 'ab'.x", l1Runtime(table))), 'f: .x of any.only(string) is not in this slice')
+        assertEq(assertError(over(av, "import { other } from './error/module.f.js'\nexport const f = v => { throw other }", l1Runtime(table))), 'f: ./error/module.f.js exports error, and no other that is in this slice')
+        assertEq(assertError(over(av, `${errors}export const f = v => { throw error.a }`)), 'f: an import of ./error/module.f.js is not in this slice')
+        assertEq(assertError(check(assertOk(over(fa, 'export const f = a => { throw a }')))), "f: Functions.throw's v is any, not f64")
+        // The table is an object literal of strings that the module exports as error.
+        assertEq(assertError(errorTable(fast('export const x = 1'))), 'the module exports no object literal error')
+        assertEq(assertError(errorTable(fast("export const error = { a: 'a' }\nexport const other = 1"))), 'an error module exports error and nothing else')
+        assertEq(assertError(errorTable(fast('export const error = { a: 1 }'))), 'an error that is not a string of a name is not in this slice')
+        assertEq(assertError(errorTable(fast("export const error = { x: 'first', x: 'second' }"))), 'the error table names an error twice')
+        assertEq(assertError(errorTable({ statements: [], exit: ['yield', []] })), 'a module that yields no object of exports has no error table')
+    },
+    /** The originals of `throws.f.js` themselves, which the host proof runs as WASM against; `throw` holds those that throw. */
+    throwsOf: {
+        values: () => {
+            assertEq(textLength('ab'), 2)
+            assertEq(bigints(1n, 2n), true)
+            assertEq(bigints(1, 2), false)
+            assertEq(sign(-3), -1)
+            assertEq(sign(2), 1)
+        },
+        throw: {
+            textLength: () => { textLength(1) },
+            rethrow: () => { rethrow('x') },
+            bigints: () => { bigints(1, 1n) },
+            nan: () => { sign(NaN) },
+            zero: () => { sign(0) },
+        },
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')

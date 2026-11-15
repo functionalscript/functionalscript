@@ -75,6 +75,8 @@ far more, gives the five functions that the slices name so far:
 | `!x`, `Number(x)` | `not(x)` of a `bool`; `float(x)` of an integer, and `x` of a float |
 | `Math.sqrt(x)`, `Math.abs(x)` | `sqrt(x)`, `abs(x)` |
 | a call of an exported function, or of the function itself | a `call` of `self` |
+| `throw x` | `Functions.throw(x)`, which answers `never` and may fail |
+| `error.k` of [L1's error table](../../wasm/runtime/l1/error/module.f.js), where the runtime names that module | a `lit` of `any.only(string)` of its text, which `errorTable` reads from the module's FAST |
 
 ## Functions that the module does not export
 
@@ -327,7 +329,7 @@ then the key, each lowered as an argument is, then the item where the key
 is an integer from `0` up to the array's length, `-0` reading `0`, and
 `undefined` where it is anything else, a fraction, a NaN or past the end.
 The receiver is an array alone, `any.only(array)`: `get` of `undefined`
-or `null` throws, which waits for slice 7, and one of an object or a
+or `null` throws, which this lowering does not write yet, and one of an object or a
 string reads by a string, which is not in 6f. So
 [L1's `typeOf`](../../wasm/runtime/l1/module.f.js) lowers from its text:
 its `typeNames` is a constant that `init` builds, read at `kind(v)`. A definition of
@@ -365,8 +367,9 @@ that does not end its loop's body, a `return` inside a loop or before the
 end of a function that is inlined, an entry of an object that is not a name
 and its value, such as a spread, a member read of anything but a name
 or an array's at a number, a member read that goes on to a call,
-`?.`, `throw`, a `lazy` definition, a string, an array, `null` and
-`undefined` in a module lowered without the runtime, an item of an array
+`?.`, a `lazy` definition, a string, an array, `null`, `undefined` and
+`throw` in a module lowered without the runtime, a read of L1's error
+table as a value or at a computed key, another export of its module, an item of an array
 that is a number or a boolean, a spread in an array, a rest parameter, a
 spread argument, a statement of no result or of several, `%`
 of integers, or in a module lowered without the runtime, and every

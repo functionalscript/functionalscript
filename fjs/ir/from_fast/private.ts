@@ -13,7 +13,8 @@ import type { ConstantOf, OpName, Scope, Term, Type } from '../types.ts'
  * nothing, which an argument of an inlined function or a constant gave, a
  * function of the module that the lowering makes, a function that the
  * function defines, a function of the module that it does not export, both
- * inlined, an operator, a name of the L0 view, one of L1's native rows, or,
+ * inlined, an operator, a name of the L0 view, one of L1's native rows,
+ * L1's error table, or,
  * where a constant's term reads the module's bindings, why the lowering
  * refuses a term that reads it.
  */
@@ -26,12 +27,17 @@ export type _Meaning =
     | readonly ['op', OpName]
     | readonly ['l0', name: string]
     | readonly ['native', name: string]
+    | readonly ['errors', table: _Errors]
     | readonly ['refused', reason: string]
 
-/** What an import of the module stands for: a name of the L0 view, one of L1's native rows, or why the lowering refuses a term that reads it. */
+/** The error table of L1, as the runtime gives it: each name and the text of its error, in their order. */
+export type _Errors = readonly (readonly [name: string, text: string])[]
+
+/** What an import of the module stands for: a name of the L0 view, one of L1's native rows, L1's error table, or why the lowering refuses a term that reads it. */
 export type _Import =
     | readonly ['l0', name: string]
     | readonly ['native', name: string]
+    | readonly ['errors', table: _Errors]
     | readonly ['refused', reason: string]
 
 /**
