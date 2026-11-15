@@ -1141,6 +1141,8 @@ export const proof = {
         const av = only([['v', any]], any)
         // `get` of any other kind than an array throws or reads by a string.
         assertEq(assertError(over(av, 'export const f = v => v[0]')), "f: a read of any at a number is not in this slice: only an array's is")
+        // A receiver that is pure but does not type-check is refused with its own error.
+        assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: { a: any } has no field b')
         assertEq(assertError(over(av, 'export const f = v => [v][Number(v)]')), 'f: Number of any is not in this slice')
         // A member read of a name or a number is in this slice, and one that goes on to a call is not.
         assertEq(assertError(over(av, 'export const f = v => v.x(1)')), 'f: a member read with a further step, such as a call of the member, is not in this slice')

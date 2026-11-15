@@ -823,9 +823,11 @@ const arrayOf = (lowerValue, scope, items) => {
  * @type {(lowerValue: _LowerValue, scope: _Scope, receiver: Value, key: Value) => Result<Term, string>}
  */
 const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope, [receiver, key], (s, [a, k]) => {
-    // The receiver is a term that does nothing, which was typed where it was
-    // lowered; the key is a float, since it is a number or `Number` of one.
-    const t = assertOk(typeOf(s.ir)(a))
+    // The receiver is a term that does nothing, but a pure one may still not
+    // type-check; the key is a float, since it is a number or `Number` of one.
+    const typed = typeOf(s.ir)(a)
+    if (typed[0] === 'error') { return typed }
+    const t = typed[1]
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
