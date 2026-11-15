@@ -17,9 +17,10 @@ module does not export, with records and
 (6a), the lifetime pass, which writes them (6b), constants, which a
 module's `init` evaluates (6c), string literals, which its start
 function makes (6d), array literals of values, which Containers'
-builder makes (6e), and reads of an array at a number key, with L1's
-`typeOf` (6f). Next is failure, slice 7 of that roadmap: `throw`, L1's
-error table and the trap ABI.
+builder makes (6e), reads of an array at a number key, with L1's
+`typeOf` (6f), and a throw written by hand, with the effect bit that says
+which functions may fail (7a). Next is the rest of failure, slice 7 of
+that roadmap: the lowering of `throw` and of L1's error table (7b).
 
 ## Map of this directory
 
@@ -234,6 +235,30 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   empty string, a unit past ASCII and a pair of surrogates, run against
   JavaScript, and so do the random comparison's programs of literals.
 
+## What 7a adds
+
+- **A throw**: L0's `Functions.throw(own v: any) -> never`
+  ([L0 design §13](../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)),
+  which `throw_(v)` writes. It takes over its value, and the emitter
+  writes an `unreachable` after its call, since it answers `never`.
+- **The effect bit**
+  ([definition.md: One effect](../../doc/sasha-gil/ir/definition.md#one-effect)):
+  a function of an interface declares that it may fail, `mayFail(...)`,
+  as `throw` does, and String's `unit` and `substring` and Containers'
+  `item`, `push` and `seal`, which trap where the view throws. One that
+  answers `never` and does not say so is refused. The checker infers the
+  bit for each function of a module, to a fixed point, and writes it
+  beside the function; the printer writes `may fail`.
+- **A throw leaves nothing behind**: the lifetime pass drops what a
+  function owns before a call that answers `never`, but what the call
+  borrows. A callee's throw, and a trap, abandon what the callers hold.
+- **The counting host's side**: `throw` keeps the value and returns, and
+  the host reads it after the trap by `has_thrown` and `thrown`, then
+  calls `recover`, which frees what the trap abandoned.
+- **Three outcomes** in every host proof and in the random comparison: a
+  value, a throw of a value, or a trap, each the twin's. A function that
+  cannot fail never fails, and the cells are checked after each outcome.
+
 ## What 6f adds
 
 - **A read of an array at a number key**, `a[0]` or `a[Number(k)]`, by
@@ -363,8 +388,10 @@ the hand-written modules of [`testlib.f.mjs`](./testlib.f.mjs).
 WebAssembly engine and compares every exported function with a JavaScript
 twin on the same inputs, the edges of each type included. A function of
 `any` runs over [the hosts](./l0/host/module.f.js), on a value of every
-kind, and its twin reads the value with the L0 view; a trap of WASM is a
-throw of the twin. A module with string literals makes them as it is
+kind, and its twin reads the value with the L0 view. A call answers what
+its twin does: the same value, a throw of the same value, or a trap, which
+is a twin's `trap`, or a throw of the L0 view that the twin reads. A
+module with string literals makes them as it is
 instantiated, a module with constants then has its `init` called, and
 then each function, which must leave every cell as they left it.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
