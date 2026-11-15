@@ -47,7 +47,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { dropWhile, first, flat, intersperse, map, stateScan, takeWhile } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { option, selectField, caption, textField } from '../../website/demo/module.f.mjs'
+import { option, selectField, caption, textField } from '../../website/demo/module.f.js'
 import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
 import { pureOk } from '../../effects/module.f.js'
 import { pageHref } from '../../website/page/module.f.mjs'
@@ -349,7 +349,7 @@ const packageName = 'functionalscript'
 /**
  * A single schema as a code block. One the project uses is the import that
  * brings it in —
- * `import { noteSchema } from 'functionalscript/fjs/media/note/module.f.mjs'` —
+ * `import { noteSchema } from 'functionalscript/fjs/media/note/module.f.js'` —
  * one line of code saying both which export and which module, and one that
  * resolves when copied into a project that depends on the package. The module
  * specifier is a link to the module's page on the site; the href is the

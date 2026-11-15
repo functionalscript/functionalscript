@@ -9,12 +9,20 @@ updates to one logical mutable object a shared shape, without any mutable
 pointer anywhere in the store itself.
 
 ```ts
-import { revisionSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
+import { revisionSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.js'
 ```
 
 ## Shape
 
 ```ts
+import type { LockSchema } from './types.ts'
+
+export const lock: LockSchema = () => {
+    const lockValue = () => ['or', string, lock] as const
+    return ['record', lockValue]
+}
+export const lockField = () => ['or', hash, lock] as const
+
 export const revisionSchema = {
     dialect: 'vnd.fjs.revision',
     subject: string,
@@ -24,10 +32,6 @@ export const revisionSchema = {
     archived: or(option, true),
     lock: or(option, lockField),
 } as const
-
-export const lock = () => ['record', lockValue] as const
-const lockValue = () => ['or', string, lock] as const
-export const lockField = () => ['or', hash, lock] as const
 ```
 
 | Field        | Type                    | Meaning                                                              |

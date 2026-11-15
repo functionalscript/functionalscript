@@ -47,7 +47,10 @@ import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/modu
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { textDemo, refusal } from '../module.f.mjs'
+import { generate } from '../../../types/array/generate/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
+import { textDemo, refusal } from '../module.f.js'
 
 /**
  * The stand-in a reader sees for a character they could not: `␠` for a space,
@@ -99,7 +102,7 @@ export const byteChars = text => {
 const groups = ({ width, stop }) => bits => {
     const n = bits.length
     const count = stop ? Math.floor(n / width) + 1 : Math.ceil(n / width)
-    return Array.from({ length: count }, (_, i) => {
+    return generate(count, i => {
         const data = bits.slice(i * width, (i + 1) * width)
         const rest = width - data.length
         return rest === 0 ? { data, stop: '', fill: '' }
@@ -157,14 +160,18 @@ const charUnits = chars => ['div', { 'data-byte-chars': '' }, ...chars.map(charU
  *
  * @type {(g: BitGroup, c: string) => Element}
  */
-const box = ({ data, stop, fill }, c) => ['div', { 'data-bit-box': '' },
-    ['span',
-        data,
-        ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
-        ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
-    ],
-    ['span', { 'data-bit-char': '' }, c],
-]
+const box = (group, c) => {
+    const { data, stop } = group
+    const fill = assertNotNullish(entry(group, 'fill'))
+    return ['div', { 'data-bit-box': '' },
+        ['span',
+            data,
+            ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
+            ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
+        ],
+        ['span', { 'data-bit-char': '' }, c],
+    ]
+}
 
 /**
  * A box that holds a place and shows nothing: as wide as any of the scheme's
@@ -194,12 +201,12 @@ const placeholder = width => ['div', { 'data-bit-box': '', 'data-bit-placeholder
  * @type {(scheme: BitScheme) => (g: BitGroups) => Element}
  */
 const boxes = ({ width, block }) => ({ groups, encoded }) => {
-    const all = groups.map((g, i) => box(g, encoded[i]))
+    const all = groups.map((g, i) => box(g, encoded[Number(i)]))
     if (block === undefined) { return ['div', { 'data-bit-groups': '' }, ...all] }
     const count = Math.ceil(all.length / block)
-    const padded = [...all, ...Array.from({ length: count * block - all.length }, () => placeholder(width))]
+    const padded = [...all, ...generate(count * block - all.length, () => placeholder(width))]
     return ['div', { 'data-bit-groups': '', 'data-bit-blocks': '' },
-        ...Array.from({ length: count }, (_, i) =>
+        ...generate(count, i =>
             /** @type {Element} */ (['div', { 'data-bit-block': '' }, ...padded.slice(i * block, (i + 1) * block)]))]
 }
 
@@ -227,7 +234,9 @@ const orEmpty = s => s === '' ? '(empty)' : s
  *
  * @type {(o: BitGroupDemoOptions) => Demo<string, DemoEvent>}
  */
-export const bitGroupDemo = ({ intro, name, how, scheme, encode }) => {
+export const bitGroupDemo = options => {
+    const { intro, how, scheme, encode } = options
+    const name = assertNotNullish(entry(options, 'name'))
     const f = bitGroups(scheme, encode)
     const draw = boxes(scheme)
     return textDemo({ intro, name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {

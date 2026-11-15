@@ -44,8 +44,8 @@
 
 import { pureOk } from '../../effects/module.f.js'
 import { codeMarker, drawingMarker } from '../../website/style/module.f.js'
-import { button, caption, option, selectField } from '../../website/demo/module.f.mjs'
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { button, caption, option, selectField } from '../../website/demo/module.f.js'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import { move, runs } from './module.f.js'

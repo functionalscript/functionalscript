@@ -35,7 +35,7 @@ import { stringToCodePointList } from '../utf16/module.f.js'
 import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
-import { textDemo, caption } from '../../website/demo/module.f.mjs'
+import { textDemo, caption } from '../../website/demo/module.f.js'
 
 /** A byte's two hex digits. */
 const byteHex = encodeScalar(2)

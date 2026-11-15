@@ -33,7 +33,7 @@
  */
 
 import { array, open, option, or, string } from '../../rtti/module.f.js'
-import { jsonDialect } from '../module.f.mjs'
+import { jsonDialect } from '../module.f.js'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served

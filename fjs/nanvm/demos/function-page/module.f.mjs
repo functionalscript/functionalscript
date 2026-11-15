@@ -56,7 +56,7 @@ import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effect
 import { error, ok } from '../../../types/result/module.f.js'
 import { compiled } from '../../../compiler/demo.f.mjs'
 import { graphOfText } from '../../../compiler/edag/demo.f.mjs'
-import { caption, refusal } from '../../../website/demo/module.f.mjs'
+import { caption, refusal } from '../../../website/demo/module.f.js'
 import { graphSvg } from '../../../website/demo/graph/module.f.mjs'
 import { codeOutput } from '../../../website/demo/highlight/module.f.mjs'
 import { admittedMarker, codeMarker } from '../../../website/style/module.f.js'

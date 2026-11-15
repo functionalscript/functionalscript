@@ -23,7 +23,7 @@
 
 import { encode } from './module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.mjs'
+import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.js'
 
 /**
  * Six bits a character, and no stop bit: a short last group is filled with

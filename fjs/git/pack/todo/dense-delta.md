@@ -5,7 +5,7 @@
 
 ### Problem
 
-`tryApplyDelta` in [`../module.f.mjs`](../module.f.mjs) reads its base and delta
+`tryApplyDelta` in [`../module.f.js`](../module.f.js) reads its base and delta
 as dense arrays and builds its target as one, and a number in an array costs
 about eight bytes of heap (measured over 20 000 byte values: about 156 KiB). So
 [`packstore`](../../packstore/module.f.mjs) holds a delta chain to

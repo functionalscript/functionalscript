@@ -136,7 +136,7 @@ const demoProof = /** @type {const} */ ({
         // page.
         projectSource: () => {
             const cases = /** @type {const} */ ([
-                ['Note', 'noteSchema', 'media/note/module.f.mjs', '/fjs/media/note/index.html'],
+                ['Note', 'noteSchema', 'media/note/module.f.js', '/fjs/media/note/index.html'],
                 ['GitHub Actions workflow', 'gitHubActionSchema', 'ci/common/module.f.js', '/fjs/ci/common/index.html'],
                 ['JSON-RPC request', 'request', 'protocol/json_rpc/module.f.js', '/fjs/protocol/json_rpc/index.html'],
             ])

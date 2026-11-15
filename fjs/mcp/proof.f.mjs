@@ -22,13 +22,13 @@ import { vecToCBase32 } from '../basen/cbase32/module.f.js'
 import { encode as base64Encode } from '../basen/base64/module.f.js'
 import { utf8 } from '../text/module.f.js'
 import { fileCas } from '../cas/module.f.js'
-import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
+import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.js'
 import { sha256 } from '../crypto/sha2/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.js'
 import { emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.js'
-import { _casMcpSession, casMcpServer } from './module.f.mjs'
+import { _casMcpSession, casMcpServer } from './module.f.js'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
-import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
+import { stdioTransport } from '../protocol/mcp/stdio/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
@@ -128,7 +128,7 @@ const toBytes = s => u8ArrayMsb(utf8(s))
 // `session`/`runSessionVirtual`, which collect `mcpStep`'s `Response` values
 // as plain JS objects and never serialize/encode them, this is the only
 // helper that can observe the transport's oversized-response fallback (see
-// `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`).
+// `fjs/protocol/mcp/stdio/module.f.js` `writeResponse`).
 /** @type {(root: Dir, home?: string) => (msgs: readonly unknown[]) => readonly unknown[]} */
 const runStdio =
     (root, home = '/home/user') =>
@@ -371,7 +371,7 @@ export const proof = {
     // the JSON-RPC envelope is even added. The transport's `writeResponse`
     // (`tryUtf8`) must catch this and write a JSON-RPC internal-error response —
     // carrying the *original request's* `id` — instead of crashing the process.
-    // See `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`.
+    // See `fjs/protocol/mcp/stdio/module.f.js` `writeResponse`.
     //
     // This test originally timed out under `bun test`'s native 5s per-test
     // limit (12-14s observed in CI on PR #1201) — the cost was in

@@ -107,8 +107,8 @@ Six, all currently strict:
 | site | argument | after |
 | --- | --- | --- |
 | `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
-| `fjs/cas/evo/module.f.mjs:202` | `cas.list()` | streams once `cas.list()` does |
-| `fjs/cas/evo/module.f.mjs:280` | `pure(parents)` | `fromList(parents)` |
+| `fjs/cas/evo/module.f.js:202` | `cas.list()` | streams once `cas.list()` does |
+| `fjs/cas/evo/module.f.js:280` | `pure(parents)` | `fromList(parents)` |
 | `fjs/cas/module.f.js:149` | `pure(expired)` | `fromList(expired)` |
 | `fjs/cas/module.f.js:310` | `pure([0…7])` | `fromList([0…7])` |
 | `fjs/compiler/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
@@ -141,7 +141,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   no caller has met it; this is where to look when one does. If it bites, the
   answer is for producers to yield `Do` nodes, not to change the combinator.
 - **`S` inference.** `init` sitting before `f` already forces one annotation, at
-  `fjs/cas/evo/module.f.mjs:282` (`acc: Result<readonly Revision[], string>`);
+  `fjs/cas/evo/module.f.js:282` (`acc: Result<readonly Revision[], string>`);
   without it TypeScript fixes `S` to `Ok<…>` from `init` and the `'error'`
   branch goes dead. The retype should not change this, but re-check.
 - **Proof coverage.** `fjs/effects/list/` has no `proof.f.mjs` at all today.

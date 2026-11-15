@@ -23,15 +23,15 @@
 ## Now — Layers 1 + 2 + 3
 
 **Layer 1 — Base (done)**
-- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.mjs` ✓
-- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.mjs` ✓
+- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.js` ✓
+- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.js` ✓
 - `fjs mcp` CLI command registered in `fjs/module.f.mjs`, running
-  `casMcpServer` from `fjs/mcp/module.f.mjs` ✓
+  `casMcpServer` from `fjs/mcp/module.f.js` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
 **Layer 2 — Content encoding (done)**
 - No more cBase32 for content — replaced by text/base64 (MCP-idiomatic for
-  binary), wired in `fjs/mcp/cas/module.f.mjs` via `fjs/basen/base64/module.f.js`
+  binary), wired in `fjs/mcp/cas/module.f.js` via `fjs/basen/base64/module.f.js`
   (`encode`/`decode`) ✓
 - `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
   or `'base64'`) — decoding follows what the caller says, not autodetection ✓

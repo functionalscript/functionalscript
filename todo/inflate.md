@@ -30,7 +30,7 @@ That is the right first step and the wrong last one, for two reasons:
   output side.
 
   A third place now holds the same ceiling on purpose:
-  [`fjs/git/pack`](../fjs/git/pack/module.f.mjs)'s `tryApplyDelta` refuses a
+  [`fjs/git/pack`](../fjs/git/pack/module.f.js)'s `tryApplyDelta` refuses a
   delta whose declared target is over 128 KiB. A delta is the one reader here
   whose *output* is not bounded by what the host handed it — a hundred bytes of
   copy instructions against a 64 KiB base can truthfully name 6.5 MB, which is

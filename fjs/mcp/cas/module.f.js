@@ -5,7 +5,7 @@
  * without shelling out to the `cas` CLI. The store itself
  * (`fjs/cas/module.f.js`) stays transport-agnostic; this is an additional
  * front end alongside the CLI `main`. This registry is one of the tool sets
- * `fjs/mcp/module.f.mjs` composes into the FJS MCP server — see that module
+ * `fjs/mcp/module.f.js` composes into the FJS MCP server — see that module
  * for the full tool table (including `fjs/mcp/evo`'s `evo_*` tools) and the
  * server entry point.
  *
@@ -59,7 +59,7 @@
  * approach failed on any blob larger than one chunk even when only metadata
  * was asked for; streaming detection returns correct
  * `{ length, mimeType, type, uri }` regardless of size. A dialect (e.g.
- * `vnd.fjs.revision`, see `fjs/media/module.f.mjs`) can only be recognized by
+ * `vnd.fjs.revision`, see `fjs/media/module.f.js`) can only be recognized by
  * parsing the whole blob as JSON, so when the streaming verdict is
  * whole-blob-valid text within the same bounded inline cap as `content: true`
  * (`maxLengthBytes`), one extra bounded read materializes the blob purely to
@@ -71,7 +71,7 @@
  * size-independent `fjs/media/type` `detectStream` machine (to decide whether the
  * blob even fits inline), then materializes the bytes (via `collectRead`, bounded
  * by `maxLength`) and re-derives the verdict from the dialect-aware detector
- * (`fjs/media/module.f.mjs` `detect`) — now that the whole blob is in hand, a
+ * (`fjs/media/module.f.js` `detect`) — now that the whole blob is in hand, a
  * dialect match is reflected in the result — before encoding the inline payload
  * by `type` — a `fjs/text/utf8` `fromVec` string on `text` (for `type: 'text'`),
  * base64 on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128
@@ -128,10 +128,10 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.js'
 import { tryUtf8 } from '../../text/module.f.js'
 import { detectStream } from '../../media/type/module.f.js'
-import { detect } from '../../media/module.f.mjs'
-import { revisionDialect } from '../../media/revision/module.f.mjs'
-import { lockDialect } from '../../media/lock/module.f.mjs'
-import { noteDialect } from '../../media/note/module.f.mjs'
+import { detect } from '../../media/module.f.js'
+import { revisionDialect } from '../../media/revision/module.f.js'
+import { lockDialect } from '../../media/lock/module.f.js'
+import { noteDialect } from '../../media/note/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
@@ -141,7 +141,7 @@ import { errorSummary } from '../../effects/node/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
-import { syncRevision } from '../../cas/evo/module.f.mjs'
+import { syncRevision } from '../../cas/evo/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────

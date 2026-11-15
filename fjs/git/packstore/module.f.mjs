@@ -6,7 +6,7 @@
  * place an object lives, and the two answer alike on purpose — a caller above
  * [`fjs/git/store`](../store/module.f.mjs) never learns which file held the
  * object it asked for. This module is where a pack stops being a format
- * ([`fjs/git/pack`](../pack/module.f.mjs), [`fjs/git/packidx`](../packidx/module.f.js),
+ * ([`fjs/git/pack`](../pack/module.f.js), [`fjs/git/packidx`](../packidx/module.f.js),
  * both pure) and becomes a repository's objects.
  *
  * Every claim below was measured against Git 2.43.0, on packs it wrote.
@@ -45,7 +45,7 @@
  * object stored whole is read to a list over the chunks it inflated to, a byte
  * a byte, however long it is. A delta, and the base it is applied to, are dense
  * arrays, a number a byte, so those are held to
- * [`maxDeltaBytes`](../pack/module.f.mjs).
+ * [`maxDeltaBytes`](../pack/module.f.js).
  *
  * **A delta chain is walked, not recursed.** Each link reads one entry, and a
  * delta's base is the next item of the same walk rather than a nested read, for
@@ -77,7 +77,7 @@
  * delta, read. `git fsck` calls the second `failed to validate delta base
  * reference at offset <n>` — a broken pack, not an object kept somewhere else.
  * So resolving such a base through the whole store would answer for a pack every
- * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.mjs)'s delta
+ * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.js)'s delta
  * floor was added to stop. What is left of the question is a choice about being
  * deliberately more capable rather than a gap, and
  * [thin-pack-base.md](./todo/thin-pack-base.md) carries it as an open decision.
@@ -123,7 +123,7 @@ import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/modu
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.js'
-import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
+import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.js'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.js'
 import { hexText, ofWidth, oidAt } from '../oid/module.f.js'
 

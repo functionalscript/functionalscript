@@ -20,8 +20,8 @@
 
 import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.js'
 import { computeK, fromCurve, sign, verify } from './module.f.js'
-import { algorithmOf, algorithmOption, opensslVerification, sha2Algorithms } from '../../website/demo/hash/module.f.mjs'
-import { button, selectField, caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
+import { algorithmOf, algorithmOption, opensslVerification, sha2Algorithms } from '../../website/demo/hash/module.f.js'
+import { button, selectField, caption, inputField, refusal, textField } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import {
     resultMarker,

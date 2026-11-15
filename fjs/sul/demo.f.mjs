@@ -50,12 +50,12 @@
  * @import { _DemoState, _DemoStripes, _DemoUnit, EncodeState } from './types.ts'
  */
 
-import { withInputs } from '../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../website/demo/sharing/module.f.js'
 import { encode } from './module.f.js'
 import { levels } from './level/literal/module.f.js'
 import { isHash, isHashLength, isRaw } from './id/module.f.js'
-import { byteChars } from '../website/demo/bits/module.f.mjs'
-import { caption, fieldUpdate, inputField, radios, refusal } from '../website/demo/module.f.mjs'
+import { byteChars } from '../website/demo/bits/module.f.js'
+import { caption, fieldUpdate, inputField, radios, refusal } from '../website/demo/module.f.js'
 import { codeBlock } from '../website/demo/code/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { pureOk } from '../effects/module.f.js'

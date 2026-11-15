@@ -14,7 +14,7 @@ import { stringifySorted } from '../../../media/json/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { maxLengthBytes, u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.js'
-import { stdioTransport } from './module.f.mjs'
+import { stdioTransport } from './module.f.js'
 import { run as mockRun } from '../../../effects/mock/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 

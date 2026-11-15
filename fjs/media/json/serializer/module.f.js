@@ -30,7 +30,7 @@
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
 
-import { flat, map, reduce, empty } from '../../../types/list/module.f.js'
+import { flat, flatMap, map, next, reduce, empty } from '../../../types/list/module.f.js'
 import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/module.f.js'
 import { definedEntries, isObject } from '../../../types/object/module.f.js'
 import { compose } from '../../../types/function/module.f.js'
@@ -167,25 +167,50 @@ export const colon = [':']
  * Object entries whose value is `undefined` are dropped: `undefined` is a
  * missing property, not a leaf of any of these trees.
  *
+ * `indent` is a literal unit repeated per container level. Empty means compact
+ * output; otherwise nonempty containers put each item on its own line. Empty
+ * containers stay `[]` or `{}`, and no final newline is added.
+ *
  * @template P
  * @param {(value: P) => List<Chunk>} leafSerialize
+ * @param {string} [indent]
  * @returns {(sort: TreeMapEntries<P>) => (value: Tree<P>) => List<Chunk>}
  */
-export const treeSerialize = leafSerialize => sort => {
+export const treeSerialize = (leafSerialize, indent = '') => sort => {
     // Keep the codec's leaf type through the generic entry enumeration.
     /** @type {(object: TreeObject<P>) => TreeEntries<P>} */
     const objectEntries = definedEntries
-    /** @type {(value: Tree<P>) => List<Chunk>} */
-    const f = value => {
-        if (value instanceof Array) { return arrayWrap(map(f)(value)) }
+    const separator = indent === '' ? colon : [': ']
+    /** @type {(open: string, close: string, pad: string) => (items: List<List<Chunk>>) => List<Chunk>} */
+    const wrapAt = (open, close, pad) => {
+        const line = `\n${pad}${indent}`
+        return items => {
+            if (indent === '') { return wrap(open)(close)(items) }
+            return flat([[open], () => {
+                const item = next(items)
+                if (item === null) { return [close] }
+                return flat([
+                    [line], item.first,
+                    flatMap(rest => flat([[',', line], rest]))(item.tail),
+                    [`\n${pad}`, close],
+                ])
+            }])
+        }
+    }
+    /** @type {(pad: string, value: Tree<P>) => List<Chunk>} */
+    const f = (pad, value) => {
+        const childPad = pad + indent
+        /** @type {(value: Tree<P>) => List<Chunk>} */
+        const child = value => f(childPad, value)
+        if (value instanceof Array) { return wrapAt('[', ']', pad)(map(child)(value)) }
         if (isObject(value)) {
             /** @type {(kv: TreeEntry<P>) => List<Chunk>} */
-            const propertySerialize = ([k, v]) => flat([stringSerialize(k), colon, f(v)])
-            return objectWrap(map(propertySerialize)(sort(objectEntries(value))))
+            const propertySerialize = ([k, v]) => flat([stringSerialize(k), separator, child(v)])
+            return wrapAt('{', '}', pad)(map(propertySerialize)(sort(objectEntries(value))))
         }
         return leafSerialize(value)
     }
-    return f
+    return value => f('', value)
 }
 
 /**
@@ -194,10 +219,11 @@ export const treeSerialize = leafSerialize => sort => {
  *
  * @template P
  * @param {LeafSerializer<P>} leaf
+ * @param {string} [indent] Literal indentation unit; empty keeps compact output.
  * @returns {Codec<P>}
  */
-export const codec = leaf => {
-    const serialize = treeSerialize(leaf)
+export const codec = (leaf, indent = '') => {
+    const serialize = treeSerialize(leaf, indent)
     return {
         serialize: sort => compose(serialize(sort))(chunkStrings),
         stringify: sort => compose(serialize(sort))(chunksText),

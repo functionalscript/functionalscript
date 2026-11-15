@@ -86,7 +86,7 @@ report it, then a count: `.f.js: 3 checked, 2 refused` and exit `1`, or
 fjs ci
 ```
 
-`fjs ci` runs the built-in CI generator from `fjs/ci/module.f.mjs`, writing
+`fjs ci` runs the built-in CI generator from `fjs/ci/module.f.js`, writing
 `.github/workflows/gen.ci.yml` and `.github/workflows/gen.npm-publish.yml`. It is the
 standard entry point for projects that want FunctionalScript's default
 workflows. Projects with custom CI setup code should keep using

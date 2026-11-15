@@ -34,10 +34,14 @@ import { typePositions } from '../type_position/module.f.js'
 import { _positions, tokenize } from '../tokenizer/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../keywords/module.f.js'
-import { stringToCodePointList } from '../../text/utf16/module.f.js'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toText } from '../../text/marked/module.f.js'
-import { scan, stateScan } from '../../types/list/module.f.js'
+import { length as listLength, scan, stateScan } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { stringify } from '../../media/json/module.f.js'
+import { identity } from '../../types/function/module.f.js'
+
+const stringifyJson = stringify(identity)
 
 /**
  * Whether a name is a keyword where it stands, given the token after it on
@@ -127,7 +131,7 @@ const spansWith = (contextual, typed) => text => {
     const input = toArray(stringToCodePointList(text))
     const tokens = toArray(tokenize(input)(''))
     if (tokens.some(({ token }) => token.kind === 'error')) { return [] }
-    const symbols = Array.from(text)
+    const symbols = input.map(codePointToString)
     // Where a position is, by the fold that positioned the tokens, so the
     // lines are counted as the tokenizer counts them. The LF of a CRLF takes
     // the position of the character after it, which is the one a token
@@ -155,7 +159,7 @@ const spansWith = (contextual, typed) => text => {
         const before = afterWords[Number(i)]
         const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
         const primitive = kind === 'identifier' && type && token.kind === 'id' && primitives.includes(token.value)
-        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[Number(i + 1)].start).join('').trimEnd()).length, kind: property ? 'identifier' : primitive ? 'keyword' : kind }]
+        return kind === undefined ? [] : [{ start, length: listLength(stringToCodePointList(symbols.slice(start, kept[Number(i + 1)].start).join('').trimEnd())), kind: property ? 'identifier' : primitive ? 'keyword' : kind }]
     })
 }
 
@@ -195,14 +199,14 @@ const before = at => length => [at, before(at + length)]
  */
 export const disagreement = marked => {
     const text = toText(marked)
-    const found = JSON.stringify(spansOf(text))
-    const lengths = marked.map(([chunk]) => Array.from(chunk).length)
+    const found = stringifyJson(spansOf(text))
+    const lengths = marked.map(([chunk]) => listLength(stringToCodePointList(chunk)))
     const starts = toArray(scan(before(0))(lengths))
     /** @type {readonly Span[]} */
     const given = marked.flatMap(([chunk, kind], i) => {
         const dash = chunk.startsWith('-') ? 1 : 0
         return kind === undefined ? [] : [{ start: starts[Number(i)] + dash, length: lengths[Number(i)] - dash, kind }]
     })
-    const marks = JSON.stringify(given)
+    const marks = stringifyJson(given)
     return marks === found ? null : `marked ${marks}, the tokenizer finds ${found}, in ${text}`
 }

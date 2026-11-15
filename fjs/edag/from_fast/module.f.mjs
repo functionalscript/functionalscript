@@ -9,7 +9,7 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Step, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
+ * @import { Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _BlockTask, _Control, _ControlTask, _ValueTask } from './private.ts'
  * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Monoid } from '../../common/monoid/types.ts'
@@ -424,16 +424,36 @@ const summaries = (root, known = new Map(), external = []) => {
 /** @type {(block: Block, context: Context) => Summary} */
 const blockSummary = (block, context) => context.summaries.get(block) ?? assertNotNullish(summaries(['block', block], context.summaries, context.external).get(block))
 
-/** @type {(input: readonly Value[], context: Context) => Task<readonly Lowered[]>} */
-const lowerValues = (input, context) => {
+/** @type {(valueTask: _ValueTask, input: readonly Value[], context: Context) => Task<readonly Lowered[]>} */
+const lowerValues = (valueTask, input, context) => {
     /** @type {(index: number, values: List<Lowered>) => Task<readonly Lowered[]>} */
     const each = (index, values) => call(() => index === input.length ? done(toArray(values).toReversed())
         : bind(valueTask(input[Number(index)], context), value => each(index + 1, { first: value, tail: values })))
     return each(0, null)
 }
 
-/** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
-const functionValue = (source, context) => call(() => {
+/** The canonical scalar invocation loop reuses its owning function. @type {(blockTask: _BlockTask, valueTask: _ValueTask, fn: FastFunction, loop: Loop, context: Context) => Task<Lowered>} */
+const scalarRoot = (blockTask, valueTask, fn, loop, context) => call(() => {
+    const parts = assertNotNullish(scalarLoopOf(loop))
+    /** @type {(index: number, scope: Scope) => Task<Lowered>} */
+    const aliases = (index, scope) => call(() => {
+        if (index < fn.body.statements.length - 1) {
+            const alias = /** @type {Definition} */ (fn.body.statements[Number(index)])
+            return bind(valueTask(alias[2], { ...context, scope }), value => aliases(index + 1, scopeOf([[alias[1], value.exp]], scope)))
+        }
+        return bind(valueTask(loop.initial[0], { ...context, scope }), parameter => {
+            const inner = { ...context, scope: scopeOf([[loop.parameters[0], parameter.exp]], scope) }
+            const self = fn.self === null ? /** @type {Exp} */ (['self']) : lookup(context.scope, fn.self)
+            return bind(valueTask(parts.condition, inner), condition =>
+                bind(blockTask(parts.step, { ...inner, transfer: { kind: 'scalar', self } }), step =>
+                    done({ exp: ['?:', condition.exp, anchored(step), parameter.exp], anchors: [...parameter.anchors, ...condition.anchors] })))
+        })
+    })
+    return aliases(0, context.scope)
+})
+
+/** @type {(blockTask: _BlockTask, valueTask: _ValueTask, fn: FastFunction, context: Context) => Task<Lowered>} */
+const functionValue = (blockTask, valueTask, source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const lifted = _forwardReturns(liftReturns(source.body, source.target), source.target)
     const memoized = normalizeMemo(lifted, [], source.target, source.self)
@@ -446,7 +466,7 @@ const functionValue = (source, context) => call(() => {
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
     const fn = owning.root !== null ? _directOwningInvocationRoot(normalized, owning.root.target)
         : matched !== null ? directInvocationRoot(normalized, matched) : normalized
-    return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
+    return bind(lowerValues(valueTask, fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
         const placed = orderedOperands(captures, values => ['[]', values])
         const placedValues = assertNotNullish(entry(placed, 'values'))
         const candidates = placedValues.filter(exp => exp instanceof Array)
@@ -468,39 +488,19 @@ const functionValue = (source, context) => call(() => {
         /** @type {Context} */
         const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : new Map([...known, ...summaries(['block', fn.body], known)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
         const root = rootLoopOf(fn)
-        return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
+        return bind(root === null ? blockTask(fn.body, local) : scalarRoot(blockTask, valueTask, fn, root, local), body =>
             done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: placed.anchors }))
     })
 })
 
-/** The canonical scalar invocation loop reuses its owning function. @type {(fn: FastFunction, loop: Loop, context: Context) => Task<Lowered>} */
-const scalarRoot = (fn, loop, context) => call(() => {
-    const parts = assertNotNullish(scalarLoopOf(loop))
-    /** @type {(index: number, scope: Scope) => Task<Lowered>} */
-    const aliases = (index, scope) => call(() => {
-        if (index < fn.body.statements.length - 1) {
-            const alias = /** @type {Definition} */ (fn.body.statements[Number(index)])
-            return bind(valueTask(alias[2], { ...context, scope }), value => aliases(index + 1, scopeOf([[alias[1], value.exp]], scope)))
-        }
-        return bind(valueTask(loop.initial[0], { ...context, scope }), parameter => {
-            const inner = { ...context, scope: scopeOf([[loop.parameters[0], parameter.exp]], scope) }
-            const self = fn.self === null ? /** @type {Exp} */ (['self']) : lookup(context.scope, fn.self)
-            return bind(valueTask(parts.condition, inner), condition =>
-                bind(blockTask(parts.step, { ...inner, transfer: { kind: 'scalar', self } }), step =>
-                    done({ exp: ['?:', condition.exp, anchored(step), parameter.exp], anchors: [...parameter.anchors, ...condition.anchors] })))
-        })
-    })
-    return aliases(0, context.scope)
-})
-
-/** Memo admission leaves only established values to capture. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment; readonly results: readonly BindingId[] }>} */
-const loopTask = (loop, context) => call(() => {
+/** Memo admission leaves only established values to capture. @type {(blockTask: _BlockTask, valueTask: _ValueTask, loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment; readonly results: readonly BindingId[] }>} */
+const loopTask = (blockTask, valueTask, loop, context) => call(() => {
     const state = invariantState(loop, [...lazyBindings(context.scope), ...context.external])
-    return bind(lowerValues(state.aliases.map(alias => alias.value), context), aliases => {
+    return bind(lowerValues(valueTask, state.aliases.map(alias => alias.value), context), aliases => {
         const local = /** @type {Context} */ ({ ...context, scope: scopeOf(state.aliases.map((alias, index) => [alias.parameter, aliases[Number(index)].exp]), context.scope) })
         const scalar = scalarLoopOf(state.loop) !== null
         const helper = scalar ? scalarHelper(state.loop) : aggregateHelper(state.loop)
-        return bind(functionValue(helper, local), fn =>
+        return bind(functionValue(blockTask, valueTask, helper, local), fn =>
             bind(valueTask(scalar ? state.loop.initial[0] : ['array', state.loop.initial], local), initial => {
                 // An optimized-away source read can leave an invariant entry
                 // outside the helper's captures. Its required demand remains.
@@ -538,29 +538,8 @@ const combined = (source, values) => {
     return { exp: construct(assertNotNullish(entry(placed, 'values'))), anchors: placed.anchors }
 }
 
-/** @type {(root: Value, context: Context) => Task<Lowered>} */
-const valueTask = (root, context) => call(() => {
-    if (root === undefined) { return done(plain(['undefined'])) }
-    if (root === null || typeof root !== 'object') { return done(plain(root)) }
-    if (root[0] === 'ref') { return done(plain(lookup(context.scope, root[1]))) }
-    if (root[0] === 'function') { return functionValue(root[1], context) }
-    if (root[0] === 'block') { return regionTask(root[1], context, true) }
-    if (root[0] === 'if') { return conditional(root[1], root[2], root[3], context, true) }
-    // A direct member callee retains its receiver and lookup boundary.
-    // Wrapped member values remain detached ordinary calls.
-    if (root[0] === '()' && root[1] instanceof Array && root[1][0] === '.' && root[1].length === 3) {
-        return valueTask(['.', root[1][1], root[1][2], ['|()', root[2]]], context)
-    }
-    return bind(lowerValues(operatorOperands(root), context), values => done(combined(root, values)))
-})
-
-/** @type {(condition: Value, then: Block, otherwise: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
-const conditional = (condition, then, otherwise, context, normalize = false) => call(() => bind(valueTask(condition, context), test =>
-    bind(regionTask(then, context, normalize), a => bind(regionTask(otherwise, context, normalize), b =>
-        done({ exp: ['?:', test.exp, anchored(a), anchored(b)], anchors: test.anchors })))))
-
-/** Operand owners retain completion boundaries; eager memo planning runs once. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
-const regionTask = (block, context, normalize = false) => call(() => {
+/** Operand owners retain completion boundaries; eager memo planning runs once. @type {(blockTask: _BlockTask, block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+const regionTask = (blockTask, block, context, normalize = false) => call(() => {
     if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw' && block.exit[0] !== 'loop') { throw 'nonlocal transfers in value regions require structured completion lowering' }
     const memoized = normalize && !context.memoPrepared ? normalizeMemo(block, lazyBindings(context.scope)) : block
     if (memoized !== block && context.transfer.kind !== 'default') { throw 'memo normalization requires the default transfer owner' }
@@ -573,6 +552,31 @@ const regionTask = (block, context, normalize = false) => call(() => {
     return blockTask(normalized, local)
 })
 
+/** @type {(blockTask: _BlockTask, valueTask: _ValueTask, condition: Value, then: Block, otherwise: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+const conditional = (blockTask, valueTask, condition, then, otherwise, context, normalize = false) => call(() => bind(valueTask(condition, context), test =>
+    bind(regionTask(blockTask, then, context, normalize), a => bind(regionTask(blockTask, otherwise, context, normalize), b =>
+        done({ exp: ['?:', test.exp, anchored(a), anchored(b)], anchors: test.anchors })))))
+
+/** Lower nested values through their owning block task. @type {(blockTask: _BlockTask) => _ValueTask} */
+const valueTaskWith = blockTask => {
+    /** @type {_ValueTask} */
+    const valueTask = (root, context) => call(() => {
+        if (root === undefined) { return done(plain(['undefined'])) }
+        if (root === null || typeof root !== 'object') { return done(plain(root)) }
+        if (root[0] === 'ref') { return done(plain(lookup(context.scope, root[1]))) }
+        if (root[0] === 'function') { return functionValue(blockTask, valueTask, root[1], context) }
+        if (root[0] === 'block') { return regionTask(blockTask, root[1], context, true) }
+        if (root[0] === 'if') { return conditional(blockTask, valueTask, root[1], root[2], root[3], context, true) }
+        // A direct member callee retains its receiver and lookup boundary.
+        // Wrapped member values remain detached ordinary calls.
+        if (root[0] === '()' && root[1] instanceof Array && root[1][0] === '.' && root[1].length === 3) {
+            return valueTask(['.', root[1][1], root[1][2], ['|()', root[2]]], context)
+        }
+        return bind(lowerValues(valueTask, operatorOperands(root), context), values => done(combined(root, values)))
+    })
+    return valueTask
+}
+
 /** One result stays scalar; other signatures use their declared order. @type {(values: readonly Lowered[]) => Lowered} */
 const resultsValue = values => {
     if (values.length === 1) { return values[0] }
@@ -580,9 +584,9 @@ const resultsValue = values => {
     return { exp: ['[]', assertNotNullish(entry(placed, 'values'))], anchors: placed.anchors }
 }
 
-/** @type {(exit: Exit, context: Context) => Task<Lowered>} */
-const transferTask = (exit, context) => call(() => {
-    if (exit[0] === 'loop') { return bind(loopTask(exit[1], context), result => done(result.value)) }
+/** @type {(blockTask: _BlockTask, valueTask: _ValueTask, exit: Exit, context: Context) => Task<Lowered>} */
+const transferTask = (blockTask, valueTask, exit, context) => call(() => {
+    if (exit[0] === 'loop') { return bind(loopTask(blockTask, valueTask, exit[1], context), result => done(result.value)) }
     const owner = context.transfer
     if (owner.kind === 'custom') { return done(owner.transfer(exit, environmentOf(context.scope))) }
     if (owner.kind === 'scalar' && exit[0] !== 'yield' && exit[0] !== 'throw') {
@@ -592,7 +596,7 @@ const transferTask = (exit, context) => call(() => {
         return bind(valueTask(continued[2][0], context), next => done({ exp: ['()', owner.self, [next.exp]], anchors: next.anchors }))
     }
     const plainContext = { ...context, transfer: /** @type {ExitOwner} */ ({ kind: 'default' }) }
-    if (exit[0] === 'yield') { return bind(lowerValues(exit[1], plainContext), values => done(resultsValue(values))) }
+    if (exit[0] === 'yield') { return bind(lowerValues(valueTask, exit[1], plainContext), values => done(resultsValue(values))) }
     if (exit[0] === 'return') { return valueTask(exit[2], plainContext) }
     if (exit[0] === 'throw') { return bind(valueTask(exit[1], plainContext), value => done({ exp: ['throw', value.exp], anchors: value.anchors })) }
     throw 'a loop transfer requires its owning loop'
@@ -601,8 +605,8 @@ const transferTask = (exit, context) => call(() => {
 /** Bind ordered results without changing their established identity. @type {(bindings: readonly BindingId[], exp: Exp) => Environment} */
 const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding, bindings.length === 1 ? exp : ['.', exp, i]])
 
-/** Deferred initializers plan their own regions; control paths anchor required work. @type {(statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
-const definitionTask = (statement, context, required, eager = false) => bind(valueTask(statement[2], statement[3] === 'lazy' ? { ...context, memoPrepared: false } : context), value => {
+/** Deferred initializers plan their own regions; control paths anchor required work. @type {(valueTask: _ValueTask, statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
+const definitionTask = (valueTask, statement, context, required, eager = false) => bind(valueTask(statement[2], statement[3] === 'lazy' ? { ...context, memoPrepared: false } : context), value => {
     const initializer = statement[2]
     const deferred = statement[3] === 'lazy' && initializer !== null && typeof initializer === 'object'
         && (initializer[0] !== 'ref' || lazyBinding(context.scope, initializer[1]))
@@ -685,89 +689,99 @@ const emitControl = (flow, normal, terminal, established = [], selected = []) =>
         done(anchored({ exp: ['?:', node.test.exp, a, b], anchors: node.test.anchors }, established, selected))))
 })
 
-/** @type {(statement: Extract<Statement, readonly ['block' | 'if', ...unknown[]]>, context: Context) => Task<_Control>} */
-const controlRegion = (statement, context) => statement[0] === 'block' ? controlTask(statement[2], context, statement[1].length)
+/** @type {(controlTask: _ControlTask, valueTask: _ValueTask, statement: Extract<Statement, readonly ['block' | 'if', ...unknown[]]>, context: Context) => Task<_Control>} */
+const controlRegion = (controlTask, valueTask, statement, context) => statement[0] === 'block' ? controlTask(statement[2], context, statement[1].length)
     : bind(valueTask(statement[2], context), test => bind(controlTask(statement[3], context, statement[1].length), a =>
         bind(controlTask(statement[4], context, statement[1].length), b => done({ normal: a.normal || b.normal, node: { kind: 'if', test, then: a, otherwise: b } }))))
 
 /**
  * Function statement regions retain lexical environments while normal results
  * converge on one following graph. Operand regions keep their separate owner.
- * @type {(block: Block, context: Context, expected: number | null) => Task<_Control>}
+ * @type {(blockTask: _BlockTask, valueTask: _ValueTask) => _ControlTask}
  */
-const controlTask = (block, context, expected) => call(() => {
-    const { required, reached, entry } = blockSummary(block, context)
-    /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<_Control>} */
-    const each = (index, scope, anchors) => call(() => {
-        /** @type {Context} */
-        const current = { ...context, scope }
-        if (index === block.statements.length) {
-            const exit = block.exit
-            if (exit[0] === 'yield') {
-                if (expected !== null && exit[1].length !== expected) { throw 'invalid control region result signature' }
-                return bind(lowerValues(exit[1], { ...current, transfer: { kind: 'default' } }), values =>
-                    done(controlPrefix(toArray(anchors), { normal: true, node: { kind: 'normal', values } })))
+const controlTaskWith = (blockTask, valueTask) => {
+    /** @type {_ControlTask} */
+    const controlTask = (block, context, expected) => call(() => {
+        const { required, reached, entry } = blockSummary(block, context)
+        /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<_Control>} */
+        const each = (index, scope, anchors) => call(() => {
+            /** @type {Context} */
+            const current = { ...context, scope }
+            if (index === block.statements.length) {
+                const exit = block.exit
+                if (exit[0] === 'yield') {
+                    if (expected !== null && exit[1].length !== expected) { throw 'invalid control region result signature' }
+                    return bind(lowerValues(valueTask, exit[1], { ...current, transfer: { kind: 'default' } }), values =>
+                        done(controlPrefix(toArray(anchors), { normal: true, node: { kind: 'normal', values } })))
+                }
+                if (exit[0] === 'return' && exit[1] !== context.functionTarget) { throw 'a control return must name its owning function' }
+                return bind(transferTask(blockTask, valueTask, exit, current), value => done(controlPrefix(toArray(anchors), { normal: false, node: { kind: 'terminal', value } })))
             }
-            if (exit[0] === 'return' && exit[1] !== context.functionTarget) { throw 'a control return must name its owning function' }
-            return bind(transferTask(exit, current), value => done(controlPrefix(toArray(anchors), { normal: false, node: { kind: 'terminal', value } })))
+            const statement = block.statements[Number(index)]
+            if (statement[0] === 'define') {
+                return bind(definitionTask(valueTask, statement, current, required, !entry.includes(statement[1])), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
+            }
+            if (statement[0] === 'loop') {
+                return bind(loopTask(blockTask, valueTask, statement[1], current), ({ value, bindings, results }) => each(index + 1, scopeOf(bindings, scope),
+                    { head: anchors, tail: loopAnchors(results, value, reached, results.some(binding => required.includes(binding)) || !results.some(binding => entry.includes(binding))) }))
+            }
+            if (!regionHasControl(statement, current)) {
+                const task = statement[0] === 'block' ? regionTask(blockTask, statement[2], current)
+                    : conditional(blockTask, valueTask, statement[2], statement[3], statement[4], current)
+                return bind(task, value => each(index + 1, scopeOf(resultBindings(statement[1], value.exp), scope),
+                    { head: anchors, tail: [...value.anchors, value.exp] }))
+            }
+            return bind(controlRegion(controlTask, valueTask, statement, current), region => {
+                if (!region.normal) { return done(controlPrefix(toArray(anchors), region)) }
+                const hasResults = statement[1].length !== 0
+                const selected = hasResults ? bind(normalResults(region), result => done(assertNotNullish(result).exp)) : done(0)
+                return bind(selected, exp => bind(each(index + 1, hasResults ? scopeOf(resultBindings(statement[1], exp), scope) : scope, null), following =>
+                    done(controlPrefix(toArray(anchors), {
+                        normal: following.normal,
+                        node: { kind: 'join', body: region, next: hasResults ? controlPrefix([exp], following) : following, results: hasResults },
+                    }))))
+            })
+        })
+        return each(0, context.scope, null)
+    })
+    return controlTask
+}
+
+/** @type {_BlockTask} */
+const blockTask = (block, context) => {
+    const valueTask = valueTaskWith(blockTask)
+    return call(() => {
+        const { required, reached, normal, returns } = blockSummary(block, context)
+        const canControl = context.functionTarget !== null || context.transfer.kind === 'default' && !normal && !returns
+        if (canControl && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
+            const controlTask = controlTaskWith(blockTask, valueTask)
+            return bind(controlTask(block, context, null), flow => bind(emitControl(flow, (values, established, selected) => anchored(resultsValue(values), established, selected), anchored), exp => done(plain(exp))))
         }
-        const statement = block.statements[Number(index)]
-        if (statement[0] === 'define') {
-            return bind(definitionTask(statement, current, required, !entry.includes(statement[1])), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
-        }
-        if (statement[0] === 'loop') {
-            return bind(loopTask(statement[1], current), ({ value, bindings, results }) => each(index + 1, scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(results, value, reached, results.some(binding => required.includes(binding)) || !results.some(binding => entry.includes(binding))) }))
-        }
-        if (!regionHasControl(statement, current)) {
-            const task = statement[0] === 'block' ? regionTask(statement[2], current)
-                : conditional(statement[2], statement[3], statement[4], current)
+        /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
+        const each = (index, scope, anchors) => call(() => {
+            const current = { ...context, scope }
+            if (index === block.statements.length) {
+                return bind(transferTask(blockTask, valueTask, block.exit, current), result => done({ exp: result.exp, anchors: [...toArray(anchors), ...result.anchors] }))
+            }
+            const statement = block.statements[Number(index)]
+            if (statement[0] === 'define') {
+                return bind(definitionTask(valueTask, statement, current, required), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
+            }
+            if (statement[0] === 'loop') {
+                return bind(loopTask(blockTask, valueTask, statement[1], current), ({ value, bindings, results }) => each(index + 1,
+                    scopeOf(bindings, scope),
+                    { head: anchors, tail: loopAnchors(results, value, reached, results.some(binding => required.includes(binding))) }))
+            }
+            const task = statement[0] === 'block' ? regionTask(blockTask, statement[2], current)
+                : conditional(blockTask, valueTask, statement[2], statement[3], statement[4], current)
             return bind(task, value => each(index + 1, scopeOf(resultBindings(statement[1], value.exp), scope),
                 { head: anchors, tail: [...value.anchors, value.exp] }))
-        }
-        return bind(controlRegion(statement, current), region => {
-            if (!region.normal) { return done(controlPrefix(toArray(anchors), region)) }
-            const hasResults = statement[1].length !== 0
-            const selected = hasResults ? bind(normalResults(region), result => done(assertNotNullish(result).exp)) : done(0)
-            return bind(selected, exp => bind(each(index + 1, hasResults ? scopeOf(resultBindings(statement[1], exp), scope) : scope, null), following =>
-                done(controlPrefix(toArray(anchors), {
-                    normal: following.normal,
-                    node: { kind: 'join', body: region, next: hasResults ? controlPrefix([exp], following) : following, results: hasResults },
-                }))))
         })
+        return each(0, context.scope, null)
     })
-    return each(0, context.scope, null)
-})
+}
 
-/** @type {(block: Block, context: Context) => Task<Lowered>} */
-const blockTask = (block, context) => call(() => {
-    const { required, reached, normal, returns } = blockSummary(block, context)
-    const canControl = context.functionTarget !== null || context.transfer.kind === 'default' && !normal && !returns
-    if (canControl && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
-        return bind(controlTask(block, context, null), flow => bind(emitControl(flow, (values, established, selected) => anchored(resultsValue(values), established, selected), anchored), exp => done(plain(exp))))
-    }
-    /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
-    const each = (index, scope, anchors) => call(() => {
-        const current = { ...context, scope }
-        if (index === block.statements.length) {
-            return bind(transferTask(block.exit, current), result => done({ exp: result.exp, anchors: [...toArray(anchors), ...result.anchors] }))
-        }
-        const statement = block.statements[Number(index)]
-        if (statement[0] === 'define') {
-            return bind(definitionTask(statement, current, required), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
-        }
-        if (statement[0] === 'loop') {
-            return bind(loopTask(statement[1], current), ({ value, bindings, results }) => each(index + 1,
-                scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(results, value, reached, results.some(binding => required.includes(binding))) }))
-        }
-        const task = statement[0] === 'block' ? regionTask(statement[2], current)
-            : conditional(statement[2], statement[3], statement[4], current)
-        return bind(task, value => each(index + 1, scopeOf(resultBindings(statement[1], value.exp), scope),
-            { head: anchors, tail: [...value.anchors, value.exp] }))
-    })
-    return each(0, context.scope, null)
-})
+const valueTask = valueTaskWith(blockTask)
 
 /** @type {(node: Node, environment: Environment, transfer?: Transfer, memoPrepared?: boolean) => Context} */
 const contextFor = (node, environment, transfer, memoPrepared = false) => {

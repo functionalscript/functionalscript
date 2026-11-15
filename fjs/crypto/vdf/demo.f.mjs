@@ -36,13 +36,13 @@
  * @import { Sandbox } from '../../effects/common/types.ts'
  */
 
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { resultMarker } from '../../website/style/module.f.js'
 import { p, sloth } from './module.f.js'
 import { tryUtf8 } from '../../text/module.f.js'
 import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk, resultStep } from '../../effects/module.f.js'
-import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
+import { textField, inputField, caption, refusal } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { computeSync, sha256 } from '../sha2/module.f.js'
 import { sandbox } from '../../effects/common/module.f.js'

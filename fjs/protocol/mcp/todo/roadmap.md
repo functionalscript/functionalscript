@@ -18,7 +18,7 @@ What has landed, and where it is documented:
   capability-gated routing, with protocol-version negotiation — in `mcpStep`'s
   JSDoc in [`../module.f.js`](../module.f.js);
 - `tools/list` and `tools/call`, with `text` and embedded-resource content;
-- the stdio transport — [`../stdio/module.f.mjs`](../stdio/module.f.mjs);
+- the stdio transport — [`../stdio/module.f.js`](../stdio/module.f.js);
 - the rtti → JSON Schema printer that derives a tool's `inputSchema` —
   `fjs/media/json/schema/module.f.js`.
 

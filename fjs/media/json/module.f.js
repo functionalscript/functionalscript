@@ -1,5 +1,5 @@
 /**
- * JSON utilities: `serialize`, `stringify`, `parse`, and `setProperty` for
+ * JSON utilities: `serialize`, `stringify`, `stringifyIndented`, `parse`, and `setProperty` for
  * immutable nested updates.
  *
  * `parse` is the total, `Result`-returning `text → Unknown` entry point built
@@ -17,7 +17,7 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { Primitive, Unknown } from './types.ts'
+ * @import { Primitive, Unknown, _MapEntries } from './types.ts'
  * @import { Codec } from './serializer/types.ts'
  * @import { NumberPolicy } from './parser/types.ts'
  * @import { List } from '../../types/list/types.ts'
@@ -50,6 +50,8 @@ export const setProperty = value => {
     return f
 }
 
+const standardLeaf = leafSerialize(numberSerialize)({})
+
 /**
  * The standard codec: its own `number` spelling and no leaf kinds beyond
  * JSON's. The containers around it are `treeSerialize`'s, shared with every
@@ -66,7 +68,17 @@ export const setProperty = value => {
  *
  * @type {Codec<Primitive>}
  */
-export const { serialize, stringify, marked } = codec(leafSerialize(numberSerialize)({}))
+export const { serialize, stringify, marked } = codec(standardLeaf)
+
+/**
+ * JSON with a literal indentation unit repeated per nesting level. Use spaces
+ * or tabs for JSON whitespace; unlike the native `space` argument, this string
+ * is neither coerced nor truncated. Empty means compact output. Empty containers
+ * stay on one line, and the result has no final newline.
+ *
+ * @type {(indent: string) => (sort: _MapEntries) => (value: Unknown) => string}
+ */
+export const stringifyIndented = indent => codec(standardLeaf, indent).stringify
 
 /**
  * `stringify` with object keys sorted: the canonical, order-independent

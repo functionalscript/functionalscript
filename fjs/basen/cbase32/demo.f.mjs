@@ -22,7 +22,7 @@
  */
 
 import { vecToCBase32 } from './module.f.js'
-import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.mjs'
+import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.js'
 
 /**
  * Five bits a character, and a stop bit.

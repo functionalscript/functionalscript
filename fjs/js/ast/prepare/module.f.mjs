@@ -19,7 +19,7 @@
  * @module
  * @import { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, LoopTarget, Operator, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
  * @import { Block, Exit, Function as PreparedFunction, Statement, Value } from './types.ts'
- * @import { _Block, _Completion, _Context, _Facts, _Flow, _Flows, _Node, _Prepared, _Snapshot, _Statement, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
+ * @import { _Block, _BlockTask, _Completion, _Context, _Facts, _Flow, _Flows, _Node, _Prepared, _Snapshot, _Statement, _Statements, _Task, _Value, _ValueTask, _Values, _Visit } from './private.ts'
  * @import { Stack } from '../../../types/stack_walk/types.ts'
  * @import { List } from '../../../types/list/types.ts'
  */
@@ -35,6 +35,7 @@ import { pushAll } from '../../../types/stack_walk/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.js'
 import { _immutableJoin } from './joins/module.f.js'
 import { _recoverOnePassJoin } from './one_pass/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 
 /** @type {(node: _Node) => _Facts} */
 const facts = node => {
@@ -179,7 +180,7 @@ const flows = (root, known = new Map()) => {
 }
 
 /** @type {(next: number, count: number) => readonly BindingId[]} */
-const fresh = (next, count) => Array.from({ length: count }, (_, index) => ({ index: next + index }))
+const fresh = (next, count) => generate(count, index => ({ index: next + index }))
 
 /** Whether statements in this region physically write one of its slots. @type {(block: Block, id: BindingId) => boolean} */
 const writes = (block, id) => {
@@ -300,8 +301,8 @@ const packedStatements = statements => {
     return each(0, [])
 }
 
-/** @type {(input: readonly NormalValue[], context: _Context, snapshots?: readonly _Snapshot[]) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
-const values = (input, context, snapshots = []) => {
+/** @type {(prepareValue: _ValueTask, input: readonly NormalValue[], context: _Context, snapshots?: readonly _Snapshot[]) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
+const values = (prepareValue, input, context, snapshots = []) => {
     /** @type {(index: number, next: number, previous: List<_Value>) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
     const each = (index, next, previous) => call(() => {
         if (index < input.length) {
@@ -320,8 +321,8 @@ const values = (input, context, snapshots = []) => {
     return each(0, context.next, null)
 }
 
-/** @type {(input: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
-const functionValue = (input, context) => call(() => {
+/** @type {(prepareBlock: _BlockTask, prepareValue: _ValueTask, input: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
+const functionValue = (prepareBlock, prepareValue, input, context) => call(() => {
     const fresh = _freshSelf(input)
     /** @type {NormalFunction} */
     const logical = { ...fresh, body: normalizeLazyReturns(fresh.body, fresh.target, fresh.self) }
@@ -334,7 +335,7 @@ const functionValue = (input, context) => call(() => {
     const summary = normalized === input.body ? context.flows : new Map([...context.flows, ...flows(['block', normalized], context.flows)])
     /** @type {_Context} */
     const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
-    return bind(values(value.captures.map(capture => capture.value), local), prepared => {
+    return bind(values(prepareValue, value.captures.map(capture => capture.value), local), prepared => {
     const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[Number(index)] }))
     return bind(prepareBlock(normalized, { ...local, sourceBranchTarget, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body => {
         // Source functions require a terminal return even after a loop that
@@ -349,74 +350,13 @@ const functionValue = (input, context) => call(() => {
     })
 })
 
-/** @type {(value: NormalValue, context: _Context) => _Task<_Value>} */
-const prepareValue = (value, context) => call(() => {
-    if (!(value instanceof Array)) { return done({ value, statements: [], next: context.next }) }
-    switch (value[0]) {
-        case 'ref': {
-            const id = context.reads.find(([from]) => from === value[1])?.[1] ?? value[1]
-            return done({ value: [context.memos.includes(id) ? 'demand' : 'ref', id], statements: [], next: context.next })
-        }
-        case 'function': {
-            return bind(functionValue(value[1], context), result => done({ value: ['function', result.value], statements: result.statements, next: result.next }))
-        }
-        case 'block': {
-            if (nonlocalBlock(value[1], context)) {
-                const [slot] = fresh(context.next, 1)
-                return bind(prepareBlock(value[1], { ...context, next: context.next + 1, yields: [slot] }), result =>
-                    done({ value: ['ref', slot], statements: [['slot', slot, undefined, false], ['block', result.value]], next: result.next }))
-            }
-            return bind(prepareBlock(value[1], { ...context, yields: null }), result => done({ value: ['block', result.value], statements: [], next: result.next }))
-        }
-        case 'if': {
-            return bind(prepareValue(value[1], context), condition => {
-                const lifted = nonlocalBlock(value[2], context) || nonlocalBlock(value[3], context)
-                const slots = lifted ? fresh(condition.next, 1) : null
-                return bind(prepareBlock(value[2], { ...context, next: condition.next + (slots?.length ?? 0), yields: slots }), then =>
-                    bind(prepareBlock(value[3], { ...context, next: then.next, yields: slots }), otherwise =>
-                        done(slots === null
-                            ? { value: ['if', condition.value, then.value, otherwise.value], statements: condition.statements, next: otherwise.next }
-                            : { value: ['ref', slots[0]], statements: [...condition.statements, ['slot', slots[0], undefined, false], ['if', condition.value, then.value, otherwise.value]], next: otherwise.next })))
-            })
-        }
-        case '?:': { return prepareValue(['if', value[1], { statements: [], exit: ['yield', [value[2]]] }, { statements: [], exit: ['yield', [value[3]]] }], context) }
-        default: {
-            const memberCall = value[0] === '()' && value[1] instanceof Array && value[1][0] === '.' && value[1].length === 3
-            // A direct property callee retains its receiver, just as graph
-            // construction combines that shape into a member-call step.
-            const operation = memberCall ? /** @type {Operator<NormalValue>} */ (['.', value[1][1], value[1][2], ['|()', value[2]]]) : value
-            const input = operatorOperands(operation)
-            /** @type {readonly _Snapshot[]} */
-            const snapshots = operation[0] === 'object'
-                ? operation[1].flatMap(/** @returns {readonly _Snapshot[]} */ entry => entry[0] === '...' ? ['object'] : ['key', null])
-                : operation[0] === 'array' ? operation[1].map(item => isSpread(item) ? 'array' : null)
-                    : operation[0] === '()' ? [null, ...operation[2].map(/** @returns {_Snapshot} */ item => isSpread(item) ? 'array' : null)] : []
-            if ((memberCall || value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
-                && (memberCall ? input : input.slice(1)).some(child => nonlocalValue(child, context))) {
-                if (context.owner !== null || memberCall) {
-                    const [destination] = fresh(context.next, 1)
-                    const lifted = liftValueReturns(operation, destination, context.owner, memberCall ? context.loops.map(loop => loop.target) : [])
-                    if (lifted.statement !== null) {
-                        const summary = new Map([...context.flows, ...flows(['statement', lifted.statement], context.flows)])
-                        return bind(statementValue(lifted.statement, {
-                            ...context, flows: summary, next: Math.max(context.next + 1, assertNotNullish(summary.get(lifted.statement)).next),
-                        }), prepared => done({ value: ['ref', destination], statements: prepared.value, next: prepared.next }))
-                    }
-                }
-                throw ['unsupported FAST preparation', 'a nonlocal transfer in a chain operand']
-            }
-            return bind(values(input, context, snapshots), prepared => done({ value: mapOperator((_, index) => prepared.value[Number(index)])(operation), statements: prepared.statements, next: prepared.next }))
-        }
-    }
-})
-
 /**
  * Establish every transfer value before writing the first destination slot.
  * The temporaries also retain failures and allocations of values overwritten
  * by the same transition.
- * @type {(input: readonly NormalValue[], slots: readonly BindingId[], context: _Context) => _Task<_Statements>}
+ * @type {(prepareValue: _ValueTask, input: readonly NormalValue[], slots: readonly BindingId[], context: _Context) => _Task<_Statements>}
  */
-const transfer = (input, slots, context) => call(() => bind(values(input, context), prepared => {
+const transfer = (prepareValue, input, slots, context) => call(() => bind(values(prepareValue, input, context), prepared => {
     const temporaries = fresh(prepared.next, prepared.value.length)
     return done({
         value: [
@@ -430,32 +370,8 @@ const transfer = (input, slots, context) => call(() => bind(values(input, contex
     })
 }))
 
-/** @type {(exit: NormalExit, context: _Context) => _Task<_Prepared<{ readonly statements: readonly Statement[], readonly exit: Exit }>>} */
-const exitValue = (exit, context) => call(/** @returns {_Task<_Prepared<{ readonly statements: readonly Statement[], readonly exit: Exit }>>} */ () => {
-    if (exit[0] === 'loop') {
-        return bind(statementTask(['loop', exit[1]], context), result => {
-            const terminal = assertNotNullish(result.value.at(-1))
-            assert(terminal[0] === 'loop', 'a terminal loop has no result continuation')
-            return done({ value: { statements: result.value.slice(0, -1), exit: terminal }, next: result.next })
-        })
-    }
-    if (exit[0] === 'yield') {
-        if (context.yields !== null) {
-            return bind(transfer(exit[1], context.yields, context), result => done({ value: { statements: result.value, exit: ['yield', []] }, next: result.next }))
-        }
-        return bind(values(exit[1], context), result => done({ value: { statements: result.statements, exit: ['yield', result.value] }, next: result.next }))
-    }
-    if (exit[0] === 'continue' || exit[0] === 'break') {
-        const loop = assertNotNullish(context.loops.find(loop => loop.target === exit[1]), ['FAST transfer outside its loop', exit[1]])
-        const input = exit[0] === 'continue' && loop.packed ? /** @type {readonly NormalValue[]} */ ([['array', exit[2]]]) : exit[2]
-        return bind(transfer(input, exit[0] === 'continue' ? loop.parameters : loop.results, context), result => done({ value: { statements: result.value, exit: [exit[0], exit[1]] }, next: result.next }))
-    }
-    return bind(prepareValue(exit[0] === 'return' ? exit[2] : exit[1], context), result =>
-        done({ value: { statements: result.statements, exit: exit[0] === 'return' ? ['return', exit[1], result.value] : ['throw', result.value] }, next: result.next }))
-})
-
-/** @type {(statement: NormalStatement, context: _Context) => _Task<_Statements>} */
-const statementTask = (statement, context) => call(() => {
+/** @type {(prepareBlock: _BlockTask, prepareValue: _ValueTask, statement: NormalStatement, context: _Context) => _Task<_Statements>} */
+const statementTask = (prepareBlock, prepareValue, statement, context) => call(() => {
     if (statement[0] === 'define') {
         if (statement[3] === 'lazy' && nonlocalValue(statement[2], context)) { throw ['unsupported FAST preparation', 'a nonlocal transfer in a lazy definition'] }
         return bind(prepareValue(statement[2], context), result => {
@@ -572,7 +488,7 @@ const statementTask = (statement, context) => call(() => {
         const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
         const packed = context.sourceLoops && loop.parameters.length > 1 && loop.results.length === 1
         const empty = context.sourceLoops && loop.parameters.length === 0 && loop.results.length === 1 && normal
-        return bind(values(packed ? [['array', loop.initial]] : loop.initial, context), initial => {
+        return bind(values(prepareValue, packed ? [['array', loop.initial]] : loop.initial, context), initial => {
             const temporaries = fresh(initial.next, initial.value.length)
             const parameters = fresh(initial.next + temporaries.length, packed || empty ? 1 : loop.parameters.length)
             // Source loop re-entry preserves one private state/result slot.
@@ -629,24 +545,114 @@ const statementTask = (statement, context) => call(() => {
     }))
 })
 
-/** Result-bearing regions retain the destination layout used by expression lifting. @type {(statement: NormalStatement, context: _Context) => _Task<_Statement>} */
-const statementValue = (statement, context) => bind(statementTask(statement, context), result => done({
+/** Result-bearing regions retain the destination layout used by expression lifting. @type {(prepareBlock: _BlockTask, prepareValue: _ValueTask, statement: NormalStatement, context: _Context) => _Task<_Statement>} */
+const statementValue = (prepareBlock, prepareValue, statement, context) => bind(statementTask(prepareBlock, prepareValue, statement, context), result => done({
     ...result, normal: statement[0] === 'define' || statement[0] !== 'loop' && statement[1].length !== 0
         || assertNotNullish(context.flows.get(statement)).normal,
 }))
 
+/** Prepare values through their containing block without forward references. @type {(prepareBlock: _BlockTask) => _ValueTask} */
+const prepareValueWith = prepareBlock => {
+    /** @type {_ValueTask} */
+    const prepareValue = (value, context) => call(() => {
+        if (!(value instanceof Array)) { return done({ value, statements: [], next: context.next }) }
+        switch (value[0]) {
+            case 'ref': {
+                const id = context.reads.find(([from]) => from === value[1])?.[1] ?? value[1]
+                return done({ value: [context.memos.includes(id) ? 'demand' : 'ref', id], statements: [], next: context.next })
+            }
+            case 'function': {
+                return bind(functionValue(prepareBlock, prepareValue, value[1], context), result => done({ value: ['function', result.value], statements: result.statements, next: result.next }))
+            }
+            case 'block': {
+                if (nonlocalBlock(value[1], context)) {
+                    const [slot] = fresh(context.next, 1)
+                    return bind(prepareBlock(value[1], { ...context, next: context.next + 1, yields: [slot] }), result =>
+                        done({ value: ['ref', slot], statements: [['slot', slot, undefined, false], ['block', result.value]], next: result.next }))
+                }
+                return bind(prepareBlock(value[1], { ...context, yields: null }), result => done({ value: ['block', result.value], statements: [], next: result.next }))
+            }
+            case 'if': {
+                return bind(prepareValue(value[1], context), condition => {
+                    const lifted = nonlocalBlock(value[2], context) || nonlocalBlock(value[3], context)
+                    const slots = lifted ? fresh(condition.next, 1) : null
+                    return bind(prepareBlock(value[2], { ...context, next: condition.next + (slots?.length ?? 0), yields: slots }), then =>
+                        bind(prepareBlock(value[3], { ...context, next: then.next, yields: slots }), otherwise =>
+                            done(slots === null
+                                ? { value: ['if', condition.value, then.value, otherwise.value], statements: condition.statements, next: otherwise.next }
+                                : { value: ['ref', slots[0]], statements: [...condition.statements, ['slot', slots[0], undefined, false], ['if', condition.value, then.value, otherwise.value]], next: otherwise.next })))
+                })
+            }
+            case '?:': { return prepareValue(['if', value[1], { statements: [], exit: ['yield', [value[2]]] }, { statements: [], exit: ['yield', [value[3]]] }], context) }
+            default: {
+                const memberCall = value[0] === '()' && value[1] instanceof Array && value[1][0] === '.' && value[1].length === 3
+                // A direct property callee retains its receiver, just as graph
+                // construction combines that shape into a member-call step.
+                const operation = memberCall ? /** @type {Operator<NormalValue>} */ (['.', value[1][1], value[1][2], ['|()', value[2]]]) : value
+                const input = operatorOperands(operation)
+                /** @type {readonly _Snapshot[]} */
+                const snapshots = operation[0] === 'object'
+                    ? operation[1].flatMap(/** @returns {readonly _Snapshot[]} */ entry => entry[0] === '...' ? ['object'] : ['key', null])
+                    : operation[0] === 'array' ? operation[1].map(item => isSpread(item) ? 'array' : null)
+                        : operation[0] === '()' ? [null, ...operation[2].map(/** @returns {_Snapshot} */ item => isSpread(item) ? 'array' : null)] : []
+                if ((memberCall || value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
+                    && (memberCall ? input : input.slice(1)).some(child => nonlocalValue(child, context))) {
+                    if (context.owner !== null || memberCall) {
+                        const [destination] = fresh(context.next, 1)
+                        const lifted = liftValueReturns(operation, destination, context.owner, memberCall ? context.loops.map(loop => loop.target) : [])
+                        if (lifted.statement !== null) {
+                            const summary = new Map([...context.flows, ...flows(['statement', lifted.statement], context.flows)])
+                            return bind(statementValue(prepareBlock, prepareValue, lifted.statement, {
+                                ...context, flows: summary, next: Math.max(context.next + 1, assertNotNullish(summary.get(lifted.statement)).next),
+                            }), prepared => done({ value: ['ref', destination], statements: prepared.value, next: prepared.next }))
+                        }
+                    }
+                    throw ['unsupported FAST preparation', 'a nonlocal transfer in a chain operand']
+                }
+                return bind(values(prepareValue, input, context, snapshots), prepared => done({ value: mapOperator((_, index) => prepared.value[Number(index)])(operation), statements: prepared.statements, next: prepared.next }))
+            }
+        }
+    })
+    return prepareValue
+}
+
+/** @type {(prepareBlock: _BlockTask, prepareValue: _ValueTask, exit: NormalExit, context: _Context) => _Task<_Prepared<{ readonly statements: readonly Statement[], readonly exit: Exit }>>} */
+const exitValue = (prepareBlock, prepareValue, exit, context) => call(/** @returns {_Task<_Prepared<{ readonly statements: readonly Statement[], readonly exit: Exit }>>} */ () => {
+    if (exit[0] === 'loop') {
+        return bind(statementTask(prepareBlock, prepareValue, ['loop', exit[1]], context), result => {
+            const terminal = assertNotNullish(result.value.at(-1))
+            assert(terminal[0] === 'loop', 'a terminal loop has no result continuation')
+            return done({ value: { statements: result.value.slice(0, -1), exit: terminal }, next: result.next })
+        })
+    }
+    if (exit[0] === 'yield') {
+        if (context.yields !== null) {
+            return bind(transfer(prepareValue, exit[1], context.yields, context), result => done({ value: { statements: result.value, exit: ['yield', []] }, next: result.next }))
+        }
+        return bind(values(prepareValue, exit[1], context), result => done({ value: { statements: result.statements, exit: ['yield', result.value] }, next: result.next }))
+    }
+    if (exit[0] === 'continue' || exit[0] === 'break') {
+        const loop = assertNotNullish(context.loops.find(loop => loop.target === exit[1]), ['FAST transfer outside its loop', exit[1]])
+        const input = exit[0] === 'continue' && loop.packed ? /** @type {readonly NormalValue[]} */ ([['array', exit[2]]]) : exit[2]
+        return bind(transfer(prepareValue, input, exit[0] === 'continue' ? loop.parameters : loop.results, context), result => done({ value: { statements: result.value, exit: [exit[0], exit[1]] }, next: result.next }))
+    }
+    return bind(prepareValue(exit[0] === 'return' ? exit[2] : exit[1], context), result =>
+        done({ value: { statements: result.statements, exit: exit[0] === 'return' ? ['return', exit[1], result.value] : ['throw', result.value] }, next: result.next }))
+})
+
 /** @type {(block: NormalBlock, context: _Context) => _Task<_Block>} */
 const prepareBlock = (block, context) => {
+    const prepareValue = prepareValueWith(prepareBlock)
     /** @type {(index: number, current: _Context, previous: List<Statement>) => _Task<_Block>} */
     const each = (index, current, previous) => call(() => {
         if (index === block.statements.length) {
-            return bind(exitValue(block.exit, current), result => done({
+            return bind(exitValue(prepareBlock, prepareValue, block.exit, current), result => done({
                 value: withSlots({ statements: [...toArray(previous), ...result.value.statements], exit: result.value.exit }),
                 next: result.next,
             }))
         }
         const statement = block.statements[Number(index)]
-        return bind(statementValue(statement, current), result => result.normal ? each(index + 1, {
+        return bind(statementValue(prepareBlock, prepareValue, statement, current), result => result.normal ? each(index + 1, {
             ...current,
             next: result.next,
             memos: statement[0] === 'define' && statement[3] === 'lazy' ? [...current.memos, statement[1]] : current.memos,
@@ -656,6 +662,8 @@ const prepareBlock = (block, context) => {
     })
     return each(0, context, null)
 }
+
+const standaloneValue = prepareValueWith(prepareBlock)
 
 /**
  * Prepare one normalized region, retaining its ordinary result signature.
@@ -676,5 +684,5 @@ export const prepare = (block, { sourceLoops = false } = {}) => {
  */
 export const prepareFunction = value => {
     const summary = flows(['function', value])
-    return run(functionValue(value, { sourceLoops: false, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(functionValue(prepareBlock, standaloneValue, value, { sourceLoops: false, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }

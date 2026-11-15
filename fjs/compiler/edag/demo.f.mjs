@@ -74,7 +74,7 @@
 import { _defaultExport, _moduleExports, tryUnresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { operatorShape, unsupported } from '../graph/module.f.mjs'
-import { refusal } from '../../website/demo/module.f.mjs'
+import { refusal } from '../../website/demo/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 

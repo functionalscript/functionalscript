@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
-import { queryLimit, defaultsOf, validateInputs, decodeQuery, restoreInputs, encodeQuery, textSharing, recordSharing, withInputs, sharingStatus, earlyInputCapture } from './module.f.mjs'
+import { queryLimit, defaultsOf, validateInputs, decodeQuery, restoreInputs, encodeQuery, textSharing, recordSharing, withInputs, sharingStatus, earlyInputCapture } from './module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { pureOk } from '../../../effects/module.f.js'
 

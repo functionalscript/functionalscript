@@ -210,7 +210,7 @@ export type DemoSchema = {
     readonly schema: Type
     /**
      * The full path of the module that declares the schema, for one the project
-     * uses — `fjs/media/note/module.f.mjs` — or absent for one written for the demo.
+     * uses — `fjs/media/note/module.f.js` — or absent for one written for the demo.
      */
     readonly module?: string
 }
