@@ -166,11 +166,17 @@ Slice 7, cut in two as decided above.
   copy, since L1 calls it only from arithmetic, which a later slice
   lowers. The random comparison gains a form that throws.
 
+#### Next — builders
+
+- [ ] **Builders** (8). Containers' `begin_object` / `push_property` (and
+  `seal` into an object) as the supporting primitives; `buildArray` and
+  `buildObject` with their callbacks inlined
+  ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass));
+  object literals with spread; subjects `toIterable` and `objectSpread`.
+  Float records stay products.
+
 #### Later
 
-- [ ] **Builders** (8). What is left after 6e: `buildArray` and `buildObject`
-  with their callbacks inlined, object literals and spread. Subjects:
-  `toIterable` and `objectSpread`.
 - [ ] **Calling function values** (9). L0's `call` from WASM into the host
   and back. Subjects: `toPrimitive`, `toNumber`, `toNumeric`, `toString` and
   `call`.
