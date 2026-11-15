@@ -60,3 +60,7 @@ export type _Value = {
     readonly statements: readonly Statement[]
     readonly next: number
 }
+
+/** Recursive preparation callbacks passed at the block/value boundary. */
+export type _BlockTask = (block: NormalBlock, context: _Context) => _Task<_Block>
+export type _ValueTask = (value: NormalValue, context: _Context) => _Task<_Value>

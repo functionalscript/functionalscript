@@ -44,6 +44,8 @@ import { spiderMonkeySteps } from './spidermonkey/module.f.js'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.js'
 import { miseJobs } from './mise/module.f.js'
 import { smartJobs } from './smart/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 
 /**
  * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
@@ -148,7 +150,7 @@ const mergeQueue = /** @type {const} */ (`github.event_name == 'merge_group'`)
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[], mergeQueueOnly: boolean) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const id = `${o}-${a}`
-    const image = images[o][a]
+    const image = assertNotNullish(entry(assertNotNullish(entry(images, o)), a))
     // Direct-install jobs keep injected steps on the runner too.
     const result = o === 'windows'
         ? [

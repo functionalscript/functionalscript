@@ -796,7 +796,7 @@ Three of its features fall out of decisions already made:
 The transport is largely built. LSP is JSON-RPC 2.0, and
 [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.js) already
 implements the envelope, the standard error codes, and `dispatch`, with
-[`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.mjs) as a working stdio server
+[`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.js) as a working stdio server
 to copy. Two pieces are genuinely new, and only one of them is small:
 
 - **framing** — LSP uses `Content-Length` headers where MCP uses
