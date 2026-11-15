@@ -11,6 +11,7 @@ import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { lower } from './module.f.js'
+import * as readsOf from './reads.f.js'
 import { runtime, sourceOf } from './testlib.f.mjs'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
@@ -1148,6 +1149,20 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => v.x(1)')), 'f: a member read with a further step, such as a call of the member, is not in this slice')
         // The parser takes a computed key that is `Number` of a value alone.
         assertEq(assertError(sourceOf('export const f = (a, k) => a[k]')), 'parse: computed key is not Number(...)')
+    },
+    /** The originals of `reads.f.js` themselves, which the host proof runs as WASM against. */
+    readsOf: () => {
+        // An index of the array, past its end, a fraction, a NaN and `-0`.
+        assertEq(readsOf.pick('x', 'y', 1), 'y')
+        assertEq(readsOf.pick('x', 'y', 2), undefined)
+        assertEq(readsOf.pick('x', 'y', 0.5), undefined)
+        assertEq(readsOf.pick('x', 'y', NaN), undefined)
+        assertEq(readsOf.pick('x', 'y', -0), 'x')
+        assertEq(readsOf.only(null), null)
+        assertEq(readsOf.letter(2), 'c')
+        assertEq(readsOf.letter(-1), undefined)
+        assertStructurallySame(readsOf.inner(true, 0), [true])
+        assertEq(readsOf.inner(true, 1), 'x')
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
