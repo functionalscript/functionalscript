@@ -48,6 +48,8 @@ import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module
 import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { textDemo, refusal } from '../module.f.js'
 
 /**
@@ -158,14 +160,18 @@ const charUnits = chars => ['div', { 'data-byte-chars': '' }, ...chars.map(charU
  *
  * @type {(g: BitGroup, c: string) => Element}
  */
-const box = ({ data, stop, fill }, c) => ['div', { 'data-bit-box': '' },
-    ['span',
-        data,
-        ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
-        ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
-    ],
-    ['span', { 'data-bit-char': '' }, c],
-]
+const box = (group, c) => {
+    const { data, stop } = group
+    const fill = assertNotNullish(entry(group, 'fill'))
+    return ['div', { 'data-bit-box': '' },
+        ['span',
+            data,
+            ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
+            ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
+        ],
+        ['span', { 'data-bit-char': '' }, c],
+    ]
+}
 
 /**
  * A box that holds a place and shows nothing: as wide as any of the scheme's
@@ -228,7 +234,9 @@ const orEmpty = s => s === '' ? '(empty)' : s
  *
  * @type {(o: BitGroupDemoOptions) => Demo<string, DemoEvent>}
  */
-export const bitGroupDemo = ({ intro, name, how, scheme, encode }) => {
+export const bitGroupDemo = options => {
+    const { intro, how, scheme, encode } = options
+    const name = assertNotNullish(entry(options, 'name'))
     const f = bitGroups(scheme, encode)
     const draw = boxes(scheme)
     return textDemo({ intro, name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {
