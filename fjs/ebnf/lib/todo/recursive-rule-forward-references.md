@@ -1,7 +1,7 @@
 # Preserve recursive grammar identities without forward references
 
 **Priority:** P3
-**Status:** blocked
+**Status:** wip
 
 ## Problem
 
