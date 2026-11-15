@@ -1,5 +1,6 @@
 /** Lexical snapshots and deferred dependency edges for shared memo cells. @module */
 
+import type { PersistentMap } from '../../../../types/map/types.ts'
 import type { BindingId, Block, Definition, Exit, Loop, Value } from '../../types.ts'
 import type { List } from '../../../../types/list/types.ts'
 import type { _Link as Link } from '../../control/private.ts'
@@ -15,7 +16,7 @@ export type _Root = {
     readonly dependencies: readonly _Root[]
 }
 
-export type _Scope = ReadonlyMap<BindingId, _Root>
+export type _Scope = PersistentMap<BindingId, _Root>
 
 export type _LoopInfo = {
     /** Stable occurrence identity while its body is prepared. */
@@ -44,7 +45,7 @@ export type _OwnedBlock = { readonly block: Block; readonly normal: boolean; rea
 
 /** Static dependency origins while inspecting deferred bodies for crossings. */
 export type _DeferredBinding = { readonly roots: readonly _Root[]; readonly depth: number }
-export type _DeferredScope = ReadonlyMap<BindingId, _DeferredBinding>
+export type _DeferredScope = PersistentMap<BindingId, _DeferredBinding>
 export type _DeferredSummary = {
     readonly dependencies: readonly _Root[]
     readonly crossed: boolean

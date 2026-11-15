@@ -5,7 +5,7 @@ module holds the front end a grammar is written in, the serializable form it
 lowers to, the LL(1) backend that reads that form, and the alphabets and
 grammars built on them:
 
-- [`module.f.mjs`](./module.f.mjs) — the functional front end: the `Rule`
+- [`module.f.js`](./module.f.js) — the functional front end: the `Rule`
   union and its constructors;
 - [`data/`](./data/README.md) — the serializable `RuleSet`, the lowering
   `toData`, and what `validate` refuses;

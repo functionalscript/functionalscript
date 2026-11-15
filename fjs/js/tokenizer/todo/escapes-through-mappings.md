@@ -15,7 +15,7 @@ with `escape`, `unicode` and `hex` states and four-digit accumulation in
 the parse already isolated.
 [`fjs/media/json/parser`](../../../media/json/parser/module.f.mjs) reads the
 same `escape` rule — `lib/js` takes its `u: unicode` sub-rule from
-[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) — through a
+[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.js) — through a
 mapping, `escapeMapping` in `stringMappings`:
 
 ```js

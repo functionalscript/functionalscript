@@ -13,6 +13,7 @@ import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { isSpread, operatorOperands } from '../../../js/ast/module.f.js'
 import { exitValues } from '../../../js/ast/control/module.f.js'
 import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
+import { fromEntries, mapGet } from '../../../types/map/module.f.js'
 
 /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
 const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
@@ -103,13 +104,13 @@ const recipeTask = source => call(() => {
     const reads = definitions.map(definition => uses.filter(use => use.binding === definition[1]))
     const roots = definitions.filter((_, index) => reads[Number(index)].length !== 0 && reads[Number(index)].every(use => use.tail && use.owner === null))
     if (roots.length === 0) { return done(null) }
-    const owners = new Map(definitions.flatMap((definition, index) => {
+    const owners = fromEntries(definitions.flatMap((definition, index) => {
         const first = reads[Number(index)][0]
         return first !== undefined && first.tail && first.owner !== null && definitions.some(definition => definition[1] === first.owner)
             && reads[Number(index)].every(use => use.tail && use.owner === first.owner) ? [/** @type {const} */ ([definition[1], first.owner])] : []
     }))
     /** @type {(binding: BindingId) => readonly _Recipe[]} */
-    const childrenOf = binding => definitions.filter(child => owners.get(child[1]) === binding)
+    const childrenOf = binding => definitions.filter(child => mapGet(owners, child[1]) === binding)
     /** @type {readonly BindingId[]} */
     let pending = roots.map(root => root[1])
     /** @type {readonly BindingId[]} */

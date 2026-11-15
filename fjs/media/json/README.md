@@ -43,7 +43,7 @@ JSON's integer core.
 is not.** A format frozen by its specification cannot sit on a lexer that
 grows with the language, which is what this reader once did through an
 adapter over `fjs/js/tokenizer`; and a grammar of a few dozen readable lines
-over [`fjs/ebnf`](../../ebnf/module.f.mjs) is what replaced a hand-written
+over [`fjs/ebnf`](../../ebnf/module.f.js) is what replaced a hand-written
 tokenizer and container machine per format, whose defects review had to find
 one at a time. A grammar under `fjs/ebnf/lib` that no codec imports and no
 proof covers is how a dead copy happens, so none is added without proofs.
@@ -54,7 +54,7 @@ the reader became the grammar and with no consumer but its own proofs; it
 was retired with that scanner rather than rebuilt, since a token stream
 nothing reads is not an API worth keeping. JSON's lexical facts are pinned
 where they are decided, in
-[`fjs/ebnf/lib/json`](../../ebnf/lib/json/module.f.mjs) and the parser's
+[`fjs/ebnf/lib/json`](../../ebnf/lib/json/module.f.js) and the parser's
 proofs.
 
 ## Losslessness starts at the grammar

@@ -1,7 +1,7 @@
 /** @import { PersistentMap } from './types.ts' */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { empty, mapDelete, mapEntries, mapGet, mapHas, mapSet, size } from './module.f.js'
+import { empty, fromEntries, mapDelete, mapEntries, mapGet, mapHas, mapSet, size } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     empty: () => {
@@ -10,6 +10,28 @@ export const proof = /** @type {const} */ ({
         assertEq(mapGet(empty, 'missing'), undefined)
         assert(!mapHas(empty, {}))
         assert(mapDelete(empty, null) === empty)
+    },
+    fromEntries: () => {
+        assert(fromEntries([]) === empty)
+        const a = /** @type {const} */ ({})
+        const b = /** @type {const} */ ({})
+        /** @type {readonly (readonly [unknown, string | undefined])[]} */
+        const entries = [
+            ['first', 'old'], [a, 'a'], ['second', undefined],
+            ['first', 'last'], [b, 'b'], [a, 'again'],
+            [-0, 'negative'], [0, 'zero'], [NaN, 'nan'], [NaN, 'latest'],
+        ]
+        const map = fromEntries(entries)
+        assertStructurallySame(mapEntries(map), [
+            ['first', 'last'], [a, 'again'], ['second', undefined],
+            [b, 'b'], [0, 'zero'], [NaN, 'latest'],
+        ])
+        assertEq(size(map), 6)
+        assertEq(mapGet(map, a), 'again')
+        assertEq(mapGet(map, b), 'b')
+        assertEq(mapGet(map, {}), undefined)
+        assert(mapHas(map, 'second'))
+        assertEq(entries[0][1], 'old')
     },
     valuesAndPersistence: () => {
         const one = mapSet(empty, 'a', 'b')

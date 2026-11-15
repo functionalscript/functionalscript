@@ -8,6 +8,8 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
+import { empty as emptyMap, fromEntries, mapEntries, mapGet, mapHas, size as mapSize } from '../../../../types/map/module.f.js'
+import { empty as emptySet, has as setHas, size as setSize, values as setValues } from '../../../../types/set/module.f.js'
 import { freeBindings } from '../../control/module.f.js'
 import { _hasReturn, memoCells, recipeCells } from './module.f.mjs'
 
@@ -52,6 +54,9 @@ const recipeBlock = plan => {
     return value[1]
 }
 
+/** Compare plans through the public collection views. @type {(plan: MemoPlan) => unknown} */
+const planEntries = plan => ({ ...plan, definitions: mapEntries(plan.definitions), loops: setValues(plan.loops) })
+
 export const proof = /** @type {const} */ ({
     terminalLoopsRetainLazyInventoryAndReturnOwners: () => {
         /** @type {Loop} */
@@ -63,7 +68,7 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[0].binding, a)
         assert(plan.block.exit[0] === 'loop')
         assertEq(plan.block.exit[1].results.length, 0)
-        assert(plan.loops.has(plan.block.exit[1]))
+        assert(setHas(plan.block.exit[1])(plan.loops))
     },
     deferredTerminalLoopsKeepTheirConditionalPrerequisites: () => {
         /** @type {Loop} */
@@ -93,7 +98,7 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[0].initializer, returned)
         /** @type {Value} */
         const initializer = ['block', body([['define', b, returned, 'lazy']], ['yield', [['ref', b]]])]
-        const recipe = recipeCells(initializer, { cells: [], definitions: new Map(), loops: new Set() }, new Map(), functionTarget)
+        const recipe = recipeCells(initializer, { cells: [], definitions: emptyMap, loops: emptySet }, emptyMap, functionTarget)
         assertEq(recipe.localCount, 1)
         assertEq(recipe.layout.cells[0].binding, b)
     },
@@ -143,10 +148,10 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[1].binding, b)
         assertEq(plan.cells[1].initializer, initializer)
-        assertEq(plan.loops.size, 0)
+        assertEq(setSize(plan.loops), 0)
         const definitions = definitionsOf(plan.block)
-        assertEq(plan.definitions.get(definitions[0]), 0)
-        assertEq(plan.definitions.get(definitions[1]), 1)
+        assertEq(mapGet(plan.definitions, definitions[0]), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 1)
     },
     unrelatedDeferredLoopsKeepTheirCallerUnselected: () => {
         const initializer = /** @type {Value} */ (['block', body([
@@ -189,7 +194,7 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 2)
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[1].binding, b)
-        assertEq(plan.loops.size, 0)
+        assertEq(setSize(plan.loops), 0)
     },
     deadMemoHelpers: () => {
         const unsupported = loopOf(body([], ['return', functionTarget, ['ref', a]]))
@@ -214,7 +219,7 @@ export const proof = /** @type {const} */ ({
         const loop = loopsOf(plan.block)[0]
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].binding, a)
-        assertEq(plan.loops.size, 1)
+        assertEq(setSize(plan.loops), 1)
         assertEq(loop.body.statements.length, 2)
         assertEq(loopsOf(loop.body).length, 0)
         assertStructurallySame(loop.body.exit, ['yield', []])
@@ -230,7 +235,7 @@ export const proof = /** @type {const} */ ({
         ], ['break', innerTarget, [['ref', b]]])
         const plan = planned(source, [b])
         assertEq(plan.cells.length, 1)
-        assertEq(plan.loops.size, 1)
+        assertEq(setSize(plan.loops), 1)
         assertEq(plan.block.statements.length, 3)
         assertStructurallySame(plan.block.exit, ['yield', []])
     },
@@ -263,9 +268,9 @@ export const proof = /** @type {const} */ ({
         const loops = loopsOf(plan.block)
         assertEq(loops.length, 2)
         assertEq(plan.block.statements.length, 3)
-        assertEq(plan.loops.size, 1)
-        assertEq(plan.loops.has(loops[0]), false)
-        assertEq(plan.loops.has(loops[1]), true)
+        assertEq(setSize(plan.loops), 1)
+        assertEq(setHas(loops[0])(plan.loops), false)
+        assertEq(setHas(loops[1])(plan.loops), true)
         assertEq(plan.block.exit, source.exit)
     },
     unusedExternal: () => {
@@ -276,8 +281,8 @@ export const proof = /** @type {const} */ ({
         const plan = planned(containing(reading(a)), [known])
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].binding, a)
-        assertEq(plan.definitions.size, 1)
-        assertEq(plan.definitions.get(plan.cells[0].definition), 0)
+        assertEq(mapSize(plan.definitions), 1)
+        assertEq(mapGet(plan.definitions, plan.cells[0].definition), 0)
     },
     establishedExternalAlias: () => {
         const initializer = /** @type {Value} */ (['array', [['ref', alias]]])
@@ -291,10 +296,10 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].binding, b)
         assertEq(plan.cells[0].initializer, initializer)
-        assertEq(plan.definitions.size, 1)
-        assertEq(plan.definitions.get(definitions[2]), 0)
-        assertEq(plan.definitions.has(definitions[0]), false)
-        assertEq(plan.definitions.has(definitions[1]), false)
+        assertEq(mapSize(plan.definitions), 1)
+        assertEq(mapGet(plan.definitions, definitions[2]), 0)
+        assertEq(mapHas(plan.definitions, definitions[0]), false)
+        assertEq(mapHas(plan.definitions, definitions[1]), false)
         assertEq(memoCells(containing(reading(a), [['define', a, ['ref', known], 'required']]), [known]), null)
     },
     externalShadowDeclarations: () => {
@@ -307,10 +312,10 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[0].definition, definitions[2])
         assert(plan.cells[0].definition !== local)
-        assertEq(plan.definitions.size, 1)
-        assertEq(plan.definitions.get(definitions[2]), 0)
-        assertEq(plan.definitions.has(definitions[0]), false)
-        assertEq(plan.definitions.has(definitions[1]), false)
+        assertEq(mapSize(plan.definitions), 1)
+        assertEq(mapGet(plan.definitions, definitions[2]), 0)
+        assertEq(mapHas(plan.definitions, definitions[0]), false)
+        assertEq(mapHas(plan.definitions, definitions[1]), false)
     },
     distinctRootDeclarations: () => {
         const first = /** @type {Definition} */ (['define', a, ['array', [1]], 'lazy'])
@@ -324,8 +329,8 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[1].definition, definitions[1])
         assertEq(plan.cells[0].initializer, first[2])
         assertEq(plan.cells[1].initializer, second[2])
-        assertEq(plan.definitions.get(definitions[0]), 0)
-        assertEq(plan.definitions.get(definitions[1]), 1)
+        assertEq(mapGet(plan.definitions, definitions[0]), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 1)
     },
     aliasDeclarationRows: () => {
         const first = /** @type {Definition} */ (['define', a, ['array', [1]], 'lazy'])
@@ -338,11 +343,11 @@ export const proof = /** @type {const} */ ({
         const definitions = definitionsOf(plan.block)
         assertEq(plan.cells[0].definition, definitions[0])
         assertEq(plan.cells[1].definition, definitions[2])
-        assertEq(plan.definitions.size, 4)
-        assertEq(plan.definitions.get(definitions[0]), 0)
-        assertEq(plan.definitions.get(definitions[1]), 0)
-        assertEq(plan.definitions.get(definitions[2]), 1)
-        assertEq(plan.definitions.get(definitions[3]), 1)
+        assertEq(mapSize(plan.definitions), 4)
+        assertEq(mapGet(plan.definitions, definitions[0]), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 0)
+        assertEq(mapGet(plan.definitions, definitions[2]), 1)
+        assertEq(mapGet(plan.definitions, definitions[3]), 1)
     },
     sharedDefinitionOccurrences: () => {
         const shared = /** @type {Definition} */ (['define', a, ['array', [['ref', known]]], 'lazy'])
@@ -360,9 +365,9 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[1].definition, definitions[3])
         assertEq(plan.cells[0].initializer, shared[2])
         assertEq(plan.cells[1].initializer, shared[2])
-        assertEq(plan.definitions.get(definitions[1]), 0)
-        assertEq(plan.definitions.get(definitions[3]), 1)
-        assertEq(plan.definitions.has(shared), false)
+        assertEq(mapGet(plan.definitions, definitions[1]), 0)
+        assertEq(mapGet(plan.definitions, definitions[3]), 1)
+        assertEq(mapHas(plan.definitions, shared), false)
         assertEq(source.statements[1], shared)
         assertEq(source.statements[4], shared)
     },
@@ -384,11 +389,11 @@ export const proof = /** @type {const} */ ({
         const firstDefinition = definitionsOf(first[2])[0]
         const secondDefinition = definitionsOf(second[2])[0]
         assert(firstDefinition !== secondDefinition)
-        assertEq(plan.definitions.get(firstDefinition), 0)
-        assertEq(plan.definitions.get(secondDefinition), 1)
-        assertEq(plan.loops.size, 2)
-        assertEq(plan.loops.has(loopsOf(first[2])[0]), true)
-        assertEq(plan.loops.has(loopsOf(second[2])[0]), true)
+        assertEq(mapGet(plan.definitions, firstDefinition), 0)
+        assertEq(mapGet(plan.definitions, secondDefinition), 1)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setHas(loopsOf(first[2])[0])(plan.loops), true)
+        assertEq(setHas(loopsOf(second[2])[0])(plan.loops), true)
     },
     sharedLoopOccurrences: () => {
         const shared = reading(a)
@@ -398,12 +403,12 @@ export const proof = /** @type {const} */ ({
         ]))
         const loops = loopsOf(plan.block)
         assertEq(plan.cells.length, 2)
-        assertEq(plan.loops.size, 2)
+        assertEq(setSize(plan.loops), 2)
         assert(loops[0] !== loops[1])
         assert(loops[0].body !== loops[1].body)
-        assertEq(plan.loops.has(shared), false)
+        assertEq(setHas(shared)(plan.loops), false)
         for (const loop of loops) {
-            assertEq(plan.loops.has(loop), true)
+            assertEq(setHas(loop)(plan.loops), true)
             assertEq(loop.target, shared.target)
             assertEq(loop.parameters, shared.parameters)
             assertEq(loop.initial, shared.initial)
@@ -425,13 +430,13 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 2)
         assertEq(plan.cells[0].definition, innerDefinition)
         assertEq(plan.cells[1].definition, definitions[1])
-        assertEq(plan.definitions.has(shared), false)
-        assertEq(plan.definitions.get(innerDefinition), 0)
-        assertEq(plan.definitions.get(definitions[1]), 1)
-        assertEq(plan.loops.size, 2)
-        assertEq(plan.loops.has(loop), false)
-        assertEq(plan.loops.has(loopsOf(operand[1])[0]), true)
-        assertEq(plan.loops.has(loops[0]), true)
+        assertEq(mapHas(plan.definitions, shared), false)
+        assertEq(mapGet(plan.definitions, innerDefinition), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 1)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setHas(loop)(plan.loops), false)
+        assertEq(setHas(loopsOf(operand[1])[0])(plan.loops), true)
+        assertEq(setHas(loops[0])(plan.loops), true)
     },
     orderedRecipesAndAliases: () => {
         const unused = /** @type {const} */ ({ index: 0 })
@@ -459,19 +464,19 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[0].initializer, initializer)
         assertEq(plan.cells[1].binding, b)
         assertEq(plan.cells[1].initializer, secondInitializer)
-        assertEq(plan.definitions.size, 3)
-        assertEq(plan.definitions.get(definitions[2]), 0)
-        assertEq(plan.definitions.get(definitions[3]), 1)
-        assertEq(plan.definitions.get(definitions[4]), 0)
-        assertEq(plan.definitions.has(definitions[5]), false)
-        assertEq(plan.definitions.has(definitions[1]), false)
-        assertEq(plan.definitions.has(definitions[6]), false)
-        assertEq(plan.loops.size, 2)
-        assertEq([...plan.loops][0], loops[0])
-        assertEq([...plan.loops][1], loops[1])
+        assertEq(mapSize(plan.definitions), 3)
+        assertEq(mapGet(plan.definitions, definitions[2]), 0)
+        assertEq(mapGet(plan.definitions, definitions[3]), 1)
+        assertEq(mapGet(plan.definitions, definitions[4]), 0)
+        assertEq(mapHas(plan.definitions, definitions[5]), false)
+        assertEq(mapHas(plan.definitions, definitions[1]), false)
+        assertEq(mapHas(plan.definitions, definitions[6]), false)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setValues(plan.loops)[0], loops[0])
+        assertEq(setValues(plan.loops)[1], loops[1])
         assertEq(loops[0].target, first.target)
         assertEq(loops[1].target, second.target)
-        assertStructurallySame(memoCells(source), plan)
+        assertStructurallySame(planEntries(planned(source)), planEntries(plan))
     },
     dependentPrerequisites: () => {
         const initializer = /** @type {Value} */ (['array', [['ref', alias], ['ref', a]]])
@@ -488,12 +493,12 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[1].initializer, initializer)
         assertEq(plan.cells[0].definition, definitions[0])
         assertEq(plan.cells[1].definition, definitions[2])
-        assertEq(plan.definitions.get(definitions[0]), 0)
-        assertEq(plan.definitions.get(definitions[1]), 0)
-        assertEq(plan.definitions.get(definitions[2]), 1)
-        assertEq(plan.loops.size, 1)
-        assertEq(plan.loops.has(loopsOf(plan.block)[0]), true)
-        assertEq([...plan.loops][0].target, loop.target)
+        assertEq(mapGet(plan.definitions, definitions[0]), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 0)
+        assertEq(mapGet(plan.definitions, definitions[2]), 1)
+        assertEq(setSize(plan.loops), 1)
+        assertEq(setHas(loopsOf(plan.block)[0])(plan.loops), true)
+        assertEq(setValues(plan.loops)[0].target, loop.target)
     },
     computedDependents: () => {
         const third = /** @type {const} */ ({ index: 0 })
@@ -513,13 +518,13 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 4)
         for (const [index, binding] of [a, b, third, fourth].entries()) {
             assertEq(plan.cells[index].binding, binding)
-            assertEq(plan.definitions.get(plan.cells[index].definition), index)
+            assertEq(mapGet(plan.definitions, plan.cells[index].definition), index)
         }
-        assertEq(plan.definitions.get(definitions[2]), 1)
-        assertEq(plan.definitions.has(definitions[5]), false)
-        assertEq(plan.loops.size, 1)
-        assertEq(plan.loops.has(loopsOf(plan.block)[0]), true)
-        assertEq([...plan.loops][0].target, loop.target)
+        assertEq(mapGet(plan.definitions, definitions[2]), 1)
+        assertEq(mapHas(plan.definitions, definitions[5]), false)
+        assertEq(setSize(plan.loops), 1)
+        assertEq(setHas(loopsOf(plan.block)[0])(plan.loops), true)
+        assertEq(setValues(plan.loops)[0].target, loop.target)
         const again = planned(source)
         for (const [index, cell] of plan.cells.entries()) {
             assertEq(again.cells[index].binding, cell.binding)
@@ -541,9 +546,9 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 2)
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[1].binding, b)
-        assertEq(plan.definitions.size, 2)
-        assertEq(plan.definitions.get(plan.cells[0].definition), 0)
-        assertEq(plan.definitions.get(plan.cells[1].definition), 1)
+        assertEq(mapSize(plan.definitions), 2)
+        assertEq(mapGet(plan.definitions, plan.cells[0].definition), 0)
+        assertEq(mapGet(plan.definitions, plan.cells[1].definition), 1)
     },
     nestedCallerCells: () => {
         for (const depth of [2, 3]) {
@@ -561,10 +566,10 @@ export const proof = /** @type {const} */ ({
             assertEq(plan.cells[1].binding, b)
             assertEq(plan.cells[0].iterationLocal, false)
             assertEq(plan.cells[1].iterationLocal, false)
-            assertEq(plan.definitions.get(definitions[0]), 0)
-            assertEq(plan.definitions.get(definitions[1]), 1)
-            assertEq(plan.loops.size, depth)
-            const selected = [...plan.loops]
+            assertEq(mapGet(plan.definitions, definitions[0]), 0)
+            assertEq(mapGet(plan.definitions, definitions[1]), 1)
+            assertEq(setSize(plan.loops), depth)
+            const selected = setValues(plan.loops)
             let loop = loopsOf(plan.block)[0]
             for (let index = 0; index < depth; index += 1) {
                 assertEq(loop, selected[index])
@@ -587,12 +592,12 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 2)
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[1].binding, b)
-        assertEq(plan.definitions.get(definitions[0]), 0)
-        assertEq(plan.definitions.get(definitions[1]), 1)
-        assertEq(plan.loops.size, 3)
-        assertEq([...plan.loops][0], parent)
-        assertEq([...plan.loops][1], children[0])
-        assertEq([...plan.loops][2], children[1])
+        assertEq(mapGet(plan.definitions, definitions[0]), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 1)
+        assertEq(setSize(plan.loops), 3)
+        assertEq(setValues(plan.loops)[0], parent)
+        assertEq(setValues(plan.loops)[1], children[0])
+        assertEq(setValues(plan.loops)[2], children[1])
         assertEq(children[0].target, first.target)
         assertEq(children[1].target, second.target)
     },
@@ -612,13 +617,13 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 2)
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[1].binding, b)
-        assertEq(plan.definitions.size, 4)
-        assertEq(plan.definitions.get(definitionsOf(conditional[3])[0]), 1)
-        assertEq(plan.definitions.get(definitionsOf(conditional[4])[0]), 0)
-        assertEq(plan.loops.size, 3)
-        assertEq(plan.loops.has(parent), true)
-        assertEq(plan.loops.has(loopsOf(conditional[3])[0]), true)
-        assertEq(plan.loops.has(loopsOf(conditional[4])[0]), true)
+        assertEq(mapSize(plan.definitions), 4)
+        assertEq(mapGet(plan.definitions, definitionsOf(conditional[3])[0]), 1)
+        assertEq(mapGet(plan.definitions, definitionsOf(conditional[4])[0]), 0)
+        assertEq(setSize(plan.loops), 3)
+        assertEq(setHas(parent)(plan.loops), true)
+        assertEq(setHas(loopsOf(conditional[3])[0])(plan.loops), true)
+        assertEq(setHas(loopsOf(conditional[4])[0])(plan.loops), true)
     },
     nestedInitialDemands: () => {
         for (const readsCaller of [false, true]) {
@@ -632,10 +637,10 @@ export const proof = /** @type {const} */ ({
             const child = loopsOf(parent.body)[0]
             assertEq(plan.cells.length, 1)
             assertEq(plan.cells[0].binding, a)
-            assertEq(plan.definitions.get(plan.cells[0].definition), 0)
-            assertEq(plan.loops.size, readsCaller ? 2 : 1)
-            assertEq(plan.loops.has(parent), true)
-            assertEq(plan.loops.has(child), readsCaller)
+            assertEq(mapGet(plan.definitions, plan.cells[0].definition), 0)
+            assertEq(setSize(plan.loops), readsCaller ? 2 : 1)
+            assertEq(setHas(parent)(plan.loops), true)
+            assertEq(setHas(child)(plan.loops), readsCaller)
             assertEq(child.initial, inner.initial)
             assertEq(child.parameters, inner.parameters)
         }
@@ -651,10 +656,10 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[0].iterationLocal, true)
         assertEq(plan.cells[0].definition, definitionsOf(parent.body)[0])
-        assertEq(plan.definitions.get(plan.cells[0].definition), 0)
-        assertEq(plan.loops.size, 2)
-        assertEq([...plan.loops][0], parent)
-        assertEq([...plan.loops][1], child)
+        assertEq(mapGet(plan.definitions, plan.cells[0].definition), 0)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setValues(plan.loops)[0], parent)
+        assertEq(setValues(plan.loops)[1], child)
     },
     iterationLocalDependentOrder: () => {
         for (const demanded of [false, true]) {
@@ -669,10 +674,10 @@ export const proof = /** @type {const} */ ({
             assertEq(plan.cells[1].binding, b)
             assertEq(plan.cells[0].iterationLocal, false)
             assertEq(plan.cells[1].iterationLocal, true)
-            assertEq(plan.definitions.get(definitionsOf(plan.block)[0]), 0)
-            assertEq(plan.definitions.get(definitionsOf(parent.body)[0]), 1)
-            assertEq(plan.loops.size, demanded ? 2 : 1)
-            assertEq([...plan.loops][0], parent)
+            assertEq(mapGet(plan.definitions, definitionsOf(plan.block)[0]), 0)
+            assertEq(mapGet(plan.definitions, definitionsOf(parent.body)[0]), 1)
+            assertEq(setSize(plan.loops), demanded ? 2 : 1)
+            assertEq(setValues(plan.loops)[0], parent)
         }
     },
     iterationLocalCallerPrerequisite: () => {
@@ -684,11 +689,11 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[0].iterationLocal, true)
-        assertEq(plan.definitions.has(definitionsOf(plan.block)[0]), false)
-        assertEq(plan.definitions.get(definitionsOf(parent.body)[0]), 0)
-        assertEq(plan.loops.size, 2)
-        assertEq([...plan.loops][0], parent)
-        assertEq([...plan.loops][1], loopsOf(parent.body)[0])
+        assertEq(mapHas(plan.definitions, definitionsOf(plan.block)[0]), false)
+        assertEq(mapGet(plan.definitions, definitionsOf(parent.body)[0]), 0)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setValues(plan.loops)[0], parent)
+        assertEq(setValues(plan.loops)[1], loopsOf(parent.body)[0])
     },
     iterationLocalThreeLevels: () => {
         const leafTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -703,10 +708,10 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].iterationLocal, true)
         assertEq(plan.cells[0].definition, definitionsOf(child.body)[0])
-        assertEq(plan.loops.size, 3)
-        assertEq([...plan.loops][0], parent)
-        assertEq([...plan.loops][1], child)
-        assertEq([...plan.loops][2], leaf)
+        assertEq(setSize(plan.loops), 3)
+        assertEq(setValues(plan.loops)[0], parent)
+        assertEq(setValues(plan.loops)[1], child)
+        assertEq(setValues(plan.loops)[2], leaf)
         assertEq(parent.target, target)
         assertEq(child.target, innerTarget)
         assertEq(leaf.target, leafTarget)
@@ -727,12 +732,12 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells[1].binding, b)
         assertEq(plan.cells[0].iterationLocal, true)
         assertEq(plan.cells[1].iterationLocal, true)
-        assertEq(plan.definitions.get(definitionsOf(parent.body)[0]), 0)
-        assertEq(plan.definitions.get(definitionsOf(child.body)[0]), 1)
-        assertEq(plan.loops.size, 3)
-        assertEq([...plan.loops][0], parent)
-        assertEq([...plan.loops][1], child)
-        assertEq([...plan.loops][2], loopsOf(child.body)[0])
+        assertEq(mapGet(plan.definitions, definitionsOf(parent.body)[0]), 0)
+        assertEq(mapGet(plan.definitions, definitionsOf(child.body)[0]), 1)
+        assertEq(setSize(plan.loops), 3)
+        assertEq(setValues(plan.loops)[0], parent)
+        assertEq(setValues(plan.loops)[1], child)
+        assertEq(setValues(plan.loops)[2], loopsOf(child.body)[0])
     },
     iterationLocalAliasSiblings: () => {
         const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -747,13 +752,13 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].iterationLocal, true)
         assertEq(plan.cells[0].definition, definitions[0])
-        assertEq(plan.definitions.size, 2)
-        assertEq(plan.definitions.get(definitions[0]), 0)
-        assertEq(plan.definitions.get(definitions[1]), 0)
-        assertEq(plan.loops.size, 3)
-        assertEq([...plan.loops][0], parent)
-        assertEq([...plan.loops][1], children[0])
-        assertEq([...plan.loops][2], children[1])
+        assertEq(mapSize(plan.definitions), 2)
+        assertEq(mapGet(plan.definitions, definitions[0]), 0)
+        assertEq(mapGet(plan.definitions, definitions[1]), 0)
+        assertEq(setSize(plan.loops), 3)
+        assertEq(setValues(plan.loops)[0], parent)
+        assertEq(setValues(plan.loops)[1], children[0])
+        assertEq(setValues(plan.loops)[2], children[1])
     },
     statementScopes: () => {
         const first = reading(a)
@@ -769,10 +774,10 @@ export const proof = /** @type {const} */ ({
         assert(secondRegion[0] === 'if')
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[1].binding, b)
-        assertEq(plan.loops.has(loopsOf(firstRegion[2])[0]), true)
-        assertEq(plan.loops.has(loopsOf(secondRegion[3])[0]), true)
-        assertEq([...plan.loops][0].target, first.target)
-        assertEq([...plan.loops][1].target, second.target)
+        assertEq(setHas(loopsOf(firstRegion[2])[0])(plan.loops), true)
+        assertEq(setHas(loopsOf(secondRegion[3])[0])(plan.loops), true)
+        assertEq(setValues(plan.loops)[0].target, first.target)
+        assertEq(setValues(plan.loops)[1].target, second.target)
     },
     eagerValueOwnersAndOpaqueFunctions: () => {
         const hidden = containing(reading(a))
@@ -786,7 +791,7 @@ export const proof = /** @type {const} */ ({
             ['define', alias, fn, 'required'],
         ]))
         assertEq(plan.cells.length, 3)
-        assertEq(plan.loops.size, 3)
+        assertEq(setSize(plan.loops), 3)
         assertEq(definitionsOf(plan.block)[2][2], fn)
         assertEq(memoCells(body([['define', alias, fn, 'required']])), null)
     },
@@ -797,8 +802,8 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].binding, a)
         assertEq(plan.cells[0].iterationLocal, false)
-        assertEq(plan.loops.size, 1)
-        assertEq(plan.loops.has(loop), true)
+        assertEq(setSize(plan.loops), 1)
+        assertEq(setHas(loop)(plan.loops), true)
         assertEq(loop.body.exit, sourceLoop.body.exit)
     },
     nestedOwningFunctionReturn: () => {
@@ -808,9 +813,9 @@ export const proof = /** @type {const} */ ({
         const outer = loopsOf(plan.block)[0]
         const inner = loopsOf(outer.body)[0]
         assertEq(plan.cells.length, 1)
-        assertEq(plan.loops.size, 2)
-        assertEq([...plan.loops][0], outer)
-        assertEq([...plan.loops][1], inner)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setValues(plan.loops)[0], outer)
+        assertEq(setValues(plan.loops)[1], inner)
         assertEq(inner.body.exit, sourceInner.body.exit)
         assertEq(outer.body.exit, sourceOuter.body.exit)
     },
@@ -825,7 +830,7 @@ export const proof = /** @type {const} */ ({
             const conditional = loop.body.statements[0]
             assert(conditional[0] === 'if')
             assertEq(plan.cells.length, 1)
-            assertEq(plan.loops.size, 1)
+            assertEq(setSize(plan.loops), 1)
             assertEq(loop.body.exit, sourceLoop.body.exit)
             assertEq(conditional[3].exit[0], returningThen ? 'return' : 'yield')
             assertEq(conditional[4].exit[0], returningThen ? 'yield' : 'return')
@@ -840,10 +845,10 @@ export const proof = /** @type {const} */ ({
         const inner = loopsOf(outer.body)[0]
         assertEq(plan.cells.length, 1)
         assertEq(plan.cells[0].iterationLocal, true)
-        assertEq(plan.definitions.get(definitionsOf(outer.body)[0]), 0)
-        assertEq(plan.loops.size, 2)
-        assertEq([...plan.loops][0], outer)
-        assertEq([...plan.loops][1], inner)
+        assertEq(mapGet(plan.definitions, definitionsOf(outer.body)[0]), 0)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setValues(plan.loops)[0], outer)
+        assertEq(setValues(plan.loops)[1], inner)
         assertEq(outer.body.exit, sourceOuter.body.exit)
     },
     normalTransfers: () => {
@@ -862,8 +867,8 @@ export const proof = /** @type {const} */ ({
             ['loop', inner],
         ], ['continue', target, []]))
         const plan = planned(containing(loop))
-        assertEq(plan.loops.has(loopsOf(plan.block)[0]), true)
-        assertEq([...plan.loops][0].target, loop.target)
+        assertEq(setHas(loopsOf(plan.block)[0])(plan.loops), true)
+        assertEq(setValues(plan.loops)[0].target, loop.target)
     },
     ancestorTransfers: () => {
         for (const kind of /** @type {const} */ (['break', 'continue'])) {
@@ -872,9 +877,9 @@ export const proof = /** @type {const} */ ({
             const outer = loopsOf(plan.block)[0]
             const nested = loopsOf(outer.body)[0]
             assertEq(plan.cells.length, 1)
-            assertEq(plan.loops.size, 2)
-            assertEq([...plan.loops][0], outer)
-            assertEq([...plan.loops][1], nested)
+            assertEq(setSize(plan.loops), 2)
+            assertEq(setValues(plan.loops)[0], outer)
+            assertEq(setValues(plan.loops)[1], nested)
             assertEq(nested.body.exit, inner.body.exit)
         }
     },
@@ -895,11 +900,11 @@ export const proof = /** @type {const} */ ({
         assert(conditional[0] === 'if')
         const left = loopsOf(conditional[3])[0], right = loopsOf(conditional[4])[0]
         assertEq(plan.cells.length, 1)
-        assertEq(plan.loops.size, 4)
-        assertEq([...plan.loops][0], outer)
-        assertEq([...plan.loops][1], parent)
-        assertEq([...plan.loops][2], left)
-        assertEq([...plan.loops][3], right)
+        assertEq(setSize(plan.loops), 4)
+        assertEq(setValues(plan.loops)[0], outer)
+        assertEq(setValues(plan.loops)[1], parent)
+        assertEq(setValues(plan.loops)[2], left)
+        assertEq(setValues(plan.loops)[3], right)
         assertEq(left.target, firstTarget)
         assertEq(right.target, secondTarget)
     },
@@ -912,14 +917,14 @@ export const proof = /** @type {const} */ ({
         ], ['break', target, [0]]))
         const plan = planned(containing(source))
         const outer = loopsOf(plan.block)[0]
-        assertEq(plan.loops.size, 1)
-        assertEq([...plan.loops][0], outer)
-        assertEq(plan.loops.has(loopsOf(outer.body)[0]), false)
+        assertEq(setSize(plan.loops), 1)
+        assertEq(setValues(plan.loops)[0], outer)
+        assertEq(setHas(loopsOf(outer.body)[0])(plan.loops), false)
         const returning = loopOf(body([], ['return', functionTarget, 7]), innerTarget)
         const returned = planned(containing(loopOf(body([
             ['define', known, ['ref', a], 'required'], ['loop', returning],
         ], ['break', target, [0]]))), [], functionTarget)
-        assertEq(returned.loops.size, 1)
+        assertEq(setSize(returned.loops), 1)
     },
     sharedLoopTargetsKeepLexicalSelection: () => {
         const shared = reading(a, innerTarget)
@@ -937,10 +942,10 @@ export const proof = /** @type {const} */ ({
         const ordinary = loopsOf(loops[1].body)[0]
         assert(selected !== ordinary)
         assertEq(selected.target, ordinary.target)
-        assertEq(plan.loops.size, 2)
-        assertEq([...plan.loops][0], loops[0])
-        assertEq([...plan.loops][1], selected)
-        assertEq(plan.loops.has(ordinary), false)
+        assertEq(setSize(plan.loops), 2)
+        assertEq(setValues(plan.loops)[0], loops[0])
+        assertEq(setValues(plan.loops)[1], selected)
+        assertEq(setHas(ordinary)(plan.loops), false)
         assertEq(plan.block.exit, source.exit)
     },
     controlOnlyWithoutMemo: () => {
@@ -955,9 +960,9 @@ export const proof = /** @type {const} */ ({
         for (let depth = 0; depth < 20_000; depth += 1) { nested = body([['block', [], nested]]) }
         const plan = planned(body([['define', a, ['array', []], 'lazy'], ['block', [], nested]]))
         assertEq(plan.cells.length, 1)
-        assertEq(plan.loops.size, 1)
-        assertEq([...plan.loops][0].target, loop.target)
-        assert([...plan.loops][0] !== loop)
+        assertEq(setSize(plan.loops), 1)
+        assertEq(setValues(plan.loops)[0].target, loop.target)
+        assert(setValues(plan.loops)[0] !== loop)
     },
     recipe: {
         unchanged: () => {
@@ -973,15 +978,15 @@ export const proof = /** @type {const} */ ({
                 ], ['yield', [['ref', b]]])],
             ])
             for (const value of sources) {
-                const plan = recipeCells(value, outer, new Map([[a, 0]]))
+                const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
                 assertEq(plan.value, value)
                 assertEq(plan.localCount, 0)
                 assertEq(plan.layout.cells, outer.cells)
-                assertEq(plan.layout.definitions.size, 0)
-                assertEq(plan.layout.loops.size, 0)
+                assertEq(mapSize(plan.layout.definitions), 0)
+                assertEq(setSize(plan.layout.loops), 0)
             }
             const independent = /** @type {Value} */ (['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])])
-            assertEq(recipeCells(independent, outer, new Map()).value, independent)
+            assertEq(recipeCells(independent, outer, emptyMap).value, independent)
         },
         dependencyClosure: () => {
             const outer = planned(containing(reading(b), [
@@ -998,7 +1003,7 @@ export const proof = /** @type {const} */ ({
                 ['define', localAlias, ['ref', dependent], 'lazy'],
                 ['define', unused, ['array', []], 'lazy'],
             ], ['yield', [['ref', localAlias]]])])
-            const plan = recipeCells(value, outer, new Map([[a, 0], [known, 0], [b, 1]]))
+            const plan = recipeCells(value, outer, fromEntries([[a, 0], [known, 0], [b, 1]]))
             const definitions = definitionsOf(recipeBlock(plan))
             assertEq(plan.localCount, 2)
             assertEq(plan.layout.cells.length, 4)
@@ -1008,13 +1013,13 @@ export const proof = /** @type {const} */ ({
             assertEq(plan.layout.cells[3].binding, dependent)
             assertEq(plan.layout.cells[2].iterationLocal, false)
             assertEq(plan.layout.cells[3].iterationLocal, false)
-            assertEq(plan.layout.definitions.get(definitions[0]), 0)
-            assertEq(plan.layout.definitions.get(definitions[1]), 2)
-            assertEq(plan.layout.definitions.get(definitions[2]), 3)
-            assertEq(plan.layout.definitions.get(definitions[3]), 3)
-            assertEq(plan.layout.definitions.has(definitions[4]), false)
-            assertEq(plan.layout.definitions.has(outer.cells[0].definition), false)
-            assertEq(plan.layout.loops.size, 0)
+            assertEq(mapGet(plan.layout.definitions, definitions[0]), 0)
+            assertEq(mapGet(plan.layout.definitions, definitions[1]), 2)
+            assertEq(mapGet(plan.layout.definitions, definitions[2]), 3)
+            assertEq(mapGet(plan.layout.definitions, definitions[3]), 3)
+            assertEq(mapHas(plan.layout.definitions, definitions[4]), false)
+            assertEq(mapHas(plan.layout.definitions, outer.cells[0].definition), false)
+            assertEq(setSize(plan.layout.loops), 0)
         },
         lexicalOccurrences: () => {
             const outer = planned(containing(reading(a)))
@@ -1023,24 +1028,24 @@ export const proof = /** @type {const} */ ({
                 ['define', known, 1, 'required'], shared, ['define', alias, ['ref', b], 'lazy'],
                 ['define', known, 2, 'required'], shared,
             ], ['yield', [['ref', b]]])])
-            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
             const definitions = definitionsOf(recipeBlock(plan))
             assertEq(plan.localCount, 2)
             assert(definitions[1] !== definitions[4])
-            assertEq(plan.layout.definitions.get(definitions[1]), 1)
-            assertEq(plan.layout.definitions.get(definitions[2]), 1)
-            assertEq(plan.layout.definitions.get(definitions[4]), 2)
+            assertEq(mapGet(plan.layout.definitions, definitions[1]), 1)
+            assertEq(mapGet(plan.layout.definitions, definitions[2]), 1)
+            assertEq(mapGet(plan.layout.definitions, definitions[4]), 2)
             assertEq(plan.layout.cells[1].initializer, shared[2])
             assertEq(plan.layout.cells[2].initializer, shared[2])
-            assertEq(plan.layout.definitions.has(shared), false)
+            assertEq(mapHas(plan.layout.definitions, shared), false)
             const shadowed = /** @type {Value} */ (['block', body([
                 ['define', a, 7, 'required'], ['define', b, ['array', [['ref', a]]], 'lazy'],
             ], ['yield', [['ref', b]]])])
-            assertEq(recipeCells(shadowed, outer, new Map([[a, 0]])).localCount, 0)
+            assertEq(recipeCells(shadowed, outer, fromEntries([[a, 0]])).localCount, 0)
             const rebound = /** @type {Value} */ (['block', body([
                 ['define', a, ['array', [['ref', a]]], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
             ], ['yield', [['ref', b]]])])
-            const reboundPlan = recipeCells(rebound, outer, new Map([[a, 0]]))
+            const reboundPlan = recipeCells(rebound, outer, fromEntries([[a, 0]]))
             assertEq(reboundPlan.localCount, 2)
             assertEq(reboundPlan.layout.cells[1].binding, a)
             assertEq(reboundPlan.layout.cells[2].binding, b)
@@ -1062,7 +1067,7 @@ export const proof = /** @type {const} */ ({
                         initial: [['block', body([['define', entered, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', entered]]])]] }]], ['yield', [['ref', result]]])],
                 ]], 'required'],
             ], ['yield', [['ref', known]]])])
-            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
             assertEq(plan.localCount, 3)
             assertEq(plan.layout.cells[1].binding, local)
             assertEq(plan.layout.cells[2].binding, captured)
@@ -1075,14 +1080,14 @@ export const proof = /** @type {const} */ ({
             assert(region instanceof Array && region[0] === 'block')
             assertEq(fn[1].body, fnBody)
             assertStructurallySame(loopsOf(region[1])[0].body, loopBody)
-            assertEq(plan.layout.loops.size, 0)
+            assertEq(setSize(plan.layout.loops), 0)
         },
         loopOccurrencesKeepFreshDeclarationCells: () => {
             const outer = planned(containing(reading(a)))
             const definition = /** @type {Definition} */ (['define', b, ['array', [['ref', a]]], 'lazy'])
             const loop = loopOf(body([definition], ['break', target, [['ref', b]]]))
             const value = /** @type {Value} */ (['block', body([['loop', loop], ['loop', loop]], ['yield', [['ref', result]]])])
-            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
             const [first, second] = loopsOf(recipeBlock(plan))
             assertEq(plan.localCount, 2)
             assertEq(plan.layout.cells[0], outer.cells[0])
@@ -1093,20 +1098,20 @@ export const proof = /** @type {const} */ ({
             assertEq(second.target, loop.target)
             assertEq(first.parameters, loop.parameters)
             assertEq(second.results, loop.results)
-            assertEq(plan.layout.loops.has(first), true)
-            assertEq(plan.layout.loops.has(second), true)
+            assertEq(setHas(first)(plan.layout.loops), true)
+            assertEq(setHas(second)(plan.layout.loops), true)
             const firstDefinition = definitionsOf(first.body)[0], secondDefinition = definitionsOf(second.body)[0]
-            assertEq(plan.layout.definitions.get(firstDefinition), 1)
-            assertEq(plan.layout.definitions.get(secondDefinition), 2)
+            assertEq(mapGet(plan.layout.definitions, firstDefinition), 1)
+            assertEq(mapGet(plan.layout.definitions, secondDefinition), 2)
             assertEq(plan.layout.cells[1].definition, firstDefinition)
             assertEq(plan.layout.cells[2].definition, secondDefinition)
             assert(plan.layout.cells[1].definition !== plan.layout.cells[2].definition)
             const independent = /** @type {Value} */ (['block', body([['loop', loopOf(body([
                 ['define', b, ['array', []], 'lazy'],
             ], ['break', target, [['ref', b]]]))]], ['yield', [['ref', result]]])])
-            const unchanged = recipeCells(independent, outer, new Map([[a, 0]]))
+            const unchanged = recipeCells(independent, outer, fromEntries([[a, 0]]))
             assertEq(unchanged.localCount, 0)
-            assertEq(unchanged.layout.loops.size, 0)
+            assertEq(setSize(unchanged.layout.loops), 0)
             assertEq(unchanged.value, independent)
         },
         conditionalsAndStatementResults: () => {
@@ -1117,7 +1122,7 @@ export const proof = /** @type {const} */ ({
             for (const value of /** @type {readonly Value[]} */ ([
                 ['if', false, arm, arm], ['?:', false, ['block', arm], ['block', arm]],
             ])) {
-                const plan = recipeCells(value, outer, new Map([[a, 0]]))
+                const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
                 assertEq(plan.localCount, 2)
                 assert(plan.layout.cells[1].definition !== plan.layout.cells[2].definition)
             }
@@ -1126,9 +1131,9 @@ export const proof = /** @type {const} */ ({
                 ['if', [right], true, arm, body([], ['yield', [0]])],
                 ['define', known, ['array', [['ref', left], ['ref', right]]], 'lazy'],
             ], ['yield', [['ref', known]]])])
-            const plan = recipeCells(source, outer, new Map([[a, 0], [left, 0], [right, 0]]))
+            const plan = recipeCells(source, outer, fromEntries([[a, 0], [left, 0], [right, 0]]))
             assertEq(plan.localCount, 2)
-            assertEq(plan.layout.definitions.has(definitionsOf(recipeBlock(plan))[0]), false)
+            assertEq(mapHas(plan.layout.definitions, definitionsOf(recipeBlock(plan))[0]), false)
         },
         nestedGetterBoundary: () => {
             const outer = planned(containing(reading(a)))
@@ -1137,17 +1142,17 @@ export const proof = /** @type {const} */ ({
                 ['define', local, ['array', [['ref', a]]], 'lazy'],
             ], ['yield', [['ref', local]]])])
             const value = /** @type {Value} */ (['block', body([['define', b, initializer, 'lazy']], ['yield', [['ref', b]]])])
-            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
             assertEq(plan.localCount, 1)
             assertEq(plan.layout.cells[1].binding, b)
             assertEq(plan.layout.cells[1].initializer, initializer)
-            const nested = recipeCells(initializer, plan.layout, new Map([[a, 0]]))
+            const nested = recipeCells(initializer, plan.layout, fromEntries([[a, 0]]))
             assertEq(nested.localCount, 1)
             assertEq(nested.layout.cells[0], outer.cells[0])
             assertEq(nested.layout.cells[1], plan.layout.cells[1])
             assertEq(nested.layout.cells[2].binding, local)
             assertEq(nested.layout.cells[2].iterationLocal, false)
-            assertEq(nested.layout.definitions.has(plan.layout.cells[1].definition), false)
+            assertEq(mapHas(nested.layout.definitions, plan.layout.cells[1].definition), false)
         },
         prunedWithoutLocals: () => {
             const outer = planned(containing(reading(a)))
@@ -1159,7 +1164,7 @@ export const proof = /** @type {const} */ ({
                 const value = /** @type {Value} */ (['block', body([
                     terminal, ['define', b, ['array', [['ref', a]]], 'lazy'],
                 ], ['yield', [['ref', a]]])])
-                const plan = recipeCells(value, outer, new Map([[a, 0]]))
+                const plan = recipeCells(value, outer, fromEntries([[a, 0]]))
                 assert(plan.value !== value)
                 assertEq(plan.localCount, 0)
                 assertEq(plan.layout.cells, outer.cells)
@@ -1168,11 +1173,11 @@ export const proof = /** @type {const} */ ({
                 assertEq(freeBindings(recipeBlock(plan)).length, 0)
             }
             const alreadyEmpty = /** @type {Value} */ (['block', body([terminals[0]])])
-            assertEq(recipeCells(alreadyEmpty, outer, new Map([[a, 0]])).value, alreadyEmpty)
+            assertEq(recipeCells(alreadyEmpty, outer, fromEntries([[a, 0]])).value, alreadyEmpty)
             const mixed = /** @type {Value} */ (['block', body([
                 ['if', [], false, body(), body([], ['throw', 'stopped'])], ['define', b, ['array', [['ref', a]]], 'lazy'],
             ], ['yield', [['ref', b]]])])
-            assertEq(recipeCells(mixed, outer, new Map([[a, 0]])).localCount, 1)
+            assertEq(recipeCells(mixed, outer, fromEntries([[a, 0]])).localCount, 1)
         },
         exitOperands: () => {
             const outer = planned(containing(reading(a)))
@@ -1182,7 +1187,7 @@ export const proof = /** @type {const} */ ({
                 ['break', target, [value]], ['continue', target, [value]],
             ])
             for (const exit of exits) {
-                const plan = recipeCells(['block', body([], exit)], outer, new Map([[a, 0]]))
+                const plan = recipeCells(['block', body([], exit)], outer, fromEntries([[a, 0]]))
                 assertEq(plan.localCount, 1)
                 const prepared = recipeBlock(plan).exit
                 assertEq(prepared[0], exit[0])
@@ -1194,7 +1199,7 @@ export const proof = /** @type {const} */ ({
             /** @type {Value} */
             let value = ['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])]
             for (let depth = 0; depth < 20_000; depth += 1) { value = ['!', value] }
-            assertEq(recipeCells(value, outer, new Map([[a, 0]])).localCount, 1)
+            assertEq(recipeCells(value, outer, fromEntries([[a, 0]])).localCount, 1)
         },
     },
     throw: {

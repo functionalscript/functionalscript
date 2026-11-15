@@ -24,6 +24,8 @@
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 import { chunkText } from '../../../../text/marked/module.f.js'
 import { generate } from '../../../../types/array/generate/module.f.js'
+import { fromEntries, mapGet } from '../../../../types/map/module.f.js'
+import { fromValues, has, size, values } from '../../../../types/set/module.f.js'
 
 /** A reference to a binding identified by its rendering scope and slot. @type {(key: string) => string} */
 export const _name = key => `\u0000${key}\u0000`
@@ -45,21 +47,21 @@ export const _arg = (path, k) => _name(`${path}/arg${k}`)
  * @type {(chunks: readonly Chunk[], reserved?: readonly string[], external?: readonly string[]) => readonly Chunk[]}
  */
 export const _resolve = (chunks, reserved = [], external = []) => {
-    const reservedNames = new Set(reserved)
-    const keys = [...new Set([
+    const reservedNames = fromValues(reserved)
+    const keys = values(fromValues([
         ...external.map(reference => reference.slice(1, -1)),
         ...chunks.flatMap(chunk => chunkText(chunk).split('\u0000').filter((part, i) => i % 2 === 1 && part.startsWith('!')).map(part => part.slice(1))),
-    ])]
-    // At most reservedNames.size candidates can be occupied. Generate enough
+    ]))
+    // At most size(reservedNames) candidates can be occupied. Generate enough
     // numbers once, without recursion or copying an accumulated prefix.
-    const available = generate(keys.length + reservedNames.size, n => n)
-        .filter(n => !reservedNames.has(`$${n}`))
-    const numbers = new Map(keys.map((key, i) => [key, available[Number(i)]]))
+    const available = generate(keys.length + size(reservedNames), n => n)
+        .filter(n => !has(`$${n}`)(reservedNames))
+    const numbers = fromEntries(keys.map((key, i) => /** @type {const} */ ([key, available[Number(i)]])))
     /** @type {(text: string) => string} */
     const resolveText = text => text.split('\u0000').map((part, i) => {
         if (i % 2 === 0) { return part }
         const key = part.startsWith('!') ? part.slice(1) : part
-        return `$${assertNotNullish(numbers.get(key), ['undeclared serializer binding', key])}`
+        return `$${assertNotNullish(mapGet(numbers, key), ['undeclared serializer binding', key])}`
     }).join('')
     /** @type {(chunk: Chunk) => Chunk} */
     const resolveChunk = chunk => {

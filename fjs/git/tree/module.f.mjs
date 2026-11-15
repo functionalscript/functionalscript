@@ -26,7 +26,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
-import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
+import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.js'
 import {
     digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
     solidus as slash, space as sp,

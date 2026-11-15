@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { invocationAliases } from './module.f.mjs'
+import { invocationAliases } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     restAliasesKeepTheirOwnInvocationPosition: () => {

@@ -12,7 +12,7 @@ import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { simpleEscapes } from '../../../js/string_escape/module.f.js'
 import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
-import { set } from '../../module.f.mjs'
+import { set } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
 import { units, utf16 } from '../../utf16/module.f.js'
 import {
@@ -34,7 +34,7 @@ import {
     valueCases,
     ws,
     wsSymbol,
-} from './module.f.mjs'
+} from './module.f.js'
 import { diagramPage, force } from '../../testlib.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 

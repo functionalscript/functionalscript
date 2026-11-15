@@ -33,7 +33,7 @@ requirement and the depth-cap contract below.
 ### Proposal
 
 **A recognizer is a parse that discards its mapping.** Run JSON's own grammar,
-[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs), with no
+[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.js), with no
 value-building mapping, so the recognizer and `parse` share one description of
 "valid JSON" by construction. That is
 [recognizer-backend](../../../ebnf/todo/recognizer-backend.md)'s AST-less LL(1)

@@ -41,8 +41,8 @@
  * @import { AfterStar, Content, JsToken, TemplateAfterDollar, TemplateContent, TriviaKind } from './types.ts'
  */
 
-import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
-import { digit, escape, hex, uint } from '../json/module.f.mjs'
+import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.js'
+import { digit, escape, hex, uint } from '../json/module.f.js'
 
 /** Every symbol of the alphabet: a code point. */
 const any = range(`\u0000${unicodeMax}`)

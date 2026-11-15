@@ -14,14 +14,14 @@
 
 import type { JoinNode, Unmapped } from '../../ast/types.ts'
 import type { Join, Rule } from '../../types.ts'
-import type { number, string, ws } from './module.f.mjs'
+import type { number, string, ws } from './module.f.js'
 
 /**
  * A comma-separated list of `Item`s inside a pair of delimiters, as `cj`
  * builds it: each item followed by whitespace, the list `join`ed by a comma
  * and whitespace, and optional as a whole so that an empty container is one
  * too. The delimiters are one symbol each and arrive as a string, so they
- * are spelled `string` here. `items` in `./module.f.mjs` reads the items
+ * are spelled `string` here. `items` in `./module.f.js` reads the items
  * back out of the node this shape produces.
  */
 export type Container<Item extends Rule> = readonly [
@@ -34,7 +34,7 @@ export type Container<Item extends Rule> = readonly [
 /**
  * The node a {@link Container} produces, over the item node `T`, typed by
  * shape as `JoinNode` is: the list between the delimiters, each item beside
- * its whitespace. `items` in `./module.f.mjs` reads the items back out of
+ * its whitespace. `items` in `./module.f.js` reads the items back out of
  * it.
  */
 export type ContainerNode<T> = readonly [
@@ -51,7 +51,7 @@ export type Entry<P extends Rule, V extends Rule> =
 /**
  * The node an {@link Entry} produces, over the key node `K` and the value
  * node `V`: the key, the colon with whitespace around it, and the value.
- * `entry` in `./module.f.mjs` reads the pair back out of it.
+ * `entry` in `./module.f.js` reads the pair back out of it.
  */
 export type EntryNode<K, V> = Unmapped<readonly [
     key: K,
@@ -77,7 +77,7 @@ export type ValueNode<T, E, S, N> =
 /**
  * A handler per branch of a {@link ValueNode}, each answering `R`: a
  * container's receives its items, and the three keywords' one handler
- * receives the constant each spells. `valueCases` in `./module.f.mjs`
+ * receives the constant each spells. `valueCases` in `./module.f.js`
  * dispatches over it.
  */
 export type ValueCases<T, E, S, N, R> = {

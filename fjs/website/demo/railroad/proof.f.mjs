@@ -5,7 +5,7 @@
 import { anchor, codePointGuide, grammarDemo, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
 import { codePoints, tokens } from '../../../ebnf/railroad/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
-import { range, set } from '../../../ebnf/module.f.mjs'
+import { range, set } from '../../../ebnf/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { runPure } from '../../../effects/module.f.js'

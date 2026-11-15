@@ -12,7 +12,7 @@ import type { Assert } from '../../../asserts/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { Rule } from '../../types.ts'
 import type { Value as JsonValue } from '../json/types.ts'
-import type { id, number, property } from './module.f.mjs'
+import type { id, number, property } from './module.f.js'
 
 /**
  * The members {@link Value} flattens: JSON's seven over this grammar's
@@ -28,7 +28,7 @@ type Members<V extends Rule> =
 
 /**
  * The ten alternatives a DataJS value has, spelled the way `value` in
- * `./module.f.mjs` builds them: JSON's seven over this grammar's property,
+ * `./module.f.js` builds them: JSON's seven over this grammar's property,
  * with `number` replaced by this grammar's own — the integer form takes a
  * bigint suffix and `Infinity` is a word — and `NaN`, `undefined` and a
  * reference beside them. A property is a JSON string or the one spelling of

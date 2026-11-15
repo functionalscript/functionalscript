@@ -16,6 +16,7 @@
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { fromValues, has } from '../../../types/set/module.f.js'
 import { freeLoopBindings } from '../../../js/ast/control/module.f.js'
 
 /**
@@ -102,8 +103,8 @@ export const invocationAliases = (fn, before) => {
  * @type {(loop: Loop, aliases: readonly (readonly BindingId[])[]) => boolean}
  */
 export const readsEntryParameters = (loop, aliases) => {
-    const entries = new Set(aliases.flat())
-    return freeLoopBindings(loop).some(binding => entries.has(binding))
+    const entries = fromValues(aliases.flat())
+    return freeLoopBindings(loop).some(binding => has(binding)(entries))
 }
 
 /**

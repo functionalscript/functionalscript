@@ -43,7 +43,7 @@ import { denoSteps } from './deno/module.f.js'
 import { spiderMonkeySteps } from './spidermonkey/module.f.js'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { miseJobs } from './mise/module.f.js'
-import { smartJobs } from './smart/module.f.mjs'
+import { smartJobs } from './smart/module.f.js'
 
 /**
  * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in

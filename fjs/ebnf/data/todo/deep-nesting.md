@@ -34,7 +34,7 @@ name already taken. Function names do not contribute: every rule uses its
 structural hint.
 
 A hand-written grammar is nowhere near either — the deepest rule in
-[`../../lib/json`](../../lib/json/module.f.mjs) nests about fifteen levels
+[`../../lib/json`](../../lib/json/module.f.js) nests about fifteen levels
 — which is why this is an issue rather than a blocker: the crash is loud, a
 `RangeError` and never a plausible wrong grammar, and
 [AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases) lets a

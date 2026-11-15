@@ -309,7 +309,7 @@ justification is the API and the AST, which is where
       pair or a larger end; `eof` as `[-1, 0]`; the domain `[0]`;
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`) once a consumer needs one. The front end's `rangeEncode` and
-      `range` in [`../../module.f.mjs`](../../module.f.mjs) refuse a range
+      `range` in [`../../module.f.js`](../../module.f.js) refuse a range
       ending at the top today; the singleton already lowers to the open
       tail, through `symbolTerminal` in `../../data`. No integer range-set
       module: these arithmetic facts are the whole difference. The symbol predicate `isSymbol` and EOF's

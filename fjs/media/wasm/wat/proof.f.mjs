@@ -202,6 +202,33 @@ export const proof = /** @type {const} */ ({
     unicodeNames: () => assertEq(
         wat({ ...emptyModule, customs: [{ after: null, content: ['name', [['module', 'a😀']]] }] }),
         '(module $"a\\u{1f600}")\n'),
+    // A name's first owner keeps its spelling, while a later occurrence of
+    // an index replaces that index's naming, including across subsections.
+    repeatedNamesAndIndices: () => {
+        /** @type {Module} */
+        const module = {
+            ...emptyModule,
+            types: [{ params: [], results: [] }],
+            functions: [
+                { type: 0, locals: [], body: [] },
+                { type: 0, locals: [], body: [] },
+                { type: 0, locals: [], body: [] },
+            ],
+            customs: [{ after: null, content: ['name', [
+                ['function', [[0, 'same'], [1, 'same'], [2, 'old']]],
+                ['function', [[2, 'later'], [2, 'final']]],
+            ]] }],
+        }
+        assertEq(wat(module), [
+            '(module',
+            '  (type (;0;) (func))',
+            '  (func $same (;0;) (type 0))',
+            '  (func $"#func1 same" (@name "same") (;1;) (type 0))',
+            '  (func $final (;2;) (type 0))',
+            ')',
+            '',
+        ].join('\n'))
+    },
     // Each function as it stands in the module's text.
     functions: () => {
         const texts = functions(everything)

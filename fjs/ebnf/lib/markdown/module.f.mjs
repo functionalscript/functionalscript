@@ -42,7 +42,7 @@
  * @import { Const, DataRule, Rule } from '../../types.ts'
  */
 
-import { option, range, remove, repeatFrom0, repeatFrom1, set, unicodeMax } from '../../module.f.mjs'
+import { option, range, remove, repeatFrom0, repeatFrom1, set, unicodeMax } from '../../module.f.js'
 
 /**
  * Every symbol a span may hold: space through the last code point, as

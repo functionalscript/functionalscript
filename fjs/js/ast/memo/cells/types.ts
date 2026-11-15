@@ -1,5 +1,7 @@
 /** Deferred recipes selected for normal helper transport. @module */
 
+import type { PersistentMap } from '../../../../types/map/types.ts'
+import type { PersistentSet } from '../../../../types/set/types.ts'
 import type { BindingId, Block, Definition, Loop, Value } from '../../types.ts'
 
 export type MemoCell = {
@@ -16,8 +18,8 @@ export type MemoPlan = {
     /** Dependency closure, ordered by source definitions. */
     readonly cells: readonly MemoCell[]
     /** Declaration identity selects roots and aliases before lexical activation. */
-    readonly definitions: ReadonlyMap<Definition, number>
-    readonly loops: ReadonlySet<Loop>
+    readonly definitions: PersistentMap<Definition, number>
+    readonly loops: PersistentSet<Loop>
 }
 
 /** The cells visible in one recipe invocation, without a statement root. */

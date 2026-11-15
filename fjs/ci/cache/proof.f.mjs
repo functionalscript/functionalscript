@@ -28,7 +28,7 @@ import { definedEntries } from '../../types/object/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { jobs } from '../self/module.f.mjs'
-import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
+import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.js'
 import { checkManifest, committedFiles, init, inputKeys, inputTrees, keyOf, report } from './module.f.mjs'
 
 /** @type {Check} */

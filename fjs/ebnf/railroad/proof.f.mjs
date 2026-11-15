@@ -8,7 +8,7 @@ import { branch, codePoints, tokens, toDiagrams } from './module.f.mjs'
 import { encoding } from '../token_symbol/module.f.js'
 import { toData } from '../data/module.f.js'
 import { mapGet } from '../../types/map/module.f.js'
-import { eof, join, option, range, rangeEncode, repeat, repeatFrom, repeatFrom0, repeatFrom1, set, times } from '../module.f.mjs'
+import { eof, join, option, range, rangeEncode, repeat, repeatFrom, repeatFrom0, repeatFrom1, set, times } from '../module.f.js'
 import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
 /** @type {(text: string) => Diagram} */
@@ -183,6 +183,23 @@ export const proof = {
                 [
                     ['pair', ['sequence', [['nonTerminal', 'digit'], ['nonTerminal', 'digit']]]],
                     ['digit', t('0 … 9')],
+                ])
+        },
+        // Map keys are rule names, including prototype names, and an empty
+        // title is a titled reference rather than a missing map entry.
+        names: () => {
+            /** @type {RuleSet} */
+            const ruleSet = /** @type {const} */ ({
+                root: ['sequence', '__proto__', 'constructor'],
+                ['__proto__']: ['set', 0x61, 0x62],
+                constructor: ['set', 0x62, 0x63],
+            })
+            assertStructurallySame(
+                toDiagrams(codePoints)(ruleSet)([['root', 'root'], ['', '__proto__'], ['constructor', 'constructor']]),
+                [
+                    ['root', ['sequence', [['nonTerminal', ''], ['nonTerminal', 'constructor']]]],
+                    ['', t('a')],
+                    ['constructor', t('b')],
                 ])
         },
     },

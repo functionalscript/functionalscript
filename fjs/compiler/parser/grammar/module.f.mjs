@@ -178,7 +178,7 @@
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { eof, option, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.mjs'
+import { eof, option, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'

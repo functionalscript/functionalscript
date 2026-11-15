@@ -22,6 +22,7 @@ import { maxCodePoint } from "../text/code_point/module.f.js"
 import { isFixedArray } from "../types/array/module.f.js"
 import { definedEntries } from "../types/object/module.f.js"
 import { entry } from "../types/object/entry/module.f.js"
+import { fromValues, size } from "../types/set/module.f.js"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.js"
 
 const { fromEntries } = Object
@@ -258,7 +259,7 @@ const node = words => {
 export const literals = words => {
     assert(words.length !== 0)
     assert(words.every(w => w !== ''))
-    assert(new Set(words).size === words.length)
+    assert(size(fromValues(words)) === words.length)
     return node(words.map(codePoints))
 }
 

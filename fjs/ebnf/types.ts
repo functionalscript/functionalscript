@@ -115,7 +115,7 @@ export type Option<R extends Rule> =
 /**
  * A list of `R`s separated by `S`, as `join` builds it: optional as a
  * whole, so an empty list is one too, and otherwise the first item beside
- * any number of separator-item pairs. `joined` in `./module.f.mjs` reads
+ * any number of separator-item pairs. `joined` in `./module.f.js` reads
  * the items back out of the node this shape produces.
  */
 export type Join<S extends Rule, R extends Rule> =

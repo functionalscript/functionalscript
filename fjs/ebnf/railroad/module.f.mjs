@@ -40,6 +40,7 @@
  * @import { Encoding } from '../token_symbol/types.ts'
  * @import { Alphabet } from './types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
+ * @import { PersistentSet } from '../../types/set/types.ts'
  */
 
 import { matchRule } from '../data/module.f.js'
@@ -49,6 +50,8 @@ import { generate } from '../../types/array/generate/module.f.js'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { codePointToString } from '../../text/utf16/module.f.js'
 import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.js'
+import { fromEntries, mapGet, mapHas, size as mapSize } from '../../types/map/module.f.js'
+import { add, empty, fromValues, has, size as setSize } from '../../types/set/module.f.js'
 
 /** @type {Diagram} */
 const skip = ['skip']
@@ -180,9 +183,9 @@ export const tokens = ({ decode }, categories) => ({
  * @type {(alphabet: Alphabet) => (ruleSet: RuleSet) => (titled: readonly (readonly [string, string])[]) => readonly (readonly [string, Diagram])[]}
  */
 export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
-    const titles = new Map(titled.map(([title, name]) => [name, title]))
-    assert(titles.size === titled.length, ['a rule is titled twice', titled])
-    assert(new Set(titles.values()).size === titled.length, ['a title names two rules', titled])
+    const titles = fromEntries(titled.map(([title, name]) => /** @type {const} */ ([name, title])))
+    assert(mapSize(titles) === titled.length, ['a rule is titled twice', titled])
+    assert(setSize(fromValues(titled.map(([title]) => title))) === titled.length, ['a title names two rules', titled])
     /**
      * The letter a rule is, if it is a set of exactly one symbol the
      * alphabet spells literals with: one run, so two boundaries, one symbol
@@ -195,7 +198,7 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
     const printable = name => {
         const rule = assertNotNullish(entry(ruleSet, name))
         const [tag, first, end] = rule
-        return !titles.has(name) && tag === 'set' && rule.length === 3 && end === first + 1 ? letter(first) : null
+        return !mapHas(titles, name) && tag === 'set' && rule.length === 3 && end === first + 1 ? letter(first) : null
     }
     /**
      * A terminal set as the choice of its labels. EOF, the one set with a
@@ -213,14 +216,14 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
      * or a titled `separator, a`, is a reference to its own diagram, so it
      * is drawn as its box rather than folded into a loop.
      *
-     * @type {(path: ReadonlySet<string>) => (a: string, b: string) => Diagram | null}
+     * @type {(path: PersistentSet<string>) => (a: string, b: string) => Diagram | null}
      */
     const separatorOf = path => (a, b) => {
         const r = assertNotNullish(entry(ruleSet, b))
-        if (titles.has(b) || r[0] !== 'repeat' || r[1] !== 0 || r[2] !== Infinity) { return null }
+        if (mapHas(titles, b) || r[0] !== 'repeat' || r[1] !== 0 || r[2] !== Infinity) { return null }
         const item = r[3]
         if (item === a) { return skip }
-        if (titles.has(item)) { return null }
+        if (mapHas(titles, item)) { return null }
         const sequenceRule = assertNotNullish(entry(ruleSet, item))
         const [tag, separator, again] = sequenceRule
         return tag === 'sequence' && again === a && sequenceRule.length === 3 ? ref(path)(separator) : null
@@ -228,7 +231,7 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
     /**
      * A sequence's items, each pair that spells a loop read as that loop.
      *
-     * @type {(path: ReadonlySet<string>) => (items: readonly string[]) => readonly Diagram[]}
+     * @type {(path: PersistentSet<string>) => (items: readonly string[]) => readonly Diagram[]}
      */
     const items = path => names => {
         if (names.length === 0) { return [] }
@@ -241,11 +244,11 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
     /**
      * The rule `name`, drawn in place.
      *
-     * @type {(path: ReadonlySet<string>) => (name: string) => Diagram}
+     * @type {(path: PersistentSet<string>) => (name: string) => Diagram}
      */
     const expand = path => name => {
-        assert(!path.has(name), ['a rule reaches itself through untitled rules only', name])
-        const inner = new Set([...path, name])
+        assert(!has(name)(path), ['a rule reaches itself through untitled rules only', name])
+        const inner = add(name)(path)
         return matchRule({
             set: setDiagram,
             sequence: names => {
@@ -270,13 +273,13 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
      * A reference to the rule `name`: a box if it is titled, else the rule
      * itself.
      *
-     * @type {(path: ReadonlySet<string>) => (name: string) => Diagram}
+     * @type {(path: PersistentSet<string>) => (name: string) => Diagram}
      */
     const ref = path => name => {
-        const title = titles.get(name)
+        const title = mapGet(titles, name)
         return title === undefined ? expand(path)(name) : ['nonTerminal', title]
     }
-    return titled.map(([title, name]) => [title, expand(new Set())(name)])
+    return titled.map(([title, name]) => [title, expand(empty)(name)])
 }
 
 /**

@@ -12,7 +12,7 @@ Nothing blocks this. It used to live beside the hand-written scanner in
 that scanner regressed the public JSON tokenizer built over it. It moved here
 when
 [the token layer became JavaScript's](../../../../compiler/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
-and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.mjs),
+and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.js),
 not this grammar, so widening this grammar regresses nothing, and the ordering
 problem that blocked the old issue is gone with the module it was about.
 
@@ -115,7 +115,7 @@ The grammar has three readers, and the widening reaches each differently.
   reads it, and a future `fjs lint` would. It refuses nothing the grammar
   recognises.
 - JSON. Not reached at all: [`media/json`](../../../../media/json/module.f.mjs)
-  folds [`ebnf/lib/json`](../../json/module.f.mjs), a separate grammar this
+  folds [`ebnf/lib/json`](../../json/module.f.js), a separate grammar this
   one *imports rules from* and never the reverse, so `'x'` stays
   `unexpected symbol at 0` there whatever this grammar learns. The JSON
   tokenizer whose `escapeJsHasAndJsonDoesNot` proof the old issue had to

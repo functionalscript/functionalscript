@@ -2,6 +2,7 @@
 
 import type { Binding, BindingId, BindingScope, Block, LoopTarget, Operator, Statement, Value } from '../types.ts'
 import type { LogicalTag, SourceBlock, SourceValue } from './source.ts'
+import type { PersistentMap } from '../../../types/map/types.ts'
 
 export type Environment = readonly (readonly [BindingId, Value])[]
 export type Context = {
@@ -14,7 +15,7 @@ export type Context = {
         readonly continuePrefix?: readonly Value[]
     } | null
     readonly breakRegion: Context['loop']
-    readonly writes: ReadonlyMap<SourceValue | SourceBlock, readonly BindingId[]>
+    readonly writes: PersistentMap<SourceValue | SourceBlock, readonly BindingId[]>
 }
 export type Established = {
     readonly environment: Environment
@@ -33,7 +34,7 @@ export type _Evaluated = Established & {
     readonly normal: boolean
 }
 /** A shared operand skeleton contains recipes for resolved source operands. */
-export type _Recipes = ReadonlyMap<BindingId, SourceValue>
+export type _Recipes = PersistentMap<BindingId, SourceValue>
 export type _EvaluatedValues = Established & {
     readonly values: readonly Value[]
     readonly normal: boolean

@@ -2,7 +2,7 @@
 
 The `data/` layer of [`fjs/ebnf`](../README.md): the
 intermediate representation (IR) the EBNF backends consume, and the lowering
-from the front end in [`../module.f.mjs`](../module.f.mjs) into it. It settles
+from the front end in [`../module.f.js`](../module.f.js) into it. It settles
 the carrier question the front-end design ([`../README.md`](../README.md),
 Problem 1 of the ebnf-front-end issue it absorbed) and
 [ebnf-range-set](../terminal/todo/ebnf-range-set.md) ("Decided with the
@@ -270,7 +270,7 @@ tuple is the one way an unvalidated value reaches it:
   value, so `'aa'` is a sequence naming one terminal twice. A thunk is
   registered under its name *before* its info is read, so a rule that names
   itself finds itself; its info is read once. A value built inside a thunk's
-  body — the variant `value` in [`../lib/json`](../lib/json/module.f.mjs)
+  body — the variant `value` in [`../lib/json`](../lib/json/module.f.js)
   returns — is fresh per call and has no identity an author holds, so an
   author attaches to the thunk, which the map names.
 - **Names** follow the path at which a rule was first reached — a branch's

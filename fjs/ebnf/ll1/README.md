@@ -170,7 +170,7 @@ output would depend on assembly order. Three consequences, all to keep:
   combinator that wants its scaffolding mapped returns the mappings beside
   the rule; one whose scaffolding is only ever read returns a reader of its
   shape instead — `joined` beside `join`, `items` beside `cj` in
-  [`../lib/json`](../lib/json/module.f.mjs). A rule a reader wants to map is
+  [`../lib/json`](../lib/json/module.f.js). A rule a reader wants to map is
   exported from its grammar so that it can be held: JSON's `character` and
   `escape` are, and [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)
   keys a mapping by each.
