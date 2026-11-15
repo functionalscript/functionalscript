@@ -52,6 +52,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { digitsValue, one } from '../../../text/ascii/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { fromValues, values as setValues } from '../../../types/set/module.f.js'
 
 const readBinary = digitsValue(2n)
 
@@ -107,7 +108,7 @@ const nodesOfBoth = ({ root, shape }) => versions => {
     /** @typedef {Parameters<typeof rows>[0]} N */
     /** @type {(node: N | null) => readonly N[]} */
     const nodesOf = node => node === null ? [] : [node, ...rows(node).flatMap(row => hasEntry(row, 'to') ? nodesOf(row.to) : [])]
-    return [[...new Set(nodesOf(root(versions.before)))], [...new Set(nodesOf(root(versions.after)))]]
+    return [setValues(fromValues(nodesOf(root(versions.before)))), setValues(fromValues(nodesOf(root(versions.after))))]
 }
 
 /**

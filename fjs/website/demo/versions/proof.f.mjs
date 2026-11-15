@@ -212,6 +212,31 @@ export const proof = {
             assertEq(g.edges.filter(e => e.to === 3).length, 2)
             assertEq(JSON.stringify(census(diamond)({ before: null, after: 'A' })), '{"built":4,"shared":0,"replaced":0}')
         },
+        // Repeated references are drawn once, distinct equal objects stay
+        // distinct, and an equal sort order preserves the first encounter.
+        referenceOrder: () => {
+            const root = {}
+            const shared = {}
+            const distinct = {}
+            /** @type {Structure<object | null, object>} */
+            const structure = {
+                empty: null,
+                insert: () => v => v,
+                remove: () => v => v,
+                root: v => v,
+                shape: () => ({
+                    rows: node => node === root ? [shared, distinct, shared].map(to => ({ to, corner: 'bottom' })) : [],
+                    title: node => node === root ? 'root' : node === shared ? 'shared' : 'distinct',
+                    order: () => 0,
+                    layout: 'depth',
+                }),
+            }
+            const g = graphOf(structure)({ before: shared, after: root })
+            assertEq(JSON.stringify(g.nodes.map(node => [node.label, node.kind])), '[["root","new"],["shared","shared"],["distinct","new"]]')
+            assertEq(JSON.stringify(g.edges.map(edge => edge.to)), '[1,2,1]')
+            assertEq(JSON.stringify(census(structure)({ before: shared, after: root })), '{"built":2,"shared":1,"replaced":0}')
+            assertEq(JSON.stringify(census(structure)({ before: root, after: shared })), '{"built":0,"shared":1,"replaced":2}')
+        },
         // The new version's root has the one arrow; an empty new version
         // has no node and no arrow, whatever the old one held.
         roots: () => {
