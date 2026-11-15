@@ -37,7 +37,7 @@ what a grammar can and cannot do for the formats.
   need not end in LF and ignores anything after its first line, where
   `packed-refs` requires LF on every line and refuses a second comment — so
   each rule here was measured against Git rather than assumed.
-- [`pack/`](pack/module.f.mjs) — a packfile's framing and the delta
+- [`pack/`](pack/module.f.js) — a packfile's framing and the delta
   instructions inside one, with no effects: an entry's payload is a zlib
   stream, so nothing can say where one entry ends without inflating it, and
   walking the file belongs to the reader that inflates. Three different
@@ -299,7 +299,7 @@ payload.
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
 | zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.js), fed chunks and read over the effects by [`inflater/`](inflater/module.f.js) |
-| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.js), read over the effects by [`packstore/`](packstore/module.f.mjs) |
+| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.js) and [`packidx/`](packidx/module.f.js), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
 a tree entry is 20 raw bytes and may spell anything, a file name is
@@ -486,7 +486,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   through three windows and answered as a list over the chunks it inflated to.
   One bound of the same family remains, on a **delta chain**: a delta, the base
   it is applied to and the object it builds are dense arrays, a number a byte,
-  and [`pack/`](pack/module.f.mjs) holds them to `maxDeltaBytes`, 8 MiB, by the
+  and [`pack/`](pack/module.f.js) holds them to `maxDeltaBytes`, 8 MiB, by the
   size their entries declare, before anything is inflated. A representation of
   those that is not a number a byte lifts it
   ([`pack/todo/dense-delta.md`](pack/todo/dense-delta.md)).

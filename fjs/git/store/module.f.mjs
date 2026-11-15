@@ -47,7 +47,7 @@
  * host's `inflate` effect, which answered one `Vec` of 128 KiB at most for one of
  * the same, refused every object over that length — about one in a hundred in
  * this repository's own history; none is refused for its length now, though a delta
- * chain is held to a ceiling (see [`fjs/git/pack`](../pack/module.f.mjs)).
+ * chain is held to a ceiling (see [`fjs/git/pack`](../pack/module.f.js)).
  *
  * Each of these is a `NodeOp`, so a program on the node runner notices nothing.
  * What has to grow is an interpreter written for exactly an older set, which a

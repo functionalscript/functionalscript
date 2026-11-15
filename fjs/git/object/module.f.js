@@ -81,7 +81,7 @@ const typeBytes = objectTypes.map(t => /** @type {const} */ ([t, ascii(t)]))
  *
  * The one reader of a type's *name*, for an envelope and a tag's `type`
  * header alike. A pack entry's header names a type by a three-bit code
- * instead, so [`fjs/git/pack`](../pack/module.f.mjs) keeps a table of its
+ * instead, so [`fjs/git/pack`](../pack/module.f.js) keeps a table of its
  * own: going through this would turn a code into `'blob'` and the bytes of
  * `'blob'` back into a code.
  *
