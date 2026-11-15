@@ -110,7 +110,7 @@
  * @import { _Context, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
-import { assertNotNullish, assertOk } from '../../asserts/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
@@ -794,8 +794,11 @@ const arrayOf = (lowerValue, scope, items) => {
     const vs = items.flatMap(item => isSpread(item) ? [] : [item])
     if (vs.length !== items.length) { return no('a spread in an array literal is not in this slice') }
     return settled(lowerValue, scope, vs, (s, xs) => {
-        // Each item is a term that does nothing, which was typed where it was lowered.
-        const ts = xs.map(x => assertOk(typeOf(s.ir)(x)))
+        // Each item is a term that does nothing, but a pure one, such as a read
+        // of a field a record has not, may still not type-check.
+        const typed = okList(xs.map(x => typeOf(s.ir)(x)))
+        if (typed[0] === 'error') { return typed }
+        const ts = typed[1]
         const k = ts.findIndex(t => !isAny(t))
         const begun = call('Containers', 'begin_array', [n(BigInt(xs.length))])
         return k !== -1 ? no(`an item of an array is a value of any, and item ${k} is ${show(ts[Number(k)])}`)

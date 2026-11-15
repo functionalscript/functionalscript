@@ -1116,6 +1116,9 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => [v, 1]')), 'f: an item of an array is a value of any, and item 1 is f64c')
         assertEq(assertError(over(av, `${imports}export const f = v => [kind(v) === NUMBER]`)), 'f: an item of an array is a value of any, and item 0 is bool')
         assertEq(assertError(over(av, 'export const f = v => [...v]')), 'f: a spread in an array literal is not in this slice')
+        // An item that is pure but does not type-check is refused with its own error.
+        assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: { a: any } has no field b')
+        assertEq(assertError(over(av, 'export const f = v => [{ a: v, a: v }]')), 'f: a product names a twice')
         assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)
         // The parser refuses a hole.
         assertEq(assertError(sourceOf('export const f = v => [v, , v]')), 'parse: array hole')
