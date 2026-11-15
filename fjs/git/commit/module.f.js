@@ -34,10 +34,10 @@ import { assert } from '../../asserts/module.f.js'
 import { lf } from '../../text/ascii/module.f.js'
 import { concat, includes } from '../../types/list/module.f.js'
 import { error, mapOk, ok, okList } from '../../types/result/module.f.js'
-import { field, hasNulHeader, keyIs, tryRead as readPayload, tryReadAtLeast, valuesOf, write as writePayload } from '../header/module.f.mjs'
-import { tryRead as readIdent } from '../ident/module.f.mjs'
-import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
-import { tryRead as readTag, validate as validateTag } from '../tag/module.f.mjs'
+import { field, hasNulHeader, keyIs, tryRead as readPayload, tryReadAtLeast, valuesOf, write as writePayload } from '../header/module.f.js'
+import { tryRead as readIdent } from '../ident/module.f.js'
+import { tryFromHex, tryFromHexOf } from '../oid/module.f.js'
+import { tryRead as readTag, validate as validateTag } from '../tag/module.f.js'
 
 /**
  * Reads a commit, or refuses it: the header block's reader, since a

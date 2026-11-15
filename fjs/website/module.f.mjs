@@ -77,7 +77,7 @@ import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.
 import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
-import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
+import { hexText, tryFromHexOf } from '../git/oid/module.f.js'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.js'
 import { header, isIssue } from './issue/module.f.js'

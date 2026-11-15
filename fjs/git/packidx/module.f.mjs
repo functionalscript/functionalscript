@@ -60,7 +60,7 @@ import { uint } from '../../types/bit_vec/module.f.js'
 import { bsearch, cmp } from '../../types/function/compare/module.f.js'
 import { take } from '../../types/list/module.f.js'
 import { startsWith, u32be, u64be } from '../bytes/module.f.js'
-import { digestOf, ofWidth, oidAt } from '../oid/module.f.mjs'
+import { digestOf, ofWidth, oidAt } from '../oid/module.f.js'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
@@ -322,7 +322,7 @@ export const tryIdx = oidBytes => input => {
  * different answers, and reading the width from `ids[0]` would have had
  * nothing to read and would have reported the first as the second.
  *
- * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
  * id of another width than the index holds: a caller mixing two repositories
  * rather than an id the pack lacks.
  *

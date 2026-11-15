@@ -104,7 +104,7 @@ const atStart = prev => prev === null || prev === slash
  * @type {(state: typeof init) => boolean}
  */
 const closes = ({ prev, tail }) =>
-    !atStart(prev) && !(tail.length === lock.length && tail.every((b, i) => b === lock[i]))
+    !atStart(prev) && !(tail.length === lock.length && tail.every((b, i) => b === lock[Number(i)]))
 
 /**
  * One byte of a name, read into the pass.

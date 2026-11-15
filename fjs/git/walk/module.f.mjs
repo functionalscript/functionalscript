@@ -39,9 +39,9 @@ import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.
 import { byteArray } from '../../ebnf/byte/module.f.js'
 import { sameItems } from '../../types/list/module.f.js'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
-import { tryTreeAt } from '../commit/module.f.mjs'
-import { ofWidth } from '../oid/module.f.mjs'
-import { tryTargetAt } from '../tag/module.f.mjs'
+import { tryTreeAt } from '../commit/module.f.js'
+import { ofWidth } from '../oid/module.f.js'
+import { tryTargetAt } from '../tag/module.f.js'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
 
 /**
@@ -145,7 +145,7 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  * answering objects no repository holds, and the walk follows it as far as
  * it goes.
  *
- * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
  * @template {Operation} O

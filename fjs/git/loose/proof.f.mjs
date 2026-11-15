@@ -13,8 +13,8 @@ import { hex, storedBytes, streams } from '../../zlib/testlib.f.js'
 import { write as writeEnvelope } from '../object/module.f.js'
 import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.js'
 import { virtual, virtualAt } from '../../effects/node/virtual/module.f.js'
-import { hexText, of } from '../oid/module.f.mjs'
-import { path, tryRead, write } from './module.f.mjs'
+import { hexText, of } from '../oid/module.f.js'
+import { path, tryRead, write } from './module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The file, as the chunks one open takes. @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */

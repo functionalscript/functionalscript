@@ -9,7 +9,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { take } from '../../../types/list/module.f.js'
 import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.js'
-import { tryParse } from '../parser/module.f.mjs'
+import { tryParse } from '../parser/module.f.js'
 import { parseFromTokens } from '../../../compiler/parser/module.f.mjs'
 import { tokenize } from '../../../compiler/tokenizer/module.f.mjs'
 import { difference } from '../vectors/module.f.js'
@@ -37,7 +37,7 @@ const isUtf8 = text => toArray(stringToCodePointList(text)).every(codePoint => (
 
 /**
  * The document a value is written as, read back by
- * [the reader](../parser/module.f.mjs) and compared with the value itself —
+ * [the reader](../parser/module.f.js) and compared with the value itself —
  * sharing included, since `difference` compares containers as a bijection.
  * This is the conformance criterion: a document that denotes the input
  * graph, and one that is a document at all.

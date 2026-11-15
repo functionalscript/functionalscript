@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/website/demo/railroad/module.f.mjs`: a syntax
+ * Type-level API for `fjs/website/demo/railroad/module.f.js`: a syntax
  * diagram — a railroad — any demo can hand a grammar to, once it has turned
  * that grammar into a {@link Diagram} of its own.
  *

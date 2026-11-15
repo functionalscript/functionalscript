@@ -32,7 +32,7 @@ in [`fjs/effects/node`](../../../effects/node/module.f.js),
 way. The array form of the forward direction,
 `toArray(u8ListToMaxVecChunksMsb(bytes))`, is a private `chunked` in
 [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.mjs) and
-inline in `write` of [`fjs/git/loose`](../../../git/loose/module.f.mjs).
+inline in `write` of [`fjs/git/loose`](../../../git/loose/module.f.js).
 [`fjs/git/packstore`](../../../git/packstore/module.f.mjs)'s `denseBytes`,
 `byteArray(u8ListMsb(v))`, is this module's `u8ArrayMsb` with an assertion
 `u8ListMsb` already guarantees.

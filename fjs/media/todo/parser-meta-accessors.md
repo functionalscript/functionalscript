@@ -12,7 +12,7 @@ reuse the datajs todos call out — but the accessor that reads what those
 shared mappings produce is copied byte-for-byte:
 
 ```js
-// fjs/media/json/parser/module.f.js            // fjs/media/datajs/parser/module.f.mjs
+// fjs/media/json/parser/module.f.js            // fjs/media/datajs/parser/module.f.js
 const textAt = node => {                          const textAt = node => {
     const { meta } = symbolAt(node)                   const { meta } = symbolAt(node)
     assert(meta.id === 'text')                        assert(meta.id === 'text')
@@ -224,7 +224,7 @@ one-line follow-up rather than a design decision.
 
 ### Related
 
-- [`fjs/media/datajs/parser/module.f.mjs`](../datajs/parser/module.f.mjs)
+- [`fjs/media/datajs/parser/module.f.js`](../datajs/parser/module.f.js)
   — imports `stringMappings` from `json/parser`: the rule/mapping reuse
   this issue extends to the accessors, shipped (its issue file,
   `parser-serializer`, is deleted).

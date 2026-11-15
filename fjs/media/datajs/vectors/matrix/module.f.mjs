@@ -56,7 +56,7 @@ import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '..
 import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.js'
 import { charIs, isDigit, isLatinLetter } from '../../../../text/ascii/module.f.js'
 import { fromVec } from '../../../../text/utf8/module.f.js'
-import { tryParse } from '../../module.f.mjs'
+import { tryParse } from '../../module.f.js'
 import { difference } from '../module.f.js'
 import { occurrences } from '../../../../types/array/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'

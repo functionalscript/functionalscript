@@ -99,7 +99,7 @@ retain their admission checks. See
 [general source profiles](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 
 The source coordinator
-[`recursiveFunction` / `resultBlock`](../edag/to_fast/source/loops/module.f.mjs)
+[`recursiveFunction` / `resultBlock`](../edag/to_fast/source/loops/module.f.js)
 retains the existing loop profiles, then refuses a possible `continue` to the
 invocation's exact loop target before inverse reconstruction. Break-only and
 other one-pass wrappers retain their owning value returns and ordinary self

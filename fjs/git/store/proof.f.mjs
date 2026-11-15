@@ -16,7 +16,7 @@ import { storedBytes } from '../../zlib/testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.js'
 import { packIdxCode } from '../packstore/module.f.mjs'
-import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
+import { digestOf, toHex, tryFromHex } from '../oid/module.f.js'
 import { commitPayload, latin1, noFile, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.js'
 import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, readIn, tryRead } from './module.f.mjs'
 

@@ -27,7 +27,7 @@
  */
 
 import { codeMarker } from '../../website/style/module.f.js'
-import { tryMarked } from '../../media/datajs/module.f.mjs'
+import { tryMarked } from '../../media/datajs/module.f.js'
 import { refusal, caption } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'

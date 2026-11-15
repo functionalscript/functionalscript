@@ -49,8 +49,10 @@
  * @import { Container, Entry, Node, Out, Value } from './types.ts'
  */
 
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { concat } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { at, empty, setReplace } from '../../../types/ordered_map/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { walk } from '../../../types/stack_walk/module.f.js'
@@ -59,7 +61,7 @@ import { unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.js'
 import { fromU8List } from '../../../text/utf8/module.f.js'
-import { entry, valueCases } from '../../../ebnf/lib/json/module.f.js'
+import { entry as jsonEntry, valueCases } from '../../../ebnf/lib/json/module.f.js'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.js'
 import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.js'
 
@@ -72,7 +74,7 @@ const valueTag = tagged('value', 'node')
 export const _valueSymbol = valueTag.symbol
 
 /** The node a value's symbol carries. */
-const nodeAt = valueTag.at
+const nodeAt = assertNotNullish(entry(valueTag, 'at'))
 
 const protoKey = /** @type {const} */ ('__proto__')
 
@@ -109,7 +111,7 @@ const numberOf = node => {
  * @type {(node: Ast<EntryRule<typeof property, DataJsValue>, Utf16, Out>) => Entry}
  */
 const member = node => {
-    const [key, v] = entry(node)
+    const [key, v] = jsonEntry(node)
     const k = unmapped(key)
     if (k[0] === 'proto') { return [protoKey, nodeAt(v)] }
     const name = textAt(k[1])
@@ -169,7 +171,7 @@ export const mappings = [
 
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = (container, index) =>
-    container[0] === 'array' ? container[1][index] : container[1][index][1]
+    container[0] === 'array' ? container[1][Number(index)] : container[1][Number(index)][1]
 
 /**
  * A container of the values its items denote: an array, or an object with a
@@ -181,7 +183,7 @@ const itemAt = (container, index) =>
  * @type {(container: Container, done: readonly Unknown[]) => Unknown}
  */
 const close = (container, done) =>
-    container[0] === 'array' ? done : fromEntries(container[1].map(([key], index) => [key, done[index]]))
+    container[0] === 'array' ? done : fromEntries(container[1].map(([key], index) => [key, done[Number(index)]]))
 
 /**
  * The value a node denotes under `env`, or the first error met in document

@@ -55,8 +55,8 @@ import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.
 import { lf, space as traitSeparator } from '../../text/ascii/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
 import { cmp, cString } from '../bytes/module.f.js'
-import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.mjs'
-import { isWholeName } from '../refname/module.f.mjs'
+import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.js'
+import { isWholeName } from '../refname/module.f.js'
 
 /**
  * The bytes Git counts as whitespace in these files: SP, TAB, CR and LF.
@@ -189,7 +189,7 @@ export const tryLoose = oidBytes => {
  * any other id rather than write a file its own reader would call broken.
  *
  * @throws On an id that is not `oidBytes` wide, as
- * [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does: a caller that mixes the
+ * [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does: a caller that mixes the
  * widths has a bug.
  *
  * @type {(oidBytes: OidBytes) => (id: Oid) => Bytes}

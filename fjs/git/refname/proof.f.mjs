@@ -1,6 +1,6 @@
 import { assert } from '../../asserts/module.f.js'
 import { latin1 } from '../testlib.f.js'
-import { hasRefComponents, isName, isWholeName } from './module.f.mjs'
+import { hasRefComponents, isName, isWholeName } from './module.f.js'
 
 export const proof = {
     // A name below a prefix: every rule `git check-ref-format` applies to

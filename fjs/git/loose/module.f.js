@@ -38,7 +38,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { stored } from '../../zlib/stored/module.f.js'
 import { bytesOf, inflateWithin } from '../inflater/module.f.js'
 import { tryLength, tryRead as readEnvelope, write as writeEnvelope } from '../object/module.f.js'
-import { hexText, of } from '../oid/module.f.mjs'
+import { hexText, of } from '../oid/module.f.js'
 
 /**
  * How much output holds an envelope whole: `commit`, a space, sixteen digits and

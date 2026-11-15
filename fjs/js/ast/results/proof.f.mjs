@@ -9,7 +9,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { evaluate } from '../../../edag/from_fast/member_returns/proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { _joinResults } from '../../../edag/to_fast/join/module.f.mjs'
-import { _sourceLoops } from '../../../edag/to_fast/source/loops/module.f.mjs'
+import { _sourceLoops } from '../../../edag/to_fast/source/loops/module.f.js'
 import { _forwardResult } from './module.f.js'
 
 /** Equal presentation indices keep distinct nominal identities. @type {() => BindingId} */
