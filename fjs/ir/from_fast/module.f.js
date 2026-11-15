@@ -144,7 +144,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
-import { any, builder, kinds, l0, lengths, string } from '../l0/module.f.js'
+import { any, array, builder, kinds, l0, lengths, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
@@ -798,6 +798,7 @@ const buildArrayOf = (lowerValue, scope, vs) => {
         if (t[0] === 'error') { return t }
         if (!isAny(t[1])) { return no(`an item of buildArray is a value of any, and this one is ${show(t[1])}`) }
         const y = inlineTerms(lowerValue, inner, step, [get(st)].slice(0, step.parameters.length), local(inner))
+        // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
         return y[0] === 'error' ? y : ok(exact(u(31), size, `${label}.n`, k => loop(
             label,
             [[b, builder, call('Containers', 'begin_array', [k])], [st, state, first], [i, f64, lit(f64c, 0)]],
@@ -805,7 +806,7 @@ const buildArrayOf = (lowerValue, scope, vs) => {
                 lt(get(i), float(k)),
                 let_(item, x[1], let_(pushed, call('Containers', 'push', [get(b), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
                     let_(stepped, if_(lt(get(later), float(k)), y[1], get(st)), next(label, [[b, get(pushed)], [st, get(stepped)], [i, get(later)]]))))),
-                call('Containers', 'seal', [get(b)]),
+                cast(array, call('Containers', 'seal', [get(b)]), `${label}.array`, a => a),
             ),
         )))
     })
@@ -1048,7 +1049,8 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
-    return !isAny(t) || held === null || held.length !== 1 || held[0] !== 'array' ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
+    // `seal` of a `begin_array` is typed array|object; a literal array still reads as an array.
+    return !isAny(t) || held === null || !held.includes('array') ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
         : ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
 })
 

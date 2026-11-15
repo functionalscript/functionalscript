@@ -1159,7 +1159,11 @@ export const proof = {
             '                let B0.s.next = if lt(B0.i.next, float(B0.n)) then B0.s else B0.s',
             '                br B0 { B0.b: B0.pushed, B0.s: B0.s.next, B0.i: B0.i.next }',
             '            else',
-            '                Containers.seal(B0.b)',
+            '                match Containers.seal(B0.b)',
+            '                  array as B0.array =>',
+            '                    B0.array',
+            '                  else =>',
+            "                    trap('not array')",
             '    else',
             "        trap('inexact')",
             '',
@@ -1176,8 +1180,10 @@ export const proof = {
         assertEq(refused('buildArray(1, 0, s => s, s => s)'), 'f: an item of buildArray is a value of any, and this one is f64')
         assertEq(refused('buildArray(1, 0, s => s, s => length(s))'), 'f: length of f64 is not in this slice')
         assertEq(refused('buildArray(1, 0, s => length(s), () => v)'), 'f: length of f64 is not in this slice')
-        assertEq(refused('buildArray(1, { a: v }.b, s => s, () => v)'), 'f: { a: any } has no field b')
-        assertEq(refused('buildArray(1, 0, s => s, () => ({ a: v }).b)'), 'f: { a: any } has no field b')
+        // With Containers imported, `{ a: v }` is a Containers object; a float record still fails to type.
+        assertEq(refused('buildArray(1, { a: v }.b, s => s, () => v)'), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused('buildArray(1, ({ a: 0 }.b), s => s, () => v)'), 'f: { a: f64c } has no field b')
+        assertEq(refused('buildArray(1, 0, s => s, () => ({ a: 0 }.b))'), 'f: { a: f64c } has no field b')
         assertEq(refused('buildArray(1, 0, s => s, () => v, v)'), 'f: buildArray takes 4 arguments, not 5')
         // A throw inside a callback would leave the builder, which is linear, behind.
         assertEq(refused('buildArray(1, 0, s => s, () => { throw v })'), 'f: a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of B0, which is linear, behind')
@@ -1296,7 +1302,7 @@ export const proof = {
     },
     // `buildObject`: arrow callbacks inlined to begin_object / push_property / seal, as `buildArray` is.
     builders: () => {
-        const builders = "import { buildArray, buildObject } from '../l0/module.f.js'\n"
+        const builders = "import { buildArray, buildObject, concat } from '../l0/module.f.js'\n"
         const nv = only([['n', f64], ['v', any]], container)
         const av = only([['v', any]], container)
         assertEq(irOver(nv, `${builders}export const f = (n, v) => buildObject(n, v, s => s, () => 'k', () => v)`), [
@@ -1307,7 +1313,7 @@ export const proof = {
             '        loop B0 (B0.b: builder = Containers.begin_object(B0.n), B0.s: any = v, B0.i: f64 = 0.0)',
             '            if lt(B0.i, float(B0.n))',
             '            then',
-            "                let B0.key = 'k'",
+            '                let B0.key = "k"',
             '                let B0.item = v',
             '                let B0.pushed = Containers.push_property(B0.b, B0.key, B0.item)',
             '                let B0.i.next = add(B0.i, 1.0)',
@@ -1323,7 +1329,7 @@ export const proof = {
         ].join('\n'))
         // A prior `#n` local shifts the loop's depth band.
         assertEq(irOver(nv, `${builders}export const f = (n, v) => {\n    const y = n * 2\n    return buildObject(y, v, s => s, () => 'k', () => v)\n}`).includes('loop B1'), true)
-        assertEq(irOver(nv, `${builders}export const f = (n, v) => buildObject(n, v, s => s, () => 'k' + 'x', () => v)`).includes('push_property'), true)
+        assertEq(irOver(nv, `${builders}export const f = (n, v) => buildObject(n, v, s => s, () => concat('k', 'x'), () => v)`).includes('push_property'), true)
         /** @type {(text: string) => string} */
         const refused = text => assertError(over(av, `${builders}export const f = v => ${text}`))
         assertEq(refused("buildObject(1, 0, s => s + 1, s => 'k', v)"), 'f: a callback of buildObject that is not an arrow literal of at most one parameter is not in this slice')
@@ -1334,6 +1340,13 @@ export const proof = {
         assertEq(refused("buildObject(1, 0, s => s, () => 'k', s => s)"), 'f: a value of buildObject is a value of any, and this one is f64')
         assertEq(refused("buildObject(1, 0, s => s, s => s, () => v)"), 'f: a key of buildObject is a string, and this one is f64')
         assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => { throw v })"), 'f: a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of B0, which is linear, behind')
+        // Callbacks and args that fail to lower or to type after lowering.
+        assertEq(refused("buildObject(({ a: 0 }.b), 0, s => s, () => 'k', () => v)"), 'f: { a: f64c } has no field b')
+        assertEq(refused("buildObject(1, 0, s => ({ a: v }.b), () => 'k', () => v)"), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused("buildObject(1, 0, s => s, () => ({ a: v }.b), () => v)"), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused("buildObject(1, 0, s => s, () => ({ a: 0 }.b), () => v)"), 'f: { a: f64c } has no field b')
+        assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => ({ a: v }.b))"), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => ({ a: 0 }.b))"), 'f: { a: f64c } has no field b')
         // Object Containers: a non-name entry, a field that fails to lower, and one that fails to type.
         assertEq(assertError(over(only([['n', f64]], container), `${builders}export const f = n => ({ 0: n })`)), 'f: an entry of an object that is not a name and its value is not in this slice')
         assertEq(assertError(over(only([['n', f64]], container), `${builders}export const f = n => ({ a: (() => n) })`)), 'f: a function as a value is not in this slice')
