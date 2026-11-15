@@ -14,7 +14,7 @@ and Git builds the index itself with `git index-pack`.
 So a client that fetches a repository, a browser most of all, where there is no
 `git` to run, cannot read what it fetched with these modules. The pieces are all
 here — [`pack`](../module.f.mjs)'s `tryHeader`, `tryEntry` and `tryApplyDelta`,
-[`inflater`](../../inflater/module.f.mjs), which finds where a zlib stream ends,
+[`inflater`](../../inflater/module.f.js), which finds where a zlib stream ends,
 and [`oid`](../../oid/module.f.mjs)'s `digestOf` — but nothing walks a pack
 from the front with them.
 
