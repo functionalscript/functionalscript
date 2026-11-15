@@ -25,7 +25,11 @@
  * twins' arrays are, item by item: each call seals every builder that it
  * begins. So do the functions of [`reads.f.js`](./reads.f.js), which read
  * an array at a number key, on the edges of floats, and so does L1's
- * `typeOf`, on values of every kind.
+ * `typeOf`, on values of every kind. So do the functions of
+ * [`throws.f.js`](./throws.f.js), which throw, over L1's error table, which
+ * the lowering reads from the table's text, and so does L1's
+ * `functionText`: each throws what its original throws, and leaves every
+ * cell as it found it.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -34,23 +38,24 @@
 
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { strictEquals, stringEquals, stringIndex, stringLess, toBoolean, typeOf } from '../../wasm/runtime/l1/module.f.js'
+import { functionText, strictEquals, stringEquals, stringIndex, stringLess, toBoolean, typeOf } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
 import * as helpers from './helpers.f.js'
-import { lower } from './module.f.js'
+import { errorTable, lower } from './module.f.js'
 import * as sample from './sample.f.js'
 import * as strings from './strings.f.js'
 import * as constants from './constants.f.js'
 import * as literals from './literals.f.js'
 import * as arrays from './arrays.f.js'
 import * as reads from './reads.f.js'
+import * as throws from './throws.f.js'
 import {
-    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, literals as literalSignatures,
-    reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
+    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, l1Runtime, l1Throws, literals as literalSignatures,
+    reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime, throws as throwSignatures, throwsRuntime,
 } from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
@@ -82,6 +87,15 @@ const fromArrays = () => assertOk(lifetime(fromText(new URL('./arrays.f.js', imp
 
 /** The owned stage of the module that the lowering makes of the reads' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
 const fromReads = () => assertOk(lifetime(fromText(new URL('./reads.f.js', import.meta.url), readSignatures, stringsRuntime)))
+
+/** L1's error table, read from its text. */
+const errors = assertOk(errorTable(assertOk(sourceOf(readFileSync(new URL('../../wasm/runtime/l1/error/module.f.js', import.meta.url), 'utf8'))).fast))
+
+/** The owned stage of the module that the lowering makes of the throws' text, over the runtime and L1's error table: what the lifetime pass writes. @type {() => Module} */
+const fromThrows = () => assertOk(lifetime(fromText(new URL('./throws.f.js', import.meta.url), throwSignatures, throwsRuntime(errors))))
+
+/** The owned stage of the module that the lowering makes of L1's text for the functions that throw its errors, over the runtime and the table. @type {() => Module} */
+const fromL1Throws = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Throws, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -181,6 +195,14 @@ const readTwins = {
     only: ([a]) => ({ any: reads.only(held(a)) }),
     letter: ([k]) => ({ any: reads.letter(float64(k)) }),
     inner: ([a, k]) => ({ any: reads.inner(held(a), float64(k)) }),
+}
+
+/** The throws, on values as the host holds them: each throws what its original throws. @type {StringMap<_Twin>} */
+const throwTwins = {
+    textLength: ([v]) => throws.textLength(held(v)),
+    rethrow: ([v]) => ({ any: throws.rethrow(held(v)) }),
+    bigints: ([a, b]) => throws.bigints(held(a), held(b)),
+    sign: ([x]) => throws.sign(float64(x)),
 }
 
 /** The string helpers, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
@@ -1105,6 +1127,54 @@ export const proof = {
     // Each array is the twin's, item by item, and each call seals every builder that it begins and leaves the cells as it found them.
     arraysRun: () => run(fromArrays(), arrayTwins, {}),
     readsRun: () => run(fromReads(), readTwins, {}),
+    // A throw of a value is `Functions.throw` of it, and a read of L1's error table the string literal of its text.
+    throws: () => {
+        const m = fromThrows()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'fn bigints(a: any, b: any) -> bool =',
+            '    let #0 = float(Any.kind(a))',
+            '    if if eq(#0, float(Any.kind(b))) then false else true then Functions.throw(Any.dup("TypeError: Cannot mix BigInt and other types, use explicit conversions")) else eq(#0, 5.0)',
+            '',
+            'fn rethrow(v: any) -> any =',
+            '    Functions.throw(Any.dup(v))',
+            '',
+            'fn sign(x: f64) -> f64 =',
+            '    if if eq(x, x) then false else true then Functions.throw(Any.dup("TypeError: unexpected type")) else if eq(x, 0.0) then Functions.throw(Any.dup("RangeError: Division by zero")) else if lt(x, 0.0) then -1.0 else 1.0',
+            '',
+            'fn textLength(v: any) -> f64 =',
+            '    if if eq(float(Any.kind(v)), 4.0) then false else true',
+            '    then',
+            '        Functions.throw(Any.dup("not a string"))',
+            '    else',
+            '        float(',
+            '            match v',
+            '              string as v.string =>',
+            '                String.length(v.string)',
+            '              bigint as v.bigint =>',
+            '                BigInt.length(v.bigint)',
+            '              array | object as v.containers =>',
+            '                Containers.length(v.containers)',
+            '              function as v.functions =>',
+            '                Functions.length(v.functions)',
+            '              undefined | null | boolean | number =>',
+            "                trap('no length')",
+            '        )',
+            '',
+            'export bigints, rethrow, sign, textLength',
+            '',
+        ].join('\n'))
+    },
+    throwsRun: () => run(fromThrows(), throwTwins, {}),
+    // L1's functionText, lowered from L1's text over its error table, throws what L1's own throws.
+    l1Throws: () => assertEq(print({ ...fromL1Throws(), imports: [] }), [
+        'fn functionText(t: any) -> any =',
+        '    if if eq(float(Any.kind(t)), 4.0) then false else true then Functions.throw(Any.dup("TypeError: Cannot convert a function to its text")) else Any.dup(t)',
+        '',
+        'export functionText',
+        '',
+    ].join('\n')),
+    l1ThrowsRun: () => run(fromL1Throws(), { functionText: ([t]) => ({ any: functionText(held(t)) }) }, {}),
     l1Run: () => run(assertOk(lifetime(fromL1())), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),

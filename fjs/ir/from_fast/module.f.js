@@ -52,6 +52,12 @@
  *   writes the plain stage. `%` of two floats is the row `numberRemainder`.
  *   Any other import is refused, and so is a cast of a value that never
  *   holds its kind, which would always trap.
+ * - **A throw is `Functions.throw`** of its value
+ *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)),
+ *   a term of type `never`, which ends its block as a `return` does, and
+ *   the checker types its value as `any`. A read of L1's error table,
+ *   `error.k`, is the string literal of its text, which the runtime gives
+ *   from the table's own text, so that the module throws what L1 throws.
  * - **An object literal is a record**, a product of its keys in their
  *   order, and `r.k` its field. A record stays in its function: the checker
  *   refuses one in a signature.
@@ -112,7 +118,7 @@
  * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Loop, Statement, Value } from '../../js/ast/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { ConstantOf, Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
- * @import { _Context, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
+ * @import { _Context, _Errors, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -123,7 +129,7 @@ import { typeOf } from '../check/module.f.js'
 import { any, kinds, l0, lengths, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
-    make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, trap, true_, u,
+    make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { show } from '../print/module.f.js'
@@ -429,7 +435,11 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
             return tail[0] === 'loop' && tail[1] === target ? lowerValue(scope, vs[0])
                 : no("a break before the end of its loop's body is not in this slice")
         }
-        case 'throw': { return no('throw is not in this slice') }
+        case 'throw': {
+            if (!scope.ir.imports.some(([k]) => k === 'Functions')) { return no('a throw is a call of Functions, which a module lowered without the runtime does not import') }
+            const r = lowerValue(scope, exit[1])
+            return r[0] === 'error' ? r : ok(throw_(r[1]))
+        }
         default: { return no('a loop that never breaks is not in this slice') }
     }
 }
@@ -848,6 +858,7 @@ const callTerm = (lowerValue, scope, callee, items) => {
     const m = calleeOf(scope, callee)
     if (m === null || m[0] === 'local' || m[0] === 'term') { return no('a call of a value is not in this slice') }
     if (m[0] === 'refused') { return no(m[1]) }
+    if (m[0] === 'errors') { return no("a call of L1's error table is not in this slice") }
     const vs = items.flatMap(item => isSpread(item) ? [] : [item])
     if (vs.length !== items.length) { return no('a spread argument is not in this slice') }
     switch (m[0]) {
@@ -928,7 +939,24 @@ const named = (scope, m) => {
         : m[0] === 'term' ? ok(m[1])
         : m[0] === 'refused' ? no(m[1])
         : tag !== undefined ? ok(lit(f64c, tag[1]))
+        : m[0] === 'errors' ? no("L1's error table as a value is not in this slice: a term reads one of its errors")
         : no('a function as a value is not in this slice')
+}
+
+/**
+ * A read of one of L1's errors, `error.k`: the string literal of its text
+ * in the table that the runtime gives, which the module's start function
+ * makes once.
+ *
+ * `key` is `null` for a read that goes on, as a call of the member does.
+ *
+ * @type {(scope: _Scope, table: _Errors, key: unknown) => Result<Term, string>}
+ */
+const errorOf = (scope, table, key) => {
+    const no = refuse(scope)
+    if (typeof key !== 'string') { return no("a read of L1's error table at a computed key, or with a further step, is not in this slice") }
+    const e = table.find(([k]) => k === key)
+    return e === undefined ? no(`L1's error table has no ${key}`) : ok(lit(string, e[1]))
 }
 
 /** @type {_LowerValue} */
@@ -963,7 +991,10 @@ const value = (scope, v) => {
         case '.': {
             const key = v[2]
             const m = scope.imported(v)
+            // what the receiver names: a binding, or an import that a constant's term reads itself
+            const from = !(v[1] instanceof Array) ? null : v[1][0] === 'ref' ? meaning(scope, v[1][1]) : scope.imported(v[1])
             return m !== null ? named(scope, m)
+                : from !== null && from[0] === 'errors' ? errorOf(scope, from[1], v.length === 3 ? key : null)
                 : v.length !== 3 ? no('a member read with a further step, such as a call of the member, is not in this slice')
                 : typeof key === 'string' ? unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
                 : indexed(value, scope, v[1], key)
@@ -1068,21 +1099,22 @@ const slotIn = (args, v) => {
 
 /**
  * Import `i`'s export `name`, as FAST reads it from the arguments of the
- * module: `['.', slot, name]`, where `slotOf` reads `i` from the slot. An
- * export of the L0 view or of L1's native rows is its name; any other
- * import is refused. `null` where `v` reads no import.
+ * module: `['.', slot, name]`, where `slotOf` reads `i` from the slot. What
+ * `source` makes of an export of a module of the runtime, the L0 view, L1's
+ * native rows or L1's error table; any other import is refused. `null`
+ * where `v` reads no import.
  *
- * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], slotOf: (v: Value) => number | null, v: Value) => _Import | null}
+ * @type {(source: (specifier: string, name: string) => _Import | null, imports: readonly AstImport[], slotOf: (v: Value) => number | null, v: Value) => _Import | null}
  */
 const imported = (source, imports, slotOf, v) => {
     if (!(v instanceof Array) || v[0] !== '.' || v.length !== 3 || typeof v[2] !== 'string') { return null }
     const i = slotOf(v[1])
     if (i === null) { return null }
     const m = imports[Number(i)]
-    const origin = m === undefined || m.json ? null : source(m.specifier)
+    const origin = m === undefined || m.json ? null : source(m.specifier, v[2])
     return m === undefined ? ['refused', `no import ${i}`]
         : origin === null ? ['refused', `an import of ${m.specifier} is not in this slice`]
-        : [origin, v[2]]
+        : origin
 }
 
 /**
@@ -1109,7 +1141,7 @@ const flat = s => {
  * `Math.abs` or `Math.sqrt`, is that operator, and any other is a
  * constant.
  *
- * @type {(source: (specifier: string) => 'l0' | 'native' | null, imports: readonly AstImport[], statements: readonly Statement[]) => readonly [readonly (readonly [BindingId, _Global])[], (v: Value) => _Import | null]}
+ * @type {(source: (specifier: string, name: string) => _Import | null, imports: readonly AstImport[], statements: readonly Statement[]) => readonly [readonly (readonly [BindingId, _Global])[], (v: Value) => _Import | null]}
  */
 const globals = (source, imports, wrapped) => {
     const statements = wrapped.flatMap(flat)
@@ -1164,17 +1196,37 @@ const ofConstant = made => made === undefined ? error('a constant that is read b
 const keep = ([later, needed], c) => needed.includes(c[0]) ? [[c, ...later], [...needed, ...reads(c[1].value)]] : [later, needed]
 
 /**
+ * L1's error table, from the normalized FAST of its module's text
+ * ([`l1/error`](../../wasm/runtime/l1/error/module.f.js)): the export
+ * `error`, an object literal of the text of each error, by its name, in
+ * their order. The runtime gives it to [`lower`](#lower), which writes a
+ * read of one, `error.k`, as the string literal of its text.
+ *
+ * @type {(fast: Block) => Result<readonly (readonly [string, string])[], string>}
+ */
+export const errorTable = ({ exit }) => {
+    const exports = exit[0] === 'yield' && exit[1].length === 1 ? exit[1][0] : null
+    if (!(exports instanceof Array) || exports[0] !== 'object') { return error('a module that yields no object of exports has no error table') }
+    const [table] = exports[1].flatMap(x => x[0] === ':' && x[1] === 'error' ? [x[2]] : [])
+    if (!(table instanceof Array) || table[0] !== 'object') { return error('the module exports no object literal error') }
+    const entries = table[1].flatMap(x => x[0] === ':' && typeof x[1] === 'string' && typeof x[2] === 'string' ? [/** @type {const} */ ([x[1], x[2]])] : [])
+    return entries.length === table[1].length ? ok(entries) : error('an error that is not a string of a name is not in this slice')
+}
+
+/**
  * The lowering of a module: the signatures of the exported functions to
  * lower, by their names, and the runtime, where the module is lowered over
  * it: the specifiers by which it imports the L0 view and L1's native rows,
- * whose interfaces it then imports; then the normalized FAST of the
+ * whose interfaces it then imports, and, where the module reads L1's error
+ * table, its specifier and the table, which [`errorTable`](#errortable)
+ * reads from its text; then the normalized FAST of the
  * module's text and its imports. The functions keep the order of the
  * exports. Each other definition of the module is a constant, named for
  * its place among them, `#c0` first, whose term reads the constants before
  * it; the module keeps those that the functions read, themselves or
  * through the constants that they read, in their order.
  *
- * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
+ * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] } } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
  */
 export const lower = (signatures, runtime = null) => ({ statements, exit }, imports = []) => {
     const table = Object.entries(signatures)
@@ -1187,8 +1239,16 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const all = entries[1].map(([key, , v]) => /** @type {const} */ ([key, v]))
     const stray = table.find(([k]) => !all.some(([key]) => key === k))
     if (stray !== undefined) { return error(`${stray[0]} has a signature, and the module exports no function ${stray[0]}`) }
-    /** @type {(specifier: string) => 'l0' | 'native' | null} */
-    const source = x => runtime === null ? null : x === runtime.l0 ? 'l0' : x === runtime.native ? 'native' : null
+    /** What an export of a module of the runtime stands for, by the module's specifier and the export's name. @type {(specifier: string, name: string) => _Import | null} */
+    const source = (x, name) => {
+        if (runtime === null) { return null }
+        const { errors } = runtime
+        return x === runtime.l0 ? ['l0', name]
+            : x === runtime.native ? ['native', name]
+            : errors === undefined || x !== errors.specifier ? null
+            : name === 'error' ? ['errors', errors.table]
+            : ['refused', `${x} exports error, and no ${name} that is in this slice`]
+    }
     const [defined, importOf] = globals(source, imports, [...statements, ...entries[1].flatMap(([, ss]) => ss)])
     /** @type {(b: BindingId) => _Global | undefined} */
     const globalOf = b => defined.find(([x]) => x === b)?.[1]

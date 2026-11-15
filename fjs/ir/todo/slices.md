@@ -152,14 +152,19 @@ before it and proved end to end on its own.
 
 Slice 7, cut in two as decided above.
 
-- [ ] **7a. Throwing, by hand.** L0's `Functions.throw(own v: any) ->
+- [x] **7a. Throwing, by hand** (#3896). L0's `Functions.throw(own v: any) ->
   never`, which may fail; the effect bit, which interfaces declare and the
   checker infers; drops before a throw; the host's `throw`, `has_thrown`,
   `thrown` and `recover`; the three-outcome oracle under every host proof
   and the random comparison.
 - [ ] **7b. Throwing, lowered.** `throw x` of FAST and L1's error table as
   string constants, read from L1's text. Subjects: `functionText` and
-  `bigintPair`.
+  `bigintPair`. A lowering's runtime may name L1's error module and its
+  table, which `errorTable` reads from that module's normalized FAST;
+  `error.k` is a literal of its text, and `throw x` is `Functions.throw`.
+  `functionText` runs as WASM against L1's own; `bigintPair` runs as a
+  copy, since L1 calls it only from arithmetic, which a later slice
+  lowers. The random comparison gains a form that throws.
 
 #### Later
 

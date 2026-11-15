@@ -46,6 +46,23 @@ export const runtime = { l0: '../l0/module.f.js', native: './native/module.f.js'
 /** The runtime that `strings.f.js` is lowered over: the specifiers by which a module of this directory imports the L0 view and L1's native rows. */
 export const stringsRuntime = { l0: '../../wasm/runtime/l0/module.f.js', native: '../../wasm/runtime/l1/native/module.f.js' }
 
+/**
+ * The runtime that L1 is lowered over where it throws its errors: the
+ * specifiers of the L0 view, its native rows and its error table, and the
+ * table, which [`errorTable`](./module.f.js) reads from the table's text.
+ *
+ * @type {(table: readonly (readonly [string, string])[]) => { readonly l0: string, readonly native: string, readonly errors: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] } }}
+ */
+export const l1Runtime = table => ({ ...runtime, errors: { specifier: './error/module.f.js', table } })
+
+/**
+ * The runtime that `throws.f.js` is lowered over: that of `strings.f.js`,
+ * and L1's error table, by the specifier of a module of this directory.
+ *
+ * @type {(table: readonly (readonly [string, string])[]) => { readonly l0: string, readonly native: string, readonly errors: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] } }}
+ */
+export const throwsRuntime = table => ({ ...stringsRuntime, errors: { specifier: '../../wasm/runtime/l1/error/module.f.js', table } })
+
 const any2 = /** @type {const} */ ([['a', any], ['b', any]])
 
 /**
@@ -63,6 +80,11 @@ export const l1 = {
     strictEquals: signature(any2, bool),
     stringIndex: signature([['s', any]], f64),
     typeOf: signature([['v', any]], any),
+}
+
+/** The signatures of the functions of L1 that throw its errors, which slice 7b lowers over `l1Runtime`. @type {Readonly<Record<string, Signature>>} */
+export const l1Throws = {
+    functionText: signature([['t', any]], any),
 }
 
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
@@ -159,4 +181,12 @@ export const strings = {
     trimStart: signature([['s', any]], string),
     lastOfTwice: signature([['s', any]], f64),
     first: signature([['v', any]], any),
+}
+
+/** The signatures of `throws.f.js`, which the lowering reads over the runtime and L1's error table. @type {Readonly<Record<string, Signature>>} */
+export const throws = {
+    textLength: signature([['v', any]], f64),
+    rethrow: signature([['v', any]], any),
+    bigints: signature(any2, bool),
+    sign: signature([['x', f64]], f64),
 }

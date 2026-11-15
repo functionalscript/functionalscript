@@ -19,8 +19,8 @@ module's `init` evaluates (6c), string literals, which its start
 function makes (6d), array literals of values, which Containers'
 builder makes (6e), reads of an array at a number key, with L1's
 `typeOf` (6f), and a throw written by hand, with the effect bit that says
-which functions may fail (7a). Next is the rest of failure, slice 7 of
-that roadmap: the lowering of `throw` and of L1's error table (7b).
+which functions may fail (7a), and the lowering of `throw` and of L1's
+error table (7b). Next is slice 8 of that roadmap: builders.
 
 ## Map of this directory
 
@@ -234,6 +234,23 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   Five FunctionalScript functions that read literals, among them the
   empty string, a unit past ASCII and a pair of surrogates, run against
   JavaScript, and so do the random comparison's programs of literals.
+
+## What 7b adds
+
+- **`throw x` lowered**: a `throw` of FAST is `Functions.throw` of its
+  value, so a module that throws imports the runtime's `Functions`.
+- **L1's error table**: a lowering's runtime may name L1's error module,
+  and `errorTable` reads the table from that module's own normalized
+  FAST, so its texts are never written twice. `error.k` is a literal of
+  `any.only(string)` of its text, which the start function makes once.
+  The table as a value, a computed key, and any other export of that
+  module are refused.
+- **Subjects**: L1's `functionText` runs as WASM against L1's own
+  function, and [`throws.f.js`](./from_fast/throws.f.js) holds a copy of
+  `bigintPair`, a throw of a literal, a rethrow and two of L1's errors
+  one after the other. Each throws what its original throws and leaves
+  nothing behind. The random comparison gains a form that throws a
+  literal, its value or one of L1's errors, by the kind of the value.
 
 ## What 7a adds
 

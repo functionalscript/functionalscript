@@ -17,17 +17,19 @@
  */
 
 import { assert } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
     asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit,
 } from '../../../wasm/runtime/l0/module.f.js'
+import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import { numberRemainder } from '../../../wasm/runtime/l1/native/module.f.js'
 import { any } from '../../l0/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { bool, f64, i, only, signature, u } from '../../module.f.js'
 import { edges, held, run } from '../../wasm/testlib.mjs'
 import { lower } from '../module.f.js'
-import { runtime, sourceOf } from '../testlib.f.mjs'
+import { l1Runtime, runtime, sourceOf } from '../testlib.f.mjs'
 
 /**
  * A Mulberry32 generator from `seed`. Each call answers a float in `[0, 1)`.
@@ -221,7 +223,7 @@ const floatConstants = rnd => {
  *   readonly signatures: Readonly<Record<string, Signature>>,
  *   readonly inputs: StringMap<readonly (readonly _Value[])[]>,
  *   readonly twin: _Twin,
- *   readonly runtime: typeof runtime | null,
+ *   readonly runtime: NonNullable<Parameters<typeof lower>[1]> | null,
  * }}
  */
 export const typedProgram = rnd => {
@@ -429,14 +431,36 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ðŸ˜
  *   readonly signatures: Readonly<Record<string, Signature>>,
  *   readonly inputs: StringMap<readonly (readonly _Value[])[]>,
  *   readonly twin: _Twin,
- *   readonly runtime: typeof runtime,
+ *   readonly runtime: NonNullable<Parameters<typeof lower>[1]>,
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 13)
+    const form = below(rnd, 14)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
     /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 13) {
+        // a throw where a value is of a kind: of a literal, of the value itself, or of one of L1's errors, which the
+        // lowering reads from the error table
+        const kinds = /** @type {const} */ ([['STRING', STRING], ['NUMBER', NUMBER], ['ARRAY', ARRAY], ['NULL', NULL], ['UNDEFINED', UNDEFINED]])
+        const [name, tag] = pick(rnd, kinds)
+        const key = pick(rnd, Object.keys(error))
+        /** @type {readonly (readonly [string, (v: unknown) => unknown])[]} */
+        const thrown = [['"bad"', () => 'bad'], ['v', v => v], [`error.${key}`, () => entry(error, key)]]
+        const [text, value] = pick(rnd, thrown)
+        const kept = pick(rnd, ['v', '"ok"'])
+        return {
+            text: `import { error } from './error/module.f.js'\n${l0Import}export const f = v => {\n    if (kind(v) === ${name}) { throw ${text} }\n    return ${kept}\n}\n`,
+            signatures: { f: signature([['v', any]], any) },
+            inputs: { f: samples() },
+            twin: xs => {
+                const v = held(xs[0])
+                if (kind(v) === tag) { throw value(v) }
+                return { any: kept === 'v' ? v : 'ok' }
+            },
+            runtime: l1Runtime(Object.entries(error)),
+        }
+    }
     if (form === 12) {
         // a read of an array at a number key, by L1's `get`: the item at an index of it, and `undefined` at anything else
         const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
