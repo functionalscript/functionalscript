@@ -302,8 +302,8 @@ export const proof = {
             functions: [['copied', fn([['v', array]], array, seal(push(begin(n(1n)), item)))]],
             exports: ['copied'],
         }
-        const v = ['x']
-        const rows = { copied: [[{ any: v }]] }
+        const v = /** @type {const} */ (['x'])
+        const rows = /** @type {const} */ ({ copied: [[{ any: v }]] })
         run(copied, { copied: () => ({ any: ['x'] }) }, rows)
         /** @type {unknown} */
         let refused = null

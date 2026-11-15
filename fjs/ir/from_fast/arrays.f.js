@@ -16,7 +16,7 @@
 import { concat, item, length } from '../../wasm/runtime/l0/module.f.js'
 
 /** An array that the module defines. */
-const letters = ['a', 'b']
+const letters = /** @type {const} */ (['a', 'b'])
 
 /** The empty array. @type {() => readonly unknown[]} */
 export const none = () => []

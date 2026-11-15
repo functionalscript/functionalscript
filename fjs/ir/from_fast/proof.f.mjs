@@ -64,7 +64,7 @@ const noNative = "f: % of two floats calls L1's native rows, which a module lowe
 const noString = 'f: a string is a literal that String makes, which a module lowered without the runtime does not import'
 
 /** Why the lowering refuses an array literal in a module that it lowers without the runtime. */
-const noArray = 'an array is a value that Containers builds, which a module lowered without the runtime does not import'
+const noArray = /** @type {const} */ ('an array is a value that Containers builds, which a module lowered without the runtime does not import')
 
 // FAST written by hand, for the forms that no text makes today
 

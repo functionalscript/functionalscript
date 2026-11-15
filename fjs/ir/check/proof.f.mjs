@@ -430,7 +430,7 @@ export const proof = {
         // A function that gives back a parameter owns it, and the parameter is of the function's result.
         /** An interface of a function `g` of `params` that answers `result` and gives back `x`. @type {(params: readonly Param[], result: Type) => Interface} */
         const giving = (params, result) => ({ abi: 'test', types: [], functions: [['g', signature(params, result, 'x')]] })
-        const unreturned = 'Bad: g gives back x, which is no parameter that it owns of the type of its result'
+        const unreturned = /** @type {const} */ ('Bad: g gives back x, which is no parameter that it owns of the type of its result')
         assertEq(assertOk(check(importing(giving([['y', any], own('x', any)], any)))).imports.length, 6)
         assertEq(why(importing(giving([own('y', any)], any))), unreturned)
         assertEq(why(importing(giving([['x', any]], any))), unreturned)

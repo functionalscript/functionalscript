@@ -443,9 +443,9 @@ export const anyProgram = rnd => {
         /** An array of `atoms` of at least `least` items. @type {(atoms: readonly string[], depth: number, least: number) => string} */
         const arrayText = (atoms, depth, least) => `[${Array.from({ length: least + below(rnd, 4 - least) }, () => itemText(atoms, depth)).join(', ')}]`
         // what a definition of the module may hold, and what a function may: its parameters, and a string that a call makes
-        const fixed = ['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")']
+        const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
         const lines = rnd() < 0.3 ? [`const a = ${arrayText(fixed, 1, 0)}`] : []
-        const atoms = ['v', 'w', 'concat(w, "!")', ...fixed, ...(lines.length === 0 ? [] : ['a'])]
+        const atoms = /** @type {const} */ (['v', 'w', 'concat(w, "!")', ...fixed, ...(lines.length === 0 ? [] : ['a'])])
         const [body, result] = pick(rnd, /** @type {const} */ ([
             [arrayText(atoms, 2, 0), any],
             [`length(${arrayText(atoms, 1, 0)})`, f64],
