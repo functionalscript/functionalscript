@@ -5,7 +5,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { digestOf, hashOutput, sha1Algorithm } from '../../website/demo/hash/module.f.mjs'
+import { digestOf, hashOutput, sha1Algorithm } from '../../website/demo/hash/module.f.js'
 import { textDemo } from '../../website/demo/module.f.js'
 
 export const digest = digestOf(sha1Algorithm.hash)
