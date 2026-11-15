@@ -23,7 +23,9 @@
  * module's start function makes. So do the functions of
  * [`arrays.f.js`](./arrays.f.js), which make arrays of values that the
  * twins' arrays are, item by item: each call seals every builder that it
- * begins.
+ * begins. So do the functions of [`reads.f.js`](./reads.f.js), which read
+ * an array at a number key, on the edges of floats, and so does L1's
+ * `typeOf`, on values of every kind.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -32,7 +34,7 @@
 
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { strictEquals, stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
+import { strictEquals, stringEquals, stringIndex, stringLess, toBoolean, typeOf } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
@@ -45,9 +47,10 @@ import * as strings from './strings.f.js'
 import * as constants from './constants.f.js'
 import * as literals from './literals.f.js'
 import * as arrays from './arrays.f.js'
+import * as reads from './reads.f.js'
 import {
-    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, literals as literalSignatures, runtime,
-    signatures, sourceOf, strings as stringSignatures, stringsRuntime,
+    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, literals as literalSignatures,
+    reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
 } from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
@@ -76,6 +79,9 @@ const fromLiterals = () => assertOk(lifetime(fromText(new URL('./literals.f.js',
 
 /** The owned stage of the module that the lowering makes of the arrays' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
 const fromArrays = () => assertOk(lifetime(fromText(new URL('./arrays.f.js', import.meta.url), arraySignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of the reads' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromReads = () => assertOk(lifetime(fromText(new URL('./reads.f.js', import.meta.url), readSignatures, stringsRuntime)))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -167,6 +173,14 @@ const arrayTwins = {
     counted: ([s]) => arrays.counted(held(s)),
     second: ([a, b]) => ({ any: arrays.second(held(a), held(b)) }),
     both: () => ({ any: arrays.both() }),
+}
+
+/** The reads, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
+const readTwins = {
+    pick: ([a, b, k]) => ({ any: reads.pick(held(a), held(b), float64(k)) }),
+    only: ([a]) => ({ any: reads.only(held(a)) }),
+    letter: ([k]) => ({ any: reads.letter(float64(k)) }),
+    inner: ([a, k]) => ({ any: reads.inner(held(a), float64(k)) }),
 }
 
 /** The string helpers, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
@@ -344,6 +358,9 @@ export const proof = {
         'import Native from fjs:l1-native',
         '    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool',
         '    fn numberRemainder(a: f64, b: f64) -> f64',
+        '',
+        'const #c0: any.only(array) =',
+        '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(9), "undefined"), "object"), "boolean"), "number"), "string"), "bigint"), "object"), "object"), "function"))',
         '',
         'fn strictEquals(a: any, b: any) -> bool =',
         '    let #0 = float(Any.kind(a))',
@@ -639,7 +656,16 @@ export const proof = {
         '                let #2 = if #1 then #1 else eq(#0, 7.0)',
         '                if #2 then #2 else eq(#0, 8.0)',
         '',
-        'export strictEquals, stringEquals, stringIndex, stringLess, toBoolean',
+        'fn typeOf(v: any) -> any =',
+        '    let #0 = float(Any.kind(v))',
+        '    let array.index = trunc_sat(u(31), #0)',
+        '    if eq(float(array.index), #0)',
+        '    then',
+        '        if lt(array.index, Containers.length(self.#c0)) then Containers.item(self.#c0, array.index) else Any.undefined',
+        '    else',
+        '        Any.undefined',
+        '',
+        'export strictEquals, stringEquals, stringIndex, stringLess, toBoolean, typeOf',
         '',
     ].join('\n')),
     helpers: () => {
@@ -1017,14 +1043,74 @@ export const proof = {
             '',
         ].join('\n'))
     },
+    // The owned stage of the reads: an item that a read answers is owned, and so is `undefined` where it reads none.
+    reads: () => {
+        const m = fromReads()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'const #c0: any.only(array) =',
+            '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), Any.dup("a")), Any.dup("b")), Any.dup("c")))',
+            '',
+            'fn inner(a: any, k: f64) -> any =',
+            '    let #0 =',
+            '        let #0 = Containers.seal(Containers.push(Containers.begin_array(1), Any.dup(a)))',
+            '        Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), #0), Any.dup("x")))',
+            '    let $0 =',
+            '        let #0.index = trunc_sat(u(31), k)',
+            '        if eq(float(#0.index), k)',
+            '        then',
+            '            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.dup(Any.undefined)',
+            '        else',
+            '            Any.dup(Any.undefined)',
+            '    let $1 = Any.drop(#0)',
+            '    $0',
+            '',
+            'fn letter(k: f64) -> any =',
+            '    let array.index = trunc_sat(u(31), k)',
+            '    if eq(float(array.index), k)',
+            '    then',
+            '        if lt(array.index, Containers.length(self.#c0)) then Containers.item(self.#c0, array.index) else Any.dup(Any.undefined)',
+            '    else',
+            '        Any.dup(Any.undefined)',
+            '',
+            'fn only(a: any) -> any =',
+            '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), Any.dup(a)))',
+            '    let $0 =',
+            '        let #0.index = trunc_sat(u(31), 0.0)',
+            '        if eq(float(#0.index), 0.0)',
+            '        then',
+            '            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.dup(Any.undefined)',
+            '        else',
+            '            Any.dup(Any.undefined)',
+            '    let $1 = Any.drop(#0)',
+            '    $0',
+            '',
+            'fn pick(a: any, b: any, k: f64) -> any =',
+            '    let #0 = Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup(a)), Any.dup(b)))',
+            '    let $0 =',
+            '        let #0.index = trunc_sat(u(31), k)',
+            '        if eq(float(#0.index), k)',
+            '        then',
+            '            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.dup(Any.undefined)',
+            '        else',
+            '            Any.dup(Any.undefined)',
+            '    let $1 = Any.drop(#0)',
+            '    $0',
+            '',
+            'export inner, letter, only, pick',
+            '',
+        ].join('\n'))
+    },
     // Each array is the twin's, item by item, and each call seals every builder that it begins and leaves the cells as it found them.
     arraysRun: () => run(fromArrays(), arrayTwins, {}),
-    l1Run: () => run(fromL1(), {
+    readsRun: () => run(fromReads(), readTwins, {}),
+    l1Run: () => run(assertOk(lifetime(fromL1())), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),
         stringLess: ([a, b]) => stringLess(held(a), held(b)),
         strictEquals: ([a, b]) => strictEquals(held(a), held(b)),
         stringIndex: ([s]) => stringIndex(held(s)),
+        typeOf: ([v]) => ({ any: typeOf(held(v)) }),
     }, {
         stringEquals: pairs,
         stringLess: pairs,

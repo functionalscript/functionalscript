@@ -8,7 +8,8 @@ the first slice admits, for values of unknown kind, which the third reads
 through the L0 view, for the loops that the fourth adds, for the
 functions that the module does not export, the records and L1's native
 rows that the fifth adds, for the module constants that slice 6c adds, the
-string literals that 6d adds and the array literals that 6e adds.
+string literals that 6d adds, the array literals that 6e adds and the
+reads of an array at a number key that 6f adds.
 It reads FAST before
 [preparation](../../js/ast/prepare/README.md) adds mutable slots, as
 definition.md's
@@ -64,6 +65,7 @@ far more, gives the five functions that the slices name so far:
 | `undefined`, `null` | `Any.undefined`, `Any.null`: constants of the L0 interface `Any` |
 | a string, `"abc"` | a `lit` of `any.only(string)`, `"abc"`, which the module's start function makes once |
 | an array literal of values, `[a, "x"]` | its items, each bound to a local first where it does something, then `Containers.seal` of a `Containers.push` of each onto `Containers.begin_array` of their count |
+| `a[0]`, `a[Number(k)]` of an array | the integer of `u(31)` that the key holds, named `a.index`, then `Containers.item(a, a.index)` where it is less than `Containers.length(a)`, and `Any.undefined` where it is not or the key holds no integer, by L1's `get` |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
 | `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
@@ -194,9 +196,8 @@ fn f(a: f64) -> f64 =
 ```
 
 Normalized FAST keeps the variables of a loop of more than one in an
-array that it reads by index, `s[0]`, so such a loop is refused: a member
-read of anything but a name waits for 6f, and an array holds values of
-`any` only, where a counter is a number. A record of them, as
+array that it reads by index, `s[0]`, so such a loop is refused: an array
+holds values of `any` only, where a counter is a number. A record of them, as
 `stringIndex` keeps, is one variable.
 
 ## The L0 view
@@ -320,7 +321,16 @@ between `begin_array` and `seal` traps or leaves while the builder, which
 is linear, is open. An item is a value of `any`, so a number and a boolean
 are refused until they are values too, and a module lowered without the
 runtime refuses an array. A definition of the module that holds one is a
-constant, which `init` builds. A definition of
+constant, which `init` builds. A read of an array at a number key,
+`a[0]` or `a[Number(k)]`, follows L1's `get` for that case: the receiver,
+then the key, each lowered as an argument is, then the item where the key
+is an integer from `0` up to the array's length, `-0` reading `0`, and
+`undefined` where it is anything else, a fraction, a NaN or past the end.
+The receiver is an array alone, `any.only(array)`: `get` of `undefined`
+or `null` throws, which waits for slice 7, and one of an object or a
+string reads by a string, which is not in 6f. So
+[L1's `typeOf`](../../wasm/runtime/l1/module.f.js) lowers from its text:
+its `typeNames` is a constant that `init` builds, read at `kind(v)`. A definition of
 `Math.abs` or `Math.sqrt`, which the normalization writes where a
 constant calls one, is that operator. A constant of a record is refused,
 since no global holds one, and so is a read of a constant before its
@@ -353,7 +363,8 @@ gives another number of arguments than it takes, a loop of more than one
 variable, a loop parameter of an integer range, in a record too, a `break`
 that does not end its loop's body, a `return` inside a loop or before the
 end of a function that is inlined, an entry of an object that is not a name
-and its value, such as a spread, a member read of anything but a name,
+and its value, such as a spread, a member read of anything but a name
+or an array's at a number, a member read that goes on to a call,
 `?.`, `throw`, a `lazy` definition, a string, an array, `null` and
 `undefined` in a module lowered without the runtime, an item of an array
 that is a number or a boolean, a spread in an array, a rest parameter, a
@@ -404,7 +415,10 @@ that leaves its function.
   instantiated, and [`arrays.f.js`](./arrays.f.js), six functions that
   make arrays of values, one of an array that `init` builds among them,
   whose arrays are the functions' own item by item, with no builder left
-  open.
+  open, and [`reads.f.js`](./reads.f.js), four functions that read an
+  array at a number key, on the edges of floats, past the end, at a
+  fraction and at a NaN among them. L1's `typeOf` runs against L1's own
+  on values of every kind.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript. Prefer
   `node --test` for it.

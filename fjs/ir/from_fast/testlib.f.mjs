@@ -50,8 +50,8 @@ const any2 = /** @type {const} */ ([['a', any], ['b', any]])
 
 /**
  * The signatures of the functions of L1 that the slices lower so far: the
- * third slice's `toBoolean`, the fourth's string comparisons, and the
- * fifth's `strictEquals` and `stringIndex`. An index is a number in
+ * third slice's `toBoolean`, the fourth's string comparisons, the
+ * fifth's `strictEquals` and `stringIndex`, and 6f's `typeOf`. An index is a number in
  * JavaScript, so a float here.
  *
  * @type {Readonly<Record<string, Signature>>}
@@ -62,6 +62,7 @@ export const l1 = {
     stringLess: signature(any2, bool),
     strictEquals: signature(any2, bool),
     stringIndex: signature([['s', any]], f64),
+    typeOf: signature([['v', any]], any),
 }
 
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
@@ -140,6 +141,14 @@ export const arrays = {
     counted: signature([['s', any]], f64),
     second: signature(any2, any),
     both: signature([], any),
+}
+
+/** The signatures of `reads.f.js`, which the lowering reads over the runtime: an index is a number in JavaScript, so a float here. @type {Readonly<Record<string, Signature>>} */
+export const reads = {
+    pick: signature([['a', any], ['b', any], ['k', f64]], any),
+    only: signature([['a', any]], any),
+    letter: signature([['k', f64]], any),
+    inner: signature([['a', any], ['k', f64]], any),
 }
 
 /** The signatures of `strings.f.js`, which the lowering reads over the runtime: a string is `any.only(string)`. @type {Readonly<Record<string, Signature>>} */

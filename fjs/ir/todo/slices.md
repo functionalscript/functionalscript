@@ -129,8 +129,10 @@ before it and proved end to end on its own.
   Numbers and booleans as items wait for Any's `from_f64` and `from_bool`.
   (Object literals, spread and `buildArray` / `buildObject` with callbacks
   stay in the builders slice below.)
-- [ ] **6f. Reading an array, and `typeOf`.** `a[k]` of an array at a number
+- [x] **6f. Reading an array, and `typeOf`.** `a[k]` of an array at a number
   key by L1's `get` rules for that case; `typeOf` lowered from L1's text.
+  A receiver of another kind waits: `undefined` and `null` throw (slice 7),
+  and an object or a string reads by a string.
 
 #### Later
 

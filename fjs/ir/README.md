@@ -16,9 +16,10 @@ module does not export, with records and
 [L1's native rows](./native/module.f.js), owned values written by hand
 (6a), the lifetime pass, which writes them (6b), constants, which a
 module's `init` evaluates (6c), string literals, which its start
-function makes (6d), and array literals of values, which Containers'
-builder makes (6e). Next is the rest of counted values, as a stacked PR
-in that roadmap: reading an array, and `typeOf` (6f).
+function makes (6d), array literals of values, which Containers'
+builder makes (6e), and reads of an array at a number key, with L1's
+`typeOf` (6f). Next is failure, slice 7 of that roadmap: `throw`, L1's
+error table and the trap ABI.
 
 ## Map of this directory
 
@@ -232,6 +233,25 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   Five FunctionalScript functions that read literals, among them the
   empty string, a unit past ASCII and a pair of surrogates, run against
   JavaScript, and so do the random comparison's programs of literals.
+
+## What 6f adds
+
+- **A read of an array at a number key**, `a[0]` or `a[Number(k)]`, by
+  L1's `get` rules for that case: the integer of `u(31)` that the key
+  holds, then `Containers.item` where it is less than the array's length,
+  and `Any.undefined` where it is not, or where the key is a fraction, a
+  NaN or an infinity; `-0` reads item `0`. Both answers are owned: the
+  lifetime pass writes a `dup` of `undefined`. `exact` takes the term for
+  a float that holds no integer, a trap unless it is given.
+- **Only an array's**: a receiver of any other kind is refused, since
+  `get` throws for `undefined` and `null`, which waits for slice 7, and
+  reads an object or a string by a string. So is a member read that goes
+  on to a call.
+- **L1's `typeOf`**, lowered from its text: `typeNames` is a constant that
+  `init` builds, and `typeOf` reads it at `kind(v)`. It runs against L1's
+  own on values of every kind, and four FunctionalScript functions of
+  [`reads.f.js`](./from_fast/reads.f.js) run against themselves on the
+  edges of floats. The random comparison reads its arrays too.
 
 ## What 6e adds
 

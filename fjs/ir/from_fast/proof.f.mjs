@@ -11,6 +11,7 @@ import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { lower } from './module.f.js'
+import { inner, letter, only as onlyItem, pick } from './reads.f.js'
 import { runtime, sourceOf } from './testlib.f.mjs'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
@@ -497,7 +498,7 @@ export const proof = {
         assertEq(why(fa, fast('export const f = a => {\n    const r = { x: a }\n    return ({ ...r }).x\n}')), entry)
         assertEq(why(fa, fast('export const f = a => ({ x: "s" }).x')), noString)
         assertEq(why(fa, fast('export const f = a => a.x')), 'f: .x of f64 is not in this slice')
-        assertEq(why(fa, fast('export const f = a => ({ x: a })[0]')), 'f: a member read of anything but a name is not in this slice')
+        assertEq(why(fa, fast('export const f = a => ({ x: a })[0]')), "f: a read of { x: f64 } at a number is not in this slice: only an array's is")
         assertEq(why(fa, fast('export const f = a => ({ x: a })?.x')), 'f: ?. is not in this slice')
         assertEq(why(fa, fast('export const f = a => ({ x: a, x: 1 }).x')), 'f: a product names x twice')
         assertEq(why(only([['a', f64], ['c', bool]], f64), fast('export const f = (a, c) => (c ? { x: a, y: 1 } : { y: 1, x: a }).x')), 'f: match: its arms are { x: f64, y: f64c }, { y: f64c, x: f64 }, which no one type holds')
@@ -739,7 +740,7 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        // Normalized FAST keeps the variables of a loop of more than one in an array.
+        // Normalized FAST keeps the variables of a loop of more than one in an array, which Containers builds.
         assertEq(why(fa, fast([
             'export const f = a => {',
             '    let i = 0',
@@ -747,7 +748,7 @@ export const proof = {
             '    while (i < a) { s = s + i; i = i + 1 }',
             '    return s',
             '}',
-        ].join('\n'))), 'f: a member read of anything but a name is not in this slice')
+        ].join('\n'))), `f: ${noArray}`)
         // No bound holds what a later round gives an integer.
         assertEq(why(fa, fast([
             'export const f = a => {',
@@ -862,7 +863,7 @@ export const proof = {
         // A function that reads a constant that the lowering refuses is refused, and says why.
         assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), `f: #c0: ${noArray}`)
         // A value that a definition reads the way an import is read, from anything but the module's imports, is a constant.
-        assertEq(why(fa, fast('const o = [[1]]\nconst k = o[0].length\nexport const f = a => k')), 'f: #c0: a member read of anything but a name is not in this slice')
+        assertEq(why(fa, fast('const o = [[1]]\nconst k = o[0].length\nexport const f = a => k')), `f: #c0: ${noArray}`)
         assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), `f: #c0: ${noArray}`)
         assertEq(why({ k: fa.f }, fast('export const k = 2')), 'k: an export that is not a function is not in this slice')
         assertEq(why({ g: fa.f, h: fa.f }, fast('const f = a => a\nexport const g = f\nexport const h = f')), 'h exports the same function as g')
@@ -1122,6 +1123,46 @@ export const proof = {
         assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)
         // The parser refuses a hole.
         assertEq(assertError(sourceOf('export const f = v => [v, , v]')), 'parse: array hole')
+    },
+    reads: () => {
+        // The receiver, then the key; the item where the key is an index of the array, and `undefined` where it is anything else.
+        assertEq(checked(only([['a', any], ['k', f64]], any), 'export const f = (a, k) => [a][Number(k)]'), [
+            'fn f(a: any, k: f64) -> any =',
+            '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), a))',
+            '    let #0.index = trunc_sat(u(31), k)',
+            '    if eq(float(#0.index), k)',
+            '    then',
+            '        if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.undefined',
+            '    else',
+            '        Any.undefined',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        const av = only([['v', any]], any)
+        // `get` of any other kind than an array throws or reads by a string.
+        assertEq(assertError(over(av, 'export const f = v => v[0]')), "f: a read of any at a number is not in this slice: only an array's is")
+        // A receiver that is pure but does not type-check is refused with its own error.
+        assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: { a: any } has no field b')
+        assertEq(assertError(over(av, 'export const f = v => [v][Number(v)]')), 'f: Number of any is not in this slice')
+        // A member read of a name or a number is in this slice, and one that goes on to a call is not.
+        assertEq(assertError(over(av, 'export const f = v => v.x(1)')), 'f: a member read with a further step, such as a call of the member, is not in this slice')
+        // The parser takes a computed key that is `Number` of a value alone.
+        assertEq(assertError(sourceOf('export const f = (a, k) => a[k]')), 'parse: computed key is not Number(...)')
+    },
+    /** The originals of `reads.f.js` themselves, which the host proof runs as WASM against. */
+    readsOf: () => {
+        // An index of the array, past its end, a fraction, a NaN and `-0`.
+        assertEq(pick('x', 'y', 1), 'y')
+        assertEq(pick('x', 'y', 2), undefined)
+        assertEq(pick('x', 'y', 0.5), undefined)
+        assertEq(pick('x', 'y', NaN), undefined)
+        assertEq(pick('x', 'y', -0), 'x')
+        assertEq(onlyItem(null), null)
+        assertEq(letter(2), 'c')
+        assertEq(letter(-1), undefined)
+        assertStructurallySame(inner(true, 0), [true])
+        assertEq(inner(true, 1), 'x')
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
