@@ -175,6 +175,9 @@ export const br = (label, e) => ['br', label, e]
 /** @type {(reason: string) => Term} */
 export const trap = reason => ['trap', reason]
 
+/** A throw of `v`, which `Functions.throw` takes over: a term of type `never`. @type {(v: Term) => Term} */
+export const throw_ = v => call('Functions', 'throw', [v])
+
 // what a producer may write, and what it stands for
 
 /** `match(c, { true: a, false: b })`. @type {(c: Term, a: Term, b: Term) => Term} */
@@ -240,6 +243,15 @@ export const fn = (params, result, body) => ({
  * @type {(params: readonly Param[], result: Type, returns?: string) => Signature}
  */
 export const signature = (params, result, returns) => returns === undefined ? { params, result } : { params, result, returns }
+
+/**
+ * A signature of an interface's function that may fail, by a throw or a
+ * trap, as [definition.md](../../doc/sasha-gil/ir/definition.md#one-effect)
+ * marks it: `mayFail(signature([own('v', any)], never))` is `Functions.throw`.
+ *
+ * @type {(s: Signature) => Signature}
+ */
+export const mayFail = s => ({ ...s, fails: true })
 
 /**
  * A parameter the callee owns: `own('v', any)`. A plain `[name, type]` still

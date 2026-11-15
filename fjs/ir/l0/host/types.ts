@@ -37,6 +37,8 @@ export type View = {
  * string of the UTF-16 units at an address. A builder is an `i32` handle:
  * `begin_array` makes one of a number of items, `push` takes over a cell
  * as its next item, and `seal` ends it and makes a cell of the array.
+ * `throw` takes over a cell, keeps its value and returns, so that the
+ * `unreachable` after its call traps.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
@@ -61,6 +63,7 @@ export type Imports = {
     readonly begin_array: (n: number) => number
     readonly push: (b: number, v: bigint) => void
     readonly seal: (b: number) => bigint
+    readonly throw: (v: bigint) => void
 }
 
 /**
@@ -69,10 +72,19 @@ export type Imports = {
  * that are not as they were kept, each a handle and its count, in the order
  * they were made: a cell alive that is not kept, and a kept one at another
  * count, `0` where a `drop` freed it. `builders` are the handles of the
- * builders that are not sealed, in the order they were begun.
+ * builders that are not sealed, in the order they were begun. The
+ * runtime's host-only exports
+ * ([L0 design §13](../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps))
+ * read a throw after a trap: `has_thrown` answers `1` where a throw keeps a
+ * value, `thrown` a handle of a new cell of it, which the caller owns, and
+ * `recover` frees what the trap abandoned, and answers the cells that it
+ * freed, each a handle and the counts it took away.
  */
 export type Counting = {
     readonly imports: Imports
+    readonly has_thrown: () => 0 | 1
+    readonly thrown: () => bigint
+    readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
     readonly read: (h: bigint) => unknown
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]

@@ -6,11 +6,11 @@ import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.
 import { any, builder, l0, string } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, cast, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
-    match, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
-    variant,
+    match, mayFail, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, throw_, trap, true_, trunc_sat,
+    u, unit, variant,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { constants, corners, loops, records, samples, throws, unknown } from '../testlib.f.mjs'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -435,6 +435,9 @@ export const proof = {
         assertEq(why(importing(giving([own('y', any)], any))), unreturned)
         assertEq(why(importing(giving([['x', any]], any))), unreturned)
         assertEq(why(importing(giving([own('x', any)], string))), unreturned)
+        // A function that answers never fails, so it says that it may.
+        assertEq(why(importing({ abi: 'test', types: [], functions: [['g', signature([own('v', any)], never)]] })), 'Bad: g answers never, so it fails, and it does not say that it may')
+        assertEq(assertOk(check(importing({ abi: 'test', types: [], functions: [['g', mayFail(signature([own('v', any)], never))]] }))).imports.length, 6)
         // A type that names no kind has no tag, and a linear one names no dup and no drop.
         assertEq(assertOk(check(importing({ abi: 'test', types: [['t', { variants: ['a'], carrier: 'i32' }]], functions: [] }))).imports.length, 6)
         // The scope of a term passes the same rules: a local may be a product, and a function's result may not.
@@ -443,6 +446,25 @@ export const proof = {
         assertEq(show(assertOk(typeOf({ ...scope, locals: [['a', unit]] })(get('a')))), 'unit')
         assertEq(assertError(typeOf({ ...scope, locals: [], result: unit })(one_)), 'f: unit is not in this slice')
         assertEq(assertError(typeOf({ ...scope, locals: [], functions: [['g', signature([['b', unit]], f64)]] })(one_)), 'g: unit is not in this slice')
+    },
+    // The checker infers whether each function may fail: by a trap or a throw in it, by a call of an interface's function
+    // that may fail, or by a call of the module's that may, to a fixed point. Functions that call each other and nothing
+    // that may fail cannot, and neither does a module's plain stage change the bits.
+    effect: () => {
+        /** @type {(m: Module) => string} */
+        const bits = m => assertOk(checkPlain(m)).functions.map(([k, { fails }]) => `${k}: ${fails}`).join(', ')
+        assertEq(bits(throws), 'ownedLength: true, rethrow: true, doubled: true, checked: true, viaCallee: true, unitOf: true, kindOf: false')
+        const x = get('x')
+        /** @type {(name: string, body: Term) => readonly [string, ReturnType<typeof fn>]} */
+        const f = (name, body) => [name, fn([['x', f64]], f64, body)]
+        /** @type {(name: string) => Term} */
+        const to = name => call('self', name, [x])
+        assertEq(bits({ imports: l0, functions: [
+            f('a', to('b')), f('b', to('c')), f('c', if_(lt(x, x), trap('no'), x)),
+            f('d', to('e')), f('e', to('d')), f('g', to('g')), f('h', add(to('d'), to('a'))),
+        ], exports: [] }), 'a: true, b: true, c: true, d: false, e: false, g: false, h: true')
+        assertEq(bits({ imports: l0, functions: [['k', fn([['v', any]], never, v => throw_(call('Any', 'dup', [v])))]], exports: [] }), 'k: true')
+        assertEq(bits(samples).includes('true'), false)
     },
     loops: () => {
         const { functions } = assertOk(check(loops))

@@ -5,8 +5,9 @@
  * instruction that the emitter writes, `corners`, the forms that the
  * emitter handles once each, `unknown`, functions over values of unknown
  * kind, as the third slice reads them, `loops`, the fourth slice's,
- * `records`, the fifth's, and `constants`, `literals` and `arrays`, the
- * sixth's.
+ * `records`, the fifth's, `constants`, `literals` and `arrays`, the
+ * sixth's, and `throws`, the seventh's, which is in the plain stage, for
+ * the lifetime pass.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -19,8 +20,8 @@
 import { any, array, builder, l0 } from './l0/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
-    let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, product, return_, sqrt, sub, trap, true_,
-    trunc_sat, u, unit, variant,
+    let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, product, return_, sqrt, sub, throw_, trap,
+    true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -399,4 +400,40 @@ export const arrays = {
             let_('d', call('Any', 'drop', [a]), () => k))))],
     ],
     exports: ['emptyArray', 'pairOf', 'lettersAnd', 'bound', 'repeated', 'itemCount'],
+}
+
+/** A throw of a string literal, which `Functions.throw` takes over a `dup` of. @type {(text: string) => Term} */
+const throwing = text => throw_(lit(string, text))
+
+/** The length of `v` where it is a string, and a throw of `text` where it is not. @type {(v: Term, text: string) => Term} */
+const textLength = (v, text) => match(v, [[['string'], 's', lengthOf('String')(get('s'))], [null, null, throwing(text)]])
+
+/**
+ * Functions that fail, in the plain stage, for the lifetime pass, which
+ * drops what a function owns before it throws: the length of a string
+ * that the function owns, and a throw of a literal for any other value; a
+ * throw of the value itself, of type `never`; a string doubled, which a
+ * throw drops for a second parameter of another kind; a function that
+ * borrows its value and throws, and one that calls it while it owns a
+ * string, which the throw abandons; String's `unit`, which traps past the
+ * end of a string, as the view does; and `kind`, which cannot fail.
+ *
+ * @type {Module}
+ */
+export const throws = {
+    imports: l0,
+    functions: [
+        ['ownedLength', fn([own('v', any)], u(31), v => textLength(v, 'not a string'))],
+        ['rethrow', fn([own('v', any)], never, v => throw_(v))],
+        ['doubled', fn([['a', any], ['b', any]], string, (a, b) => match(a, [
+            [['string'], 's', let_('t', call('String', 'concat', [get('s'), get('s')]), t => match(b, [[['string'], null, t], [null, null, throwing('b')]]))],
+            [null, null, throwing('a')],
+        ]))],
+        ['checked', fn([['v', any]], u(31), v => textLength(v, 'not a string'))],
+        ['viaCallee', fn([['a', string], ['v', any]], u(32), (a, v) =>
+            let_('t', call('String', 'concat', [a, a]), t => add(lengthOf('String')(t), call('self', 'checked', [v]))))],
+        ['unitOf', fn([['s', string], ['i', u(31)]], u(16), (s, i) => call('String', 'unit', [s, i]))],
+        ['kindOf', fn([['v', any]], int(0n, 8n), v => kindOf(v))],
+    ],
+    exports: ['ownedLength', 'rethrow', 'doubled', 'checked', 'viaCallee', 'unitOf', 'kindOf'],
 }

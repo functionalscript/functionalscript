@@ -156,11 +156,20 @@ export type Param = readonly [name: string, type: Type, mode?: 'own']
  * answers nothing, and the caller reads the value again after the call
  * ([definition.md's binding rule 3](../../doc/sasha-gil/ir/definition.md#bindings)),
  * as Containers' `push` gives back its builder.
+ *
+ * `fails` is the one effect
+ * ([definition.md: One effect](../../doc/sasha-gil/ir/definition.md#one-effect)):
+ * a call may fail, by a throw or a trap, so it completes on no path but
+ * those that it does not fail on. A function of an interface declares it,
+ * as `Functions.throw` and the functions that L0 traps in do, and a
+ * missing one is `false`. A function of a module declares none: the
+ * checker infers it, and writes it in the module that it answers.
  */
 export type Signature = {
     readonly params: readonly Param[]
     readonly result: Type
     readonly returns?: string
+    readonly fails?: boolean
 }
 
 /** A function: its parameters, its result, and a body that the label `return` leaves. */
@@ -245,8 +254,24 @@ export type Fn = FunctionOf<Term>
 
 export type Module = ModuleOf<Term>
 
-/** A module that the checker took, every term typed, with its constants, which it may have none of. */
-export type Checked = Required<ModuleOf<Typed>>
+/**
+ * A function that the checker took: its body typed, and whether a call of
+ * it may fail, which the checker inferred from the body: a `trap` in it, or
+ * a call of a function that may fail, of an interface, which declares it,
+ * or of the module, to a fixed point.
+ */
+export type CheckedFn = FunctionOf<Typed> & { readonly fails: boolean }
+
+/**
+ * A module that the checker took, every term typed, with its constants,
+ * which it may have none of, and each function with its effect.
+ */
+export type Checked = {
+    readonly imports: readonly (readonly [name: string, Interface])[]
+    readonly constants: readonly (readonly [name: string, ConstantOf<Typed>])[]
+    readonly functions: readonly (readonly [name: string, CheckedFn])[]
+    readonly exports: readonly string[]
+}
 
 /**
  * Where a term stands in a function or a constant: its name, the locals in

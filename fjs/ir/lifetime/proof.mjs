@@ -10,17 +10,20 @@
  * ([fjs/AGENTS.md §1.6](../../AGENTS.md#16-use-host-proofs-only-for-documented-host-contracts)).
  *
  * @import { Checked, Module, Param, Term, Type } from '../types.ts'
- * @import { _Value } from '../wasm/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { _Twin, _Value } from '../wasm/types.ts'
  */
 
 import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
 import { write } from '../../media/wasm/binary/write/module.f.js'
 import { check, checkPlain } from '../check/module.f.js'
 import { counting } from '../l0/host/count/module.mjs'
+import { kind, unit } from '../../wasm/runtime/l0/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
-import { add, block, bool, br, call, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, u } from '../module.f.js'
+import { add, block, bool, br, call, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, throw_, u } from '../module.f.js'
+import { throws } from '../testlib.f.mjs'
 import { emit } from '../wasm/module.f.js'
-import { edges, held, product, run } from '../wasm/testlib.mjs'
+import { edges, held, product, run, trap } from '../wasm/testlib.mjs'
 import { lifetime } from './module.f.js'
 
 const string = only(any, 'string')
@@ -90,6 +93,50 @@ const zero = lit(f64, 0)
 /** Counts of iterations: none, some, a fraction, and ones that no `lt` passes. */
 const counts = [0, 1, 2, 3, 2.5, -1, NaN]
 
+/** The string that a value of `any` holds, and a throw of `why` where it holds another kind. @type {(v: _Value, why: string) => string} */
+const textOr = (v, why) => {
+    const x = held(v)
+    if (typeof x !== 'string') { throw why }
+    return x
+}
+
+/** The twins of `throws`, which throw where it throws, and trap where the L0 view throws. @type {StringMap<_Twin>} */
+const throwing = {
+    ownedLength: ([v]) => BigInt(textOr(v, 'not a string').length),
+    rethrow: ([v]) => { throw held(v) },
+    doubled: ([a, b]) => {
+        const x = textOr(a, 'a')
+        textOr(b, 'b')
+        return { any: x + x }
+    },
+    checked: ([v]) => BigInt(textOr(v, 'not a string').length),
+    viaCallee: ([a, v]) => BigInt(2 * text(a).length + textOr(v, 'not a string').length),
+    unitOf: ([s, i]) => BigInt(unit(text(s), Number(i))),
+    kindOf: ([v]) => BigInt(kind(held(v))),
+}
+
+/** What `run` refused with, or `null` where it took every call. @type {(f: () => void) => unknown} */
+const refusal = f => {
+    try {
+        f()
+    } catch (e) {
+        return e
+    }
+    return null
+}
+
+/** Whether `run` refused a call of `name` for disagreeing with its twin. @type {(name: string, f: () => void) => boolean} */
+const disagrees = (name, f) => {
+    const e = refusal(f)
+    return Array.isArray(e) && e[0] === name && e.length === 4 && Array.isArray(e[2])
+}
+
+/** Whether `run` refused a call of `name` for `why`. @type {(name: string, why: string, f: () => void) => boolean} */
+const refusedFor = (name, why, f) => {
+    const e = refusal(f)
+    return Array.isArray(e) && e[0] === name && e[2] === why
+}
+
 export const proof = {
     // A loop that owns its string doubles it, dropping each old one, and gives the last as the result.
     doubles: () => run(
@@ -156,6 +203,50 @@ export const proof = {
             if_(lt(i, k), next('L', [['t', t], ['i', add(i, one)]]), return_(float(length(t)))))))),
         { f: () => 2 },
         { f: product([[0x61n], counts]) }),
+    // A throw gives the host its value and leaves nothing behind: what the function owns is dropped before it. A trap where
+    // the L0 view throws is told apart from a throw. Only `viaCallee` abandons a value, the string that it owns while the
+    // function that it calls throws, which the host recovers.
+    throws: () => run(owned(throws), throwing, {}, ['viaCallee']),
+    // A throw of another value, a twin that traps where the module throws, and one that throws where the module traps
+    // disagree.
+    throwsOther: () => {
+        assert(disagrees('ownedLength', () => run(owned(throws), { ...throwing, ownedLength: ([v]) => BigInt(textOr(v, 'not a number').length) }, {}, ['viaCallee'])))
+        assert(disagrees('checked', () => run(owned(throws), { ...throwing, checked: ([v]) => typeof held(v) === 'string' ? BigInt(text(v).length) : trap('not a string') }, {}, ['viaCallee'])))
+        /** @type {_Twin} */
+        const thrownPast = ([s, i]) => {
+            if (Number(i) >= text(s).length) { throw 'past the end' }
+            return BigInt(unit(text(s), Number(i)))
+        }
+        assert(disagrees('unitOf', () => run(owned(throws), { ...throwing, unitOf: thrownPast }, {}, ['viaCallee'])))
+    },
+    // A throw that abandons a value is refused, unless the function may: one that a callee's throw leaves, and one that
+    // a module writes in the owned stage without its drop.
+    abandons: () => {
+        assert(refusedFor('viaCallee', 'a throw abandoned', () => run(owned(throws), throwing, {})))
+        /** @type {Module} */
+        const undropped = {
+            imports: l0,
+            functions: [['f', fn([own('v', any)], u(31), match(get('v'), [
+                [['string'], 's', let_('n', length(get('s')), n => let_('d', call('Any', 'drop', [get('v')]), () => n))],
+                [null, null, throw_(call('Any', 'dup', [lit(string, 'not a string')]))],
+            ]))]],
+            exports: ['f'],
+        }
+        /** @type {StringMap<_Twin>} */
+        const twin = { f: ([v]) => BigInt(textOr(v, 'not a string').length) }
+        assert(refusedFor('f', 'a throw abandoned', () => run(undropped, twin, {})))
+        run(undropped, twin, {}, ['f'])
+    },
+    // A function that the checker says cannot fail never fails: an interface that hides that String's unit may fail is caught.
+    cannotFail: () => {
+        /** @type {Module} */
+        const hiding = {
+            imports: l0.map(([k, i]) => [k, k !== 'String' ? i : { ...i, functions: i.functions.map(([f, { params, result }]) => [f, { params, result }]) }]),
+            functions: [['unitOf', fn([['s', string], ['i', u(31)]], u(16), call('String', 'unit', [get('s'), get('i')]))]],
+            exports: ['unitOf'],
+        }
+        assert(refusedFor('unitOf', 'cannot fail, and it did', () => run(hiding, throwing, {})))
+    },
     // Without the pass, nothing drops the string that from_unit makes; with it, no cell is left.
     leaks: () => {
         const m = module_([['c', u(16)]], u(31), let_('s', fromUnit(c), s => length(s)))
