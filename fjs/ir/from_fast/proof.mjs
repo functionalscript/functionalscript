@@ -20,7 +20,10 @@
  * definitions: each call comes after `init`, which evaluates them, and
  * leaves every cell as `init` left it. So do the functions of
  * [`literals.f.js`](./literals.f.js), which read string literals that the
- * module's start function makes.
+ * module's start function makes. So do the functions of
+ * [`arrays.f.js`](./arrays.f.js), which make arrays of values that the
+ * twins' arrays are, item by item: each call seals every builder that it
+ * begins.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -41,9 +44,10 @@ import * as sample from './sample.f.js'
 import * as strings from './strings.f.js'
 import * as constants from './constants.f.js'
 import * as literals from './literals.f.js'
+import * as arrays from './arrays.f.js'
 import {
-    constants as constantSignatures, helpers as helperSignatures, l1, literals as literalSignatures, runtime, signatures, sourceOf,
-    strings as stringSignatures, stringsRuntime,
+    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, literals as literalSignatures, runtime,
+    signatures, sourceOf, strings as stringSignatures, stringsRuntime,
 } from './testlib.f.mjs'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
@@ -69,6 +73,9 @@ const fromConstants = () => assertOk(lifetime(fromText(new URL('./constants.f.js
 
 /** The owned stage of the module that the lowering makes of the literals' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
 const fromLiterals = () => assertOk(lifetime(fromText(new URL('./literals.f.js', import.meta.url), literalSignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of the arrays' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromArrays = () => assertOk(lifetime(fromText(new URL('./arrays.f.js', import.meta.url), arraySignatures, stringsRuntime)))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -150,6 +157,16 @@ const literalTwins = {
     units: () => literals.units(),
     surrogate: ([i]) => literals.surrogate(float64(i)),
     hello: ([s]) => ({ any: literals.hello(held(s)) }),
+}
+
+/** The functions that make arrays, on values as the host holds them. @type {StringMap<_Twin>} */
+const arrayTwins = {
+    none: () => ({ any: arrays.none() }),
+    pair: ([a, b]) => ({ any: arrays.pair(held(a), held(b)) }),
+    nested: ([v]) => ({ any: arrays.nested(held(v)) }),
+    counted: ([s]) => arrays.counted(held(s)),
+    second: ([a, b]) => ({ any: arrays.second(held(a), held(b)) }),
+    both: () => ({ any: arrays.both() }),
 }
 
 /** The string helpers, on values as the host holds them: a value of `any` is a handle. @type {StringMap<_Twin>} */
@@ -313,8 +330,13 @@ export const proof = {
         '    fn length(b: any.only(bigint)) -> u(31)',
         '',
         'import Containers from fjs:l0',
+        '    type builder = builder',
+        '        carrier: i32',
         '    fn length(c: any.only(array, object)) -> u(31)',
         '    fn item(c: any.only(array, object), i: u(31)) -> any',
+        '    fn begin_array(n: u(31)) -> builder',
+        '    fn push(own b: builder, own v: any) -> builder, gives back b',
+        '    fn seal(own b: builder) -> any.only(array)',
         '',
         'import Functions from fjs:l0',
         '    fn length(f: any.only(function)) -> u(31)',
@@ -947,6 +969,56 @@ export const proof = {
     },
     // The start function makes the literals, which the host then keeps, and each call leaves the cells as it found them.
     literalsRun: () => run(fromLiterals(), literalTwins, {}),
+    // An array is built once its items are values, and an item that a module's array or a call holds is a count of its own.
+    arrays: () => {
+        const m = fromArrays()
+        assertStructurallySame(m.imports, [...l0, ['Native', native]])
+        assertEq(print({ ...m, imports: [] }), [
+            'const #c0: any.only(array) =',
+            '    Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup("a")), Any.dup("b")))',
+            '',
+            'fn both() -> any =',
+            '    Any.dup(self.#c0)',
+            '',
+            'fn counted(s: any) -> f64 =',
+            '    float(',
+            '        let $0 =',
+            '            let #0 =',
+            '                match s',
+            '                  string as s.string =>',
+            '                    String.concat(s.string, s.string)',
+            '                  else =>',
+            "                    trap('not string')",
+            '            Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup(s)), #0))',
+            '        let $1 = Containers.length($0)',
+            '        let $2 = Any.drop($0)',
+            '        $1',
+            '    )',
+            '',
+            'fn nested(v: any) -> any =',
+            '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), Any.dup(v)))',
+            '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), #0), Any.dup("x")), Any.dup(Any.undefined)), Any.dup(Any.null)))',
+            '',
+            'fn none() -> any.only(array) =',
+            '    Containers.seal(Containers.begin_array(0))',
+            '',
+            'fn pair(a: any, b: any) -> any.only(array) =',
+            '    Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup(a)), Any.dup(b)))',
+            '',
+            'fn second(a: any, b: any) -> any =',
+            '    let #0 = Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup(a)), Any.dup(b)))',
+            '    let $0 =',
+            '        let #0.index = trunc_sat(u(31), 1.0)',
+            "        if eq(float(#0.index), 1.0) then Containers.item(#0, #0.index) else trap('inexact')",
+            '    let $1 = Any.drop(#0)',
+            '    $0',
+            '',
+            'export both, counted, nested, none, pair, second',
+            '',
+        ].join('\n'))
+    },
+    // Each array is the twin's, item by item, and each call seals every builder that it begins and leaves the cells as it found them.
+    arraysRun: () => run(fromArrays(), arrayTwins, {}),
     l1Run: () => run(fromL1(), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),

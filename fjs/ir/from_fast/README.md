@@ -7,7 +7,8 @@ to a module of the [IR](../README.md), for the part of the language that
 the first slice admits, for values of unknown kind, which the third reads
 through the L0 view, for the loops that the fourth adds, for the
 functions that the module does not export, the records and L1's native
-rows that the fifth adds, and for the module constants that slice 6c adds.
+rows that the fifth adds, for the module constants that slice 6c adds, the
+string literals that 6d adds and the array literals that 6e adds.
 It reads FAST before
 [preparation](../../js/ast/prepare/README.md) adds mutable slots, as
 definition.md's
@@ -62,6 +63,7 @@ far more, gives the five functions that the slices name so far:
 | any other definition of the module | a constant, `#c0`, `#c1`, … by its place among them, which a term reads as `self.#c0` |
 | `undefined`, `null` | `Any.undefined`, `Any.null`: constants of the L0 interface `Any` |
 | a string, `"abc"` | a `lit` of `any.only(string)`, `"abc"`, which the module's start function makes once |
+| an array literal of values, `[a, "x"]` | its items, each bound to a local first where it does something, then `Containers.seal` of a `Containers.push` of each onto `Containers.begin_array` of their count |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
 | `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
@@ -192,8 +194,10 @@ fn f(a: f64) -> f64 =
 ```
 
 Normalized FAST keeps the variables of a loop of more than one in an
-array, which waits for the slice of builders, so such a loop is refused; a
-record of them, as `stringIndex` keeps, is one variable.
+array that it reads by index, `s[0]`, so such a loop is refused: a member
+read of anything but a name waits for 6f, and an array holds values of
+`any` only, where a counter is a number. A record of them, as
+`stringIndex` keeps, is one variable.
 
 ## The L0 view
 
@@ -307,7 +311,16 @@ literal that String makes, which the module's start function makes once
 so a module lowered without the runtime refuses it too. A definition of
 the module that holds one is no constant: the normalization writes the
 literal where a function reads it, and a function borrows it, as it
-borrows a constant. A definition of
+borrows a constant. An array literal is a value that Containers' builder
+makes
+([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
+its items first, each lowered where it stands as the arguments of a call
+are, so that the builder begins only once each is a value, and nothing
+between `begin_array` and `seal` traps or leaves while the builder, which
+is linear, is open. An item is a value of `any`, so a number and a boolean
+are refused until they are values too, and a module lowered without the
+runtime refuses an array. A definition of the module that holds one is a
+constant, which `init` builds. A definition of
 `Math.abs` or `Math.sqrt`, which the normalization writes where a
 constant calls one, is that operator. A constant of a record is refused,
 since no global holds one, and so is a read of a constant before its
@@ -341,8 +354,10 @@ variable, a loop parameter of an integer range, in a record too, a `break`
 that does not end its loop's body, a `return` inside a loop or before the
 end of a function that is inlined, an entry of an object that is not a name
 and its value, such as a spread, a member read of anything but a name,
-`?.`, `throw`, a `lazy` definition, a string, `null` and `undefined` in a
-module lowered without the runtime, a rest parameter, a spread argument, a statement of no result or of several, `%`
+`?.`, `throw`, a `lazy` definition, a string, an array, `null` and
+`undefined` in a module lowered without the runtime, an item of an array
+that is a number or a boolean, a spread in an array, a rest parameter, a
+spread argument, a statement of no result or of several, `%`
 of integers, or in a module lowered without the runtime, and every
 operator not in the table, such as `**` and the bitwise ones. The
 [checker](../check/module.f.js)
@@ -386,7 +401,10 @@ that leaves its function.
   it, and [`literals.f.js`](./literals.f.js), five functions that read
   string literals, the empty one, a unit past ASCII and a pair of
   surrogates among them, which the start function makes as the module is
-  instantiated.
+  instantiated, and [`arrays.f.js`](./arrays.f.js), six functions that
+  make arrays of values, one of an array that `init` builds among them,
+  whose arrays are the functions' own item by item, with no builder left
+  open.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript. Prefer
   `node --test` for it.

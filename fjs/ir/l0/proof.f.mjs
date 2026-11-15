@@ -32,6 +32,9 @@ export const proof = {
         'BigInt.length(b: any.only(bigint)) -> u(31)',
         'Containers.length(c: any.only(array, object)) -> u(31)',
         'Containers.item(c: any.only(array, object), i: u(31)) -> any',
+        'Containers.begin_array(n: u(31)) -> builder',
+        'Containers.push(own b: builder, own v: any) -> builder',
+        'Containers.seal(own b: builder) -> any.only(array)',
         'Functions.length(f: any.only(function)) -> u(31)',
     ].join('; ')),
     // A module may import all of them: the checker takes the interfaces.

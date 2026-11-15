@@ -31,10 +31,15 @@
  *   field, and any other product is kept in locals named `widen` and read
  *   back field by field.
  * - **A sealed type is its carrier**, the WASM value that its interface
- *   names: `any` is an `i64`. A function of an interface is an import of
- *   the interface's `abi` by the function's name, so the functions that
- *   share a name, as the four `length`s do, share the host's function too.
- *   Imports come first, an interface at a time.
+ *   names: `any` is an `i64`, a builder an `i32`. A function of an
+ *   interface is an import of the interface's `abi` by the function's name,
+ *   so the functions that share a name, as the four `length`s do, share the
+ *   host's function too. Imports come first, an interface at a time.
+ * - **A function that gives back a parameter is an import that answers
+ *   nothing** ([definition.md's binding rule 3](../../../doc/sasha-gil/ir/definition.md#bindings)):
+ *   the call keeps the parameter's value in a local named for the
+ *   parameter, with a `local.tee` as it passes it, and reads it again after
+ *   the call, as Containers' `push` gives back its builder.
  * - **A `match` of a `bool` is an `if`**, a `block` is a `block`, and a `br`
  *   is a `br`, or a `return` to the label `return`. Where a `match`, a
  *   `block`, a `loop` or a `call` is `never`, an `unreachable` follows it,
@@ -397,7 +402,8 @@ const sealedMatch = (emitTerm, env, type, operand, arms) => {
     const [of, x] = operand
     const sealed = /** @type {Sealed} */ (of)
     const { variants, kind } = definition(env.interfaces, sealed)
-    const [kindIndex] = assertNotNullish(at(kind)(assertNotNullish(at(sealed[1])(env.imports))))
+    // The checker takes a `match` only of a sealed type that names its kind.
+    const [kindIndex] = assertNotNullish(at(assertNotNullish(kind))(assertNotNullish(at(sealed[1])(env.imports))))
     const here = x[0] === 'get' ? assertNotNullish(at(x[1])(env.locals)) : null
     const c = here === null ? emitTerm(env, operand) : just([])
     const named = x[0] === 'get' ? x[1] : 'match'
@@ -465,8 +471,17 @@ const term = (env, [type, t]) => {
         case 'op': { return operator(term, env, type, t[1], t[2]) }
         case 'call': {
             const [, module, name, args] = t
-            const [index, params] = assertNotNullish(at(name)(module === 'self' ? env.functions : assertNotNullish(at(module)(env.imports))))
-            return sequence(term, env, args.map((x, k) => [x, params[Number(k)]]), [['call', index], ...afterNever(type)])
+            const [index, params, back] = assertNotNullish(at(name)(module === 'self' ? env.functions : assertNotNullish(at(module)(env.imports))))
+            /** @type {readonly (readonly [Typed, Type])[]} */
+            const parts = args.map((x, k) => [x, params[Number(k)]])
+            if (back === null) { return sequence(term, env, parts, [['call', index], ...afterNever(type)]) }
+            // The import takes the value that the function gives back once and does not answer it, so a local keeps it.
+            const [k, param] = back
+            const before = sequence(term, env, parts.slice(0, k + 1), [])
+            const slot = env.next + before.locals.length
+            const kept = localsOf(env.interfaces, param, params[Number(k)])
+            const rest = sequence(term, { ...env, next: slot + kept.length }, parts.slice(k + 1), [['call', index], ['local.get', slot]])
+            return { code: [...before.code, ['local.tee', slot], ...rest.code], locals: [...before.locals, ...kept, ...rest.locals] }
         }
         case 'make': { return sequence(term, env, t[1].map(([, x]) => /** @type {const} */ ([x, x[0]])), []) }
         case 'field': { return fieldOf(term, env, type, t[1], t[2]) }
@@ -550,14 +565,14 @@ const runs = types => {
     }, none)
 }
 
-/** @type {(interfaces: OrderedMap<Interface>, s: Signature) => FuncType} */
-const signature = (interfaces, { params, result }) => ({
+/** The WASM type of a function: a function that gives back a parameter answers nothing. @type {(interfaces: OrderedMap<Interface>, s: Signature) => FuncType} */
+const signature = (interfaces, { params, result, returns }) => ({
     params: params.flatMap(([, t]) => carrier(interfaces, t)),
-    results: carrier(interfaces, result),
+    results: returns === undefined ? carrier(interfaces, result) : [],
 })
 
 /** A callee, by its index and its signature. @type {(index: number, s: Signature) => _Callee} */
-const callee = (index, { params }) => [index, params.map(([, t]) => t)]
+const callee = (index, { params, returns }) => [index, params.map(([, t]) => t), returns === undefined ? null : [params.findIndex(([k]) => k === returns), returns]]
 
 /** An import of a function of an interface, by its type's index. @type {(abi: string, name: string, type: number) => Import} */
 const funcImport = (abi, name, type) => ({ module: abi, name, desc: ['func', type] })

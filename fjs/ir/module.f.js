@@ -232,8 +232,14 @@ export const fn = (params, result, body) => ({
     body: typeof body === 'function' ? body(...params.map(([name]) => get(name))) : body,
 })
 
-/** What a call of a function needs, written apart from its body. @type {(params: readonly Param[], result: Type) => Signature} */
-export const signature = (params, result) => ({ params, result })
+/**
+ * What a call of a function needs, written apart from its body, and for a
+ * function of an interface that gives back a parameter that it owns, the
+ * parameter's name, `returns`.
+ *
+ * @type {(params: readonly Param[], result: Type, returns?: string) => Signature}
+ */
+export const signature = (params, result, returns) => returns === undefined ? { params, result } : { params, result, returns }
 
 /**
  * A parameter the callee owns: `own('v', any)`. A plain `[name, type]` still

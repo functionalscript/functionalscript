@@ -418,7 +418,10 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ðŸ˜
  * makes, each of which a function answers, and the lifetime pass copies.
  * Since slice 6d, string literals, which the start function makes once and
  * nothing drops, at times one written twice and at times through a
- * definition of the module.
+ * definition of the module. Since slice 6e, array literals of values:
+ * parameters, literals, Any's constants, strings that a call makes and
+ * arrays, at times one that `init` builds, in arms, read by `length` and
+ * `item` or answered.
  *
  * @type {(rnd: _Rnd) => {
  *   readonly text: string,
@@ -429,10 +432,38 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ðŸ˜
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 11)
+    const form = below(rnd, 12)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
     /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 11) {
+        // array literals of values, each built once its items are values
+        /** An item of `atoms`, or an array of them where `depth` allows. @type {(atoms: readonly string[], depth: number) => string} */
+        const itemText = (atoms, depth) => depth > 0 && rnd() < 0.3 ? arrayText(atoms, depth - 1, 0) : pick(rnd, atoms)
+        /** An array of `atoms` of at least `least` items. @type {(atoms: readonly string[], depth: number, least: number) => string} */
+        const arrayText = (atoms, depth, least) => `[${Array.from({ length: least + below(rnd, 4 - least) }, () => itemText(atoms, depth)).join(', ')}]`
+        // what a definition of the module may hold, and what a function may: its parameters, and a string that a call makes
+        const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
+        const lines = rnd() < 0.3 ? [`const a = ${arrayText(fixed, 1, 0)}`] : []
+        const atoms = /** @type {const} */ (['v', 'w', 'concat(w, "!")', ...fixed, ...(lines.length === 0 ? [] : ['a'])])
+        const [body, result] = pick(rnd, /** @type {const} */ ([
+            [arrayText(atoms, 2, 0), any],
+            [`length(${arrayText(atoms, 1, 0)})`, f64],
+            [`item(${arrayText(atoms, 1, 1)}, ${pick(rnd, ['0', '1'])})`, any],
+            [`kind(v) === STRING ? ${arrayText(atoms, 1, 1)} : ${arrayText(atoms, 1, 0)}`, any],
+        ]))
+        const fn = new Function('STRING', 'concat', 'item', 'kind', 'length', `${lines.join('\n')}\nreturn (v, w) => ${body}`)(STRING, concat, item, kind, length)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = (v, w) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['w', any]], result) },
+            inputs: { f: Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }, { any: pick(rnd, stringSamples) }])) },
+            twin: xs => {
+                const r = fn(held(xs[0]), held(xs[1]))
+                return result === f64 ? r : { any: r }
+            },
+            runtime,
+        }
+    }
     if (form === 10) {
         // string literals, which the start function makes once and nothing drops
         const a = pick(rnd, literalSamples)

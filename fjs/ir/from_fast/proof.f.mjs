@@ -48,6 +48,12 @@ const irOver = (signatures, text) => {
 /** The L0 view's names that the proofs of the view read. */
 const imports = "import { NUMBER, asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, same, substring, unit } from '../l0/module.f.js'\n"
 
+/** The IR of a module's text over the runtime, as `irOver` prints it, which the checker takes once the lifetime pass has written its owned stage. @type {(signatures: Readonly<Record<string, Signature>>, text: string) => string} */
+const checked = (signatures, text) => {
+    assertOk(check(assertOk(lifetime(assertOk(over(signatures, text))))))
+    return irOver(signatures, text)
+}
+
 /** L1's native rows that the proofs of the rows read, by the specifier by which L1 imports them. */
 const natives = "import { bigintAdd, bigintEquals, numberRemainder } from './native/module.f.js'\n"
 
@@ -56,6 +62,9 @@ const noNative = "f: % of two floats calls L1's native rows, which a module lowe
 
 /** Why a module lowered without the runtime refuses a string. */
 const noString = 'f: a string is a literal that String makes, which a module lowered without the runtime does not import'
+
+/** Why the lowering refuses an array literal in a module that it lowers without the runtime. */
+const noArray = /** @type {const} */ ('an array is a value that Containers builds, which a module lowered without the runtime does not import')
 
 // FAST written by hand, for the forms that no text makes today
 
@@ -303,7 +312,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(why(fa, fast('export const f = a => {\n    const g = b => b\n    return g\n}')), 'f: a function as a value is not in this slice')
-        assertEq(why(fa, fast('export const f = a => [b => b]')), 'f: array is not in this slice')
+        assertEq(why(fa, fast('export const f = a => [b => b]')), `f: ${noArray}`)
         assertEq(why(fa, fast('export const f = a => (b => b)(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
         assertEq(why(fa, fast('export const f = a => (b => b)("s")')), noString)
         /** A module whose `f` calls a function that it defines, `g`, on `a`. @type {(g: FastFunction) => Block} */
@@ -410,7 +419,7 @@ export const proof = {
         assertEq(why(fa, fast('const g = a => a\nexport const f = a => g')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
         // A function that the module does not export reads the constants that it captures.
-        assertEq(why(fa, fast('const k = [1]\nconst g = a => k\nexport const f = a => g(a)')), 'f: #c0: array is not in this slice')
+        assertEq(why(fa, fast('const k = [1]\nconst g = a => k\nexport const f = a => g(a)')), `f: #c0: ${noArray}`)
         assertEq(why(fa, fast('export const g = a => a\nconst h = x => g(x)\nexport const f = a => h(a)')), 'f: g has no signature')
     },
     records: () => {
@@ -851,10 +860,10 @@ export const proof = {
             '',
         ].join('\n'))
         // A function that reads a constant that the lowering refuses is refused, and says why.
-        assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), 'f: #c0: array is not in this slice')
+        assertEq(why(fa, fast('const k = [1]\nexport const f = a => k')), `f: #c0: ${noArray}`)
         // A value that a definition reads the way an import is read, from anything but the module's imports, is a constant.
         assertEq(why(fa, fast('const o = [[1]]\nconst k = o[0].length\nexport const f = a => k')), 'f: #c0: a member read of anything but a name is not in this slice')
-        assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), 'f: #c0: array is not in this slice')
+        assertEq(why(fa, fast('const o = [[1]]\nconst k = o.a.b\nexport const f = a => k')), `f: #c0: ${noArray}`)
         assertEq(why({ k: fa.f }, fast('export const k = 2')), 'k: an export that is not a function is not in this slice')
         assertEq(why({ g: fa.f, h: fa.f }, fast('const f = a => a\nexport const g = f\nexport const h = f')), 'h exports the same function as g')
         assertEq(why(fa, fast('export const g = a => a\nexport const f = a => g(a)')), 'f: g has no signature')
@@ -1050,11 +1059,6 @@ export const proof = {
     // A string is a literal of `any` that String makes, which a module lowered without the runtime does not import, and a
     // definition of the module that holds one is the literal where a function reads it. A function borrows it.
     literals: () => {
-        /** The module that the lowering makes of `text`, which the checker takes once the lifetime pass has written its owned stage. @type {(signatures: Readonly<Record<string, Signature>>, text: string) => string} */
-        const checked = (signatures, text) => {
-            assertOk(check(assertOk(lifetime(assertOk(over(signatures, text))))))
-            return irOver(signatures, text)
-        }
         assertEq(checked(only([['v', any]], f64), `${imports}export const f = v => kind("s") + length("caf\\u00e9")`), [
             'fn f(v: any) -> f64 =',
             '    add(float(Any.kind("s")), float(String.length("café")))',
@@ -1070,6 +1074,54 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(why(fa, fast('export const f = a => "s"')), noString)
+    },
+    arrays: () => {
+        const a2 = only([['a', any], ['b', any]], any)
+        // Each item is a term that does nothing before the builder begins: an array in an array is bound first.
+        assertEq(checked(a2, 'export const f = (a, b) => [a, [b], "x", null]'), [
+            'fn f(a: any, b: any) -> any =',
+            '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), b))',
+            '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), a), #0), "x"), Any.null))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // So is an item that may trap, and the builder of an array in a call is begun after it too.
+        assertEq(checked(only([['s', any]], f64), `${imports}export const f = s => length([concat(s, s)])`), [
+            'fn f(s: any) -> f64 =',
+            '    float(',
+            '        Containers.length(',
+            '            let #0 =',
+            '                match s',
+            '                  string as s.string =>',
+            '                    String.concat(s.string, s.string)',
+            '                  else =>',
+            "                    trap('not string')",
+            '            Containers.seal(Containers.push(Containers.begin_array(1), #0))',
+            '        )',
+            '    )',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(checked(only([['v', any]], subset(any, 'array')), 'export const f = v => []'), [
+            'fn f(v: any) -> any.only(array) =',
+            '    Containers.seal(Containers.begin_array(0))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        const av = only([['v', any]], any)
+        // An item is a value of `any`: a number or a boolean is none in this slice.
+        assertEq(assertError(over(av, 'export const f = v => [v, 1]')), 'f: an item of an array is a value of any, and item 1 is f64c')
+        assertEq(assertError(over(av, `${imports}export const f = v => [kind(v) === NUMBER]`)), 'f: an item of an array is a value of any, and item 0 is bool')
+        assertEq(assertError(over(av, 'export const f = v => [...v]')), 'f: a spread in an array literal is not in this slice')
+        // An item that is pure but does not type-check is refused with its own error.
+        assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: { a: any } has no field b')
+        assertEq(assertError(over(av, 'export const f = v => [{ a: v, a: v }]')), 'f: a product names a twice')
+        assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)
+        // The parser refuses a hole.
+        assertEq(assertError(sourceOf('export const f = v => [v, , v]')), 'parse: array hole')
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')

@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
-import { any, l0, string } from '../l0/module.f.js'
+import { any, builder, l0, string } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, cast, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
     match, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, trap, true_, trunc_sat, u, unit,
@@ -339,6 +339,8 @@ export const proof = {
         assertEq(why(overL0([...p, ['o', sealed('Other', 'x')]], f64, match(v, [[['number'], 'x', get('x')], [null, null, get('o')]]), [['Other', other]])),
             'f: match: its arms are any.only(number), x, which no one type holds')
         assertEq(why(overL0([['o', sealed('Other', 'x')]], f64, call('Any', 'kind', [get('o')]), [['Other', other]])), "f: Any.kind's v is any, not x")
+        // A match reads the tag that the type's kind answers, so a builder, which names none, is matched by nothing.
+        assertEq(why(overL0([own('b', builder)], f64, match(get('b'), [[['builder'], null, one_]]))), 'f: a match needs the tag of builder, and Containers names no kind for it')
     },
     // A string literal is a value of the type whose interface makes it, of the one variant that it makes.
     literals: () => {
@@ -425,6 +427,16 @@ export const proof = {
         assertEq(why(importing(counted('d', 'r', [['d', signature([['x', t]], f64)], r]))), miscounted)
         assertEq(why(importing(counted('d', 'r', [d, ['r', signature([['x', t]], unit)]]))), miscounted)
         assertEq(why(importing(counted('d', 'r', [d]))), miscounted)
+        // A function that gives back a parameter owns it, and the parameter is of the function's result.
+        /** An interface of a function `g` of `params` that answers `result` and gives back `x`. @type {(params: readonly Param[], result: Type) => Interface} */
+        const giving = (params, result) => ({ abi: 'test', types: [], functions: [['g', signature(params, result, 'x')]] })
+        const unreturned = /** @type {const} */ ('Bad: g gives back x, which is no parameter that it owns of the type of its result')
+        assertEq(assertOk(check(importing(giving([['y', any], own('x', any)], any)))).imports.length, 6)
+        assertEq(why(importing(giving([own('y', any)], any))), unreturned)
+        assertEq(why(importing(giving([['x', any]], any))), unreturned)
+        assertEq(why(importing(giving([own('x', any)], string))), unreturned)
+        // A type that names no kind has no tag, and a linear one names no dup and no drop.
+        assertEq(assertOk(check(importing({ abi: 'test', types: [['t', { variants: ['a'], carrier: 'i32' }]], functions: [] }))).imports.length, 6)
         // The scope of a term passes the same rules: a local may be a product, and a function's result may not.
         const scope = { name: 'f', locals: /** @type {const} */ ([['a', product([['s', ['sum', [['x', unit]]]]])]]), result: f64, functions: [], imports: [] }
         assertEq(assertError(typeOf(scope)(one_)), 'f: sum({ x: unit }) is not in this slice')
