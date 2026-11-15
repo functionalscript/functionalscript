@@ -4,7 +4,7 @@
  * @import { BitGroups, BitScheme } from './types.ts'
  */
 
-import { bitGroupDemo, bitGroups, byteChars } from './module.f.mjs'
+import { bitGroupDemo, bitGroups, byteChars } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'

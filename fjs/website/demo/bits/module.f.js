@@ -201,7 +201,7 @@ const placeholder = width => ['div', { 'data-bit-box': '', 'data-bit-placeholder
  * @type {(scheme: BitScheme) => (g: BitGroups) => Element}
  */
 const boxes = ({ width, block }) => ({ groups, encoded }) => {
-    const all = groups.map((g, i) => box(g, encoded[i]))
+    const all = groups.map((g, i) => box(g, encoded[Number(i)]))
     if (block === undefined) { return ['div', { 'data-bit-groups': '' }, ...all] }
     const count = Math.ceil(all.length / block)
     const padded = [...all, ...generate(count * block - all.length, () => placeholder(width))]
