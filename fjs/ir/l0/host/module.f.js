@@ -11,10 +11,11 @@
  *   `to_f64` its `asNumber`, `to_bool` its `asBoolean`, `same` its `same`,
  *   `length` its `length`, and `unit` its `unit`. Where L0 traps, the view
  *   throws, and so does the import.
- * - **`from_unit` and `concat` answer the value they make**, the view's
- *   `fromUnit` and `concat`, which a host gives a handle. Counting is the
- *   host's: `dup`, `drop` and the cells are state, which a host boundary
- *   holds and FunctionalScript does not.
+ * - **`from_unit`, `concat`, `substring` and `item` answer a value**, the
+ *   view's `fromUnit`, `concat`, `substring` and `item`, which a host gives
+ *   a handle of its own, since the caller owns it. Counting is the host's:
+ *   `dup`, `drop` and the cells are state, which a host boundary holds and
+ *   FunctionalScript does not.
  *
  * The [host of L1's native rows](../../native/host/module.f.js) reads
  * values the same way.
@@ -24,7 +25,7 @@
  * @import { View } from './types.ts'
  */
 
-import { asBoolean, asNumber, concat, fromUnit, kind, length, same, unit } from '../../../wasm/runtime/l0/module.f.js'
+import { asBoolean, asNumber, concat, fromUnit, item, kind, length, same, substring, unit } from '../../../wasm/runtime/l0/module.f.js'
 
 /**
  * The value that a handle names in a table of values, by its index, or a
@@ -51,4 +52,6 @@ export const view = read => ({
     unit: (h, i) => unit(read(h), i),
     from_unit: c => fromUnit(c),
     concat: (a, b) => concat(read(a), read(b)),
+    substring: (s, start, end) => substring(read(s), start, end),
+    item: (c, i) => item(read(c), i),
 })

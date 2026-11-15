@@ -6,7 +6,7 @@
 
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Expr, FuncType, ValType } from '../../media/wasm/types.ts'
-import type { Interface, Type, Typed } from '../types.ts'
+import type { Interface, Sealed, Type, Typed } from '../types.ts'
 
 /** A function that a module calls, its own or an imported one: its index and its parameters' types. */
 export type _Callee = readonly [index: number, params: readonly Type[]]
@@ -22,9 +22,11 @@ export type _Target = readonly ['block', Type] | readonly ['loop', readonly (rea
  * the depth of the structure that each label names and what it is, how deep
  * the term stands, the first local that no term before it took, the
  * module's functions, the functions of each interface that it imports,
- * those interfaces, which give its sealed types their carriers, and the
+ * those interfaces, which give its sealed types their carriers, the
  * module's type section, which gives a block of more than one value its
- * type.
+ * type, the global of each constant, by its module, `self` for the
+ * module's own, and its name, and the global of each string literal, by its
+ * type and its spelling.
  */
 export type _Env = {
     readonly locals: OrderedMap<number>
@@ -35,6 +37,8 @@ export type _Env = {
     readonly imports: OrderedMap<OrderedMap<_Callee>>
     readonly interfaces: OrderedMap<Interface>
     readonly types: readonly FuncType[]
+    readonly globals: OrderedMap<OrderedMap<number>>
+    readonly literals: readonly (readonly [type: Sealed, spelling: string, global: number])[]
 }
 
 /** A term's code, and the names and types of the locals that it takes, from `next` on. */

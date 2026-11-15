@@ -3,8 +3,8 @@
  * a module once it has typed it: each owned value is consumed once on every
  * path, and no borrow outlives what it leans on
  * ([definition.md: Stages](../../../../doc/sasha-gil/ir/definition.md#stages)).
- * The lifetime pass (slice 6b) is what writes the owned stage; until it
- * lands, a person writes it, as the proofs do.
+ * The [lifetime pass](../../lifetime/module.f.js) writes the owned stage
+ * from the plain one, and a person may write it too, as the proofs do.
  *
  * - **A value of a sealed type is owned or borrowed.** A call answers an
  *   owned one where its result is of a sealed type. An `own` parameter is
@@ -15,7 +15,10 @@
  *   parameter, a `let` or a loop's parameter that binds it, and a function
  *   or a region that gives it as its value. A `get` of an owned local there
  *   moves it, and anywhere else it lends it. An owned value that nothing
- *   takes over is refused: a module binds it first.
+ *   takes over is refused: a module binds it first. So is one that an
+ *   argument, a first value or a next value gives before another that may
+ *   leave, by a `br` out of the call or the loop, which would leave the
+ *   value behind: a module binds the one that leaves first.
  * - **A borrow does not outlive what it leans on.** A use of a borrow after
  *   an owned local that it leans on was consumed is refused, and so is a
  *   call that lends a local to one parameter and consumes it with another.
@@ -33,12 +36,15 @@
  *   product that holds a sealed value. A product's borrow leans on every
  *   field's roots together; projecting one field keeps that aggregate
  *   ([todo](./todo/product-field-borrow-roots.md)).
+ * - **A constant is a borrow that leans on nothing**, since nothing drops
+ *   it, and its term gives it an owned value, as a function's body gives
+ *   an owned result. So is a string literal, which the module makes once.
  *
  * @module
  *
  * @import { Result } from '../../../types/result/types.ts'
  * @import { OrderedMap } from '../../../types/ordered_map/types.ts'
- * @import { Checked, FunctionOf, Interface, LoopParamOf, Signature, Type, Typed, TypedArm } from '../../types.ts'
+ * @import { Checked, ConstantOf, FunctionOf, Interface, LoopParamOf, Signature, Type, Typed, TypedArm } from '../../types.ts'
  * @import { _Env, _Exit, _Label, _Local, _Mode, _Out, _Seq, _Value, _Walk } from './private.ts'
  */
 
@@ -46,7 +52,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { error, ok, okList } from '../../../types/result/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../../types/ordered_map/module.f.js'
-import { equal, isOwn, never } from '../../module.f.js'
+import { equal, isOwn, leaves, never } from '../../module.f.js'
 
 // sets of owned locals, as lists of their names
 
@@ -129,6 +135,20 @@ const sequence = (walk, env, alive, ts) => {
     return ts.reduce(step, ok({ owned: alive, results: [], exits: [] }))
 }
 
+/**
+ * Where a part of a sequence may leave it, by a `br` out of the term that
+ * the sequence makes, after a part before it gave an owned value that the
+ * term has not taken over yet, which the `br` would leave behind: the
+ * owned part's index and the leaving one's. `null` where no part does so.
+ * `results` are the values of the parts that the sequence reached.
+ *
+ * @type {(ts: readonly (readonly [Typed, _Mode])[], results: readonly _Value[]) => readonly [number, number] | null}
+ */
+const stranded = (ts, results) => {
+    const j = results.findIndex((_, k) => leaves(ts[Number(k)][0]).length > 0 && results.slice(0, k).some(v => v[0] === 'owned'))
+    return j < 0 ? null : [results.findIndex(v => v[0] === 'owned'), j]
+}
+
 /** A scope with one more label, or with a new meaning for one in it. @type {(env: _Env, name: string, l: _Label) => _Env} */
 const labelled = (env, name, l) => ({ ...env, labels: setReplace(name)(l)(env.labels) })
 
@@ -164,9 +184,15 @@ const callTerm = (walk, env, alive, type, mode, module, name, args) => {
     const { params } = module === 'self' ? assertNotNullish(at(name)(env.functions))
         : assertNotNullish(assertNotNullish(at(module)(env.imports)).functions.find(([k]) => k === name))[1]
     const full = module === 'self' ? name : `${module}.${name}`
-    const r = sequence(walk, env, alive, args.map((x, k) => [x, isOwn(params[Number(k)]) ? 'take' : 'read']))
+    /** @type {readonly (readonly [Typed, _Mode])[]} */
+    const items = args.map((x, k) => [x, isOwn(params[Number(k)]) ? 'take' : 'read'])
+    const r = sequence(walk, env, alive, items)
     if (r[0] === 'error') { return r }
     const { owned: after, results, exits } = r[1]
+    const strand = stranded(items, results)
+    if (strand !== null) {
+        return no(env, `${full}: the argument of ${params[Number(strand[1])][0]} may leave before the call takes that of ${params[Number(strand[0])][0]} over: bind it first`)
+    }
     if (after === null) { return ok(out(null, plain, exits)) }
     const lent = results.findIndex((v, k) => isOwn(params[Number(k)]) && v[0] !== 'owned')
     if (lent >= 0) {
@@ -267,9 +293,15 @@ const blockTerm = (walk, env, alive, mode, label, body) => {
 const loopTerm = (walk, env, alive, mode, label, params, body) => {
     const nested = params.find(([, x]) => x[0] === 'product' && holds(x))
     if (nested !== undefined) { return no(env, `${nested[0]} of loop ${label} is a product that holds a sealed value: not in this slice`) }
-    const firsts = sequence(walk, env, alive, params.map(([, , first]) => [first, 'take']))
+    /** @type {readonly (readonly [Typed, _Mode])[]} */
+    const items = params.map(([, , first]) => [first, 'take'])
+    const firsts = sequence(walk, env, alive, items)
     if (firsts[0] === 'error') { return firsts }
     const { owned: start, results, exits } = firsts[1]
+    const strand = stranded(items, results)
+    if (strand !== null) {
+        return no(env, `the first ${params[Number(strand[1])][0]} of loop ${label} may leave before the loop takes the first ${params[Number(strand[0])][0]} over: bind it first`)
+    }
     if (start === null) { return ok(out(null, plain, exits)) }
     const gone = results.flatMap(v => minus(rootsOf(v), start))
     if (gone.length > 0) { return no(env, `a parameter of loop ${label} borrows ${gone[0]}, which another's first value consumes`) }
@@ -296,9 +328,15 @@ const repeat = (walk, env, alive, label, start, params, e) => {
     // the checker writes a repeat as a `make` of the loop's parameters
     assert(make[0] === 'make')
     const [, fields] = make
-    const r = sequence(walk, env, alive, fields.map(([, x], k) => [x, params[Number(k)][1][0] === 'own' ? 'take' : 'read']))
+    /** @type {readonly (readonly [Typed, _Mode])[]} */
+    const items = fields.map(([, x], k) => [x, params[Number(k)][1][0] === 'own' ? 'take' : 'read'])
+    const r = sequence(walk, env, alive, items)
     if (r[0] === 'error') { return r }
     const { owned: after, results, exits } = r[1]
+    const strand = stranded(items, results)
+    if (strand !== null) {
+        return no(env, `the next ${params[Number(strand[1])][0]} of loop ${label} may leave before the loop takes the next ${params[Number(strand[0])][0]} over: bind it first`)
+    }
     if (after === null) { return ok(out(null, plain, exits)) }
     const lent = results.findIndex((v, k) => params[Number(k)][1][0] === 'own' && v[0] !== 'owned')
     const wider = results.findIndex((v, k) => minus(rootsOf(v), leansOn(params[Number(k)][1])).length > 0)
@@ -312,15 +350,16 @@ const repeat = (walk, env, alive, label, start, params, e) => {
 }
 
 /**
- * The end of a function, at the end of its body or at a `br` to `return`:
- * nothing it owns is left, and it owns its value where its result holds a
- * sealed value.
+ * The end of a function, at the end of its body or at a `br` to `return`,
+ * or of a constant's term: nothing it owns is left, and it owns its value
+ * where its result holds a sealed value, since the caller, or the
+ * constant, owns it then. `lent` says why a borrowed value may not end it.
  *
- * @type {(env: _Env, alive: readonly string[], value: _Value) => Result<null, string>}
+ * @type {(env: _Env, alive: readonly string[], value: _Value, lent?: string) => Result<null, string>}
  */
-const end = (env, alive, value) =>
+const end = (env, alive, value, lent = 'the result is borrowed, and its caller would own it') =>
     alive.length > 0 ? no(env, `${are(alive)} left over`)
-    : holds(env.result) && value[0] !== 'owned' ? no(env, 'the result is borrowed, and its caller would own it')
+    : holds(env.result) && value[0] !== 'owned' ? no(env, lent)
     : ok(null)
 
 /**
@@ -368,7 +407,8 @@ const walk = (env, alive, [type, t], mode) => {
         case 'loop': { return loopTerm(walk, env, alive, mode, t[1], t[2], t[3]) }
         case 'br': { return brTerm(walk, env, alive, t[1], t[2]) }
         case 'trap': { return ok(out(null, plain, [])) }
-        default: { return ok(out(alive, plain, [])) }
+        // A literal and a constant are borrows that lean on nothing, since nothing drops them.
+        default: { return ok(out(alive, holds(type) ? ['borrowed', []] : plain, [])) }
     }
 }
 
@@ -391,14 +431,28 @@ const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
 }
 
 /**
- * A typed module's owned stage, checked: `null` where each of its functions
- * consumes each owned value once on every path, or why one does not.
+ * A constant: its term, from no owned local, which gives the constant an
+ * owned value where its type holds a sealed one.
+ *
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, ConstantOf<Typed>]) => Result<null, string>}
+ */
+const checkConstant = (functions, imports) => ([name, { type, value }]) => {
+    /** @type {_Env} */
+    const env = { name, result: type, functions, imports, locals: empty, labels: empty }
+    const r = walk(env, [], value, 'take')
+    return r[0] === 'error' ? r : end(env, assertNotNullish(r[1].next), r[1].value, 'the value is borrowed, and the constant would own it')
+}
+
+/**
+ * A typed module's owned stage, checked: `null` where each of its
+ * constants and its functions consumes each owned value once on every
+ * path, or why one does not.
  *
  * @type {(m: Checked) => Result<null, string>}
  */
 export const checkOwned = m => {
     const functions = fromEntries(m.functions)
     const imports = fromEntries(m.imports)
-    const failed = m.functions.map(checkFn(functions, imports)).find(r => r[0] === 'error')
+    const failed = [...m.constants.map(checkConstant(functions, imports)), ...m.functions.map(checkFn(functions, imports))].find(r => r[0] === 'error')
     return failed === undefined ? ok(null) : failed
 }

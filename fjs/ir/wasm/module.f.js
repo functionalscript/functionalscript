@@ -53,29 +53,64 @@
  *   an `if` for each arm but the last, which takes the variants that no arm
  *   before it took. An arm's name for the operand is the operand's local.
  * - **A `trap` is an `unreachable`.**
+ * - **A constant is a global**, which `constant` reads with `global.get`.
+ *   One of an interface is an immutable global that the module imports
+ *   from the interface's `abi` by the constant's name
+ *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)),
+ *   each constant of each interface that it imports, after the functions.
+ *   One of the module is a mutable global of zero, which `init`, a
+ *   function that the module exports where it has constants, sets to the
+ *   value of the constant's term, one constant at a time in their order
+ *   ([L0 design §20](../../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)).
+ * - **A string literal is a global too**, one for each type and spelling,
+ *   which the module's start function sets once, before `init`
+ *   ([L0 design §6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)),
+ *   by the function that its type names as the maker of its literals:
+ *   String's `make_string` for `any`. The maker takes the address and the
+ *   length of the literal's UTF-16 units, which a data segment holds, the
+ *   low byte of each first. The memory and `data_base`, where the segment
+ *   starts, are imports of the loader
+ *   ([L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)),
+ *   from the maker's `abi`, and the `fjs.layout` section says how many
+ *   bytes the segment needs.
  *
  * The functions keep their order and their names, which the name section
  * holds with their parameters and the locals of their `let`s and loops, and
  * an import is named for its interface and its function: `String.length`.
+ * `init` comes after them, with the locals of the constants' terms, then
+ * the start function, named `start`. A global is named for its interface
+ * and its constant, `Any.undefined`, for the module's constant, or for a
+ * literal's spelling in single quotes: `'abc'`.
  *
  * @module
  *
- * @import { BlockType, Expr, FuncType, Instruction, Locals, Module as WasmModule, ValType } from '../../media/wasm/types.ts'
- * @import { Checked, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedTerm } from '../types.ts'
+ * @import { BlockType, Bytes, Custom, Export, Expr, FuncType, Import, IndirectNameMap, Instruction, Locals, Module as WasmModule, NameMap, ValType } from '../../media/wasm/types.ts'
+ * @import { Checked, ConstantOf, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { bitsOf } from '../../media/rust/module.f.js'
+import { stringToList } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { compareIn, equal, fits, i, never, u } from '../module.f.js'
+import { compareIn, equal, fits, i, inside, never, u } from '../module.f.js'
 
 // values
 
 /** A sealed type's definition in the interface that names it, which the checker found. @type {(interfaces: OrderedMap<Interface>, t: Sealed) => SealedDef} */
 const definition = (interfaces, [, module, name]) =>
     assertNotNullish(assertNotNullish(at(module)(interfaces)).types.find(([k]) => k === name))[1]
+
+/**
+ * Whether two string literals' types are one: of one sealed type, since the
+ * checker takes a literal of the variant its type's literals hold alone,
+ * which `t.only(v)` and, where `v` is its one variant, `t` both write.
+ *
+ * @type {(a: Type, b: Type) => boolean}
+ */
+const oneType = (a, b) => a[0] === 'sealed' && b[0] === 'sealed' && a[1] === b[1] && a[2] === b[2]
 
 /**
  * The scalars that a value of `t` is, each named and typed, in the order of
@@ -227,7 +262,7 @@ const sequenceBy = (value, emitTerm, env, parts, after) => {
  */
 const valueOf = (emitTerm, env, taken, [type, t], to) => {
     const here = { ...env, next: env.next + taken }
-    if (t[0] === 'lit') { return just([literal(to, t[2])]) }
+    if (t[0] === 'lit' && typeof t[2] !== 'string') { return just([literal(to, t[2])]) }
     if (t[0] === 'make') {
         // The checker types a `make` as a product, which only a product of the same fields holds.
         assert(to[0] === 'product', to)
@@ -356,7 +391,7 @@ const fieldOf = (emitTerm, env, type, e, name) => {
  * the arms test more than one variant, the tag is read once, into a local
  * named for the operand: `v.kind`.
  *
- * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, operand: Typed, arms: readonly (readonly [readonly string[], string | null, Typed])[]) => _Code}
+ * @type {(emitTerm: _EmitTerm, env: _Env, type: Type, operand: Typed, arms: readonly TypedArm[]) => _Code}
  */
 const sealedMatch = (emitTerm, env, type, operand, arms) => {
     const [of, x] = operand
@@ -402,7 +437,12 @@ const sealedMatch = (emitTerm, env, type, operand, arms) => {
 /** @type {_EmitTerm} */
 const term = (env, [type, t]) => {
     switch (t[0]) {
-        case 'lit': { return just([literal(type, t[2])]) }
+        case 'lit': {
+            const v = t[2]
+            if (typeof v !== 'string') { return just([literal(type, v)]) }
+            const found = env.literals.find(([u, s]) => s === v && oneType(u, type))
+            return just([['global.get', assertNotNullish(found)[2]]])
+        }
         case 'get': {
             const holds = carrier(env.interfaces, type)
             const index = holds.length === 0 ? 0 : assertNotNullish(at(t[1])(env.locals))
@@ -481,27 +521,12 @@ const term = (env, [type, t]) => {
             assert(v[0] === 'make', v)
             return sequence(term, env, v[1].map(([, x], j) => /** @type {const} */ ([x, target[1][Number(j)][1]])), [...setAll(env, target[1]), leave])
         }
+        case 'constant': { return just([['global.get', assertNotNullish(at(t[2])(assertNotNullish(at(t[1])(env.globals))))]]) }
         default: { return just([['unreachable']]) }
     }
 }
 
 // functions and modules
-
-/** The typed terms that a term holds, in their order. @type {(t: TypedTerm) => readonly Typed[]} */
-const inside = t => {
-    switch (t[0]) {
-        case 'let': { return [t[2], t[3]] }
-        case 'op': { return t[2] }
-        case 'call': { return t[3] }
-        case 'make': { return t[1].map(([, x]) => x) }
-        case 'field': { return [t[1]] }
-        case 'variant': case 'block': { return [t[3]] }
-        case 'match': { return [t[1], ...t[2].map(([, , x]) => x)] }
-        case 'loop': { return [...t[2].map(([, , x]) => x), t[3]] }
-        case 'br': { return [t[2]] }
-        default: { return [] }
-    }
-}
 
 /**
  * The block types that a term needs in the type section: the results of
@@ -534,22 +559,86 @@ const signature = (interfaces, { params, result }) => ({
 /** A callee, by its index and its signature. @type {(index: number, s: Signature) => _Callee} */
 const callee = (index, { params }) => [index, params.map(([, t]) => t)]
 
+/** An import of a function of an interface, by its type's index. @type {(abi: string, name: string, type: number) => Import} */
+const funcImport = (abi, name, type) => ({ module: abi, name, desc: ['func', type] })
+
+/** An import of a constant of an interface: an immutable global of its carrier. @type {(abi: string, name: string, type: ValType) => Import} */
+const globalImport = (abi, name, type) => ({ module: abi, name, desc: ['global', { type, mutable: false }] })
+
+/** An import of the memory that the loader makes, which holds the data segments at `data_base`. @type {(abi: string) => Import} */
+const memoryImport = abi => ({ module: abi, name: 'memory', desc: ['memory', { min: 0, max: null }] })
+
+/** An export of a function, by its index. @type {(name: string, index: number) => Export} */
+const funcExport = (name, index) => ({ name, kind: 'func', index })
+
+/** The string literals that a typed term holds, with their types, in their order. @type {(x: Typed) => readonly (readonly [Sealed, string])[]} */
+const literalsOf = ([type, t]) => t[0] === 'lit' && type[0] === 'sealed' && typeof t[2] === 'string' ? [[type, t[2]]] : inside(t).flatMap(literalsOf)
+
+/** A string's UTF-16 units as memory holds them, two bytes each, the low byte first. @type {(s: string) => Bytes} */
+const unitsOf = s => toArray(stringToList(s)).flatMap(u => [u % 0x100, Math.floor(u / 0x100)])
+
+/** An unsigned LEB128 number. @type {(n: number) => Bytes} */
+const uleb = n => n < 0x80 ? [n] : [n % 0x80 + 0x80, ...uleb(Math.floor(n / 0x80))]
+
+/**
+ * The `fjs.layout` section: the sizes that the loader reserves before it
+ * makes the module
+ * ([L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)),
+ * the data segments' bytes, the scratch space's, which no literal needs,
+ * and the table's entries, each an unsigned LEB128 number.
+ *
+ * @type {(data: number) => Custom}
+ */
+const layout = data => ({ after: 'data', content: ['raw', 'fjs.layout', [...uleb(data), ...uleb(0), ...uleb(0)]] })
+
+/** The value that a global of a constant holds until `init` sets it. @type {(t: ValType) => Instruction} */
+const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 0n] : ['i32.const', 0]
+
 /**
  * A checked module as a WASM module: an import for each function of each
- * interface that it imports, then a function each of its own, in their
- * order, a type for each distinct signature and then for each distinct
- * block type of more than one value, the exports by their names, and a
- * name section for the functions and their locals.
+ * interface that it imports, then for each function that makes its string
+ * literals, then its memory where it has string literals, then a global for
+ * each constant of the interfaces, and `data_base` where it has string
+ * literals; then a function each of its own, in their order, `init` where
+ * it has constants, and the start function where it has string literals, a
+ * global for each string literal and then for each of its constants, a type
+ * for each distinct signature and then for each distinct block type of
+ * more than one value, the exports by their names, the data segment of the
+ * literals' units and the `fjs.layout` section, and a name section for the
+ * functions, their locals and the globals.
  *
  * @type {(m: Checked) => WasmModule}
  */
 export const emit = m => {
     const interfaces = fromEntries(m.imports)
     const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
+    const importedConstants = m.imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => ({ module, abi, member, t })))
+    const { constants } = m
+    const written = [...m.functions.flatMap(([, f]) => literalsOf(f.body)), ...constants.flatMap(([, c]) => literalsOf(c.value))]
+    // A literal is made once for its type and its spelling.
+    const literals = written.filter(([t, s], k) => written.findIndex(([u, x]) => x === s && oneType(u, t)) === k)
+    /** The function that makes a literal of a sealed type. @type {(t: Sealed) => { readonly abi: string, readonly module: string, readonly member: string, readonly type: FuncType }} */
+    const makerOf = t => {
+        const { carrier: c, literal } = definition(interfaces, t)
+        const { module, member } = assertNotNullish(literal)
+        return { abi: assertNotNullish(at(module)(interfaces)).abi, module, member, type: { params: ['i32', 'i32'], results: [c] } }
+    }
+    const made = literals.map(([t]) => makerOf(t))
+    const makers = made.filter((x, k) => made.findIndex(y => y.abi === x.abi && y.member === x.member) === k)
+    // The memory and `data_base` come from the ABI of the first function that makes a literal: L0's, `fjs:l0`, for a string.
+    const memoryAbi = makers.length === 0 ? null : makers[0].abi
+    /** @type {readonly FuncType[]} */
+    const init = constants.length === 0 ? [] : [{ params: [], results: [] }]
+    /** @type {readonly FuncType[]} */
+    const start = literals.length === 0 ? [] : [{ params: [], results: [] }]
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
+        ...makers.map(({ type }) => type),
         ...m.functions.map(([, f]) => signature(interfaces, f)),
+        ...init,
+        ...start,
         ...m.functions.flatMap(([, f]) => blockTypes(interfaces, f.body)),
+        ...constants.flatMap(([, c]) => blockTypes(interfaces, c.value)),
     ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
@@ -557,43 +646,109 @@ export const emit = m => {
         module,
         fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
     ])))
-    const own = imported.length
+    const dataBase = importedConstants.length
+    const literalBase = dataBase + (memoryAbi === null ? 0 : 1)
+    const constantBase = literalBase + literals.length
+    const globals = fromEntries([
+        ...m.imports.map(([module]) => /** @type {const} */ ([
+            module,
+            fromEntries(importedConstants.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, k])] : [])),
+        ])),
+        /** @type {const} */ (['self', fromEntries(constants.map(([name], k) => /** @type {const} */ ([name, constantBase + k])))]),
+    ])
+    const own = imported.length + makers.length
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
+    /** @type {_Env} */
+    const base = {
+        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals,
+        literals: literals.map(([t, s], j) => /** @type {const} */ ([t, s, literalBase + j])),
+    }
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
+        ...base,
         locals: fromEntries(params.map(([name], k) => [name, k])),
         labels: setReplace('return')(/** @type {const} */ ([-1, ['block', result]]))(empty),
-        depth: 0,
         next: params.length,
-        functions,
-        imports,
-        interfaces,
-        types,
     }, 0, body, result))
+    const initIndex = own + m.functions.length
+    /** @type {(done: _Code, constant: readonly [string, ConstantOf<Typed>], k: number) => _Code} */
+    const evaluate = (done, [, { type, value }], k) => {
+        const c = valueOf(term, { ...base, next: done.locals.length }, 0, value, type)
+        return { code: [...done.code, ...c.code, ['global.set', constantBase + k]], locals: [...done.locals, ...c.locals] }
+    }
+    const initCode = constants.reduce(evaluate, just([]))
+    const startIndex = initIndex + init.length
+    /** The byte at which each literal's units start in the data segment. @type {readonly number[]} */
+    const offsets = literals.reduce((done, [, s]) => [...done, assertNotNullish(done.at(-1)) + 2 * s.length], [0])
+    /** @type {(maker: { readonly abi: string, readonly member: string }) => number} */
+    const makerIndex = x => imported.length + makers.findIndex(y => y.abi === x.abi && y.member === x.member)
+    /** @type {Expr} */
+    const startCode = literals.flatMap(([, s], j) => [
+        ['global.get', dataBase], ['i32.const', offsets[Number(j)]], ['i32.add'], ['i32.const', s.length],
+        ['call', makerIndex(made[Number(j)])], ['global.set', literalBase + j],
+    ])
+    const bytes = literals.flatMap(([, s]) => unitsOf(s))
+    /** The names of locals, from those of their functions' parameters on. @type {(names: readonly string[]) => NameMap} */
+    const named = names => names.map((name, j) => [j, name])
+    /** @type {IndirectNameMap} */
+    const localNames = [
+        ...m.functions.map(([, f], k) => /** @type {const} */ ([own + k, named([...f.params.map(([name]) => name), ...codes[Number(k)].locals.map(([name]) => name)])])),
+        ...(init.length === 0 ? [] : [/** @type {const} */ ([initIndex, named(initCode.locals.map(([name]) => name))])]),
+    ]
+    /** @type {NameMap} */
+    const globalNames = [
+        ...importedConstants.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
+        ...(memoryAbi === null ? [] : [/** @type {const} */ ([dataBase, 'data_base'])]),
+        ...literals.map(([, s], j) => /** @type {const} */ ([literalBase + j, `'${s}'`])),
+        ...constants.map(([name], k) => /** @type {const} */ ([constantBase + k, name])),
+    ]
     return {
         types,
-        imports: imported.map(({ abi, member }, k) => ({ module: abi, name: member, desc: ['func', typeOf(k)] })),
-        functions: codes.map((c, k) => ({
-            type: typeOf(own + k),
-            locals: runs(c.locals.map(([, t]) => t)),
-            body: c.code,
-        })),
+        imports: [
+            ...imported.map(({ abi, member }, k) => funcImport(abi, member, typeOf(k))),
+            ...makers.map(({ abi, member }, k) => funcImport(abi, member, typeOf(imported.length + k))),
+            ...(memoryAbi === null ? [] : [memoryImport(memoryAbi)]),
+            ...importedConstants.map(({ abi, member, t }) => globalImport(abi, member, carrier(interfaces, t)[0])),
+            ...(memoryAbi === null ? [] : [globalImport(memoryAbi, 'data_base', 'i32')]),
+        ],
+        functions: [
+            ...codes.map((c, k) => ({
+                type: typeOf(own + k),
+                locals: runs(c.locals.map(([, t]) => t)),
+                body: c.code,
+            })),
+            ...(init.length === 0 ? [] : [{ type: typeOf(initIndex), locals: runs(initCode.locals.map(([, t]) => t)), body: initCode.code }]),
+            ...(start.length === 0 ? [] : [{ type: typeOf(startIndex), locals: [], body: startCode }]),
+        ],
         tables: [],
         memories: [],
-        globals: [],
-        exports: m.exports.map(name => ({ name, kind: 'func', index: own + m.functions.findIndex(([k]) => k === name) })),
-        start: null,
+        globals: [
+            ...literals.map(([t]) => definition(interfaces, t).carrier),
+            ...constants.map(([, { type }]) => carrier(interfaces, type)[0]),
+        ].map(t => ({ type: { type: t, mutable: true }, init: [zero(t)] })),
+        exports: [
+            ...m.exports.map(name => funcExport(name, own + m.functions.findIndex(([k]) => k === name))),
+            ...(init.length === 0 ? [] : [funcExport('init', initIndex)]),
+        ],
+        start: start.length === 0 ? null : startIndex,
         elements: [],
         dataCount: null,
-        data: [],
-        customs: [{
-            after: 'code',
-            content: ['name', [
-                ['function', [
-                    ...imported.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
-                    ...m.functions.map(([name], k) => /** @type {const} */ ([own + k, name])),
+        data: memoryAbi === null ? [] : [{ mode: ['active', 0, [['global.get', dataBase]]], bytes }],
+        customs: [
+            {
+                after: 'code',
+                content: ['name', [
+                    ['function', [
+                        ...imported.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
+                        ...makers.map(({ module, member }, k) => /** @type {const} */ ([imported.length + k, `${module}.${member}`])),
+                        ...m.functions.map(([name], k) => /** @type {const} */ ([own + k, name])),
+                        ...(init.length === 0 ? [] : [/** @type {const} */ ([initIndex, 'init'])]),
+                        ...(start.length === 0 ? [] : [/** @type {const} */ ([startIndex, 'start'])]),
+                    ]],
+                    ['local', localNames],
+                    ...(globalNames.length === 0 ? [] : [/** @type {const} */ (['global', globalNames])]),
                 ]],
-                ['local', m.functions.map(([, f], k) => [own + k, [...f.params.map(([name]) => name), ...codes[Number(k)].locals.map(([name]) => name)].map((name, j) => [j, name])])],
-            ]],
-        }],
+            },
+            ...(memoryAbi === null ? [] : [layout(bytes.length)]),
+        ],
     }
 }

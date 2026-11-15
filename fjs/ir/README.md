@@ -8,14 +8,16 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first five and the first PR of the sixth: typed
+This directory holds the first five and the first PRs of the sixth: typed
 code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
 module does not export, with records and
-[L1's native rows](./native/module.f.js), and owned values written by hand
-(6a). Next is the rest of counted values (`typeOf`), as stacked PRs in that
-roadmap, the lifetime pass first.
+[L1's native rows](./native/module.f.js), owned values written by hand
+(6a), the lifetime pass, which writes them (6b), constants, which a
+module's `init` evaluates (6c), and string literals, which its start
+function makes (6d). Next is the rest of counted values (`typeOf`), as
+stacked PRs in that roadmap: array literals (6e, 6f).
 
 ## Map of this directory
 
@@ -25,6 +27,7 @@ roadmap, the lifetime pass first.
 |[`.`](./module.f.js)                     |the constructors, and the facts about types that the stages share      |
 |[`check`](./check/module.f.js)           |the checker: a type for every term, or the module refused with a reason|
 |[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path    |
+|[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
@@ -128,8 +131,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   run on every module that the checker takes: each owned value is consumed
   once on every path, no borrow outlives the owned value that it leans on,
   the arms of a `match` and the exits of a `block` agree, and a loop owns
-  or borrows each parameter as its first value is. A person writes the
-  owned stage until the lifetime pass does.
+  or borrows each parameter as its first value is. A person may write the
+  owned stage, as its proofs do; [the lifetime pass](./lifetime/module.f.js)
+  writes it from the plain stage (6b).
 - **A host that counts** ([`l0/host/count`](./l0/host/count/module.mjs)):
   `dup` and `drop` count a cell, and `from_unit` and `concat` make one.
   Every host proof of the emitter runs on it, and each call that completes
@@ -141,6 +145,93 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `undefined`, before it counts the cells. A host proof may run a function
   that owns a parameter, answers a string, or answers `unit`.
 
+## What 6b adds
+
+- **The lifetime pass** ([`lifetime`](./lifetime/module.f.js)): a module's
+  plain stage, which reads a value of a sealed type as often as it needs
+  and neither copies nor drops one, to its owned stage. A local moves at
+  its last use where its context takes the value over, any other such use
+  is a `dup`, and what a scope still owns is dropped where it ends, after
+  its value. A temporary that a call or a `match` only borrows gets a name
+  first, so that something drops it, and so does an argument, a first
+  value or a next value that may leave by a `br`, with every part before
+  it that does something, so that the `br` drops what they gave. Inside a
+  `block` or a `loop` the locals around it are lent, and a `br` drops what
+  the regions that it leaves own. The checker then checks the owned stage that the pass wrote,
+  so a mistake of the pass is a refusal, never a leak; `checkPlain` is the
+  checker without that check, which the pass starts from.
+- **L0's functions that answer owned values, lowered**: String's
+  `substring(s, start, end)` and Containers' `item(c, i)` join
+  [the interfaces of L0](./l0/module.f.js) and both hosts, and the
+  [lowering](./from_fast/README.md#the-l0-view) reads the view's
+  `fromUnit`, `concat`, `substring` and `item`, whose values the caller
+  owns: it writes the plain stage, and the pass drops each where its scope
+  ends. Six FunctionalScript helpers that make strings, among them a loop
+  that owns its string, run through the pass against JavaScript with
+  nothing left over, and so do the random comparison's programs.
+
+## What 6c adds
+
+- **Constants** (`constant(module, name)`, printed `self.half` or
+  `Any.undefined`): a module's own, whose term the module's `init`
+  evaluates once, in their order, and one of an interface that the module
+  imports, which the host makes, as Any's `undefined`, `null`, `true` and
+  `false`
+  ([L0 design §3](../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).
+  A constant is borrowed, and nothing drops it. A constant's term reads
+  only the constants before it, itself or through the functions that it
+  calls, and the constant owns its value: a value of `any` that it only
+  borrows is refused, so the lifetime pass copies one.
+- **`init`** ([L0 design §20](../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)):
+  a module with constants exports `init`, which sets each constant's
+  global in their order, and no function of a module may have that name.
+  The host calls it before anything else. It answers nothing yet: the
+  program's value that L0's `init` answers waits for programs.
+- **Constants on the host**: the [counting host](./l0/host/count/module.mjs)
+  makes Any's four constants as cells `-1` to `-4`, each counted once for
+  its global, and keeps what `init` makes, since nothing drops a constant.
+  Each call after `init` must leave every cell as `init` left it.
+- **The lowering of a module-level definition**: each definition of a
+  module that is not a function is
+  [a constant](./from_fast/README.md#constants), `#c0`, `#c1`, … by its
+  place, kept where a function reads it, and `undefined` and `null` are
+  Any's. Six FunctionalScript helpers that read constants of floats, of a
+  `bool` and of strings run against JavaScript, and so do the random
+  comparison's programs of constants.
+
+## What 6d adds
+
+- **String literals** (`lit(string, 'abc')`, printed `"abc"`): a literal
+  of a sealed type whose interface names the function that makes its
+  literals, of the one variant that the function makes. Any's `any` names
+  String's `make_string`, so a string literal is `any.only(string)`
+  ([L0 design §7](../../doc/sasha-gil/wasm/l0-design.md#7-strings-utf-16-units-in-l0)).
+  `make_string` is no function of String's interface, since an address
+  and a length are no values of the IR: only the emitter calls it. A
+  literal is borrowed, as a constant is, and nothing drops it, so the
+  lifetime pass copies one that a term takes over.
+- **The start function**
+  ([L0 design §6](../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)):
+  a module with string literals makes each once, for its type and its
+  spelling, into a global of its own, from its UTF-16 units in a data
+  segment, before `init` and before any call. Making a literal cannot
+  throw, so WASM's start function, which has no way to report a throw, is
+  enough for it.
+- **The memory that the loader makes**
+  ([L0 design §5](../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+  the module imports it and `data_base`, where its data segments start,
+  and says in its `fjs.layout` section how many bytes they need. The
+  [counting host](./l0/host/count/module.mjs) makes the memory from that
+  section, with `data_base` past bytes that it keeps, and makes a cell for
+  each literal; what the start function made it then keeps, as it does
+  what `init` made.
+- **The lowering of a string**: with the runtime, a string of FAST is a
+  [literal](./from_fast/README.md#the-l0-view), and a definition of the
+  module that holds one is the literal where a function reads it.
+  Five FunctionalScript functions that read literals, among them the
+  empty string, a unit past ASCII and a pair of surrogates, run against
+  JavaScript, and so do the random comparison's programs of literals.
+
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): a
@@ -150,10 +241,22 @@ a field twice, a field that a product does not have, a sum other than
 a name for the operand of a `bool`'s arm, a call of an interface that the
 module does not import, a range wider than a word, a division of integers,
 integers mixed with floats, a term of type `never` where a value is used, a
-literal of a sealed type, an `own` parameter of a type that is not sealed,
+literal of a sealed type whose interface makes none, that is not a string,
+or whose type is not the one that the interface makes, a string literal in
+a module that does not import the interface that makes it, an interface
+whose literals hold none of their type's variants, a constant that one
+ABI imports by the name of a function, or of a constant whose global holds
+another WASM value, a constant or a function named `memory` or `data_base`
+in the ABI of an interface that makes literals, an `own` parameter of a
+type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
-whose owned stage does not consume each owned value once on every path,
-an interface that names a type or a function twice, a `br` to a loop that
+whose owned stage does not consume each owned value once on every path, a
+value of a linear type that the lifetime pass would have to copy or drop,
+an interface that names a type, a function or a constant twice, a
+constant of a product or of `never`, two constants of one name, a function
+named `init`, a constant that reads itself or one after it, directly or
+through the functions that it calls, a constant that only borrows its
+value, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of
 anything but one float, or without the range that it saturates to.
 
@@ -179,6 +282,20 @@ stack, so a `match`, a `block` or a `loop` of a record has a multi-value
 type, of WASM 2.0. A field of a local reads that local, and a field of
 any other term drops the values after it and those before it.
 
+A constant is a global of its type's WASM value: one of an interface is an
+immutable global, imported from the interface's ABI by its name after the
+functions, and one of the module a mutable global, zero until `init` sets
+it. `init` takes nothing and answers nothing, and only a module with
+constants has it.
+
+A string literal is a mutable global of `any` too, which the module's
+start function sets once from the literal's UTF-16 units, the low byte of
+each first, by `make_string`, imported after the interfaces' functions. A
+data segment at `data_base` holds the units of every literal, in the
+memory that the loader makes: the module imports both, from the maker's
+ABI, and only a module with string literals has them, the start function
+and the `fjs.layout` section.
+
 A loop's parameters are locals: their first values are set before a WASM
 `loop`, and a `br` to it sets them all from its fields, then branches to
 the loop's start. `trunc_sat` is the saturating truncation of the range's
@@ -195,7 +312,9 @@ WebAssembly engine and compares every exported function with a JavaScript
 twin on the same inputs, the edges of each type included. A function of
 `any` runs over [the hosts](./l0/host/module.f.js), on a value of every
 kind, and its twin reads the value with the L0 view; a trap of WASM is a
-throw of the twin.
+throw of the twin. A module with string literals makes them as it is
+instantiated, a module with constants then has its `init` called, and
+then each function, which must leave every cell as they left it.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
 FunctionalScript functions lowered from their text, and their twins are the
 functions themselves, L1's `toBoolean`, `stringEquals`, `stringLess`,

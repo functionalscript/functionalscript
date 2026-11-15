@@ -104,16 +104,23 @@ before it and proved end to end on its own.
   static check of the owned stage, which also holds a linear type's owned
   values to one consumer; a host that counts every value, under every host
   proof of the emitter. Copy variants of `any` wait until after slice 6.
-- [ ] **6b. The lifetime pass.** Plain stage to owned (move, `dup`, `drop`);
-  lowering of L0 view functions that answer owned values.
-- [ ] **6c. Constants and `init`.** Any's `undefined`, `null`, `true` and
+- [x] **6b. The lifetime pass**, as two stacked PRs:
+  - [x] the pass: plain stage to owned (move, `dup`, `drop`), from the
+    checker's plain stage, `checkPlain` (#3864);
+  - [x] lowering of L0 view functions that answer owned values (`concat`,
+    `fromUnit`, `substring`, `item`), with helpers against JavaScript and
+    the random comparison through the pass (#3865).
+- [x] **6c. Constants and `init`** (#3866). Any's `undefined`, `null`, `true` and
   `false` as imported globals; module constants other than string and bigint
   literals (those are 6d); derived `init`; lowering of a module-level
   definition.
-- [ ] **6d. String literals.** A literal as a constant named by its spelling,
-  built once in the module's start function by `make_string` from UTF-16
-  units in a data segment (memory and the start/`init` split as in the
-  decisions above).
+- [x] **6d. String literals.** A string literal is a literal of the sealed
+  type whose interface names its maker, `make_string` for `any`, borrowed
+  and never dropped as a constant is; built once for its type and its
+  spelling in the module's start function, from UTF-16 units in a data
+  segment at `data_base` of the memory that the loader makes (the
+  start/`init` split as in the decisions above); lowering of a string of
+  FAST.
 - [ ] **6e. Array literals of values.** The linear kind; `begin_array`,
   `push`, `seal`; array literals with no spread and no holes. (Object
   literals, spread and `buildArray` / `buildObject` with callbacks stay in

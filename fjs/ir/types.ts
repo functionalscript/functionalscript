@@ -55,8 +55,13 @@ export type OpName =
 /** A `match` arm: the variants it takes, `null` for the rest; a name for the operand there; its body. */
 export type ArmOf<T> = readonly [variants: readonly string[] | null, binder: string | null, body: T]
 
-/** A literal of a type: an integer as a `bigint`, a float as a `number`. */
-export type Lit = readonly ['lit', Type, bigint | number]
+/**
+ * A literal of a type: an integer as a `bigint`, a float as a `number`, and
+ * a string as a `string`, of a sealed type whose interface makes such
+ * literals. A string literal is borrowed, and nothing drops it: the module
+ * makes it once, before anything reads it.
+ */
+export type Lit = readonly ['lit', Type, bigint | number | string]
 
 /** A local, by its name. */
 export type Get = readonly ['get', string]
@@ -101,16 +106,25 @@ export type Br = readonly ['br', string, Term]
 /** A failure at a named point. It gives no value, and the reason is for whoever reads a failed proof. */
 export type Trap = readonly ['trap', reason: string]
 
-export type Term = Lit | Get | Let | Op | Call | Make | Field | Variant | Match | Block | Loop | Br | Trap
+/**
+ * A constant, borrowed: one of the module's own, `self`, which `init`
+ * evaluates once, or one of an interface that it imports, which the host
+ * makes. Nothing drops it.
+ */
+export type Constant = readonly ['constant', module: string, name: string]
+
+export type Term = Lit | Get | Let | Op | Call | Make | Field | Variant | Match | Block | Loop | Br | Trap | Constant
 
 /** A term as the checker answers it: its type, then the term with its parts typed. */
 export type Typed = readonly [Type, TypedTerm]
 
 /**
  * A `match` arm as the checker answers it: every variant it takes, `else`
- * written out, the name of the operand there, if it has one, and its body.
+ * written out, the name of the operand there, if it has one, its body, and
+ * the variants as the term wrote them, `null` for `else`, so that a pass
+ * that rewrites a typed module writes each arm as it was.
  */
-export type TypedArm = readonly [variants: readonly string[], binder: string | null, body: Typed]
+export type TypedArm = readonly [variants: readonly string[], binder: string | null, body: Typed, written: readonly string[] | null]
 
 export type TypedTerm =
     | Lit
@@ -126,6 +140,7 @@ export type TypedTerm =
     | readonly ['loop', string, readonly LoopParamOf<Typed>[], Typed]
     | readonly ['br', string, Typed]
     | Trap
+    | Constant
 
 /**
  * A parameter: its name, its type, and whether the callee owns it. A missing
@@ -153,7 +168,9 @@ export type FunctionOf<T> = {
  * a counted type, the functions that count it: `dup`, which borrows a value
  * and answers one of the type, and `drop`, which owns one and answers
  * `unit`. A type that names neither is linear: a value that a module owns
- * goes to a parameter that owns it.
+ * goes to a parameter that owns it. A type that has string literals names
+ * the variant that one holds and the function that makes one, of an
+ * interface that a module with such a literal imports.
  */
 export type SealedDef = {
     readonly variants: readonly string[]
@@ -161,23 +178,54 @@ export type SealedDef = {
     readonly carrier: 'i32' | 'i64'
     readonly dup?: string
     readonly drop?: string
+    readonly literal?: Maker
+}
+
+/**
+ * The function that makes a string literal of a sealed type from its UTF-16
+ * units in memory, `String.make_string` for `any`: the variant that the
+ * literal holds, and the interface and the name of the function, its
+ * member. Only the emitter calls it, since its arguments, an address and a
+ * length, are no values of the IR.
+ */
+export type Maker = {
+    readonly variant: string
+    readonly module: string
+    readonly member: string
 }
 
 /**
  * What a module needs to know of another that it imports: the other's
- * sealed types and the signatures of its functions, whose parameters borrow
- * their arguments but where they are `own`. `abi` is the WASM module of the
- * imports that bind it on a host, which name its functions as it does.
+ * sealed types, its constants, each of a type, and the signatures of its
+ * functions, whose parameters borrow their arguments but where they are
+ * `own`. `abi` is the WASM module of the imports that bind it on a host,
+ * which name its functions and its constants as it does.
  */
 export type Interface = {
     readonly abi: string
     readonly types: readonly (readonly [name: string, SealedDef])[]
+    readonly constants?: readonly (readonly [name: string, Type])[]
     readonly functions: readonly (readonly [name: string, Signature])[]
 }
 
-/** A module: the interfaces it imports, by their names, its functions in their order, and the names of those it exports. */
+/**
+ * A constant of a module: its type and the term that `init` evaluates once,
+ * which reads only the constants before it, itself or through a function
+ * that it calls, and which the constant owns.
+ */
+export type ConstantOf<T> = {
+    readonly type: Type
+    readonly value: T
+}
+
+/**
+ * A module: the interfaces it imports, by their names, its constants and
+ * its functions in their order, and the names of the functions that it
+ * exports. The module exports `init` too, which evaluates the constants.
+ */
 export type ModuleOf<T> = {
     readonly imports: readonly (readonly [name: string, Interface])[]
+    readonly constants?: readonly (readonly [name: string, ConstantOf<T>])[]
     readonly functions: readonly (readonly [name: string, FunctionOf<T>])[]
     readonly exports: readonly string[]
 }
@@ -186,20 +234,22 @@ export type Fn = FunctionOf<Term>
 
 export type Module = ModuleOf<Term>
 
-/** A module that the checker took, every body typed. */
-export type Checked = ModuleOf<Typed>
+/** A module that the checker took, every term typed, with its constants, which it may have none of. */
+export type Checked = Required<ModuleOf<Typed>>
 
 /**
- * Where a term stands in a function: the function's name, the locals in
- * scope with their types, the function's result, the signatures of the
- * module's functions, and the interfaces it imports. A producer that picks
- * an operator by the types of its operands asks the checker for them in a
- * scope.
+ * Where a term stands in a function or a constant: its name, the locals in
+ * scope with their types, the function's result, which a constant has
+ * none of, the signatures of the module's functions, the interfaces it
+ * imports, and the types of the module's constants that it may read. A
+ * producer that picks an operator by the types of its operands asks the
+ * checker for them in a scope.
  */
 export type Scope = {
     readonly name: string
     readonly locals: readonly Param[]
-    readonly result: Type
+    readonly result?: Type
     readonly functions: readonly (readonly [name: string, Signature])[]
     readonly imports: readonly (readonly [name: string, Interface])[]
+    readonly constants?: readonly (readonly [name: string, Type])[]
 }

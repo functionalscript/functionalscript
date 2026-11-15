@@ -11,8 +11,8 @@ import type { Kind } from '../../../wasm/runtime/l0/types.ts'
  * L0](../module.f.js) bind, over the L0 view, each on a handle as the
  * WebAssembly JavaScript API passes an `i64`: a `bigint`. A `bool` goes back
  * as `0` or `1`, and a length and a unit as the numbers they are, as an
- * index comes. `from_unit` and `concat` answer the string that they make,
- * which a host gives a handle.
+ * index comes. `from_unit`, `concat`, `substring` and `item` answer the
+ * value that they make or read, which a host gives a handle.
  */
 export type View = {
     readonly kind: (h: bigint) => Kind
@@ -23,14 +23,27 @@ export type View = {
     readonly unit: (h: bigint, i: number) => number
     readonly from_unit: (c: number) => string
     readonly concat: (a: bigint, b: bigint) => string
+    readonly substring: (s: bigint, start: number, end: number) => string
+    readonly item: (c: bigint, i: number) => unknown
 }
 
 /**
- * The `fjs:l0` imports of a host that counts: the view's readers, `dup` and
- * `drop`, which count a cell, and `from_unit` and `concat`, which make a
- * cell that the caller owns and answer its handle.
+ * The `fjs:l0` imports of a host that counts: Any's constants, each an
+ * immutable global of the handle of a cell that the host keeps, the view's
+ * readers, `dup` and `drop`, which count a cell, and `from_unit`, `concat`,
+ * `substring` and `item`, which make a cell that the caller owns and answer
+ * its handle. The memory that the host makes holds a module's data
+ * segments at `data_base`, from which `make_string` makes a cell of a
+ * string of the UTF-16 units at an address.
  */
 export type Imports = {
+    readonly memory: WebAssembly.Memory
+    readonly data_base: WebAssembly.Global
+    readonly make_string: (ptr: number, len: number) => bigint
+    readonly undefined: WebAssembly.Global
+    readonly null: WebAssembly.Global
+    readonly true: WebAssembly.Global
+    readonly false: WebAssembly.Global
     readonly kind: (h: bigint) => Kind
     readonly to_f64: (h: bigint) => number
     readonly to_bool: (h: bigint) => 0 | 1
@@ -41,15 +54,20 @@ export type Imports = {
     readonly drop: (h: bigint) => void
     readonly from_unit: (c: number) => bigint
     readonly concat: (a: bigint, b: bigint) => bigint
+    readonly substring: (s: bigint, start: number, end: number) => bigint
+    readonly item: (c: bigint, i: number) => bigint
 }
 
 /**
  * A host that counts every value: its imports, the value that a handle
- * names, and the cells that are alive, each a handle and its count, in the
- * order they were made.
+ * names, `keep`, which keeps every cell alive at its count, and the cells
+ * that are not as they were kept, each a handle and its count, in the order
+ * they were made: a cell alive that is not kept, and a kept one at another
+ * count, `0` where a `drop` freed it.
  */
 export type Counting = {
     readonly imports: Imports
     readonly read: (h: bigint) => unknown
+    readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
 }

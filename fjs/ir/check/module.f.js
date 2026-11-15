@@ -29,13 +29,19 @@
  *   a `match` whose arms may name the operand at the type of their
  *   variants. A function may give one, which its caller owns, and `dup` /
  *   `drop` count it. The [owned-stage check](./owned/module.f.js) requires
- *   each owned value to be consumed once on every path.
+ *   each owned value to be consumed once on every path; `checkPlain` stops
+ *   before it, for the [lifetime pass](../lifetime/module.f.js), which
+ *   writes the owned stage.
+ * - **A string literal is its maker's.** A sealed type whose interface
+ *   names the function that makes its literals has string literals of the
+ *   one variant that the function makes, `any.only(string)` for `any`,
+ *   and a module that has one imports the maker's interface.
  *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { ArmOf, Checked, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
  * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
@@ -43,8 +49,8 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, int, isOwn, never, product, unit } from '../module.f.js'
-import { show } from '../print/module.f.js'
+import { bool, compareIn, equal, f64, f64c, fits, inside, int, isOwn, never, product, unit } from '../module.f.js'
+import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 
 /** Locals of a function: names to types, without parameter modes. @type {(params: readonly Param[]) => OrderedMap<Type>} */
@@ -79,6 +85,24 @@ const narrowed = (env, t, held) => {
     const { variants } = unwrap(definition(env, t))
     const only = variants.filter(v => held.includes(v))
     return ['sealed', t[1], t[2], only.length === variants.length ? null : only]
+}
+
+/**
+ * Why a module may not write a literal of a sealed type, or `null` where it
+ * may: a string, of the type of the variant that the type's string literals
+ * hold, which a function of an interface that the module imports makes. A
+ * type of that variant alone holds just its values, so the type may name it.
+ *
+ * @type {(env: _Env, t: Sealed, v: bigint | number | string) => string | null}
+ */
+const unmade = (env, t, v) => {
+    const { literal } = unwrap(definition(env, t))
+    const held = kinds(env, t)
+    return literal === undefined ? `${show(t)} has no literals`
+        : typeof v !== 'string' ? `${v} is not a literal of ${show(t)}`
+        : held.length !== 1 || held[0] !== literal.variant ? `a string literal is ${show(narrowed(env, t, [literal.variant]))}, not ${show(t)}`
+        : at(literal.module)(env.imports) === null ? `${literal.module} makes the literals of ${t[2]}, and the module does not import ${literal.module}`
+        : null
 }
 
 /** Why a module may not write a sealed type, or `null` where it may: an imported type, with some of its variants, each once. @type {(env: _Env, t: Sealed) => string | null} */
@@ -247,10 +271,11 @@ const truncType = (env, target, args) => {
 
 /**
  * The arms of a `match`, each with the variants it takes, `else` written
- * out. Each arm names variants of the operand, none is named twice, `else`
- * comes last and takes some, and every variant has an arm.
+ * out, and the variants as it wrote them. Each arm names variants of the
+ * operand, none is named twice, `else` comes last and takes some, and every
+ * variant has an arm.
  *
- * @type {(variants: readonly string[], arms: readonly ArmOf<Term>[]) => Result<readonly (readonly [readonly string[], string | null, Term])[], string>}
+ * @type {(variants: readonly string[], arms: readonly ArmOf<Term>[]) => Result<readonly (readonly [readonly string[], string | null, Term, readonly string[] | null])[], string>}
  */
 const resolveArms = (variants, arms) => {
     const named = arms.flatMap(([vs]) => vs ?? [])
@@ -264,26 +289,33 @@ const resolveArms = (variants, arms) => {
         : otherwise >= 0 && otherwise !== arms.length - 1 ? error('else is not the last arm')
         : otherwise >= 0 && rest.length === 0 ? error('else takes no variant')
         : otherwise < 0 && rest.length > 0 ? error(`no arm for ${rest.join(' or ')}`)
-        : ok(arms.map(([vs, binder, body]) => /** @type {const} */ ([vs ?? rest, binder, body])))
+        : ok(arms.map(([vs, binder, body]) => /** @type {const} */ ([vs ?? rest, binder, body, vs])))
 }
 
 /**
- * The function that a `call` names, or why there is none: one of the
- * module, or of an interface that it imports.
+ * What a term names, a function or a constant, or why there is none: one of
+ * the module, `self`, from `own`, or of an interface that it imports, from
+ * what `of` reads of the interface.
  *
- * @type {(env: _Env, module: string, name: string) => Result<Signature, string>}
+ * @type {<T>(env: _Env, module: string, name: string, noun: string, own: OrderedMap<T>, of: (i: Interface) => readonly (readonly [string, T])[]) => Result<T, string>}
  */
-const callee = (env, module, name) => {
+const member = (env, module, name, noun, own, of) => {
     if (module === 'self') {
-        const f = at(name)(env.functions)
-        return f === null ? error(`no function ${name}`) : ok(f)
+        const x = at(name)(own)
+        return x === null ? error(`no ${noun} ${name}`) : ok(x)
     }
     const i = at(module)(env.imports)
-    const f = i?.functions.find(([k]) => k === name)
+    const x = i === null ? undefined : of(i).find(([k]) => k === name)
     return i === null ? error(`no interface ${module}`)
-        : f === undefined ? error(`${module} has no function ${name}`)
-        : ok(f[1])
+        : x === undefined ? error(`${module} has no ${noun} ${name}`)
+        : ok(x[1])
 }
+
+/** The function that a `call` names, or why there is none. @type {(env: _Env, module: string, name: string) => Result<Signature, string>} */
+const callee = (env, module, name) => member(env, module, name, 'function', env.functions, i => i.functions)
+
+/** The type of the constant that a `constant` names, or why there is none. @type {(env: _Env, module: string, name: string) => Result<Type, string>} */
+const constantOf = (env, module, name) => member(env, module, name, 'constant', env.constants, i => i.constants ?? [])
 
 /** A term that gives a value, which a `never` does not. @type {(checkTerm: _CheckTerm, env: _Env, t: Term) => Result<Typed, string>} */
 const value = (checkTerm, env, t) => {
@@ -359,11 +391,13 @@ const term = (env, t) => {
         case 'lit': {
             const [, type, v] = t
             const why = unsupported(env, type)
+            if (why !== null) { return no(why) }
+            if (type[0] === 'sealed') {
+                const unknown = unmade(env, type, v)
+                return unknown === null ? ok([type, t]) : no(unknown)
+            }
             const fit = type[0] === 'int' ? typeof v === 'bigint' && type[1] <= v && v <= type[2] : isFloat(type) && typeof v === 'number'
-            return why !== null ? no(why)
-                : type[0] === 'sealed' ? no(`a literal of ${show(type)} is a constant, which is not in this slice`)
-                : fit ? ok([type, t])
-                : no(`${v} is not a literal of ${show(type)}`)
+            return fit ? ok([type, t]) : no(`${typeof v === 'string' ? quote(v) : v} is not a literal of ${show(type)}`)
         }
         case 'get': {
             const type = at(t[1])(env.locals)
@@ -438,7 +472,7 @@ const term = (env, t) => {
             const operand = value(term, env, e)
             if (operand[0] === 'error') { return operand }
             const [of] = operand[1]
-            /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term]) => Result<Typed, string>} */
+            /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term, readonly string[] | null]) => Result<Typed, string>} */
             const body = ([vs, binder, x]) => {
                 if (binder === null || of[0] !== 'sealed') { return term(env, x) }
                 if (at(binder)(env.locals) !== null) { return no(`${binder} is bound twice`) }
@@ -456,7 +490,7 @@ const term = (env, t) => {
             const type = joinAll(env, types)
             const why = type === null ? `its arms are ${types.map(show).join(', ')}, which no one type holds` : unheld(env, type)
             return type === null || why !== null ? no(`match: ${why}`)
-                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder], k) => /** @type {const} */ ([vs, binder, bodies[1][Number(k)]]))]])
+                : ok([type, ['match', operand[1], resolved[1].map(([vs, binder, , written], k) => /** @type {const} */ ([vs, binder, bodies[1][Number(k)], written]))]])
         }
         case 'block': {
             const [, label, type, body] = t
@@ -478,6 +512,10 @@ const term = (env, t) => {
             if (v[0] === 'error') { return v }
             return sub(env, v[1][0], target[1]) ? ok([never, ['br', label, v[1]]])
                 : no(`${label} takes ${show(target[1])}, not ${show(v[1][0])}`)
+        }
+        case 'constant': {
+            const type = constantOf(env, t[1], t[2])
+            return type[0] === 'error' ? no(type[1]) : ok([type[1], t])
         }
         default: { return ok([never, t]) }
     }
@@ -508,27 +546,43 @@ const unsigned = (env, { params, result }) => {
         : null
 }
 
+/** The first name that a list holds twice, or `undefined`. @type {(names: readonly string[]) => string | undefined} */
+const twiceIn = names => names.find((k, j) => names.indexOf(k) !== j)
+
+/**
+ * Why a module may not have a constant of a type, or `null` where it may:
+ * a type that a module may write and that holds a value, since a constant
+ * is one value, which one global holds.
+ *
+ * @type {(env: _Env, t: Type) => string | null}
+ */
+const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : unsupported(env, t)
+
 /**
  * Why a module may not import an interface, or `null` where it may: it
- * names each of its types and its functions once, since a call and a sealed
- * type find them by their names, each of its sealed types names its
- * variants once each, its signatures have types that a module may write,
- * the tag of each sealed type comes from a function of the interface that
- * borrows a value of the type and answers `int(0, n - 1)`, one tag for each
- * of its `n` variants, and a counted type names both of its counting
- * functions: a `dup` that borrows a value and answers one of the type, and
- * a `drop` that owns one and answers `unit`.
+ * names each of its types, its constants and its functions once, since a
+ * call, a constant and a sealed type find them by their names, each of its
+ * sealed types names its variants once each, its constants and its
+ * signatures have types that a module may write, the tag of each sealed
+ * type comes from a function of the interface that borrows a value of the
+ * type and answers `int(0, n - 1)`, one tag for each of its `n` variants,
+ * and a counted type names both of its counting functions: a `dup` that
+ * borrows a value and answers one of the type, and a `drop` that owns one
+ * and answers `unit`.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
-const checkInterface = imports => ([name, { types, functions }]) => {
+const checkInterface = imports => ([name, { types, constants = [], functions }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions: empty, imports }
-    const typeNames = types.map(([k]) => k)
-    const type = typeNames.find((k, j) => typeNames.indexOf(k) !== j)
-    const functionNames = functions.map(([k]) => k)
-    const named = functionNames.find((k, j) => functionNames.indexOf(k) !== j)
+    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty }
+    const type = twiceIn(types.map(([k]) => k))
+    const constant = twiceIn(constants.map(([k]) => k))
+    const named = twiceIn(functions.map(([k]) => k))
     const twice = types.find(([, { variants }]) => variants.some((v, k) => variants.indexOf(v) !== k))
+    const kept = constants.map(([k, t]) => {
+        const why = unkept(env, t)
+        return why === null ? null : `${k}: ${why}`
+    }).find(x => x !== null)
     const why = functions.map(([, s]) => unsigned(env, s)).find(x => x !== null)
     /** Whether `f` names a function of the interface whose only parameter is a value of `type`, owned or not as `own` says, and whose result is `result`. @type {(f: string, type: string, own: boolean, result: Type) => boolean} */
     const takes = (f, type, own, result) => {
@@ -537,15 +591,73 @@ const checkInterface = imports => ([name, { types, functions }]) => {
     }
     const untagged = types.find(([type, { variants, kind }]) => !takes(kind, type, false, int(0n, BigInt(variants.length - 1))))
     const half = types.find(([, { dup, drop }]) => (dup === undefined) !== (drop === undefined))
+    const unmaking = types.find(([, { variants, literal }]) => literal !== undefined && !variants.includes(literal.variant))
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     return type !== undefined ? `${name}: two types are named ${type}`
+        : constant !== undefined ? `${name}: two constants are named ${constant}`
         : named !== undefined ? `${name}: two functions are named ${named}`
         : twice !== undefined ? `${name}: ${twice[0]} names a variant twice`
+        : typeof kept === 'string' ? `${name}: ${kept}`
         : typeof why === 'string' ? `${name}: ${why}`
         : untagged !== undefined ? `${name}: ${untagged[1].kind} does not answer the tag of ${untagged[0]}, one for each of its variants`
         : half !== undefined ? `${name}: ${half[0]} names ${half[1].dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
+        : unmaking !== undefined ? `${name}: ${unmaking[0]}'s literals hold ${unmaking[1].literal?.variant}, which is none of its variants`
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : null
+}
+
+/**
+ * The WASM value of the global that holds a constant of `t`, as the emitter
+ * writes it: a range's word, an `f64` for a float, an `i32` for a `bool`,
+ * and a sealed type's carrier. `null` where `t` is a sealed type that no
+ * interface of the module defines, which the interface's checks refuse.
+ *
+ * @type {(env: _Env, t: Type) => string | null}
+ */
+const globalOf = (env, t) => {
+    if (t[0] !== 'sealed') { return t[0] === 'int' ? (fits(32)(t) ? 'i32' : 'i64') : isFloat(t) ? 'f64' : 'i32' }
+    const d = definition(env, t)
+    return d[0] === 'ok' ? d[1].carrier : null
+}
+
+/**
+ * Why two imports of the interfaces that a module imports would be one
+ * import of different values, or `null` where none would: a constant and a
+ * function, or two constants whose globals hold different WASM values,
+ * that are imported from one ABI by one name. A host gives one value for
+ * each name of an ABI, so it could bind only one of them. Two constants
+ * whose globals hold one WASM value share the host's global, whatever
+ * their types, as `f64` and `f64c` do, and two functions of one name share
+ * the host's function, as the four `length`s do. The function that makes a
+ * type's literals is a function of its interface's ABI here too, and that
+ * ABI's `memory` and `data_base` are the loader's, so no constant or
+ * function of the ABI has either name. The emitter imports a maker once
+ * for its ABI and its name, and it answers one WASM value, so two types
+ * whose literals it makes are carried by that value.
+ *
+ * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
+ */
+const shared = (env, imports) => {
+    const makers = imports.flatMap(([module, { types }]) => types.flatMap(([type, { literal, carrier }]) => {
+        const i = literal === undefined ? null : at(literal.module)(env.imports)
+        return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
+    }))
+    const fns = [...imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member]))), ...makers]
+    const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
+    const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
+        .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
+    const clash = cs.flatMap(([name, abi, member, w], j) => {
+        const f = fns.find(([, a, m]) => a === abi && m === member)
+        const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== null && w !== null && x !== w)
+        return f !== undefined ? [`the constant ${name} and the function ${f[0]} are both the import ${member} of ${abi}`]
+            : c !== undefined ? [`the constants ${c[0]}, a global of ${c[3]}, and ${name}, a global of ${w}, are both the import ${member} of ${abi}`]
+            : []
+    })
+    const carried = makers.flatMap(([, abi, member, type, c], j) => {
+        const other = makers.find(([, a, m, , x], k) => k < j && a === abi && m === member && x !== c)
+        return other === undefined ? [] : [`the literals of ${other[3]}, carried by ${other[4]}, and of ${type}, carried by ${c}, are both made by the import ${member} of ${abi}, which answers one WASM value`]
+    })
+    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals` : clash[0] ?? carried[0] ?? null
 }
 
 /**
@@ -563,6 +675,7 @@ const unscoped = (env, imports, functions, locals, results) => {
     const names = functions.map(([name]) => name)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const iface = imports.map(checkInterface(env.imports)).find(x => x !== null)
+    const field = shared(env, imports)
     const signature = functions.map(([name, s]) => {
         const why = unsigned(env, s)
         return why === null ? null : `${name}: ${why}`
@@ -572,58 +685,168 @@ const unscoped = (env, imports, functions, locals, results) => {
         : imported !== undefined ? `${imported} is imported twice`
         : twice !== undefined ? `two functions are named ${twice}`
         : typeof iface === 'string' ? iface
+        : typeof field === 'string' ? field
         : typeof signature === 'string' ? signature
         : typeof local === 'string' ? `${assertNotNullish(entry(env, 'name'))}: ${local}`
         : null
 }
 
-/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
-const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
-    const b = term({ name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports }, body)
+/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
+const checkFn = (functions, imports, constants) => ([name, { params, result, body }]) => {
+    /** @type {_Env} */
+    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants }
+    const b = term(env, body)
     if (b[0] === 'error') { return b }
-    return sub({ name, locals: empty, labels: empty, functions, imports }, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
+    return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
         : error(`${name}: the body is ${show(b[1][0])}, not ${show(result)}`)
 }
 
 /**
- * A module, checked: the interfaces it imports, its functions of distinct
- * names, each checked, and exports that name them once each. The answer is
- * the module with every body typed, which is what the emitter reads.
+ * A constant whose type the checker took: a term that gives a value of the
+ * type, with no local and no label in scope, since it is no function's
+ * body.
+ *
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>) => (entry: readonly [string, ConstantOf<Term>]) => Result<readonly [string, ConstantOf<Typed>], string>}
+ */
+const checkConstant = (functions, imports, constants) => ([name, { type, value: e }]) => {
+    /** @type {_Env} */
+    const env = { name, locals: empty, labels: empty, functions, imports, constants }
+    const v = value(term, env, e)
+    if (v[0] === 'error') { return v }
+    return sub(env, v[1][0], type) ? ok([name, { type, value: v[1] }])
+        : error(`${name}: the value is ${show(v[1][0])}, not ${show(type)}`)
+}
+
+// the order of the constants
+
+/** The names of `a`, then those of `b` that `a` does not have. @type {(a: readonly string[], b: readonly string[]) => readonly string[]} */
+const union = (a, b) => [...a, ...b.filter(x => !a.includes(x))]
+
+/** The module's constants that a typed term reads itself, and the module's functions that it calls, each once. @type {(x: Typed) => readonly [readonly string[], readonly string[]]} */
+const uses = ([, t]) => {
+    /** @type {readonly [readonly string[], readonly string[]]} */
+    const own = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
+        : t[0] === 'call' && t[1] === 'self' ? [[], [t[2]]]
+        : [[], []]
+    return inside(t).reduce(([cs, fs], x) => {
+        const [c, f] = uses(x)
+        return [union(cs, c), union(fs, f)]
+    }, own)
+}
+
+/**
+ * The module's constants that each function reads, itself or through the
+ * functions that it calls: what its body reads, then what those read, again
+ * until no function reads more.
+ *
+ * @type {(direct: readonly (readonly [string, readonly [readonly string[], readonly string[]]])[]) => OrderedMap<readonly string[]>}
+ */
+const readings = direct => {
+    /** @type {(current: OrderedMap<readonly string[]>) => OrderedMap<readonly string[]>} */
+    const grow = current => {
+        /** @type {(f: string) => readonly string[]} */
+        const of = f => assertNotNullish(at(f)(current))
+        const next = fromEntries(direct.map(([f, [, fs]]) => /** @type {const} */ ([f, fs.reduce((r, g) => union(r, of(g)), of(f))])))
+        return direct.every(([f]) => assertNotNullish(at(f)(next)).length === of(f).length) ? current : grow(next)
+    }
+    return grow(fromEntries(direct.map(([f, [cs]]) => /** @type {const} */ ([f, cs]))))
+}
+
+/**
+ * Why `init` may not evaluate the constants in their order, or `null` where
+ * it may: the term of each reads only the constants before it, itself or
+ * through the functions that it calls.
+ *
+ * @type {(constants: readonly (readonly [string, ConstantOf<Typed>])[], functions: readonly (readonly [string, FunctionOf<Typed>])[]) => string | null}
+ */
+const unordered = (constants, functions) => {
+    const reading = readings(functions.map(([f, { body }]) => /** @type {const} */ ([f, uses(body)])))
+    const names = constants.map(([k]) => k)
+    return constants.map(([k, { value: e }], j) => {
+        const [cs, fs] = uses(e)
+        const late = fs.reduce((r, f) => union(r, assertNotNullish(at(f)(reading))), cs).find(c => names.indexOf(c) >= j)
+        return late === undefined ? null : `${k}: ${late} is read before init evaluates it`
+    }).find(x => x !== null) ?? null
+}
+
+/**
+ * A module's plain stage, checked: the interfaces it imports, its constants
+ * and its functions of distinct names, each typed, exports that name its
+ * functions once each, and no function named `init`, which the module
+ * exports to evaluate its constants in their order. The answer is the
+ * module with every term typed, which is what the
+ * [lifetime pass](../lifetime/module.f.js) reads to write the owned stage.
+ * Nothing here asks how often a value is used.
+ *
+ * @type {(m: Module) => Result<Checked, string>}
+ */
+export const checkPlain = m => {
+    const imports = fromEntries(m.imports)
+    const functions = fromEntries(m.functions)
+    const declared = m.constants ?? []
+    const constants = fromEntries(declared.map(([k, { type }]) => /** @type {const} */ ([k, type])))
+    /** @type {_Env} */
+    const env = { name: '', locals: empty, labels: empty, functions, imports, constants }
+    const why = unscoped(env, m.imports, m.functions, [], [])
+    const names = m.functions.map(([name]) => name)
+    const missing = m.exports.find(k => !names.includes(k))
+    const again = twiceIn(m.exports)
+    const constant = twiceIn(declared.map(([k]) => k))
+    const kept = declared.map(([k, { type }]) => {
+        const reason = unkept(env, type)
+        return reason === null ? null : `${k}: ${reason}`
+    }).find(x => x !== null)
+    if (why !== null) { return error(why) }
+    if (missing !== undefined) { return error(`no function ${missing} to export`) }
+    if (again !== undefined) { return error(`${again} is exported twice`) }
+    if (names.includes('init')) { return error('init is the function that evaluates the constants, so no function has that name') }
+    if (constant !== undefined) { return error(`two constants are named ${constant}`) }
+    if (typeof kept === 'string') { return error(kept) }
+    const typed = okList(m.functions.map(checkFn(functions, imports, constants)))
+    if (typed[0] === 'error') { return typed }
+    const values = okList(declared.map(checkConstant(functions, imports, constants)))
+    if (values[0] === 'error') { return values }
+    const late = unordered(values[1], typed[1])
+    return late !== null ? error(late) : ok({ imports: m.imports, constants: values[1], functions: typed[1], exports: m.exports })
+}
+
+/**
+ * A module, checked: its plain stage typed, and its owned stage checked,
+ * each owned value consumed once on every path. The answer is the module
+ * with every term typed, which is what the emitter reads.
  *
  * @type {(m: Module) => Result<Checked, string>}
  */
 export const check = m => {
-    const imports = fromEntries(m.imports)
-    const functions = fromEntries(m.functions)
-    const why = unscoped({ name: '', locals: empty, labels: empty, functions, imports }, m.imports, m.functions, [], [])
-    const names = m.functions.map(([name]) => name)
-    const missing = m.exports.find(k => !names.includes(k))
-    const again = m.exports.find((k, j) => m.exports.indexOf(k) !== j)
-    if (why !== null) { return error(why) }
-    if (missing !== undefined) { return error(`no function ${missing} to export`) }
-    if (again !== undefined) { return error(`${again} is exported twice`) }
-    const typed = okList(m.functions.map(checkFn(functions, imports)))
+    const typed = checkPlain(m)
     if (typed[0] === 'error') { return typed }
-    const owned = checkOwned({ imports: m.imports, functions: typed[1], exports: m.exports })
-    return owned[0] === 'error' ? owned : ok({ imports: m.imports, functions: typed[1], exports: m.exports })
+    const owned = checkOwned(typed[1])
+    return owned[0] === 'error' ? owned : typed
 }
 
 /**
- * The type of a term where it stands in a function, or why the checker
- * refuses it there: for a producer that picks an operator by the types of
- * its operands, as the lowering from FAST does for `-` and `===`. The label
- * `return` takes the function's result, as in a body.
+ * The type of a term where it stands in a function or a constant, or why
+ * the checker refuses it there: for a producer that picks an operator by
+ * the types of its operands, as the lowering from FAST does for `-` and
+ * `===`. The label `return` takes the function's result, as in a body, and
+ * a constant's term, which has no result, has no label.
  *
  * @type {(scope: Scope) => (t: Term) => Result<Type, string>}
  */
 export const typeOf = scope => {
     const name = assertNotNullish(entry(scope, 'name'))
-    const { locals, result, functions, imports } = scope
+    const { locals, result, functions, imports, constants = [] } = scope
+    const results = result === undefined ? [] : [result]
     /** @type {_Env} */
     const env = {
-        name, locals: localsOf(locals), labels: label_('return', ['block', result])(empty), functions: fromEntries(functions), imports: fromEntries(imports),
+        name,
+        locals: localsOf(locals),
+        labels: result === undefined ? empty : label_('return', ['block', result])(empty),
+        functions: fromEntries(functions),
+        imports: fromEntries(imports),
+        constants: fromEntries(constants),
     }
-    const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [result])
+    const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [...results, ...constants.map(([, x]) => x)])
     return t => {
         if (why !== null) { return error(why) }
         const r = term(env, t)

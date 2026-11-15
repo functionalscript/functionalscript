@@ -1,6 +1,7 @@
 /**
- * Host proofs of the counting host: how it counts, and hand-written IR of
- * the owned stage run on it, which leaves every cell as it found it. A
+ * Host proofs of the counting host: how it counts, what it keeps, and
+ * hand-written IR of the owned stage run on it, which leaves every cell as
+ * it found it. A
  * WebAssembly import is the boundary: a FunctionalScript proof can neither
  * instantiate a module nor hold the cells that the imports count.
  *
@@ -67,14 +68,52 @@ export const proof = {
         h.imports.drop(0n)
         h.imports.drop(s)
         assertEq(cells(h), '2:1')
+        // substring and item make a cell too, an item of its own beside the array's
+        const u = h.imports.substring(t, 1, 2)
+        assertEq(`${h.read(u)} ${cells(h)}`, 'b 2:1,3:1')
+        const c = counting([[t]])
+        const x = c.imports.item(0n, 0)
+        assertEq(`${c.read(x)} ${cells(c)}`, `${t} 0:1,1:1`)
     },
-    // A handle of no cell throws, and so does one whose cell a drop freed.
+    // Any's constants are the cells -1 to -4, kept from the start, and keep keeps every cell alive at its count: live tells
+    // what changed since, a cell freed among it.
+    kept: () => {
+        const h = counting(['a'])
+        const { undefined: u, null: n, true: t, false: f } = h.imports
+        assertEq([u, n, t, f].map(g => `${g.value}:${String(h.read(g.value))}`).join(), '-1:undefined,-2:null,-3:true,-4:false')
+        assertEq(cells(h), '0:1')
+        h.imports.dup(-2n)
+        assertEq(cells(h), '0:1,-2:2')
+        h.imports.drop(-2n)
+        const s = h.imports.from_unit(0x61)
+        h.keep()
+        assertEq(cells(h), '')
+        h.imports.drop(s)
+        h.imports.dup(0n)
+        assertEq(cells(h), `0:2,${s}:0`)
+    },
+    // The memory holds a module's data segments at data_base, past bytes that the host keeps, and make_string makes a cell
+    // of the UTF-16 units at an address, the low byte of each first.
+    makeString: () => {
+        const h = counting([], 6)
+        const base = h.imports.data_base.value
+        assert(typeof base === 'number' && base > 0, base)
+        new Uint8Array(h.imports.memory.buffer).set([0x61, 0x00, 0x3d, 0xd8, 0x00, 0xde], base)
+        const s = h.imports.make_string(base, 3)
+        const e = h.imports.make_string(base, 0)
+        assertEq(`${h.read(s)} ${JSON.stringify(h.read(e))} ${cells(h)}`, `a\u{1F600} "" ${s}:1,${e}:1`)
+    },
+    // A handle of no cell throws, and so does one whose cell a drop freed, and units past the memory.
     throw: {
         none: () => { counting([]).read(0n) },
         freed: () => {
             const h = counting(['x'])
             h.imports.drop(0n)
             h.imports.dup(0n)
+        },
+        past: () => {
+            const h = counting([])
+            h.imports.make_string(h.imports.memory.buffer.byteLength - 1, 1)
         },
     },
     // concat of a borrowed string answers an owned one, which the caller drops.
