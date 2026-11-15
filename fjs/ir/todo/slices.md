@@ -157,7 +157,7 @@ Slice 7, cut in two as decided above.
   checker infers; drops before a throw; the host's `throw`, `has_thrown`,
   `thrown` and `recover`; the three-outcome oracle under every host proof
   and the random comparison.
-- [ ] **7b. Throwing, lowered.** `throw x` of FAST and L1's error table as
+- [x] **7b. Throwing, lowered** (#3897). `throw x` of FAST and L1's error table as
   string constants, read from L1's text. Subjects: `functionText` and
   `bigintPair`. A lowering's runtime may name L1's error module and its
   table, which `errorTable` reads from that module's normalized FAST;
