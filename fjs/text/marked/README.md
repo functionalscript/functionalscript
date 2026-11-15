@@ -283,7 +283,7 @@ and the website's `highlight(text)` draws them:
   `keyword`s where an operand follows them on their line, so a variable named
   `type` stays an `identifier`. The primitive type names (`string`, `number`,
   `boolean`, `unknown`, …) are `keyword`s where a type stands for certain, as
-  [`js/type_position`](../../js/type_position/module.f.mjs) reads it from the
+  [`js/type_position`](../../js/type_position/module.f.js) reads it from the
   brackets around them: an annotation, an alias, an interface, a return type,
   `as`. Anywhere they may be values they stay `identifier`s, as the `rtti`
   builders `string` and `number` are in `or(option, number)`: a token's

@@ -10,9 +10,9 @@
 children" is re-spelled by every pass that walks FAST. The same two
 expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
 `freeBindings` in [`control`](../control/module.f.js), `_hasReturn` in
-[`memo/cells`](../memo/cells/module.f.mjs), `ownsMemo` in
+[`memo/cells`](../memo/cells/module.f.js), `ownsMemo` in
 [`memo`](../memo/module.f.mjs), `references` in
-[`sugar`](../sugar/module.f.mjs), `facts` in
+[`sugar`](../sugar/module.f.js), `facts` in
 [`prepare`](../prepare/module.f.mjs), `definitions` in
 [`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs), `children` in
 [`fjs/edag/from_fast`](../../../edag/from_fast/module.f.mjs) and once more in

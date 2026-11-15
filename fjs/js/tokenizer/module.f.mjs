@@ -88,11 +88,9 @@ const closed = content => {
     let node = content
     for (;;) {
         const [tag, rest] = variant(node)
-        switch (tag) {
-            case 'end': { return true }
-            case 'unterminated': { return false }
-            default: { node = items(rest)[1] }
-        }
+        if (tag === 'end') { return true }
+        if (tag === 'unterminated') { return false }
+        node = items(rest)[1]
     }
 }
 
@@ -102,11 +100,9 @@ const templateClosed = content => {
     let node = content
     for (;;) {
         const [tag, rest] = variant(node)
-        switch (tag) {
-            case 'end': { return true }
-            case 'substitution': { return false }
-            default: { node = items(rest)[1] }
-        }
+        if (tag === 'end') { return true }
+        if (tag === 'substitution') { return false }
+        node = items(rest)[1]
     }
 }
 

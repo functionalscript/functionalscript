@@ -14,7 +14,7 @@ import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
 import { read } from '../../../edag/value/property/module.f.js'
 import runtimeEdag from '../../runtime/gen.edag.js'
-import { normalize } from './module.f.mjs'
+import { normalize } from './module.f.js'
 
 /** @type {(source: string) => Exp} */
 const graph = source => fromFast(normalize(assertOk(parse('')(source)), []).body)

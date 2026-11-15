@@ -110,7 +110,7 @@ assigned nowhere is captured as a `const` is
 ([spec: variables](../../../spec/bindings/variables/README.md)). The fold
 records each reference across a function boundary and decides it when the
 function closes; the shared analysis says, at the end, which bindings were
-reassigned. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs) owns
+reassigned. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.js) owns
 pattern planning, invocation layout, defaults, branch normalization and
 immutable assignment versions. Its pattern planner runs source admission
 callbacks during one ordered walk before shared binding analysis.

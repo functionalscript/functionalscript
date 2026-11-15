@@ -11,7 +11,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../../asserts/mo
 import { empty as emptyMap, fromEntries, mapEntries, mapGet, mapHas, size as mapSize } from '../../../../types/map/module.f.js'
 import { empty as emptySet, has as setHas, size as setSize, values as setValues } from '../../../../types/set/module.f.js'
 import { freeBindings } from '../../control/module.f.js'
-import { _hasReturn, memoCells, recipeCells } from './module.f.mjs'
+import { _hasReturn, memoCells, recipeCells } from './module.f.js'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 0 })

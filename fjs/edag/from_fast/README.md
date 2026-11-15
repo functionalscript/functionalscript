@@ -103,7 +103,7 @@ Admitted-source fixed points and established scalar source spelling retain
 their existing contracts.
 
 The source consumer is the admitted-source adapter in
-[`js/ast/sugar`](../../js/ast/sugar/module.f.mjs). Source admission finishes
+[`js/ast/sugar`](../../js/ast/sugar/module.f.js). Source admission finishes
 before graph construction. Physical prepared FAST is never an input to this API.
 
 ## Helper construction

@@ -3,7 +3,7 @@
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { parse } from '../../../compiler/source/module.f.mjs'
 import { tryUnresolved } from '../../../compiler/edag/module.f.mjs'
-import { normalize, tryNormalize } from './module.f.mjs'
+import { normalize, tryNormalize } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     refusesEverySourceOccurrence: () => {

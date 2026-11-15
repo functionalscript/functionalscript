@@ -5,7 +5,7 @@
 
 ### Problem
 
-`normalizedSwitch` and `statefulSwitch` in [`module.f.mjs`](../module.f.mjs)
+`normalizedSwitch` and `statefulSwitch` in [`module.f.js`](../module.f.js)
 lower a `switch` to a loop. They differ in how the discriminant and the case
 labels are evaluated, stateless against state-threading, and agree on
 everything after: the `completed` projection of a case that falls out, the

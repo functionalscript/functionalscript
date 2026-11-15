@@ -37,7 +37,7 @@ that code lands.
 
 `sugar/` draws the trees on both sides of `normalize`, the stage between
 `parser/` and `edag/`, with [`fjs/compiler/graph`](../graph/module.f.mjs).
-The stage's code is [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs), which
+The stage's code is [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.js), which
 cannot hold the page: the page runs the parser, and `fjs/js/ast` importing from
 `fjs/compiler` is the upward import
 [compiler-layer-upward-imports](../../todo/compiler-layer-upward-imports.md)

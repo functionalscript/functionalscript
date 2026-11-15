@@ -2,7 +2,7 @@ import { assertEq } from '../../asserts/module.f.js'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { typePositions } from './module.f.mjs'
+import { typePositions } from './module.f.js'
 
 /**
  * The names `text` sets where a type stands, in order, joined by a space.

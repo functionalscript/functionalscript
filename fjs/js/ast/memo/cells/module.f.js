@@ -238,17 +238,17 @@ const ownedBlock = (source, initialScope, ancestors, owners) => {
                 return bind(ownedValue(ownedBlock)(initializer, scope, ancestors), value => append(['define', binding, value.value, mode], established(scope, [binding]), value.owned))
             }
             const definition = /** @type {Definition} */ (['define', binding, initializer, mode])
-            /** @type {_Root | null} */
-            let root = null
-            /** @type {List<_Root>} */
-            let roots = null
+            /** @type {readonly [_Root | null, List<_Root>]} */
+            let ownership = [null, null]
             if (initializer !== null && typeof initializer === 'object') {
-                if (initializer[0] === 'ref') { root = mapGet(scope, initializer[1]) ?? null }
+                if (initializer[0] === 'ref') { ownership = [mapGet(scope, initializer[1]) ?? null, null] }
                 else {
-                    root = { binding, source: { definition, insideLoop: ancestors !== null, loop: ancestors?.first ?? null }, dependencies: dependencies(initializer, scope) }
-                    roots = [root]
+                    /** @type {_Root} */
+                    const root = { binding, source: { definition, insideLoop: ancestors !== null, loop: ancestors?.first ?? null }, dependencies: dependencies(initializer, scope) }
+                    ownership = [root, [root]]
                 }
             }
+            const [root, roots] = ownership
             const added = /** @type {_Owned} */ ({
                 roots, definitions: root === null ? null : [[definition, root]], loops: null, pruned: false,
             })

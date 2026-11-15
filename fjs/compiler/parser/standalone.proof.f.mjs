@@ -7,7 +7,7 @@ import { parse } from '../source/module.f.mjs'
 import { parseSyntax } from './syntax/module.f.mjs'
 import { tokenizeString, _evaluate } from './proof.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { normalize } from '../../js/ast/sugar/module.f.mjs'
+import { normalize } from '../../js/ast/sugar/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { stringify } from '../../js/ast/serializer/module.f.mjs'
 
