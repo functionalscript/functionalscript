@@ -121,15 +121,19 @@ export const proof = {
         h.imports.push(c, r)
         const t = h.imports.seal(c)
         assertEq(`${JSON.stringify(h.read(t))} ${cells(h)}`, `[["a","b"]] 1:1,${t}:1`)
-        assertEq(JSON.stringify(h.read(h.imports.seal(h.imports.begin_array(0)))), '[]')
+        const emptyArray = h.imports.seal(h.imports.begin_array(0))
+        assertEq(JSON.stringify(h.read(emptyArray)), '[]')
+        h.imports.drop(emptyArray)
+        // Cell 0 was consumed by the array half; make fresh string cells for the object.
         const o = h.imports.begin_object(3)
-        h.imports.push_property(o, h.imports.dup(0n), h.imports.dup(1n))
-        const k = h.imports.from_unit(0x61)
-        h.imports.push_property(o, k, h.imports.dup(0n))
-        h.imports.push_property(o, h.imports.dup(0n), h.imports.from_unit(0x63))
+        h.imports.push_property(o, h.imports.from_unit(0x61), h.imports.from_unit(0x62))
+        h.imports.push_property(o, h.imports.from_unit(0x62), h.imports.from_unit(0x61))
+        h.imports.push_property(o, h.imports.from_unit(0x61), h.imports.from_unit(0x63))
         const p = h.imports.seal(o)
         assertEq(`${JSON.stringify(h.read(p))} ${cells(h)}`, `{"a":"c","b":"a"} 1:1,${t}:1,${p}:1`)
-        assertEq(JSON.stringify(h.read(h.imports.seal(h.imports.begin_object(0)))), '{}')
+        const emptyObject = h.imports.seal(h.imports.begin_object(0))
+        assertEq(JSON.stringify(h.read(emptyObject)), '{}')
+        h.imports.drop(emptyObject)
     },
     // A throw takes over a cell and keeps its value, which `thrown` gives the caller as a cell of its own.
     thrown: () => {

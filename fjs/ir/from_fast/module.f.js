@@ -150,6 +150,9 @@ const count = (k, noun) => k === 1 ? `one ${noun}` : `${k} ${noun}s`
 /** @type {(t: Type) => boolean} */
 const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
 
+/** Whether a type is `any`, of every kind or of some. @type {(t: Type) => boolean} */
+const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2]
+
 /** The static functions that are operators of the IR. @type {(id: string) => OpName | null} */
 const staticOp = id => id === 'Math.sqrt' ? 'sqrt' : id === 'Math.abs' ? 'abs' : null
 
@@ -672,30 +675,6 @@ const viewTerm = (scope, name, args) => {
     }
 }
 
-/**
- * A call of a function of the L0 view: `same` and `concat`, whose arguments
- * are cast to the kinds that they take, `unit`, `substring` and `item`, or
- * a function of one value. JavaScript reads every argument before the view
- * casts any, so each that does something is bound to a local first, in
- * their order, and the only term in an arm is then a local or a literal.
- *
- * @type {(lowerValue: _LowerValue, scope: _Scope, name: string, vs: readonly Value[]) => Result<Term, string>}
- */
-const viewCall = (lowerValue, scope, name, vs) => {
-    const no = refuse(scope)
-    const f = viewFunctions.find(([k]) => k === name)
-    if (f === undefined) { return no(`${name} of L0 is not in this slice`) }
-    const [, arity] = f
-    if (vs.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${vs.length}`) }
-    if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
-    if (name === 'concat') { return castCall(lowerValue, scope, 'String', 'concat', paramsOf('String', 'concat'), vs) }
-    if (name === 'buildArray') { return buildOf(lowerValue, scope, 'array', vs) }
-    if (name === 'buildObject') { return buildOf(lowerValue, scope, 'object', vs) }
-    if (arity > 1) { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
-    const xs = values(lowerValue, scope, vs)
-    return xs[0] === 'error' ? xs : name === 'fromUnit' ? fromUnitTerm(scope, xs[1][0]) : viewTerm(scope, name, xs[1])
-}
-
 /** Whether a value is an arrow that the lowering can inline at a call. @type {(v: Value) => v is readonly ['function', FastFunction]} */
 const isArrow = v => v instanceof Array && v[0] === 'function'
 
@@ -736,10 +715,9 @@ const applyArrow = (lowerValue, scope, f, arg) => {
  * @type {(lowerValue: _LowerValue, scope: _Scope, kind: 'array' | 'object', vs: readonly Value[]) => Result<Term, string>}
  */
 const buildOf = (lowerValue, scope, kind, vs) => {
+    // A call reaches here only through the L0 view, which a runtime import
+    // always brings with Containers.
     const no = refuse(scope)
-    if (!scope.ir.imports.some(([k]) => k === 'Containers')) {
-        return no(`${kind === 'array' ? 'buildArray' : 'buildObject'} is a value that Containers builds, which a module lowered without the runtime does not import`)
-    }
     const nextV = vs[2]
     const atV = vs[3]
     const valueAtV = kind === 'object' ? vs[4] : null
@@ -762,10 +740,9 @@ const buildOf = (lowerValue, scope, kind, vs) => {
         const bName = `${label}.b`
         const sName = `${label}.s`
         const iName = `${label}.i`
-        const used = ir.locals.flatMap(([k]) => {
-            const m = /^#(\d+)$/.exec(k)
-            return m === null ? [] : [Number(m[1])]
-        })
+        // Locals of this lowering are `#${depth}` only; anything else is not a `#n`.
+        const used = ir.locals.flatMap(([k]) =>
+            k.length < 2 || k[0] !== '#' ? [] : [Number(k.slice(1))])
         // Past every `#n` already in scope: the checker refuses a local that shadows one.
         const free = (used.length === 0 ? 0 : Math.max(...used) + 1)
         /** Locals of the loop, for typing each callback that reads the state. @type {_Scope['ir']} */
@@ -779,13 +756,11 @@ const buildOf = (lowerValue, scope, kind, vs) => {
         if (step[0] === 'error') { return step }
         const valueAt = valueAtF === null ? null : applyArrow(lowerValue, atDepth(free + 0x80), valueAtF, get(sName))
         if (valueAt !== null && valueAt[0] === 'error') { return valueAt }
-        let nextBound = 0
-        /** A term bound to a fresh local around `rest` where it does something. @type {(x: Term, rest: (x: Term) => Term) => Term} */
-        const bound = (x, rest) => {
-            if (isPure(x)) { return rest(x) }
-            const name = `${label}.x${nextBound}`
-            nextBound += 1
-            return let_(name, x, rest(get(name)))
+        /** A term bound to a fresh local around `rest` where it does something. @type {(i: number, x: Term, rest: (i: number, x: Term) => Term) => Term} */
+        const bound = (i, x, rest) => {
+            if (isPure(x)) { return rest(i, x) }
+            const name = `${label}.x${i}`
+            return let_(name, x, rest(i + 1, get(name)))
         }
         return ok(exact(u(31), nTerm, `${kind === 'array' ? 'buildArray' : 'buildObject'}.n`, n => {
             const begun = call('Containers', kind === 'array' ? 'begin_array' : 'begin_object', [n])
@@ -798,14 +773,38 @@ const buildOf = (lowerValue, scope, kind, vs) => {
                 cont(b, get(sName)),
             )
             const pushed = kind === 'array'
-                ? bound(at[1], v => bound(call('Containers', 'push', [get(bName), v]), again))
-                : bound(at[1], k => bound(/** @type {Term} */ (valueAt?.[1]), v =>
-                    bound(call('Containers', 'push_property', [get(bName), k, v]), again)))
+                ? bound(0, at[1], (i, v) => bound(i, call('Containers', 'push', [get(bName), v]), (_, b) => again(b)))
+                : bound(0, at[1], (i, k) => bound(i, /** @type {Term} */ (valueAt?.[1]), (j, v) =>
+                    bound(j, call('Containers', 'push_property', [get(bName), k, v]), (_, b) => again(b))))
             const body = if_(lt(get(iName), float(n)), pushed, call('Containers', 'seal', [get(bName)]))
             const built = loop(label, [[bName, builder, begun], [sName, state, sTerm], [iName, f64, lit(f64c, 0)]], body)
             return built
         }))
     })
+}
+
+/**
+ * A call of a function of the L0 view: `same` and `concat`, whose arguments
+ * are cast to the kinds that they take, `unit`, `substring` and `item`, or
+ * a function of one value. JavaScript reads every argument before the view
+ * casts any, so each that does something is bound to a local first, in
+ * their order, and the only term in an arm is then a local or a literal.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, name: string, vs: readonly Value[]) => Result<Term, string>}
+ */
+const viewCall = (lowerValue, scope, name, vs) => {
+    const no = refuse(scope)
+    const f = viewFunctions.find(([k]) => k === name)
+    if (f === undefined) { return no(`${name} of L0 is not in this slice`) }
+    const [, arity] = f
+    if (vs.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${vs.length}`) }
+    if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
+    if (name === 'concat') { return castCall(lowerValue, scope, 'String', 'concat', paramsOf('String', 'concat'), vs) }
+    if (name === 'buildArray') { return buildOf(lowerValue, scope, 'array', vs) }
+    if (name === 'buildObject') { return buildOf(lowerValue, scope, 'object', vs) }
+    if (arity > 1) { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
+    const xs = values(lowerValue, scope, vs)
+    return xs[0] === 'error' ? xs : name === 'fromUnit' ? fromUnitTerm(scope, xs[1][0]) : viewTerm(scope, name, xs[1])
 }
 
 // L1's native rows
@@ -872,13 +871,9 @@ const record = (lowerValue, scope, entries) => {
  * @type {(lowerValue: _LowerValue, scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
  */
 const objectOf = (lowerValue, scope, entries) => {
+    // Spread and a missing Containers import are refused or redirected in
+    // `objectLiteral` before this runs; here every entry is a name:value.
     const no = refuse(scope)
-    if (!scope.ir.imports.some(([k]) => k === 'Containers')) {
-        return no('an object is a value that Containers builds, which a module lowered without the runtime does not import')
-    }
-    if (entries.some(e => e[0] === '...')) {
-        return no('a spread in an object literal is not in this slice')
-    }
     const parsed = okList(entries.map(e => {
         if (e[0] !== ':' || typeof e[1] !== 'string') { return no('an entry of an object that is not a name and its value is not in this slice') }
         return ok(/** @type {const} */ ([e[1], e[2]]))
@@ -976,9 +971,6 @@ const same = (lowerValue, scope, a, b, negated) => {
 const isSpread = item => item instanceof Array && item[0] === '...'
 
 // arrays
-
-/** Whether a type is `any`, of every kind or of some. @type {(t: Type) => boolean} */
-const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2]
 
 /**
  * An array literal, as Containers builds one: its items first, each lowered

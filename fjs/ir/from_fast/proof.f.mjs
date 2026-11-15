@@ -5,7 +5,7 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
-import { any, l0 } from '../l0/module.f.js'
+import { any, container, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -1120,6 +1120,8 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => [...v]')), 'f: a spread in an array literal is not in this slice')
         // A Containers object has no product fields; a record of floats still does.
         assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: .b of any.only(array, object) is not in this slice')
+        // A pure missing field of a record fails when the array types its items.
+        assertEq(assertError(over(fa, 'export const f = a => [({ a }.b)]')), 'f: { a: f64 } has no field b')
         // Duplicate keys in a Containers object are sealed with the last value, not refused as a product would be.
         assertEq(assertOk(over(av, 'export const f = v => [{ a: v, a: v }]')).exports.join(), 'f')
         assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)
@@ -1146,6 +1148,7 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => v[0]')), "f: a read of any at a number is not in this slice: only an array's is")
         // A receiver that is pure but does not type-check is refused with its own error.
         assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(assertError(over(fa, 'export const f = a => ({ a }.b)[0]')), 'f: { a: f64 } has no field b')
         assertEq(assertError(over(av, 'export const f = v => [v][Number(v)]')), 'f: Number of any is not in this slice')
         // A member read of a name or a number is in this slice, and one that goes on to a call is not.
         assertEq(assertError(over(av, 'export const f = v => v.x(1)')), 'f: a member read with a further step, such as a call of the member, is not in this slice')
@@ -1236,6 +1239,90 @@ export const proof = {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
         assertEq(assertError(sourceOf('export const f = a => +a')), 'unary + AST-to-FAST conversion is not implemented')
     },
+    // `buildArray` / `buildObject`: arrow callbacks inlined to begin / loop / push / seal.
+    builders: () => {
+        const builders = "import { buildArray, buildObject } from '../l0/module.f.js'\n"
+        const out = only([['n', f64]], container)
+        assertEq(irOver(out, `${builders}export const f = n => buildArray(n, 0, i => i + 1, i => i)`), [
+            'fn f(n: f64) -> any.only(array, object) =',
+            '    let buildArray.n = trunc_sat(u(31), n)',
+            '    if eq(float(buildArray.n), n)',
+            '    then',
+            '        loop B0 (B0.b: builder = Containers.begin_array(buildArray.n), B0.s: f64 = 0.0, B0.i: f64 = 0.0)',
+            '            if lt(B0.i, float(buildArray.n))',
+            '            then',
+            '                let B0.x0 = Containers.push(B0.b, B0.s)',
+            '                if lt(add(B0.i, 1.0), float(buildArray.n)) then br B0 { B0.b: B0.x0, B0.s: add(B0.s, 1.0), B0.i: add(B0.i, 1.0) } else br B0 { B0.b: B0.x0, B0.s: B0.s, B0.i: add(B0.i, 1.0) }',
+            '            else',
+            '                Containers.seal(B0.b)',
+            '    else',
+            "        trap('inexact')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A prior `#n` local shifts the loop's depth band; a non-pure `at` binds before push.
+        assertEq(irOver(out, `${builders}export const f = n => {\n    const y = n * 2\n    return buildArray(y, n, i => i + 1, i => i * 2)\n}`).includes('loop B1'), true)
+        assertEq(irOver(out, `${builders}export const f = n => buildObject(n, 0, i => i + 1, i => 'k', i => i)`).includes('Containers.begin_object'), true)
+        // A capture of an outer binding, and non-pure key/value callbacks of `buildObject`.
+        assertEq(irOver(out, `${builders}export const f = n => buildArray(n, 0, i => i + 1, i => n)`).includes('Containers.push(B0.b, n)'), true)
+        assertEq(irOver(out, `${builders}export const f = n => buildObject(n, 0, i => i + 1, i => 'k' + i, i => i * 2)`).includes('push_property'), true)
+        assertEq(assertError(over(out, `${builders}export const f = n => buildArray(n, 0, n, n)`)), 'f: buildArray inlines its callbacks only where they are arrow literals')
+        assertEq(assertError(over(out, `${builders}export const f = n => buildObject(n, 0, n, n, n)`)), 'f: buildObject inlines its callbacks only where they are arrow literals')
+        assertEq(assertError(over(out, `${builders}export const f = n => buildArray(n, 0, (a, b) => a, i => i)`)), 'f: a callback of buildArray or buildObject takes one argument, and this one takes 2')
+        assertEq(assertError(over(out, `${builders}export const f = n => buildArray(n, 0, (...xs) => xs, i => i)`)), 'f: a rest parameter is not in this slice')
+        assertEq(assertError(over(out, `${builders}export const f = n => buildArray(n, 0, i => i + 1, (...xs) => xs)`)), 'f: a rest parameter is not in this slice')
+        assertEq(assertError(over(out, `${builders}export const f = n => buildObject(n, 0, i => i + 1, i => 'k', (...xs) => xs)`)), 'f: a rest parameter is not in this slice')
+        assertEq(assertError(over(only([['n', any]], container), `${builders}export const f = n => buildArray(n, 0, i => i + 1, i => i)`)), 'f: buildArray of any items is not in this slice')
+        assertEq(assertError(over(only([['n', any]], container), `${builders}export const f = n => buildObject(n, 0, i => i + 1, i => 'k', i => i)`)), 'f: buildObject of any items is not in this slice')
+        assertEq(assertError(over(out, `${builders}export const f = n => buildArray(n, 1n, i => i + 1n, i => i)`)), 'f: a build state of int(1, 1) is not in this slice')
+        // A pure term that still fails to type: `typeOf` of a missing record field.
+        assertEq(assertError(over(out, `${builders}export const f = n => buildArray(({ a: n }.b), 0, i => i + 1, i => i)`)), 'f: { a: f64 } has no field b')
+        // Object Containers: a non-name entry, a field that fails to lower, and one that fails to type.
+        assertEq(assertError(over(out, `${builders}export const f = n => ({ 0: n })`)), 'f: an entry of an object that is not a name and its value is not in this slice')
+        assertEq(assertError(over(out, `${builders}export const f = n => ({ a: (() => n) })`)), 'f: a function as a value is not in this slice')
+        assertEq(assertError(over(out, `${builders}export const f = n => ({ x: ({ a: n }.b) })`)), 'f: { a: f64 } has no field b')
+        // A callback's capture or self, written into FAST: applyArrow refuses both.
+        const sample = `${builders}export const f = n => buildArray(n, 0, i => i + 1, i => i)`
+        /** Replace the first zero-capture callback in `fast` with `patch(f)`. @type {(fast: Block, patch: (f: FastFunction) => FastFunction) => Block} */
+        const withNext = (fast, patch) => {
+            /** @type {(v: unknown) => readonly [unknown, boolean]} */
+            const once = v => {
+                if (v instanceof Array && v[0] === 'function') {
+                    const f = /** @type {FastFunction} */ (v[1])
+                    if (f.captures.length === 0 && f.parameters.length === 1) {
+                        return [['function', patch(f)], true]
+                    }
+                    const [body, done] = once(f.body)
+                    return [['function', { ...f, body }], done]
+                }
+                if (v instanceof Array) {
+                    /** @type {(acc: readonly [readonly unknown[], boolean], x: unknown) => readonly [readonly unknown[], boolean]} */
+                    const step = ([xs, done], x) => {
+                        if (done) { return [[...xs, x], true] }
+                        const [y, d] = once(x)
+                        return [[...xs, y], d]
+                    }
+                    return v.reduce(step, [[], false])
+                }
+                // A block is rebuilt; BindingIds and other nodes keep their identity.
+                if (v !== null && typeof v === 'object' && 'statements' in v && 'exit' in v) {
+                    const block = /** @type {Block} */ (v)
+                    const [statements, d1] = once(block.statements)
+                    if (d1) { return [{ statements, exit: block.exit }, true] }
+                    const [exit, d2] = once(block.exit)
+                    return [{ statements: block.statements, exit }, d2]
+                }
+                return [v, false]
+            }
+            const [next, done] = once(fast)
+            assertEq(done, true)
+            return /** @type {Block} */ (next)
+        }
+        const { fast: sampleFast, imports: sampleImports } = assertOk(sourceOf(sample))
+        assertEq(assertError(lower(out, runtime)(withNext(sampleFast, f => ({ ...f, captures: [{ binding: id(999), value: 1 }] })), sampleImports)), 'f: a capture that is no binding of the function is not in this slice')
+        assertEq(assertError(lower(out, runtime)(withNext(sampleFast, f => ({ ...f, self: id(7) })), sampleImports)), 'f: a function that calls itself is not in this slice')
+    },
     view: () => {
         const fv = only([['v', any]], f64)
         const bv = only([['v', any]], bool)
@@ -1266,6 +1353,45 @@ export const proof = {
             '        Any.to_f64(v.number)',
             '      else =>',
             "        trap('not number')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // `asArray` / `asObject`: own import line so the shared `imports` indices stay put.
+        const asContainer = "import { asArray, asObject } from '../l0/module.f.js'\n"
+        assertEq(irOver(only([['v', any]], subset(any, 'array')), `${asContainer}export const f = v => asArray(v)`), [
+            'fn f(v: any) -> any.only(array) =',
+            '    match v',
+            '      array as v.array =>',
+            '        v.array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', any]], subset(any, 'object')), `${asContainer}export const f = v => asObject(v)`), [
+            'fn f(v: any) -> any.only(object) =',
+            '    match v',
+            '      object as v.object =>',
+            '        v.object',
+            '      else =>',
+            "        trap('not object')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // Already of the kind: the cast is the value itself.
+        assertEq(irOver(only([['v', subset(any, 'array')]], subset(any, 'array')), `${asContainer}export const f = v => asArray(v)`), [
+            'fn f(v: any.only(array)) -> any.only(array) =',
+            '    v',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', subset(any, 'object')]], subset(any, 'object')), `${asContainer}export const f = v => asObject(v)`), [
+            'fn f(v: any.only(object)) -> any.only(object) =',
+            '    v',
             '',
             'export f',
             '',
