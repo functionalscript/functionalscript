@@ -11,6 +11,6 @@ import type { Payload } from '../header/types.ts'
  * shape a tag has too, read by the same grammar. `tree`, `parent`,
  * `author` and `committer` are the headers Git reads by position,
  * `encoding`, `gpgsig` and `mergetag` the ones it reads by key, and the
- * functions of `./module.f.mjs` read them off the list.
+ * functions of `./module.f.js` read them off the list.
  */
 export type Commit = Payload

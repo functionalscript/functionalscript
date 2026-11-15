@@ -10,7 +10,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.js'
 import { latin1 } from '../../testlib.f.js'
-import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey, nameText, refsPrefix } from './module.f.mjs'
+import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey, nameText, refsPrefix } from './module.f.js'
 
 /** A name of `n` bytes, every one of them `a`. @type {(n: number) => readonly number[]} */
 const ofLength = n => Array.from({ length: n }, () => 0x61)

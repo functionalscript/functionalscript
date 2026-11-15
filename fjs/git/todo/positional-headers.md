@@ -5,14 +5,14 @@
 
 ### Problem
 
-[`fjs/git/commit`](../commit/module.f.mjs) already reads a commit by
+[`fjs/git/commit`](../commit/module.f.js) already reads a commit by
 position, as Git does: `tree` at index 0, then as many `parent` headers as
 follow it in a row, then `author` and `committer` at the indices those
 parents put them at. The three fields Git looks up by name — `encoding`,
 `gpgsig`, `mergetag` — are the only ones read by name here. That is not
 where the two readings part.
 
-They part in the pass below it. [`fjs/git/header`](../header/module.f.mjs)
+They part in the pass below it. [`fjs/git/header`](../header/module.f.js)
 reads a whole payload before anything positional happens, so every line
 before the message has to be a header or a continuation of one. Git's
 `parse_commit_buffer` reads no such thing: it walks the bytes,
@@ -107,11 +107,11 @@ someone to change behaviour that is right.
 
 ### Related
 
-- [`fjs/git/header`](../header/module.f.mjs) — the shared reader, and why
+- [`fjs/git/header`](../header/module.f.js) — the shared reader, and why
   it is generic.
-- [`fjs/git/commit`](../commit/module.f.mjs) — the positional reads this
+- [`fjs/git/commit`](../commit/module.f.js) — the positional reads this
   would put a stopping rule under.
-- [`fjs/git/tag`](../tag/module.f.mjs) — the other positional reader, and
+- [`fjs/git/tag`](../tag/module.f.js) — the other positional reader, and
   the one whose three headers Git stops after.
 - [`fjs/git/walk`](../walk/module.f.mjs) — the walk that peels a commit, and
   the reason it parses one at all.

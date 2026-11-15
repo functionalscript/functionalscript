@@ -4,7 +4,7 @@
  * tree entry — asks here and gets the `Envelope`, or a refusal; nothing
  * above this module spells a path under `objects/`, and nothing above it
  * trusts a file name, since every object read is hashed with
- * [`fjs/git/oid`](../oid/module.f.mjs)'s `of` and refused where the hash
+ * [`fjs/git/oid`](../oid/module.f.js)'s `of` and refused where the hash
  * is not the id asked for.
  *
  * Both places an object lives are read, in every object directory the
@@ -72,8 +72,8 @@ import { namesNothing, readUtf8File } from '../../effects/node/module.f.js'
 import { join, under } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { alternatesIn } from '../alternates/module.f.js'
-import { path as loosePath, tryRead as readLoose } from '../loose/module.f.mjs'
-import { hexText, of, ofWidth } from '../oid/module.f.mjs'
+import { path as loosePath, tryRead as readLoose } from '../loose/module.f.js'
+import { hexText, of, ofWidth } from '../oid/module.f.js'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
 
 /**
@@ -384,7 +384,7 @@ const kept = (found, o) => {
  * The width is bound first, so the hash is chosen once for a store and
  * not once per object.
  *
- * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
  * @type {(ods: readonly string[], oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, Nullable<Envelope>, IoChannel>}
@@ -418,7 +418,7 @@ export const readIn = (ods, oidBytes) => {
  * which is a cache with no way to spell its own invalidation, so the choice is
  * the caller's to make.
  *
- * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
  * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, Nullable<Envelope>, IoChannel>}

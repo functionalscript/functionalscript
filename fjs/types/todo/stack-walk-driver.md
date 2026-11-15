@@ -8,7 +8,7 @@
 Deep input is walked over an explicit stack so that depth is bounded by
 memory and not by the host's call stack, and the loop that drives such a walk
 is written by hand each time. `evaluate` in
-[`fjs/media/datajs/parser`](../../media/datajs/parser/module.f.mjs), `read`
+[`fjs/media/datajs/parser`](../../media/datajs/parser/module.f.js), `read`
 in [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js)
 and the inner loop of `build` in [`fjs/ebnf/ll1`](../../ebnf/ll1/module.f.js)
 each keep a `{ top, rest }` cons-stack of frames, an `['enter', x]` step, a

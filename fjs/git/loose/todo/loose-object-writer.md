@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) exports only `tryRead`. The writer of a
+[`module.f.mjs`](../module.f.js) exports only `tryRead`. The writer of a
 loose object — envelope, zlib-stored stream, `tmp_obj_*` below `objects/`,
 rename into `objects/ab/<rest>` — is `writeObject` in
 [`fjs/cas/git`](../../../cas/git/module.f.mjs). Nothing in it is CAS-specific:

@@ -18,7 +18,7 @@ grammars built on them:
   bytes, UTF-16 code units;
 - [`railroad/`](./railroad/module.f.js) — a rule set read back as syntax
   diagrams, one per rule a caller titles, drawn by
-  [`website/demo/railroad`](../website/demo/railroad/module.f.mjs);
+  [`website/demo/railroad`](../website/demo/railroad/module.f.js);
 - [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens, Markdown
   inlines.
 

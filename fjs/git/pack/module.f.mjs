@@ -48,7 +48,7 @@ import { byteArray } from '../../ebnf/byte/module.f.js'
 import { concat, flat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { startsWith, u32be } from '../bytes/module.f.js'
-import { oidAt } from '../oid/module.f.mjs'
+import { oidAt } from '../oid/module.f.js'
 
 /** The four bytes a pack begins with. */
 const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])

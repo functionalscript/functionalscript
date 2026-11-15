@@ -8,7 +8,7 @@ import { codePointListToString } from '../../text/utf16/module.f.js'
 import { fromArrayLike } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { commitPayload, headerOnlyTagPayload, latin1, undefinedByte } from '../testlib.f.js'
-import { field, hasNulHeader, keyIs, optionalField, tryRead, tryReadAtLeast, valueAt, valuesOf, write } from './module.f.mjs'
+import { field, hasNulHeader, keyIs, optionalField, tryRead, tryReadAtLeast, valueAt, valuesOf, write } from './module.f.js'
 
 /** @type {(input: readonly number[]) => Payload} */
 const read = input => {

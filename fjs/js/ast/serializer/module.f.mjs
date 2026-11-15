@@ -9,7 +9,7 @@
  * @import { BindingId, Item, Key, LoopTarget, Operator, Step } from '../types.ts'
  * @import { Block, Function as PreparedFunction, Statement, Value } from '../prepare/types.ts'
  * @import { List, NonEmpty } from '../../../types/list/types.ts'
- * @import { _Context as Context, _Syntax as Syntax, _ScanTask as ScanTask, _Scan as Scan, _ExpressionTask as ExpressionTask } from './private.ts'
+ * @import { _Context as Context, _Syntax as Syntax, _ScanTask as ScanTask, _Scan as Scan, _ExpressionTask as ExpressionTask, _Expression as Expression, _BlockText as BlockText } from './private.ts'
  */
 
 import { operatorOperands } from '../module.f.js'
@@ -25,6 +25,7 @@ import { isHelper } from '../../../edag/module.f.js'
 import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
 import { maxLength } from '../../../types/function/length/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 const keyword = tagged('keyword')
 
@@ -110,7 +111,7 @@ const blockBindings = block => scan([['block', block]]).bindings
 
 /** Allocate presentation-only capture aliases before rendering any scope. @type {(ids: readonly BindingId[], syntax: Syntax, runtime: boolean, external: boolean) => Context} */
 const contextFor = (ids, syntax, runtime, external) => {
-    const functions = [...new Set(syntax.values.flatMap(value => value instanceof Array && value[0] === 'function' ? [value[1]] : []))]
+    const functions = [...new Set(assertNotNullish(entry(syntax, 'values')).flatMap(value => value instanceof Array && value[0] === 'function' ? [value[1]] : []))]
     const captureAliases = functions.map(fn => /** @type {const} */ ([fn, fn.captures.map((_, index) => ({ index }))]))
     return { ids: [...new Set([...ids, ...captureAliases.flatMap(([, bindings]) => bindings)])], ...syntax, captureAliases, runtime, aliases: [], binding: null, external }
 }
@@ -121,10 +122,11 @@ const captureLocals = (context, fn) => assertNotNullish(context.captureAliases.f
 /** @type {(context: Context, id: BindingId) => string} */
 const name = (context, id) => {
     let current = id
-    let alias = context.aliases.find(([from]) => from === current)
+    let alias = context.aliases.find(([from]) => from === id)
     while (alias !== undefined) {
         current = alias[1]
-        alias = context.aliases.find(([from]) => from === current)
+        const resolved = current
+        alias = context.aliases.find(([from]) => from === resolved)
     }
     return symbol(`fast${context.ids.indexOf(current)}`)
 }
@@ -146,6 +148,13 @@ const binaryLevels = eagerLayers.flatMap((layer, i) =>
 /** The prefix operators' tags, as `compiler/ast`'s `prefixLayer` states them. @type {readonly string[]} */
 const prefixTags = Object.entries(prefixLayer).map(([, tag]) => tag)
 
+/** A result block requiring no statements has the syntax of its value. @type {(value: Value) => Value} */
+const syntaxValue = value => {
+    let current = value
+    while (current instanceof Array && current[0] === 'block' && current[1].statements.length === 0 && current[1].exit[0] === 'yield') { current = current[1].exit[1][0] }
+    return current
+}
+
 /** @type {(value: Value) => number} */
 const precedence = input => {
     const value = syntaxValue(input)
@@ -164,9 +173,9 @@ const precedence = input => {
  * Render ordinary expression trees postorder. The shallow syntax functions
  * read only already rendered immediate operands; depth does not use the host
  * stack. Pure result blocks forward their result without adding syntax.
- * @type {(context: Context, value: Value) => string}
+ * @type {(renderValue: Expression, context: Context, value: Value) => string}
  */
-const expressionText = (context, value) => {
+const expressionText = (renderValue, context, value) => {
     /** @type {List<ExpressionTask>} */
     let pending = [['value', value]]
     /** @type {List<string>} */
@@ -179,7 +188,7 @@ const expressionText = (context, value) => {
         if (task.first[0] === 'value') {
             const value = task.first[1]
             if (!(value instanceof Array) || ['ref', 'demand', 'function', 'if'].includes(value[0]) || value[0] === 'block' && (value[1].statements.length !== 0 || value[1].exit[0] !== 'yield')) {
-                results = { first: valueText(context, value), tail: results }
+                results = { first: renderValue(context, value), tail: results }
                 continue
             }
             const children = value[0] === 'block' ? [/** @type {Extract<Block['exit'], readonly ['yield', unknown]>} */ (value[1].exit)[1][0]] : operatorOperands(/** @type {Operator<Value>} */ (value))
@@ -194,47 +203,34 @@ const expressionText = (context, value) => {
                 results = result.tail
             }
             const texts = toArray(rendered)
-            const text = valueText({ ...context, rendered: children.map((child, index) => [child, texts[index]]) }, value)
+            const text = renderValue({ ...context, rendered: children.map((child, index) => [child, texts[Number(index)]]) }, value)
             results = { first: text, tail: results }
         }
     }
 }
 
-/** @type {(context: Context, value: Value, minimum?: number) => string} */
-const expression = (context, value, minimum = 0) => {
-    const text = context.rendered?.find(([child]) => Object.is(child, value))?.[1] ?? expressionText(context, value)
-    return minimum !== 0 && precedence(value) < minimum ? `(${text})` : text
-}
-
-/** @type {(context: Context, key: Key<Value>, optional?: boolean) => string} */
-const keyText = (context, key, optional = false) => key instanceof Array
+/** @type {(expression: Expression, context: Context, key: Key<Value>, optional?: boolean) => string} */
+const keyText = (expression, context, key, optional = false) => key instanceof Array
     ? `${optional ? '?.' : ''}[Number(${expression(context, key[1])})]`
     : typeof key === 'string' && isIdentifier(key)
         ? `${optional ? '?.' : '.'}${key}`
         : `${optional ? '?.' : ''}[${primitive(key)}]`
 
-/** @type {(context: Context, values: readonly Item<Value>[]) => string} */
-const itemText = (context, values) => values.map(value => value instanceof Array && value[0] === '...'
+/** @type {(expression: Expression, context: Context, values: readonly Item<Value>[]) => string} */
+const itemText = (expression, context, values) => values.map(value => value instanceof Array && value[0] === '...'
     ? `...${expression(context, value[1])}` : expression(context, /** @type {Value} */ (value))).join(',')
 
-/** @type {(context: Context, text: string, step: Step<Value> | undefined) => string} */
-const stepsText = (context, text, step) => {
+/** @type {(expression: Expression, context: Context, text: string, step: Step<Value> | undefined) => string} */
+const stepsText = (expression, context, text, step) => {
     let current = step
     let result = text
     while (current !== undefined) {
-        if (current[0] === '|.') { result = `${result}${keyText(context, current[1])}` }
-        else if (current[0] === '|!()') { return `(${result})(${itemText(context, current[1])})` }
-        else { result = `${result}${current[0] === '|?.()' ? '?.' : ''}(${itemText(context, current[1])})` }
+        if (current[0] === '|.') { result = `${result}${keyText(expression, context, current[1])}` }
+        else if (current[0] === '|!()') { return `(${result})(${itemText(expression, context, current[1])})` }
+        else { result = `${result}${current[0] === '|?.()' ? '?.' : ''}(${itemText(expression, context, current[1])})` }
         current = current[2]
     }
     return result
-}
-
-/** A result block requiring no statements has the syntax of its value. @type {(value: Value) => Value} */
-const syntaxValue = value => {
-    let current = value
-    while (current instanceof Array && current[0] === 'block' && current[1].statements.length === 0 && current[1].exit[0] === 'yield') { current = current[1].exit[1][0] }
-    return current
 }
 
 /** Parentheses close a native optional-chain region. @type {(value: Value) => boolean} */
@@ -245,19 +241,19 @@ const optionalRegion = input => {
     return value[0] === '.' && value.length === 4 && value[3][0] === '|?.()'
 }
 
-/** @type {(context: Context, operator: Operator<Value>) => string} */
-const operatorText = (context, operator) => {
+/** @type {(expression: Expression, context: Context, operator: Operator<Value>) => string} */
+const operatorText = (expression, context, operator) => {
     if (operator.length === 1) {
-        const path = `helper${context.values.indexOf(operator)}`
+        const path = `helper${assertNotNullish(entry(context, 'values')).indexOf(operator)}`
         return isHelper(operator) ? taggedChunks(_helperChunks(operator[0])(path)) : operator[0]
     }
     switch (operator[0]) {
-        case 'array': { return `[${itemText(context, operator[1])}]` }
+        case 'array': { return `[${itemText(expression, context, operator[1])}]` }
         case 'object': { return `{${operator[1].map(entry => entry[0] === '...'
             ? `...${expression(context, entry[1])}`
             : `${typeof entry[1] === 'string' && entry[1] !== '__proto__' ? primitive(entry[1]) : `[${expression(context, entry[1])}]`}:${expression(context, entry[2])}`).join(',')}}` }
         case 'memberPresent': {
-            const helper = taggedChunks(_memberPresentChunks(`helper${context.values.indexOf(operator)}`))
+            const helper = taggedChunks(_memberPresentChunks(`helper${assertNotNullish(entry(context, 'values')).indexOf(operator)}`))
             const key = operator[2]
             const converted = key instanceof Array ? `Number(${expression(context, key[1])})` : primitive(key)
             return `${helper}(${expression(context, operator[1])},${converted})`
@@ -266,18 +262,18 @@ const operatorText = (context, operator) => {
             const base = operator[1]
             const text = expression(context, base, 15)
             const grouped = typeof base === 'number' || typeof base === 'bigint' || (operator[0] === '.' && optionalRegion(base))
-            return stepsText(context, `${grouped ? `(${text})` : text}${keyText(context, operator[2], operator[0] === '?.')}`, /** @type {Step<Value> | undefined} */ (operator[3]))
+            return stepsText(expression, context, `${grouped ? `(${text})` : text}${keyText(expression, context, operator[2], operator[0] === '?.')}`, /** @type {Step<Value> | undefined} */ (operator[3]))
         }
         case '()': {
             const callee = expression(context, operator[1], 15)
             let value = syntaxValue(operator[1])
             while (value instanceof Array && value[0] === ',' && value[1].length === 1) { value = syntaxValue(value[1][0]) }
             const detached = value instanceof Array && ['.', '?.'].includes(value[0])
-            return `${detached ? `(0,${callee})` : callee}(${itemText(context, operator[2])})`
+            return `${detached ? `(0,${callee})` : callee}(${itemText(expression, context, operator[2])})`
         }
         case '?.()': {
             const callee = expression(context, operator[1], 15)
-            return stepsText(context, `${callee}?.(${itemText(context, operator[2])})`, /** @type {Step<Value> | undefined} */ (operator[3]))
+            return stepsText(expression, context, `${callee}?.(${itemText(expression, context, operator[2])})`, /** @type {Step<Value> | undefined} */ (operator[3]))
         }
         case ',': { return `(${operator[1].map(value => expression(context, value)).join(',') || primitive(undefined)})` }
         case '?:': { return `${expression(context, operator[1], 3)}?${expression(context, operator[2])}:${expression(context, operator[3])}` }
@@ -311,19 +307,6 @@ const operatorText = (context, operator) => {
     }
 }
 
-/** @type {(context: Context, value: Value) => string} */
-const valueText = (context, value) => {
-    if (!(value instanceof Array)) { return primitive(value) }
-    switch (value[0]) {
-        case 'ref': { return name(context, value[1]) }
-        case 'demand': { return `${name(context, value[1])}()` }
-        case 'function': { return functionText(context, value[1]) }
-        case 'block': { return blockExpression(context, value[1]) }
-        case 'if': { return `${expression(context, value[1], 3)}?${blockExpression(context, value[2])}:${blockExpression(context, value[3])}` }
-        default: { return operatorText(context, value) }
-    }
-}
-
 /** Final result regions share the containing lexical region. @type {(input: Block) => Block} */
 const flatten = input => {
     let block = input
@@ -341,16 +324,16 @@ const flatten = input => {
     }
 }
 
-/** @type {(context: Context, block: Block) => string} */
-const blockExpression = (context, input) => {
+/** @type {(expression: Expression, renderBlock: BlockText, context: Context, block: Block) => string} */
+const blockExpression = (expression, renderBlock, context, input) => {
     const block = flatten(input)
     return block.statements.length === 0 && block.exit[0] === 'yield'
         ? expression(context, block.exit[1][0])
-        : `(()=>{${blockText(context, block, 'return')}})()`
+        : `(()=>{${renderBlock(context, block, 'return')}})()`
 }
 
-/** @type {(context: Context, fn: PreparedFunction) => string} */
-const functionText = (context, fn) => {
+/** @type {(expression: Expression, renderBlock: BlockText, context: Context, fn: PreparedFunction) => string} */
+const functionText = (expression, renderBlock, context, fn) => {
     const references = fn.captures.flatMap(capture => capture.value instanceof Array && capture.value[0] === 'ref' ? [capture.value[1]] : [])
     const captured = !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
     const aliases = captured || context.external ? context.aliases : [
@@ -360,24 +343,27 @@ const functionText = (context, fn) => {
     ]
     const self = fn.self === null || context.binding === null || context.runtime || captured ? [] : [/** @type {const} */ ([fn.self, context.binding])]
     let inner = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
-    const params = [...fn.parameters.map(id => declared(inner, id)), ...fn.rest === null ? [] : [`...${declared(inner, fn.rest)}`]].join(',')
+    const initial = inner
+    const params = [...fn.parameters.map(id => declared(initial, id)), ...fn.rest === null ? [] : [`...${declared(initial, fn.rest)}`]].join(',')
     let preface = ''
     if (!context.runtime && !captured && fn.captures.length > 1) {
         const before = inner
         const locals = captureLocals(context, fn)
-        inner = { ...inner, aliases: [...inner.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[index]]))] }
-        preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, locals[index])}=${name(before, capture.binding)};`).join('')
+        inner = { ...inner, aliases: [...inner.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[Number(index)]]))] }
+        const rebound = inner
+        preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(rebound, locals[Number(index)])}=${name(before, capture.binding)};`).join('')
     }
     const expressionBody = preface === '' && fn.body.statements.length === 0 && fn.body.exit[0] === 'return'
     const value = expressionBody ? expression(inner, /** @type {Extract<Block['exit'], readonly ['return', unknown, Value]>} */ (fn.body.exit)[2]) : ''
-    const body = expressionBody && !value.startsWith('{') ? value : `{${preface}${blockText(inner, fn.body, 'return')}}`
+    const body = expressionBody && !value.startsWith('{') ? value : `{${preface}${renderBlock(inner, fn.body, 'return')}}`
     const lambda = fn.self !== null && context.runtime
-        ? `(${keyword('function')} ${declared(inner, fn.self)}(${params}){${preface}${blockText(inner, fn.body, 'return')}})`
+        ? `(${keyword('function')} ${declared(inner, fn.self)}(${params}){${preface}${renderBlock(inner, fn.body, 'return')}})`
         : `(${params})=>${body}`
     if (!captured || fn.captures.length === 0) { return lambda }
     const input = !context.runtime && fn.captures.length > maxLength ? captureLocals(context, fn)[0] : null
-    const parameters = input === null ? fn.captures.map(capture => declared(inner, capture.binding)).join(',') : declared(inner, input)
-    const initialize = input === null ? '' : fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, capture.binding)}=${name(inner, input)}[${primitive(index)}];`).join('')
+    const capturedContext = inner
+    const parameters = input === null ? fn.captures.map(capture => declared(capturedContext, capture.binding)).join(',') : declared(capturedContext, input)
+    const initialize = input === null ? '' : fn.captures.map((capture, index) => `${keyword('const')} ${declared(capturedContext, capture.binding)}=${name(capturedContext, input)}[${primitive(index)}];`).join('')
     // Source recursion keeps the parser's direct const-arrow initializer.
     const returned = !context.runtime && fn.self !== null
         ? `${keyword('const')} ${declared(inner, fn.self)}=${lambda};${keyword('return')} ${name(inner, fn.self)};`
@@ -387,22 +373,50 @@ const functionText = (context, fn) => {
     return `((${parameters})=>${wrapped})(${input === null ? argumentsText : `[${argumentsText}]`})`
 }
 
-/** @type {(context: Context, statement: Statement) => string} */
-const statementText = (context, statement) => {
+/** @type {(expression: Expression, renderBlock: BlockText, context: Context, value: Value) => string} */
+const valueText = (expression, renderBlock, context, value) => {
+    if (!(value instanceof Array)) { return primitive(value) }
+    switch (value[0]) {
+        case 'ref': { return name(context, value[1]) }
+        case 'demand': { return `${name(context, value[1])}()` }
+        case 'function': { return functionText(expression, renderBlock, context, value[1]) }
+        case 'block': { return blockExpression(expression, renderBlock, context, value[1]) }
+        case 'if': { return `${expression(context, value[1], 3)}?${blockExpression(expression, renderBlock, context, value[2])}:${blockExpression(expression, renderBlock, context, value[3])}` }
+        default: { return operatorText(expression, context, value) }
+    }
+}
+
+/**
+ * Tie expression recursion to a supplied block renderer. The postorder
+ * trampoline still renders ordinary operands before the shallow syntax pass.
+ * @type {(renderBlock: BlockText) => Expression}
+ */
+const expressionWith = renderBlock => {
+    /** @type {Expression} */
+    const expression = (context, value, minimum = 0) => {
+        const text = context.rendered?.find(([child]) => Object.is(child, value))?.[1]
+            ?? expressionText((context, value) => valueText(expression, renderBlock, context, value), context, value)
+        return minimum !== 0 && precedence(value) < minimum ? `(${text})` : text
+    }
+    return expression
+}
+
+/** @type {(expression: Expression, renderBlock: BlockText, context: Context, statement: Statement) => string} */
+const statementText = (expression, renderBlock, context, statement) => {
     switch (statement[0]) {
         case 'define': { return `${keyword('const')} ${declared(context, statement[1])}=${expression({ ...context, binding: statement[1] }, statement[2])};` }
         case 'slot': { return `${keyword('let')} ${declared(context, statement[1])}=${expression(context, statement[2])};` }
         case 'write': { return `${name(context, statement[1])}=${expression(context, statement[2])};` }
         case 'memo': {
             const memo = statement[1]
-            return `${keyword('const')} ${declared(context, memo.binding)}=(()=>{${keyword('let')} ${declared(context, memo.valueSlot)},${declared(context, memo.doneSlot)}=${primitive(false)};${keyword('return')}()=>{${keyword('if')}(!${name(context, memo.doneSlot)}){${name(context, memo.valueSlot)}=${blockExpression(context, memo.initializer)};${name(context, memo.doneSlot)}=${primitive(true)};}${keyword('return')} ${name(context, memo.valueSlot)};};})();`
+            return `${keyword('const')} ${declared(context, memo.binding)}=(()=>{${keyword('let')} ${declared(context, memo.valueSlot)},${declared(context, memo.doneSlot)}=${primitive(false)};${keyword('return')}()=>{${keyword('if')}(!${name(context, memo.doneSlot)}){${name(context, memo.valueSlot)}=${blockExpression(expression, renderBlock, context, memo.initializer)};${name(context, memo.doneSlot)}=${primitive(true)};}${keyword('return')} ${name(context, memo.valueSlot)};};})();`
         }
-        case 'block': { return `{${blockText(context, statement[1], 'none')}}` }
+        case 'block': { return `{${renderBlock(context, statement[1], 'none')}}` }
         case 'if': {
-            const otherwise = blockText(context, statement[3], 'none')
-            return `${keyword('if')}(${expression(context, statement[1])}){${blockText(context, statement[2], 'none')}}${otherwise === '' ? '' : `${keyword('else')}{${otherwise}}`}`
+            const otherwise = renderBlock(context, statement[3], 'none')
+            return `${keyword('if')}(${expression(context, statement[1])}){${renderBlock(context, statement[2], 'none')}}${otherwise === '' ? '' : `${keyword('else')}{${otherwise}}`}`
         }
-        case 'loop': { return `${context.runtime ? `L${context.loops.indexOf(statement[1])}:` : ''}${keyword('while')}(${primitive(true)}){${blockText(context, statement[2], 'none')}}` }
+        case 'loop': { return `${context.runtime ? `L${context.loops.indexOf(statement[1])}:` : ''}${keyword('while')}(${primitive(true)}){${renderBlock(context, statement[2], 'none')}}` }
         case 'while': {
             const loop = statement[1]
             // a loop whose block writes its variable nowhere writes it back
@@ -410,27 +424,30 @@ const statementText = (context, statement) => {
             // assigns, and refuses a block assigning none
             // ([spec: loops](../../../spec/control-flow/loops/README.md))
             const unchanged = loop.mutable ? '' : `${name(context, loop.slot)}=${name(context, loop.slot)};`
-            return `${keyword('let')} ${declared(context, loop.slot)}=${expression(context, loop.initial)};${keyword('while')}(${expression(context, loop.condition)}){${blockText(context, loop.body, 'none')}${unchanged}}`
+            return `${keyword('let')} ${declared(context, loop.slot)}=${expression(context, loop.initial)};${keyword('while')}(${expression(context, loop.condition)}){${renderBlock(context, loop.body, 'none')}${unchanged}}`
         }
         default: { throw ['not a statement', statement] }
     }
 }
 
-/** @type {(context: Context, block: Block, normal: 'return' | 'export' | 'none') => string} */
+/** @type {BlockText} */
 const blockText = (outer, input, normal) => {
+    const expression = expressionWith(blockText)
     const block = flatten(input)
     const context = { ...outer, aliases: [...outer.aliases, ...block.statements.flatMap(statement => statement[0] === 'while' ? [/** @type {const} */ ([statement[1].result, statement[1].slot])] : [])] }
-    const before = block.statements.map(statement => statementText(context, statement)).join('')
+    const before = block.statements.map(statement => statementText(expression, blockText, context, statement)).join('')
     const exit = block.exit
     switch (exit[0]) {
         case 'yield': { return `${before}${normal === 'none' || exit[1].length === 0 ? '' : `${normal === 'return' ? keyword('return') : `${keyword('export')} ${keyword('default')}`} ${expression(context, exit[1][0])};`}` }
         case 'return': { return `${before}${keyword('return')} ${expression(context, exit[2])};` }
         case 'throw': { return `${before}${keyword('throw')} ${expression(context, exit[1])};` }
-        case 'loop': { return `${before}${statementText(context, exit)}` }
+        case 'loop': { return `${before}${statementText(expression, blockText, context, exit)}` }
         case 'break': case 'continue': { return `${before}${keyword(exit[0])}${context.runtime ? ` L${context.loops.indexOf(exit[1])}` : ''};` }
         default: { throw ['not an exit', exit] }
     }
 }
+
+const expression = expressionWith(blockText)
 
 /**
  * Render one prepared region. The tagged result retains every token category;
@@ -440,7 +457,7 @@ const blockText = (outer, input, normal) => {
  */
 export const render = (block, kind = 'module', runtime = false) => {
     const context = contextFor(blockBindings(block), blockSyntax(block), runtime, false)
-    const text = kind === 'expression' ? blockExpression(context, block)
+    const text = kind === 'expression' ? blockExpression(expression, blockText, context, block)
         : kind === 'factory' ? `${keyword('export')} ${keyword('default')}()=>{${blockText(context, block, 'return')}};`
             : blockText(context, block, 'export')
     return resolve([text]).map(chunkText).join('')
@@ -465,7 +482,7 @@ export const renderModule = block => {
 /** Code-only text; captures are external names, in declared capture order. @type {(fn: PreparedFunction) => string} */
 export const functionStringify = fn => {
     const context = contextFor(functionBindings(fn), valueSyntax(['function', fn]), true, true)
-    const text = functionText(context, fn)
+    const text = functionText(expression, blockText, context, fn)
     const external = fn.captures.map(capture => name(context, capture.binding))
     return untagged(resolve([text], [], external).map(chunkText).join(''))
 }

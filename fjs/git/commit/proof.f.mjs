@@ -7,10 +7,10 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
-import { toHex } from '../oid/module.f.mjs'
-import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
+import { toHex } from '../oid/module.f.js'
+import { name, object, tagger, type, write as writeTag } from '../tag/module.f.js'
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.js'
-import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.mjs'
+import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.js'
 
 /** An id's 40 hex digits, as a `parent` header spells it. */
 const idHex = encodeScalar(40)

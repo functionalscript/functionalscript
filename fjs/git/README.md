@@ -14,11 +14,11 @@ what a grammar can and cannot do for the formats.
 - [`object/`](object/module.f.js) — the loose object envelope,
   `<type> SP <size> NUL`: a grammar up to the NUL, a reader that slices the
   payload and holds it to the size, and a writer.
-- [`header/`](header/module.f.mjs) — the header block a commit and a tag
+- [`header/`](header/module.f.js) — the header block a commit and a tag
   share, and the message after it: a generic grammar over `key SP value LF`
   lines with continuation, a reader to a header list, the lookups by
   position and by key, and a writer that returns the block byte for byte.
-- [`ident/`](ident/module.f.mjs) — an `author`, `committer` or `tagger`
+- [`ident/`](ident/module.f.js) — an `author`, `committer` or `tagger`
   value, `name SP <email> SP time SP tz`, read as a second pass over the
   bytes a header holds: a `try*` reader that refuses what `git fsck`
   refuses, and a writer.
@@ -26,7 +26,7 @@ what a grammar can and cannot do for the formats.
   for a repository's id width: a reader that reads what `git fsck` would
   flag, a `validate` that refuses it the way `fsck` does, `mode` as the
   number an entry's digits spell, and a writer.
-- [`refname/`](refname/module.f.mjs) — what names a ref takes, by the rules
+- [`refname/`](refname/module.f.js) — what names a ref takes, by the rules
   `git check-ref-format` applies: the byte rules over the whole name, and the
   rule each component between slashes must pass. A tag's `tag` header is a
   ref name, which is why the tag module asks, and `HEAD`, a loose ref and a
@@ -80,14 +80,14 @@ what a grammar can and cannot do for the formats.
   skips — a component beginning with `.`, one ending in `.lock` — are skipped
   in silence, and every other broken name refuses the whole listing, which is
   Git's `bad ref`, measured.
-- [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
+- [`tag/`](tag/module.f.js) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.
-- [`commit/`](commit/module.f.mjs) — a commit the same way: `tree`,
+- [`commit/`](commit/module.f.js) — a commit the same way: `tree`,
   `parent`, `author` and `committer` by position, `encoding`, `gpgsig` and
   `mergetag` by key, the last read as a tag by the tag module, and a
   `validate`.
-- [`oid/`](oid/module.f.mjs) — an object id between its two spellings, the
+- [`oid/`](oid/module.f.js) — an object id between its two spellings, the
   raw bytes a tree entry holds and the hex text a header holds, and `of`,
   the id an object has at the repository's width: SHA-1 at 20 bytes,
   SHA-256 at 32.
@@ -95,7 +95,7 @@ what a grammar can and cannot do for the formats.
   the pure inflater, fed the chunks a read gives, and what comes of it as the
   refusals the host's `inflate` effect used to give, so a caller that tells them
   apart by code is told nothing new.
-- [`loose/`](loose/module.f.mjs) — a loose object file read whole, inflated by
+- [`loose/`](loose/module.f.js) — a loose object file read whole, inflated by
   that and past its envelope, and written: the envelope as one stored zlib
   stream, under a temporary name renamed into place. One of the two places a
   real repository meets the decoder; [`packstore/`](packstore/module.f.mjs)

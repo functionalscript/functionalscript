@@ -26,7 +26,7 @@ const mapped = (exit[0] === 'yield' ? ['yield', replacement]
 
 The same split is in `exitTask` of [`memo`](../../memo/module.f.mjs),
 `blockTask` of
-[`fjs/edag/to_fast/source/loops`](../../../../edag/to_fast/source/loops/module.f.mjs)
+[`fjs/edag/to_fast/source/loops`](../../../../edag/to_fast/source/loops/module.f.js)
 and `exitTask` of
 [`fjs/edag/from_fast/loop/owning`](../../../../edag/from_fast/loop/owning/module.f.js),
 where it is spread over two `if`s. A new `Exit` variant is a reader change

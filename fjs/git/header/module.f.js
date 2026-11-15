@@ -143,7 +143,7 @@ export const keyIs = (h, key) => isKey(key)(h)
  */
 export const valueAt = (p, i, key) => {
     if (i >= p.headers.length) { return null }
-    const h = p.headers[i]
+    const h = p.headers[Number(i)]
     return keyIs(h, key) ? h[1] : null
 }
 

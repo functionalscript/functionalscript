@@ -124,26 +124,6 @@ const chunkBytes = /** @type {const} */ (65_536)
 const chunks = u8ListToVecChunksMsb(chunkBytes)
 
 /**
- * The id Git gives an object, at the repository's width: the hash of
- * `<type> SP <size> NUL <payload>`, as [`fjs/git/object`](../object/module.f.js)'s
- * `write` lays it out — SHA-1 at 20 bytes, the width of every repository
- * in use today, and SHA-256 at 32. The width is bound once, so a store
- * that hashes every object it reads chooses the hash once.
- *
- * What the id vouches for is the hash's business: in a SHA-1 repository
- * it is only as strong as SHA-1, and what a trust layer does about that
- * is [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md).
- *
- * @throws If an item of the payload is not a byte, as `write` throws.
- *
- * @type {(oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Oid}
- */
-export const of = oidBytes => {
-    const hash = digestOf(oidBytes)
-    return (type, payload) => hash(write(type, payload))
-}
-
-/**
  * The hash a repository of this width uses, over plain bytes and with no object
  * framing: SHA-1 at 20 bytes and SHA-256 at 32.
  *
@@ -165,6 +145,26 @@ export const of = oidBytes => {
 export const digestOf = oidBytes => {
     const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
     return bytes => hash(chunks(bytes))
+}
+
+/**
+ * The id Git gives an object, at the repository's width: the hash of
+ * `<type> SP <size> NUL <payload>`, as [`fjs/git/object`](../object/module.f.js)'s
+ * `write` lays it out — SHA-1 at 20 bytes, the width of every repository
+ * in use today, and SHA-256 at 32. The width is bound once, so a store
+ * that hashes every object it reads chooses the hash once.
+ *
+ * What the id vouches for is the hash's business: in a SHA-1 repository
+ * it is only as strong as SHA-1, and what a trust layer does about that
+ * is [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md).
+ *
+ * @throws If an item of the payload is not a byte, as `write` throws.
+ *
+ * @type {(oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Oid}
+ */
+export const of = oidBytes => {
+    const hash = digestOf(oidBytes)
+    return (type, payload) => hash(write(type, payload))
 }
 
 /**

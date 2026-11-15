@@ -14,7 +14,7 @@
 
 import { code, doubleBody, emAfterSpace, emAfterSpan, emAfterWord, emphasis, entry as markdown, link, span, strongRest, text } from './module.f.mjs'
 import { codePoints } from '../../railroad/module.f.js'
-import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
+import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.js'
 
 /**
  * Each diagram's title and the rule it draws, in the order the page

@@ -35,7 +35,7 @@
  */
 
 import { codeMarker } from '../../website/style/module.f.js'
-import { tryMarked } from '../../media/datajs/module.f.mjs'
+import { tryMarked } from '../../media/datajs/module.f.js'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
 import { graphSvg } from '../../website/demo/graph/module.f.mjs'

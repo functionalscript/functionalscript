@@ -21,3 +21,9 @@ export type _Context = _Syntax & {
 export type _ScanTask = readonly ['value', Value] | readonly ['block', Block] | readonly ['statement', Statement] | readonly ['function', PreparedFunction]
 export type _Scan = _Syntax & { readonly bindings: readonly BindingId[] }
 export type _ExpressionTask = readonly ['value', Value] | readonly ['finish', Value, readonly Value[]]
+
+/** An expression renderer, with the caller's minimum precedence. */
+export type _Expression = (context: _Context, value: Value, minimum?: number) => string
+
+/** A block renderer and the disposition of a normal result. */
+export type _BlockText = (context: _Context, block: Block, normal: 'return' | 'export' | 'none') => string

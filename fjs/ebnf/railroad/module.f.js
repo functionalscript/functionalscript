@@ -2,7 +2,7 @@
  * A grammar's rules as syntax diagrams: the lowered {@link RuleSet} read back
  * as the railroad a reader of a language specification expects, one diagram
  * per rule an author chose to name. Drawing is
- * [`fjs/website/demo/railroad`](../../website/demo/railroad/module.f.mjs)'s;
+ * [`fjs/website/demo/railroad`](../../website/demo/railroad/module.f.js)'s;
  * this module decides what is drawn.
  *
  * **A caller names the rules that get diagrams.** Lowering names every rule,

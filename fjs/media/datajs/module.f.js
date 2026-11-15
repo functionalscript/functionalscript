@@ -55,14 +55,14 @@
  * `tryJsonSerialize` yields the chunks and `tryJsonStringify` is its
  * `concat`.
  *
- * The reader is [`./parser`](./parser/module.f.mjs), the writer
+ * The reader is [`./parser`](./parser/module.f.js), the writer
  * [`./serializer`](./serializer/module.f.js); each is documented where it
  * lives, and [`./README.md`](./README.md) is the map.
  *
  * @module
  */
 
-import { tryParse as parserTryParse, tryParseBytes as parserTryParseBytes } from './parser/module.f.mjs'
+import { tryParse as parserTryParse, tryParseBytes as parserTryParseBytes } from './parser/module.f.js'
 import {
     tryJsonMarked as serializerTryJsonMarked, tryJsonSerialize as serializerTryJsonSerialize,
     tryJsonStringify as serializerTryJsonStringify, tryMarked as serializerTryMarked,

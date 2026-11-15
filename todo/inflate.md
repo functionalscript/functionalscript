@@ -12,7 +12,7 @@ holds one per object. The decoder for Git objects
 bytes, and today the inflating is the host's: `inflate` in
 [`fjs/effects/node`](../fjs/effects/node/module.f.js) hands a `Vec` to
 `node:zlib` and gets a `Vec` back. Two modules call it:
-[`fjs/git/loose`](../fjs/git/loose/module.f.mjs) for the one stream a loose
+[`fjs/git/loose`](../fjs/git/loose/module.f.js) for the one stream a loose
 object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) for each
 entry of a pack — a base and every delta above it, one call per link of a chain.
 
@@ -143,7 +143,7 @@ fast path.
       streams and by hand, and checked on some 21,000 streams of every level,
       strategy and window size, corrupted and cut into pieces, for the same
       answer as Node's on each. The Adler-32 is a loop over the bytes now.
-- [x] [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) and
+- [x] [`fjs/git/loose`](../fjs/git/loose/module.f.js) and
       [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) read through it
       together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.js): a
       loose file by one `readWhole` and a pack entry in windows of a `Vec`, so no

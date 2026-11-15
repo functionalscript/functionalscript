@@ -462,7 +462,7 @@ graph and genuine-lazy checks. These source-output profiles do not change source
 syntax admission or optimization.
 
 After retaining the established loop plans, the
-[`recursiveFunction` / `resultBlock` fallback](../edag/to_fast/source/loops/module.f.mjs)
+[`recursiveFunction` / `resultBlock` fallback](../edag/to_fast/source/loops/module.f.js)
 refuses a possible `continue` to the invocation's exact loop target before
 inverse reconstruction. Break-only and other one-pass wrappers can still become
 terminal values, preserving ordinary self calls and returned self identity.

@@ -32,7 +32,7 @@ import { fromVec, stringToU8List } from '../../../text/utf8/module.f.js'
 import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { maxVecBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { isWholeName } from '../../refname/module.f.mjs'
+import { isWholeName } from '../../refname/module.f.js'
 
 /**
  * A ref name as the bytes Git stores it as, from the text a path is.

@@ -25,7 +25,7 @@ import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, ref
 import { access, execFile, exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.js'
 import { oidBytes } from '../../git/format/module.f.js'
-import { hexText, tryFromHexOf } from '../../git/oid/module.f.mjs'
+import { hexText, tryFromHexOf } from '../../git/oid/module.f.js'
 import { tryCommonDir } from '../../git/repo/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { join } from '../../path/module.f.js'
