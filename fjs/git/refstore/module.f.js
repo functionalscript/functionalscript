@@ -207,7 +207,9 @@ import { occurrences } from '../../types/array/module.f.js'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { fromEntries, mapGet } from '../../types/map/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { fromValues, has as setHas } from '../../types/set/module.f.js'
 import { tryPacked, tryRef } from '../ref/module.f.js'
 import { hasRefComponents, isWholeName } from '../refname/module.f.js'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.js'
@@ -1013,8 +1015,8 @@ const zeroRoot = roots => roots.find(r => zeroId(r.id)) ?? null
  * @type {(packed: readonly PackedRef[]) => Nullable<Bytes>}
  */
 const packedDisagreement = packed => {
-    const byName = new Map(packed.map(p => [nameKey(requiredName(p)), p.id]))
-    const hit = packed.find(p => byName.get(nameKey(requiredName(p))) !== p.id)
+    const byName = fromEntries(packed.map(p => [nameKey(requiredName(p)), p.id]))
+    const hit = packed.find(p => mapGet(byName, nameKey(requiredName(p))) !== p.id)
     return hit === undefined ? null : requiredName(hit)
 }
 
@@ -1050,7 +1052,7 @@ const packedHeadCollision = (headFound, packed) =>
  * @type {(found: _Found, packed: readonly PackedRef[]) => readonly Root[]}
  */
 const combine = (found, packed) => {
-    const shadowed = new Set(toArray(found.names).map(nameKey))
+    const shadowed = fromValues(toArray(found.names).map(nameKey))
     // The last line of each name, as one pass.
     const lastIndexOf = assertNotNullish(entry(occurrences(packed.map(p => nameKey(requiredName(p)))), 'lastIndexOf'))
     return [
@@ -1058,7 +1060,7 @@ const combine = (found, packed) => {
         ...packed
             .filter((p, i) => {
                 const k = nameKey(requiredName(p))
-                return !shadowed.has(k) && lastIndexOf(k) === i
+                return !setHas(k)(shadowed) && lastIndexOf(k) === i
             })
             .map(p => ({ name: requiredName(p), id: p.id })),
     ]

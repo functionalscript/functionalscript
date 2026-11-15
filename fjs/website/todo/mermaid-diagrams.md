@@ -26,7 +26,7 @@ At `92d8e4a1`, two rendered READMEs hold Mermaid fences:
 ### Proposal
 
 **Draw them ourselves, at build time, with the renderer the site already
-has.** [`demo/graph`](../demo/graph/module.f.mjs) lays out and draws a node and
+has.** [`demo/graph`](../demo/graph/module.f.js) lays out and draws a node and
 edge diagram as SVG (`ranked`, `graphSvg`), as Graphviz's `dot` does, and
 [graph-visualizer](../../edag/todo/graph-visualizer.md) already asks for it to
 be reused. A README is rendered when the site is built, so a diagram drawn

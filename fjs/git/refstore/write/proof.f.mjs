@@ -17,7 +17,7 @@ import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.
 import { error, ok } from '../../../types/result/module.f.js'
 import { toHex, tryFromHex } from '../../oid/module.f.js'
 import { latin1 } from '../../testlib.f.js'
-import { badNameCode, tryResolve, zeroIdCode } from '../module.f.mjs'
+import { badNameCode, tryResolve, zeroIdCode } from '../module.f.js'
 import { badPackedCode, brokenRefCode, idWidthCode, outsideRefsCode, refPrefixCode, tryDelete, tryWrite, unsortedPackedCode, unspellableNameCode } from './module.f.mjs'
 import { a, b, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed, t } from '../testlib.f.mjs'
 

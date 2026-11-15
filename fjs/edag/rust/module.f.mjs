@@ -17,13 +17,13 @@
 
 import { identityAnalysis, checked } from '../analysis/module.f.js'
 import { fromAnalysis } from '../to_fast/module.f.mjs'
-import { prepare } from '../../js/ast/prepare/module.f.mjs'
-import { functionStringify } from '../../js/ast/serializer/module.f.mjs'
+import { prepare } from '../../js/ast/prepare/module.f.js'
+import { functionStringify } from '../../js/ast/serializer/module.f.js'
 import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'
 import { operandsOf, visit } from '../sharing/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.js'
-import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.mjs'
+import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.js'
 
 /** No override to a function's canonical representation. @type {(e: Exp) => string | undefined} */
 const noText = () => undefined

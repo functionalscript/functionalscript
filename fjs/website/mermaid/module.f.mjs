@@ -1,6 +1,6 @@
 /**
  * A README's Mermaid flowchart, drawn at build time with the site's own
- * graph renderer ([`demo/graph`](../demo/graph/module.f.mjs)), as GitHub
+ * graph renderer ([`demo/graph`](../demo/graph/module.f.js)), as GitHub
  * draws it with Mermaid ([mermaid-diagrams](../todo/mermaid-diagrams.md)).
  *
  * **What it draws is what [`media/mermaid`](../../media/mermaid/module.f.js)
@@ -26,7 +26,7 @@
 
 import { tryFlowchart } from '../../media/mermaid/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { graphSvg, ranked } from '../demo/graph/module.f.mjs'
+import { graphSvg, ranked } from '../demo/graph/module.f.js'
 
 /**
  * The edges depth-first search finds closing a cycle, by index: from each

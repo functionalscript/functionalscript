@@ -16,7 +16,7 @@ import { parser as predictiveParser } from '../../../ebnf/ll1/module.f.js'
 import { repeatFrom0 } from '../../../ebnf/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { tokenize } from '../../tokenizer/module.f.mjs'
+import { tokenize } from '../../tokenizer/module.f.js'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,

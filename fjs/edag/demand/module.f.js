@@ -7,18 +7,15 @@
  * @module
  * @import { Exp, ExpOp, Items } from '../types.ts'
  * @import { _Step, _Work } from './private.ts'
- * @import { PersistentSet } from '../../types/set/types.ts'
+ * @import { RefMap } from '../../types/ref_map/types.ts'
  */
 
 import { isSpread } from '../../js/ast/module.f.js'
 import { eagerOperandsOf } from '../sharing/module.f.js'
-import { add, empty, has } from '../../types/set/module.f.js'
+import { empty } from '../../types/ref_map/module.f.js'
 
-/** @type {(value: unknown) => (set: PersistentSet<unknown>) => boolean} */
-const known = has
-
-/** @type {(value: unknown) => (set: PersistentSet<unknown>) => PersistentSet<unknown>} */
-const include = add
+/** Only graph-node references can name established computations. @type {(value: unknown) => (available: RefMap) => boolean} */
+const known = value => available => value instanceof Array && available(value)[0] === true
 
 /** @type {<T>(steps: readonly T[], tail: _Work<T> | null) => _Work<T> | null} */
 const prepend = (steps, tail) => steps.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -66,20 +63,20 @@ const prefix = (node, selected) => {
     return [...values(/** @type {readonly Exp[]} */ (node.slice(1))), null]
 }
 
-/** Completed parents establish their guaranteed eager dependencies. @type {(available: PersistentSet<unknown>, values: readonly unknown[]) => PersistentSet<unknown>} */
+/** Completed parents establish their guaranteed eager dependencies. @type {(available: RefMap, values: readonly unknown[]) => RefMap} */
 const establish = (available, values) => {
     let pending = prepend(values, null)
     while (pending !== null) {
         const { first: node, tail } = pending
         pending = tail
         if (!(node instanceof Array) || known(node)(available)) { continue }
-        available = include(node)(available)
+        available = available(node, true)[1]
         pending = prepend(eagerOperandsOf(node), pending)
     }
     return available
 }
 
-/** A requested suffix after already completed values. @type {(exp: Exp, required: readonly Exp[], index: number, available: PersistentSet<unknown>, selected: readonly (readonly [Exp, boolean])[]) => boolean} */
+/** A requested suffix after already completed values. @type {(exp: Exp, required: readonly Exp[], index: number, available: RefMap, selected: readonly (readonly [Exp, boolean])[]) => boolean} */
 const demandsFrom = (exp, required, index, available, selected) => {
     /** @type {_Work | null} */
     let pending = { first: [exp], tail: null }

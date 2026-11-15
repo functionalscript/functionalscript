@@ -7,7 +7,7 @@
 
 Reading refs is done: [`fjs/git/ref`](../../ref/module.f.js) reads the three
 files as the grammars they are, and
-[`fjs/git/refstore`](../module.f.mjs) finds and opens them, answering
+[`fjs/git/refstore`](../module.f.js) finds and opens them, answering
 every ref a repository holds and the id one name resolves to.
 
 Writing and deleting one are done. `tryWrite` writes the loose file under Git's
@@ -506,7 +506,7 @@ else in the name has moved DISOT semantics into Git's namespace.
 
 - [git-name-resolution](../../../../todo/git-name-resolution.md) — the rule
   above, and why a ref is only a retention root.
-- [`fjs/git/refstore`](../module.f.mjs) — the reading half, and the name rules
+- [`fjs/git/refstore`](../module.f.js) — the reading half, and the name rules
   both halves share.
 - [`fjs/git/refstore/write`](../write/module.f.mjs) — `tryWrite` and
   `tryDelete`, with the measurements behind every refusal.

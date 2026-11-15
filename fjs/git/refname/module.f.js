@@ -63,7 +63,7 @@ const forbidden = ascii(' ~^:?*[\\')
  *
  * Exported as the text a path is built from, with the bytes below derived from
  * it, so the two spellings cannot drift —
- * [`fjs/git/refstore`](../refstore/module.f.mjs)'s writer names the lock.
+ * [`fjs/git/refstore`](../refstore/module.f.js)'s writer names the lock.
  */
 export const lockSuffix = /** @type {const} */ ('.lock')
 
@@ -243,7 +243,7 @@ export const isName = name => {
  * when it does not, while `ORIG_HEAD` resolves either way. So the answer
  * depends on the state of the repository rather than on the name, which is
  * why it is neither checked here nor in `fjs/git/ref` — see that module, and
- * [`fjs/git/refstore`](../refstore/module.f.mjs)'s `tryResolve`, which has the
+ * [`fjs/git/refstore`](../refstore/module.f.js)'s `tryResolve`, which has the
  * effects to look.
  *
  * @throws If `name` is not a list of bytes.

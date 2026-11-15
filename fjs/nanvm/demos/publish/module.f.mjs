@@ -37,6 +37,7 @@
  * @import { Module } from '../../../media/wasm/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Marked } from '../../../text/marked/types.ts'
+ * @import { PersistentMap } from '../../../types/map/types.ts'
  * @import { _Checked } from './private.ts'
  */
 
@@ -49,6 +50,7 @@ import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.js'
 import { toTagged } from '../../../text/marked/module.f.js'
 import { u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
+import { fromEntries, mapGet } from '../../../types/map/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 /**
@@ -75,14 +77,14 @@ export const demangleNames = m => ({
 export const sampleWats = (m, samples) => {
     const named = demangleNames(m)
     const imported = m.imports.filter(({ desc }) => desc[0] === 'func').length
-    /** @type {ReadonlyMap<number, string>} */
-    const names = new Map(named.customs.flatMap(({ content }) => content[0] === 'name' ? content[1] : [])
+    /** @type {PersistentMap<number, string>} */
+    const names = fromEntries(named.customs.flatMap(({ content }) => content[0] === 'name' ? content[1] : [])
         .flatMap(s => s[0] === 'function' ? s[1] : []))
     const texts = functionsMarked(named)
     /** @type {(sample: string) => Marked} */
     const wat = sample => {
         const path = `nanvm_demos::samples::${sample}::`
-        return texts.filter((_, k) => (names.get(imported + k) ?? '').includes(path)).flat()
+        return texts.filter((_, k) => (mapGet(names, imported + k) ?? '').includes(path)).flat()
     }
     const wats = samples.map(sample => /** @type {const} */ ([sample, wat(sample)]))
     const missing = wats.find(([, marked]) => marked.length === 0)

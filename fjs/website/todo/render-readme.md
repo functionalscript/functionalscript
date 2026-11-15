@@ -94,7 +94,7 @@ Every README has a heading, so today's reader renders none of them.
 - **A code fence is coloured where the site can read its language.** A
   `js`, `javascript`, `json` or `jsonc` fence, in any case, goes through the
   tokenizer fallback the demos use for a typed example
-  ([`demo/highlight`](../demo/highlight/module.f.mjs)'s `highlight`), so a
+  ([`demo/highlight`](../demo/highlight/module.f.js)'s `highlight`), so a
   README's code and a demo's code look alike and the text is the fence's,
   character for character. A fence in any other language, or one the
   tokenizer refuses, stays a plain `<pre>`: no colour is honest, a guessed

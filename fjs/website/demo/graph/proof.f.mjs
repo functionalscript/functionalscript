@@ -2,7 +2,7 @@
  * @import { Graph, Shape } from './types.ts'
  */
 
-import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.mjs'
+import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'

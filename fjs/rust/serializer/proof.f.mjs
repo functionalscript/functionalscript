@@ -10,7 +10,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { unwrap } from '../../types/result/module.f.js'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords } from '../../edag/rust/unmarked/module.f.js'
-import { bindingTagged, braced, op1Rust, scope, scopeTagged, useLines, useLinesTagged, valueTagged } from './module.f.mjs'
+import { bindingTagged, braced, op1Rust, scope, scopeTagged, useLines, useLinesTagged, valueTagged } from './module.f.js'
 
 /** @type {Options} */
 const options = { runtime: 'runtime', text: fn => `function${fn.target.index}` }

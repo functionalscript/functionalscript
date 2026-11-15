@@ -58,7 +58,7 @@ what a grammar can and cannot do for the formats.
   than shifted because `<<` signs the top bit, and `startsWith` for a magic
   number or a name's prefix. Each takes the indexed array a reader already
   made with `byteArray`, not the lazy `Bytes`.
-- [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
+- [`refstore/`](refstore/module.f.js) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
   in hand; and [`refstore/write/`](refstore/write/module.f.mjs), the writers
   over the same name rules: `tryWrite` to put one at an id — the loose file, through the
@@ -457,7 +457,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 - **Appending to the reflog**:
   [`refstore/todo/ref-writing.md`](refstore/todo/ref-writing.md). Reading the refs is done, and
   so are writing and deleting one — [`ref/`](ref/module.f.js) for the file
-  grammars, [`refstore/`](refstore/module.f.mjs)'s `tryRoots` and `tryResolve`,
+  grammars, [`refstore/`](refstore/module.f.js)'s `tryRoots` and `tryResolve`,
   and [`refstore/write/`](refstore/write/module.f.mjs)'s `tryWrite` and
   `tryDelete` over the effects. Every way the two writers are
   narrower than `git update-ref` — no check that the object is there or, under

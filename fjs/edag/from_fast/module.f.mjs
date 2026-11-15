@@ -13,11 +13,14 @@
  * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Monoid } from '../../common/monoid/types.ts'
+ * @import { PersistentMap } from '../../types/map/types.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { empty as noEntries, fromEntries as mapOf, mapEntries, mapGet, mapHas, mapSet, size as mapSize } from '../../types/map/module.f.js'
+import { fromValues as setOf, values as setValues } from '../../types/set/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.js'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.js'
@@ -74,20 +77,20 @@ const orderedOperands = (values, construct) => {
 const bindingOf = (scope, binding) => {
     let index = scope.index
     while (index !== null) {
-        const found = index.value.get(binding)
+        const found = mapGet(index.value, binding)
         if (found !== undefined) { return found }
         index = index.rest
     }
     return undefined
 }
 
-/** @type {(earlier: ReadonlyMap<BindingId, Binding>) => (later: ReadonlyMap<BindingId, Binding>) => ReadonlyMap<BindingId, Binding>} */
-const mergeIndex = earlier => later => new Map([...earlier, ...later])
+/** @type {(earlier: PersistentMap<BindingId, Binding>) => (later: PersistentMap<BindingId, Binding>) => PersistentMap<BindingId, Binding>} */
+const mergeIndex = earlier => later => mapOf([...mapEntries(earlier), ...mapEntries(later)])
 
-/** The index's runs under union, each weighing its size. @type {Monoid<ReadonlyMap<BindingId, Binding>>} */
-const indexUnion = { identity: new Map(), operation: mergeIndex, weight: m => m.size }
+/** The index's runs under union, each weighing its size. @type {Monoid<PersistentMap<BindingId, Binding>>} */
+const indexUnion = { identity: noEntries, operation: mergeIndex, weight: mapSize }
 
-/** Immutable map runs avoid whole-scope copies; lookup examines logarithmically many runs. @type {(run: ReadonlyMap<BindingId, Binding>) => (index: Scope['index']) => Scope['index']} */
+/** Immutable map runs avoid whole-scope copies; lookup examines logarithmically many runs. @type {(run: PersistentMap<BindingId, Binding>) => (index: Scope['index']) => Scope['index']} */
 const appendIndex = step(indexUnion)
 
 /** @type {Scope} */
@@ -100,7 +103,7 @@ const scopeOf = (environment, parent = emptyScope) => {
     const parentEntries = entry(parent, 'entries')
     assert(parentEntries !== undefined)
     return {
-        index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
+        index: appendIndex(mapOf(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
         entries: { head: parentEntries, tail: environment },
         lazy: lazy.length === 0 ? parent.lazy : { head: parent.lazy, tail: lazy },
     }
@@ -120,7 +123,7 @@ const environmentOf = scope => {
 const lazyBinding = (scope, binding) => bindingOf(scope, binding)?.[2] === 'lazy'
 
 /** Deferred values whose initializer recipes belong to an enclosing owner. @type {(scope: Scope) => readonly BindingId[]} */
-const lazyBindings = scope => [...new Set(toArray(scope.lazy).filter(id => lazyBinding(scope, id)))]
+const lazyBindings = scope => setValues(setOf(toArray(scope.lazy).filter(id => lazyBinding(scope, id))))
 
 /** @type {(m: ExpOp, n: ExpOp) => boolean} */
 const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[Number(i)]))
@@ -152,9 +155,8 @@ const children = node => {
     return operatorOperands(value).map(value => ['value', value])
 }
 
-/** @type {(relations: readonly (readonly [BindingId, readonly BindingId[]])[], roots: readonly BindingId[]) => readonly BindingId[]} */
-const closure = (relations, roots) => {
-    const dependencies = new Map(relations)
+/** @type {(dependencies: PersistentMap<BindingId, readonly BindingId[]>, roots: readonly BindingId[]) => readonly BindingId[]} */
+const closure = (dependencies, roots) => {
     let pending = prepend(roots, null)
     /** @type {readonly BindingId[]} */
     let found = []
@@ -163,7 +165,7 @@ const closure = (relations, roots) => {
         pending = tail
         if (found.includes(id)) { continue }
         found = [...found, id]
-        pending = prepend(dependencies.get(id) ?? [], pending)
+        pending = prepend(mapGet(dependencies, id) ?? [], pending)
     }
     return found
 }
@@ -218,9 +220,8 @@ const prefixEnd = (value, divergent = false) => {
     return Infinity
 }
 
-/** A deferred or substituted graph read can execute work before later reads. @type {(relations: readonly (readonly [BindingId, readonly BindingId[]])[], opaque: readonly BindingId[], roots: readonly BindingId[]) => { readonly references: readonly BindingId[]; readonly work: boolean }} */
-const firstDemands = (relations, opaque, roots) => {
-    const dependencies = new Map(relations)
+/** A deferred or substituted graph read can execute work before later reads. @type {(dependencies: PersistentMap<BindingId, readonly BindingId[]>, opaque: readonly BindingId[], roots: readonly BindingId[]) => { readonly references: readonly BindingId[]; readonly work: boolean }} */
+const firstDemands = (dependencies, opaque, roots) => {
     /** @type {Link<BindingId | null> | null} */
     let pending = prepend(roots, null)
     /** @type {readonly BindingId[]} */
@@ -231,7 +232,7 @@ const firstDemands = (relations, opaque, roots) => {
         if (id === null) { return { references, work: true } }
         if (references.includes(id)) { continue }
         references = [...references, id]
-        pending = prepend(dependencies.get(id) ?? [], opaque.includes(id) ? { first: null, tail: pending } : pending)
+        pending = prepend(mapGet(dependencies, id) ?? [], opaque.includes(id) ? { first: null, tail: pending } : pending)
     }
     return { references, work: false }
 }
@@ -276,10 +277,10 @@ const summary = (node, parts, external) => {
             || value[0] === 'object' && value[1].every(entry => entry[0] === ':' && typeof entry[1] === 'string')
         return { ...empty, references: eager.flatMap(part => part.references), prefix: prefixReads(parts.filter((_, index) => index < end && !isLazyOperand(value, index))), demand: prefixReads(parts.filter((_, index) => index < demandEnd && !isLazyOperand(value, index)), true), fails: !total || parts.some(part => part.fails), diverges: invokes(value) || parts.some(part => part.diverges) }
     }
-    /** @type {readonly (readonly [BindingId, readonly BindingId[]])[]} */
-    let relations = []
+    /** @type {PersistentMap<BindingId, readonly BindingId[]>} */
+    let relations = noEntries
     /** @type {OrderScope} */
-    let orderScope = { reads: [], opaque: external, demands: [], deferred: external }
+    let orderScope = { reads: noEntries, opaque: external, demands: noEntries, deferred: external }
     /** @type {readonly BindingId[]} */
     let required = []
     /** @type {readonly BindingId[]} */
@@ -300,8 +301,8 @@ const summary = (node, parts, external) => {
         active += 1
         const part = parts[Number(position)]
         if (statement[0] === 'define') {
-            relations = [...relations, [statement[1], part.references]]
-            orderScope = { ...orderScope, reads: [...orderScope.reads, [statement[1], part.prefix]], demands: [...orderScope.demands, [statement[1], part.demand]] }
+            relations = mapSet(relations, statement[1], part.references)
+            orderScope = { ...orderScope, reads: mapSet(orderScope.reads, statement[1], part.prefix), demands: mapSet(orderScope.demands, statement[1], part.demand) }
             if (statement[3] === 'required') {
                 required = [...required, ...part.references]
                 if (entering) { entry = [...entry, ...part.references] }
@@ -369,16 +370,16 @@ const summary = (node, parts, external) => {
         fails: exit[0] === 'throw' || tail.some(part => part.fails), diverges: exit[0] === 'throw' || tail.some(part => part.diverges) })
     const reached = closure(relations, [...(normal ? references : []), ...required])
     const unused = node[1].statements.slice(0, active).flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : [])
-    const local = new Set(relations.map(([binding]) => binding))
+    const local = relations
     return {
-        references: reached.filter(id => !local.has(id)),
+        references: reached.filter(id => !mapHas(local, id)),
         required: [...ordered, ...terminal.required, ...unused],
         reached,
         entry: closure(relations, [...entry, ...(entering ? references : [])]),
         returns: returns || (normal && (exit[0] === 'return' || terminalLoop !== null && parts[Number(parts.length - 1)].returns)),
         normal: normal && exit[0] === 'yield',
-        prefix: firstDemands(orderScope.reads, orderScope.opaque, prefixReads([...executions, ...tail])).references.filter(id => !local.has(id)),
-        demand: firstDemands(orderScope.demands, orderScope.deferred, prefixReads([...executions, ...tail], true)).references.filter(id => !local.has(id)),
+        prefix: firstDemands(orderScope.reads, orderScope.opaque, prefixReads([...executions, ...tail])).references.filter(id => !mapHas(local, id)),
+        demand: firstDemands(orderScope.demands, orderScope.deferred, prefixReads([...executions, ...tail], true)).references.filter(id => !mapHas(local, id)),
         fails: executions.some(part => part.fails) || terminal.fails,
         diverges: executions.some(part => part.diverges) || terminal.diverges,
     }
@@ -390,7 +391,7 @@ const summary = (node, parts, external) => {
  * The walk includes skipped regions so later lowering has their own facts.
  * @type {(root: Node, known?: Summaries, external?: readonly BindingId[]) => Summaries}
  */
-const summaries = (root, known = new Map(), external = []) => {
+const summaries = (root, known = noEntries, external = []) => {
     /** @type {Link<Visit> | null} */
     let work = { first: ['enter', root], tail: null }
     /** @type {Link<Summary> | null} */
@@ -401,7 +402,7 @@ const summaries = (root, known = new Map(), external = []) => {
         const visit = work.first
         work = work.tail
         if (visit[0] === 'enter') {
-            const prior = known.get(visit[1][1])
+            const prior = mapGet(known, visit[1][1])
             if (prior !== undefined) { results = { first: prior, tail: results }; continue }
             const nested = children(visit[1])
             work = prepend(nested.map(node => /** @type {Visit} */ (['enter', node])), { first: ['finish', visit[1], nested], tail: work })
@@ -418,11 +419,11 @@ const summaries = (root, known = new Map(), external = []) => {
         results = { first: value, tail: results }
         entries = { first: [visit[1][1], value], tail: entries }
     }
-    return new Map(toArray(entries))
+    return mapOf(toArray(entries))
 }
 
 /** @type {(block: Block, context: Context) => Summary} */
-const blockSummary = (block, context) => context.summaries.get(block) ?? assertNotNullish(summaries(['block', block], context.summaries, context.external).get(block))
+const blockSummary = (block, context) => mapGet(context.summaries, block) ?? assertNotNullish(mapGet(summaries(['block', block], context.summaries, context.external), block))
 
 /** @type {(valueTask: _ValueTask, input: readonly Value[], context: Context) => Task<readonly Lowered[]>} */
 const lowerValues = (valueTask, input, context) => {
@@ -484,9 +485,9 @@ const functionValue = (blockTask, valueTask, source, context) => call(() => {
                 ])
             }),
         ]
-        const known = context.external.length === 0 ? context.summaries : new Map()
+        const known = context.external.length === 0 ? context.summaries : noEntries
         /** @type {Context} */
-        const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : new Map([...known, ...summaries(['block', fn.body], known)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
+        const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : mapOf([...mapEntries(known), ...mapEntries(summaries(['block', fn.body], known))]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
         const root = rootLoopOf(fn)
         return bind(root === null ? blockTask(fn.body, local) : scalarRoot(blockTask, valueTask, fn, root, local), body =>
             done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: placed.anchors }))
@@ -547,7 +548,7 @@ const regionTask = (blockTask, block, context, normalize = false) => call(() => 
     const local = normalize ? { ...context,
         functionTarget: null,
         memoPrepared: true,
-        summaries: normalized === block ? context.summaries : new Map([...context.summaries, ...summaries(['block', normalized], context.summaries, context.external)]),
+        summaries: normalized === block ? context.summaries : mapOf([...mapEntries(context.summaries), ...mapEntries(summaries(['block', normalized], context.summaries, context.external))]),
     } : context
     return blockTask(normalized, local)
 })
@@ -649,7 +650,7 @@ const normalTests = flow => call(() => {
     }
     return bind(normalTests(node.then), a => bind(normalTests(node.otherwise), b => {
         const common = a === null ? b : b === null ? a : a.filter(value => b.includes(value))
-        return done(common === null ? null : [...new Set([...node.test.anchors, node.test.exp, ...common])])
+        return done(common === null ? null : setValues(setOf([...node.test.anchors, node.test.exp, ...common])))
     }))
 })
 
@@ -680,10 +681,10 @@ const emitControl = (flow, normal, terminal, established = [], selected = []) =>
     if (node.kind === 'terminal') { return done(terminal(node.value, established, selected)) }
     if (node.kind === 'prefix') { return bind(emitControl(node.next, normal, terminal, established, selected), exp => done(anchored({ exp, anchors: node.anchors }, established, selected))) }
     if (node.kind === 'join') {
-        return bind(node.results ? normalTests(node.body) : done([]), tests => bind(emitControl(node.next, normal, terminal, [...new Set([...established, ...assertNotNullish(tests)])], selected), next =>
+        return bind(node.results ? normalTests(node.body) : done([]), tests => bind(emitControl(node.next, normal, terminal, setValues(setOf([...established, ...assertNotNullish(tests)])), selected), next =>
             emitControl(node.body, () => next, terminal, established, selected)))
     }
-    const completed = [...new Set([...established, ...node.test.anchors, node.test.exp])]
+    const completed = setValues(setOf([...established, ...node.test.anchors, node.test.exp]))
     const preceding = selected.filter(([test]) => !Object.is(test, node.test.exp))
     return bind(emitControl(node.then, normal, terminal, completed, [...preceding, [node.test.exp, true]]), a => bind(emitControl(node.otherwise, normal, terminal, completed, [...preceding, [node.test.exp, false]]), b =>
         done(anchored({ exp: ['?:', node.test.exp, a, b], anchors: node.test.anchors }, established, selected))))
@@ -789,7 +790,7 @@ const contextFor = (node, environment, transfer, memoPrepared = false) => {
     return {
         scope: scopeOf(environment),
         transfer: transfer === undefined ? { kind: 'default' } : { kind: 'custom', transfer },
-        summaries: summaries(node, new Map(), external),
+        summaries: summaries(node, noEntries, external),
         functionTarget: null,
         memoPrepared,
         external,

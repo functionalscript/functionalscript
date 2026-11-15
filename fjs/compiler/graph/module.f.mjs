@@ -1,6 +1,6 @@
 /**
  * The operators the EDAG, FAST and the source AST share, as
- * [`graphOf`](../../website/demo/graph/module.f.mjs) shapes: one drawing
+ * [`graphOf`](../../website/demo/graph/module.f.js) shapes: one drawing
  * of them for every graph of the compiler's trees. The three spell an
  * operator with the same tuple — `fjs/js/ast/types.ts`'s `Operator<V>` —
  * except for the array and object tags, which a caller names in
@@ -86,7 +86,7 @@
 import { helperIds, staticIds } from '../../edag/module.f.js'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.js'
 import { chunksText } from '../../text/marked/module.f.js'
-import { graphOf } from '../../website/demo/graph/module.f.mjs'
+import { graphOf } from '../../website/demo/graph/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { operatorOperands } from '../../js/ast/module.f.js'

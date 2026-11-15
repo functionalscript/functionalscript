@@ -18,7 +18,7 @@ the fold, which resolves the tree's names into the AST and refuses what only
 a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is in neither alphabet's stream for
 long: the tokenizer reads it and leaves it out, keeping of it the one fact a
 rule of the language asks, whether a newline stood before a token
-([`fjs/compiler/tokenizer`](../tokenizer/module.f.mjs)).
+([`fjs/compiler/tokenizer`](../tokenizer/module.f.js)).
 
 ## Resolved source bindings
 

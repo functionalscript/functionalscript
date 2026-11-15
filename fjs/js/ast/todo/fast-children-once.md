@@ -13,7 +13,7 @@ expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
 [`memo/cells`](../memo/cells/module.f.js), `ownsMemo` in
 [`memo`](../memo/module.f.js), `references` in
 [`sugar`](../sugar/module.f.js), `facts` in
-[`prepare`](../prepare/module.f.mjs), `definitions` in
+[`prepare`](../prepare/module.f.js), `definitions` in
 [`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs), `children` in
 [`fjs/edag/from_fast`](../../../edag/from_fast/module.f.mjs) and once more in
 its `loop/root`:
@@ -29,8 +29,8 @@ children = [...node.statements.flatMap(statement => statement[0] === 'define' ? 
 ```
 
 The prepared-FAST sibling, with its `slot`, `write`, `memo` and `while` rows,
-appears twice more: `scan` in [`serializer`](../serializer/module.f.mjs) and
-`children` in [`fjs/rust/serializer`](../../../rust/serializer/module.f.mjs).
+appears twice more: `scan` in [`serializer`](../serializer/module.f.js) and
+`children` in [`fjs/rust/serializer`](../../../rust/serializer/module.f.js).
 `exitValues`, the exit row, already lives once in `control` and is imported by
 several of these; the statement and value rows never were. The
 [README](../README.md) calls `control` "one explicit-stack traversal", but

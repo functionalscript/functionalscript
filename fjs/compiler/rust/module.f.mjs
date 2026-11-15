@@ -7,7 +7,7 @@
  *
  * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits the graph, then
  * the shared EDAG-to-FAST conversion and preparation passes establish its
- * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.mjs)
+ * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.js)
  * spells that prepared program, through the same pipeline used by
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) for the operator corpus.
  * What is specific to this module:
@@ -40,7 +40,7 @@
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.js'
 import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.mjs'
-import { useLinesTagged } from '../../rust/serializer/module.f.mjs'
+import { useLinesTagged } from '../../rust/serializer/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.js'
 

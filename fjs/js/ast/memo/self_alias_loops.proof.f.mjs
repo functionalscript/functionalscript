@@ -9,8 +9,8 @@ import { assert, assertEq, assertError, assertOk } from '../../../asserts/module
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { prepareFunction } from '../prepare/module.f.mjs'
-import { functionStringify } from '../serializer/module.f.mjs'
+import { prepareFunction } from '../prepare/module.f.js'
+import { functionStringify } from '../serializer/module.f.js'
 import { _freshSelf, normalizeLazyReturns, normalizeMemo } from './module.f.js'
 
 /** @type {(kind: 'ordinary' | 'terminal' | 'nested' | 'nested-terminal' | 'lazy' | 'lazy-loop' | 'recipe-lazy' | 'recipe-lazy-loop', mode: Definition[3], capture: boolean) => FastFunction} */

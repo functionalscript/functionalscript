@@ -40,6 +40,7 @@ import { length as listLength, scan, stateScan } from '../../types/list/module.f
 import { toArray } from '../../types/list/alt/module.f.js'
 import { stringify } from '../../media/json/module.f.js'
 import { identity } from '../../types/function/module.f.js'
+import { fromEntries, mapGet } from '../../types/map/module.f.js'
 
 const stringifyJson = stringify(identity)
 
@@ -136,8 +137,8 @@ const spansWith = (contextual, typed) => text => {
     // lines are counted as the tokenizer counts them. The LF of a CRLF takes
     // the position of the character after it, which is the one a token
     // starts at, so the later index wins.
-    const indexOf = new Map(_positions('')(input).map(({ line, column }, i) => [`${line}:${column}`, i]))
-    const starts = tokens.map(({ metadata: { line, column } }) => assertNotNullish(indexOf.get(`${line}:${column}`), 'a token at no position'))
+    const indexOf = fromEntries(_positions('')(input).map(({ line, column }, i) => [`${line}:${column}`, i]))
+    const starts = tokens.map(({ metadata: { line, column } }) => assertNotNullish(mapGet(indexOf, `${line}:${column}`), 'a token at no position'))
     // A token that starts where the previous one does adds nothing to cut:
     // the `nl` a block comment with a newline is followed by.
     // The token after each on its line, trivia skipped, read from the end.

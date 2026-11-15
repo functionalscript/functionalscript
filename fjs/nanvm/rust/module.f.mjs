@@ -59,7 +59,7 @@ import { snakeCase, stringLiteral } from '../../media/rust/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { bindingLine, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'
-import { braced } from '../../rust/serializer/module.f.mjs'
+import { braced } from '../../rust/serializer/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The name a group's `run` binds the runtime value to, {@link groupFile}. */

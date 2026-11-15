@@ -12,7 +12,7 @@
  *
  * The view an output stage ends in, a copyable code block or the refusal, is
  * not compiler-specific and lives with the highlighter as `codeOutput`
- * ([`website/demo/highlight`](../../website/demo/highlight/module.f.mjs)).
+ * ([`website/demo/highlight`](../../website/demo/highlight/module.f.js)).
  *
  * @module
  *
@@ -24,7 +24,7 @@
 
 import { error } from '../../types/result/module.f.js'
 import { textDemo } from '../../website/demo/module.f.js'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.js'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 

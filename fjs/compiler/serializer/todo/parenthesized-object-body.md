@@ -50,7 +50,7 @@ the shape of the decision does not change, only its answer.
 
 ### Related
 
-- [`../../../js/ast/serializer/module.f.mjs`](../../../js/ast/serializer/module.f.mjs)
+- [`../../../js/ast/serializer/module.f.js`](../../../js/ast/serializer/module.f.js)
   — `functionText`, which chooses the prepared JavaScript spelling.
 - [`../../parser/grammar/module.f.mjs`](../../parser/grammar/module.f.mjs) —
   `group`, the rule that reads it back.

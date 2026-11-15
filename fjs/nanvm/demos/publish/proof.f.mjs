@@ -65,6 +65,14 @@ export const proof = {
         // A module with no names has no sample.
         assertEq(assertError(sampleWats({ ...module, customs: [] }, ['hello'])), 'no functions of the sample `hello`')
     },
+    // Repeated function indexes use the last name, including across sections.
+    duplicateFunctionNames: () => {
+        /** @type {Module['customs'][number]} */
+        const other = { after: 'code', content: ['name', [['function', [[2, 'other']]]]] }
+        assertEq(assertError(sampleWats({ ...module, customs: [...module.customs, other] }, ['hello'])), 'no functions of the sample `hello`')
+        const [[, marked]] = assertOk(sampleWats({ ...module, customs: [other, ...module.customs] }, ['hello']))
+        assertEq(toText(marked), helloWat)
+    },
     // The bytes copied as they were, the sample's WAT written tagged, a
     // removed sample's WAT removed, and everything else in the directory kept.
     publish: () => {

@@ -25,7 +25,7 @@
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { codeOutput } from '../../website/demo/highlight/module.f.mjs'
+import { codeOutput } from '../../website/demo/highlight/module.f.js'
 import { tryUnresolved } from '../edag/module.f.mjs'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { tryModuleMarked } from './module.f.mjs'

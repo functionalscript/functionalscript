@@ -80,7 +80,7 @@ is a trade rather than a removal.** [`ReadWhole`](../types.ts) was added on
 per-chunk splice the paragraph above describes cannot happen — and it is
 implemented in both runners and read through `readWholeBytes` by `fjs/git`'s
 [`packstore`](../../../git/packstore/module.f.js) and
-[`refstore`](../../../git/refstore/module.f.mjs), so it is a proven operation
+[`refstore`](../../../git/refstore/module.f.js), so it is a proven operation
 and not a sketch. Its own docstring states the property this
 section needs: *"The chunks are one open's, which is why this is not a fold
 over `readBytes`. That operation resolves the path per call, so reading a file

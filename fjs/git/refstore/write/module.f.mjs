@@ -2,7 +2,7 @@
  * Writing the refs a repository holds, over the effects: {@link tryWrite} puts a
  * name at an id and {@link tryDelete} takes one out.
  *
- * [`fjs/git/refstore`](../module.f.mjs) is the reading half, and the rules both
+ * [`fjs/git/refstore`](../module.f.js) is the reading half, and the rules both
  * halves must agree on live beside it — which directory a name belongs to in
  * [`../scope`](../scope/module.f.js), how a name and a path spell each other in
  * [`../name`](../name/module.f.js), which names are refused in the store — so a
@@ -56,7 +56,7 @@ import { startsWith } from '../../bytes/module.f.js'
 import { isOidOf } from '../../oid/module.f.js'
 import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.js'
 import { isWholeName, lockSuffix } from '../../refname/module.f.js'
-import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
+import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.js'
 import { nameForMessage, nameText, refsPrefix } from '../name/module.f.js'
 import { dirOf } from '../scope/module.f.js'
 
@@ -127,7 +127,7 @@ const unlocked = (lock, e) => compensateStep(e, rm(lock))
 /**
  * The code a write is refused with when no path spells the name.
  *
- * It is the writer's half of the gap [`tryResolve`](../module.f.mjs) answers `null` for: a
+ * It is the writer's half of the gap [`tryResolve`](../module.f.js) answers `null` for: a
  * ref name may hold bytes that are no UTF-8 — `refs/heads/` and the byte `0x80`
  * is one `git check-ref-format` accepts and `rev-parse` resolves, measured on
  * Git 2.43.0 — and a path is text to this host, so there is no file to create.
@@ -161,7 +161,7 @@ const unspellableNameMessage = name => `${nameForMessage(name)} is no path this 
  * becomes `.git/FOO_HEAD` at exit 0 — so this is narrower than Git and
  * deliberately so: a ref written here is a retention root and nothing else
  * ([`todo/git-name-resolution.md`](../../../../todo/git-name-resolution.md)), and
- * the roots [`tryRoots`](../module.f.mjs) walks are the names under `refs/` plus the one
+ * the roots [`tryRoots`](../module.f.js) walks are the names under `refs/` plus the one
  * `HEAD` this writer will not touch. What a caller that wants one would need is
  * in [`../todo/ref-writing.md`](../todo/ref-writing.md).
  */
@@ -234,7 +234,7 @@ const isNamePrefix = (a, b) =>
  * The packed name that collides with `name` as a directory prefix, either way
  * round, or `null` where none does.
  *
- * A scan with one materialisation per line, which is what [`packedId`](../module.f.mjs) costs
+ * A scan with one materialisation per line, which is what [`packedId`](../module.f.js) costs
  * for the same file, and both directions in one pass: a packed `refs/heads/a`
  * bars `refs/heads/a/b`, and a packed `refs/heads/a/b` bars `refs/heads/a`.
  *
@@ -327,7 +327,7 @@ const refIsDirectoryMessage = (name, verb) => `${nameForMessage(name)} is a dire
  * writes one.
  *
  * It is the same rule the read side follows for the same reason — see
- * [`tryResolve`](../module.f.mjs), where a `packed-refs` Git refuses is every name's answer,
+ * [`tryResolve`](../module.f.js), where a `packed-refs` Git refuses is every name's answer,
  * the loose ones included.
  */
 export const badPackedCode = /** @type {const} */ ('ERR_BAD_PACKED')

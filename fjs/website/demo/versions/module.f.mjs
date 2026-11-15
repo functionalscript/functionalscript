@@ -44,7 +44,7 @@
  */
 
 import { button, refusal } from '../module.f.js'
-import { graphSvg } from '../graph/module.f.mjs'
+import { graphSvg } from '../graph/module.f.js'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.js'
 import { randomInt } from '../../../effects/common/module.f.js'

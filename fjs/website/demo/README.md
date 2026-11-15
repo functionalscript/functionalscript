@@ -104,7 +104,7 @@ remain unchanged.
   graph target and geometric branches do.
 - **A field that holds code is highlighted: `textDemo` takes `highlight`**,
   the function that draws its text as nodes, as the compiler demos pass
-  [`highlight`](./highlight/module.f.mjs). The textarea is laid over a
+  [`highlight`](./highlight/module.f.js). The textarea is laid over a
   coloured copy of its text, with its own text transparent, so the reader types
   into the colours and the caret, selection and undo stay the browser's. The
   runtime keeps the copy where the textarea is scrolled, and makes each
@@ -238,7 +238,7 @@ explicit Run actions. See [navigation and startup edits](./sharing/README.md#nav
 - **Generated code is coloured by what its producer wrote.** A result the
   repository's own writers produce — JSON, DataJS, the EDAG, a FunctionalScript
   module, Rust — is marked text, and the demo draws it with
-  [`render`](./highlight/module.f.mjs), which wraps each run that has a kind in
+  [`render`](./highlight/module.f.js), which wraps each run that has a kind in
   a `span` marked `data-token` and leaves the text itself unchanged. The demo
   does not read the text again to find the words. Only a text with no producer
   behind it, such as an example a reader typed, goes through `highlight`,

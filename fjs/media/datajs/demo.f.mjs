@@ -40,9 +40,9 @@
 import { tryParse } from './module.f.js'
 import { keySerialize, leafSerialize } from './serializer/module.f.js'
 import { concat } from '../../types/string/module.f.js'
-import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
+import { graphOf, graphSvg } from '../../website/demo/graph/module.f.js'
 import { textDemo, refusal } from '../../website/demo/module.f.js'
-import { highlight } from '../../website/demo/highlight/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.js'
 import { chunksText } from '../../text/marked/module.f.js'
 
 /** @type {(value: Unknown) => value is Primitive} */

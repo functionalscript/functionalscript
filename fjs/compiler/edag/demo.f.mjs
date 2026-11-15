@@ -2,7 +2,7 @@
  * A FunctionalScript expression as the graph its compiler builds: type
  * `export default <expr>;`, see the EDAG — Expression DAG — [`unresolved`
  * lowers](./module.f.mjs) it to, drawn with [the shared graph
- * module](../../website/demo/graph/module.f.mjs).
+ * module](../../website/demo/graph/module.f.js).
  *
  * **A module with named exports draws as the object of its exports.** Only
  * a module whose one export is its default draws as that value: reading
@@ -72,7 +72,7 @@
  */
 
 import { _defaultExport, _moduleExports, tryUnresolved } from './module.f.mjs'
-import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
+import { graphOf, graphSvg } from '../../website/demo/graph/module.f.js'
 import { operatorShape, unsupported } from '../graph/module.f.mjs'
 import { refusal } from '../../website/demo/module.f.js'
 import { ok } from '../../types/result/module.f.js'

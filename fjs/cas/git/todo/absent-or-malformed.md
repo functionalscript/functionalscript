@@ -6,7 +6,7 @@
 ### Problem
 
 `snapshot` and `branchCas` in [`fjs/cas/git`](../module.f.mjs) read the
-branch ref through [`fjs/git/refstore`](../../../git/refstore/module.f.mjs)'s
+branch ref through [`fjs/git/refstore`](../../../git/refstore/module.f.js)'s
 `tryResolve`, which answers `null` for every way a name can fail to name an
 id, by design and at length in its documentation: to a caller asking "what
 is here", nothing and something unreadable are one answer. The module tells

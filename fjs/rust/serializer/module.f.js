@@ -11,6 +11,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Stack } from '../../types/stack_walk/types.ts'
+ * @import { PersistentMap } from '../../types/map/types.ts'
  */
 
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
@@ -25,6 +26,8 @@ import { toArray as listToArray } from '../../types/list/alt/module.f.js'
 import { generate } from '../../types/array/generate/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { assert } from '../../asserts/module.f.js'
+import { fromEntries, mapEntries, mapGet } from '../../types/map/module.f.js'
+import { fromValues, values as setValues } from '../../types/set/module.f.js'
 
 const kw = tagged('keyword')
 
@@ -48,7 +51,7 @@ const slice = items => `&[${items.map(item => num(item)).join(', ')}]`
 const code = text => [text, []]
 
 /** Import metadata is a set, so deep expressions do not copy repeated names. @type {(uses: readonly Use[]) => readonly Use[]} */
-const uniqueUses = uses => [...new Map(uses.map(use => [`${use[0]}:${use[1]}`, use]))].map(([, use]) => use)
+const uniqueUses = uses => mapEntries(fromEntries(uses.map(use => [`${use[0]}:${use[1]}`, use]))).map(([, use]) => use)
 
 /**
  * A name of `nanvm_lib`'s `module`, spelled: its text is the name, and it
@@ -319,10 +322,10 @@ const literalKey = stringCall('string_key')
 const literalIndex = index => typeof index === 'string' ? stringCall('string_any')(index) : numberExpr(index)
 
 /** Stable local spelling by identity; underscore permits required unused values. @type {(s: _Context, id: BindingId) => string} */
-const binding = (s, id) => /** @type {string} */ (/** @type {_Names} */ (s.names).bindings.get(id))
+const binding = (s, id) => /** @type {string} */ (mapGet(/** @type {_Names} */ (s.names).bindings, id))
 
 /** @type {(s: _Context, target: LoopTarget) => string} */
-const loopLabel = (s, target) => /** @type {string} */ (/** @type {_Names} */ (s.names).loops.get(target))
+const loopLabel = (s, target) => /** @type {string} */ (mapGet(/** @type {_Names} */ (s.names).loops, target))
 
 /** A Rust block from target statement lines. @type {(parts: readonly string[]) => string} */
 export const braced = parts => parts.length === 0 ? '{}' : parts.length === 1 ? `{ ${parts[0]} }` : `{
@@ -345,7 +348,7 @@ const negativeZero = {}
 const valueKey = value => Object.is(value, -0) ? negativeZero : value
 
 /** Read a child completed by the spelling stack. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
-const expression = (s, v, result) => ok(/** @type {Printed<string>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(result ? 1 : 0)].get(valueKey(v))))
+const expression = (s, v, result) => ok(/** @type {Printed<string>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(result ? 1 : 0)], valueKey(v))))
 
 /** Rust representation text for a callable. @type {(text: string) => string} */
 const represented = text => `Some(${str(unwrap(stringLiteral(text)))})`
@@ -362,7 +365,7 @@ const closureContext = (s, fn) => {
 }
 
 /** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
-const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))].get(b)))
+const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
@@ -438,7 +441,7 @@ const keyThunk = (s, k) => map1(text => `|| Ok(${text})`)(key(s, k))
 const argumentThunk = (s, values) => map1(text => `|| ${text}`)(array(s, values, true))
 
 /** Member/call continuation spelling follows its already resolved chain scope. @type {(s: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => Result<Printed<string>, readonly unknown[]>} */
-const steps = (s, step, property, member) => ok(/** @type {Printed<string>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(11 + (property ? 1 : 0) + (member ? 2 : 0))].get(step)))
+const steps = (s, step, property, member) => ok(/** @type {Printed<string>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(11 + (property ? 1 : 0) + (member ? 2 : 0))], step)))
 
 /** The target's runtime operation spelling; no placement or graph walk occurs here. @type {(s: _Context, n: Operator<Value>, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const operation = (s, n, result) => {
@@ -578,7 +581,7 @@ const memo = (s, m) => map1((/** @type {readonly string[]} */ body) => [
 ])(block(s, m.initializer, false, false, true))
 
 /** A prepared instruction has exactly one Rust spelling. @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
-const statement = (s, st) => ok(/** @type {Printed<readonly string[]>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[10].get(st)))
+const statement = (s, st) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[10], st)))
 
 /** A statement loop and a terminal loop share their lexical target and body. @type {(s: _Context, loop: readonly ['loop', LoopTarget, Block]) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const loopText = (s, loop) => map1(parts => [`'${loopLabel(s, loop[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, loop[2], false))
@@ -748,7 +751,7 @@ const taskInput = task => task.kind === 'value' ? valueKey(task.value) : task.ki
 
 /** Render one completed frame using only local child lookups. @type {(task: _Task, dependencies: readonly _Task[], values: readonly _Output[]) => Result<_Output, readonly unknown[]>} */
 const completed = (task, dependencies, values) => {
-    const ready = generate(15, kind => new Map(dependencies.flatMap((child, i) => taskKind(child) === kind ? [/** @type {const} */ ([taskInput(child), values[Number(i)]])] : [])))
+    const ready = generate(15, kind => fromEntries(dependencies.flatMap((child, i) => taskKind(child) === kind ? [/** @type {const} */ ([taskInput(child), values[Number(i)]])] : [])))
     const s = { ...task.context, ready }
     switch (task.kind) {
         case 'value': { return expressionReady(s, task.value, task.result) }
@@ -807,13 +810,13 @@ const instructionLoops = task => {
     return exit[0] === 'continue' || exit[0] === 'break' || exit[0] === 'loop' ? [exit[1]] : []
 }
 
-/** Debug indices keep familiar spellings; equal indices never alias identities. @type {<T extends { readonly index: number }>(ids: readonly T[], prefix: string) => ReadonlyMap<T, string>} */
+/** Debug indices keep familiar spellings; equal indices never alias identities. @type {<T extends { readonly index: number }>(ids: readonly T[], prefix: string) => PersistentMap<T, string>} */
 const identityNames = (ids, prefix) => {
-    const first = new Map(ids.toReversed().map(id => [id.index, id]))
-    return new Map(ids.map((id, ordinal) => {
+    const first = fromEntries(ids.toReversed().map(id => [id.index, id]))
+    return fromEntries(ids.map((id, ordinal) => {
         const safe = Number.isSafeInteger(id.index) && id.index >= 0
         const base = safe ? `${prefix}${id.index}` : `${prefix}v${ordinal}`
-        return [id, safe && first.get(id.index) !== id ? `${base}_${ordinal}` : base]
+        return [id, safe && mapGet(first, id.index) !== id ? `${base}_${ordinal}` : base]
     }))
 }
 
@@ -833,8 +836,8 @@ const namesOf = root => {
         pending = pushAll(children(top), rest)
     }
     return {
-        bindings: identityNames([...new Set(listToArray(bindings).toReversed().flat())], '_b'),
-        loops: identityNames([...new Set(listToArray(loops).toReversed().flat())], '_loop'),
+        bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
+        loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }
 }
 
@@ -843,8 +846,8 @@ const run = root => spellingWalk({ ...root, context: { ...root.context, names: n
 
 /** Names used by the generated Rust text. @type {(uses: readonly Use[]) => Uses} */
 const names = uses => ({
-    vm: [...new Set(uses.filter(([m]) => m === 'vm').map(([, n]) => n))].toSorted(),
-    unstable: [...new Set(uses.filter(([m]) => m === 'unstable').map(([, n]) => n))].toSorted(),
+    vm: setValues(fromValues(uses.filter(([m]) => m === 'vm').map(([, n]) => n))).toSorted(),
+    unstable: setValues(fromValues(uses.filter(([m]) => m === 'unstable').map(([, n]) => n))).toSorted(),
 })
 
 /** A prepared module/function body, retaining tagged text and import metadata. @type {(b: Block, options: Options, external?: readonly External[]) => Result<Scope, readonly unknown[]>} */
@@ -907,7 +910,7 @@ const useLine = (path, names) => {
  */
 export const useLinesTagged = ({ vm, unstable }, bound) => [
     ...(unstable.length === 0 ? [] : useLine('nanvm_lib::vm::unstable', unstable)),
-    ...useLine('nanvm_lib::vm', [...new Set(['Any', bound, ...vm])].toSorted()),
+    ...useLine('nanvm_lib::vm', setValues(fromValues(['Any', bound, ...vm])).toSorted()),
 ]
 
 /** Import lines for the VM names reported by the serializer. @type {(uses: Uses, bound: string) => readonly string[]} */

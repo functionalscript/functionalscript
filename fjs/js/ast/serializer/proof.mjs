@@ -10,7 +10,7 @@
 import { throws } from 'node:assert/strict'
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { untagged } from '../../../text/marked/module.f.js'
-import { functionStringify, renderModule, stringify } from './module.f.mjs'
+import { functionStringify, renderModule, stringify } from './module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

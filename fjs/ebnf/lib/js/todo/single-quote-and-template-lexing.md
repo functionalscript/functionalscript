@@ -87,7 +87,7 @@ cannot satisfy this issue's own success check — see below.
 
 The grammar has three readers, and the widening reaches each differently.
 
-- [`compiler/tokenizer`](../../../../compiler/tokenizer/module.f.mjs), the compiler's.
+- [`compiler/tokenizer`](../../../../compiler/tokenizer/module.f.js), the compiler's.
   A spelling it reads that the language does not accept is one the compiler
   must still refuse, so the fold that classifies tokens gains the refusals
   the grammar loses. Double quotes must keep JSON's policy; single quotes

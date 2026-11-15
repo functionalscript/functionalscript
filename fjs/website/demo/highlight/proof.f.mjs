@@ -1,4 +1,4 @@
-import { codeOutput, highlight, render, tsHighlight } from './module.f.mjs'
+import { codeOutput, highlight, render, tsHighlight } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'

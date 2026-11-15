@@ -64,6 +64,7 @@ import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
 import { stringify } from '../../../json/module.f.js'
 import { identity } from '../../../../types/function/module.f.js'
+import { fromValues, has as setHas, values as setValues } from '../../../../types/set/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.js'
 import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.js'
@@ -115,9 +116,9 @@ export const corpus = {
 const code = s => `\`${s}\``
 
 /** Every class any vector of any role carries, once each, in order. @type {(roles: readonly Role[]) => readonly string[]} */
-const classesOf = roles => [...new Set(
+const classesOf = roles => setValues(fromValues(
     roles.flatMap(({ sets }) => sets.flatMap(([, vectors]) => vectors.map(v => v.class))),
-)].toSorted((a, b) => strCmp(a)(b))
+)).toSorted((a, b) => strCmp(a)(b))
 
 /** The ids a role has for a class, in the order its sets carry them. @type {(role: Role, c: string) => readonly string[]} */
 const idsOf = ({ sets }, c) =>
@@ -464,12 +465,12 @@ const malformed = ({ notApplicable }) =>
 const stale = corpus => {
     const { roles, notApplicable } = corpus
     const classes = classesOf(roles)
-    const roleNames = new Set(roles.map(r => r.role))
-    const setNames = new Set(roles.flatMap(r => r.sets.map(([name]) => name)))
+    const roleNames = fromValues(roles.map(r => r.role))
+    const setNames = fromValues(roles.flatMap(r => r.sets.map(([name]) => name)))
     return notApplicable.flatMap(n => {
         const where = `${showScope(n.scope)} in ${n.role}`
-        if (!roleNames.has(n.role)) { return [`${where}: no such role`] }
-        if (n.scope[0] === 'set' && !setNames.has(n.scope[1])) { return [`${where}: no set of that name`] }
+        if (!setHas(n.role)(roleNames)) { return [`${where}: no such role`] }
+        if (n.scope[0] === 'set' && !setHas(n.scope[1])(setNames)) { return [`${where}: no set of that name`] }
         const reached = classes.filter(c => reaches(roles, n.scope, c))
         if (reached.length === 0) { return [`${where}: answers no class`] }
         const role = assertNotNullish(roles.find(r => r.role === n.role))

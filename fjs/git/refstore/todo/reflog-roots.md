@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`tryRoots`](../module.f.mjs) answers every ref a repository holds, and a ref is
+[`tryRoots`](../module.f.js) answers every ref a repository holds, and a ref is
 a retention root. It is not the *only* kind: `logs/refs/**` and `logs/HEAD`
 record where a ref has pointed, and Git keeps an object a reflog entry names
 until that entry expires.
@@ -106,7 +106,7 @@ name for it.
 
 ### Related
 
-- [`fjs/git/refstore`](../module.f.mjs) — `tryRoots`, and the claim this
+- [`fjs/git/refstore`](../module.f.js) — `tryRoots`, and the claim this
   narrows.
 - [ref-writing.md](./ref-writing.md) — the writing half,
   which appends to a reflog, and where the wrong reading of expiry came from.
