@@ -5,7 +5,8 @@
  * instruction that the emitter writes, `corners`, the forms that the
  * emitter handles once each, `unknown`, functions over values of unknown
  * kind, as the third slice reads them, `loops`, the fourth slice's,
- * `records`, the fifth's, and `constants` and `literals`, the sixth's.
+ * `records`, the fifth's, and `constants`, `literals` and `arrays`, the
+ * sixth's.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -15,7 +16,7 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, l0 } from './l0/module.f.js'
+import { any, array, builder, l0 } from './l0/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
     let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, product, return_, sqrt, sub, trap, true_,
@@ -356,4 +357,46 @@ export const literals = {
         ['suffixed', fn([['s', string]], string, s => call('String', 'concat', [s, lit(string, 'hello')]))],
     ],
     exports: ['empty', 'hello', 'greeting', 'accent', 'smile', 'suffixed'],
+}
+
+/** Containers' `begin_array` of `k` items. @type {(k: Term) => Term} */
+const begin = k => call('Containers', 'begin_array', [k])
+
+/** Containers' `push` of `v` onto the builder `b`, which gives the builder back. @type {(b: Term, v: Term) => Term} */
+const push = (b, v) => call('Containers', 'push', [b, v])
+
+/** Containers' `seal` of the builder `b`, which answers its array. @type {(b: Term) => Term} */
+const seal = b => call('Containers', 'seal', [b])
+
+/**
+ * Arrays, which Containers' builder makes, in the owned stage: `begin_array`
+ * of a count, a `push` of each item, which owns the item and the builder and
+ * gives the builder back, and `seal`, which owns the builder and answers the
+ * array. The empty array; a pair of values, each a `dup` of a parameter; an
+ * array of the module's own and a value, whose constant `init` builds; a
+ * builder that `let`s hold between its calls; one that a loop pushes onto,
+ * a round for each item; and the length of one, which the function then
+ * drops.
+ *
+ * @type {Module}
+ */
+export const arrays = {
+    imports: l0,
+    constants: [
+        ['letters', { type: array, value: seal(push(push(begin(n(2n)), dup(lit(string, 'a'))), dup(lit(string, 'b')))) }],
+    ],
+    functions: [
+        ['emptyArray', fn([], array, seal(begin(n(0n))))],
+        ['pairOf', fn([['a', any], ['b', any]], array, (a, b) => seal(push(push(begin(n(2n)), dup(a)), dup(b))))],
+        ['lettersAnd', fn([['v', any]], array, v => seal(push(push(begin(n(2n)), dup(self('letters'))), dup(v))))],
+        ['bound', fn([['v', any]], array, v => let_('b', begin(n(1n)), b => let_('c', push(b, dup(v)), seal)))],
+        ['repeated', fn([['v', any], ['k', u(8)]], array, (v, k) =>
+            loop('L', [['b', builder, begin(k)], ['i', f64, c(0)]], (b, i) =>
+                if_(lt(i, float(k)), next('L', [['b', push(b, dup(v))], ['i', add(i, c(1))]]), seal(b))))],
+        ['itemCount', fn([['v', any]], u(31), v =>
+            let_('a', seal(push(begin(n(1n)), dup(v))), a =>
+            let_('k', lengthOf('Containers')(a), k =>
+            let_('d', call('Any', 'drop', [a]), () => k))))],
+    ],
+    exports: ['emptyArray', 'pairOf', 'lettersAnd', 'bound', 'repeated', 'itemCount'],
 }

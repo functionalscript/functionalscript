@@ -17,15 +17,28 @@
  * bound that it saturates to or traps past.
  *
  * @import { StringMap } from '../../types/object/types.ts'
+ * @import { Module, Term } from '../types.ts'
  * @import { _Twin, _Value } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
-import { any } from '../l0/module.f.js'
-import { constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { any, array, l0 } from '../l0/module.f.js'
+import { call, fn, get, n } from '../module.f.js'
+import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings } from './testlib.mjs'
+
+// arrays
+
+/** @type {(k: Term) => Term} */
+const begin = k => call('Containers', 'begin_array', [k])
+
+/** @type {(b: Term, v: Term) => Term} */
+const push = (b, v) => call('Containers', 'push', [b, v])
+
+/** @type {(b: Term) => Term} */
+const seal = b => call('Containers', 'seal', [b])
 
 // values
 
@@ -216,6 +229,12 @@ const twins = {
     accent: () => 4n,
     smile: () => 0xde00n,
     suffixed: ([s]) => ({ any: `${held(s)}hello` }),
+    emptyArray: () => ({ any: [] }),
+    pairOf: ([a, b]) => ({ any: [held(a), held(b)] }),
+    lettersAnd: ([v]) => ({ any: [['a', 'b'], held(v)] }),
+    bound: ([v]) => ({ any: [held(v)] }),
+    repeated: ([v, k]) => ({ any: Array.from({ length: Number(int(k)) }, () => held(v)) }),
+    itemCount: () => 1n,
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -273,4 +292,22 @@ export const proof = {
     records: () => run(records, twins, inputs),
     constants: () => run(constants, twins, inputs),
     literals: () => run(literals, twins, inputs),
+    arrays: () => run(arrays, twins, inputs),
+    // An array that a call is given is answered as itself: a copy of it, though its items agree, is another value.
+    given: () => {
+        const item = call('Containers', 'item', [get('v'), n(0n)])
+        /** @type {Module} */
+        const copied = {
+            imports: l0,
+            functions: [['copied', fn([['v', array]], array, seal(push(begin(n(1n)), item)))]],
+            exports: ['copied'],
+        }
+        const v = /** @type {const} */ (['x'])
+        const rows = /** @type {const} */ ({ copied: [[{ any: v }]] })
+        run(copied, { copied: () => ({ any: ['x'] }) }, rows)
+        /** @type {unknown} */
+        let refused = null
+        try { run(copied, { copied: ([x]) => ({ any: held(x) }) }, rows) } catch (e) { refused = e }
+        assert(refused !== null, 'a copy of the given array is refused')
+    },
 }

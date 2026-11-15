@@ -3,8 +3,9 @@
  * text, as the compiler makes it, with its imports, and the signatures of
  * [`sample.f.js`](./sample.f.js), of [`helpers.f.js`](./helpers.f.js), of
  * [`strings.f.js`](./strings.f.js), of [`constants.f.js`](./constants.f.js),
- * of [`literals.f.js`](./literals.f.js) and of the functions of L1 that the
- * lowering reads, which FAST does not have.
+ * of [`literals.f.js`](./literals.f.js), of [`arrays.f.js`](./arrays.f.js)
+ * and of the functions of L1 that the lowering reads, which FAST does not
+ * have.
  *
  * @module
  *
@@ -18,7 +19,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { tryUnresolved } from '../../compiler/edag/module.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
 import { toFast } from '../../edag/to_fast/module.f.mjs'
-import { any } from '../l0/module.f.js'
+import { any, array } from '../l0/module.f.js'
 import { bool, f64, i, int, only, signature, u } from '../module.f.js'
 
 /**
@@ -129,6 +130,16 @@ export const literals = {
     units: signature([], f64),
     surrogate: signature([['i', f64]], f64),
     hello: signature([['s', any]], string),
+}
+
+/** The signatures of `arrays.f.js`, which the lowering reads over the runtime: an array is `any.only(array)`. @type {Readonly<Record<string, Signature>>} */
+export const arrays = {
+    none: signature([], array),
+    pair: signature(any2, array),
+    nested: signature([['v', any]], any),
+    counted: signature([['s', any]], f64),
+    second: signature(any2, any),
+    both: signature([], any),
 }
 
 /** The signatures of `strings.f.js`, which the lowering reads over the runtime: a string is `any.only(string)`. @type {Readonly<Record<string, Signature>>} */

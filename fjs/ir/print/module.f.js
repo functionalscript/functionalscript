@@ -27,7 +27,9 @@
  * type names its counting functions after its tag's:
  * `kind: kind, carrier: i64, dup: dup, drop: drop`. A type with string
  * literals names the variant that one holds and the function that makes it:
- * `literal: string by String.make_string`.
+ * `literal: string by String.make_string`. A type with no tag names its
+ * carrier alone, and a function that gives back a parameter says so after
+ * its result: `-> builder, gives back b`.
  *
  * The text is for people and for golden proofs. Nothing reads it back: the
  * IR passes from one stage to the next as data.
@@ -276,7 +278,8 @@ const lines = (t, pad) => {
 }
 
 /** A signature after `fn` and its name. @type {(name: string, s: Signature) => string} */
-const showSignature = (name, { params, result }) => `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`
+const showSignature = (name, { params, result, returns }) =>
+    `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}${returns === undefined ? '' : `, gives back ${returns}`}`
 
 /** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
 const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]
@@ -289,7 +292,7 @@ const showInterface = (name, { abi, types, constants = [], functions }) => [
     `import ${name} from ${abi}`,
     ...types.flatMap(([type, { variants, kind, carrier, dup, drop, literal }]) => [
         `    type ${type} = ${variants.join(' | ')}`,
-        `        kind: ${kind}, carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
+        `        ${kind === undefined ? '' : `kind: ${kind}, `}carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
     ]),
     ...constants.map(([k, t]) => `    const ${k}: ${show(t)}`),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),

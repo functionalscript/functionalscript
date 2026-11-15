@@ -8,10 +8,10 @@
 
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
-import { any, l0 } from '../l0/module.f.js'
+import { any, builder, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, next, only, own, return_, sealed,
-    signature, true_, trunc_sat, u, unit, variant,
+    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, next, only, own, return_,
+    sealed, signature, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
 import { lifetime } from './module.f.js'
@@ -105,6 +105,18 @@ const letterA = lit(u(16), 0x61n)
 
 /** @type {(x: Term, y: Term) => Term} */
 const both = (x, y) => call('Lin', 'both', [x, y])
+
+/** Containers' `begin_array` of `k` items. @type {(k: Term) => Term} */
+const begin = k => call('Containers', 'begin_array', [k])
+
+/** Containers' `push` of `v` onto `b`, which gives `b` back. @type {(b: Term, v: Term) => Term} */
+const push = (b, v) => call('Containers', 'push', [b, v])
+
+/** Containers' `seal` of `b`. @type {(b: Term) => Term} */
+const seal = b => call('Containers', 'seal', [b])
+
+/** A string literal, which the pass copies where a push takes it over. */
+const letters = lit(string, 'ab')
 
 /** A string that is never made: its block leaves the function first. */
 const away = block('B', string, return_(none))
@@ -475,9 +487,31 @@ export const proof = {
                 '        $6',
             ]),
         },
+        // Containers' builder is linear: each push takes it over and gives it back, and seal ends it, while the items that
+        // it takes over are copies of what the function borrows.
+        builders: {
+            items: () => golden(module_([['a', any]], any, seal(push(push(begin(n(2n)), a), letters))), [
+                'fn f(a: any) -> any =',
+                '    Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.dup(a)), Any.dup("ab")))',
+            ]),
+            bound: () => golden(module_([['a', any]], any, let_('b', begin(n(1n)), b => let_('c', push(b, a), seal))), [
+                'fn f(a: any) -> any =',
+                '    let b = Containers.begin_array(1)',
+                '    let c = Containers.push(b, Any.dup(a))',
+                '    Containers.seal(c)',
+            ]),
+            loop: () => golden(module_([['a', any], ['k', u(8)]], any, loop('L', [['b', builder, begin(k)], ['i', f64, zero]], (b, i) =>
+                if_(lt(i, float(k)), next('L', [['b', push(b, a)], ['i', add(i, one)]]), seal(b)))), [
+                'fn f(a: any, k: u(8)) -> any =',
+                '    loop L (b: builder = Containers.begin_array(k), i: f64 = 0.0 as f64)',
+                '        if lt(i, float(k)) then br L { b: Containers.push(b, Any.dup(a)), i: add(i, 1.0 as f64) } else Containers.seal(b)',
+            ]),
+        },
     },
     // What the pass refuses: a copy or a drop of a value of a linear type.
     refuse: {
+        // A builder that is never sealed.
+        unsealed: () => refused(module_([['a', any]], int(0n, 8n), let_('b', begin(n(0n)), () => call('Any', 'kind', [a]))), 'f: b is left over, and builder is linear: nothing drops it'),
         // A local of a linear type that its scope still owns where it ends.
         left: () => refused(module_([], f64, left('r')), leftOver('r')),
         // A use that takes a local of a linear type over before its last use.

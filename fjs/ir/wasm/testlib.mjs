@@ -23,8 +23,10 @@
  * evaluates them first. The host then keeps every cell alive, what the
  * start function and `init` made among them, since nothing drops a literal
  * or a constant. A call that completes then leaves every cell as it found
- * it, and no other cell: a module that keeps or frees a value that it
- * borrows shows, and so does one that leaves a value over.
+ * it, and no other cell, and no builder that it did not seal: a module that
+ * keeps or frees a value that it borrows shows, and so does one that leaves
+ * a value over. An array that a module makes is the twin's where their
+ * items are, one by one.
  *
  * @module
  *
@@ -150,8 +152,22 @@ export const spellings = [
     '1.5', '1e3', '\u0663', '/', ':',
 ].map(v => ({ any: v }))
 
-/** Whether two values are the same: by `Object.is`, so that `-0` and `NaN` are told apart, and two values of `any` by what they hold. @type {(a: _Value, b: _Value) => boolean} */
-const same = (a, b) => isAny(a) && isAny(b) ? Object.is(a.any, b.any) : Object.is(a, b)
+/** The arrays that values hold, at any depth: those that a call is given. @type {(values: readonly unknown[]) => ReadonlySet<unknown>} */
+const arraysIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...arraysIn(v)] : []))
+
+/**
+ * Whether two values that values of `any` hold are the same: by `Object.is`,
+ * so that `-0` and `NaN` are told apart, and two arrays item by item, since
+ * a module makes an array of its own, unless the twin's is one that the
+ * call was given, `given`, which the module must answer itself.
+ *
+ * @type {(given: ReadonlySet<unknown>) => (a: unknown, b: unknown) => boolean}
+ */
+const sameHeld = given => (a, b) => Object.is(a, b)
+    || Array.isArray(a) && Array.isArray(b) && !given.has(b) && a.length === b.length && a.every((x, k) => sameHeld(given)(x, b[k]))
+
+/** Whether two values are the same: by `Object.is`, and two values of `any` by what they hold. @type {(given: ReadonlySet<unknown>) => (a: _Value, b: _Value) => boolean} */
+const same = given => (a, b) => isAny(a) && isAny(b) ? sameHeld(given)(a.any, b.any) : Object.is(a, b)
 
 /** What a call answers, or that it threw. @type {(f: () => _Value) => readonly ['ok', _Value] | readonly ['threw']} */
 const attempt = f => {
@@ -231,9 +247,9 @@ export const run = (m, twins, inputs) => {
             const args = xs.map(arg)
             const got = attempt(() => fromHost(result, f(...args), h))
             const expected = attempt(() => twin(xs))
-            const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(got[1], expected[1])
+            const agree = got[0] === 'threw' ? expected[0] === 'threw' : expected[0] === 'ok' && same(arraysIn(values))(got[1], expected[1])
             assert(agree, [name, xs, got, expected])
-            const cells = h.live().map(([k, count]) => `${k}:${count}`).join()
+            const cells = [...h.live().map(([k, count]) => `${k}:${count}`), ...h.builders().map(b => `builder ${b}`)].join()
             assert(got[0] === 'threw' || cells === '', [name, xs, cells])
         }
     }

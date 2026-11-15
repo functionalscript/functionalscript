@@ -8,8 +8,12 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Expr, FuncType, ValType } from '../../media/wasm/types.ts'
 import type { Interface, Sealed, Type, Typed } from '../types.ts'
 
-/** A function that a module calls, its own or an imported one: its index and its parameters' types. */
-export type _Callee = readonly [index: number, params: readonly Type[]]
+/**
+ * A function that a module calls, its own or an imported one: its index,
+ * its parameters' types, and the position and the name of the parameter
+ * that it gives back, or `null`.
+ */
+export type _Callee = readonly [index: number, params: readonly Type[], back: readonly [at: number, name: string] | null]
 
 /**
  * What a label names: a `block` of a type, or a `loop`, with the first local
