@@ -190,3 +190,25 @@ export const throws = {
     bigints: signature(any2, bool),
     sign: signature([['x', f64]], f64),
 }
+
+/** The signatures of `builds.f.js`, which the lowering reads over the runtime: what `buildArray` makes is `any.only(array)`. @type {Readonly<Record<string, Signature>>} */
+export const builds = {
+    units: signature([['s', any]], array),
+    repeated: signature([['v', any], ['n', f64]], array),
+    rows: signature([['v', any]], array),
+    backwards: signature([['s', any]], array),
+    step: signature([['s', f64]], f64),
+    at: signature([['v', any], ['s', f64]], any),
+    ordered: signature([['v', any]], array),
+    stepped: signature([['v', any]], array),
+}
+
+/**
+ * The signature of L1's `toIterable`, which slice 8b lowers over its error
+ * table: an array's own value, or one of a string's code points.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Iterable = {
+    toIterable: signature([['v', any]], array),
+}

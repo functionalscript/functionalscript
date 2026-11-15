@@ -5,7 +5,7 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
-import { any, l0 } from '../l0/module.f.js'
+import { any, array, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -1124,6 +1124,61 @@ export const proof = {
         assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)
         // The parser refuses a hole.
         assertEq(assertError(sourceOf('export const f = v => [v, , v]')), 'parse: array hole')
+    },
+    // buildArray of the L0 view is one loop of Containers' builder, whose arrow callbacks are inlined in it: `at` before `next`.
+    builds: () => {
+        const view = "import { asArray, asString, buildArray, length } from '../l0/module.f.js'\n"
+        const av = only([['v', any]], array)
+        // asArray is a cast, and one of a value that holds only arrays is the value.
+        assertEq(checked(av, `${view}export const f = v => asArray(asArray(v))`), [
+            'fn f(v: any) -> any.only(array) =',
+            '    match v',
+            '      array as v.array =>',
+            '        v.array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(av, `${view}export const f = v => asArray(asString(v))`)), 'f: asArray of any.only(string): asArray takes an array')
+        assertEq(checked(av, `${view}export const f = v => buildArray(1, v, s => s, s => s)`), [
+            'fn f(v: any) -> any.only(array) =',
+            '    let B0.n = trunc_sat(u(31), 1.0)',
+            '    if eq(float(B0.n), 1.0)',
+            '    then',
+            '        loop B0 (B0.b: builder = Containers.begin_array(B0.n), B0.s: any = v, B0.i: f64 = 0.0)',
+            '            if lt(B0.i, float(B0.n))',
+            '            then',
+            '                let B0.item = B0.s',
+            '                let B0.pushed = Containers.push(B0.b, B0.item)',
+            '                let B0.i.next = add(B0.i, 1.0)',
+            '                let B0.s.next = if lt(B0.i.next, float(B0.n)) then B0.s else B0.s',
+            '                br B0 { B0.b: B0.pushed, B0.s: B0.s.next, B0.i: B0.i.next }',
+            '            else',
+            '                Containers.seal(B0.b)',
+            '    else',
+            "        trap('inexact')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        /** @type {(text: string) => string} */
+        const refused = text => assertError(over(av, `${view}export const f = v => ${text}`))
+        assertEq(refused('buildArray(1, 0, s => s + 1, v)'), 'f: a callback of buildArray that is not an arrow literal of at most one parameter is not in this slice')
+        assertEq(refused('buildArray(1, 0, (s, t) => s, () => v)'), 'f: a callback of buildArray that is not an arrow literal of at most one parameter is not in this slice')
+        assertEq(refused('buildArray(1, 0, s => s, (...s) => s)'), 'f: a callback of buildArray that is not an arrow literal of at most one parameter is not in this slice')
+        assertEq(refused('buildArray(v, 0, s => s + 1, () => v)'), 'f: buildArray of any items is not in this slice')
+        assertEq(refused('buildArray(1, 0n, s => s, () => v)'), 'f: a state of buildArray of int(0, 0) is not in this slice')
+        assertEq(refused('buildArray(1, 0, s => s, s => s)'), 'f: an item of buildArray is a value of any, and this one is f64')
+        assertEq(refused('buildArray(1, 0, s => s, s => length(s))'), 'f: length of f64 is not in this slice')
+        assertEq(refused('buildArray(1, 0, s => length(s), () => v)'), 'f: length of f64 is not in this slice')
+        assertEq(refused('buildArray(1, { a: v }.b, s => s, () => v)'), 'f: { a: any } has no field b')
+        assertEq(refused('buildArray(1, 0, s => s, () => ({ a: v }).b)'), 'f: { a: any } has no field b')
+        assertEq(refused('buildArray(1, 0, s => s, () => v, v)'), 'f: buildArray takes 4 arguments, not 5')
+        // A throw inside a callback would leave the builder, which is linear, behind.
+        assertEq(refused('buildArray(1, 0, s => s, () => { throw v })'), 'f: a throw inside a callback of buildArray is not in this slice: it would leave the builder of B0, which is linear, behind')
+        assertEq(refused('buildArray(1, 0, s => buildArray(1, 0, t => t, () => { throw v }), () => v)'), 'f: a throw inside a callback of buildArray is not in this slice: it would leave the builder of B1, which is linear, behind')
     },
     reads: () => {
         // The receiver, then the key; the item where the key is an index of the array, and `undefined` where it is anything else.

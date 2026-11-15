@@ -184,13 +184,15 @@ Slice 7, cut in two as decided above.
 
 Slice 8, cut in three as decided above.
 
-- [ ] **8a. The order of the builders' calls.** The L0 view calls `at` of a
+- [x] **8a. The order of the builders' calls** (#3903). The L0 view calls `at` of a
   state before `next` of it, and `keyAt`, the key's check, then `valueAt`,
   as one loop does; a host proof shows the order by what a failing
   callback throws.
-- [ ] **8b. `buildArray`, lowered.** Arrow-literal callbacks inlined into
+- [x] **8b. `buildArray`, lowered.** Arrow-literal callbacks inlined into
   one loop over `begin_array`, `push` and `seal`; the `asArray` cast.
-  Subject: `toIterable`.
+  Subject: `toIterable`. A throw inside a callback is refused, since it
+  would leave the linear builder behind; a call there that fails abandons
+  the builder, as a trap does. The random comparison gains a form of it.
 - [ ] **8c. `buildObject` and `{}`, lowered.** Containers' `begin_object`
   and `push_property`, in the IR and the counting host; the `asObject`
   cast; the `numberToString` row. Subject: `objectSpread`.
