@@ -10,8 +10,9 @@ note takes it up.
 
 Since 2026-11-13, [`fjs/ir`](../../../fjs/ir/README.md) builds
 definition.md's answers as code, in the slices of
-[`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md). Slices 1 to 6
-and 7a follow its answer to eight of the ten contradictions below; for
+[`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md). The slices
+merged so far ([What fjs/ir builds](./definition.md#what-fjsir-builds))
+follow its answer to eight of the ten contradictions below; for
 item 8 they follow a plan of their own, and item 10 is open. They take up
 seven of the nine design gaps, which have moved to
 [Taken up by fjs/ir](#taken-up-by-fjsir). In the notes these answers are

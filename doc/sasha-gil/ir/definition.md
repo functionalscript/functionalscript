@@ -731,16 +731,16 @@ the runtime language and can start beside step 2.
 
 [`fjs/ir`](../../../fjs/ir/README.md) builds this definition in the
 slices of [`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md), each
-proved against its FunctionalScript original. Slices 1 to 6 and 7a are
-merged, the last on 2026-11-15, and 7b is in review. They run in import form, on a JavaScript host that
-counts every value.
+proved against its FunctionalScript original. Slices 1 to 7, 8a and 8b
+are merged, the last on 2026-11-15. They run in import form, on a
+JavaScript host that counts every value.
 
 | Step of the order of work | In fjs/ir |
 | --- | --- |
-| 1. Types and interfaces as data | partly: [`module.f.js`](../../../fjs/ir/module.f.js) has every type but `code`, which waits for slice 9; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, without `key`, `find`, `text`, `join` and the builders' callbacks, and no proof that every function of the view has a row; [`native`](../../../fjs/ir/native/module.f.js) has the two L1 native rows that the slices use so far, `bigintEquals` and `numberRemainder`, of L1's eleven |
+| 1. Types and interfaces as data | partly: [`module.f.js`](../../../fjs/ir/module.f.js) has every type but `code`, which waits for slice 9; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, without `key`, `find`, `text`, `join` and the rows that `buildObject` lowers to, which 8c adds, and no proof that every function of the view has a row; `buildArray` needs no row of its own, since it lowers to a loop over the builder's; [`native`](../../../fjs/ir/native/module.f.js) has the two L1 native rows that the slices use so far, `bigintEquals` and `numberRemainder`, of L1's eleven |
 | 2. Terms and the checker | built but `code` and `call_ref`, which wait for slice 9: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7 |
 | 3. The lifetime pass | built: [`lifetime`](../../../fjs/ir/lifetime/module.f.js), and the owned-stage check |
-| 4. The WASM emitter for import form | built: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs) |
+| 4. The WASM emitter for import form | built, but the comparison on the parity tables, which is slice 10: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs); until then each subject runs against its original on its own inputs, and the random comparison on its programs |
 | 5. The lowering from normalized FAST | in progress: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers the L1 bodies that slices.md names, and refuses the rest |
 | 6 to 11 | not started; slices 11 and 12 are step 6 |
 
@@ -748,9 +748,10 @@ The slices take up the recommendation of open questions 2 to 8: the
 lowering reads normalized FAST, interfaces come first, `next`, `return_`
 and `throw_` are spellings, a cast always tests, a builder is linear, a
 `lazy` definition is refused, and a loop counter is an `f64` read by
-`exact`. Copy variants, the second half of question 6, wait. For
-question 10 the owner chose `fjs/ir` on 2026-11-13. Questions 1 and 9 are
-open.
+`exact`. Copy variants, the second half of question 6, wait for the item
+after slice 10 in [slices.md](../../../fjs/ir/todo/slices.md#later). For
+question 10 the owner chose `fjs/ir` on 2026-11-13.
+Questions 1 and 9 are open.
 
 Where `fjs/ir` differs from this note:
 
@@ -766,7 +767,7 @@ Where `fjs/ir` differs from this note:
 
 ## Open questions
 
-Each has a recommendation.
+Each has a recommendation, and question 10 is decided.
 
 1. **Is this note the reference?** Recommended: yes, with ir-design.md as
    history and type-system.md as the reference for what the core leaves
@@ -800,8 +801,10 @@ Each has a recommendation.
    ([TODO_DESIGN.md](./TODO_DESIGN.md#words-that-mean-two-things)).
    Recommended: the renames listed there, in one pass, once this note is
    accepted.
-10. **Where the code lives.** Still open from both notes. Recommended, as
-    there: `fjs/codegen/ir`, with `fjs/codegen/wasm` beside it.
+10. **Where the code lives.** Decided on 2026-11-13: `fjs/ir`, with the
+    WASM emitter in `fjs/ir/wasm`
+    ([slices.md](../../../fjs/ir/todo/slices.md)). Both notes recommended
+    `fjs/codegen/ir`, with `fjs/codegen/wasm` beside it.
 
 ## What the prototype is not
 
