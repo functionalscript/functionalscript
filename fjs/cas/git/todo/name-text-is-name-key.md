@@ -7,7 +7,7 @@
 
 [`module.f.mjs`](../module.f.mjs) reads a tree entry's name and mode as
 text through a private `nameText = name => codePointListToString(toArray(name))`.
-[`fjs/git/refstore/name`](../../../git/refstore/name/module.f.mjs) exports
+[`fjs/git/refstore/name`](../../../git/refstore/name/module.f.js) exports
 the same function, to the character, as `nameKey`: one code unit per byte,
 for a Git name. Two names for one conversion, in two modules that both
 speak Git names.

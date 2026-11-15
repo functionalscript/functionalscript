@@ -8,7 +8,7 @@
  * a single file can decide: which of two files holding the same name wins,
  * when a symbolic ref stops being followed, and which names a target may take.
  * The two such rules that need no filesystem are its private siblings: how a
- * name and a path spell each other is [`./name`](./name/module.f.mjs), and
+ * name and a path spell each other is [`./name`](./name/module.f.js), and
  * which directory a name's file sits in is [`./scope`](./scope/module.f.js).
  *
  * Every rule below was measured against Git 2.43.0 rather than read off a
@@ -49,7 +49,7 @@
  *
  * So `check-ref-format` is the wrong line to cut the listing on: the two skipped
  * names are the ones whose *components* no ref name may hold —
- * [`fjs/git/refname`](../refname/module.f.mjs)'s `hasRefComponents` — and every
+ * [`fjs/git/refname`](../refname/module.f.js)'s `hasRefComponents` — and every
  * other broken name is `bad ref`, the same answer Git gives a loose file whose
  * *contents* are no ref. This module answers both the same way:
  * {@link badNameCode} refuses the listing where Git does, and the two
@@ -85,7 +85,7 @@
  * it, and nothing in these effects can see where a link points.
  *
  * **A ref name is bytes and a path is text, joined by UTF-8 in both
- * directions**, and [`./name`](./name/module.f.mjs) is that join. It is lossless
+ * directions**, and [`./name`](./name/module.f.js) is that join. It is lossless
  * only for a name that *is* UTF-8, and Git requires no such thing —
  * `refs/heads/\x80` is a name Git accepts and resolves, measured there. Such a
  * name can only arrive here in a `packed-refs` line, which never becomes a path,
@@ -207,8 +207,8 @@ import { u8ListMsb, uint } from '../../types/bit_vec/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
-import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'
-import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.mjs'
+import { hasRefComponents, isWholeName } from '../refname/module.f.js'
+import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey } from './name/module.f.js'
 import { dirOf, sharedScope, worktreeScope } from './scope/module.f.js'
 
 /**
@@ -596,7 +596,7 @@ const resolveWith = (dirs, oidBytes, packed) => {
  *   paragraph below;
  * - a name no path can spell: bytes that are no UTF-8 name a file no host here
  *   can be asked about, so whether one exists is unknowable rather than
- *   answered from the packed line — `nameText` in [`./name`](./name/module.f.mjs) and
+ *   answered from the packed line — `nameText` in [`./name`](./name/module.f.js) and
  *   [`todo/byte-ref-names.md`](./todo/byte-ref-names.md);
  * - `FETCH_HEAD` or `MERGE_HEAD` with no file, which do not fall back to a
  *   packed line of that name: Git reads those two from the file alone —
@@ -668,7 +668,7 @@ const walked = (state, items) => [state, items]
  * `bad ref refs/heads/<name>`, which is the message a loose file holding bytes
  * that are no ref gets. Only `.hidden` and `x.lock` are skipped, and those two
  * are a file-name convention rather than a name rule — see
- * [`fjs/git/refname`](../refname/module.f.mjs)'s `hasRefComponents`, and the
+ * [`fjs/git/refname`](../refname/module.f.js)'s `hasRefComponents`, and the
  * table in this module's header.
  *
  * An earlier revision skipped all eight, on a table that had measured the
@@ -1338,7 +1338,7 @@ const resolvePending = (dirs, oidBytes, packed, found) => {
  *
  * The id a ref names need not be a commit's: a tag ref names an annotated
  * tag object, so a caller after commits peels through
- * [`fjs/git/tag`](../tag/module.f.mjs) rather than assuming.
+ * [`fjs/git/tag`](../tag/module.f.js) rather than assuming.
  *
  * **A detached `HEAD` is here, and an attached one is not.** `HEAD` is not a
  * root when it names a branch, because the branch is one and the two name the

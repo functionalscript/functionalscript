@@ -550,7 +550,7 @@ environment, so what the mappings build is a module of *nodes* — a primitive
 converted from its token, a reference by the identifier token that spells it, a
 container of nodes, a record per statement — and the names are resolved after
 the grammar has matched the whole module, statement by statement, on the
-pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
+pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.js) set.
 
 The syntax reader retains function declarations, plain loop statements,
 terminal guards and switches as source constructs. Resolution preserves them

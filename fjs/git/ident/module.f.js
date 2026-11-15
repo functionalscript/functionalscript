@@ -24,7 +24,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.js'
 import {
     digitsValue, greaterThanSign as gt, hyphenMinus, isCanonicalDigits, isDigit, lessThanSign as lt, lf,
@@ -32,6 +32,7 @@ import {
 } from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { flat } from '../../types/list/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const digit = range('09')
 
@@ -88,7 +89,7 @@ export const tryRead = value => {
     // into the number it would be. Canonical, so that what is read is what
     // `write` spells.
     const time = isCanonicalDigits(digits) && digits.length <= maxTimeDigits ? decimal(digits) : null
-    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && time !== null && time <= maxTime
+    return spaced.length !== 0 && spaced[Number(spaced.length - 1)] === sp && time !== null && time <= maxTime
         ? {
             name: spaced.slice(0, -1),
             email: symbolsOf(e),
@@ -119,7 +120,10 @@ const isZone = tz => {
  *
  * @type {(i: Ident) => Bytes}
  */
-export const write = ({ name, email, time, tz }) => {
+export const write = i => {
+    const { email, time, tz } = i
+    const name = entry(i, 'name')
+    assert(name !== undefined)
     const n = byteArray(name)
     const e = byteArray(email)
     assert(n.every(b => b !== lt && b !== gt && b !== lf), ['not a name', n])

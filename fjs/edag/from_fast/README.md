@@ -457,7 +457,7 @@ following result processing retains a separate helper.
 
 The general root domain uses the complete invocation signature:
 zero through sixteen fixed parameters, optional rest, and one opaque public
-result. [`loop/root`](./loop/root/module.f.mjs) checks that each loop entry
+result. [`loop/root`](./loop/root/module.f.js) checks that each loop entry
 aliases the corresponding current argument and the function directly returns
 that loop's one result. The shared invocation-alias inventory also admits
 prefix references to already established captures and self values. Those

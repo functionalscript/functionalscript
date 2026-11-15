@@ -25,7 +25,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
-import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.js'
 import {
     digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
@@ -35,7 +35,7 @@ import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.js
 import { flat } from '../../types/list/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { cmp } from '../bytes/module.f.js'
-import { isOidOf } from '../oid/module.f.mjs'
+import { isOidOf } from '../oid/module.f.js'
 
 const octalDigit = range('07')
 

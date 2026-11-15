@@ -6,7 +6,7 @@
  * @import { Mapping, Parser } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { Unknown } from '../types.ts'
- * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
+ * @import { Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -14,7 +14,7 @@ import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.js'
 import { units } from '../../../ebnf/utf16/module.f.js'
 import { escape, json, string } from '../../../ebnf/lib/json/module.f.js'
-import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, textAt } from './module.f.mjs'
+import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, tagged, textAt } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 
 const { is } = Object
@@ -46,6 +46,13 @@ const jsonSymbol = value => ({ symbol: 0, meta: { id: 'json', result: ['ok', val
 const parseValue = parser(json, mappings(numberPolicy))
 
 export const proof = {
+    taggedPayload: () => {
+        /** @type {Tagged<{ readonly id: 'named', readonly name: string | null | undefined }, 'named', 'name'>} */
+        const named = tagged('named', 'name')
+        assertEq(named.at(named.symbol(undefined)), undefined)
+        assertEq(named.at(named.symbol(null)), null)
+        assertEq(named.at(named.symbol('value')), 'value')
+    },
     // Each of the seven values, alone in its document.
     values: () => {
         assertEq(parsed('null'), null)

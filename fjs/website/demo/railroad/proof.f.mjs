@@ -2,8 +2,8 @@
  * @import { Diagram } from './types.ts'
  */
 
-import { anchor, codePointGuide, grammarDemo, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
-import { codePoints, tokens } from '../../../ebnf/railroad/module.f.mjs'
+import { anchor, codePointGuide, grammarDemo, railroadDemo, railroadSection, railroadSvg } from './module.f.js'
+import { codePoints, tokens } from '../../../ebnf/railroad/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { range, set } from '../../../ebnf/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'

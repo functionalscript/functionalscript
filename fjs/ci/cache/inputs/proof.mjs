@@ -9,8 +9,8 @@ import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { step } from '../../../effects/module.f.js'
 import { execFile } from '../../../effects/node/module.f.js'
 import { runNodeEffect } from '../../../effects/node/module.mjs'
-import { ascii } from '../../../ebnf/byte/module.f.mjs'
-import { tryFromHexOf } from '../../../git/oid/module.f.mjs'
+import { ascii } from '../../../ebnf/byte/module.f.js'
+import { tryFromHexOf } from '../../../git/oid/module.f.js'
 import { committedFiles, inputTrees } from '../module.f.mjs'
 
 export const proof = /** @type {const} */ ({

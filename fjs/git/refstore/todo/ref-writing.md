@@ -510,7 +510,7 @@ else in the name has moved DISOT semantics into Git's namespace.
   both halves share.
 - [`fjs/git/refstore/write`](../write/module.f.mjs) — `tryWrite` and
   `tryDelete`, with the measurements behind every refusal.
-- [`fjs/git/refname`](../../refname/module.f.mjs) — `lockSuffix`, and why no ref
+- [`fjs/git/refname`](../../refname/module.f.js) — `lockSuffix`, and why no ref
   is ever named by a writer's lock file.
 - [`fjs/git/ref`](../../ref/module.f.mjs) — the file grammars a writer must
   produce, measured against Git, and `writeLoose`, the bytes `tryWrite` puts

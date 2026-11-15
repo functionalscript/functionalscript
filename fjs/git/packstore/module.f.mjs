@@ -2,7 +2,7 @@
  * The objects a pack directory holds: from an id to the `Envelope` a `.pack`
  * spells, through the `.idx` beside it.
  *
- * [`fjs/git/loose`](../loose/module.f.mjs) is the same boundary for the other
+ * [`fjs/git/loose`](../loose/module.f.js) is the same boundary for the other
  * place an object lives, and the two answer alike on purpose — a caller above
  * [`fjs/git/store`](../store/module.f.mjs) never learns which file held the
  * object it asked for. This module is where a pack stops being a format
@@ -117,7 +117,7 @@
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
 import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.js'
 import { under } from '../../path/module.f.js'
 import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { concat } from '../../types/list/module.f.js'
@@ -125,7 +125,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.js'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
-import { hexText, ofWidth, oidAt } from '../oid/module.f.mjs'
+import { hexText, ofWidth, oidAt } from '../oid/module.f.js'
 
 const { init: [, , initialProgress], end: endInflate } = inflater
 
@@ -659,7 +659,7 @@ const packOf = (pd, oidBytes, id) => name => {
  * and a store searching several directories of several packs has no one pack
  * to blame by default.
  *
- * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
  * @type {(od: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes, Nullable<Held>, IoChannel>}

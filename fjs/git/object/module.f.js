@@ -19,7 +19,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.js'
 import { decimalValue, isCanonicalDigits } from '../../text/ascii/module.f.js'
 import { concat, drop, sameItems, take } from '../../types/list/module.f.js'

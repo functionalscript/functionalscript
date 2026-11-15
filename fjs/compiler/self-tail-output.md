@@ -25,7 +25,7 @@ Tail status belongs to an evaluation and its owning function. A selected
 conditional result or final sequence operand can be tail; a test, capture,
 ordinary operand or read of a completed call is not made tail by later return.
 Ordinary nested functions own their self calls. The shared
-[tail planner](../edag/to_fast/tail/module.f.mjs) and
+[tail planner](../edag/to_fast/tail/module.f.js) and
 [invocation transitions](../js/ast/invocation/module.f.js) own these decisions;
 the target writers consume their prepared control flow.
 
@@ -99,7 +99,7 @@ retain their admission checks. See
 [general source profiles](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 
 The source coordinator
-[`recursiveFunction` / `resultBlock`](../edag/to_fast/source/loops/module.f.mjs)
+[`recursiveFunction` / `resultBlock`](../edag/to_fast/source/loops/module.f.js)
 retains the existing loop profiles, then refuses a possible `continue` to the
 invocation's exact loop target before inverse reconstruction. Break-only and
 other one-pass wrappers retain their owning value returns and ordinary self

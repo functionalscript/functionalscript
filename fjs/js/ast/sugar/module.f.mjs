@@ -11,7 +11,7 @@
  * @import { ExpansionPlan, SourceBlock, SourceExit, SourceForOf, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Task } from '../task/types.ts'
- * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, Results, Work } from './private.ts'
+ * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _NormalizeBlock, _StateTask, _Recipes, Results, Work } from './private.ts'
  */
 
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
@@ -24,6 +24,8 @@ import { _exposeOperands } from '../returns/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
 import { writes as sourceWrites } from './effects/module.f.js'
 import { fromEntries, mapEntries, mapGet, mapHas } from '../../../types/map/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
 const binding = index => ({ index })
@@ -182,28 +184,60 @@ const objectRest = (source, excluded) => {
     return ['()', ['Object.fromEntries'], [remaining]]
 }
 
-/** The single owner of checked pattern expansion. @type {(plan: ExpansionPlan, value: Value, environment: Environment, alias: boolean, context: Context) => Established} */
-const expanded = (plan, value, environment, alias, context) => {
+/** @type {(value: Value, environment: Environment) => _Evaluated} */
+const unchangedValue = (value, environment) => ({ value, environment, statements: [], normal: true })
+
+/** Updated outer identities, in declaration order, independently of their immutable versions. @type {(before: Environment, after: Environment, context: Context) => readonly BindingId[]} */
+const changedSources = (before, after, context) => {
+    const writes = after.slice(before.length).map(([id]) => id)
+    return context.bindings.filter(fact => writes.includes(fact.id) && before.some(([id]) => id === fact.id)).map(fact => fact.id)
+}
+
+/** Normal completion supplies its expression value and current outer versions together. @type {(value: _Evaluated, sources: readonly BindingId[]) => Block} */
+const valueResults = (value, sources) => ({ statements: value.statements,
+    exit: ['yield', value.normal ? [value.value, ...sources.map(source => lookup(value.environment, source))] : []] })
+
+/** Lazy branches join both their value and any changed source bindings. @type {(test: _Evaluated, then: _Evaluated, otherwise: _Evaluated, context: Context) => _Evaluated} */
+const conditionalValue = (test, then, otherwise, context) => {
+    const sources = changedSources(test.environment, [...test.environment,
+        ...(then.normal ? then.environment.slice(test.environment.length) : []),
+        ...(otherwise.normal ? otherwise.environment.slice(test.environment.length) : [])], context)
+    if (sources.length === 0 && then.statements.length === 0 && otherwise.statements.length === 0 && then.normal && otherwise.normal) {
+        return { ...test, value: ['?:', test.value, then.value, otherwise.value] }
+    }
+    const result = binding(0)
+    const results = sources.map(source => binding(source.index))
+    return { statements: [...test.statements, ['if', [result, ...results], test.value, valueResults(then, sources), valueResults(otherwise, sources)]],
+        value: reference(result), environment: [...test.environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))],
+        normal: then.normal || otherwise.normal }
+}
+
+/** Source expressions thread changed immutable versions through their evaluation regions. @type {(stateTask: _StateTask) => (environment: Environment, context: Context) => (source: SourceValue) => _Evaluated} */
+const normalizedStateWith = stateTask => (environment, context) => source => run(stateTask(source, environment, context))
+
+/** The single owner of checked pattern expansion. @type {(stateTask: _StateTask) => (plan: ExpansionPlan, value: Value, environment: Environment, alias: boolean, context: Context) => Established} */
+const expandedWith = stateTask => (plan, value, environment, alias, context) => {
     let inner = environment
     /** @type {readonly Statement[]} */
     let statements = []
-    for (const [index, { source, spread, default: fallback }] of plan.reads.entries()) {
+    for (let index = 0; index < plan.reads.length; index += 1) {
+        const { source, spread, default: fallback } = plan.reads[Number(index)]
         const read = source === null ? value
             : typeof source === 'number' || source.length === 1 ? source
-            : source[0] === 'slice' ? /** @type {Value} */ (['()', ['.', lookup(inner, plan.ids[source[1]]), 'slice'], [source[2]]])
-            : source[0] === 'object-rest' ? objectRest(lookup(inner, plan.ids[source[1]]), source[2])
-            : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
+            : source[0] === 'slice' ? /** @type {Value} */ (['()', ['.', lookup(inner, plan.ids[Number(source[1])]), 'slice'], [source[2]]])
+            : source[0] === 'object-rest' ? objectRest(lookup(inner, plan.ids[Number(source[1])]), source[2])
+            : /** @type {Value} */ (['.', lookup(inner, plan.ids[Number(source[0])]), source[1]])
         let selected = read
         if (fallback !== undefined) {
             const raw = binding(index)
             const retained = reference(raw)
             statements = [...statements, ['define', raw, read, 'required']]
-            const chosen = conditionalValue(unchangedValue(['===', retained, undefined], inner), normalizedState(inner, context)(fallback.value), unchangedValue(retained, inner), context)
+            const chosen = conditionalValue(unchangedValue(['===', retained, undefined], inner), normalizedStateWith(stateTask)(inner, context)(fallback.value), unchangedValue(retained, inner), context)
             selected = chosen.value
             inner = chosen.environment
             statements = [...statements, ...chosen.statements]
         }
-        const made = establish(inner, plan.ids[index], spread ? ['array', [['...', selected]]] : selected, fallback === undefined && !spread && source === null && alias)
+        const made = establish(inner, plan.ids[Number(index)], spread ? ['array', [['...', selected]]] : selected, fallback === undefined && !spread && source === null && alias)
         inner = made.environment
         statements = [...statements, ...made.statements]
     }
@@ -226,45 +260,17 @@ const commaValues = values => {
         if (value !== null && typeof value === 'object' && value[0] !== 'ref' && value[0] !== 'function' && value.length !== 1) { kept = [...kept, value] }
         pending = rest
     }
-    return [...kept, values[values.length - 1]]
+    return [...kept, values[Number(values.length - 1)]]
 }
 
 /** Source writes that the current expression can execute, excluding held functions. @type {(root: SourceValue, environment: Environment, context: Context) => boolean} */
 const writesOuter = (root, environment, context) => (mapGet(context.writes, root) ?? []).some(id => environment.some(([outer]) => outer === id))
 
-/** Updated outer identities, in declaration order, independently of their immutable versions. @type {(before: Environment, after: Environment, context: Context) => readonly BindingId[]} */
-const changedSources = (before, after, context) => {
-    const writes = after.slice(before.length).map(([id]) => id)
-    return context.bindings.filter(fact => writes.includes(fact.id) && before.some(([id]) => id === fact.id)).map(fact => fact.id)
-}
-
-/** @type {(value: Value, environment: Environment) => _Evaluated} */
-const unchangedValue = (value, environment) => ({ value, environment, statements: [], normal: true })
-
 /** An expression already ended execution; keep its reached prefix in an abrupt region. @type {(value: _Evaluated) => Block} */
 const evaluatedBlock = value => ({ statements: value.statements, exit: ['yield', []] })
 
-/** Normal completion supplies its expression value and current outer versions together. @type {(value: _Evaluated, sources: readonly BindingId[]) => Block} */
-const valueResults = (value, sources) => ({ statements: value.statements,
-    exit: ['yield', value.normal ? [value.value, ...sources.map(source => lookup(value.environment, source))] : []] })
-
-/** Lazy branches join both their value and any changed source bindings. @type {(test: _Evaluated, then: _Evaluated, otherwise: _Evaluated, context: Context) => _Evaluated} */
-const conditionalValue = (test, then, otherwise, context) => {
-    const sources = changedSources(test.environment, [...test.environment,
-        ...(then.normal ? then.environment.slice(test.environment.length) : []),
-        ...(otherwise.normal ? otherwise.environment.slice(test.environment.length) : [])], context)
-    if (sources.length === 0 && then.statements.length === 0 && otherwise.statements.length === 0 && then.normal && otherwise.normal) {
-        return { ...test, value: ['?:', test.value, then.value, otherwise.value] }
-    }
-    const result = binding(0)
-    const results = sources.map(source => binding(source.index))
-    return { statements: [...test.statements, ['if', [result, ...results], test.value, valueResults(then, sources), valueResults(otherwise, sources)]],
-        value: reference(result), environment: [...test.environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))],
-        normal: then.normal || otherwise.normal }
-}
-
-/** An inlined value region returns updated outer bindings instead of dropping them. @type {(source: SourceBlock, outer: Environment, inner: Environment, context: Context) => _Evaluated} */
-const enclosedValue = (source, outer, inner, context) => {
+/** An inlined value region returns updated outer bindings instead of dropping them. @type {(normalizedBlock: _NormalizeBlock) => (source: SourceBlock, outer: Environment, inner: Environment, context: Context) => _Evaluated} */
+const enclosedValueWith = normalizedBlock => (source, outer, inner, context) => {
     const retained = context.bindings.filter(fact => outer.some(([id]) => id === fact.id)).map(fact => fact.id)
     const made = normalizedBlock(source, inner, context, retained)
     const sources = made.normal ? changedSources(outer, made.environment, context) : []
@@ -275,37 +281,38 @@ const enclosedValue = (source, outer, inner, context) => {
     assert(made.block.exit[0] === 'yield', 'a normal value region does not yield')
     return { statements: [['block', [result, ...results], { ...made.block,
         exit: ['yield', [...made.block.exit[1], ...sources.map(source => lookup(made.environment, source))]] }]],
-        value: reference(result), environment: [...outer, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))], normal: true }
+        value: reference(result), environment: [...outer, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))], normal: true }
 }
 
-/** Ordinary invocation bindings and source parameter expansion share one scope. @type {(source: SourceFunction, environment: Environment, context: Context) => FastFunction} */
-const functionValue = (source, environment, context) => {
+/** Ordinary invocation bindings and source parameter expansion share one scope. @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (source: SourceFunction, environment: Environment, context: Context) => FastFunction} */
+const functionValueWith = (normalizedBlock, stateTask) => (source, environment, context) => {
     context = { ...context, loop: null, breakRegion: null }
-    const parameters = Array.from({ length: source.length }, (_, i) => binding(i))
+    const parameters = generate(source.length, i => binding(i))
     const rest = binding(source.length)
     const self = binding(source.length + 1)
     const sources = captureSources(context, source)
     const captures = sources.map((id, i) => ({ binding: binding(source.length + 2 + i), value: lookup(environment, id) }))
     /** @type {Environment} */
-    let inner = sources.map((id, i) => [id, reference(captures[i].binding)])
+    let inner = sources.map((id, i) => [id, reference(captures[Number(i)].binding)])
     if (source.self !== null) { inner = [...inner, [source.self, reference(self)]] }
     /** @type {readonly Statement[]} */
     let prefix = []
-    for (const [index, parameter] of source.parameters.entries()) {
-        const read = index < source.length ? reference(parameters[index]) : /** @type {Value} */ (['.', reference(rest), index - source.length])
+    for (let index = 0; index < source.parameters.length; index += 1) {
+        const parameter = source.parameters[Number(index)]
+        const read = index < source.length ? reference(parameters[Number(index)]) : /** @type {Value} */ (['.', reference(rest), index - source.length])
         const rawBinding = binding(index)
         const raw = index < source.length ? read : reference(rawBinding)
         if (index >= source.length) { prefix = [...prefix, ['define', rawBinding, read, 'required']] }
         const selected = parameter.default === null ? unchangedValue(raw, inner)
-            : conditionalValue(unchangedValue(['===', raw, undefined], inner), normalizedState(inner, context)(parameter.default.value), unchangedValue(raw, inner), context)
-        const made = expanded(parameter.plan, selected.value, selected.environment, parameter.default === null, context)
+            : conditionalValue(unchangedValue(['===', raw, undefined], inner), normalizedStateWith(stateTask)(inner, context)(parameter.default.value), unchangedValue(raw, inner), context)
+        const made = expandedWith(stateTask)(parameter.plan, selected.value, selected.environment, parameter.default === null, context)
         inner = made.environment
         prefix = [...prefix, ...selected.statements, ...made.statements]
     }
     if (source.rest !== null) {
         const late = source.parameters.length - source.length
         const value = late === 0 ? reference(rest) : /** @type {Value} */ (['()', ['.', reference(rest), 'slice'], [late]])
-        const made = expanded(source.rest, value, inner, late === 0, context)
+        const made = expandedWith(stateTask)(source.rest, value, inner, late === 0, context)
         inner = made.environment
         prefix = [...prefix, ...made.statements]
     }
@@ -326,27 +333,27 @@ const functionValue = (source, environment, context) => {
  * outer writes through enclosedValue and explicit state results instead.
  * `inner` also includes this block's own invocation bindings where applicable.
  *
- * @type {(source: SourceBlock, outer: Environment, inner: Environment, context: Context) => Block}
+ * @type {(normalizedBlock: _NormalizeBlock) => (source: SourceBlock, outer: Environment, inner: Environment, context: Context) => Block}
  */
-const enclosed = (source, outer, inner, context) => {
+const enclosedWith = normalizedBlock => (source, outer, inner, context) => {
     const made = normalizedBlock(source, inner, context)
     assert(made.environment.slice(inner.length).every(([id]) => !outer.some(([established]) => established === id)), 'a write escapes its block')
     return made.block
 }
 
-/** @type {(environment: Environment, context: Context, value: SourceValue) => { readonly value: Value } | null} */
-const leaf = (environment, context, value) => {
+/** @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (environment: Environment, context: Context, value: SourceValue) => { readonly value: Value } | null} */
+const leafWith = (normalizedBlock, stateTask) => (environment, context, value) => {
     if (value === null || typeof value !== 'object') { return { value } }
     if (value[0] === 'ref') { return { value: lookup(environment, value[1]) } }
-    if (value[0] === 'function') { return { value: ['function', functionValue(value[1], environment, context)] } }
-    if (value[0] === 'block') { return { value: ['block', enclosed(returnedBlock(value[1]), environment, environment, context)] } }
+    if (value[0] === 'function') { return { value: ['function', functionValueWith(normalizedBlock, stateTask)(value[1], environment, context)] } }
+    if (value[0] === 'block') { return { value: ['block', enclosedWith(normalizedBlock)(returnedBlock(value[1]), environment, environment, context)] } }
     if (value[0] === '()' && value[2].length === 0 && value[1] instanceof Array && value[1][0] === 'function') {
         const source = value[1][1]
-        const fn = functionValue(source, environment, context)
+        const fn = functionValueWith(normalizedBlock, stateTask)(source, environment, context)
         const completion = returnedBlock(source.body)
         if (fn.parameters.length === 0 && fn.rest === null && !hasRetainedReturn(completion)) {
-            const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true, context).environment
-            const body = enclosed(completion, environment, inner, { ...context, loop: null, breakRegion: null })
+            const inner = source.rest === null ? environment : expandedWith(stateTask)(source.rest, undefined, environment, true, context).environment
+            const body = enclosedWith(normalizedBlock)(completion, environment, inner, { ...context, loop: null, breakRegion: null })
             return { value: ['block', body] }
         }
         return { value: ['()', ['function', fn], []] }
@@ -354,15 +361,15 @@ const leaf = (environment, context, value) => {
     return null
 }
 
-/** Explicit work preserves unbounded source operator chains and occurrence order. @type {(environment: Environment, context: Context) => (root: SourceValue) => Value} */
-const normalizedValue = (environment, context) => root => {
+/** Explicit work preserves unbounded source operator chains and occurrence order. @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (environment: Environment, context: Context) => (root: SourceValue) => Value} */
+const normalizedValueWith = (normalizedBlock, stateTask) => (environment, context) => root => {
     /** @type {Work} */
     let work = { kind: 'expand', value: root, rest: null }
     /** @type {Results} */
     let results = null
     while (work !== null) {
         if (work.kind === 'expand') {
-            const found = leaf(environment, context, work.value)
+            const found = leafWith(normalizedBlock, stateTask)(environment, context, work.value)
             if (found !== null) { results = { value: found.value, rest: results }; work = work.rest; continue }
             const source = /** @type {SourceOperator<SourceValue>} */ (work.value)
             if (source[0] === '&&' || source[0] === '||' || source[0] === '??') {
@@ -383,7 +390,8 @@ const normalizedValue = (environment, context) => root => {
             values = [result.value, ...values]
             remaining = result.rest
         }
-        results = { value: work.kind === 'logical' ? logicalValue(work.tag, values[0], values[1]) : mapOperator((_, index) => values[index])(work.value), rest: remaining }
+        const completed = values
+        results = { value: work.kind === 'logical' ? logicalValue(work.tag, completed[0], completed[1]) : mapOperator((_, index) => completed[Number(index)])(work.value), rest: remaining }
         work = work.rest
     }
     return assertNotNullish(results, 'missing normalized value').value
@@ -393,8 +401,8 @@ const normalizedValue = (environment, context) => root => {
 const evaluatedValues = (inputs, environment, evaluate) => {
     /** @type {(index: number, inner: Environment, parts: readonly _Evaluated[]) => Task<_EvaluatedValues>} */
     const each = (index, inner, parts) => call(() => {
-        if (index !== inputs.length && (parts.length === 0 || parts[parts.length - 1].normal)) {
-            return bind(evaluate(inputs[index], inner), part => each(index + 1, part.environment, [...parts, part]))
+        if (index !== inputs.length && (parts.length === 0 || parts[Number(parts.length - 1)].normal)) {
+            return bind(evaluate(inputs[Number(index)], inner), part => each(index + 1, part.environment, [...parts, part]))
         }
         const lifted = parts.some(part => part.statements.length !== 0)
         /** @type {readonly Statement[]} */
@@ -422,9 +430,9 @@ const skeletonResults = (made, sources) => made.normal && made.block.exit[0] ===
 /**
  * The shared operand sequencer owns lookup, spreads and optional regions.
  * Its generated bindings stay immutable; only recipe references revisit source.
- * @type {(source: Value, environment: Environment, context: Context, recipes: _Recipes) => Task<_Evaluated>}
+ * @type {(stateTask: _StateTask) => (source: Value, environment: Environment, context: Context, recipes: _Recipes) => Task<_Evaluated>}
  */
-const skeletonValue = (source, environment, context, recipes) => call(() => {
+const skeletonValueWith = stateTask => (source, environment, context, recipes) => call(() => {
     if (source === null || typeof source !== 'object') { return done(unchangedValue(source, environment)) }
     if (source[0] === 'ref') {
         const recipe = mapGet(recipes, source[1])
@@ -434,13 +442,15 @@ const skeletonValue = (source, environment, context, recipes) => call(() => {
     // source regions and functions are evaluated through recipe references.
     assert(source[0] !== 'function' && source[0] !== 'block' && source[0] !== 'if', 'the operand skeleton contains a source region')
     const operands = operatorOperands(source)
-    return bind(evaluatedValues(operands, environment, (value, inner) => skeletonValue(value, inner, context, recipes)), made =>
-        done({ ...made, value: made.normal ? source[0] === 'String' && typeof made.values[0] === 'string'
-            ? made.values[0] : mapOperator((_, index) => made.values[index])(source) : undefined }))
+    return bind(evaluatedValues(operands, environment, (value, inner) => skeletonValueWith(stateTask)(value, inner, context, recipes)), made => {
+        const values = assertNotNullish(entry(made, 'values'))
+        return done({ ...made, value: made.normal ? source[0] === 'String' && typeof values[0] === 'string'
+            ? values[0] : mapOperator((_, index) => values[Number(index)])(source) : undefined })
+    })
 })
 
-/** Normalize the sequencer's explicit statement and branch regions. @type {(source: Block, environment: Environment, context: Context, recipes: _Recipes) => Task<Normalized>} */
-const skeletonBlock = (source, environment, context, recipes) => {
+/** Normalize the sequencer's explicit statement and branch regions. @type {(stateTask: _StateTask) => (source: Block, environment: Environment, context: Context, recipes: _Recipes) => Task<Normalized>} */
+const skeletonBlockWith = stateTask => (source, environment, context, recipes) => {
     /** @type {(statements: readonly Statement[], inner: Environment) => Task<Normalized>} */
     const abrupt = (statements, inner) => done({ block: { statements, exit: ['yield', []] }, environment: inner, normal: false, hasLoopExit: false, hasFunctionExit: false })
     /** @type {(index: number, inner: Environment, statements: readonly Statement[]) => Task<Normalized>} */
@@ -451,55 +461,63 @@ const skeletonBlock = (source, environment, context, recipes) => {
             // final operations contain generated immutable reads alone.
             return done({ block: { statements, exit: source.exit }, environment: inner, normal: true, hasLoopExit: false, hasFunctionExit: false })
         }
-        const statement = source.statements[index]
+        const statement = source.statements[Number(index)]
         if (statement[0] === 'define') {
-            return bind(skeletonValue(statement[2], inner, context, recipes), made => !made.normal ? abrupt([...statements, ...made.statements], made.environment)
+            return bind(skeletonValueWith(stateTask)(statement[2], inner, context, recipes), made => !made.normal ? abrupt([...statements, ...made.statements], made.environment)
                 : each(index + 1, made.environment, [...statements, ...made.statements, ['define', statement[1], made.value, statement[3]]]))
         }
         assert(statement[0] !== 'loop', 'the operand sequencer introduced a loop')
         if (statement[0] === 'block') {
-            return bind(skeletonBlock(statement[2], inner, context, recipes), made => {
+            return bind(skeletonBlockWith(stateTask)(statement[2], inner, context, recipes), made => {
                 const sources = made.normal ? changedSources(inner, made.environment, context) : []
                 const results = sources.map(source => binding(source.index))
                 const next = /** @type {readonly Statement[]} */ ([...statements, ['block', [...statement[1], ...results], skeletonResults(made, sources)]])
                 return !made.normal ? abrupt(next, inner) : each(index + 1,
-                    [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))], next)
+                    [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))], next)
             })
         }
-        return bind(skeletonValue(statement[2], inner, context, recipes), test => {
+        return bind(skeletonValueWith(stateTask)(statement[2], inner, context, recipes), test => {
             assert(test.normal, 'a generated optional guard contains a source recipe')
-            return bind(skeletonBlock(statement[3], test.environment, context, recipes), branch =>
-                bind(skeletonBlock(statement[4], test.environment, context, recipes), otherwise => {
+            return bind(skeletonBlockWith(stateTask)(statement[3], test.environment, context, recipes), branch =>
+                bind(skeletonBlockWith(stateTask)(statement[4], test.environment, context, recipes), otherwise => {
                     const current = test.environment
                     assert(otherwise.normal, 'a skipped optional region contains a source recipe')
                     const sources = changedSources(current, [...current, ...(branch.normal ? branch.environment.slice(current.length) : []), ...otherwise.environment.slice(current.length)], context)
                     const results = sources.map(source => binding(source.index))
                     const next = /** @type {readonly Statement[]} */ ([...statements, ...test.statements, ['if', [...statement[1], ...results], test.value, skeletonResults(branch, sources), skeletonResults(otherwise, sources)]])
                     return each(index + 1,
-                        [...current, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))], next)
+                        [...current, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))], next)
                 }))
         })
     })
     return each(0, environment, [])
 }
 
-/** Expose one operator with placeholders, then evaluate its source recipes in the shared order. @type {(source: Operator<SourceValue>, environment: Environment, context: Context) => Task<_Evaluated>} */
-const sequencedOperator = (source, environment, context) => {
+/** A normalized source region as one expression result, retaining abrupt work. @type {(made: Normalized) => _Evaluated} */
+const regionValue = made => {
+    if (!made.normal) { return { value: undefined, environment: made.environment, statements: [['block', [], made.block]], normal: false } }
+    assert(made.block.exit[0] === 'yield' && made.block.exit[1].length === 1, 'a source value region does not yield one value')
+    return { statements: made.block.statements, value: made.block.exit[1][0], environment: made.environment, normal: true }
+}
+
+/** Expose one operator with placeholders, then evaluate its source recipes in the shared order. @type {(stateTask: _StateTask) => (source: Operator<SourceValue>, environment: Environment, context: Context) => Task<_Evaluated>} */
+const sequencedOperatorWith = stateTask => (source, environment, context) => {
     const member = source[0] === '()' && source[1] instanceof Array && source[1][0] === '.' && source[1].length === 3 ? source[1] : null
     const operator = member === null ? source : /** @type {Operator<SourceValue>} */ (['.', member[1], member[2], ['|()', source[2]]])
     const inputs = operatorOperands(operator)
     const placeholders = inputs.map(() => binding(0))
-    const recipes = fromEntries(placeholders.map((id, index) => /** @type {const} */ ([id, inputs[index]])))
-    const exposed = _exposeOperands(mapOperator((_, index) => reference(placeholders[index]))(operator), binding(0), null)
+    const recipes = fromEntries(placeholders.map((id, index) => /** @type {const} */ ([id, inputs[Number(index)]])))
+    const exposed = _exposeOperands(mapOperator((_, index) => reference(placeholders[Number(index)]))(operator), binding(0), null)
     assert(exposed.statement !== null && exposed.statement[0] === 'block', 'a stateful expression has no operand region')
-    return bind(skeletonBlock(exposed.statement[2], environment, context, recipes), made => done(regionValue(made)))
+    return bind(skeletonBlockWith(stateTask)(exposed.statement[2], environment, context, recipes), made => done(regionValue(made)))
 }
 
-/** Recipe re-entry shares the worklist with operand regions, including deep source chains. @type {(source: SourceValue, environment: Environment, context: Context) => Task<_Evaluated>} */
-const stateTask = (source, environment, context) => call(() => {
-    if (!writesOuter(source, environment, context)) { return done(unchangedValue(normalizedValue(environment, context)(source), environment)) }
+/** Recipe re-entry shares the worklist with operand regions, including deep source chains. @type {(normalizedBlock: _NormalizeBlock) => (source: SourceValue, environment: Environment, context: Context) => Task<_Evaluated>} */
+const stateTaskWith = normalizedBlock => (source, environment, context) => call(() => {
+    const stateTask = stateTaskWith(normalizedBlock)
+    if (!writesOuter(source, environment, context)) { return done(unchangedValue(normalizedValueWith(normalizedBlock, stateTask)(environment, context)(source), environment)) }
     assert(source instanceof Array, 'a stateful value is no source expression')
-    if (source[0] === 'block') { return done(enclosedValue(returnedBlock(source[1]), environment, environment, context)) }
+    if (source[0] === 'block') { return done(enclosedValueWith(normalizedBlock)(returnedBlock(source[1]), environment, environment, context)) }
     // A literal callee has no observable construction work. Snapshot its
     // captures after argument evaluation, when JavaScript's direct call reads
     // the enclosing variables, rather than retaining versions an argument
@@ -507,12 +525,12 @@ const stateTask = (source, environment, context) => call(() => {
     // order and lets the ordinary sequencer own any following chain steps.
     if ((source[0] === '()' || source[0] === '?.()') && source[1] instanceof Array && source[1][0] === 'function'
         && source[2].some(argument => writesOuter(argument instanceof Array && argument[0] === '...' ? argument[1] : argument, environment, context))) {
-        return bind(sequencedOperator(['array', source[2]], environment, context), argumentsValue => {
+        return bind(sequencedOperatorWith(stateTask)(['array', source[2]], environment, context), argumentsValue => {
             if (!argumentsValue.normal) { return done(argumentsValue) }
             const id = binding(0)
             const inner = [...argumentsValue.environment, /** @type {const} */ ([id, reference(id)])]
             const invocation = /** @type {Operator<SourceValue>} */ ([source[0], source[1], [['...', ['ref', id]]], ...source.length === 4 ? [source[3]] : []])
-            return bind(sequencedOperator(invocation, inner, context), result => done({ ...result,
+            return bind(sequencedOperatorWith(stateTask)(invocation, inner, context), result => done({ ...result,
                 statements: [...argumentsValue.statements, ['define', id, argumentsValue.value, 'required'], ...result.statements],
                 environment: result.environment.filter(([source]) => source !== id),
             }))
@@ -521,7 +539,7 @@ const stateTask = (source, environment, context) => call(() => {
     if (source[0] === '()' && source[2].length === 0 && source[1] instanceof Array && source[1][0] === 'function') {
         const fn = source[1][1]
         assert(fn.parameters.length === 0 && fn.rest === null, 'a stateful immediate call has invocation bindings')
-        return done(enclosedValue(returnedBlock(fn.body), environment, environment, { ...context, loop: null, breakRegion: null }))
+        return done(enclosedValueWith(normalizedBlock)(returnedBlock(fn.body), environment, environment, { ...context, loop: null, breakRegion: null }))
     }
     if (source[0] === '?:' || source[0] === '&&' || source[0] === '||' || source[0] === '??') {
         return bind(stateTask(source[1], environment, context), left => {
@@ -541,24 +559,14 @@ const stateTask = (source, environment, context) => call(() => {
             })
         })
     }
-    return sequencedOperator(/** @type {Operator<SourceValue>} */ (source), environment, context)
+    return sequencedOperatorWith(stateTask)(/** @type {Operator<SourceValue>} */ (source), environment, context)
 })
-
-/** Source expressions thread changed immutable versions through their evaluation regions. @type {(environment: Environment, context: Context) => (source: SourceValue) => _Evaluated} */
-const normalizedState = (environment, context) => source => run(stateTask(source, environment, context))
 
 /** Ordered labels share one discriminant and short-circuit before the next label. @type {(discriminant: BindingId, labels: readonly SourceValue[], value: (source: SourceValue) => Value) => Value} */
 const caseCondition = (discriminant, labels, value) => {
     const tests = labels.map(label => /** @type {Value} */ (['===', reference(discriminant), value(label)]))
     const first = assertNotNullish(tests[0], 'switch case without a label')
     return tests.slice(1).reduce((left, right) => logicalValue('||', left, right), first)
-}
-
-/** A normalized source region as one expression result, retaining abrupt work. @type {(made: Normalized) => _Evaluated} */
-const regionValue = made => {
-    if (!made.normal) { return { value: undefined, environment: made.environment, statements: [['block', [], made.block]], normal: false } }
-    assert(made.block.exit[0] === 'yield' && made.block.exit[1].length === 1, 'a source value region does not yield one value')
-    return { statements: made.block.statements, value: made.block.exit[1][0], environment: made.environment, normal: true }
 }
 
 /** Terminal branches retain their established value spelling when no retained state escapes. @type {(test: _Evaluated, branch: Normalized, otherwise: Normalized, context: Context, retained: readonly BindingId[]) => Normalized} */
@@ -573,13 +581,13 @@ const terminalConditional = (test, branch, otherwise, context, retained) => {
         normal: selected.normal, hasLoopExit: branch.hasLoopExit || otherwise.hasLoopExit, hasFunctionExit: branch.hasFunctionExit || otherwise.hasFunctionExit }
 }
 
-/** Stacked labels evaluate lazily and keep the versions established by reached labels. @type {(discriminant: BindingId, labels: readonly SourceValue[], environment: Environment, context: Context) => _Evaluated} */
-const caseState = (discriminant, labels, environment, context) => {
+/** Stacked labels evaluate lazily and keep the versions established by reached labels. @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (discriminant: BindingId, labels: readonly SourceValue[], environment: Environment, context: Context) => _Evaluated} */
+const caseStateWith = (normalizedBlock, stateTask) => (discriminant, labels, environment, context) => {
     /** @type {(remaining: readonly SourceValue[], inner: Environment) => Task<_Evaluated>} */
     const each = (remaining, inner) => call(() => {
-        if (!remaining.some(label => writesOuter(label, inner, context))) { return done(unchangedValue(caseCondition(discriminant, remaining, normalizedValue(inner, context)), inner)) }
+        if (!remaining.some(label => writesOuter(label, inner, context))) { return done(unchangedValue(caseCondition(discriminant, remaining, normalizedValueWith(normalizedBlock, stateTask)(inner, context)), inner)) }
         const label = assertNotNullish(remaining[0], 'switch case without a label')
-        const made = normalizedState(inner, context)(label)
+        const made = normalizedStateWith(stateTask)(inner, context)(label)
         const test = { ...made, value: /** @type {Value} */ (['===', reference(discriminant), made.value]) }
         if (!made.normal || remaining.length === 1) { return done(test) }
         return bind(each(remaining.slice(1), made.environment), following =>
@@ -588,14 +596,14 @@ const caseState = (discriminant, labels, environment, context) => {
     return run(each(labels, environment))
 }
 
-/** Source terminal branches yield their value and retain their final source versions. @type {(exit: Exclude<SourceExit, readonly ['terminal-loop', SourceLoop]>, environment: Environment, context: Context, retained: readonly BindingId[]) => Normalized} */
-const normalizedExit = (exit, environment, context, retained) => {
+/** Source terminal branches yield their value and retain their final source versions. @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (exit: Exclude<SourceExit, readonly ['terminal-loop', SourceLoop]>, environment: Environment, context: Context, retained: readonly BindingId[]) => Normalized} */
+const normalizedExitWith = (normalizedBlock, stateTask) => (exit, environment, context, retained) => {
     if (exit[0] === 'throw' || exit[0] === 'yield' || exit[0] === 'return') {
-        const made = normalizedState(environment, context)(exit[0] === 'return' ? exit[2] : exit[1])
+        const made = normalizedStateWith(stateTask)(environment, context)(exit[0] === 'return' ? exit[2] : exit[1])
         return { block: { statements: made.statements, exit: exit[0] === 'throw' ? ['throw', made.value] : ['yield', [made.value]] }, environment: made.environment,
             normal: made.normal && exit[0] !== 'throw', hasLoopExit: false, hasFunctionExit: false }
     }
-    const test = normalizedState(environment, context)(exit[1])
+    const test = normalizedStateWith(stateTask)(environment, context)(exit[1])
     if (!test.normal) { return { block: evaluatedBlock(test), environment: test.environment, normal: false, hasLoopExit: false, hasFunctionExit: false } }
     const keep = retained
     if (exit[0] === 'if') {
@@ -605,8 +613,8 @@ const normalizedExit = (exit, environment, context, retained) => {
     /** @type {(index: number, inner: Environment) => Task<Normalized>} */
     const each = (index, inner) => call(() => {
         if (index === exit[2].length) { return done(normalizedBlock(exit[3], inner, context, keep)) }
-        const arm = exit[2][index]
-        const condition = caseState(discriminant, arm.labels, inner, context)
+        const arm = exit[2][Number(index)]
+        const condition = caseStateWith(normalizedBlock, stateTask)(discriminant, arm.labels, inner, context)
         if (!condition.normal) { return done({ block: evaluatedBlock(condition), environment: condition.environment, normal: false, hasLoopExit: false, hasFunctionExit: false }) }
         const branch = normalizedBlock(arm.body, condition.environment, context, keep)
         return bind(each(index + 1, condition.environment), following => done(terminalConditional(condition, branch, following, context, keep)))
@@ -615,54 +623,9 @@ const normalizedExit = (exit, environment, context, retained) => {
     return { ...tail, block: { statements: [...test.statements, ['define', discriminant, test.value, 'required'], ...tail.block.statements], exit: tail.block.exit } }
 }
 
-/**
- * A switch is a one-pass transfer region. Its breaks supply normal state;
- * continues retain the enclosing loop and returns retain their function.
- * With no normal successor, its loop is the block exit and supplies no results
- * to an enclosing join.
- * @type {(source: SourceSwitch, environment: Environment, context: Context) => Normalized}
- */
-const normalizedSwitch = (source, environment, context) => {
-    if (writesOuter(source.discriminant, environment, context)
-        || source.cases.some(arm => arm.labels.some(label => writesOuter(label, environment, context)))) {
-        return statefulSwitch(source, environment, context)
-    }
-    const sources = loopSources(eventFacts(source.events).writes, environment, context)
-    /** @type {Context} */
-    const inner = { ...context, breakRegion: { target: source.target, sources } }
-    /** @type {readonly Normalized[]} */
-    const alternatives = [...source.cases.map(arm => normalizedBlock(arm.body, environment, inner, sources)),
-        normalizedBlock(source.otherwise, environment, inner, sources)]
-    /** @type {(made: Normalized) => Block} */
-    const completed = made => made.normal ? { ...made.block, exit: ['break', source.target, sources.map(source => lookup(made.environment, source))] } : made.block
-    const discriminant = binding(0)
-    const value = normalizedValue(environment, context)
-    let body = completed(alternatives[alternatives.length - 1])
-    for (let index = source.cases.length - 1; index >= 0; index = index - 1) {
-        body = { statements: [['if', [], caseCondition(discriminant, source.cases[index].labels, value), completed(alternatives[index]), body]], exit: ['yield', []] }
-    }
-    // Every case transfers, including the unmatched arm. Keep the unreachable
-    // root terminal without inventing state reads or helper captures.
-    body = { ...body, exit: ['throw', 'a normalized switch case fell through'] }
-    const normal = alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target))
-    const results = normal ? sources.map(source => binding(source.index)) : []
-    /** @type {Loop} */
-    const loop = { target: source.target, parameters: [], initial: [], results, body }
-    /** @type {readonly Statement[]} */
-    const statements = [['define', discriminant, value(source.discriminant), 'required']]
-    return {
-        block: normal ? { statements: [...statements, ['loop', loop]], exit: ['yield', []] }
-            : { statements, exit: ['loop', loop] },
-        environment: normal ? [...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))] : environment,
-        normal,
-        hasLoopExit: alternatives.some(made => made.hasLoopExit),
-        hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
-    }
-}
-
-/** Reached switch labels pass their state to the chosen case or the following label. @type {(source: SourceSwitch, environment: Environment, context: Context) => Normalized} */
-const statefulSwitch = (source, environment, context) => {
-    const selected = normalizedState(environment, context)(source.discriminant)
+/** Reached switch labels pass their state to the chosen case or the following label. @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (source: SourceSwitch, environment: Environment, context: Context) => Normalized} */
+const statefulSwitchWith = (normalizedBlock, stateTask) => (source, environment, context) => {
+    const selected = normalizedStateWith(stateTask)(environment, context)(source.discriminant)
     if (!selected.normal) { return { block: evaluatedBlock(selected), environment: selected.environment, normal: false, hasLoopExit: false, hasFunctionExit: false } }
     const sources = loopSources(eventFacts(source.events).writes, selected.environment, context)
     const discriminant = binding(0)
@@ -675,8 +638,8 @@ const statefulSwitch = (source, environment, context) => {
             const made = normalizedBlock(source.otherwise, inner, local, sources)
             return done({ block: completed(made), alternatives: [made] })
         }
-        const arm = source.cases[index]
-        const condition = caseState(discriminant, arm.labels, inner, context)
+        const arm = source.cases[Number(index)]
+        const condition = caseStateWith(normalizedBlock, stateTask)(discriminant, arm.labels, inner, context)
         if (!condition.normal) { return done({ block: evaluatedBlock(condition), alternatives: [] }) }
         const made = normalizedBlock(arm.body, condition.environment, local, sources)
         return bind(each(index + 1, condition.environment), following => done({
@@ -695,9 +658,54 @@ const statefulSwitch = (source, environment, context) => {
     return {
         block: normal ? { statements: [...statements, ['loop', loop]], exit: ['yield', []] }
             : { statements, exit: ['loop', loop] },
-        environment: normal ? [...selected.environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))] : selected.environment,
+        environment: normal ? [...selected.environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))] : selected.environment,
         normal,
         hasLoopExit: alternatives.some(made => made.hasLoopExit), hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
+    }
+}
+
+/**
+ * A switch is a one-pass transfer region. Its breaks supply normal state;
+ * continues retain the enclosing loop and returns retain their function.
+ * With no normal successor, its loop is the block exit and supplies no results
+ * to an enclosing join.
+ * @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (source: SourceSwitch, environment: Environment, context: Context) => Normalized}
+ */
+const normalizedSwitchWith = (normalizedBlock, stateTask) => (source, environment, context) => {
+    if (writesOuter(source.discriminant, environment, context)
+        || source.cases.some(arm => arm.labels.some(label => writesOuter(label, environment, context)))) {
+        return statefulSwitchWith(normalizedBlock, stateTask)(source, environment, context)
+    }
+    const sources = loopSources(eventFacts(source.events).writes, environment, context)
+    /** @type {Context} */
+    const inner = { ...context, breakRegion: { target: source.target, sources } }
+    /** @type {readonly Normalized[]} */
+    const alternatives = [...source.cases.map(arm => normalizedBlock(arm.body, environment, inner, sources)),
+        normalizedBlock(source.otherwise, environment, inner, sources)]
+    /** @type {(made: Normalized) => Block} */
+    const completed = made => made.normal ? { ...made.block, exit: ['break', source.target, sources.map(source => lookup(made.environment, source))] } : made.block
+    const discriminant = binding(0)
+    const value = normalizedValueWith(normalizedBlock, stateTask)(environment, context)
+    let body = completed(alternatives[Number(alternatives.length - 1)])
+    for (let index = source.cases.length - 1; index >= 0; index = index - 1) {
+        body = { statements: [['if', [], caseCondition(discriminant, source.cases[Number(index)].labels, value), completed(alternatives[Number(index)]), body]], exit: ['yield', []] }
+    }
+    // Every case transfers, including the unmatched arm. Keep the unreachable
+    // root terminal without inventing state reads or helper captures.
+    body = { ...body, exit: ['throw', 'a normalized switch case fell through'] }
+    const normal = alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target))
+    const results = normal ? sources.map(source => binding(source.index)) : []
+    /** @type {Loop} */
+    const loop = { target: source.target, parameters: [], initial: [], results, body }
+    /** @type {readonly Statement[]} */
+    const statements = [['define', discriminant, value(source.discriminant), 'required']]
+    return {
+        block: normal ? { statements: [...statements, ['loop', loop]], exit: ['yield', []] }
+            : { statements, exit: ['loop', loop] },
+        environment: normal ? [...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))] : environment,
+        normal,
+        hasLoopExit: alternatives.some(made => made.hasLoopExit),
+        hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
     }
 }
 
@@ -728,24 +736,24 @@ const continuedSteps = (block, step) => ({
  * Ordinary and terminal loops share state and transfer normalization. Admission
  * has proved a terminal loop's literal condition and absence of an owning
  * break, so it has no normal results or condition-false continuation.
- * @type {(loop: SourceLoop, environment: Environment, context: Context, terminal: boolean) => Normalized}
+ * @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (loop: SourceLoop, environment: Environment, context: Context, terminal: boolean) => Normalized}
  */
-const normalizedLoop = (loop, environment, context, terminal) => {
+const normalizedLoopWith = (normalizedBlock, stateTask) => (loop, environment, context, terminal) => {
     if (loop.postTest) {
         const check = /** @type {SourceBlock} */ ({ statements: [['if', loop.condition,
             { statements: [], exit: ['yield', undefined] },
             { statements: [['break', loop.target]], exit: ['yield', undefined] },
         ]], exit: ['yield', undefined] })
-        return normalizedLoop({ target: loop.target, events: loop.events, body: loop.body, condition: true, step: check }, environment, context, false)
+        return normalizedLoopWith(normalizedBlock, stateTask)({ target: loop.target, events: loop.events, body: loop.body, condition: true, step: check }, environment, context, false)
     }
     const events = eventFacts(loop.events)
     const sources = loopSources(events.references, environment, context)
     const parameters = sources.map(source => binding(source.index))
     let results = terminal ? [] : sources.map(source => binding(source.index))
-    const scope = /** @type {Environment} */ ([...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
+    const scope = /** @type {Environment} */ ([...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[Number(index)])]))])
     /** @type {NonNullable<Context['loop']>} */
     const transfer = { target: loop.target, sources }
-    const condition = normalizedState(scope, context)(loop.condition)
+    const condition = normalizedStateWith(stateTask)(scope, context)(loop.condition)
     let sourceBody = loop.body
     if (loop.step !== undefined) {
         const continued = continuedSteps(loop.body, loop.step)
@@ -768,10 +776,11 @@ const normalizedLoop = (loop, environment, context, terminal) => {
     }
     /** @type {Loop} */
     const normalized = { target: loop.target, parameters, initial: sources.map(source => lookup(environment, source)), results, body }
+    const resultIds = results
     return {
         block: terminal ? { statements: [], exit: ['loop', normalized] }
             : { statements: [['loop', normalized]], exit: ['yield', []] },
-        environment: terminal ? environment : [...environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])],
+        environment: terminal ? environment : [...environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(resultIds[Number(index)])])] : [])],
         normal: !terminal,
         hasLoopExit: step.hasFunctionExit,
         hasFunctionExit: step.hasFunctionExit,
@@ -782,10 +791,10 @@ const normalizedLoop = (loop, environment, context, terminal) => {
  * Spread supplies the existing iterable admission and Unicode behavior once at
  * entry. The generated cursor and source state use the ordinary structured-loop
  * helper; its scoped completion transport keeps break and function exits owned.
- * @type {(loop: SourceForOf, environment: Environment, context: Context) => Normalized}
+ * @type {(normalizedBlock: _NormalizeBlock, stateTask: _StateTask) => (loop: SourceForOf, environment: Environment, context: Context) => Normalized}
  */
-const normalizedForOf = (loop, environment, context) => {
-    const entry = normalizedState(environment, context)(loop.source)
+const normalizedForOfWith = (normalizedBlock, stateTask) => (loop, environment, context) => {
+    const entry = normalizedStateWith(stateTask)(environment, context)(loop.source)
     if (!entry.normal) {
         return { block: evaluatedBlock(entry), environment: entry.environment, normal: false, hasLoopExit: true, hasFunctionExit: true }
     }
@@ -799,7 +808,7 @@ const normalizedForOf = (loop, environment, context) => {
     const advance = ['+', reference(cursor), 1]
     /** @type {Environment} */
     const scope = [...entry.environment,
-        ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])])),
+        ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[Number(index)])])),
         [loop.item, ['.', reference(items), ['Number', reference(cursor)]]],
     ]
     const transfer = { target: loop.target, sources, continuePrefix: [advance] }
@@ -822,7 +831,7 @@ const normalizedForOf = (loop, environment, context) => {
             ],
             exit: ['yield', []],
         },
-        environment: [...entry.environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])],
+        environment: [...entry.environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[Number(index)])])] : [])],
         normal: true,
         hasLoopExit: step.hasFunctionExit,
         hasFunctionExit: step.hasFunctionExit,
@@ -836,6 +845,7 @@ const normalizedForOf = (loop, environment, context) => {
  * @type {(source: SourceBlock, environment: Environment, context: Context, retained?: readonly BindingId[]) => Normalized}
  */
 const normalizedBlock = (source, environment, context, retained = []) => {
+    const stateTask = stateTaskWith(normalizedBlock)
     let inner = environment
     /** @type {readonly Statement[]} */
     let statements = []
@@ -843,29 +853,30 @@ const normalizedBlock = (source, environment, context, retained = []) => {
     let hasFunctionExit = false
     for (const statement of source.statements) {
         if (statement[0] === 'return' || statement[0] === 'throw') {
-            const made = normalizedState(inner, context)(statement[0] === 'return' ? statement[2] : statement[1])
+            const made = normalizedStateWith(stateTask)(inner, context)(statement[0] === 'return' ? statement[2] : statement[1])
             const exit = statement[0] === 'return' ? /** @type {const} */ (['return', statement[1], made.value]) : /** @type {const} */ (['throw', made.value])
             return { block: pruneAliases({ statements: [...statements, ...made.statements], exit }, []), environment: made.environment, normal: false, hasLoopExit: true, hasFunctionExit: true }
         }
         if (statement[0] === 'break' || statement[0] === 'continue') {
             const loop = assertNotNullish(statement[0] === 'break' && context.breakRegion?.target === statement[1] ? context.breakRegion : context.loop, 'a source transfer has no target')
             assert(loop.target === statement[1], 'a source loop exit targets another loop')
-            const values = [...statement[0] === 'continue' ? loop.continuePrefix ?? [] : [], ...loop.sources.map(source => lookup(inner, source))]
+            const current = inner
+            const values = [...statement[0] === 'continue' ? loop.continuePrefix ?? [] : [], ...loop.sources.map(source => lookup(current, source))]
             return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false,
                 hasLoopExit: hasLoopExit || loop === context.loop, hasFunctionExit }
         }
         if (statement[0] === 'initialize') {
-            const value = normalizedState(inner, context)(statement[2])
+            const value = normalizedStateWith(stateTask)(inner, context)(statement[2])
             statements = [...statements, ...value.statements]
             if (!value.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: value.environment, normal: false, hasLoopExit, hasFunctionExit } }
-            const made = expanded(statement[1], value.value, value.environment, false, context)
+            const made = expandedWith(stateTask)(statement[1], value.value, value.environment, false, context)
             inner = made.environment
             statements = [...statements, ...made.statements]
             continue
         }
         if (statement[0] === 'write') {
             assert(context.bindings.some(fact => fact.id === statement[1] && fact.isMutable), 'write without complete source analysis')
-            const value = normalizedState(inner, context)(statement[2])
+            const value = normalizedStateWith(stateTask)(inner, context)(statement[2])
             statements = [...statements, ...value.statements]
             if (!value.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: value.environment, normal: false, hasLoopExit, hasFunctionExit } }
             const made = establish(value.environment, statement[1], value.value, false)
@@ -877,7 +888,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const [, id, tag, operand] = statement
             assert(context.bindings.some(fact => fact.id === id && fact.isMutable), 'compound write without complete source analysis')
             const current = lookup(inner, id)
-            const right = normalizedState(inner, context)(operand)
+            const right = normalizedStateWith(stateTask)(inner, context)(operand)
             if (tag !== '&&' && tag !== '||' && tag !== '??') {
                 statements = [...statements, ...right.statements]
                 if (!right.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: right.environment, normal: false, hasLoopExit, hasFunctionExit } }
@@ -897,13 +908,14 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             continue
         }
         if (statement[0] === 'if') {
-            const test = normalizedState(inner, context)(statement[1])
+            const test = normalizedStateWith(stateTask)(inner, context)(statement[1])
             statements = [...statements, ...test.statements]
             inner = test.environment
             if (!test.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit, hasFunctionExit } }
             // Both arms' final versions must survive alias pruning before
             // the changed outer names become its explicit result signature.
-            const outer = context.bindings.filter(fact => inner.some(([id]) => id === fact.id)).map(fact => fact.id)
+            const current = inner
+            const outer = context.bindings.filter(fact => current.some(([id]) => id === fact.id)).map(fact => fact.id)
             const branch = normalizedBlock(statement[2], inner, context, outer)
             const otherwise = normalizedBlock(statement[3], inner, context, outer)
             hasLoopExit = hasLoopExit || branch.hasLoopExit || otherwise.hasLoopExit
@@ -916,11 +928,11 @@ const normalizedBlock = (source, environment, context, retained = []) => {
                 otherwise.normal ? { ...otherwise.block, exit: ['yield', sources.map(source => lookup(otherwise.environment, source))] } : otherwise.block,
             ]]
             if (!branch.normal && !otherwise.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit, hasFunctionExit } }
-            inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))]
+            inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[Number(index)])]))]
             continue
         }
         if (statement[0] === 'switch') {
-            const made = normalizedSwitch(statement[1], inner, context)
+            const made = normalizedSwitchWith(normalizedBlock, stateTask)(statement[1], inner, context)
             statements = [...statements, ...made.block.statements]
             hasLoopExit = hasLoopExit || made.hasLoopExit
             hasFunctionExit = hasFunctionExit || made.hasFunctionExit
@@ -928,7 +940,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             inner = made.environment
             continue
         }
-        const made = statement[0] === 'for-of' ? normalizedForOf(statement[1], inner, context) : normalizedLoop(statement[1], inner, context, false)
+        const made = statement[0] === 'for-of' ? normalizedForOfWith(normalizedBlock, stateTask)(statement[1], inner, context) : normalizedLoopWith(normalizedBlock, stateTask)(statement[1], inner, context, false)
         statements = [...statements, ...made.block.statements]
         hasLoopExit = hasLoopExit || made.hasLoopExit
         hasFunctionExit = hasFunctionExit || made.hasFunctionExit
@@ -936,7 +948,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         inner = made.environment
     }
     if (source.exit[0] === 'terminal-loop') {
-        const terminal = normalizedLoop(source.exit[1], inner, context, true)
+        const terminal = normalizedLoopWith(normalizedBlock, stateTask)(source.exit[1], inner, context, true)
         return {
             block: pruneAliases({ statements: [...statements, ...terminal.block.statements], exit: terminal.block.exit }, []),
             environment: inner,
@@ -945,7 +957,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             hasFunctionExit: hasFunctionExit || terminal.hasFunctionExit,
         }
     }
-    const terminal = normalizedExit(source.exit, inner, context, retained)
+    const terminal = normalizedExitWith(normalizedBlock, stateTask)(source.exit, inner, context, retained)
     return { block: pruneAliases({ statements: [...statements, ...terminal.block.statements], exit: terminal.block.exit }, retained.map(id => lookup(terminal.environment, id))),
         environment: terminal.environment, normal: terminal.normal, hasLoopExit: hasLoopExit || terminal.hasLoopExit, hasFunctionExit: hasFunctionExit || terminal.hasFunctionExit }
 }
@@ -960,9 +972,9 @@ const normalizedBlock = (source, environment, context, retained = []) => {
 export const tryNormalize = (resolved, imports) => {
     const parameters = resolved.imports.map((_, i) => binding(i))
     const established = resolved.imports.map((_, i) => binding(i))
-    const representatives = resolved.imports.map((_, i) => imports.findIndex(value => Object.is(value, imports[i])))
+    const representatives = resolved.imports.map((_, i) => imports.findIndex(value => Object.is(value, imports[Number(i)])))
     /** @type {Environment} */
-    const environment = resolved.imports.flatMap((imported, i) => imported.binding === null ? [] : [[imported.binding, reference(established[representatives[i]])]])
+    const environment = resolved.imports.flatMap((imported, i) => imported.binding === null ? [] : [[imported.binding, reference(established[Number(representatives[Number(i)])])]])
     const scopes = scopesOf(resolved.scope)
     /** @type {Context} */
     const context = { bindings: resolved.bindings, scopes, loop: null, breakRegion: null,
@@ -972,7 +984,7 @@ export const tryNormalize = (resolved, imports) => {
     const equality = nodes.find(node => node instanceof Array && (node[0] === '==' || node[0] === '!='))
     if (equality instanceof Array) { return error(`${equality[0]} AST-to-FAST conversion is not implemented`) }
     const normalized = normalizedBlock(resolved.body, environment, context).block
-    const prefix = parameters.flatMap((id, i) => representatives[i] === i ? [/** @type {Statement} */ (['define', established[i], reference(id), 'required'])] : [])
+    const prefix = parameters.flatMap((id, i) => representatives[Number(i)] === i ? [/** @type {Statement} */ (['define', established[Number(i)], reference(id), 'required'])] : [])
     return ok({ parameters, body: { statements: [...prefix, ...normalized.statements], exit: normalized.exit } })
 }
 

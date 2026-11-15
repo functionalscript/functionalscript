@@ -74,20 +74,20 @@ exactly one byte sequence.
 **The codec implements this document.** The
 [conformance matrix](./vectors/gen.matrix.md) awaits nothing for the reader, the
 serializer or normalization. The reader is
-[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs), and
+[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.js), and
 the `;` this format requires after every statement is one the compiler's
 parser accepts, so a document parses there as well — `NaN` and the
 infinities included. The compiler also accepts the `;` omitted where
 JavaScript inserts one; this format does not, and its reader is the one that
 refuses it. Both surfaces of
 [§Encoding](#encoding) exist, on the codec's public
-[`module.f.mjs`](../../fjs/media/datajs/module.f.mjs): `tryParse` takes the
+[`module.f.mjs`](../../fjs/media/datajs/module.f.js): `tryParse` takes the
 document as code units, and `tryParseBytes` takes it as bytes — refusing what
 is not correct UTF-8 and a leading BOM before the reader sees a unit, then
 handing on the code units those bytes denote. The corpus's byte-form vectors
 run through the second.
 The writer,
-[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.mjs),
+[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.js),
 writes [normalized form](#normalized-form), and `fjs compile` writes through
 it; the older `fjs/djs` serializer, whose `const c0` output was not a document
 of this format at all, is retired.

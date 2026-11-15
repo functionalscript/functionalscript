@@ -42,8 +42,8 @@ import {
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
-import { tokens } from '../../../ebnf/railroad/module.f.mjs'
-import { grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
+import { tokens } from '../../../ebnf/railroad/module.f.js'
+import { grammarDemo } from '../../../website/demo/railroad/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /**

@@ -24,7 +24,7 @@ import { add, empty, has } from '../../types/set/module.f.js'
 import { at, setReplace } from '../../types/ordered_map/module.f.js'
 import { freeBindings } from '../../js/ast/control/module.f.js'
 import { demandsInOrder } from '../demand/module.f.js'
-import { _tailCalls } from './tail/module.f.mjs'
+import { _tailCalls } from './tail/module.f.js'
 import { _joinResults } from './join/module.f.mjs'
 
 /** Conditionally evaluated operands, including optional-chain regions. @type {(node: Node) => readonly Operand[]} */

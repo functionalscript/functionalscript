@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../../../asserts/module.f.js'
 import { chunksText } from '../../../../text/marked/module.f.js'
-import { _memberPresentChunks } from './module.f.mjs'
+import { _memberPresentChunks } from './module.f.js'
 
 export const proof = {
     helper: () => {

@@ -20,14 +20,14 @@ resolution                parser/parse: the statements in order, each const boun
 Unknown                   the graph the document denotes, sharing included
 ```
 
-The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
+The public surface is [`module.f.js`](./module.f.js): `tryParse` and
 `tryParseBytes` read a document into the value it denotes, `trySerialize` and
 `tryStringify` write a value as one, `tryJsonSerialize` and
 `tryJsonStringify` write it as the JSON document its graph unfolds to, and
 `tryMarked` and `tryJsonMarked` keep the token kinds for display. The data
 value types are in [`types.ts`](./types.ts). The reader lives in
-[`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
-[`serializer/module.f.mjs`](./serializer/module.f.mjs). Neither owes
+[`parser/module.f.js`](./parser/module.f.js) and the writer in
+[`serializer/module.f.js`](./serializer/module.f.js). Neither owes
 anything further: both issues are retired into this file, which keeps what
 they decided. The codec's proofs come from the conformance corpus,
 [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
@@ -39,7 +39,7 @@ uses.
 
 ```text
 fjs/media/datajs/
-    module.f.mjs      the public surface: the entry points below
+    module.f.js      the public surface: the entry points below
     types.ts          Primitive, Unknown
     parser/           the reader — tryParse over code units, tryParseBytes over bytes
     serializer/       the writer — trySerialize as chunks, tryStringify as one string,
@@ -124,7 +124,7 @@ The JSON writer encounters it too and refuses it under JSON's leaf rule.
 FunctionalScript value
    |
    v
-read                      serializer/module.f.mjs, one traversal: array elements or
+read                      serializer/module.f.js, one traversal: array elements or
    |                      Object.entries, reading every container once
    v
 link                      container references replaced by node indices, in post-order

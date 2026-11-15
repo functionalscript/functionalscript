@@ -14,7 +14,7 @@ import { fromArrayLike } from '../../types/list/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.js'
 import { mapping } from '../ll1/module.f.js'
-import { ascii as asciiBytes, byte, byteArray, byteLength, byteParser, bytes, meta, not, symbols, symbolsOf } from './module.f.mjs'
+import { ascii as asciiBytes, byte, byteArray, byteLength, byteParser, bytes, meta, not, symbols, symbolsOf } from './module.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const ascii = s => [...s].map(c => c.charCodeAt(0))

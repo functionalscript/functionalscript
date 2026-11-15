@@ -13,7 +13,7 @@ import type { Primitive as JsonPrimitive, Tree, TreeObject, TreeArray, TreeMapEn
 import type { Assert } from '../../../asserts/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { List } from '../../../types/list/types.ts'
-import type { serialize, stringify } from './module.f.mjs'
+import type { serialize, stringify } from './module.f.js'
 
 /**
  * `null | boolean | string | number | bigint`.

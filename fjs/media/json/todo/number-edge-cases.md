@@ -47,7 +47,7 @@ does not resolve whether that policy should change.
 
 ### Settled: extended codec
 
-Implemented in [`../extended/module.f.mjs`](../extended/module.f.mjs) and
+Implemented in [`../extended/module.f.js`](../extended/module.f.js) and
 documented in [`../README.md`](../README.md):
 
 | Case                                    | Decision                                              |

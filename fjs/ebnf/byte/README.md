@@ -6,7 +6,7 @@ grammar reads. It is the byte half of
 [unicode-rules](../unicode/todo/unicode-rules.md), landed for its first
 consumer, [`fjs/git`](../../git/README.md).
 
-- `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
+- `module.f.js` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
   and, for a consumer that reads or writes bytes: `symbolsOf`, the bytes
   under a tree's leaves; `ascii`, ASCII text as bytes; `byteArray`, a list
   as a dense array of bytes with anything else refused, a hole included; and

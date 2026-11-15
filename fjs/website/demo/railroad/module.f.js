@@ -41,7 +41,7 @@
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Demo, DemoEvent } from '../types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Size } from './private.ts'
+ * @import { _Draw, _Size } from './private.ts'
  */
 
 import { pureOk } from '../../../effects/module.f.js'
@@ -50,7 +50,7 @@ import { max } from '../../../types/number/max/module.f.js'
 import { sum } from '../../../types/number/module.f.js'
 import { toData } from '../../../ebnf/data/module.f.js'
 import { mapGet } from '../../../types/map/module.f.js'
-import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
+import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
 const boxHalf = 11
@@ -98,7 +98,7 @@ const drop = (above, below) => max(2 * arc, above.down + rowGap + below.up)
 const rowOffsets = sizes => {
     /** @type {readonly number[]} */
     const first = [0]
-    return sizes.slice(1).reduce((offsets, size, k) => [...offsets, offsets[k] + drop(sizes[k], size)], first)
+    return sizes.slice(1).reduce((offsets, size, k) => [...offsets, offsets[Number(k)] + drop(sizes[Number(k)], size)], first)
 }
 
 /** @type {(d: Diagram) => _Size} */
@@ -126,7 +126,7 @@ const measure = d => {
             return {
                 width: maxOf(sizes.map(s => s.width)) + 4 * arc,
                 up: sizes[0].up,
-                down: rowOffsets(sizes)[last] + sizes[last].down,
+                down: rowOffsets(sizes)[Number(last)] + sizes[Number(last)].down,
             }
         }
         case 'loop': {
@@ -165,9 +165,9 @@ const nonTerminalBox = box('nonTerminal', 3)
  * `d` centred in a row `inner` wide, with track either side of it out to the
  * row's ends.
  *
- * @type {(inner: number, backward: boolean) => (d: Diagram) => (x: number, y: number) => readonly Element[]}
+ * @type {(draw: _Draw, inner: number, backward: boolean) => (d: Diagram) => (x: number, y: number) => readonly Element[]}
  */
-const padded = (inner, backward) => d => (x, y) => {
+const padded = (draw, inner, backward) => d => (x, y) => {
     const { width } = measure(d)
     const left = x + (inner - width) / 2
     return [line(x, left, y), ...draw(backward)(d)(left, y), line(left + width, x + inner, y)]
@@ -181,7 +181,7 @@ const padded = (inner, backward) => d => (x, y) => {
  * first. The pieces themselves are not mirrored: a label reads left to
  * right whichever way its track runs.
  *
- * @type {(backward: boolean) => (d: Diagram) => (x: number, y: number) => readonly Element[]}
+ * @type {_Draw}
  */
 const draw = backward => d => (x, y) => {
     switch (d[0]) {
@@ -201,10 +201,10 @@ const draw = backward => d => (x, y) => {
             const items = backward ? d[1].toReversed() : d[1]
             /** @type {readonly number[]} */
             const first = [x]
-            const xs = items.slice(0, -1).reduce((acc, item, k) => [...acc, acc[k] + measure(item).width + itemGap], first)
+            const xs = items.slice(0, -1).reduce((acc, item, k) => [...acc, acc[Number(k)] + measure(item).width + itemGap], first)
             return [
                 ...xs.slice(1).map(right => line(right - itemGap, right, y)),
-                ...items.flatMap((item, k) => draw(backward)(item)(xs[k], y)),
+                ...items.flatMap((item, k) => draw(backward)(item)(xs[Number(k)], y)),
             ]
         }
         case 'choice': {
@@ -212,14 +212,14 @@ const draw = backward => d => (x, y) => {
             const sizes = d[1].map(measure)
             const offsets = rowOffsets(sizes)
             const inner = maxOf(sizes.map(s => s.width))
-            const row = padded(inner, backward)
+            const row = padded(draw, inner, backward)
             const left = x + 2 * arc
             const right = left + inner
             const end = right + 2 * arc
             return [
                 line(x, left, y), ...row(first)(left, y), line(right, end, y),
                 ...rest.flatMap((item, k) => {
-                    const yk = y + offsets[k + 1]
+                    const yk = y + offsets[Number(k + 1)]
                     return [
                         path(`M${x} ${y}Q${x + arc} ${y} ${x + arc} ${y + arc}L${x + arc} ${yk - arc}Q${x + arc} ${yk} ${left} ${yk}`),
                         ...row(item)(left, yk),
@@ -244,9 +244,9 @@ const draw = backward => d => (x, y) => {
             // track, down from its end.
             const up = backward ? -1 : 1
             return [
-                line(x, left, y), ...padded(inner, backward)(item)(left, y), line(right, end, y),
+                line(x, left, y), ...padded(draw, inner, backward)(item)(left, y), line(right, end, y),
                 path(`M${right} ${y}Q${end - arc} ${y} ${end - arc} ${y + arc}L${end - arc} ${back - arc}Q${end - arc} ${back} ${right} ${back}`),
-                ...padded(inner, !backward)(separator)(left, back),
+                ...padded(draw, inner, !backward)(separator)(left, back),
                 path(`M${left} ${back}Q${x + arc} ${back} ${x + arc} ${back - arc}L${x + arc} ${y + arc}Q${x + arc} ${y} ${left} ${y}`),
                 path(`M${x + arc - 4} ${middle + 4 * up}L${x + arc} ${middle - 3 * up}L${x + arc + 4} ${middle + 4 * up}`),
             ]

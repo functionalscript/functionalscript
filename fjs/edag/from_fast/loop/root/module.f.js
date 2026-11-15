@@ -26,7 +26,7 @@ const restBlockTask = (block, length, target) => {
     /** @type {(index: number) => Task<_RestResult>} */
     const each = index => call(() => {
         if (index < block.statements.length) {
-            const statement = block.statements[index]
+            const statement = block.statements[Number(index)]
             if (statement[0] === 'define' || statement[0] === 'loop') {
                 const values = statement[0] === 'define' ? [statement[2]] : [...statement[1].initial, statement[1].body]
                 return values.some(value => hasLoopTransfer(value, target)) ? done({ valid: false, normal: false }) : each(index + 1)
@@ -68,7 +68,7 @@ export const invocationRootOf = fn => {
     if (loop.parameters.length !== length || loop.initial.length !== length
         || (exit[0] === 'return' ? loop.results.length !== 1 || !namesBinding(exit[2], loop.results[0]) : loop.results.length !== 0)) { return null }
     const aliases = invocationAliases(fn, terminal ? body.statements : body.statements.slice(0, -1))
-    return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => namesBinding(value, binding)))
+    return aliases !== null && loop.initial.every((value, position) => aliases[Number(position)].some(binding => namesBinding(value, binding)))
         && !readsEntryParameters(loop, aliases)
         && (fn.rest === null || run(restBlockTask(loop.body, fn.parameters.length, loop.target)).valid) ? loop : null
 }
@@ -87,7 +87,7 @@ const blockTask = (block, owner, expected) => {
     /** @type {(index: number, statements: Link<Statement> | null) => Task<_Result>} */
     const each = (index, statements) => call(() => {
         if (index !== block.statements.length) {
-            const statement = block.statements[index]
+            const statement = block.statements[Number(index)]
             if (statement[0] === 'define' || statement[0] === 'loop') { return each(index + 1, { first: statement, tail: statements }) }
             /** @type {(mapped: Statement, normal: boolean) => Task<_Result>} */
             const resume = (mapped, normal) => {
@@ -146,7 +146,7 @@ const blockTask = (block, owner, expected) => {
 const resolveInvocationRoot = (fn, loop, transported, terminal) => {
     const self = fn.self ?? { index: fn.target.index }
     const owner = /** @type {_Owner} */ ({ fn, loop, self: ['ref', self], transported })
-    const aliases = loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, loop.initial[i], 'lazy']))
+    const aliases = loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, loop.initial[Number(i)], 'lazy']))
     const prefix = (terminal ? fn.body.statements : fn.body.statements.slice(0, -1)).map(statement => {
         const alias = /** @type {Extract<Statement, readonly ['define', ...unknown[]]>} */ (statement)
         return /** @type {Statement} */ (['define', alias[1], alias[2], 'lazy'])

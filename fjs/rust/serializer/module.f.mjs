@@ -18,10 +18,13 @@ import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.js'
-import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
+import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.js'
 import { _resolve } from '../../js/ast/serializer/names/module.f.js'
 import { pushAll, walk } from '../../types/stack_walk/module.f.js'
 import { toArray as listToArray } from '../../types/list/alt/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assert } from '../../asserts/module.f.js'
 
 const kw = tagged('keyword')
 
@@ -31,11 +34,11 @@ const lit = tagged('literal')
 /** A Rust string literal, with its quotes. */
 const str = tagged('string')
 
-/** A slice literal over hex items, `&[0x1, 0x2]`, each item a number. @type {(items: readonly string[]) => string} */
-const slice = items => `&[${items.map(item => num(item)).join(', ')}]`
-
 /** A number literal: an `f64`'s bits, an `i64`. */
 const num = tagged('number')
+
+/** A slice literal over hex items, `&[0x1, 0x2]`, each item a number. @type {(items: readonly string[]) => string} */
+const slice = items => `&[${items.map(item => num(item)).join(', ')}]`
 
 /**
  * Text spelling no `nanvm_lib` name of its own.
@@ -45,7 +48,7 @@ const num = tagged('number')
 const code = text => [text, []]
 
 /** Import metadata is a set, so deep expressions do not copy repeated names. @type {(uses: readonly Use[]) => readonly Use[]} */
-const uniqueUses = uses => [...new Map(uses.map(use => [`${use[0]}:${use[1]}`, use])).values()]
+const uniqueUses = uses => [...new Map(uses.map(use => [`${use[0]}:${use[1]}`, use]))].map(([, use]) => use)
 
 /**
  * A name of `nanvm_lib`'s `module`, spelled: its text is the name, and it
@@ -177,7 +180,9 @@ export const op3Rust = {
  * @returns {(id: K) => Result<Printed<T>, readonly unknown[]>}
  */
 const lookup = table => id => {
-    return ok([/** @type {T} */ (table[id]), []])
+    const value = /** @type {T | undefined} */ (entry(table, id))
+    assert(value !== undefined)
+    return ok([value, []])
 }
 
 /**
@@ -339,41 +344,8 @@ const negativeZero = {}
 /** @type {(value: Value) => unknown} */
 const valueKey = value => Object.is(value, -0) ? negativeZero : value
 
-/** @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
-const expression = (s, v, result) => s.ready === undefined
-    ? /** @type {Result<Printed<string>, readonly unknown[]>} */ (run({ kind: 'value', context: s, value: v, result }))
-    : ok(/** @type {Printed<string>} */ (s.ready[result ? 1 : 0].get(valueKey(v))))
-
-/** Immediate value spelling reads only its already completed children. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
-const expressionReady = (s, v, result) => {
-    if (!(v instanceof Array)) { return map1(pure(result))(primitiveExpr(v)) }
-    switch (v[0]) {
-        case 'ref': {
-            const found = s.bindings.find(([id]) => id === v[1])
-            return map1(pure(result))(ok(found === undefined ? code(`${binding(s, v[1])}.clone()`) : found[1]))
-        }
-        case 'demand': { return plain(fallible(result)(`${binding(s, v[1])}()`)) }
-        case 'function': { return map1(pure(result))(closure(s, v[1])) }
-        case 'block': {
-            const b = v[1]
-            if (b.statements.length === 0 && b.exit[0] === 'throw') {
-                return map1(text => fallible(result)(`Err::<Any<A>, Any<A>>(${text})`))(expression(s, b.exit[1], false))
-            }
-            return b.statements.length === 0 && b.exit[0] === 'yield' && b.exit[1].length === 1
-                ? expression(s, b.exit[1][0], result)
-                : map1(parts => braced(parts))(block(s, b, result, false, true))
-        }
-        case 'if': {
-            return flat(map3((/** @type {string} */ condition, /** @type {readonly string[]} */ yes, /** @type {readonly string[]} */ no) =>
-                `${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`)(
-                expression(s, v[1], false), block(s, v[2], result, false, true), block(s, v[3], result, false, true)))
-        }
-        default: { return operation(s, v, result) }
-    }
-}
-
-/** Resolve helper presentation symbols without introducing graph inspection. @type {(text: string) => string} */
-const helperText = text => chunksText(_resolve([text], [], []))
+/** Read a child completed by the spelling stack. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
+const expression = (s, v, result) => ok(/** @type {Printed<string>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(result ? 1 : 0)].get(valueKey(v))))
 
 /** Rust representation text for a callable. @type {(text: string) => string} */
 const represented = text => `Some(${str(unwrap(stringLiteral(text)))})`
@@ -389,6 +361,9 @@ const closureContext = (s, fn) => {
     return { ...s, runtime: held, bindings }
 }
 
+/** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))].get(b)))
+
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
     const captured = fn.captures.map(c => expression(s, c.value, false))
@@ -401,6 +376,9 @@ const closure = (s, fn) => {
         `, ${represented(s.text(fn))})`, toAny,
     ]))(all(values), block(inner, fn.body, true, true)))
 }
+
+/** Resolve helper presentation symbols without introducing graph inspection. @type {(text: string) => string} */
+const helperText = text => chunksText(_resolve([text], [], []))
 
 /** An array's/call's prepared operands, each retained in its selected region. @type {(s: _Context, values: readonly (Value | readonly ['...', Value])[], result?: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const array = (s, values, result = false) => {
@@ -460,20 +438,7 @@ const keyThunk = (s, k) => map1(text => `|| Ok(${text})`)(key(s, k))
 const argumentThunk = (s, values) => map1(text => `|| ${text}`)(array(s, values, true))
 
 /** Member/call continuation spelling follows its already resolved chain scope. @type {(s: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => Result<Printed<string>, readonly unknown[]>} */
-const steps = (s, step, property, member) => ok(/** @type {Printed<string>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[11 + (property ? 1 : 0) + (member ? 2 : 0)].get(step)))
-
-/** @type {(s: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => Result<Printed<string>, readonly unknown[]>} */
-const stepsReady = (s, step, property, member) => {
-    if (step === undefined) { return plain('.end()') }
-    if (step[0] === '|.') {
-        return map2((k, rest) => `.dot(${k})${rest}`)(keyThunk(s, step[1]), steps(s, step[2], false, true))
-    }
-    if (member && s.runtime === null) { return error(['a member call with no runtime in scope; the core may not use what it defines', step]) }
-    const terminal = step[0] === '|!()' || (step[0] === '|()' && property)
-    const method = terminal ? 'end_call' : step[0] === '|()' ? 'call' : 'option_call'
-    return map2((args, rest) => `.${method}(${member ? `&${s.runtime}, ` : ''}${args})${rest}`)(
-        argumentThunk(s, step[1]), terminal ? plain('') : steps(s, step[2], false, false))
-}
+const steps = (s, step, property, member) => ok(/** @type {Printed<string>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(11 + (property ? 1 : 0) + (member ? 2 : 0))].get(step)))
 
 /** The target's runtime operation spelling; no placement or graph walk occurs here. @type {(s: _Context, n: Operator<Value>, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const operation = (s, n, result) => {
@@ -508,7 +473,7 @@ const operation = (s, n, result) => {
             return map1(pure(result))(ok(cat([unstable('ref_map'), `(${represented(helperText(_helperText(id)('helper')))})`])))
         }
         const length = helperLength(id)
-        const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
+        const args = generate(length - 1, k => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
             : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
             : ['Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
@@ -546,7 +511,7 @@ const operation = (s, n, result) => {
         case ',': {
             const values = n[1]
             return values.length === 0 ? map1(pure(result))(primitiveExpr(undefined))
-                : map2((/** @type {readonly string[]} */ before, /** @type {string} */ last) => `{ ${before.map(text => `${text}; `).join('')}${last} }`)(all(values.slice(0, -1).map(v => expression(s, v, false))), expression(s, values[values.length - 1], result))
+                : map2((/** @type {readonly string[]} */ before, /** @type {string} */ last) => `{ ${before.map(text => `${text}; `).join('')}${last} }`)(all(values.slice(0, -1).map(v => expression(s, v, false))), expression(s, values[Number(values.length - 1)], result))
         }
         default: {
             const lazy = tag === '?:'
@@ -558,6 +523,47 @@ const operation = (s, n, result) => {
                     : map4((fn, a, b, c) => fn(a, b, c))(op3(tag), expression(s, n[1], false), rest(n[2]), rest(n[3]))))
         }
     }
+}
+
+/** Immediate value spelling reads only its already completed children. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
+const expressionReady = (s, v, result) => {
+    if (!(v instanceof Array)) { return map1(pure(result))(primitiveExpr(v)) }
+    switch (v[0]) {
+        case 'ref': {
+            const found = s.bindings.find(([id]) => id === v[1])
+            return map1(pure(result))(ok(found === undefined ? code(`${binding(s, v[1])}.clone()`) : found[1]))
+        }
+        case 'demand': { return plain(fallible(result)(`${binding(s, v[1])}()`)) }
+        case 'function': { return map1(pure(result))(closure(s, v[1])) }
+        case 'block': {
+            const b = v[1]
+            if (b.statements.length === 0 && b.exit[0] === 'throw') {
+                return map1(text => fallible(result)(`Err::<Any<A>, Any<A>>(${text})`))(expression(s, b.exit[1], false))
+            }
+            return b.statements.length === 0 && b.exit[0] === 'yield' && b.exit[1].length === 1
+                ? expression(s, b.exit[1][0], result)
+                : map1(parts => braced(parts))(block(s, b, result, false, true))
+        }
+        case 'if': {
+            return flat(map3((/** @type {string} */ condition, /** @type {readonly string[]} */ yes, /** @type {readonly string[]} */ no) =>
+                `${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`)(
+                expression(s, v[1], false), block(s, v[2], result, false, true), block(s, v[3], result, false, true)))
+        }
+        default: { return operation(s, v, result) }
+    }
+}
+
+/** @type {(s: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => Result<Printed<string>, readonly unknown[]>} */
+const stepsReady = (s, step, property, member) => {
+    if (step === undefined) { return plain('.end()') }
+    if (step[0] === '|.') {
+        return map2((k, rest) => `.dot(${k})${rest}`)(keyThunk(s, step[1]), steps(s, step[2], false, true))
+    }
+    if (member && s.runtime === null) { return error(['a member call with no runtime in scope; the core may not use what it defines', step]) }
+    const terminal = step[0] === '|!()' || (step[0] === '|()' && property)
+    const method = terminal ? 'end_call' : step[0] === '|()' ? 'call' : 'option_call'
+    return map2((args, rest) => `.${method}(${member ? `&${s.runtime}, ` : ''}${args})${rest}`)(
+        argumentThunk(s, step[1]), terminal ? plain('') : steps(s, step[2], false, false))
 }
 
 /** Borrowed trait objects keep memo dependency diamonds out of closure types. @type {(s: _Context, m: Memo) => Result<Printed<readonly string[]>, readonly unknown[]>} */
@@ -576,6 +582,9 @@ const statement = (s, st) => ok(/** @type {Printed<readonly string[]>} */ (/** @
 
 /** A statement loop and a terminal loop share their lexical target and body. @type {(s: _Context, loop: readonly ['loop', LoopTarget, Block]) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const loopText = (s, loop) => map1(parts => [`'${loopLabel(s, loop[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, loop[2], false))
+
+/** One binding spelling for compiler temporaries and corpus-supplied names. @type {(name: string, mutable: boolean, value: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>} */
+const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutable ? `${kw('mut')} ` : ''}${name}: Any<A> = ${text};`)(value)
 
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
@@ -597,9 +606,6 @@ const statementReady = (s, st) => {
         }
     }
 }
-
-/** One binding spelling for compiler temporaries and corpus-supplied names. @type {(name: string, mutable: boolean, value: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>} */
-const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutable ? `${kw('mut')} ` : ''}${name}: Any<A> = ${text};`)(value)
 
 /** Final value regions share one lexical Rust block; resolved names need no nested braces. @type {(b: Block) => Block} */
 const flattened = b => {
@@ -623,11 +629,6 @@ const flattened = b => {
         }
     }
 }
-
-/** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
-const block = (s, b, result, functionBody = false, valueBlock = false) => s.ready === undefined
-    ? /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (run({ kind: 'block', context: s, block: b, result, functionBody, valueBlock }))
-    : ok(/** @type {Printed<readonly string[]>} */ (s.ready[2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0)].get(b)))
 
 /** @type {(s: _Context, b: Block, result: boolean, functionBody: boolean, valueBlock: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const blockReady = (s, b, result, functionBody, valueBlock) => {
@@ -747,7 +748,7 @@ const taskInput = task => task.kind === 'value' ? valueKey(task.value) : task.ki
 
 /** Render one completed frame using only local child lookups. @type {(task: _Task, dependencies: readonly _Task[], values: readonly _Output[]) => Result<_Output, readonly unknown[]>} */
 const completed = (task, dependencies, values) => {
-    const ready = Array.from({ length: 15 }, (_, kind) => new Map(dependencies.flatMap((child, i) => taskKind(child) === kind ? [/** @type {const} */ ([taskInput(child), values[i]])] : [])))
+    const ready = generate(15, kind => new Map(dependencies.flatMap((child, i) => taskKind(child) === kind ? [/** @type {const} */ ([taskInput(child), values[Number(i)]])] : [])))
     const s = { ...task.context, ready }
     switch (task.kind) {
         case 'value': { return expressionReady(s, task.value, task.result) }
@@ -765,11 +766,13 @@ const spellingWalk = walk({
         return dependencies.length === 0 ? completed(task, [], []) : ['push', { task, children: dependencies, index: 0, values: null }, dependencies[0]]
     },
     resume: (/** @type {_Frame} */ frame, /** @type {_Output} */ value) => {
-        const values = { first: value, tail: frame.values }
+        const tail = entry(frame, 'values')
+        assert(tail !== undefined)
+        const values = /** @type {const} */ ({ first: value, tail })
         const index = frame.index + 1
         return index === frame.children.length
             ? completed(frame.task, frame.children, listToArray(values).toReversed())
-            : ['push', { ...frame, index, values }, frame.children[index]]
+            : ['push', { ...frame, index, values }, frame.children[Number(index)]]
     },
 })
 
@@ -845,28 +848,16 @@ const names = uses => ({
 })
 
 /** A prepared module/function body, retaining tagged text and import metadata. @type {(b: Block, options: Options, external?: readonly External[]) => Result<Scope, readonly unknown[]>} */
-export const scopeTagged = (b, options, external = []) => mapOk((/** @type {Printed<readonly string[]>} */ [parts, uses]) => ({ lines: parts.flatMap(p => p.split('\n')), uses: names(uses) }))(block({ ...options, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true))
+export const scopeTagged = (b, options, external = []) => mapOk((/** @type {Printed<readonly string[]>} */ [parts, uses]) => ({ lines: parts.flatMap(p => p.split('\n')), uses: names(uses) }))(/** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (run(blockTask({ ...options, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true))))
 
 /** The same prepared body as plain text. @type {(b: Block, options: Options, external?: readonly External[]) => Result<Scope, readonly unknown[]>} */
 export const scope = (b, options, external = []) => mapOk(({ lines, uses }) => ({ lines: lines.map(untagged), uses }))(scopeTagged(b, options, external))
 
 /** A prepared value, over externally established immutable bindings. @type {(v: Value, options: Options, external?: readonly External[], result?: boolean) => Result<Printed<string>, readonly unknown[]>} */
-export const valueTagged = (v, options, external = [], result = false) => expression({ ...options, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, v, result)
+export const valueTagged = (v, options, external = [], result = false) => /** @type {Result<Printed<string>, readonly unknown[]>} */ (run(valueTask({ ...options, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, v, result)))
 
 /** A required binding under a caller-supplied target name, using ordinary declaration spelling. @type {(name: string, value: Value, options: Options, external?: readonly External[]) => Result<Printed<string>, readonly unknown[]>} */
 export const bindingTagged = (name, value, options, external = []) => declaration(name, false, valueTagged(value, options, external))
-
-/** Import lines for the VM names reported by the serializer. @type {(uses: Uses, bound: string) => readonly string[]} */
-export const useLines = (uses, bound) => useLinesTagged(uses, bound).map(untagged)
-
-/**
- *
- * @type {(uses: Uses, bound: string) => readonly string[]}
- */
-export const useLinesTagged = ({ vm, unstable }, bound) => [
-    ...(unstable.length === 0 ? [] : useLine('nanvm_lib::vm::unstable', unstable)),
-    ...useLine('nanvm_lib::vm', [...new Set(['Any', bound, ...vm])].toSorted()),
-]
 
 /** rustfmt's default `max_width`, the column a line may not pass. */
 const maxWidth = 100
@@ -880,6 +871,18 @@ const maxWidth = 100
  * one kept.
  */
 const oneLineUseWidth = maxWidth - 2
+
+/**
+ * The lines of a wrapped `use` list with one more name: on the last line
+ * where it still fits the width, and on a line of its own otherwise.
+ *
+ * @type {(rows: readonly string[], name: string) => readonly string[]}
+ */
+const filled = (rows, name) => {
+    const last = rows.at(-1)
+    const joined = `${last} ${name},`
+    return last !== undefined && joined.length < maxWidth ? [...rows.slice(0, -1), joined] : [...rows, `    ${name},`]
+}
 
 /**
  * One `use` of `names` from `path`, as rustfmt lays it out at its default
@@ -899,13 +902,13 @@ const useLine = (path, names) => {
 }
 
 /**
- * The lines of a wrapped `use` list with one more name: on the last line
- * where it still fits the width, and on a line of its own otherwise.
  *
- * @type {(rows: readonly string[], name: string) => readonly string[]}
+ * @type {(uses: Uses, bound: string) => readonly string[]}
  */
-const filled = (rows, name) => {
-    const last = rows.at(-1)
-    const joined = `${last} ${name},`
-    return last !== undefined && joined.length < maxWidth ? [...rows.slice(0, -1), joined] : [...rows, `    ${name},`]
-}
+export const useLinesTagged = ({ vm, unstable }, bound) => [
+    ...(unstable.length === 0 ? [] : useLine('nanvm_lib::vm::unstable', unstable)),
+    ...useLine('nanvm_lib::vm', [...new Set(['Any', bound, ...vm])].toSorted()),
+]
+
+/** Import lines for the VM names reported by the serializer. @type {(uses: Uses, bound: string) => readonly string[]} */
+export const useLines = (uses, bound) => useLinesTagged(uses, bound).map(untagged)

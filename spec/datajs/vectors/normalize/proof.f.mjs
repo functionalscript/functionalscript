@@ -5,7 +5,7 @@
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.js'
-import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
+import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js'
 import normalize from './data.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */

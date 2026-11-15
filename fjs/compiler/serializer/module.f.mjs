@@ -14,14 +14,14 @@ import { keywords, literalWords, reservedGlobals } from '../../js/keywords/modul
 import { checked, identityAnalysis } from '../../edag/analysis/module.f.js'
 import { isFunctionNode, isHelper } from '../../edag/module.f.js'
 import { fromAnalysis, functionFromAnalysis } from '../../edag/to_fast/module.f.mjs'
-import { sourceReason } from '../../edag/to_fast/source/module.f.mjs'
-import { _sourceLoops } from '../../edag/to_fast/source/loops/module.f.mjs'
+import { sourceReason } from '../../edag/to_fast/source/module.f.js'
+import { _sourceLoops } from '../../edag/to_fast/source/loops/module.f.js'
 import { prepare, prepareFunction } from '../../js/ast/prepare/module.f.mjs'
 import { functionStringify, render, renderModule } from '../../js/ast/serializer/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.js'
 import { chunkStrings, chunksMarked, chunksText, fromTagged, withNames } from '../../text/marked/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
-import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
+import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.js'
 import { _resolve } from '../../js/ast/serializer/names/module.f.js'
 
 const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])

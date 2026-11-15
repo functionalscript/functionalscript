@@ -219,5 +219,5 @@ the compiler's evaluation, no longer take (`identityAnalysis`).
   interpreter plan, whose per-invocation memoization this table serves.
 - [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
   that hoists `shared`.
-- [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs) —
+- [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js) —
   the numbering technique, a finished list and one `Map`, reused here.

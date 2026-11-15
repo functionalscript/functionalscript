@@ -6,9 +6,9 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { greaterThanSign as gt, lessThanSign as lt, space as sp } from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { tryRead as readPayload } from '../header/module.f.mjs'
+import { tryRead as readPayload } from '../header/module.f.js'
 import { commitPayload, latin1, undefinedByte } from '../testlib.f.js'
-import { maxTime, tryRead, write } from './module.f.mjs'
+import { maxTime, tryRead, write } from './module.f.js'
 
 /** @type {(value: readonly number[]) => Ident} */
 const read = value => {
@@ -89,6 +89,10 @@ export const proof = {
     },
     // The writer refuses what the format cannot spell.
     write: {
+        // A null list is an empty name, not a missing required field.
+        emptyLists: () => assertStructurallySame(
+            toArray(write({ name: null, email: null, time: 0n, tz: '+0000' })),
+            latin1(' <> 0 +0000')),
         throw: {
             ltInName: () => write({ name: latin1('a<b'), email: [], time: 0n, tz: '+0000' }),
             gtInName: () => write({ name: latin1('a>b'), email: [], time: 0n, tz: '+0000' }),

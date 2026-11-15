@@ -7,10 +7,10 @@
  * @module
  * @import { Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { Result } from '../../../../types/result/types.ts'
- * @import { _Scope, _SourceTask as Task } from './private.ts'
+ * @import { _BlockTask, _Scope, _SourceTask as Task } from './private.ts'
  */
 
-import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.js'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
 import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.js'
 import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'
@@ -135,53 +135,53 @@ const recursiveFunction = fn => {
 const each = (items, visit) => {
     /** @type {(index: number, values: readonly T[]) => Task<readonly T[]>} */
     const next = (index, values) => call(() => index === items.length
-        ? done(values.every((value, index) => value === items[index]) ? items : values)
-        : bind(visit(items[index]), value => next(index + 1, [...values, value])))
+        ? done(values.every((value, index) => value === items[Number(index)]) ? items : values)
+        : bind(visit(items[Number(index)]), value => next(index + 1, [...values, value])))
     return next(0, [])
 }
 
-/** @type {(source: Value) => Task<Value>} */
-const valueTask = source => call(/** @type {() => Task<Value>} */ (() => {
+/** @type {(blockTask: _BlockTask) => (source: Value) => Task<Value>} */
+const valueTask = blockTask => source => call(/** @type {() => Task<Value>} */ (() => {
     if (!(source instanceof Array) || source[0] === 'ref') { return done(source) }
     if (source[0] === 'block') { return bind(blockTask(source[1]), block => done(block === source[1] ? source : ['block', block])) }
     if (source[0] === 'if') {
-        return bind(valueTask(source[1]), test => bind(blockTask(source[2]), then => bind(blockTask(source[3]), otherwise =>
+        return bind(valueTask(blockTask)(source[1]), test => bind(blockTask(source[2]), then => bind(blockTask(source[3]), otherwise =>
             done(test === source[1] && then === source[2] && otherwise === source[3] ? source : ['if', test, then, otherwise]))))
     }
     if (source[0] === 'function') {
         const fn = source[1]
-        return bind(each(fn.captures, capture => bind(valueTask(capture.value), value => done(value === capture.value ? capture : { ...capture, value }))), captures =>
+        return bind(each(fn.captures, capture => bind(valueTask(blockTask)(capture.value), value => done(value === capture.value ? capture : { ...capture, value }))), captures =>
             bind(blockTask(fn.body), body => bind(recursiveFunction(captures === fn.captures && body === fn.body ? fn : { ...fn, captures, body }), prepared =>
                 done(prepared === fn ? source : ['function', prepared]))))
     }
     const values = operatorOperands(source)
-    return bind(each(values, valueTask), operands => done(operands === values ? source : mapOperator((_, index) => operands[index])(source)))
+    return bind(each(values, valueTask(blockTask)), operands => done(operands === values ? source : mapOperator((_, index) => operands[Number(index)])(source)))
 }))
 
-/** @type {(source: Statement) => Task<Statement>} */
-const statementTask = source => call(/** @type {() => Task<Statement>} */ (() => {
-    if (source[0] === 'define') { return bind(valueTask(source[2]), value => done(value === source[2] ? source : ['define', source[1], value, source[3]])) }
-    if (source[0] === 'block') { return bind(blockTask(source[2]), block => done(_forwardResult(block === source[2] ? source : ['block', source[1], block]))) }
-    if (source[0] === 'if') {
-        return bind(valueTask(source[2]), test => bind(blockTask(source[3]), then => bind(blockTask(source[4]), otherwise =>
-            done(test === source[2] && then === source[3] && otherwise === source[4] ? source : ['if', source[1], test, then, otherwise]))))
-    }
-    return bind(loopTask(source[1]), loop => done(loop === source[1] ? source : ['loop', loop]))
-}))
-
-/** Both statement and terminal loops keep the same entry and body transformations. @type {(loop: Loop) => Task<Loop>} */
-const loopTask = loop =>
-    bind(each(loop.initial, valueTask), initial => bind(blockTask(loop.body), body =>
+/** Both statement and terminal loops keep the same entry and body transformations. @type {(blockTask: _BlockTask, loop: Loop) => Task<Loop>} */
+const loopTask = (blockTask, loop) =>
+    bind(each(loop.initial, valueTask(blockTask)), initial => bind(blockTask(loop.body), body =>
         done(initial === loop.initial && body === loop.body ? loop : { ...loop, initial, body })))
 
-/** @type {(source: Block) => Task<Block>} */
-const blockTask = source => bind(each(source.statements, statementTask), statements => {
+/** @type {(blockTask: _BlockTask) => (source: Statement) => Task<Statement>} */
+const statementTask = blockTask => source => call(/** @type {() => Task<Statement>} */ (() => {
+    if (source[0] === 'define') { return bind(valueTask(blockTask)(source[2]), value => done(value === source[2] ? source : ['define', source[1], value, source[3]])) }
+    if (source[0] === 'block') { return bind(blockTask(source[2]), block => done(_forwardResult(block === source[2] ? source : ['block', source[1], block]))) }
+    if (source[0] === 'if') {
+        return bind(valueTask(blockTask)(source[2]), test => bind(blockTask(source[3]), then => bind(blockTask(source[4]), otherwise =>
+            done(test === source[2] && then === source[3] && otherwise === source[4] ? source : ['if', source[1], test, then, otherwise]))))
+    }
+    return bind(loopTask(blockTask, source[1]), loop => done(loop === source[1] ? source : ['loop', loop]))
+}))
+
+/** @type {_BlockTask} */
+const blockTask = source => bind(each(source.statements, statementTask(blockTask)), statements => {
     const exit = source.exit
     if (exit[0] === 'loop') {
-        return bind(loopTask(exit[1]), loop => done(statements === source.statements && loop === exit[1] ? source : { statements, exit: ['loop', loop] }))
+        return bind(loopTask(blockTask, exit[1]), loop => done(statements === source.statements && loop === exit[1] ? source : { statements, exit: ['loop', loop] }))
     }
-    return bind(each(exitValues(exit), valueTask), values => {
-        if (statements === source.statements && values.every((value, index) => value === exitValues(exit)[index])) { return done(source) }
+    return bind(each(exitValues(exit), valueTask(blockTask)), values => {
+        if (statements === source.statements && values.every((value, index) => value === exitValues(exit)[Number(index)])) { return done(source) }
         /** @type {Exit} */
         const mapped = exit[0] === 'yield' ? ['yield', values]
             : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]

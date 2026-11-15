@@ -5,7 +5,7 @@
 
 ### Problem
 
-`parse` in [`../parser/module.f.mjs`](../parser/module.f.mjs) reports a
+`parse` in [`../parser/module.f.js`](../parser/module.f.js) reports a
 refusal as the index of the code unit it stopped at, inside the message
 (`unexpected symbol at N`), and no position. `_parseJson` in
 [`fjs/compiler/transpiler`](../../../compiler/transpiler/module.f.mjs) therefore builds a

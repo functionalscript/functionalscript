@@ -2,7 +2,7 @@
  * A grammar's rules as syntax diagrams: the lowered {@link RuleSet} read back
  * as the railroad a reader of a language specification expects, one diagram
  * per rule an author chose to name. Drawing is
- * [`fjs/website/demo/railroad`](../../website/demo/railroad/module.f.mjs)'s;
+ * [`fjs/website/demo/railroad`](../../website/demo/railroad/module.f.js)'s;
  * this module decides what is drawn.
  *
  * **A caller names the rules that get diagrams.** Lowering names every rule,
@@ -41,6 +41,7 @@
  * @import { Alphabet } from './types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { PersistentSet } from '../../types/set/types.ts'
+ * @import { _Ref } from './private.ts'
  */
 
 import { matchRule } from '../data/module.f.js'
@@ -216,9 +217,9 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
      * or a titled `separator, a`, is a reference to its own diagram, so it
      * is drawn as its box rather than folded into a loop.
      *
-     * @type {(path: PersistentSet<string>) => (a: string, b: string) => Diagram | null}
+     * @type {(ref: _Ref) => (path: PersistentSet<string>) => (a: string, b: string) => Diagram | null}
      */
-    const separatorOf = path => (a, b) => {
+    const separatorOf = ref => path => (a, b) => {
         const r = assertNotNullish(entry(ruleSet, b))
         if (mapHas(titles, b) || r[0] !== 'repeat' || r[1] !== 0 || r[2] !== Infinity) { return null }
         const item = r[3]
@@ -231,22 +232,22 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
     /**
      * A sequence's items, each pair that spells a loop read as that loop.
      *
-     * @type {(path: PersistentSet<string>) => (items: readonly string[]) => readonly Diagram[]}
+     * @type {(ref: _Ref) => (path: PersistentSet<string>) => (items: readonly string[]) => readonly Diagram[]}
      */
-    const items = path => names => {
+    const items = ref => path => names => {
         if (names.length === 0) { return [] }
         const [a, b, ...rest] = names
-        const separator = b === undefined ? null : separatorOf(path)(a, b)
+        const separator = b === undefined ? null : separatorOf(ref)(path)(a, b)
         return separator === null
-            ? [ref(path)(a), ...items(path)(names.slice(1))]
-            : [['loop', ref(path)(a), separator], ...items(path)(rest)]
+            ? [ref(path)(a), ...items(ref)(path)(names.slice(1))]
+            : [['loop', ref(path)(a), separator], ...items(ref)(path)(rest)]
     }
     /**
      * The rule `name`, drawn in place.
      *
-     * @type {(path: PersistentSet<string>) => (name: string) => Diagram}
+     * @type {(ref: _Ref) => (path: PersistentSet<string>) => (name: string) => Diagram}
      */
-    const expand = path => name => {
+    const expand = ref => path => name => {
         assert(!has(name)(path), ['a rule reaches itself through untitled rules only', name])
         const inner = add(name)(path)
         return matchRule({
@@ -255,7 +256,7 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
                 const text = names.map(printable)
                 return names.length !== 0 && text.every(c => c !== null)
                     ? terminal(text.join(''))
-                    : sequence(items(inner)(names))
+                    : sequence(items(ref)(inner)(names))
             },
             variant: branches => {
                 const [first, ...rest] = definedValues(branches).map(ref(inner))
@@ -273,13 +274,13 @@ export const toDiagrams = ({ labels, letter }) => ruleSet => titled => {
      * A reference to the rule `name`: a box if it is titled, else the rule
      * itself.
      *
-     * @type {(path: PersistentSet<string>) => (name: string) => Diagram}
+     * @type {_Ref}
      */
     const ref = path => name => {
         const title = mapGet(titles, name)
-        return title === undefined ? expand(path)(name) : ['nonTerminal', title]
+        return title === undefined ? expand(ref)(path)(name) : ['nonTerminal', title]
     }
-    return titled.map(([title, name]) => [title, expand(empty)(name)])
+    return titled.map(([title, name]) => [title, expand(ref)(empty)(name)])
 }
 
 /**

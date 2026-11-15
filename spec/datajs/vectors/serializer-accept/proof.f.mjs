@@ -5,7 +5,7 @@
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.js'
-import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
+import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js'
 import { stringToCodePointList } from '../../../../fjs/text/utf16/module.f.js'
 import { toArray } from '../../../../fjs/types/list/alt/module.f.js'
 import serializerAccept from './data.f.js'

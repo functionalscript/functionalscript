@@ -13,7 +13,7 @@ a quoted string, `templateDecodeStep` and `decodeTemplate` for a template,
 with `escape`, `unicode` and `hex` states and four-digit accumulation in
 `fixedHexValue` — a second scanner over text whose `string → escape` nodes
 the parse already isolated.
-[`fjs/media/json/parser`](../../../media/json/parser/module.f.mjs) reads the
+[`fjs/media/json/parser`](../../../media/json/parser/module.f.js) reads the
 same `escape` rule — `lib/js` takes its `u: unicode` sub-rule from
 [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.js) — through a
 mapping, `escapeMapping` in `stringMappings`:

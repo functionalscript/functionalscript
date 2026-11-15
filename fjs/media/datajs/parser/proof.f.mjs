@@ -15,7 +15,7 @@ import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.js'
 import { units } from '../../../ebnf/utf16/module.f.js'
 import { value } from '../../../ebnf/lib/datajs/module.f.js'
-import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.mjs'
+import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object

@@ -26,7 +26,7 @@ was retired:
   `treeSerialize(leafSerialize)(sort)`, a factory. `fjs/media/json`'s
   `serialize` and the extended codec are two applications of it, not two
   copies.
-- [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.mjs)
+- [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.js)
   — the format's own walk, over FunctionalScript values, with the ref seam
   and the `__proto__` key seam that walk alone needs now.
 - [`fjs/compiler/module.f.mjs`](../../../compiler/module.f.mjs) — `_stringifyTree`, the
@@ -114,7 +114,7 @@ walker to validate accessors, prototypes or cycles.
 - [JSON numeric edge cases](./number-edge-cases.md) — decides
   materialization for exponent overflow, oversized bare integers, and standard
   compatibility.
-- `tryJsonStringify` in [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.mjs) —
+- `tryJsonStringify` in [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.js) —
   once a fourth, fallible JSON walker in `fjs/compiler/module.f.mjs`, now the
   DataJS writer's read under JSON's leaf rule.
 - `i003` (retired; shipped as `fjs/compiler/ast`) — the original DJS design: parse a

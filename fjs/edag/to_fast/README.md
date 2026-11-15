@@ -253,7 +253,7 @@ Reifiable profiles outside the source plans keep recursive spelling; other
 supplied factored profiles return an explicit `Result` error. Their remaining
 work is tracked under [general source profiles](source/loops/todo/general-source-profiles.md).
 
-[`source`](source/module.f.mjs) is a separate source-spelling admission pass.
+[`source`](source/module.f.js) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
 conversion's chosen definitions. It performs no second placement algorithm.
 Operand-local commas have a value-block/IIFE spelling. Common placement can

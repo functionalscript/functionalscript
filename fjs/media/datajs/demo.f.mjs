@@ -37,8 +37,8 @@
  * @import { Examples } from '../../website/demo/examples/types.ts'
  */
 
-import { tryParse } from './module.f.mjs'
-import { keySerialize, leafSerialize } from './serializer/module.f.mjs'
+import { tryParse } from './module.f.js'
+import { keySerialize, leafSerialize } from './serializer/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'

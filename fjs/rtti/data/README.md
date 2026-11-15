@@ -134,7 +134,7 @@ two limits:
 
 The form is plain immutable data — no functions — so it serializes with the
 repository's data serializers. DataJS
-([`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)) covers the
+([`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js)) covers the
 whole form, including `bigint` literal sets and `NaN`, `±Infinity` and `-0`
 literal members. JSON is narrower. It has no `bigint`, and its number model
 writes a `NaN` or `±Infinity` literal member as `null`, so a schema using one

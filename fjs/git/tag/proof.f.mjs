@@ -5,9 +5,9 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { toHex } from '../oid/module.f.mjs'
+import { toHex } from '../oid/module.f.js'
 import { latin1, tagPayload } from '../testlib.f.js'
-import { name, object, tagger, tryObject, tryRead, tryTarget, tryTargetAt, tryType, type, validate, write } from './module.f.mjs'
+import { name, object, tagger, tryObject, tryRead, tryTarget, tryTargetAt, tryType, type, validate, write } from './module.f.js'
 
 /** @type {(input: readonly number[]) => Tag} */
 const read = input => {

@@ -25,16 +25,16 @@
  * @import { Tag } from './types.ts'
  */
 
-import { byteArray } from '../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.js'
 import { lf } from '../../text/ascii/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { error, mapOk, okList } from '../../types/result/module.f.js'
-import { field, hasNulHeader, optionalField, tryRead as readPayload, tryReadAtLeast, write as writePayload } from '../header/module.f.mjs'
+import { field, hasNulHeader, optionalField, tryRead as readPayload, tryReadAtLeast, write as writePayload } from '../header/module.f.js'
 import { cString } from '../bytes/module.f.js'
-import { tryRead as readIdent } from '../ident/module.f.mjs'
-import { tryType as typeNamed } from '../object/module.f.mjs'
-import { isName } from '../refname/module.f.mjs'
-import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
+import { tryRead as readIdent } from '../ident/module.f.js'
+import { tryType as typeNamed } from '../object/module.f.js'
+import { isName } from '../refname/module.f.js'
+import { tryFromHex, tryFromHexOf } from '../oid/module.f.js'
 
 /**
  * Reads a tag, or refuses it: the header block's reader, since a tag is

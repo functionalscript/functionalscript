@@ -4,6 +4,7 @@ import type { PersistentMap } from '../../../../types/map/types.ts'
 import type { BindingId, Block, Definition, Exit, Loop, Value } from '../../types.ts'
 import type { List } from '../../../../types/list/types.ts'
 import type { _Link as Link } from '../../control/private.ts'
+import type { Task } from '../../task/types.ts'
 
 export type _Root = {
     readonly binding: BindingId
@@ -52,3 +53,11 @@ export type _DeferredSummary = {
     readonly selected: List<_Root>
 }
 export type _DeferredBlock = { readonly summary: _DeferredSummary; readonly normal: boolean }
+
+/** The recursive eager-region walkers passed across value/block boundaries. */
+export type _OwnedBlockTask = (source: Block, scope: _Scope, ancestors: Link<Loop> | null, owners: Link<Loop> | null) => Task<_OwnedBlock>
+export type _OwnedValueTask = (source: Value, scope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedValue>
+
+/** Deferred walkers retain lexical origins without evaluating their recipes. */
+export type _DeferredBlockTask = (source: Block, scope: _DeferredScope, depth: number) => Task<_DeferredBlock>
+export type _DeferredValueTask = (source: Value, scope: _DeferredScope, depth: number) => Task<_DeferredSummary>

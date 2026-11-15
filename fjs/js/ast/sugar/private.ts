@@ -3,6 +3,7 @@
 import type { Binding, BindingId, BindingScope, Block, LoopTarget, Operator, Statement, Value } from '../types.ts'
 import type { LogicalTag, SourceBlock, SourceValue } from './source.ts'
 import type { PersistentMap } from '../../../types/map/types.ts'
+import type { Task } from '../task/types.ts'
 
 export type Environment = readonly (readonly [BindingId, Value])[]
 export type Context = {
@@ -33,6 +34,9 @@ export type _Evaluated = Established & {
     readonly value: Value
     readonly normal: boolean
 }
+/** Explicit recursion through source blocks and the stateful expression worklist. */
+export type _NormalizeBlock = (source: SourceBlock, environment: Environment, context: Context, retained?: readonly BindingId[]) => Normalized
+export type _StateTask = (source: SourceValue, environment: Environment, context: Context) => Task<_Evaluated>
 /** A shared operand skeleton contains recipes for resolved source operands. */
 export type _Recipes = PersistentMap<BindingId, SourceValue>
 export type _EvaluatedValues = Established & {

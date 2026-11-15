@@ -84,7 +84,7 @@
  */
 
 import { helperIds, staticIds } from '../../edag/module.f.js'
-import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
+import { leafSerialize } from '../../media/datajs/serializer/module.f.js'
 import { chunksText } from '../../text/marked/module.f.js'
 import { graphOf } from '../../website/demo/graph/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'

@@ -20,8 +20,8 @@
  */
 
 import { character, escape, hex, json, number, string, uint, value, ws } from './module.f.js'
-import { codePoints } from '../../railroad/module.f.mjs'
-import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
+import { codePoints } from '../../railroad/module.f.js'
+import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.js'
 
 /**
  * Each diagram's title and the rule it draws, in the order the page

@@ -5,7 +5,7 @@
  * [`fjs/git/refstore`](../module.f.mjs) is the reading half, and the rules both
  * halves must agree on live beside it — which directory a name belongs to in
  * [`../scope`](../scope/module.f.js), how a name and a path spell each other in
- * [`../name`](../name/module.f.mjs), which names are refused in the store — so a
+ * [`../name`](../name/module.f.js), which names are refused in the store — so a
  * name this writes is one those readers find. Every rule below was measured
  * against Git 2.43.0 rather than read off a manual page.
  *
@@ -46,18 +46,18 @@
 
 import { catchStep, compensateStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.js'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.js'
-import { byteArray } from '../../../ebnf/byte/module.f.mjs'
+import { byteArray } from '../../../ebnf/byte/module.f.js'
 import { ancestors, parent, under } from '../../../path/module.f.js'
 import { length, u8ListToMaxVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { solidus as slash } from '../../../text/ascii/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { startsWith } from '../../bytes/module.f.js'
-import { isOidOf } from '../../oid/module.f.mjs'
+import { isOidOf } from '../../oid/module.f.js'
 import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.mjs'
-import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
+import { isWholeName, lockSuffix } from '../../refname/module.f.js'
 import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
-import { nameForMessage, nameText, refsPrefix } from '../name/module.f.mjs'
+import { nameForMessage, nameText, refsPrefix } from '../name/module.f.js'
 import { dirOf } from '../scope/module.f.js'
 
 /** Refuses with {@link zeroIdCode}. */
@@ -426,7 +426,7 @@ const collided = (packed, name) => {
  * one names `WriteExclusive`, so `tsc` refuses the revision.
  *
  * `.lock` is the suffix because no ref is named that —
- * [`fjs/git/refname`](../../refname/module.f.mjs)'s `lockSuffix`, refused at the
+ * [`fjs/git/refname`](../../refname/module.f.js)'s `lockSuffix`, refused at the
  * end of every component — so the lock of one ref is never the file of another,
  * and the walk of `refs/` skips it as a write in progress.
  *

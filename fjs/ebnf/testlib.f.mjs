@@ -10,7 +10,7 @@
 
 import { assert } from '../asserts/module.f.js'
 import { htmlToString } from '../media/html/module.f.js'
-import { anchor } from '../website/demo/railroad/module.f.mjs'
+import { anchor } from '../website/demo/railroad/module.f.js'
 
 const { entries, fromEntries } = Object
 

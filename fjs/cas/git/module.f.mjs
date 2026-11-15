@@ -24,7 +24,7 @@
  * repository's id width from its `config`, the refs through the ref store
  * and its writer, the objects through the object store and the walk, the
  * trees and commits through their writers, the loose file through
- * [`fjs/git/loose`](../../git/loose/module.f.mjs). No `git` runs.
+ * [`fjs/git/loose`](../../git/loose/module.f.js). No `git` runs.
  *
  * What a read refuses rather than answers, each a repository that is not
  * what this backend writes: a `config` Git does not open, a branch ref
@@ -66,20 +66,20 @@
  */
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
-import { ascii } from '../../ebnf/byte/module.f.mjs'
+import { ascii } from '../../ebnf/byte/module.f.js'
 import {
     catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, step, walkStep,
 } from '../../effects/module.f.js'
 import { fromList, run as runStream } from '../../effects/list/module.f.js'
 import { isNotFound, namesNothing, now, readUtf8File, stat } from '../../effects/node/module.f.js'
-import { tryTreeAt } from '../../git/commit/module.f.mjs'
+import { tryTreeAt } from '../../git/commit/module.f.js'
 import { lastValue, tryEntries as configEntries } from '../../git/config/module.f.js'
 import { oidBytes as widthOf } from '../../git/format/module.f.js'
-import { write as writePayload } from '../../git/header/module.f.mjs'
-import { write as writeIdent } from '../../git/ident/module.f.mjs'
-import { write as writeLoose } from '../../git/loose/module.f.mjs'
-import { hexText, of, toHex } from '../../git/oid/module.f.mjs'
-import { isWholeName } from '../../git/refname/module.f.mjs'
+import { write as writePayload } from '../../git/header/module.f.js'
+import { write as writeIdent } from '../../git/ident/module.f.js'
+import { write as writeLoose } from '../../git/loose/module.f.js'
+import { hexText, of, toHex } from '../../git/oid/module.f.js'
+import { isWholeName } from '../../git/refname/module.f.js'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
