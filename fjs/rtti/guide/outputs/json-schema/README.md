@@ -61,5 +61,5 @@ Schema has `"type": "integer"` for `id`, the constant `9007199254740992` for
 ## Where it is implemented
 
 `toJsonSchema` and `dataToJsonSchema` in
-[`media/json/schema`](../../../../media/json/schema/module.f.mjs), which
+[`media/json/schema`](../../../../media/json/schema/module.f.js), which
 also declares JSON Schema itself as an rtti schema.

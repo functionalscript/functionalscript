@@ -1,7 +1,7 @@
 /**
  * Percent-decoding of UTF-8 text, the percent-encoding of a URL path that
  * keeps the escapes it already has, and the percent-encoding of a URL
- * component.
+ * component, including JavaScript's `encodeURIComponent` spelling.
  *
  * @module
  *
@@ -9,8 +9,9 @@
  */
 
 import {
-    fullStop, hyphenMinus, isDigit, isLatinCapitalLetter, isLatinSmallLetter, lowLine,
-    solidus, tilde,
+    apostrophe, asterisk, exclamationMark, fullStop, hyphenMinus, isDigit,
+    isLatinCapitalLetter, isLatinSmallLetter, leftParenthesis, lowLine,
+    rightParenthesis, solidus, tilde,
 } from '../ascii/module.f.js'
 import { fromU8List, stringToU8List } from '../utf8/module.f.js'
 import { codeUnitToString } from '../utf16/module.f.js'
@@ -66,6 +67,14 @@ const unreservedMarks = [hyphenMinus, fullStop, lowLine, tilde]
  */
 const pathMarks = [...unreservedMarks, solidus]
 
+/** JavaScript's URI component marks, which also leave `!'()*` unescaped.
+ *
+ * @type {readonly number[]}
+ */
+const uriComponentMarks = [
+    ...unreservedMarks, exclamationMark, apostrophe, leftParenthesis, rightParenthesis, asterisk,
+]
+
 /** A byte as two hexadecimal digits. */
 const hexByte = encodeScalar(2)
 
@@ -83,8 +92,18 @@ const encodeByteWith = marks => b =>
 /** `b` as it reads in a URL path. */
 const pathByte = encodeByteWith(pathMarks)
 
-/** `b` as it reads in a URL component. */
-const componentByte = encodeByteWith(unreservedMarks)
+/**
+ * Encodes valid UTF-8 with the selected byte encoder, refusing lone surrogates.
+ *
+ * @type {(encodeByte: (b: number) => string) => (s: string) => Nullable<string>}
+ */
+const encodeComponentWith = encodeByte => s => {
+    const bytes = utf8Bytes(s)
+    return fromU8List(bytes) === null ? null : bytes.map(encodeByte).join('')
+}
+
+/** JavaScript's URI component encoding before coercion and failure handling. */
+const uriComponent = encodeComponentWith(encodeByteWith(uriComponentMarks))
 
 /** Every UTF-8 byte of `s` as it reads in a URL path. @type {(s: string) => string} */
 const encodeLiteral = s => utf8Bytes(s).map(pathByte).join('')
@@ -121,7 +140,19 @@ export const percentEncodePath = s => {
  *
  * @type {(s: string) => Nullable<string>}
  */
-export const percentEncodeComponent = s => {
-    const bytes = utf8Bytes(s)
-    return fromU8List(bytes) === null ? null : bytes.map(componentByte).join('')
-}
+export const percentEncodeComponent = encodeComponentWith(encodeByteWith(unreservedMarks))
+
+/**
+ * JavaScript's `encodeURIComponent` for FJS values: convert to a string,
+ * preserve letters, digits and `-_.!~*'()`, and percent-encode every other
+ * UTF-8 byte. Unlike {@link percentEncodeComponent}, this leaves `!'()*`
+ * unescaped and fails on an unpaired UTF-16 surrogate instead of returning
+ * `null`. The failure payload is not JavaScript's `URIError` object: FJS
+ * observes only that execution fails.
+ *
+ * This is an ordinary library function, not an admitted FJS global.
+ *
+ * @param {unknown} [value]
+ * @returns {string}
+ */
+export const encodeURIComponent = value => unwrap(uriComponent(String(value)))

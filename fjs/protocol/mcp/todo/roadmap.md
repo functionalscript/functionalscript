@@ -16,11 +16,11 @@ What has landed, and where it is documented:
 - the lifecycle and capability state machine — `initialize`,
   `notifications/initialized`, `ping`, the not-initialized guard and
   capability-gated routing, with protocol-version negotiation — in `mcpStep`'s
-  JSDoc in [`../module.f.mjs`](../module.f.mjs);
+  JSDoc in [`../module.f.js`](../module.f.js);
 - `tools/list` and `tools/call`, with `text` and embedded-resource content;
 - the stdio transport — [`../stdio/module.f.mjs`](../stdio/module.f.mjs);
 - the rtti → JSON Schema printer that derives a tool's `inputSchema` —
-  `fjs/media/json/schema/module.f.mjs`.
+  `fjs/media/json/schema/module.f.js`.
 
 What remains is the rest of the protocol.
 
@@ -70,7 +70,7 @@ Each item below is independently buildable and may become its own issue.
 
 ### Related
 
-- `validated` inside `mcpStep` ([`../module.f.mjs`](../module.f.mjs)) — the
+- `validated` inside `mcpStep` ([`../module.f.js`](../module.f.js)) — the
   per-method parse→error/ok envelope a new method arm answers through.
 - [effectful-dispatch-skeleton](../../json_rpc/todo/effectful-dispatch-skeleton.md)
   — envelope routing shared with the pure JSON-RPC dispatcher, worth doing if

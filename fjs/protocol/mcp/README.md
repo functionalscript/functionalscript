@@ -74,7 +74,7 @@ const greetArgs = { name: string, greeting: or(option, string) } as const
 Create tool entries with type-safe handlers:
 
 ```ts
-import { toolEntry, errorResult } from './module.f.mjs'
+import { toolEntry, errorResult } from './module.f.js'
 
 const addTool = toolEntry(
     'add',
@@ -97,7 +97,7 @@ const greetTool = toolEntry(
 Compose into a registry and build handlers:
 
 ```ts
-import { fromRegistry, mcpStep } from './module.f.mjs'
+import { fromRegistry, mcpStep } from './module.f.js'
 import type { McpHandlers } from './types.ts'
 
 const myHandlers = fromRegistry([addTool, greetTool])
@@ -110,7 +110,7 @@ const myHandlers = fromRegistry([addTool, greetTool])
 Tool-level errors are returned in-band via `isError: true`. Use the `errorResult` helper:
 
 ```ts
-import { errorResult } from './module.f.mjs'
+import { errorResult } from './module.f.js'
 
 const safeTool = toolEntry(
     'example',
@@ -131,7 +131,7 @@ A tool whose whole body is one fallible call does not write that dispatch out.
 channel, so the handler is a single line:
 
 ```ts
-import { toolResultStep } from './module.f.mjs'
+import { toolResultStep } from './module.f.js'
 
 const headTool = toolEntry(
     'evo_head',

@@ -66,7 +66,7 @@ with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
 covers `cas_add`/`cas_get`/`cas_list`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../media/json/schema/module.f.mjs) derives the `inputSchema`
+[`toJsonSchema`](../media/json/schema/module.f.js) derives the `inputSchema`
 advertised in `tools/list`, and [`parse`](../rtti/parse/module.f.js)
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
@@ -216,7 +216,7 @@ Content encoding is determined at read time as described above.
 MCP draws a line the dispatcher already respects:
 
 - **Protocol failures** — unknown method, malformed JSON-RPC params — are
-  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.mjs) handles those.
+  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.js) handles those.
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);

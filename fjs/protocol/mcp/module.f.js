@@ -33,8 +33,10 @@ import {
     errorResponseOf, successResponseOf,
 } from '../json_rpc/module.f.js'
 import { parse } from '../../rtti/parse/module.f.js'
-import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
+import { toJsonSchema } from '../../media/json/schema/module.f.js'
 import { unknown } from '../../media/json/rtti/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
@@ -145,6 +147,24 @@ export const toolsCallResult = open(/** @type {const} */ ({
 // ── Dispatch ───────────────────────────────────────────────────────────────────
 
 /**
+ * Helper to create a successful single-text-block tool result.
+ *
+ * @param {string} text - The text to return to the client
+ * @returns {ToolsCallResult} A `ToolsCallResult` with the text content
+ */
+export const okResult = text =>
+    ({ content: [{ type: 'text', text }] })
+
+/**
+ * Helper to create a tool-level error result with plain text explanation.
+ *
+ * @param {string} text - The error message to return to the client
+ * @returns {ToolsCallResult} A `ToolsCallResult` with `isError: true` and the text explanation
+ */
+export const errorResult = text =>
+    ({ ...okResult(text), isError: true })
+
+/**
  * Creates a type-safe tool entry that binds an RTTI schema with a handler.
  *
  * The builder validates arguments at runtime using the RTTI and passes pre-validated
@@ -186,22 +206,34 @@ export const toolEntry = (name, description, inputRtti, handle) => {
 }
 
 /**
- * Helper to create a successful single-text-block tool result.
+ * {@link toolResultStep} for a tool whose chain goes on after the success: a
+ * failure of `e` answers the call with `errorText`'s `isError` result, and
+ * its `ok` value is handed to `onOk`, which answers the call itself.
  *
- * @param {string} text - The text to return to the client
- * @returns {ToolsCallResult} A `ToolsCallResult` with the text content
- */
-export const okResult = text =>
-    ({ content: [{ type: 'text', text }] })
-
-/**
- * Helper to create a tool-level error result with plain text explanation.
+ * ```js
+ * resultStep(c.write(content), r => {
+ *     if (r[0] === 'error') { return pureOk(errorResult('write')) }
+ *     …
+ * })
+ * // is
+ * toolStep(c.write(content), () => 'write', hash => …)
+ * ```
  *
- * @param {string} text - The error message to return to the client
- * @returns {ToolsCallResult} A `ToolsCallResult` with `isError: true` and the text explanation
+ * `errorText` is required for the reason {@link toolResultStep} gives, and it
+ * comes before `onOk` so the refusal is read beside the call that can fail,
+ * not after the continuation it guards.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation>(
+ *     e: Effect<O, T, E>,
+ *     errorText: (e: E) => string,
+ *     onOk: (value: T) => Effect<Q, ToolsCallResult, never>,
+ * ) => Effect<O | Q, ToolsCallResult, never>}
  */
-export const errorResult = text =>
-    ({ ...okResult(text), isError: true })
+export const toolStep = (e, errorText, onOk) => resultStep(
+    e,
+    ([tag, value]) => tag === 'error'
+        ? pureOk(errorResult(errorText(value)))
+        : onOk(value))
 
 /**
  * Answers a tool call with the outcome of one fallible operation: the `ok`
@@ -236,36 +268,6 @@ export const toolResultStep = (e, text, errorText) =>
     toolStep(e, errorText, value => pureOk(okResult(text(value))))
 
 /**
- * {@link toolResultStep} for a tool whose chain goes on after the success: a
- * failure of `e` answers the call with `errorText`'s `isError` result, and
- * its `ok` value is handed to `onOk`, which answers the call itself.
- *
- * ```js
- * resultStep(c.write(content), r => {
- *     if (r[0] === 'error') { return pureOk(errorResult('write')) }
- *     …
- * })
- * // is
- * toolStep(c.write(content), () => 'write', hash => …)
- * ```
- *
- * `errorText` is required for the reason {@link toolResultStep} gives, and it
- * comes before `onOk` so the refusal is read beside the call that can fail,
- * not after the continuation it guards.
- *
- * @type {<O extends Operation, T, E, Q extends Operation>(
- *     e: Effect<O, T, E>,
- *     errorText: (e: E) => string,
- *     onOk: (value: T) => Effect<Q, ToolsCallResult, never>,
- * ) => Effect<O | Q, ToolsCallResult, never>}
- */
-export const toolStep = (e, errorText, onOk) => resultStep(
-    e,
-    ([tag, value]) => tag === 'error'
-        ? pureOk(errorResult(errorText(value)))
-        : onOk(value))
-
-/**
  * Builds `McpHandlers` from a registry of tool entries.
  *
  * This factory generates `toolsList` and `toolsCall` handlers that work with a
@@ -284,18 +286,23 @@ export const fromRegistry = registry => {
     // Depends on the registry alone, so it is built once rather than once per
     // `tools/list`.
     /** @type {Tool[]} */
-    const tools = registry.map(({ name, description, inputRtti }) => ({
-        name,
-        description,
-        inputSchema: toJsonSchema(inputRtti),
-    }))
+    const tools = registry.map(tool => {
+        const { description, inputRtti } = tool
+        return {
+            name: assertNotNullish(entry(tool, 'name')),
+            description,
+            inputSchema: toJsonSchema(inputRtti),
+        }
+    })
     return {
         toolsList: () => pureOk({ tools }),
-        toolsCall: ({ name, arguments: args }) => {
-            const entry = registry.find(e => e.name === name)
-            return entry === undefined
+        toolsCall: params => {
+            const name = assertNotNullish(entry(params, 'name'))
+            const args = entry(params, 'arguments')
+            const found = registry.find(tool => entry(tool, 'name') === name)
+            return found === undefined
                 ? pureOk(errorResult(`unknown tool: ${name}`))
-                : entry.handle(args === undefined ? {} : args)
+                : found.handle(args === undefined ? {} : args)
         },
     }
 }

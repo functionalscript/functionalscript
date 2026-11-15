@@ -135,7 +135,7 @@ import { noteDialect } from '../../media/note/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import {
     toolEntry, errorResult, okResult, toolResultStep, toolStep,
-} from '../../protocol/mcp/module.f.mjs'
+} from '../../protocol/mcp/module.f.js'
 import { collectRead } from '../../cas/module.f.js'
 import { errorSummary } from '../../effects/node/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'

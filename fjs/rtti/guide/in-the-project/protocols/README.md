@@ -7,7 +7,7 @@ declaration is both the decoder and the static type:
 
 - the JSON-RPC 2.0 envelopes, in
   [`protocol/json_rpc`](../../../../protocol/json_rpc/module.f.js);
-- the MCP messages, in [`protocol/mcp`](../../../../protocol/mcp/module.f.mjs);
+- the MCP messages, in [`protocol/mcp`](../../../../protocol/mcp/module.f.js);
 - the arguments of the MCP tools the repository serves, in
   [`mcp/cas`](../../../../mcp/cas/module.f.mjs) and
   [`mcp/evo`](../../../../mcp/evo/module.f.mjs). A tool's argument schema is

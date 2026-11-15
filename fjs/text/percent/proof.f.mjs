@@ -1,6 +1,7 @@
 import { assertEq } from '../../asserts/module.f.js'
-import { percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.js'
+import { encodeURIComponent as encodeUriComponent, percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
+import { codeUnitToString } from '../utf16/module.f.js'
 
 export const proof = {
     empty: () => assertEq(percentDecode(''), ''),
@@ -66,6 +67,49 @@ export const proof = {
         loneSurrogate: () => {
             assertEq(percentEncodeComponent('\uD800'), null)
             assertEq(percentEncodeComponent('a\uDC00'), null)
+        },
+    },
+    encodeUriComponent: {
+        empty: () => assertEq(encodeUriComponent(''), ''),
+        // JavaScript's component encoder also leaves !*'() unescaped.
+        ascii: () => {
+            assertEq(encodeUriComponent("aZ09-_.!~*'()"), "aZ09-_.!~*'()")
+            for (let code = 0; code < 0x80; code += 1) {
+                const s = codeUnitToString(code)
+                assertEq(encodeUriComponent(s), encodeURIComponent(s))
+            }
+        },
+        unicode: () => {
+            // UTF-8 width boundaries, both sides of the surrogate range,
+            // and the first and last supplementary scalar values.
+            const boundaries = /** @type {const} */ ([
+                '\u007f', '\u0080', '\u07ff', '\u0800', '\ud7ff', '\ue000',
+                '\uffff', '\ud800\udc00', '\udbff\udfff',
+            ])
+            for (const s of boundaries) {
+                assertEq(encodeUriComponent(s), encodeURIComponent(s))
+            }
+            assertEq(encodeUriComponent('П/雪 😀'), '%D0%9F%2F%E9%9B%AA%20%F0%9F%98%80')
+            assertEq(encodeUriComponent('a%20/😀\u0000雪!'), encodeURIComponent('a%20/😀\u0000雪!'))
+        },
+        coercion: () => {
+            assertEq(encodeUriComponent(), 'undefined')
+            const values = /** @type {const} */ ([
+                undefined, null, true, false, 0, -0, 1.5, NaN, Infinity,
+                -Infinity, 1n, -2n, [], [undefined, null],
+                [1, 'a b', ['雪']], {}, { a: 1 },
+            ])
+            for (const value of values) {
+                assertEq(encodeUriComponent(value), encodeURIComponent(String(value)))
+            }
+        },
+        throw: {
+            highSurrogate: () => encodeUriComponent('\ud800'),
+            lowSurrogate: () => encodeUriComponent('\udfff'),
+            reversedPair: () => encodeUriComponent('\udc00\ud800'),
+            embeddedHigh: () => encodeUriComponent('a\ud800b'),
+            embeddedLow: () => encodeUriComponent('a\udc00b'),
+            failedCoercion: () => encodeUriComponent({ toString: 0, valueOf: 0 }),
         },
     },
 }
