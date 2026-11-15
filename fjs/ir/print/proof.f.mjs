@@ -3,13 +3,13 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { any } from '../l0/module.f.js'
+import { any, string } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
-    product, return_, trap, true_, trunc_sat, u, unit, variant,
+    product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
-import { print, show } from './module.f.js'
+import { print, quote, show } from './module.f.js'
 
 /** @type {Type} */
 const sumType = ['sum', [['a', unit], ['b', f64]]]
@@ -100,7 +100,7 @@ export const proof = {
     unknown: () => assertEq(print(unknown), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64, dup: dup, drop: drop",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
     "    const undefined: any.only(undefined)",
     "    const null: any.only(null)",
     "    const true: any.only(boolean)",
@@ -200,7 +200,7 @@ export const proof = {
     loops: () => assertEq(print(loops), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64, dup: dup, drop: drop",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
     "    const undefined: any.only(undefined)",
     "    const null: any.only(null)",
     "    const true: any.only(boolean)",
@@ -501,7 +501,7 @@ export const proof = {
     records: () => assertEq(print(records), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-    "        kind: kind, carrier: i64, dup: dup, drop: drop",
+    "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
     "    const undefined: any.only(undefined)",
     "    const null: any.only(null)",
     "    const true: any.only(boolean)",
@@ -809,6 +809,27 @@ export const proof = {
     "        Any.dup(Any.undefined)",
     "",
     "export halve, eighth, answer, far, less, six, aa, lengthOfAa, nothingKind, truth, orUndefined",
+    "",
+    ].join('\n')),
+    // A string is quoted as JSON quotes it: the short escapes, a control character's \u escape and a lone surrogate's,
+    // and a pair of surrogates as itself.
+    quote: () => {
+        assertEq(quote('a"\\\b\f\n\r\t\u0001\u001f \u007f\u00e9\u{1F600}'), '"a\\"\\\\\\b\\f\\n\\r\\t\\u0001\\u001f \u007f\u00e9\u{1F600}"')
+        assertEq(quote('\ud800x\udc00\udc00\ud800\ud800\udc00'), '"\\ud800x\\udc00\\udc00\\ud800\ud800\udc00"')
+        assertEq(quote('\udc00a\ud800'), '"\\udc00a\\ud800"')
+        assertEq(quote(''), '""')
+    },
+    // A string literal is its spelling as JSON writes it, which says its type unless it is one of Any's strings.
+    literals: () => assertEq(print({ imports: [], functions: [
+        ['f', fn([], u(31), call('String', 'length', [lit(string, 'a\n"é😀')]))],
+        ['g', fn([], bool, let_('l', lit(only(sealed('Label', 'label'), 'text'), ''), () => true_))],
+    ], exports: [] }), [
+    "fn f() -> u(31) =",
+    "    String.length(\"a\\n\\\"é😀\")",
+    "",
+    "fn g() -> bool =",
+    "    let l = \"\" as label.only(text)",
+    "    true",
     "",
     ].join('\n')),
 }

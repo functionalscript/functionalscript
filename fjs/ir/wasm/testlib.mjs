@@ -17,11 +17,14 @@
  * and a value of `any` that a call answers is the caller's, so the proof
  * reads it and drops it. A result of `unit` is no value: the JavaScript
  * API gives `undefined`, and the twin answers the same.
- * Where the module has constants, `init` evaluates them first, and the host
- * then keeps every cell alive, what `init` made among them, since nothing
- * drops a constant. A call that completes then leaves every cell as it
- * found it, and no other cell: a module that keeps or frees a value that
- * it borrows shows, and so does one that leaves a value over.
+ * Where the module has string literals, its start function makes them when
+ * the host makes the module, in a memory that holds as many bytes of data
+ * segments as its `fjs.layout` asks for, and where it has constants, `init`
+ * evaluates them first. The host then keeps every cell alive, what the
+ * start function and `init` made among them, since nothing drops a literal
+ * or a constant. A call that completes then leaves every cell as it found
+ * it, and no other cell: a module that keeps or frees a value that it
+ * borrows shows, and so does one that leaves a value over.
  *
  * @module
  *
@@ -159,6 +162,36 @@ const attempt = f => {
     }
 }
 
+/** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
+const ulebs = bytes => {
+    /** @type {number[]} */
+    const out = []
+    let n = 0
+    let unit = 1
+    for (const b of bytes) {
+        n += (b % 0x80) * unit
+        if (b < 0x80) {
+            out.push(n)
+            n = 0
+            unit = 1
+        } else {
+            unit *= 0x80
+        }
+    }
+    return out
+}
+
+/**
+ * The bytes of data segments that a module's `fjs.layout` asks for, `0`
+ * where it has none.
+ *
+ * @type {(m: WebAssembly.Module) => number}
+ */
+export const dataOf = m => {
+    const [section] = WebAssembly.Module.customSections(m, 'fjs.layout')
+    return section === undefined ? 0 : ulebs(new Uint8Array(section))[0]
+}
+
 /**
  * Checks and emits a module, compiles it on the host's engine, and calls
  * each function that it exports on its inputs, comparing it with its twin,
@@ -175,12 +208,13 @@ export const run = (m, twins, inputs) => {
     const bytes = new Uint8Array(write(emit(checked)))
     assert(WebAssembly.validate(bytes))
     const compiled = new WebAssembly.Module(bytes)
+    const data = dataOf(compiled)
     for (const name of checked.exports) {
         const [, { params, result }] = assertNotNullish(checked.functions.find(([k]) => k === name))
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const h = counting(values)
+            const h = counting(values, data)
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read) })
             const { init } = exports
             if (typeof init === 'function') { init() }

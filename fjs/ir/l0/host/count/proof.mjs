@@ -92,13 +92,28 @@ export const proof = {
         h.imports.dup(0n)
         assertEq(cells(h), `0:2,${s}:0`)
     },
-    // A handle of no cell throws, and so does one whose cell a drop freed.
+    // The memory holds a module's data segments at data_base, past bytes that the host keeps, and make_string makes a cell
+    // of the UTF-16 units at an address, the low byte of each first.
+    makeString: () => {
+        const h = counting([], 6)
+        const base = h.imports.data_base.value
+        assert(typeof base === 'number' && base > 0, base)
+        new Uint8Array(h.imports.memory.buffer).set([0x61, 0x00, 0x3d, 0xd8, 0x00, 0xde], base)
+        const s = h.imports.make_string(base, 3)
+        const e = h.imports.make_string(base, 0)
+        assertEq(`${h.read(s)} ${JSON.stringify(h.read(e))} ${cells(h)}`, `a\u{1F600} "" ${s}:1,${e}:1`)
+    },
+    // A handle of no cell throws, and so does one whose cell a drop freed, and units past the memory.
     throw: {
         none: () => { counting([]).read(0n) },
         freed: () => {
             const h = counting(['x'])
             h.imports.drop(0n)
             h.imports.dup(0n)
+        },
+        past: () => {
+            const h = counting([])
+            h.imports.make_string(h.imports.memory.buffer.byteLength - 1, 1)
         },
     },
     // concat of a borrowed string answers an owned one, which the caller drops.

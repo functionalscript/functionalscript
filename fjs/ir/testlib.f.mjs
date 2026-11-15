@@ -5,7 +5,7 @@
  * instruction that the emitter writes, `corners`, the forms that the
  * emitter handles once each, `unknown`, functions over values of unknown
  * kind, as the third slice reads them, `loops`, the fourth slice's,
- * `records`, the fifth's, and `constants`, the sixth's.
+ * `records`, the fifth's, and `constants` and `literals`, the sixth's.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -329,4 +329,31 @@ export const constants = {
         ['orUndefined', fn([['v', any]], any, v => match(v, [[['number'], 'x', dup(get('x'))], [null, null, dup(constant('Any', 'undefined'))]]))],
     ],
     exports: ['halve', 'eighth', 'answer', 'far', 'less', 'six', 'aa', 'lengthOfAa', 'nothingKind', 'truth', 'orUndefined'],
+}
+
+/**
+ * String literals, which the start function makes once each from their
+ * UTF-16 units in the data segment: the empty string, one that the module
+ * writes three times and makes once, one past ASCII and a pair of
+ * surrogates. A constant holds a `dup` of one, and another joins it with a
+ * literal. A function that answers one answers a `dup` of it, and the
+ * others read one's length and its units, and join a parameter with one.
+ *
+ * @type {Module}
+ */
+export const literals = {
+    imports: l0,
+    constants: [
+        ['hello', { type: string, value: dup(lit(string, 'hello')) }],
+        ['greeting', { type: string, value: call('String', 'concat', [self('hello'), lit(string, ', world')]) }],
+    ],
+    functions: [
+        ['empty', fn([], string, dup(lit(string, '')))],
+        ['hello', fn([], string, dup(lit(string, 'hello')))],
+        ['greeting', fn([], string, dup(self('greeting')))],
+        ['accent', fn([], u(31), lengthOf('String')(lit(string, 'caf\u00e9')))],
+        ['smile', fn([], u(16), call('String', 'unit', [lit(string, '\u{1F600}'), n(1n)]))],
+        ['suffixed', fn([['s', string]], string, s => call('String', 'concat', [s, lit(string, 'hello')]))],
+    ],
+    exports: ['empty', 'hello', 'greeting', 'accent', 'smile', 'suffixed'],
 }

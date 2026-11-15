@@ -25,7 +25,9 @@
  *
  * A parameter that the callee owns reads `own v: any`, and a counted sealed
  * type names its counting functions after its tag's:
- * `kind: kind, carrier: i64, dup: dup, drop: drop`.
+ * `kind: kind, carrier: i64, dup: dup, drop: drop`. A type with string
+ * literals names the variant that one holds and the function that makes it:
+ * `literal: string by String.make_string`.
  *
  * The text is for people and for golden proofs. Nothing reads it back: the
  * IR passes from one stage to the next as data.
@@ -35,6 +37,9 @@
  * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
  */
 
+import { encodeScalar } from '../../basen/base16/module.f.js'
+import { codeUnitToString, stringToList } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { bool, equal, never, unit } from '../module.f.js'
 
 // types
@@ -81,15 +86,45 @@ const showFloat = v => {
     return [...text].every(c => c === '-' || (c >= '0' && c <= '9')) ? `${text}.0` : text
 }
 
+/** Whether a UTF-16 unit is a high surrogate, the first of a pair. @type {(u: number) => boolean} */
+const isHigh = u => u >= 0xd800 && u <= 0xdbff
+
+/** Whether a UTF-16 unit is a low surrogate, the second of a pair. @type {(u: number) => boolean} */
+const isLow = u => u >= 0xdc00 && u <= 0xdfff
+
+/** JSON's short escapes, by the unit that each spells. @type {readonly (readonly [number, string])[]} */
+const shortEscapes = [[0x22, '\\"'], [0x5c, '\\\\'], [0x08, '\\b'], [0x0c, '\\f'], [0x0a, '\\n'], [0x0d, '\\r'], [0x09, '\\t']]
+
 /**
- * A literal: an integer of the range that holds it alone, and a float of
- * `f64c`, as their values; any other with its type.
+ * A string as the IR's text spells a literal of it, which is how JSON
+ * quotes it: a quote, a backslash and a control character escaped, the
+ * short way where JSON has one, and a surrogate that is not one of a pair
+ * as its `\u` escape. Every other unit is itself.
  *
- * @type {(type: Type, value: bigint | number) => string}
+ * @type {(s: string) => string}
+ */
+export const quote = s => {
+    const units = toArray(stringToList(s))
+    const spelled = units.map((u, k) => {
+        const short = shortEscapes.find(([x]) => x === u)
+        const lone = isHigh(u) ? !isLow(units[Number(k + 1)] ?? 0) : isLow(u) && !isHigh(units[Number(k - 1)] ?? 0)
+        return short !== undefined ? short[1] : u < 0x20 || lone ? `\\u${encodeScalar(4)(u)}` : codeUnitToString(u)
+    })
+    return `"${spelled.join('')}"`
+}
+
+/**
+ * A literal: an integer of the range that holds it alone, a float of
+ * `f64c`, and a string of `any.only(string)`, [quoted](#quote), as their
+ * values; any other with its type.
+ *
+ * @type {(type: Type, value: bigint | number | string) => string}
  */
 const showLit = (type, value) => {
-    const text = typeof value === 'bigint' ? `${value}` : showFloat(value)
-    const plain = type[0] === 'int' ? type[1] === value && type[2] === value : type[0] === 'f64c'
+    const text = typeof value === 'bigint' ? `${value}` : typeof value === 'string' ? quote(value) : showFloat(value)
+    const plain = type[0] === 'int' ? type[1] === value && type[2] === value
+        : type[0] === 'sealed' ? type[1] === 'Any' && type[2] === 'any' && type[3]?.length === 1 && type[3][0] === 'string'
+        : type[0] === 'f64c'
     return plain ? text : `${text} as ${show(type)}`
 }
 
@@ -252,9 +287,9 @@ const showConstant = (name, { type, value }) => [`const ${name}: ${show(type)} =
 /** An interface as its binding, its sealed types, its constants and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
 const showInterface = (name, { abi, types, constants = [], functions }) => [
     `import ${name} from ${abi}`,
-    ...types.flatMap(([type, { variants, kind, carrier, dup, drop }]) => [
+    ...types.flatMap(([type, { variants, kind, carrier, dup, drop, literal }]) => [
         `    type ${type} = ${variants.join(' | ')}`,
-        `        kind: ${kind}, carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}`,
+        `        kind: ${kind}, carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
     ]),
     ...constants.map(([k, t]) => `    const ${k}: ${show(t)}`),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),

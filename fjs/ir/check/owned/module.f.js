@@ -33,6 +33,9 @@
  *   product that holds a sealed value. A product's borrow leans on every
  *   field's roots together; projecting one field keeps that aggregate
  *   ([todo](./todo/product-field-borrow-roots.md)).
+ * - **A constant is a borrow that leans on nothing**, since nothing drops
+ *   it, and its term gives it an owned value, as a function's body gives
+ *   an owned result. So is a string literal, which the module makes once.
  *
  * @module
  *
@@ -369,8 +372,8 @@ const walk = (env, alive, [type, t], mode) => {
         case 'loop': { return loopTerm(walk, env, alive, mode, t[1], t[2], t[3]) }
         case 'br': { return brTerm(walk, env, alive, t[1], t[2]) }
         case 'trap': { return ok(out(null, plain, [])) }
-        case 'constant': { return ok(out(alive, holds(type) ? ['borrowed', []] : plain, [])) }
-        default: { return ok(out(alive, plain, [])) }
+        // A literal and a constant are borrows that lean on nothing, since nothing drops them.
+        default: { return ok(out(alive, holds(type) ? ['borrowed', []] : plain, [])) }
     }
 }
 

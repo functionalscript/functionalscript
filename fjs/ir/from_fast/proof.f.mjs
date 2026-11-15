@@ -6,6 +6,7 @@
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
+import { lifetime } from '../lifetime/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
@@ -52,6 +53,9 @@ const natives = "import { bigintAdd, bigintEquals, numberRemainder } from './nat
 
 /** Why a module lowered without the runtime refuses `%`. */
 const noNative = "f: % of two floats calls L1's native rows, which a module lowered without the runtime does not import"
+
+/** Why a module lowered without the runtime refuses a string. */
+const noString = 'f: a string is a literal that String makes, which a module lowered without the runtime does not import'
 
 // FAST written by hand, for the forms that no text makes today
 
@@ -211,7 +215,7 @@ export const proof = {
         assertEq(why(fa, fast('export const f = g => g(1)')), 'f: a call of a value is not in this slice')
         assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g(a)(a)')), 'f: a call of a value is not in this slice')
         assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g(...a)')), 'f: a spread argument is not in this slice')
-        assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g("s")')), 'f: a string is not in this slice')
+        assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g("s")')), noString)
         assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => { const s = Math.sqrt; return s(a) + s }')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => Math.floor(a)')), 'f: Math.floor is not in this slice')
@@ -221,12 +225,12 @@ export const proof = {
     refused: () => {
         const mixed = only([['a', f64], ['b', u(8)]], f64)
         assertEq(why(fa, fast('export const f = a => a % 2')), noNative)
-        assertEq(why(fa, fast('export const f = a => "s"')), 'f: a string is not in this slice')
+        assertEq(why(fa, fast('export const f = a => "s"')), noString)
         // `null` and `undefined` are constants of Any, which a module lowered without the runtime does not import.
         assertEq(why(fa, fast('export const f = a => null')), 'f: null is a constant of Any, which a module lowered without the runtime does not import')
         assertEq(why(fa, fast('export const f = a => undefined')), 'f: undefined is a constant of Any, which a module lowered without the runtime does not import')
         assertEq(why(fa, fast('export const f = a => { throw a }')), 'f: throw is not in this slice')
-        assertEq(why(fa, fast('export const f = a => a < 0 ? "s" : a')), 'f: a string is not in this slice')
+        assertEq(why(fa, fast('export const f = a => a < 0 ? "s" : a')), noString)
         assertEq(why(fa, fast('export const f = a => a % 2 + 1')), noNative)
         // What the checker refuses in a part, the lowering refuses where it asks for the part's type.
         assertEq(why(mixed, fast('export const f = (a, b) => { const s = a + b; return s * s }')), 'f: add of f64 and u(8): the operands are integers or floats, not both')
@@ -256,7 +260,7 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(why(fa, capturing('s')), 'f: a string is not in this slice')
+        assertEq(why(fa, capturing('s')), noString)
         assertEq(why(fa, capturing(undefined)), 'f: undefined is a constant of Any, which a module lowered without the runtime does not import')
     },
     inline: () => {
@@ -301,7 +305,7 @@ export const proof = {
         assertEq(why(fa, fast('export const f = a => {\n    const g = b => b\n    return g\n}')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => [b => b]')), 'f: array is not in this slice')
         assertEq(why(fa, fast('export const f = a => (b => b)(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
-        assertEq(why(fa, fast('export const f = a => (b => b)("s")')), 'f: a string is not in this slice')
+        assertEq(why(fa, fast('export const f = a => (b => b)("s")')), noString)
         /** A module whose `f` calls a function that it defines, `g`, on `a`. @type {(g: FastFunction) => Block} */
         const calling = g => module([['define', x, ['function', g], 'required']], ['()', ['ref', x], [['ref', a]]])
         const b = id(3)
@@ -482,7 +486,7 @@ export const proof = {
         assertEq(why(fa, fast('export const f = a => ({ [a]: 1 }).x')), entry)
         assertEq(why(fa, fast('export const f = a => ({ 1: a }).x')), entry)
         assertEq(why(fa, fast('export const f = a => {\n    const r = { x: a }\n    return ({ ...r }).x\n}')), entry)
-        assertEq(why(fa, fast('export const f = a => ({ x: "s" }).x')), 'f: a string is not in this slice')
+        assertEq(why(fa, fast('export const f = a => ({ x: "s" }).x')), noString)
         assertEq(why(fa, fast('export const f = a => a.x')), 'f: .x of f64 is not in this slice')
         assertEq(why(fa, fast('export const f = a => ({ x: a })[0]')), 'f: a member read of anything but a name is not in this slice')
         assertEq(why(fa, fast('export const f = a => ({ x: a })?.x')), 'f: ?. is not in this slice')
@@ -529,7 +533,8 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(assertError(over(only([['a', u(8)], ['b', u(8)]], f64), 'export const f = (a, b) => a % b')), 'f: % of u(8) and u(8) is not in this slice')
-        assertEq(assertError(over(fa, 'export const f = a => a % "s"')), 'f: a string is not in this slice')
+        assertEq(assertError(over(fa, 'export const f = a => a % "s"')), 'f: % of f64 and any.only(string) is not in this slice')
+        assertEq(assertError(over(fa, 'export const f = a => a % (b => b)')), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fa, 'export const f = a => ({ x: a }).z % 2')), 'f: { x: f64 } has no field z')
     },
     native: () => {
@@ -745,12 +750,12 @@ export const proof = {
         /** A module whose `f` loops on `p`, from `first`, with `body`, and returns its result `x`. @type {(body: Block, first?: Value, results?: readonly BindingId[]) => Block} */
         const looping = (body, first = 1, results = [x]) => module([['loop', { target: loop, parameters: [p], initial: [first], results, body }]], ['ref', x])
         const p = id(5)
-        assertEq(why(fa, looping(blk([], ['break', loop, [1]]), 's')), 'f: a string is not in this slice')
+        assertEq(why(fa, looping(blk([], ['break', loop, [1]]), 's')), noString)
         assertEq(why(fa, looping(blk([], ['break', loop, [1]]), ['+', 1, true])), 'f: add of f64c and bool: an operator takes integers or floats')
         assertEq(why(fa, looping(blk([], ['break', loop, [1]]), 1, [])), 'f: a loop with 0 results is not in this slice')
         assertEq(why(fa, looping(blk([], ['yield', []]))), "f: a loop's body that ends in neither continue nor break is not in this slice")
         assertEq(why(fa, looping(blk([], ['return', target, 1]))), 'f: a return inside a loop is not in this slice')
-        assertEq(why(fa, looping(blk([], ['continue', loop, ['s']]))), 'f: a string is not in this slice')
+        assertEq(why(fa, looping(blk([], ['continue', loop, ['s']]))), noString)
         assertEq(why(fa, looping(blk([['define', id(6), ['block', blk([], ['break', loop, [1]])], 'required']], ['continue', loop, [1]]))), "f: a break before the end of its loop's body is not in this slice")
         assertEq(why(fa, module([], ['block', blk([], ['loop', { target: loop, parameters: [], initial: [], results: [], body: blk([], ['continue', loop, []]) }])])), 'f: a loop that never breaks is not in this slice')
     },
@@ -826,8 +831,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(why(fa, module([], ['?:', 's', 1, 2])), 'f: a string is not in this slice')
-        assertEq(why(fa, module([], ['if', true, blk([], ['return', target, 's']), yields(1)])), 'f: a string is not in this slice')
+        assertEq(why(fa, module([], ['?:', 's', 1, 2])), noString)
+        assertEq(why(fa, module([], ['if', true, blk([], ['return', target, 's']), yields(1)])), noString)
         assertEq(why(fa, module([['define', x, 1, 'lazy']], ['ref', x])), 'f: a lazy definition is not in this slice')
         assertEq(why(fa, module([['if', [], true, yields(1), yields(1)]], 1)), 'f: a statement with 0 results is not in this slice')
         assertEq(why(fa, module([['block', [x, t], blk([], ['yield', [1, 2]])]], 1)), 'f: a statement with 2 results is not in this slice')
@@ -1041,6 +1046,30 @@ export const proof = {
             [['define', x, ['-', ['ref', y]], 'required'], ['define', y, ['/', 1, 2], 'required']],
             ['yield', [['object', [[':', 'f', ['function', fun(yields(['ref', c]), [{ binding: c, value: ['ref', x] }])]]]]]])),
             'f: #c0: a constant that is read before its definition is not in this slice')
+    },
+    // A string is a literal of `any` that String makes, which a module lowered without the runtime does not import, and a
+    // definition of the module that holds one is the literal where a function reads it. A function borrows it.
+    literals: () => {
+        /** The module that the lowering makes of `text`, which the checker takes once the lifetime pass has written its owned stage. @type {(signatures: Readonly<Record<string, Signature>>, text: string) => string} */
+        const checked = (signatures, text) => {
+            assertOk(check(assertOk(lifetime(assertOk(over(signatures, text))))))
+            return irOver(signatures, text)
+        }
+        assertEq(checked(only([['v', any]], f64), `${imports}export const f = v => kind("s") + length("caf\\u00e9")`), [
+            'fn f(v: any) -> f64 =',
+            '    add(float(Any.kind("s")), float(String.length("café")))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(checked(only([['v', any]], any), 'import { UNDEFINED, kind } from "../l0/module.f.js"\nconst empty = ""\nexport const f = v => kind(v) === UNDEFINED ? empty : "\\u{1F600}"'), [
+            'fn f(v: any) -> any =',
+            '    if eq(float(Any.kind(v)), 0.0) then "" else "😀"',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(why(fa, fast('export const f = a => "s"')), noString)
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
@@ -1398,7 +1427,7 @@ export const proof = {
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(NUMBER)\n    return length(s) * length(s)\n}`)), 'f: asString of f64c is not in this slice')
         assertEq(assertError(over(fa, `${imports}export const f = a => {\n    const s = asString(a)\n    return length(s) * length(s)\n}`)), 'f: asString of f64 is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(...v)\n    return length(s) * length(s)\n}`)), 'f: a spread argument is not in this slice')
-        assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * (length(s) * "x")\n}`)), 'f: a string is not in this slice')
+        assertEq(assertError(over(fv, `${imports}export const f = v => {\n    const s = asString(v)\n    return length(s) * (length(s) * kind)\n}`)), 'f: a function as a value is not in this slice')
         // A cast of a value that never holds its kind would always trap, as would `unit` of one that
         // is never a string and `length` of one whose kinds have none.
         const numeric = only([['v', subset(any, 'number')]], f64)
@@ -1411,8 +1440,8 @@ export const proof = {
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1)`)), 'f: kind of f64c is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
         assertEq(assertError(over(fv, `${imports}export const f = v => fromUnit(1 + true)`)), 'f: add of f64c and bool: an operator takes integers or floats')
-        assertEq(assertError(over(fv, `${imports}export const f = v => kind("s")`)), 'f: a string is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind`)), 'f: a function as a value is not in this slice')
+        assertEq(assertError(over(fv, `${imports}export const f = v => kind(kind)`)), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fv, `${imports}export const f = v => kind(v)`, null)), 'f: an import of ../l0/module.f.js is not in this slice')
         assertEq(assertError(over(fv, 'import g from "./g.f.js"\nexport const f = a => g(a)')), 'f: an import of ./g.f.js is not in this slice')
         assertEq(assertError(over(fv, 'import d from "./d.json" with { type: "json" }\nexport const f = a => d', { ...runtime, l0: './d.json' })), 'f: an import of ./d.json is not in this slice')

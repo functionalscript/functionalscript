@@ -16,9 +16,17 @@
  *   and `false` are the cells `-1` to `-4`, each counted once for the
  *   immutable global that holds it, and kept from the start. `keep` keeps
  *   every cell alive at its count, so that a host proof that calls it after
- *   `init` keeps what `init` made for the module's constants. `live` then
- *   tells what a call changed: a cell that is not kept and is alive, and a
- *   kept one at another count, `0` where it was freed.
+ *   `init` keeps what the start function made for the module's literals and
+ *   `init` for its constants. `live` then tells what a call changed: a cell
+ *   that is not kept and is alive, and a kept one at another count, `0`
+ *   where it was freed.
+ * - **The host makes the memory**, as a loader does
+ *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+ *   the region of a module's data segments starts at `data_base`, past
+ *   bytes that the host keeps for itself, and holds as many bytes as the
+ *   module's `fjs.layout` asks for. `make_string(ptr, len)` makes a cell of
+ *   the string of the `len` UTF-16 units at `ptr`, the low byte of each
+ *   first, and throws where they reach past the memory.
  *
  * Counting is state, and a WebAssembly import has nowhere else to keep it,
  * so this is a host boundary in plain JavaScript beside the
@@ -32,12 +40,17 @@
 
 import { view } from '../module.f.js'
 
+/** Where the region of a module's data segments starts: past bytes that a runtime would keep for itself. */
+const dataBase = 0x100
+
 /**
- * A counting host whose first cells are `values`, each counted once.
+ * A counting host whose first cells are `values`, each counted once, and
+ * whose memory holds `data` bytes of a module's data segments at
+ * `data_base`.
  *
- * @type {(values: readonly unknown[]) => Counting}
+ * @type {(values: readonly unknown[], data?: number) => Counting}
  */
-export const counting = values => {
+export const counting = (values, data = 0) => {
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map(values.map((value, k) => [BigInt(k), { value, count: 1 }]))
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
@@ -65,8 +78,18 @@ export const counting = values => {
         return new WebAssembly.Global({ value: 'i64', mutable: false }, h)
     }
     const v = view(read)
+    const memory = new WebAssembly.Memory({ initial: Math.ceil((dataBase + data) / 0x1_0000) })
+    /** @type {(ptr: number, len: number) => string} */
+    const units = (ptr, len) => {
+        const bytes = new DataView(memory.buffer)
+        if (ptr < 0 || len < 0 || ptr + 2 * len > bytes.byteLength) { throw 'fjs:l0 host: make_string past the memory' }
+        return String.fromCharCode(...Array.from({ length: len }, (_, k) => bytes.getUint16(ptr + 2 * k, true)))
+    }
     return {
         imports: {
+            memory,
+            data_base: new WebAssembly.Global({ value: 'i32', mutable: false }, dataBase),
+            make_string: (ptr, len) => make(units(ptr, len)),
             undefined: constant(-1n, undefined),
             null: constant(-2n, null),
             true: constant(-3n, true),

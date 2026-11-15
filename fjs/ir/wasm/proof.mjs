@@ -24,7 +24,7 @@ import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any } from '../l0/module.f.js'
-import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings } from './testlib.mjs'
 
 // values
@@ -210,6 +210,12 @@ const twins = {
     nothingKind: () => BigInt(kind(null)),
     truth: ([b]) => b,
     orUndefined: ([v]) => ({ any: typeof held(v) === 'number' ? held(v) : undefined }),
+    empty: () => ({ any: '' }),
+    hello: () => ({ any: 'hello' }),
+    greeting: () => ({ any: 'hello, world' }),
+    accent: () => 4n,
+    smile: () => 0xde00n,
+    suffixed: ([s]) => ({ any: `${held(s)}hello` }),
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -266,4 +272,5 @@ export const proof = {
     loops: () => run(loops, twins, inputs),
     records: () => run(records, twins, inputs),
     constants: () => run(constants, twins, inputs),
+    literals: () => run(literals, twins, inputs),
 }

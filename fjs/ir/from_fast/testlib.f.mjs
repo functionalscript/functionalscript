@@ -2,9 +2,9 @@
  * What the proofs of the lowering share: the normalized FAST of a module's
  * text, as the compiler makes it, with its imports, and the signatures of
  * [`sample.f.js`](./sample.f.js), of [`helpers.f.js`](./helpers.f.js), of
- * [`strings.f.js`](./strings.f.js), of [`constants.f.js`](./constants.f.js)
- * and of the functions of L1 that the lowering reads, which FAST does not
- * have.
+ * [`strings.f.js`](./strings.f.js), of [`constants.f.js`](./constants.f.js),
+ * of [`literals.f.js`](./literals.f.js) and of the functions of L1 that the
+ * lowering reads, which FAST does not have.
  *
  * @module
  *
@@ -120,6 +120,15 @@ export const constants = {
     narrow: signature([['x', f64]], f64),
     dashed: signature([['v', any]], any),
     numberOrUndefined: signature([['v', any]], any),
+}
+
+/** The signatures of `literals.f.js`, which the lowering reads over the runtime. @type {Readonly<Record<string, Signature>>} */
+export const literals = {
+    greet: signature([['v', any]], any),
+    empty: signature([], string),
+    units: signature([], f64),
+    surrogate: signature([['i', f64]], f64),
+    hello: signature([['s', any]], string),
 }
 
 /** The signatures of `strings.f.js`, which the lowering reads over the runtime: a string is `any.only(string)`. @type {Readonly<Record<string, Signature>>} */

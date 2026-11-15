@@ -61,6 +61,7 @@ far more, gives the five functions that the slices name so far:
 | `r.k` | `field(r, 'k')`, printed `r.k`; the field's own term where `r` is a record made there whose other fields do nothing |
 | any other definition of the module | a constant, `#c0`, `#c1`, … by its place among them, which a term reads as `self.#c0` |
 | `undefined`, `null` | `Any.undefined`, `Any.null`: constants of the L0 interface `Any` |
+| a string, `"abc"` | a `lit` of `any.only(string)`, `"abc"`, which the module's start function makes once |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
 | `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
@@ -300,7 +301,13 @@ fn f(a: f64) -> f64 =
 
 `undefined` and `null` are constants of `Any`, which the host makes
 ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)),
-so a module lowered without the runtime refuses them. A definition of
+so a module lowered without the runtime refuses them. A string is a
+literal that String makes, which the module's start function makes once
+([L0 design §6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)),
+so a module lowered without the runtime refuses it too. A definition of
+the module that holds one is no constant: the normalization writes the
+literal where a function reads it, and a function borrows it, as it
+borrows a constant. A definition of
 `Math.abs` or `Math.sqrt`, which the normalization writes where a
 constant calls one, is that operator. A constant of a record is refused,
 since no global holds one, and so is a read of a constant before its
@@ -376,7 +383,10 @@ that leaves its function.
   [`constants.f.js`](./constants.f.js) too, six functions that read the
   module's constants of floats, of a `bool` and of strings, and answer
   `undefined`, and runs them after `init`, with every cell as `init` left
-  it.
+  it, and [`literals.f.js`](./literals.f.js), five functions that read
+  string literals, the empty one, a unit past ASCII and a pair of
+  surrogates among them, which the start function makes as the module is
+  instantiated.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript. Prefer
   `node --test` for it.

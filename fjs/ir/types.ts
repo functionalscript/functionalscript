@@ -55,8 +55,13 @@ export type OpName =
 /** A `match` arm: the variants it takes, `null` for the rest; a name for the operand there; its body. */
 export type ArmOf<T> = readonly [variants: readonly string[] | null, binder: string | null, body: T]
 
-/** A literal of a type: an integer as a `bigint`, a float as a `number`. */
-export type Lit = readonly ['lit', Type, bigint | number]
+/**
+ * A literal of a type: an integer as a `bigint`, a float as a `number`, and
+ * a string as a `string`, of a sealed type whose interface makes such
+ * literals. A string literal is borrowed, and nothing drops it: the module
+ * makes it once, before anything reads it.
+ */
+export type Lit = readonly ['lit', Type, bigint | number | string]
 
 /** A local, by its name. */
 export type Get = readonly ['get', string]
@@ -163,7 +168,9 @@ export type FunctionOf<T> = {
  * a counted type, the functions that count it: `dup`, which borrows a value
  * and answers one of the type, and `drop`, which owns one and answers
  * `unit`. A type that names neither is linear: a value that a module owns
- * goes to a parameter that owns it.
+ * goes to a parameter that owns it. A type that has string literals names
+ * the variant that one holds and the function that makes one, of an
+ * interface that a module with such a literal imports.
  */
 export type SealedDef = {
     readonly variants: readonly string[]
@@ -171,6 +178,20 @@ export type SealedDef = {
     readonly carrier: 'i32' | 'i64'
     readonly dup?: string
     readonly drop?: string
+    readonly literal?: Maker
+}
+
+/**
+ * The function that makes a string literal of a sealed type from its UTF-16
+ * units in memory, `String.make_string` for `any`: the variant that the
+ * literal holds, and the interface and the name of the function, its
+ * member. Only the emitter calls it, since its arguments, an address and a
+ * length, are no values of the IR.
+ */
+export type Maker = {
+    readonly variant: string
+    readonly module: string
+    readonly member: string
 }
 
 /**

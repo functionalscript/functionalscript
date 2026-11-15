@@ -89,7 +89,7 @@ export const compareIn = (a, b) => {
 
 // terms
 
-/** A literal: a `bigint` of an integer range, or a `number` of a float. @type {(type: Type, value: bigint | number) => Term} */
+/** A literal: a `bigint` of an integer range, a `number` of a float, or a `string` of a sealed type that has string literals. @type {(type: Type, value: bigint | number | string) => Term} */
 export const lit = (type, value) => ['lit', type, value]
 
 /** An integer literal whose type holds its value alone. @type {(value: bigint) => Term} */

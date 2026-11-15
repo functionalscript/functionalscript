@@ -23,8 +23,8 @@
  *   condition read.
  * - **A `let` owns its value, a loop its parameters, a function its result
  *   and a constant its value**, where they are of a sealed type.
- * - **A constant is a borrow**, which nothing drops: a use that takes it
- *   over is a `dup` of it.
+ * - **A constant is a borrow**, and so is a string literal, which nothing
+ *   drops: a use that takes it over is a `dup` of it.
  * - **A product borrows.** One that holds a sealed value leans on the
  *   locals that it was made from, which live while it does, and nothing
  *   copies or drops it. So a field of a sealed type that it is made with is
@@ -57,7 +57,7 @@ import { error, ok, okList } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { checkPlain } from '../check/module.f.js'
 import { equal, isOwn, never } from '../module.f.js'
-import { show } from '../print/module.f.js'
+import { quote, show } from '../print/module.f.js'
 
 // sets of names, as lists
 
@@ -538,12 +538,12 @@ const go = (env, typed, mode, owned, live, n) => {
         }
         case 'loop': { return loopStep(go, env, mode, t[1], t[2], t[3], owned, live, n) }
         case 'br': { return brStep(go, env, t[1], t[2], owned, n) }
-        case 'constant': {
+        default: {
+            // A literal and a constant, which nothing drops: copied where the context takes the value over.
             if (type[0] !== 'sealed' || mode === 'read') { return ok({ term: t, owned, n }) }
-            const d = dupOf(env, type, t, `${t[1]}.${t[2]}`)
+            const d = dupOf(env, type, t, t[0] === 'constant' ? `${t[1]}.${t[2]}` : quote(`${t[2]}`))
             return d[0] === 'error' ? d : ok({ term: d[1], owned, n })
         }
-        default: { return ok({ term: t, owned, n }) }
     }
 }
 

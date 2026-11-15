@@ -32,6 +32,10 @@
  *   each owned value to be consumed once on every path; `checkPlain` stops
  *   before it, for the [lifetime pass](../lifetime/module.f.js), which
  *   writes the owned stage.
+ * - **A string literal is its maker's.** A sealed type whose interface
+ *   names the function that makes its literals has string literals of the
+ *   one variant that the function makes, `any.only(string)` for `any`,
+ *   and a module that has one imports the maker's interface.
  *
  * @module
  *
@@ -46,7 +50,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { bool, compareIn, equal, f64, f64c, fits, inside, int, isOwn, never, product, unit } from '../module.f.js'
-import { show } from '../print/module.f.js'
+import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 
 /** Locals of a function: names to types, without parameter modes. @type {(params: readonly Param[]) => OrderedMap<Type>} */
@@ -81,6 +85,24 @@ const narrowed = (env, t, held) => {
     const { variants } = unwrap(definition(env, t))
     const only = variants.filter(v => held.includes(v))
     return ['sealed', t[1], t[2], only.length === variants.length ? null : only]
+}
+
+/**
+ * Why a module may not write a literal of a sealed type, or `null` where it
+ * may: a string, of the type of the variant that the type's string literals
+ * hold, which a function of an interface that the module imports makes. A
+ * type of that variant alone holds just its values, so the type may name it.
+ *
+ * @type {(env: _Env, t: Sealed, v: bigint | number | string) => string | null}
+ */
+const unmade = (env, t, v) => {
+    const { literal } = unwrap(definition(env, t))
+    const held = kinds(env, t)
+    return literal === undefined ? `${show(t)} has no literals`
+        : typeof v !== 'string' ? `${v} is not a literal of ${show(t)}`
+        : held.length !== 1 || held[0] !== literal.variant ? `a string literal is ${show(narrowed(env, t, [literal.variant]))}, not ${show(t)}`
+        : at(literal.module)(env.imports) === null ? `${literal.module} makes the literals of ${t[2]}, and the module does not import ${literal.module}`
+        : null
 }
 
 /** Why a module may not write a sealed type, or `null` where it may: an imported type, with some of its variants, each once. @type {(env: _Env, t: Sealed) => string | null} */
@@ -369,11 +391,13 @@ const term = (env, t) => {
         case 'lit': {
             const [, type, v] = t
             const why = unsupported(env, type)
+            if (why !== null) { return no(why) }
+            if (type[0] === 'sealed') {
+                const unknown = unmade(env, type, v)
+                return unknown === null ? ok([type, t]) : no(unknown)
+            }
             const fit = type[0] === 'int' ? typeof v === 'bigint' && type[1] <= v && v <= type[2] : isFloat(type) && typeof v === 'number'
-            return why !== null ? no(why)
-                : type[0] === 'sealed' ? no(`a literal of ${show(type)} is a constant, which is not in this slice`)
-                : fit ? ok([type, t])
-                : no(`${v} is not a literal of ${show(type)}`)
+            return fit ? ok([type, t]) : no(`${typeof v === 'string' ? quote(v) : v} is not a literal of ${show(type)}`)
         }
         case 'get': {
             const type = at(t[1])(env.locals)
@@ -567,6 +591,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
     }
     const untagged = types.find(([type, { variants, kind }]) => !takes(kind, type, false, int(0n, BigInt(variants.length - 1))))
     const half = types.find(([, { dup, drop }]) => (dup === undefined) !== (drop === undefined))
+    const unmaking = types.find(([, { variants, literal }]) => literal !== undefined && !variants.includes(literal.variant))
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     return type !== undefined ? `${name}: two types are named ${type}`
         : constant !== undefined ? `${name}: two constants are named ${constant}`
@@ -576,6 +601,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         : typeof why === 'string' ? `${name}: ${why}`
         : untagged !== undefined ? `${name}: ${untagged[1].kind} does not answer the tag of ${untagged[0]}, one for each of its variants`
         : half !== undefined ? `${name}: ${half[0]} names ${half[1].dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
+        : unmaking !== undefined ? `${name}: ${unmaking[0]}'s literals hold ${unmaking[1].literal?.variant}, which is none of its variants`
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : null
 }
@@ -602,13 +628,24 @@ const globalOf = (env, t) => {
  * each name of an ABI, so it could bind only one of them. Two constants
  * whose globals hold one WASM value share the host's global, whatever
  * their types, as `f64` and `f64c` do, and two functions of one name share
- * the host's function, as the four `length`s do.
+ * the host's function, as the four `length`s do. The function that makes a
+ * type's literals is a function of its interface's ABI here too, and that
+ * ABI's `memory` and `data_base` are the loader's, so no constant or
+ * function of the ABI has either name. The emitter imports a maker once
+ * for its ABI and its name, and it answers one WASM value, so two types
+ * whose literals it makes are carried by that value.
  *
  * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
  */
 const shared = (env, imports) => {
-    const fns = imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member])))
+    const makers = imports.flatMap(([module, { types }]) => types.flatMap(([type, { literal, carrier }]) => {
+        const i = literal === undefined ? null : at(literal.module)(env.imports)
+        return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
+    }))
+    const fns = [...imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member]))), ...makers]
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
+    const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
+        .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
     const clash = cs.flatMap(([name, abi, member, w], j) => {
         const f = fns.find(([, a, m]) => a === abi && m === member)
         const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== null && w !== null && x !== w)
@@ -616,7 +653,11 @@ const shared = (env, imports) => {
             : c !== undefined ? [`the constants ${c[0]}, a global of ${c[3]}, and ${name}, a global of ${w}, are both the import ${member} of ${abi}`]
             : []
     })
-    return clash[0] ?? null
+    const carried = makers.flatMap(([, abi, member, type, c], j) => {
+        const other = makers.find(([, a, m, , x], k) => k < j && a === abi && m === member && x !== c)
+        return other === undefined ? [] : [`the literals of ${other[3]}, carried by ${other[4]}, and of ${type}, carried by ${c}, are both made by the import ${member} of ${abi}, which answers one WASM value`]
+    })
+    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals` : clash[0] ?? carried[0] ?? null
 }
 
 /**

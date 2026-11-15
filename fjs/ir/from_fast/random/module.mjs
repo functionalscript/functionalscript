@@ -4,8 +4,8 @@
  * FAST, the lowering, the [lifetime pass](../../lifetime/module.f.js), the
  * checker and the emitter, and runs the WASM on the host's engine against
  * the same body as JavaScript, with every cell of the host as it found it
- * after each call that answers, or, where the module has constants, as
- * `init` left it. Programs the slices refuse are counted and not run. The
+ * after each call that answers, or, where the module has string literals
+ * or constants, as its start function and `init` left it. Programs the slices refuse are counted and not run. The
  * [proof](./proof.mjs) drives it.
  *
  * @module
@@ -406,6 +406,9 @@ const indexSamples = [0, 1, 2, 3, -1, 0.5, 0x61, 0xffff, 0x1_0000, NaN]
 /** A code unit as the text of a program spells it. @type {(c: number) => string} */
 const hex = c => `0x${c.toString(16)}`
 
+/** String literals as a program spells them: the empty one, ASCII, a unit past ASCII and a pair of surrogates, raw and escaped. */
+const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"é"', '"\\u00e9"', '"😀"', '"\\u{1F600}"']
+
 /**
  * One program over values of unknown kind, through the L0 view, and since
  * slice 6b its functions that answer a value that the caller owns:
@@ -413,6 +416,9 @@ const hex = c => `0x${c.toString(16)}`
  * pass drops. Since slice 6c, a constant of a string, which `init` makes
  * and nothing drops, and Any's `undefined` and `null`, which the host
  * makes, each of which a function answers, and the lifetime pass copies.
+ * Since slice 6d, string literals, which the start function makes once and
+ * nothing drops, at times one written twice and at times through a
+ * definition of the module.
  *
  * @type {(rnd: _Rnd) => {
  *   readonly text: string,
@@ -423,10 +429,26 @@ const hex = c => `0x${c.toString(16)}`
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 10)
+    const form = below(rnd, 11)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
     /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 10) {
+        // string literals, which the start function makes once and nothing drops
+        const a = pick(rnd, literalSamples)
+        const b = pick(rnd, [a, ...literalSamples])
+        const lines = rnd() < 0.5 ? [`const s = ${a}`] : []
+        const s = lines.length === 0 ? a : 's'
+        const body = `kind(v) === STRING ? ${pick(rnd, [`concat(v, ${s})`, `concat(${b}, v)`, s, `concat(${s}, ${b})`])} : ${pick(rnd, [s, b, 'v'])}`
+        const fn = new Function('STRING', 'concat', 'kind', `${lines.join('\n')}\nreturn v => ${body}`)(STRING, concat, kind)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], any) },
+            inputs: { f: samples() },
+            twin: xs => ({ any: fn(held(xs[0])) }),
+            runtime,
+        }
+    }
     if (form === 9) {
         // a string that `init` makes once, and a constant of Any that the host makes
         const made = pick(rnd, [
