@@ -96,7 +96,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
-import { bitsOf } from '../../media/rust/module.f.js'
+import { bitsOf } from '../../types/number/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
