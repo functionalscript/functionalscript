@@ -10,6 +10,11 @@ leave open a point that the FAST-to-WASM path needs,
 [TODO_DESIGN.md](./TODO_DESIGN.md) lists it and this note picks an answer.
 Nothing here is decided.
 
+Since 2026-11-13, [`fjs/ir`](../../../fjs/ir/README.md) builds this
+definition as code, in vertical slices. Slices 1 to 6 and 7a cover steps 1 to 5
+of the [order of work](#order-of-work), and differ from this note in a few
+names and places, which [What fjs/ir builds](#what-fjsir-builds) lists.
+
 A prototype checks the definition. Its checker, lifetime pass and WASM
 emitter take seven functions, three of them bodies of the L1 module, to a
 WASM module that runs under Node ([Running it](#running-it)).
@@ -720,6 +725,43 @@ the runtime language and can start beside step 2.
 10. **Runtime modules in the IR**, bound in import form and then in
     template form.
 11. **The Rust emitter.**
+
+## What fjs/ir builds
+
+[`fjs/ir`](../../../fjs/ir/README.md) builds this definition in the
+slices of [`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md), each
+proved against its FunctionalScript original. Slices 1 to 6 and 7a are
+merged, the last on 2026-11-15, and 7b is in review. They run in import form, on a JavaScript host that
+counts every value.
+
+| Step of the order of work | In fjs/ir |
+| --- | --- |
+| 1. Types and interfaces as data | built: [`module.f.js`](../../../fjs/ir/module.f.js), the interfaces of L0's five modules in [`l0`](../../../fjs/ir/l0/module.f.js), L1's native rows in [`native`](../../../fjs/ir/native/module.f.js) |
+| 2. Terms and the checker | built but `code` and `call_ref`, which wait for slice 9: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7 |
+| 3. The lifetime pass | built: [`lifetime`](../../../fjs/ir/lifetime/module.f.js), and the owned-stage check |
+| 4. The WASM emitter for import form | built: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host`](../../../fjs/ir/l0/host/module.f.js) |
+| 5. The lowering from normalized FAST | in progress: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers the L1 bodies that slices.md names, and refuses the rest |
+| 6 to 11 | not started; slices 11 and 12 are step 6 |
+
+The slices take up the recommendation of open questions 2 to 8: the
+lowering reads normalized FAST, interfaces come first, `next`, `return_`
+and `throw_` are spellings, a cast always tests, a builder is linear, a
+`lazy` definition is refused, and a loop counter is an `f64` read by
+`exact`. Copy variants, the second half of question 6, wait. For
+question 10 the owner chose `fjs/ir` on 2026-11-13. Questions 1 and 9 are
+open.
+
+Where `fjs/ir` differs from this note:
+
+- **A cast is `cast(t, e, name, body)`**, the derived form that the table
+  of [Terms](#terms) calls "a cast, `narrow` as a statement". There is no
+  `narrow(T, e)` term yet, and no `try_narrow`.
+- **String's function is `unit`**, the name of L0's ABI, not `String.at`.
+- **`exact` is a derived form**, over `trunc_sat` and `float`.
+- **A string literal is a `lit` of a sealed type wherever it stands**, not
+  only as the whole term of a constant, and the start function builds it.
+  Derived `init` evaluates the other constants. The decisions for slice 6
+  in slices.md record this split.
 
 ## Open questions
 

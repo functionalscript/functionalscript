@@ -69,4 +69,8 @@ WASM first, and keeps its role as the language of the runtime.
    [open questions](./type-system.md#open-questions) of type-system.md
    are about the runtime language, and can be decided beside it.
 
-All of it waits for the owner's go-ahead.
+The first two wait for the owner's go-ahead. The third is under way in
+[`fjs/ir`](../../../fjs/ir/README.md), in the slices of
+[`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md):
+[What fjs/ir builds](./definition.md#what-fjsir-builds) says how far it
+has come.
