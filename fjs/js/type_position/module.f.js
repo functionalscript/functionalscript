@@ -72,6 +72,18 @@ const isName = token => token !== undefined && token.kind === 'id'
 /** Whether a token is the name `word`. @type {(word: string) => (token: JsToken | undefined) => boolean} */
 const isWord = word => token => isName(token) && token.value === word
 
+/** The innermost frame. @type {(frames: readonly _Frame[]) => _Frame} */
+const top = frames => frames[Number(frames.length - 1)]
+
+/** Update the innermost frame. @type {(frames: readonly _Frame[], f: Partial<_Frame>) => readonly _Frame[]} */
+const update = (frames, f) => [...frames.slice(0, -1), { ...top(frames), ...f }]
+
+/** Pop the types with no bracket of their own. @type {(frames: readonly _Frame[]) => readonly _Frame[]} */
+const popExtents = frames => {
+    while (frames.length > 1 && top(frames).close === null) { frames = frames.slice(0, -1) }
+    return frames
+}
+
 /**
  * For each token of `tokens`, whether it is a name that stands where a
  * type stands. Trivia is skipped; a line's end is read where it ends a type.
@@ -175,14 +187,6 @@ export const typePositions = tokens => {
     let asNext = false
     let asGeneric = false
     let skipNext = false
-    /** @type {(f: Partial<_Frame>) => void} */
-    const update = f => { frames = [...frames.slice(0, -1), { ...frames[Number(frames.length - 1)], ...f }] }
-    /** @type {() => _Frame} */
-    const top = () => frames[Number(frames.length - 1)]
-    /** Pops the types with no bracket of their own. */
-    const popExtents = () => {
-        while (frames.length > 1 && top().close === null) { frames = frames.slice(0, -1) }
-    }
     for (let j = 0; j < at.length; j = j + 1) {
         const t = /** @type {JsToken} */ (tok(j))
         const kind = t.kind
@@ -190,16 +194,16 @@ export const typePositions = tokens => {
         // A line's end ends a type that ends there, unless the line goes on,
         // and a `type X` that met no `=`, unless its parameters are open.
         if (lineBefore(j) && !continuations.includes(kind)) {
-            while (top().close === null && top().newline) { frames = frames.slice(0, -1) }
-            alias = alias && top().close === '>'
+            while (top(frames).close === null && top(frames).newline) { frames = frames.slice(0, -1) }
+            alias = alias && top(frames).close === '>'
         }
-        while (top().close === null && top().mode === 'type' && top().ends.includes(kind)) { frames = frames.slice(0, -1) }
-        const { mode } = top()
+        while (top(frames).close === null && top(frames).mode === 'type' && top(frames).ends.includes(kind)) { frames = frames.slice(0, -1) }
+        const { mode } = top(frames)
         const wasAs = asNext
         asNext = false
         if (kind === ')' || kind === ']' || kind === '}') {
-            popExtents()
-            const closed = top()
+            frames = popExtents(frames)
+            const closed = top(frames)
             if (frames.length > 1 && closed.close === kind) { frames = frames.slice(0, -1) }
             // A parameter list's return type.
             if (closed.mode === 'params' && next?.kind === ':') {
@@ -210,22 +214,22 @@ export const typePositions = tokens => {
         }
         if ((kind === '>' || kind === '>>' || kind === '>>>') && (mode === 'type' || frames.some(f => f.close === '>'))) {
             for (let n = 0; n < kind.length; n = n + 1) {
-                popExtents()
-                if (top().close === '>') { frames = frames.slice(0, -1) }
+                frames = popExtents(frames)
+                if (top(frames).close === '>') { frames = frames.slice(0, -1) }
             }
             continue
         }
         if (kind === '(') {
-            frames = [...frames, mode === 'type' ? frame('type', ')') : isParams(j, top().ternary) ? frame('params', ')') : frame('value', ')')]
+            frames = [...frames, mode === 'type' ? frame('type', ')') : isParams(j, top(frames).ternary) ? frame('params', ')') : frame('value', ')')]
             continue
         }
         // A function type's parameter bound by a pattern, `([a]: T) =>`,
         // names values.
-        const pattern = (kind === '[' || kind === '{') && mode === 'type' && top().close === ')'
+        const pattern = (kind === '[' || kind === '{') && mode === 'type' && top(frames).close === ')'
             && ['(', ','].includes(kinds[Number(j - 1)]) && closing(j) !== -1 && kinds[Number(closing(j) + 1)] === ':'
         if (kind === '[') {
             // A member's computed key, in a type literal, is a value.
-            const key = mode === 'type' && top().close === '}' && memberStart(j) && computedKey(j)
+            const key = mode === 'type' && top(frames).close === '}' && memberStart(j) && computedKey(j)
             frames = [...frames, frame(mode === 'type' && !key && !pattern ? 'type' : 'value', ']')]
             continue
         }
@@ -258,18 +262,18 @@ export const typePositions = tokens => {
             // A declaration's word opens a declaration where a binding
             // follows it, and is a name where it is a property's.
             if ((kind === 'const' || kind === 'let' || kind === 'var') && !isProperty(j)
-                && (isName(next) || next?.kind === '{' || next?.kind === '[')) { update({ decl: true, declStatement: true }) }
-            else if (kind === ';') { update({ decl: false, declStatement: false }); alias = false }
-            else if (kind === ',') { update({ decl: top().declStatement }) }
-            else if (kind === '?' && next?.kind !== ':') { update({ ternary: top().ternary + 1 }) }
+                && (isName(next) || next?.kind === '{' || next?.kind === '[')) { frames = update(frames, { decl: true, declStatement: true }) }
+            else if (kind === ';') { frames = update(frames, { decl: false, declStatement: false }); alias = false }
+            else if (kind === ',') { frames = update(frames, { decl: top(frames).declStatement }) }
+            else if (kind === '?' && next?.kind !== ':') { frames = update(frames, { ternary: top(frames).ternary + 1 }) }
             else if (kind === '=') {
                 if (alias) { frames = [...frames, extent([';'], true)]; alias = false }
-                else { update({ decl: false }) }
+                else { frames = update(frames, { decl: false }) }
             }
             else if (kind === ':') {
                 const prior = tok(j - 1)?.kind
-                if (top().decl && (prior === 'id' || prior === '}' || prior === ']')) { frames = [...frames, extent([',', '=', ';', ')'], true)] }
-                else if (top().ternary > 0) { update({ ternary: top().ternary - 1 }) }
+                if (top(frames).decl && (prior === 'id' || prior === '}' || prior === ']')) { frames = [...frames, extent([',', '=', ';', ')'], true)] }
+                else if (top(frames).ternary > 0) { frames = update(frames, { ternary: top(frames).ternary - 1 }) }
             }
             else if (isName(t)) {
                 if (wasAs) {
@@ -280,29 +284,30 @@ export const typePositions = tokens => {
                 // An import's or export's `as`, in its names or after `*`,
                 // renames a value: it asserts no type.
                 else if ((isWord('as')(t) || isWord('satisfies')(t)) && isName(next) && !lineBefore(j + 1)
-                    && !top().clause && kinds[Number(j - 1)] !== '*') { asNext = true }
+                    && !top(frames).clause && kinds[Number(j - 1)] !== '*') { asNext = true }
             }
             continue
         }
         if (mode === 'params') {
-            if (kind === ',') { update({ default: false }) }
-            else if (kind === '=') { update({ default: true }) }
-            else if (kind === ':' && !top().default) { frames = [...frames, extent([',', ')', '='], false)] }
+            if (kind === ',') { frames = update(frames, { default: false }) }
+            else if (kind === '=') { frames = update(frames, { default: true }) }
+            else if (kind === ':' && !top(frames).default) { frames = [...frames, extent([',', ')', '='], false)] }
             continue
         }
         // A type. A conditional's `?` and `:` are counted, so a name before
         // its `:` is a type, not a member's name.
-        if (kind === '?' && next?.kind !== ':' && !(top().close === '}' && memberStart(j - 1))) { update({ ternary: top().ternary + 1 }); continue }
-        if (kind === ':' && top().ternary > 0) { update({ ternary: top().ternary - 1 }); continue }
+        if (kind === '?' && next?.kind !== ':' && !(top(frames).close === '}' && memberStart(j - 1))) { frames = update(frames, { ternary: top(frames).ternary + 1 }); continue }
+        if (kind === ':' && top(frames).ternary > 0) { frames = update(frames, { ternary: top(frames).ternary - 1 }); continue }
         if (!isName(t)) { continue }
         if (skipNext) { skipNext = false; continue }
         const after = next?.kind
-        const named = (after === ':' && top().ternary === 0) || (after === '?' && tok(j + 2)?.kind === ':')
+        const named = (after === ':' && top(frames).ternary === 0) || (after === '?' && tok(j + 2)?.kind === ':')
             || isWord('is')(next) || after === 'in'
             || tok(j - 1)?.kind === '.'
             // a type literal's member opens with its name, or a modifier
-            || (top().close === '}' && memberStart(j))
+            || (top(frames).close === '}' && memberStart(j))
         if (!named && !operators.includes(t.value)) { typed = [...typed, at[Number(j)]] }
     }
-    return tokens.map((_, i) => typed.includes(i))
+    const typeIndexes = typed
+    return tokens.map((_, i) => typeIndexes.includes(i))
 }

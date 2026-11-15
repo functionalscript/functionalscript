@@ -293,7 +293,7 @@ interchangeable input constructors. The current mapping is:
 | Boundary | Current owner and normalization |
 | --- | --- |
 | Parsed function | Parser [`entered`, `returned` and `closed`](parser/module.f.mjs) assign the function target. Returns inside loop regions and ordinary join arms are targeted `SourceStatement`s, including through nested guards and switches. An ordinary function's terminal result remains a `SourceExit`. |
-| Statement return | Sugar [`normalizedBlock`](../js/ast/sugar/module.f.mjs) keeps `['return', F, value]` as an abrupt exit. No following normal join consumes a result from that path. |
+| Statement return | Sugar [`normalizedBlock`](../js/ast/sugar/module.f.js) keeps `['return', F, value]` as an abrupt exit. No following normal join consumes a result from that path. |
 | Terminal source return | Sugar `normalizedExit` produces a local one-result yield in the admitted terminal-result profile. `functionValue` restores `['return', F, value]` at the ordinary function boundary. Join-arm returns do not enter this result path. A yield in this intermediate body is not an implicit source return. |
 | Immediate function call | Sugar `leaf` eliminates an eligible zero-argument call only after checking for other owning returns and invocation bindings. It excludes the final return from that check, but still scans a terminal loop. A required invocation boundary remains a function call. |
 | Immediate call with enclosing writes | Parser `blockCall`, `closed` and `internalReturn` apply the existing invocation/capture limits. Sugar `enclosedValue` exports the expression result and changed outer binding versions on normal completion; subsequent code reads those immutable versions. |

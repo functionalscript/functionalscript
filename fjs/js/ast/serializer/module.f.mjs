@@ -342,17 +342,20 @@ const functionText = (expression, renderBlock, context, fn) => {
             .filter(([binding, source]) => binding !== source),
     ]
     const self = fn.self === null || context.binding === null || context.runtime || captured ? [] : [/** @type {const} */ ([fn.self, context.binding])]
-    let inner = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
-    const initial = inner
+    /** @type {Context} */
+    const initial = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
     const params = [...fn.parameters.map(id => declared(initial, id)), ...fn.rest === null ? [] : [`...${declared(initial, fn.rest)}`]].join(',')
-    let preface = ''
+    /** @type {{ readonly inner: Context; readonly preface: string }} */
+    let prepared = { inner: initial, preface: '' }
     if (!context.runtime && !captured && fn.captures.length > 1) {
-        const before = inner
+        const before = prepared.inner
         const locals = captureLocals(context, fn)
-        inner = { ...inner, aliases: [...inner.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[Number(index)]]))] }
-        const rebound = inner
-        preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(rebound, locals[Number(index)])}=${name(before, capture.binding)};`).join('')
+        /** @type {Context} */
+        const rebound = { ...before, aliases: [...before.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[Number(index)]]))] }
+        const preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(rebound, locals[Number(index)])}=${name(before, capture.binding)};`).join('')
+        prepared = { inner: rebound, preface }
     }
+    const { inner, preface } = prepared
     const expressionBody = preface === '' && fn.body.statements.length === 0 && fn.body.exit[0] === 'return'
     const value = expressionBody ? expression(inner, /** @type {Extract<Block['exit'], readonly ['return', unknown, Value]>} */ (fn.body.exit)[2]) : ''
     const body = expressionBody && !value.startsWith('{') ? value : `{${preface}${renderBlock(inner, fn.body, 'return')}}`

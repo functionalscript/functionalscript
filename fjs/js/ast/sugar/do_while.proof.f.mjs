@@ -11,7 +11,7 @@ import { analysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
-import { normalize } from './module.f.mjs'
+import { normalize } from './module.f.js'
 
 /** @type {(source: string) => Exp} */
 const graph = source => assertOk(tryUnresolved(assertOk(parse('do.f.js')(source)))).edag

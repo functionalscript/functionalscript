@@ -22,7 +22,7 @@ if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.ma
 
 `writes` in [`effects`](../effects/module.f.js) spells the full children
 table a third time (`initialize`/`write`, `compound-write`, `if`, `while`,
-`switch`, and the exit), and `continuedSteps` in [`module.f.mjs`](../module.f.mjs)
+`switch`, and the exit), and `continuedSteps` in [`module.f.js`](../module.f.js)
 recurses through `if` arms and `switch` cases a fourth time to insert a `for`
 step before each `continue`. `caseFallsThrough` in the parser is
 path-sensitive and stays its own.

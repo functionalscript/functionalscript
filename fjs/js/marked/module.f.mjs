@@ -18,7 +18,7 @@
  * rest — as keywords where an operand follows them on their line, and as
  * names everywhere else, so a variable named `type` stays a name. The
  * primitive type names, `string` among them, are keywords where a type
- * stands for certain ([`type_position`](../type_position/module.f.mjs)), and
+ * stands for certain ([`type_position`](../type_position/module.f.js)), and
  * names everywhere else, so the `rtti` builder `number` in
  * `or(option, number)` stays a name.
  *
@@ -30,7 +30,7 @@
  */
 
 import { isTrivia } from '../../ebnf/lib/js/module.f.js'
-import { typePositions } from '../type_position/module.f.mjs'
+import { typePositions } from '../type_position/module.f.js'
 import { _positions, tokenize } from '../tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../keywords/module.f.js'

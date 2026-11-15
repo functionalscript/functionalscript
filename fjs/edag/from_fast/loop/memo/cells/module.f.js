@@ -1,6 +1,6 @@
 /** Compatibility exports for shared FAST lazy cell planning. @module */
 
-import { _hasReturn as sharedHasReturn, memoCells as sharedMemoCells, recipeCells as sharedRecipeCells } from '../../../../../js/ast/memo/cells/module.f.mjs'
+import { _hasReturn as sharedHasReturn, memoCells as sharedMemoCells, recipeCells as sharedRecipeCells } from '../../../../../js/ast/memo/cells/module.f.js'
 
 /** @type {typeof sharedHasReturn} */
 export const _hasReturn = sharedHasReturn

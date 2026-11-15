@@ -16,7 +16,7 @@
  * @import { _Resolved } from './private.ts'
  */
 
-import { tryNormalize } from '../../js/ast/sugar/module.f.mjs'
+import { tryNormalize } from '../../js/ast/sugar/module.f.js'
 import { fromFast } from '../../edag/from_fast/module.f.mjs'
 import { _fileError, _jsonModule, _program } from '../source/module.f.mjs'
 import { pureOk } from '../../effects/module.f.js'

@@ -90,7 +90,7 @@ source through spread and use the same aggregate loop state and completion
 machinery. `for…in`, assignment-target iteration and update operators remain
 separate features.
 
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) owns pattern/default expansion and
+[`js/ast/sugar`](../js/ast/sugar/module.f.js) owns pattern/default expansion and
 normalization into immutable FAST values. It keeps one required initializer,
 creates fresh versions for assignments, and supplies explicit loop inputs and
 results. A const snapshot retains its own source identity even when its current
@@ -324,7 +324,7 @@ two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. One call lowers to no call at all: a parameterless function written
 at the call and called with no arguments, `(() => { const x = f(); return
 [x, x]; })()`, becomes a normalized value block in
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs), with the enclosing binding
+[`js/ast/sugar`](../js/ast/sugar/module.f.js), with the enclosing binding
 values and required evaluations retained at that point. No invocation boundary
 is added by this block; [spec: functions](../../spec/functions/README.md)
 states the source rule. The writer

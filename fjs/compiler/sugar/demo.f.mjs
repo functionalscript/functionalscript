@@ -1,5 +1,5 @@
 /**
- * The `sugar` pass, [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs),
+ * The `sugar` pass, [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.js),
  * seen from its input and its output. A FunctionalScript module as its two
  * trees before the EDAG, side by side:
  * the source AST the parser resolves, and the Foundation AST `normalize`
@@ -40,7 +40,7 @@ import { refusal } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
 import { graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { fastGraph, sourceGraph } from '../graph/module.f.mjs'
-import { tryNormalize } from '../../js/ast/sugar/module.f.mjs'
+import { tryNormalize } from '../../js/ast/sugar/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 
