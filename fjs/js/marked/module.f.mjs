@@ -29,7 +29,7 @@
  * @import { Marked, Span, TokenKind } from '../../text/marked/types.ts'
  */
 
-import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
+import { isTrivia } from '../../ebnf/lib/js/module.f.js'
 import { typePositions } from '../type_position/module.f.mjs'
 import { _positions, tokenize } from '../tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'

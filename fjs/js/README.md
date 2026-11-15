@@ -50,7 +50,7 @@ the website colours source text by.
 
 ## Related
 
-- [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) is the token grammar the
+- [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) is the token grammar the
   tokenizer reads with.
 - [`doc/DESIGN.md` §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)
   is the principle behind "each written once".

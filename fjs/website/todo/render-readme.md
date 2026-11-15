@@ -19,7 +19,7 @@ explains the module, and its page shows the file name.
 ### Why the Markdown reader the site already has does not cover it
 
 [`media/markdown`](../../media/markdown/module.f.mjs), over the grammar
-[`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs), reads a
+[`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.js), reads a
 **release file**: a flat list of `-` entries whose spans are text, code,
 bold, italic and links. Its types say what it cannot express — headings, code
 fences, numbered lists, nested lists, block quotes, tables, interior blank
@@ -186,7 +186,7 @@ Every README has a heading, so today's reader renders none of them.
 - [Generate website](generate-website.md) — "Convert `README.md` files into
   HTML and publish them" is this issue.
 - [`media/markdown`](../../media/markdown/module.f.mjs) and
-  [`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs) — the reader
+  [`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.js) — the reader
   this extends.
 - [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
   — what the subset refuses or reads differently from GitHub.

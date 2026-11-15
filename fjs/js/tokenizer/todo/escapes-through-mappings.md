@@ -6,7 +6,7 @@
 
 ### Problem
 
-`lex` runs the [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) grammar
+`lex` runs the [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.js) grammar
 with no mapping set, keeps a token's code points, and `toJsToken` re-scans
 that text to find the cooked value: `stringDecodeScan` and `decodeString` for
 a quoted string, `templateDecodeStep` and `decodeTemplate` for a template,

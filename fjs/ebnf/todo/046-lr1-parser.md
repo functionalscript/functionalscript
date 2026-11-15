@@ -7,7 +7,7 @@
 
 This issue was filed because LL(1) could not handle line breaks in comments.
 That reason no longer holds: the LL(1) token grammar
-[`../lib/js`](../lib/js/module.f.mjs) reads a line comment up to its newline
+[`../lib/js`](../lib/js/module.f.js) reads a line comment up to its newline
 and a block comment holding newlines, and `fjs/js/tokenizer`'s proof covers
 both. An LR(1) backend needs a current motivation — a grammar in the tree
 that LL(1) refuses — before it is worth building.

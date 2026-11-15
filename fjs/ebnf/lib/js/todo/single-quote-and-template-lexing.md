@@ -16,7 +16,7 @@ and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.js),
 not this grammar, so widening this grammar regresses nothing, and the ordering
 problem that blocked the old issue is gone with the module it was about.
 
-The JS token grammar in [`module.f.mjs`](../module.f.mjs) takes its quoted
+The JS token grammar in [`module.f.js`](../module.f.js) takes its quoted
 `string` rule from JSON: JSON's string between double quotes, or the same
 between single quotes with `\'`, `\xHH` and `\v` added
 ([2460](../../../../../spec/todo/2460-js-string-literals.md)). Template chunks
