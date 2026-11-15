@@ -421,7 +421,8 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ğŸ˜
  * definition of the module. Since slice 6e, array literals of values:
  * parameters, literals, Any's constants, strings that a call makes and
  * arrays, at times one that `init` builds, in arms, read by `length` and
- * `item` or answered.
+ * `item` or answered. Since slice 6f, a read of an array at a number key,
+ * at an index of it, past it, at a fraction, a NaN and `-0`.
  *
  * @type {(rnd: _Rnd) => {
  *   readonly text: string,
@@ -432,10 +433,28 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ğŸ˜
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 12)
+    const form = below(rnd, 13)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
     /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 12) {
+        // a read of an array at a number key, by L1's `get`: the item at an index of it, and `undefined` at anything else
+        const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
+        /** An array of `atoms`, of up to three items. @type {(atoms: readonly string[]) => string} */
+        const arrayText = atoms => `[${Array.from({ length: below(rnd, 4) }, () => pick(rnd, atoms)).join(', ')}]`
+        const lines = rnd() < 0.3 ? [`const a = ${arrayText(fixed)}`] : []
+        const receiver = lines.length === 0 ? arrayText(['v', '[v]', ...fixed]) : 'a'
+        const key = pick(rnd, ['Number(k)', 'Number(k)', '0', '1', 'Number(-k)'])
+        const body = `${receiver}[${key}]`
+        const fn = new Function('concat', `${lines.join('\n')}\nreturn (v, k) => ${body}`)(concat)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = (v, k) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['k', f64]], any) },
+            inputs: { f: Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }, pick(rnd, [...indexSamples, -0, 1.5, Infinity])])) },
+            twin: xs => ({ any: fn(held(xs[0]), float64(xs[1])) }),
+            runtime,
+        }
+    }
     if (form === 11) {
         // array literals of values, each built once its items are values
         /** An item of `atoms`, or an array of them where `depth` allows. @type {(atoms: readonly string[], depth: number) => string} */

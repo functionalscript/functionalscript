@@ -197,16 +197,16 @@ export const next = (label, fields) => br(label, make(fields))
 
 /**
  * `body` of the integer of `t` that a float holds exactly, which is bound to
- * `name`, and a trap where the float holds none: a fraction, a NaN or an
- * infinity, or a value outside `t`. `-0` holds `0`. A float that is no
- * local or literal is bound first, to `name.float`. `t` is within ±2^53, as
- * `float` needs.
+ * `name`, and `otherwise`, a trap unless it is given, where the float holds
+ * none: a fraction, a NaN or an infinity, or a value outside `t`. `-0`
+ * holds `0`. A float that is no local or literal is bound first, to
+ * `name.float`. `t` is within ±2^53, as `float` needs.
  *
- * @type {(t: Int, x: Term, name: string, body: (k: Term) => Term) => Term}
+ * @type {(t: Int, x: Term, name: string, body: (k: Term) => Term, otherwise?: Term) => Term}
  */
-export const exact = (t, x, name, body) => {
+export const exact = (t, x, name, body, otherwise = trap('inexact')) => {
     /** @type {(y: Term) => Term} */
-    const test = y => let_(name, trunc_sat(t, y), k => if_(eq(float(k), y), body(k), trap('inexact')))
+    const test = y => let_(name, trunc_sat(t, y), k => if_(eq(float(k), y), body(k), otherwise))
     return x[0] === 'get' || x[0] === 'lit' ? test(x) : let_(`${name}.float`, x, test)
 }
 
