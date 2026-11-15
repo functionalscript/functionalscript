@@ -18,7 +18,7 @@ import { write as writeEnvelope } from '../object/module.f.js'
 import { packIdxCode } from '../packstore/module.f.js'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.js'
 import { commitPayload, latin1, noFile, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.js'
-import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, readIn, tryRead } from './module.f.mjs'
+import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, readIn, tryRead } from './module.f.js'
 
 /** @type {(hex: string) => Oid} */
 const id = hex => {

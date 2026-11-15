@@ -24,7 +24,7 @@ import { author as authorOf, parents, tryRead as readCommit } from '../../git/co
 import { write as writeEnvelope } from '../../git/object/module.f.js'
 import { hexText, of } from '../../git/oid/module.f.js'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
-import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.mjs'
+import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.js'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.js'
 import { compare, write as writeTree } from '../../git/tree/module.f.js'
 import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/bit_vec/module.f.js'

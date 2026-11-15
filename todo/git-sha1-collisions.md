@@ -41,7 +41,7 @@ id names one thing.
 
 Each is a candidate, not a decision; several may combine. The answers
 decide what [`fjs/crypto/todo/sha1.md`](../fjs/crypto/todo/sha1.md)
-computes, what [`fjs/git/store`](../fjs/git/store/module.f.mjs)
+computes, what [`fjs/git/store`](../fjs/git/store/module.f.js)
 checks on read, and what the signed payload in
 [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
 covers.
@@ -140,7 +140,7 @@ covers.
       criteria; record it in
       [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
       as what the signed payload covers, and in
-      [`fjs/git/store`](../fjs/git/store/module.f.mjs)'s own documentation
+      [`fjs/git/store`](../fjs/git/store/module.f.js)'s own documentation
       as what a read checks.
 - [ ] Write the threat model down, in whichever of those documents the
       decision lands in: the attacker authored both objects, and where in
@@ -151,7 +151,7 @@ covers.
 - [`fjs/crypto/todo/sha1.md`](../fjs/crypto/todo/sha1.md) — where collision
   detection (`sha1dc`) would go; the hash itself shipped as
   [`fjs/crypto/sha1`](../fjs/crypto/sha1/module.f.js).
-- [`fjs/git/store`](../fjs/git/store/module.f.mjs) — the id check on read.
+- [`fjs/git/store`](../fjs/git/store/module.f.js) — the id check on read.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
   — the signed payload, and the "usual hash-security assumptions" it
   names.

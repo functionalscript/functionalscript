@@ -77,6 +77,15 @@ import { hexText, of, ofWidth } from '../oid/module.f.js'
 import { tryRead as readPacked } from '../packstore/module.f.js'
 
 /**
+ * A repository's own object directory: `objects/` below it.
+ *
+ * Joined with {@link under} for the reason {@link objectPath} gives.
+ *
+ * @type {(dir: string) => string}
+ */
+export const objectsDir = dir => under(dir, 'objects')
+
+/**
  * Where a loose object lives: `objects/`, a directory named by the first
  * two hex digits of the id, a file named by the rest.
  *
@@ -89,15 +98,6 @@ import { tryRead as readPacked } from '../packstore/module.f.js'
  * @type {(dir: string) => (id: Oid) => string}
  */
 export const objectPath = dir => id => loosePath(objectsDir(dir), id)
-
-/**
- * A repository's own object directory: `objects/` below it.
- *
- * Joined with {@link under} for the reason {@link objectPath} gives.
- *
- * @type {(dir: string) => string}
- */
-export const objectsDir = dir => under(dir, 'objects')
 
 /**
  * Where an object directory records the stores it borrows from.
@@ -257,6 +257,32 @@ const packedOr = (idOf, id, loose) => r => {
 }
 
 /**
+ * Which of two outcomes stands: the object, then a refusal, then the first
+ * directory's answer.
+ *
+ * **A refusal outlives a miss, whichever directory it came from.** A borrowed
+ * store whose pack cannot answer for an id it holds is corruption, and reporting
+ * the repository's own `ENOENT` instead would answer "no such object" for a
+ * question that was never answered — the plausible wrong value `fjs/AGENTS.md`
+ * forbids. Git says both, in its own way: it prints the borrowed store's failure
+ * and then reports the miss. With one channel, the failure is the one worth
+ * carrying.
+ *
+ * **Among misses the first directory's answer stands**, because the three things
+ * a read can say short of the object — no file, bytes that are no object, bytes
+ * of another object — are about the store that was asked and not about the last
+ * store it borrows from. Among refusals the first stands for the same reason.
+ *
+ * @type {(found: Nullable<_Outcome>, o: _Outcome) => _Outcome}
+ */
+const kept = (found, o) => {
+    if (found === null) { return o }
+    const [answer, refusal] = o
+    if (answer[0] === 'ok' && answer[1] !== null) { return o }
+    return refusal && !found[1] ? o : found
+}
+
+/**
  * One directory of the search: its answer where it has the object, and otherwise
  * the first directory's answer kept for the end.
  *
@@ -326,32 +352,6 @@ const storeOf = (idOf, oidBytes, id) => {
             inOne(od),
             o => /** @type {const} */ ([kept(found, o), null]))
     }
-}
-
-/**
- * Which of two outcomes stands: the object, then a refusal, then the first
- * directory's answer.
- *
- * **A refusal outlives a miss, whichever directory it came from.** A borrowed
- * store whose pack cannot answer for an id it holds is corruption, and reporting
- * the repository's own `ENOENT` instead would answer "no such object" for a
- * question that was never answered — the plausible wrong value `fjs/AGENTS.md`
- * forbids. Git says both, in its own way: it prints the borrowed store's failure
- * and then reports the miss. With one channel, the failure is the one worth
- * carrying.
- *
- * **Among misses the first directory's answer stands**, because the three things
- * a read can say short of the object — no file, bytes that are no object, bytes
- * of another object — are about the store that was asked and not about the last
- * store it borrows from. Among refusals the first stands for the same reason.
- *
- * @type {(found: Nullable<_Outcome>, o: _Outcome) => _Outcome}
- */
-const kept = (found, o) => {
-    if (found === null) { return o }
-    const [answer, refusal] = o
-    if (answer[0] === 'ok' && answer[1] !== null) { return o }
-    return refusal && !found[1] ? o : found
 }
 
 /**

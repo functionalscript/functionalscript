@@ -130,7 +130,7 @@ what a grammar can and cannot do for the formats.
   [`config/`](config/module.f.js)'s readers: `extensions.objectFormat`
   absent is SHA-1, `sha256` under `repositoryformatversion = 1` is SHA-256,
   and a repository format Git refuses is refused.
-- [`store/`](store/module.f.mjs) — from an id to the object it names,
+- [`store/`](store/module.f.js) — from an id to the object it names,
   checked: the loose file at the id's path or the packs through
   [`packstore/`](packstore/module.f.js), whichever answers, hashed with
   `oid`'s `of` and refused where the hash is not the id. The loose file is read first and anything but a good object there

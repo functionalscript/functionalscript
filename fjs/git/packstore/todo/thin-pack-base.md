@@ -14,7 +14,7 @@ deliberately more capable than Git here.
 
 ### Proposal
 
-Resolving the base through [`fjs/git/store`](../../store/module.f.mjs)'s
+Resolving the base through [`fjs/git/store`](../../store/module.f.js)'s
 `readIn` would read a thin pack Git calls broken. The arguments either way:
 
 - **For:** it could not answer *wrongly* — whatever the delta produces is
@@ -38,5 +38,5 @@ and the base id.
 
 - [`fjs/git/README.md`](../../README.md) — the readers a pack feeds, and the
   framing table that puts a pack on the decoder side.
-- [`fjs/git/store`](../../store/module.f.mjs) — the read that chooses between
+- [`fjs/git/store`](../../store/module.f.js) — the read that chooses between
   loose and packed, and the whole-store read a base would resolve through.

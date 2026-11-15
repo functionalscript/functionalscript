@@ -147,7 +147,7 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
  * Git does not check it on every read — it maps the file and trusts it, and
  * verifies only under `index-pack --strict` and `verify-pack`. Reading it here
  * costs a hash of the file per open, which is the same price
- * [`fjs/git/store`](../store/module.f.mjs) already pays per object, for the same
+ * [`fjs/git/store`](../store/module.f.js) already pays per object, for the same
  * reason: nothing above these readers is in a position to notice.
  *
  * @type {(b: readonly number[], oidBytes: OidBytes) => boolean}

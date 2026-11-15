@@ -6,7 +6,7 @@
  * {@link oidBytes} from a repository's `config` file.
  *
  * Every reader of an object takes the width as a parameter, so the object
- * store, [`fjs/git/store`](../store/module.f.mjs), never reads the format;
+ * store, [`fjs/git/store`](../store/module.f.js), never reads the format;
  * a caller asks here first, once it has the repository directory
  * [`fjs/git/repo`](../repo/module.f.js)'s `tryCommonDir` finds.
  *

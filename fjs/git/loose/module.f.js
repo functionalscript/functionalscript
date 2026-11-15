@@ -67,7 +67,7 @@ export const tryRead = file => step(readWhole(file), chunks => {
  *
  * **The key is the `objects/` directory and not the repository**, because an
  * `objects/info/alternates` names object directories directly — see
- * [`fjs/git/store`](../store/module.f.mjs)'s `objectsDirs`, whose
+ * [`fjs/git/store`](../store/module.f.js)'s `objectsDirs`, whose
  * `objectPath` is this one below a repository's `objects/`.
  *
  * @type {(od: string, id: Oid) => string}

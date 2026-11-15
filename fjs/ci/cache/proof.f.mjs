@@ -19,7 +19,7 @@ import { nodeCommands, readUtf8File, writeFiles } from '../../effects/node/modul
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../../effects/node/virtual/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.js'
 import { hexText, of, tryFromHexOf } from '../../git/oid/module.f.js'
-import { objectsDir, tryRead as readObject } from '../../git/store/module.f.mjs'
+import { objectsDir, tryRead as readObject } from '../../git/store/module.f.js'
 import { write as writeTree } from '../../git/tree/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.js'
 import { utf8 } from '../../text/module.f.js'
