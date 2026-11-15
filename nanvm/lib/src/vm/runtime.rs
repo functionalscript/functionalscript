@@ -237,6 +237,84 @@ mod tests {
         }
     }
 
+    /// The generated FJS body rounds to binary32 precision, then answers
+    /// an ordinary Number. It retains the static's metadata and has no
+    /// native fallback when the common runtime omits its binding.
+    #[test]
+    fn fround_uses_the_common_runtime() {
+        let rt: Any<A> = runtime::<A>().unwrap();
+        let fround = static_read(&rt, "Math.fround").unwrap();
+        assert_eq!(fround, static_at(&rt, "Math.fround"));
+        assert_eq!(fround, static_read(&rt, "Math.fround").unwrap());
+        assert_eq!(
+            fround.clone().to_string(),
+            Ok("function fround() { [native code] }".into())
+        );
+        assert_eq!(at(&fround, "length"), 1.0.to_any());
+        for (input, expected) in [
+            (0.0, 0.0),
+            (-0.0, -0.0),
+            (f64::NAN, f64::NAN),
+            (f64::INFINITY, f64::INFINITY),
+            (f64::NEG_INFINITY, f64::NEG_INFINITY),
+            (1.337, 1.337_000_012_397_766_1),
+            (1.0 + 2.0_f64.powi(-24), 1.0),
+            (1.0 + 3.0 * 2.0_f64.powi(-24), 1.0 + 2.0_f64.powi(-22)),
+            (2.0_f64.powi(-150), 0.0),
+            (-2.0_f64.powi(-150), -0.0),
+            (3.0 * 2.0_f64.powi(-150), 2.0_f64.powi(-148)),
+            (2.0_f64.powi(-126) - 2.0_f64.powi(-150), 2.0_f64.powi(-126)),
+            (2.0_f64.powi(128) - 2.0_f64.powi(103), f64::INFINITY),
+            (f64::MAX, f64::INFINITY),
+            (-f64::MAX, f64::NEG_INFINITY),
+            (f64::from_bits(1), 0.0),
+        ] {
+            let result = fround
+                .clone()
+                .call([input.to_any()].to_array().to_any())
+                .unwrap();
+            assert!(result.same_value(&expected.to_any()), "input {input}");
+        }
+        for (input, expected) in [
+            ("1.337".into(), 1.337_000_012_397_766_1),
+            ("-0".into(), -0.0),
+            (true.to_any(), 1.0),
+            (Nullish::Null.to_any(), 0.0),
+            (Any::undefined(), f64::NAN),
+        ] {
+            let result = fround.clone().call([input].to_array().to_any()).unwrap();
+            assert!(result.same_value(&expected.to_any()));
+        }
+        assert!(
+            fround
+                .clone()
+                .call([].to_array().to_any())
+                .unwrap()
+                .same_value(&f64::NAN.to_any())
+        );
+        let extra = [("valueOf".into(), throws("must not convert".into()))]
+            .to_object()
+            .to_any();
+        assert_eq!(
+            fround
+                .clone()
+                .call([1.0.to_any(), extra].to_array().to_any()),
+            Ok(1.0.to_any())
+        );
+        assert!(
+            fround
+                .call([BigInt::<A>::from(1i64).to_any()].to_array().to_any())
+                .is_err()
+        );
+        let missing: Any<A> = [("static".into(), returns(Any::undefined()))]
+            .to_object()
+            .to_any();
+        assert_eq!(
+            static_read(&missing, "Math.fround"),
+            Err(error::no_static_function("Math.fround"))
+        );
+    }
+
     /// `Object.keys` is the shared runtime's function over native entries,
     /// with stable identity, standard function metadata and a fresh result.
     /// A runtime without its binding cannot supply a native fallback.

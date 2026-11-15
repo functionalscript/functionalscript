@@ -35,6 +35,18 @@ const commonRuntime = () => {
 const executeWithRuntime = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [], runtime: commonRuntime() }))))
 
 export const proof = {
+    mathFround: () => {
+        expectEdag(compile('export default Math.fround(1.337);').edag, ['()', ['Math.fround'], [1.337]])
+        expectEdag(compile('const { fround } = Math; export default [fround, Math["fround"], fround.length];').edag,
+            ['[]', [['Math.fround'], ['Math.fround'], ['.', ['Math.fround'], 'length']]])
+        // A shared static cannot silently fall back to the host's Math.fround.
+        const run = memo(assertOk(analysis(compile('export default Math.fround(1.337);').edag)))
+        assertEq(assertError(run({ args: [] })), 'no binding for the static Math.fround')
+        assertStructurallySame(executeWithRuntime(compile('const { fround } = Math; const read = () => Math.fround; export default [fround("1.337"), Math["fround"](1 + 2 ** -24), Math.fround?.(1 + 3 * 2 ** -24), fround(-0), fround(-(2 ** -150)), fround(3 * 2 ** -150), fround(2 ** -126 - 2 ** -150), fround(2 ** 128 - 2 ** 103), fround(-Infinity), fround(), fround(NaN), fround(1, 1n), fround === read(), read() === read(), fround.length, typeof fround, String(fround)];').edag),
+            [1.3370000123977661, 1, 1 + 2 ** -22, -0, -0, 2 ** -148, 2 ** -126, Infinity, -Infinity, NaN, NaN, 1, true, true, 1, 'function', 'function fround() { [native code] }'])
+        const bigint = memo(assertOk(analysis(compile('export default Math.fround(1n);').edag)))
+        assertError(bigint({ args: [], runtime: commonRuntime() }))
+    },
     mathLog2: () => {
         expectEdag(compile('export default Math.log2(8);').edag, ['()', ['Math.log2'], [8]])
         expectEdag(compile('const { log2 } = Math; export default [log2, Math["log2"], log2.length];').edag,

@@ -518,11 +518,20 @@ mod tests {
     #[test]
     fn static_functions() {
         let entry = crate::load(super::static_functions::module::<Naive>).unwrap();
-        crate::assert_call(&entry, 0.0, Ok("[false,true,false,[[\"0\",2],[\"b\",0]]]"));
+        crate::assert_call(
+            &entry,
+            0.0,
+            Ok("[false,true,false,[[\"0\",2],[\"b\",0]],0]"),
+        );
         crate::assert_call(
             &entry,
             1.5,
-            Ok("[false,false,true,[[\"0\",2],[\"b\",1.5]]]"),
+            Ok("[false,false,true,[[\"0\",2],[\"b\",1.5]],1.5]"),
+        );
+        crate::assert_call(
+            &entry,
+            0.1,
+            Ok("[false,false,true,[[\"0\",2],[\"b\",0.1]],0.10000000149011612]"),
         );
     }
 

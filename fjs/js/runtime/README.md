@@ -85,6 +85,20 @@ marker in place of a body would only duplicate the parser's list.
 
 ## Math functions
 
+`Math.fround` has one FJS body here, shared by represented execution and
+generated Rust, including Rust compiled to WASM. It converts its first
+argument once with `ToNumber`, finds the binary32 spacing using an exact
+bounded exponent search, then rounds to the nearest multiple with ties to
+an even significand. Subnormals use a fixed spacing of `2 ** -149`.
+Applying the sign last preserves negative underflow zero; overflow produces
+the corresponding infinity. NaN, infinities and both zeros remain unchanged.
+The result is an ordinary FJS number with binary32 precision.
+
+There is no native fround binding or cast in the executors. This shared body
+is an explicit exception to the general native Math policy below, approved
+in the [admission record](../../../spec/todo/2360-built-in.md#mathfround-proposal-and-approval).
+Any later native pattern substitution must preserve the same semantics.
+
 `Math.max` and `Math.min` use Rust's `f64::max` and `f64::min` and core WASM's
 `f64.max` and `f64.min` after converting every argument in order with
 `ToNumber`. The executor handles the JavaScript boundary cases around those
@@ -180,6 +194,8 @@ instruction, so both `Math.log2` and a possible supporting `Math.log` need
 shared bodies. Native substitutions can follow later; WASM adds no
 third-party dependencies. This is the rule approved in the
 [Math.log2 admission record](../../../spec/todo/2360-built-in.md#mathlog2-proposal-and-approval).
+The separately approved `Math.fround` admission keeps its common body even
+though both targets have native narrowing conversions.
 
 ## The names without a body
 

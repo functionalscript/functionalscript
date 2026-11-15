@@ -356,7 +356,7 @@ This records the designer's direct request for the feature under DESIGN §12.
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [x] `Math` — a reserved namespace admitting the static functions
       `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-      `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`; other members remain
+      `Math.ceil`, `Math.imul`, `Math.max`, `Math.min` and `Math.fround`; other members remain
       separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
@@ -687,6 +687,42 @@ needs explicit special-value corrections to match JavaScript and core WASM.
 **Language-design approval.** **sergey-shandar** explicitly requested
 "Implement `Math.min` in the same PR" in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.fround proposal and approval
+
+**Problem.** The WAT formatter uses `Math.fround` to choose a decimal spelling
+that rounds back to the original binary32 value. The compiler refused it.
+
+**Proposal.** Admit the static value `Math.fround`, represented by
+`['Math.fround']`, with one FJS implementation in the common runtime.
+Preserve ordinary, quoted, detached, destructured and optional calls, stable
+function identity, `length` 1 and native function text. Convert the first
+argument once with `ToNumber`, then round to binary32 precision using nearest,
+ties-to-even rounding. Return an ordinary FJS number. Preserve NaN, infinities
+and signed zero; retain subnormals and round overflow to signed infinity.
+An omitted argument returns NaN. Bigint inputs and failed conversions throw;
+extra arguments are evaluated but not converted.
+
+**Backend choice.** Every backend uses the same authored FJS body. Its
+arithmetic finds the binary32 spacing, rounds an exactly scaled significand
+with an explicit tie rule, then applies the sign. This admission intentionally
+does not use Rust casts or core WASM demote/promote instructions even though
+they exist: it is an explicitly approved exception to the general native
+Math target rule. There is no new native fround binding, public helper alias,
+FJS numeric type or pattern instruction. Later native substitutions are a
+separate optimization of the common body.
+
+**Benefits.** Familiar JavaScript spelling and one numerical implementation
+across languages, with exact rounding semantics and no external dependency.
+
+**Drawbacks.** The shared arithmetic does more work than a native conversion.
+Admission adds static metadata and generated runtime code; the rounding
+boundaries require explicit proofs.
+
+**Language-design approval.** **sergey-shandar** clarified that common means
+"the same FJS implementation for all languages", then requested "Do it in
+the next PR" after the shared body was distinguished from native bindings,
+in the [working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033).
 
 #### Text Processing
 

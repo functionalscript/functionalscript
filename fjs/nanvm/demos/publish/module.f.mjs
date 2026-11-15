@@ -14,7 +14,7 @@
  * `nanvm_demos::samples::<sample>`, picked by their names in the module's name
  * section, which this demangles first so the WAT names every function as Rust
  * does: NaNVM and `std` are most of the module and the same for every
- * sample. Each function is printed as [`wat`](../../../media/wasm/wat/module.f.mjs)
+ * sample. Each function is printed as [`wat`](../../../media/wasm/wat/module.f.js)
  * prints it in the whole module, so a fragment is not a module of its own.
  * Each sample's WAT is written as `<sample>.wat.marked`: the text with each
  * word's kind in a tag ([`text/marked`](../../../text/marked/README.md)'s
@@ -44,7 +44,7 @@ import { errorExit } from '../../../effects/common/module.f.js'
 import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
 import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.js'
 import { parse } from '../../../media/wasm/binary/parse/module.f.js'
-import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
+import { functionsMarked } from '../../../media/wasm/wat/module.f.js'
 import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.js'
 import { toTagged } from '../../../text/marked/module.f.js'

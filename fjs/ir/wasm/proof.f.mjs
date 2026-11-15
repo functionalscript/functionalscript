@@ -1,5 +1,5 @@
 /**
- * The WAT texts are what [`fjs/media/wasm/wat`](../../media/wasm/wat/module.f.mjs)
+ * The WAT texts are what [`fjs/media/wasm/wat`](../../media/wasm/wat/module.f.js)
  * prints, the way `wasmprinter` lays it out. That the modules validate and
  * compute what their twins compute is [`proof.mjs`](./proof.mjs)'s, since
  * FunctionalScript runs no WebAssembly.
@@ -8,7 +8,7 @@
  */
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
-import { functions, wat } from '../../media/wasm/wat/module.f.mjs'
+import { functions, wat } from '../../media/wasm/wat/module.f.js'
 import { add, bool, call, f64, f64c, fn, get, i, int, let_, lit, n, never, only, own, sealed, signature, throw_, u } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0, string } from '../l0/module.f.js'

@@ -17,7 +17,7 @@ import { emit } from './definition.wasm.mjs'
 import { host, Trap } from './definition.host.mjs'
 import { exported, mistakes, refusals, sample } from './definition.samples.mjs'
 import { write } from '../../../fjs/media/wasm/binary/write/module.f.js'
-import { functions as watFunctions } from '../../../fjs/media/wasm/wat/module.f.mjs'
+import { functions as watFunctions } from '../../../fjs/media/wasm/wat/module.f.js'
 import * as l1 from '../../../fjs/wasm/runtime/l1/module.f.js'
 
 const owned = lifetime(sample)
