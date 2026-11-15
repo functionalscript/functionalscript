@@ -26,7 +26,7 @@
  */
 
 import { header, priorities, statuses } from './module.f.js'
-import { caption, refusal, textDemo } from '../demo/module.f.mjs'
+import { caption, refusal, textDemo } from '../demo/module.f.js'
 import { issueItem, issueOrder } from '../page/module.f.mjs'
 
 /**

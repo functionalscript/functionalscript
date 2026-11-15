@@ -16,7 +16,7 @@ import { main as ciMain } from './ci/module.f.mjs'
 import { commands as ciCacheCommands } from './ci/cache/module.f.mjs'
 import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.js'
 import { dispatch, isMain } from './cli/module.f.js'
-import { casMcpServer } from './mcp/module.f.mjs'
+import { casMcpServer } from './mcp/module.f.js'
 import { main as webMain } from './web/module.f.js'
 import { resultStep } from './effects/module.f.js'
 

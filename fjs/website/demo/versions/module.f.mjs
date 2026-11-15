@@ -43,7 +43,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { button, refusal } from '../module.f.mjs'
+import { button, refusal } from '../module.f.js'
 import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.js'

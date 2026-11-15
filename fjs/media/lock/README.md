@@ -16,7 +16,7 @@ equal is a convention nothing checks.
 This dialect is that map, addressed once.
 
 ```ts
-import { lockSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
+import { lockSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.js'
 ```
 
 ## Shape
@@ -33,7 +33,7 @@ export const lockSchema = {
 | `dialect` | `'vnd.fjs.lock'`                                    | Format tag — the media type is derived from it.       |
 | `lock`    | `{ [subject: string]?: hash \| LockMap }`           | The bindings — [`vnd.fjs.revision`](../revision/README.md#lock-maps)'s map, unchanged. |
 
-`lock` is **imported** from [`fjs/media/revision`](../revision/module.f.mjs),
+`lock` is **imported** from [`fjs/media/revision`](../revision/module.f.js),
 not restated: one recursive schema, one semantic hash check
 (`lockMapError`), one canonical serialization. So the shared form admits
 exactly the maps the inline form does, to the same depth, with the same value

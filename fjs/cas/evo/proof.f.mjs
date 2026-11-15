@@ -29,10 +29,10 @@ import { unwrap } from '../../types/nullable/module.f.js'
 import { ok, error, unwrap as unwrapResult } from '../../types/result/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { tryUtf8 } from '../../text/module.f.js'
-import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
+import { dialect as revisionDialect } from '../../media/revision/module.f.js'
 import {
     buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision, evoError, evoSummary,
-} from './module.f.mjs'
+} from './module.f.js'
 
 const store = fileCas(sha256)('.')
 

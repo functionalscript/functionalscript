@@ -4,12 +4,12 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { dialect, mediaType, checkReferences, validate, decodeText, encodeText } from './module.f.mjs'
+import { dialect, mediaType, checkReferences, validate, decodeText, encodeText } from './module.f.js'
 import {
     dialect as revisionDialect,
     encodeText as revisionEncodeText,
     validate as revisionValidate,
-} from '../revision/module.f.mjs'
+} from '../revision/module.f.js'
 import { stringifySorted } from '../json/module.f.js'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single

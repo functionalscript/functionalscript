@@ -9,8 +9,8 @@ declaration is both the decoder and the static type:
   [`protocol/json_rpc`](../../../../protocol/json_rpc/module.f.js);
 - the MCP messages, in [`protocol/mcp`](../../../../protocol/mcp/module.f.js);
 - the arguments of the MCP tools the repository serves, in
-  [`mcp/cas`](../../../../mcp/cas/module.f.mjs) and
-  [`mcp/evo`](../../../../mcp/evo/module.f.mjs). A tool's argument schema is
+  [`mcp/cas`](../../../../mcp/cas/module.f.js) and
+  [`mcp/evo`](../../../../mcp/evo/module.f.js). A tool's argument schema is
   both the `inputSchema` the server advertises, through
   [`toJsonSchema`](../../outputs/json-schema/README.md), and the check its
   arguments pass.

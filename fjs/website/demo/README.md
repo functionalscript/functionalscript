@@ -95,7 +95,7 @@ remain unchanged.
   regular with it.
 - **The control fits what the reader types.** Text that can span lines — a
   program, a document, a release file — is a textarea, and a demo that is
-  text in, text out uses [`textDemo`](./module.f.mjs), which owns the
+  text in, text out uses [`textDemo`](./module.f.js), which owns the
   textarea, the examples drop-down and their wiring. One short value — a
   message to hash, a key, a number — is a single-line `<input
   type="text">`, as the SHA-2, bigint and versions demos use. A choice from

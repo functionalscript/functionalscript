@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/media/revision/module.f.mjs`: `LockMap`,
+ * Type-level API for `fjs/media/revision/module.f.js`: `LockMap`,
  * `LockSchema`, `LockField`, `LockFieldSchema`, `Revision`, `HashEntry`,
  * and `RevisionError`.
  *
@@ -7,9 +7,8 @@
  * reads directly, and is pinned against the module's rtti schema below — the
  * same hand-written-plus-pinned arrangement the JSON data model uses in
  * [`../json/types.ts`](../json/types.ts). `LockSchema` is
- * the schema side of the same recursion: `lock` cannot infer its own type
- * (a `const` may not reference itself in its own initializer), so it carries
- * this named annotation instead.
+ * the schema side of the same recursion: `lock` needs an explicit annotation
+ * to resolve its recursive return type, so it carries this named annotation.
  *
  * @module
  */
@@ -20,7 +19,7 @@ import type { Check, Ts } from '../../rtti/ts/types.ts'
 import type { Rest, String as RttiString, Type } from '../../rtti/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { JsonDialect } from '../types.ts'
-import type { decodeText, encodeText, lock, lockField, mediaType, revisionSchema, validate } from './module.f.mjs'
+import type { decodeText, encodeText, lock, lockField, mediaType, revisionSchema, validate } from './module.f.js'
 
 // The two pins below were `./proof.f.mjs`'s `consistency` entry, a body of
 // nothing but typedefs — so neither bound to a statement and both were green

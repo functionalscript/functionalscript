@@ -26,7 +26,7 @@
  * @import { Bolded, Entry, Inline, LinkLabel, Struck } from './types.ts'
  */
 
-import { textDemo, refusal } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal } from '../../website/demo/module.f.js'
 import { tryParse } from './module.f.js'
 import { assertStructurallySame } from '../../asserts/module.f.js'
 

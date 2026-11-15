@@ -28,7 +28,7 @@
  */
 
 import { codeMarker } from '../website/style/module.f.js'
-import { textDemo, caption } from '../website/demo/module.f.mjs'
+import { textDemo, caption } from '../website/demo/module.f.js'
 import { do_, foldStep, mapStep, pureOk } from './module.f.js'
 import { run } from './mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'

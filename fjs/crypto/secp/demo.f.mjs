@@ -13,7 +13,7 @@
 import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
-import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
+import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.js'
 

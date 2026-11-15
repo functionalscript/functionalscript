@@ -161,7 +161,7 @@ This table is an audit snapshot, and its counts above are derived from it, so
 rows are kept as they were recorded even when the code has since moved. Its
 line numbers and counts were taken on the audit's branch, before `05601a5`,
 and are not re-measured; read against a later tree, a line number locates
-nothing. Two rows have since moved: the `fjs/cas/evo/module.f.mjs` cast went
+nothing. Two rows have since moved: the `fjs/cas/evo/module.f.js` cast went
 with the flattening of `Evo.add`'s nested `Result`, and the
 `fjs/cas/module.f.js` one now reads `Effect<Rm, Vec, IoChannel>` — the same
 type, spelled through the three-parameter `Effect`. And the
@@ -178,7 +178,7 @@ is the way to refresh this file, not a partial edit.
 
 | File | Line | `@type {T}` | Why it stays |
 | --- | --- | --- | --- |
-| `fjs/cas/evo/module.f.mjs` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/cas/evo/module.f.js` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/cas/module.f.js` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/compiler/module.f.mjs` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |

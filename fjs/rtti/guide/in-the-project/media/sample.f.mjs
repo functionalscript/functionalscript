@@ -9,8 +9,8 @@
  */
 
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
-import { revisionSchema } from '../../../../media/revision/module.f.mjs'
-import { lockSchema } from '../../../../media/lock/module.f.mjs'
+import { revisionSchema } from '../../../../media/revision/module.f.js'
+import { lockSchema } from '../../../../media/lock/module.f.js'
 import { noteSchema } from '../../../../media/note/module.f.js'
 import { unknown as jsonValue } from '../../../../media/json/rtti/module.f.js'
 import { unknown as jsonSchema } from '../../../../media/json/schema/module.f.js'
@@ -21,14 +21,14 @@ export const lessons = [
         id: 'revision',
         name: 'Revision',
         about: 'vnd.fjs.revision: one step in the history of a mutable object over a content-addressable store. open(), so an older reader still reads a revision a newer writer extended.',
-        schemas: projectSchema('revisionSchema', 'media/revision/module.f.mjs', revisionSchema),
+        schemas: projectSchema('revisionSchema', 'media/revision/module.f.js', revisionSchema),
         value: 'export default {"dialect":"vnd.fjs.revision","subject":"todo","parents":[],"snapshot":"c1dq3pe0t4f7a2kx","generation":0};',
     },
     {
         id: 'lock',
         name: 'Lock',
         about: 'vnd.fjs.lock: a lock map as a blob of its own, so several revisions can share one resolution. The map nests: a value is a hash or another map.',
-        schemas: projectSchema('lockSchema', 'media/lock/module.f.mjs', lockSchema),
+        schemas: projectSchema('lockSchema', 'media/lock/module.f.js', lockSchema),
         value: 'export default {"dialect":"vnd.fjs.lock","lock":{"fjs":"c1dq3pe0t4f7a2kx","deps":{"left-pad":"b7m2mnk9w0vqwhh4"}}};',
     },
     {

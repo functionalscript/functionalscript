@@ -47,7 +47,7 @@ import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/modu
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { textDemo, refusal } from '../module.f.mjs'
+import { textDemo, refusal } from '../module.f.js'
 
 /**
  * The stand-in a reader sees for a character they could not: `␠` for a space,

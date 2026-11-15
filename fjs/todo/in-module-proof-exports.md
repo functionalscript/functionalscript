@@ -13,7 +13,7 @@ still does:
   `allFilesFindsFunctionalScript`, the `loadModuleMap…` cases). The module
   imports `fjs/asserts` and `fjs/effects/node/virtual` at runtime for it and
   for nothing else.
-- [`fjs/mcp`](../mcp/module.f.mjs) — calls `casMcpServer('/')` "to cover its
+- [`fjs/mcp`](../mcp/module.f.js) — calls `casMcpServer('/')` "to cover its
   effect-building body". `casMcpServer` is exported, so nothing about the
   case needs the module's scope.
 - [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.mjs) —
