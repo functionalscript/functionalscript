@@ -724,7 +724,7 @@ SHA-256 demo found that case.
 [`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
 40-character SHA-1 digest and a warning that its collision resistance is broken.
 Both demos preserve multiline text with the shared textarea helpers and use
-[`website/demo/hash`](./demo/hash/module.f.mjs) for padded digests and
+[`website/demo/hash`](./demo/hash/module.f.js) for padded digests and
 OpenSSL output. [`website/demo/code`](./demo/code/module.f.js) owns the copyable
 code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces
@@ -1050,7 +1050,7 @@ and a link per channel — built by `footer` in
   on every page, where a reader arriving from a search lands, without
   competing with the site's navigation.
 - **Read from** [`funding.json`](../../funding.json), by
-  [`funding/module.f.mjs`](./funding/module.f.mjs): one link per channel, its
+  [`funding/module.f.js`](./funding/module.f.js): one link per channel, its
   `description` the text and its `address` the target. `.github/FUNDING.yml`
   holds only usernames, and turning those into links would mean copying
   GitHub's unpublished per-platform URL patterns; it stays for GitHub's own

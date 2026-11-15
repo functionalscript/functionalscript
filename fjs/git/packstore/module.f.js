@@ -4,9 +4,9 @@
  *
  * [`fjs/git/loose`](../loose/module.f.js) is the same boundary for the other
  * place an object lives, and the two answer alike on purpose — a caller above
- * [`fjs/git/store`](../store/module.f.mjs) never learns which file held the
+ * [`fjs/git/store`](../store/module.f.js) never learns which file held the
  * object it asked for. This module is where a pack stops being a format
- * ([`fjs/git/pack`](../pack/module.f.mjs), [`fjs/git/packidx`](../packidx/module.f.js),
+ * ([`fjs/git/pack`](../pack/module.f.js), [`fjs/git/packidx`](../packidx/module.f.js),
  * both pure) and becomes a repository's objects.
  *
  * Every claim below was measured against Git 2.43.0, on packs it wrote.
@@ -45,7 +45,7 @@
  * object stored whole is read to a list over the chunks it inflated to, a byte
  * a byte, however long it is. A delta, and the base it is applied to, are dense
  * arrays, a number a byte, so those are held to
- * [`maxDeltaBytes`](../pack/module.f.mjs).
+ * [`maxDeltaBytes`](../pack/module.f.js).
  *
  * **A delta chain is walked, not recursed.** Each link reads one entry, and a
  * delta's base is the next item of the same walk rather than a nested read, for
@@ -77,14 +77,14 @@
  * delta, read. `git fsck` calls the second `failed to validate delta base
  * reference at offset <n>` — a broken pack, not an object kept somewhere else.
  * So resolving such a base through the whole store would answer for a pack every
- * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.mjs)'s delta
+ * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.js)'s delta
  * floor was added to stop. What is left of the question is a choice about being
  * deliberately more capable rather than a gap, and
  * [thin-pack-base.md](./todo/thin-pack-base.md) carries it as an open decision.
  *
  * **`null` is absence and an error is corruption.** No pack in the directory
  * holds the id is `null`, which is what lets
- * [`fjs/git/store`](../store/module.f.mjs) try the loose path and the packs in
+ * [`fjs/git/store`](../store/module.f.js) try the loose path and the packs in
  * either order and report a miss once. Everything else — an `.idx` Git would not
  * read, an entry that does not frame, a stream that does not inflate, a delta
  * that does not apply, a chain that cycles or leaves the pack — is the channel's.
@@ -115,6 +115,7 @@
  * @import { Held } from './types.ts'
  */
 
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
 import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.js'
@@ -122,8 +123,9 @@ import { under } from '../../path/module.f.js'
 import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.js'
-import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
+import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.js'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.js'
 import { hexText, ofWidth, oidAt } from '../oid/module.f.js'
 
@@ -151,11 +153,11 @@ const packSuffix = /** @type {const} */ ('.pack')
  * store is `…/other/.git/objects` with no repository of this one's above it.
  * Measured on Git 2.43.0: a borrower whose alternates file names the donor's
  * `objects/` reads the donor's objects, packed ones included, after the donor
- * was `git repack -adq`'d. [`fjs/git/store`](../store/module.f.mjs) is what
+ * was `git repack -adq`'d. [`fjs/git/store`](../store/module.f.js) is what
  * turns a repository into the object directories to search, this one included.
  *
  * Joined with {@link under} rather than by writing a separator, for the reason
- * [`fjs/git/store`](../store/module.f.mjs)'s `objectPath` is: the directory is
+ * [`fjs/git/store`](../store/module.f.js)'s `objectPath` is: the directory is
  * the caller's and may already end in one.
  *
  * @type {(od: string) => string}
@@ -248,13 +250,16 @@ const notAFile = path => refuseNotAFile(notAFileMessage(path))
  *
  * @type {(pd: string) => (e: Dirent) => (names: List<string>) => Effect<Stat, List<string>, IoChannel>}
  */
-const namedIdx = pd => e => names => {
-    if (e.isFile) { return pureOk(concat(names)([e.name])) }
-    const path = under(pd, e.name)
-    if (e.isDirectory) { return notAFile(path) }
-    return catchStep(
-        step(stat(path), s => s.isFile ? pureOk(concat(names)([e.name])) : notAFile(path)),
-        orElse(leadsNowhere, names))
+const namedIdx = pd => e => {
+    const name = assertNotNullish(entry(e, 'name'))
+    return names => {
+        if (e.isFile) { return pureOk(concat(names)([name])) }
+        const path = under(pd, name)
+        if (e.isDirectory) { return notAFile(path) }
+        return catchStep(
+            step(stat(path), s => s.isFile ? pureOk(concat(names)([name])) : notAFile(path)),
+            orElse(leadsNowhere, names))
+    }
 }
 
 /**
@@ -279,7 +284,7 @@ const idxNames = pd => catchStep(
     step(
         readdir(pd, {}),
         es => foldStep(
-            pureOk(es.filter(e => e.name.endsWith(idxSuffix))),
+            pureOk(es.filter(e => assertNotNullish(entry(e, 'name')).endsWith(idxSuffix))),
             /** @type {List<string>} */ (null),
             namedIdx(pd))),
     orElse(namesNothing, null))

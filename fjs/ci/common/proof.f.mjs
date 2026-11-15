@@ -105,5 +105,14 @@ export const proof = {
                 jobs: { check: { 'runs-on': images.ubuntu.intel, steps: [check] } },
             }))
         },
+        emptyTriggers: () => {
+            const action = { name: 'test', permissions: {}, jobs: {} }
+            assertOk(parseGitHubAction({ ...action, on: { pull_request: {}, merge_group: {} } }))
+            for (const name of ['pull_request', 'merge_group']) {
+                for (const config of [null, true, [], { unexpected: 'value' }]) {
+                    assertError(parseGitHubAction({ ...action, on: { [name]: config } }))
+                }
+            }
+        },
     },
 }

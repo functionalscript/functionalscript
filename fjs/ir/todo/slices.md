@@ -72,6 +72,20 @@ Owner decided seven choices on the shape of slice 7, failure.
 | The oracle | Three outcomes: the same value, a throw of the same value, or a trap of both, where a twin's trap is a misuse of the L0 view or a `trap` of the twin. A function that cannot fail never fails, and the cells are checked after every outcome |
 | How slice 7 is cut | Two PRs: 7a, throwing by hand; 7b, the lowering of `throw` and of L1's error table, with the subjects `functionText` and `bigintPair` |
 
+### Decisions for slice 8 (2026-11-15)
+
+Owner decided six choices on the shape of slice 8, builders, from a
+choices doc.
+
+| Choice | Decision |
+| --- | --- |
+| What slice 8 covers | The builders and `{}` only. An object literal with keys stays a record. Object literals as values, and spread in array and object literals, move to slice 11, since no L1 body uses them |
+| How a builder call lowers | As [L0 §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass): `begin_array(n)` or `begin_object(n)`, one IR `loop` over the index, the state and the builder, and `seal`. No new IR term |
+| Which callbacks | Arrow literals written in the call, inlined where the loop calls them. Anything else is refused until slice 9 |
+| The order of the callbacks' calls | The L0 view calls them in the order of one loop: an item before the next state, and a key, its check, then its value. The view changes to match, in 8a |
+| `numberToString` | A new native row, `numberToString(x: f64) -> string`, as slice 5's rows are |
+| How slice 8 is cut | Three PRs: 8a, the view's order; 8b, `buildArray` with `toIterable`; 8c, `buildObject` and `{}` with `objectSpread` |
+
 ### Roadmap
 
 Tick a box when its pull request merges. Slice numbers in parentheses are the
@@ -101,23 +115,24 @@ original twelve; 6a–6f are that sixth slice cut as decided above.
   Argument evaluation order under inlining; reading a definition past
   normalization's blocks; cast refusals that name the value's kinds.
 
-#### Next — counted values (`typeOf`)
+#### Counted values (`typeOf`)
 
 Slice 6 cannot reach `typeOf` as first listed: L1's `typeNames` is an array
 literal of strings, and array reads need a bounds path to `undefined`. The
 stack below brings that machinery forward. Each PR is stacked on the one
 before it and proved end to end on its own.
 
-- [x] **Seeded random comparison** (before 6a). A host proof of a few hundred
-  programs a run under [`from_fast/random`](../from_fast/random/README.md);
-  extend it as later slices land. It found the three defects that example
-  proofs at 100% coverage missed. Tighten the trap oracle before slice 7
-  makes throws meaningful.
+- [x] **Seeded random comparison** (before 6a, #3853). A host proof of a
+  few hundred programs a run under
+  [`from_fast/random`](../from_fast/random/README.md); extend it as later
+  slices land. It found the three defects that example proofs at 100%
+  coverage missed. Since 7a it judges each call by the three outcomes.
 - [x] **6a. Owned values, by hand** (#3856). The counted kind, `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage, which also holds a linear type's owned
   values to one consumer; a host that counts every value, under every host
-  proof of the emitter. Copy variants of `any` wait until after slice 6.
+  proof of the emitter. Copy variants of `any` wait for the item after
+  slice 10 below.
 - [x] **6b. The lifetime pass**, as two stacked PRs:
   - [x] the pass: plain stage to owned (move, `dup`, `drop`), from the
     checker's plain stage, `checkPlain` (#3864);
@@ -128,27 +143,29 @@ before it and proved end to end on its own.
   `false` as imported globals; module constants other than string and bigint
   literals (those are 6d); derived `init`; lowering of a module-level
   definition.
-- [x] **6d. String literals.** A string literal is a literal of the sealed
+- [x] **6d. String literals** (#3870). A string literal is a literal of the sealed
   type whose interface names its maker, `make_string` for `any`, borrowed
   and never dropped as a constant is; built once for its type and its
   spelling in the module's start function, from UTF-16 units in a data
   segment at `data_base` of the memory that the loader makes (the
   start/`init` split as in the decisions above); lowering of a string of
   FAST.
-- [x] **6e. Array literals of values.** The linear kind, Containers'
+- [x] **6e. Array literals of values** (#3887). The linear kind, Containers'
   `builder`, which names no `dup`, `drop` or `kind`; a function that gives
   back a parameter, `push`, whose import answers nothing; `begin_array`,
   `push`, `seal`; array literals of values of `any` with no spread (the
   parser refuses holes), their items done before the builder begins.
-  Numbers and booleans as items wait for Any's `from_f64` and `from_bool`.
-  (Object literals, spread and `buildArray` / `buildObject` with callbacks
-  stay in the builders slice below.)
-- [x] **6f. Reading an array, and `typeOf`.** `a[k]` of an array at a number
-  key by L1's `get` rules for that case; `typeOf` lowered from L1's text.
-  A receiver of another kind waits: `undefined` and `null` throw (slice 7),
-  and an object or a string reads by a string.
+  Numbers and booleans as items wait for Any's `from_f64` and `from_bool`,
+  in slice 9.
+  (`buildArray` and `buildObject` with callbacks are the builders slice
+  below; object literals as values and spread moved to slice 11.)
+- [x] **6f. Reading an array, and `typeOf`** (#3890). `a[k]` of an array at
+  a number key by L1's `get` rules for that case; `typeOf` lowered from
+  L1's text. A receiver of another kind waits for L1's `get` itself, in
+  slice 10: `undefined` and `null` throw, and an object or a string reads
+  by a string.
 
-#### Next — failure
+#### Failure
 
 Slice 7, cut in two as decided above.
 
@@ -168,22 +185,45 @@ Slice 7, cut in two as decided above.
 
 #### Next — builders
 
-- [x] **Builders** (8). Containers' `begin_object` / `push_property` (and
-  `seal` into an object) as the supporting primitives; `buildArray` and
-  `buildObject` with their callbacks inlined
-  ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass));
-  object literals of values of `any` (float records stay products); subjects
-  `toIterable` and `objectSpread` (object spread). A `{ ...v }` literal waits
-  for a later cut; `objectSpread` is what it copies.
+Slice 8, cut in three as decided above.
+
+- [x] **8a. The order of the builders' calls** (#3903). The L0 view calls `at` of a
+  state before `next` of it, and `keyAt`, the key's check, then `valueAt`,
+  as one loop does; a host proof shows the order by what a failing
+  callback throws.
+- [x] **8b. `buildArray`, lowered** (#3908). Arrow-literal callbacks inlined into
+  one loop over `begin_array`, `push` and `seal`; the `asArray` cast.
+  Subject: `toIterable`. A throw inside a callback is refused, since it
+  would leave the linear builder behind; a call there that fails abandons
+  the builder, as a trap does. The random comparison gains a form of it.
+- [x] **8c. `buildObject` and `{}`, lowered** (#3898). Containers' `begin_object`
+  and `push_property`, in the IR and the counting host; the `asObject`
+  cast; the `numberToString` row. Subject: `objectSpread`. A `{ ...v }`
+  literal waits for a later cut; `objectSpread` is what it copies.
 
 #### Later
 
 - [ ] **Calling function values** (9). L0's `call` from WASM into the host
-  and back. Subjects: `toPrimitive`, `toNumber`, `toNumeric`, `toString` and
-  `call`.
+  and back. Any's `from_f64` and `from_bool`, written where a number or a
+  boolean meets `any`, as
+  [definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
+  has it, since `toNumeric` answers a number as `any`; with them, numbers
+  and booleans as items of an array literal. Subjects: `toPrimitive`,
+  `toNumber`, `toNumeric`, `toString` and `call`.
 - [ ] **The whole L1 module** (10), against the cases of its parity proof.
-- [ ] **Programs** (11). Operators on unknown types as calls of L1, closures
-  as values, and a program as one module linked with L1.
+  `get` is among it: its throw for `undefined` and `null`, and its reads
+  of an object or a string by a string, which 6f left out.
+- [ ] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
+  and `boolean` as needing no release, as
+  [definition.md's open question 6](../../../doc/sasha-gil/ir/definition.md#open-questions)
+  recommends, so the lifetime pass writes no `dup` or `drop` of a value
+  that holds only those kinds, such as Any's constants. It changes no
+  answer, only counts, so it waits until the whole L1 module shows what it
+  saves.
+- [ ] **Programs** (11). Operators and member reads on unknown types as
+  calls of L1, `get` among them, closures as values, and a program as one
+  module linked with L1. Object literals as values, and spread in array
+  and object literals, moved here from slice 8.
 - [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
 
 ### Related

@@ -65,7 +65,7 @@ import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 
 /**
  * Every node's rank: the longest path from a source, so every edge points
@@ -590,7 +590,7 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
         const stackChild = (child, next) => [[child, next], next + bandOf(child).band]
         return [
             column.map(id => /** @type {const} */ ([id, bandTopOf(id) + bandOf(id).top])),
-            new Map(column.flatMap(id => toArray(stateScan(stackChild)(bandTopOf(id) + bandOf(id).shift)(childrenOf(id))))),
+            new Map(column.flatMap(id => toArray(stateScan(stackChild)(bandTopOf(id) + assertNotNullish(entry(bandOf(id), 'shift')))(childrenOf(id))))),
         ]
     }
     return new Map(toArray(stateScan(topsOf)(new Map())(ranks)).flat())
@@ -812,7 +812,7 @@ const layout = left => nodes => (edges, center, table) => {
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
     /** @type {readonly (readonly _Slot[])[]} */
-    const columns = Array.from({ length: maxRank + 1 }, (_, rank) => [
+    const columns = generate(maxRank + 1, rank => [
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
@@ -904,7 +904,7 @@ const layout = left => nodes => (edges, center, table) => {
  *
  * @type {(table: boolean) => (p: _Positioned) => number}
  */
-const arrivalOf = table => p => table ? p.anchor : p.height / 2
+const arrivalOf = table => p => table ? assertNotNullish(entry(p, 'anchor')) : p.height / 2
 
 /**
  * Every edge's route but an inline one's: from the right end of its port,
@@ -935,7 +935,7 @@ const routesOf = placed => {
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
     /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
     const leaving = from => [
-        ...from.ports.map(port => /** @type {const} */ ([port, port.y + (placed.table && typeof port.edge.to === 'number' ? at(port.edge.to).anchor : port.height / 2)])),
+        ...from.ports.map(port => /** @type {const} */ ([port, port.y + (placed.table && typeof port.edge.to === 'number' ? assertNotNullish(entry(at(port.edge.to), 'anchor')) : port.height / 2)])),
         ...from.exits.map(exit => /** @type {const} */ ([exit, exit.y])),
     ]
     return placed.nodes.flatMap(from => leaving(from).flatMap(([port, offset]) => {
@@ -958,7 +958,7 @@ const routesOf = placed => {
         const points = back !== undefined ? around(back) : [
             [right, y],
             ...(right < placed.ends[Number(from.rank)] ? [/** @type {_Point} */ ([placed.ends[Number(from.rank)], y])] : []),
-            ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
+            ...generate(to.rank - from.rank - 1, i => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
@@ -1096,7 +1096,10 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [], centerColumns = false, table = false }) => {
+const placedOf = g => {
+    const { nodes, edges, centerColumns = false, table = false } = g
+    const suppliedEntries = entry(g, 'entries')
+    const entries = suppliedEntries === undefined ? [] : suppliedEntries
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[Number(missing)].to}, which is not in the graph` }
@@ -1313,7 +1316,7 @@ export const graphSvg = g => {
         'data-graph-members': segment.members.join(' '),
         tabindex: '-1', role: 'group', 'aria-label': segment.members.map(descriptionOf).join('; '),
     }]))
-    const entries = g.entries ?? []
+    const entries = entry(g, 'entries') ?? []
     // An entry runs straight right into its node, level with where an edge
     // would arrive.
     /** @type {readonly Element[]} */

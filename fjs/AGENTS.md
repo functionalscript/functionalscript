@@ -1369,7 +1369,7 @@ repository-owned dependencies follow these source rules:
   in the `package` CI job imports a published `.f.js` from a clean
   consumer of the packed package, runs it and type-checks a use of its
   declaration with a negative control
-  ([`ci/package/module.f.mjs`](./ci/package/module.f.mjs)).
+  ([`ci/package/module.f.js`](./ci/package/module.f.js)).
 
 Avoid references to built-in or external Node modules such as `node:path` in
 FunctionalScript source. No `try`/`catch` — see

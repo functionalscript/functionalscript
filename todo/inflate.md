@@ -13,7 +13,7 @@ bytes, and today the inflating is the host's: `inflate` in
 [`fjs/effects/node`](../fjs/effects/node/module.f.js) hands a `Vec` to
 `node:zlib` and gets a `Vec` back. Two modules call it:
 [`fjs/git/loose`](../fjs/git/loose/module.f.js) for the one stream a loose
-object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) for each
+object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.js) for each
 entry of a pack — a base and every delta above it, one call per link of a chain.
 
 That is the right first step and the wrong last one, for two reasons:
@@ -30,7 +30,7 @@ That is the right first step and the wrong last one, for two reasons:
   output side.
 
   A third place now holds the same ceiling on purpose:
-  [`fjs/git/pack`](../fjs/git/pack/module.f.mjs)'s `tryApplyDelta` refuses a
+  [`fjs/git/pack`](../fjs/git/pack/module.f.js)'s `tryApplyDelta` refuses a
   delta whose declared target is over 128 KiB. A delta is the one reader here
   whose *output* is not bounded by what the host handed it — a hundred bytes of
   copy instructions against a 64 KiB base can truthfully name 6.5 MB, which is
@@ -106,7 +106,7 @@ emitted incrementally and its final trailing-byte count in the terminal result:
 - `end` completes with the number of bytes after the stream, or `null` for
   truncation. The internal closing phase still counts all remaining input until
   EOF. This removes the exact-window rule of
-  [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs): the decoder knows
+  [`fjs/git/packstore`](../fjs/git/packstore/module.f.js): the decoder knows
   where a stream ends, so a generous window is read to its end and the rest
   handed back, where `inflate` refuses the bytes after it.
 
@@ -144,7 +144,7 @@ fast path.
       strategy and window size, corrupted and cut into pieces, for the same
       answer as Node's on each. The Adler-32 is a loop over the bytes now.
 - [x] [`fjs/git/loose`](../fjs/git/loose/module.f.js) and
-      [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) read through it
+      [`fjs/git/packstore`](../fjs/git/packstore/module.f.js) read through it
       together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.js): a
       loose file by one `readWhole` and a pack entry in windows of a `Vec`, so no
       object read whole is refused for its length. A stream that has made more

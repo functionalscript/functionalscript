@@ -3,10 +3,11 @@
  * @import { LockMap, Revision } from './types.ts'
  */
 
-import { assert, assertEq, assertError } from '../../asserts/module.f.js'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences, lockFieldError, lockMapError } from './module.f.mjs'
+import { assert, assertEq, assertError, assertStructurallySame } from '../../asserts/module.f.js'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences, lockFieldError, lockMapError, lock } from './module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { toJsonSchema } from '../json/schema/module.f.js'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
@@ -35,6 +36,23 @@ const validRevisionOf = extra => {
 }
 
 export const proof = {
+    // Expanding the recursive schema still terminates and publishes the same
+    // canonical definition and reference, even though its value union is local.
+    recursiveLockSchema: () => {
+        assertEq(lock()[1]()[2], lock)
+        assertStructurallySame(toJsonSchema(lock), {
+            type: 'object',
+            additionalProperties: { $ref: '#/$defs/0' },
+            $defs: {
+                '0': {
+                    anyOf: [
+                        { type: 'string' },
+                        { type: 'object', additionalProperties: { $ref: '#/$defs/0' } },
+                    ],
+                },
+            },
+        })
+    },
     lockReferences: () => {
         assertEq(lockFieldError(h1), null)
         assertEq(lockMapError({ dependency: h2 }), null)

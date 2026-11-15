@@ -6,7 +6,7 @@
 ### Problem
 
 When a response does not fit one encoded line, `handleLine`
-(`fjs/protocol/mcp/stdio/module.f.mjs`) falls back to `internalErrorResponse(resp.id)` —
+(`fjs/protocol/mcp/stdio/module.f.js`) falls back to `internalErrorResponse(resp.id)` —
 the standard `-32603` *"Internal error"* from `fjs/protocol/json_rpc`. The
 transport handles the overflow correctly: nothing throws, the process survives,
 and the request still gets a response carrying its `id`. What the client
@@ -70,7 +70,7 @@ distinction is visible as data.
 
 ### Related
 
-- `fjs/protocol/mcp/stdio/module.f.mjs` — `writeResponse` (the `maxLength`-bounded
+- `fjs/protocol/mcp/stdio/module.f.js` — `writeResponse` (the `maxLength`-bounded
   encoder whose `error` result drives the fallback), `writeFirst` (which tries
   the candidates in turn) and `handleLine` (which lists them).
 - `fjs/mcp/evo/README.md` — the "Result size" note describing this

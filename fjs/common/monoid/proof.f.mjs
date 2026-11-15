@@ -13,7 +13,7 @@ import { concat, countdown, map, repeat as repeatItem, run } from '../../types/l
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { decodeQuery, encodeQuery, restoreInputs } from '../../website/demo/sharing/module.f.mjs'
+import { decodeQuery, encodeQuery, restoreInputs } from '../../website/demo/sharing/module.f.js'
 import { stylesheet } from '../../website/style/module.f.js'
 
 const { abs } = Math

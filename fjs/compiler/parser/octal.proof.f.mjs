@@ -1,8 +1,8 @@
 /** Explicit octal source literals become the existing number and bigint values. */
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse as parseJson } from '../../media/json/module.f.mjs'
+import { parse as parseJson } from '../../media/json/module.f.js'
 import { tryParse as parseDataJs } from '../../media/datajs/parser/module.f.js'
-import { normalize } from '../../js/ast/sugar/module.f.mjs'
+import { normalize } from '../../js/ast/sugar/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { parseFromTokens } from './module.f.mjs'
 import { _evaluate, tokenizeString } from './proof.f.mjs'

@@ -41,7 +41,7 @@ at the site's own view, and GitHub can stay as a second link.
   prerequisite says what that still needs — and it is authored
   FunctionalScript, so it loads in a browser like any other module.
   Nothing is written twice. The token stream is
-  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s — the grammar's
+  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)'s — the grammar's
   general JS stream, which the compiler's tokenizer folds — since the
   grammar replaced the hand-written scanner behind that path.
 - **The grammar must first recognise the sources it will show.** Its string
@@ -116,7 +116,7 @@ at the site's own view, and GitHub can stay as a second link.
 - [Publish `deno doc` to website](../../../todo/blocked/publish-deno-doc-to-website.md)
   — the full type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
-- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the token stream
+- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.js) — the token stream
   both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js).
 - [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
   — the prerequisite, as its own issue.

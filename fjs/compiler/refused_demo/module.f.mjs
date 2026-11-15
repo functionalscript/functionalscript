@@ -51,7 +51,7 @@ import { errorMessage, mapStep, pureOk, resultStep, step } from '../../effects/m
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { error, unwrap } from '../../types/result/module.f.js'
-import { caption } from '../../website/demo/module.f.mjs'
+import { caption } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { codeOutput, highlight } from '../../website/demo/highlight/module.f.mjs'
 import { codeMarker, listingMarker, refusedMarker, resultMarker } from '../../website/style/module.f.js'

@@ -43,5 +43,5 @@ export const writeJsonFile = (path: string) => (value: Unknown): Effect<WriteFil
 
 - `fjs/effects/node/module.f.js` — `readFile`/`writeFile` effects.
 - `fjs/text/module.f.js` — `utf8`; `fjs/text/utf8/module.f.js` — `utf8ToString`.
-- [`fjs/media/json/module.f.mjs`](../../../media/json/module.f.mjs) — `parse` and
+- [`fjs/media/json/module.f.js`](../../../media/json/module.f.js) — `parse` and
   `stringify`, the FunctionalScript pipeline both helpers sit on.

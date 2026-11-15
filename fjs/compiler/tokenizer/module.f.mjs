@@ -1,6 +1,6 @@
 /**
  * The module tokenizer: the JavaScript token stream of
- * [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs), folded once more.
+ * [`fjs/js/tokenizer`](../../js/tokenizer/module.f.js), folded once more.
  *
  * ```text
  * code points ==fjs/js/tokenizer: the grammar, then its fold==> JsToken stream
@@ -50,7 +50,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleToken, ModuleTokenWithMetadata } from './types.ts'
  */
-import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
+import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.js'
 import { isTrivia } from '../../ebnf/lib/js/module.f.js'
 import { isKeyword } from '../../js/keywords/module.f.js'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.js'
@@ -97,10 +97,10 @@ const moduleTokenKindSet = new Set(_moduleTokenKinds)
 const templateSourceAccepted = source => {
     let escaped = false
     for (let i = 0; i < source.length; i += 1) {
-        const character = source[i]
+        const character = source[Number(i)]
         const cp = source.charCodeAt(i)
         if (escaped) {
-            const admitted = character === '$' ? source[i + 1] === '{'
+            const admitted = character === '$' ? source[Number(i + 1)] === '{'
                 : character === 'u' || character === 'x' || character === 'v' || escapeToCodePoint(cp) !== null || character === '`'
             if (!admitted) { return false }
             escaped = false

@@ -777,7 +777,7 @@ retains the source pattern. Binding and admission in
 [`parser`](../compiler/parser/module.f.mjs) check its names and keys and
 resolve initializer references while their source evidence remains available.
 The resulting plan retains original binding identities and ordered reads;
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) expands it into explicit FAST
+[`js/ast/sugar`](../js/ast/sugar/module.f.js) expands it into explicit FAST
 bindings ([spec: destructuring](../../spec/bindings/destructuring/README.md)).
 
 **Parameter and pattern defaults desugar to a read and a selected value.**

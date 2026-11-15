@@ -101,7 +101,7 @@ export const doubleBody = () => ['const', [notTicks, '`', { end: '`', more: doub
  * `` `name: ` `` is the code `name: `. CommonMark strips one space from
  * each end of a body that has one at both and is not all spaces, so
  * `` ` code ` `` is the code `code`; that is done where the span is read,
- * in [`media/markdown`](../../../media/markdown/module.f.mjs).
+ * in [`media/markdown`](../../../media/markdown/module.f.js).
  */
 export const code = /**@type {const}*/(['`', {
     double: ['`', doubleBody],
@@ -167,7 +167,7 @@ const emphasisSpan = {
  * text or with a span, the two branches told apart by their first symbol.
  * Its padding — a space
  * just inside an asterisk — is matched here and refused after, in
- * [`media/markdown`](../../../media/markdown/module.f.mjs): with code inside,
+ * [`media/markdown`](../../../media/markdown/module.f.js): with code inside,
  * "no space before the closing asterisk" is no longer a choice one symbol
  * of lookahead can make. Supporting the rest of the nesting CommonMark
  * defines is `todo/commonmark-constructs.md`.
@@ -364,7 +364,7 @@ export const emphasis = /**@type {const}*/(['*', {
  * is a badge: an image that links somewhere. Read a symbol at a time it is
  * a `!` and a link inside a label, so the label admits a link whose own
  * label holds text and code only, and
- * [`media/markdown`](../../../media/markdown/module.f.mjs) reads the `!`
+ * [`media/markdown`](../../../media/markdown/module.f.js) reads the `!`
  * before it as an image or refuses the link: GitHub never nests a link in
  * a link.
  */

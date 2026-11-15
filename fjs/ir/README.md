@@ -8,8 +8,8 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first five and the first PRs of the sixth: typed
-code written by hand, the same code lowered from normalized FAST
+This directory holds the first seven and the second PR of the eighth:
+typed code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
 module does not export, with records and
@@ -18,9 +18,12 @@ module does not export, with records and
 module's `init` evaluates (6c), string literals, which its start
 function makes (6d), array literals of values, which Containers'
 builder makes (6e), reads of an array at a number key, with L1's
-`typeOf` (6f), and a throw written by hand, with the effect bit that says
-which functions may fail (7a), and the lowering of `throw` and of L1's
-error table (7b). Next is slice 8 of that roadmap: builders.
+`typeOf` (6f), a throw written by hand, with the effect bit that says
+which functions may fail (7a), the lowering of `throw` and of L1's
+error table (7b), and the L0 view's `buildArray`, lowered as one loop of
+Containers' builder (8b). The first PR of the eighth, 8a, changed the
+L0 view itself, so that it calls a builder's callbacks in the order of
+that loop. Next is 8c: `buildObject` and `{}`.
 
 ## Map of this directory
 
@@ -235,84 +238,6 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   empty string, a unit past ASCII and a pair of surrogates, run against
   JavaScript, and so do the random comparison's programs of literals.
 
-## What 8 adds
-
-- **Object builders**: Containers' `begin_object`, `push_property` and
-  `seal` into an object
-  ([L0 design §8](../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal));
-  `seal` answers an array or an object. Object literals of values of `any`
-  lower to those; float records stay products.
-- **`buildArray` / `buildObject`**: arrow callbacks inline to begin / loop /
-  push / seal
-  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)),
-  with no closure allocated.
-- **`numberToString`**: L1's native row that object spread uses as an index
-  key, an owned string from a float.
-- **Subjects**: L1's `toIterable` and `objectSpread` run as WASM against
-  L1's own. A `{ ...v }` literal waits for a later cut; `objectSpread` is
-  what it copies. [`objects.f.js`](./from_fast/objects.f.js) holds records
-  and Containers object literals.
-
-## What 7b adds
-
-- **`throw x` lowered**: a `throw` of FAST is `Functions.throw` of its
-  value, so a module that throws imports the runtime's `Functions`.
-- **L1's error table**: a lowering's runtime may name L1's error module,
-  and `errorTable` reads the table from that module's own normalized
-  FAST, so its texts are never written twice. `error.k` is a literal of
-  `any.only(string)` of its text, which the start function makes once.
-  The table as a value, a computed key, and any other export of that
-  module are refused.
-- **Subjects**: L1's `functionText` runs as WASM against L1's own
-  function, and [`throws.f.js`](./from_fast/throws.f.js) holds a copy of
-  `bigintPair`, a throw of a literal, a rethrow and two of L1's errors
-  one after the other. Each throws what its original throws and leaves
-  nothing behind. The random comparison gains a form that throws a
-  literal, its value or one of L1's errors, by the kind of the value.
-
-## What 7a adds
-
-- **A throw**: L0's `Functions.throw(own v: any) -> never`
-  ([L0 design §13](../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)),
-  which `throw_(v)` writes. It takes over its value, and the emitter
-  writes an `unreachable` after its call, since it answers `never`.
-- **The effect bit**
-  ([definition.md: One effect](../../doc/sasha-gil/ir/definition.md#one-effect)):
-  a function of an interface declares that it may fail, `mayFail(...)`,
-  as `throw` does, and String's `unit` and `substring` and Containers'
-  `item`, `push` and `seal`, which trap where the view throws. One that
-  answers `never` and does not say so is refused. The checker infers the
-  bit for each function of a module, to a fixed point, and writes it
-  beside the function; the printer writes `may fail`.
-- **A throw leaves nothing behind**: the lifetime pass drops what a
-  function owns before a call that answers `never`, but what the call
-  borrows. A callee's throw, and a trap, abandon what the callers hold.
-- **The counting host's side**: `throw` keeps the value and returns, and
-  the host reads it after the trap by `has_thrown` and `thrown`, then
-  calls `recover`, which frees what the trap abandoned.
-- **Three outcomes** in every host proof and in the random comparison: a
-  value, a throw of a value, or a trap, each the twin's. A function that
-  cannot fail never fails, and the cells are checked after each outcome.
-
-## What 6f adds
-
-- **A read of an array at a number key**, `a[0]` or `a[Number(k)]`, by
-  L1's `get` rules for that case: the integer of `u(31)` that the key
-  holds, then `Containers.item` where it is less than the array's length,
-  and `Any.undefined` where it is not, or where the key is a fraction, a
-  NaN or an infinity; `-0` reads item `0`. Both answers are owned: the
-  lifetime pass writes a `dup` of `undefined`. `exact` takes the term for
-  a float that holds no integer, a trap unless it is given.
-- **Only an array's**: a receiver of any other kind is refused, since
-  `get` throws for `undefined` and `null`, which waits for slice 7, and
-  reads an object or a string by a string. So is a member read that goes
-  on to a call.
-- **L1's `typeOf`**, lowered from its text: `typeNames` is a constant that
-  `init` builds, and `typeOf` reads it at `kind(v)`. It runs against L1's
-  own on values of every kind, and four FunctionalScript functions of
-  [`reads.f.js`](./from_fast/reads.f.js) run against themselves on the
-  edges of floats. The random comparison reads its arrays too.
-
 ## What 6e adds
 
 - **A linear type of L0**: Containers' `builder`
@@ -343,6 +268,114 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   definition of the module that holds an array is a constant that `init`
   builds. Six FunctionalScript functions that make arrays run against
   JavaScript, and so do the random comparison's programs of arrays.
+
+## What 6f adds
+
+- **A read of an array at a number key**, `a[0]` or `a[Number(k)]`, by
+  L1's `get` rules for that case: the integer of `u(31)` that the key
+  holds, then `Containers.item` where it is less than the array's length,
+  and `Any.undefined` where it is not, or where the key is a fraction, a
+  NaN or an infinity; `-0` reads item `0`. Both answers are owned: the
+  lifetime pass writes a `dup` of `undefined`. `exact` takes the term for
+  a float that holds no integer, a trap unless it is given.
+- **Only an array's**: a receiver of any other kind is refused, since
+  `get` throws for `undefined` and `null` and reads an object or a string
+  by a string, which wait for L1's `get` itself, in slice 10. So is a
+  member read that goes on to a call.
+- **L1's `typeOf`**, lowered from its text: `typeNames` is a constant that
+  `init` builds, and `typeOf` reads it at `kind(v)`. It runs against L1's
+  own on values of every kind, and four FunctionalScript functions of
+  [`reads.f.js`](./from_fast/reads.f.js) run against themselves on the
+  edges of floats. The random comparison reads its arrays too.
+
+## What 7a adds
+
+- **A throw**: L0's `Functions.throw(own v: any) -> never`
+  ([L0 design §13](../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)),
+  which `throw_(v)` writes. It takes over its value, and the emitter
+  writes an `unreachable` after its call, since it answers `never`.
+- **The effect bit**
+  ([definition.md: One effect](../../doc/sasha-gil/ir/definition.md#one-effect)):
+  a function of an interface declares that it may fail, `mayFail(...)`,
+  as `throw` does, and String's `unit` and `substring` and Containers'
+  `item`, `push` and `seal`, which trap where the view throws. One that
+  answers `never` and does not say so is refused. The checker infers the
+  bit for each function of a module, to a fixed point, and writes it
+  beside the function; the printer writes `may fail`.
+- **A throw leaves nothing behind**: the lifetime pass drops what a
+  function owns before a call that answers `never`, but what the call
+  borrows. A callee's throw, and a trap, abandon what the callers hold.
+- **The counting host's side**: `throw` keeps the value and returns, and
+  the host reads it after the trap by `has_thrown` and `thrown`, then
+  calls `recover`, which frees what the trap abandoned.
+- **Three outcomes** in every host proof and in the random comparison: a
+  value, a throw of a value, or a trap, each the twin's. A function that
+  cannot fail never fails, and the cells are checked after each outcome.
+
+## What 7b adds
+
+- **`throw x` lowered**: a `throw` of FAST is `Functions.throw` of its
+  value, so a module that throws imports the runtime's `Functions`.
+- **L1's error table**: a lowering's runtime may name L1's error module,
+  and `errorTable` reads the table from that module's own normalized
+  FAST, so its texts are never written twice. `error.k` is a literal of
+  `any.only(string)` of its text, which the start function makes once.
+  The table as a value, a computed key, and any other export of that
+  module are refused.
+- **Subjects**: L1's `functionText` runs as WASM against L1's own
+  function, and [`throws.f.js`](./from_fast/throws.f.js) holds a copy of
+  `bigintPair`, a throw of a literal, a rethrow and two of L1's errors
+  one after the other. Each throws what its original throws and leaves
+  nothing behind. The random comparison gains a form that throws a
+  literal, its value or one of L1's errors, by the kind of the value.
+
+## What 8c adds
+
+- **Object builders**: Containers' `begin_object`, `push_property` and
+  `seal` into an object
+  ([L0 design §8](../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal));
+  `seal` answers an array or an object. Object literals of values of `any`
+  lower to those; float records stay products.
+- **`buildObject(n, s, next, keyAt, valueAt)` of the L0 view, lowered**:
+  as `buildArray` is, of `begin_object`, `push_property` and `seal`, with
+  arrow callbacks inlined and labelled `B0`, `B1`, … by depth. A key is a
+  string; a value a value of `any`.
+- **`asObject`** is a cast to `object`, as `asArray` is one to `array`.
+- **`numberToString`**: L1's native row that object spread uses as an index
+  key, an owned string from a float.
+- **Subjects**: the functions of [`objects.f.js`](./from_fast/objects.f.js),
+  which make records and Containers object literals, and L1's
+  `objectSpread`, lowered from its text, against L1's own. A `{ ...v }`
+  literal waits for a later cut; `objectSpread` is what it copies.
+
+## What 8b adds
+
+- **`buildArray(n, s, next, at)` of the L0 view, lowered**
+  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
+  `begin_array` of `n`, which must hold an index exactly, then one `loop`,
+  labelled `B0`, `B1`, … by depth, of the builder, the state and the count
+  of items pushed. Each round pushes `at` of the state and, before the last
+  item, steps the state by `next`, the view's order since 8a, and the
+  round after the last seals the builder. No term is new.
+- **Callbacks inlined**: `next` and `at` are arrow literals of at most one
+  parameter, written in the call, and the lowering inlines their bodies
+  where the loop reads them, so no closure is made. Any other callback is
+  refused until slice 9, and so are a count that is not a number, a state
+  of an integer range, in a record too, as a loop's parameter is, and an
+  item that is not a value of `any`.
+- **A throw inside a callback is refused**, since it would leave the
+  builder, which is linear, behind. A call there that fails, of an
+  exported function that throws say, abandons the builder, as a trap does,
+  and the host's `recover` frees it.
+- **`asArray`** is a cast to `array`, as `asString` is one to `string`.
+- **Subjects**: the functions of [`builds.f.js`](./from_fast/builds.f.js),
+  which build the units of a string, a value repeated `n` times where `n`
+  may be no index, nested arrays and an array by a state that is a record,
+  and two whose callbacks call functions that throw, which shows the
+  view's order; and L1's `toIterable`, lowered from its text, against L1's
+  own on values of every kind and on strings of code points. Each builds
+  what its original builds and leaves nothing behind. The random
+  comparison gains a form of `buildArray`.
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
@@ -431,5 +464,4 @@ instantiated, a module with constants then has its `init` called, and
 then each function, which must leave every cell as they left it.
 [`from_fast/proof.mjs`](./from_fast/proof.mjs) does the same for
 FunctionalScript functions lowered from their text, and their twins are the
-functions themselves, L1's `toBoolean`, `stringEquals`, `stringLess`,
-`strictEquals` and `stringIndex` among them.
+functions themselves, the L1 functions that the slices name among them.

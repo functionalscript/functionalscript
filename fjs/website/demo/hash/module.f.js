@@ -14,8 +14,10 @@ import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
 import { tryUtf8 } from '../../../text/module.f.js'
 import { codeBlock } from '../code/module.f.js'
 import { tryShellQuote } from '../../../text/shell/module.f.js'
-import { caption, option, refusal } from '../module.f.mjs'
+import { caption, option, refusal } from '../module.f.js'
 import { encodeScalar } from '../../../basen/base16/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /** Format a hash's bits as hex, preserving its complete width.
  * @type {(hash: { readonly hashLength: bigint }) => (bits: Vec) => string}
@@ -57,7 +59,9 @@ export const opensslVerification = (args, command) => {
 /** Shared output below the hash demos' text field.
  * @type {<S>(a: HashDemoAlgorithm<S>) => (text: string) => readonly Node[]}
  */
-export const hashOutput = ({ name, hash, openssl }) => {
+export const hashOutput = algorithm => {
+    const { hash, openssl } = algorithm
+    const name = assertNotNullish(entry(algorithm, 'name'))
     const digest = digestOf(hash)
     return text => {
         const value = digest(text)
@@ -89,7 +93,7 @@ export const hashAlgorithms = build => [build(sha1Algorithm), ...sha2Algorithms.
  * @type {<T extends { readonly name: string }>(list: readonly T[]) => (name: string) => T}
  */
 export const algorithmOf = list => name => {
-    const found = list.find(a => a.name === name)
+    const found = list.find(a => assertNotNullish(entry(a, 'name')) === name)
     if (found === undefined) { throw 'hash demo: no algorithm has this name' }
     return found
 }
@@ -97,5 +101,7 @@ export const algorithmOf = list => name => {
 /** Render a selector option, with the current choice selected.
  * @type {(a: { readonly name: string }, picked: { readonly name: string }) => Element}
  */
-export const algorithmOption = (a, picked) =>
-    option(a.name, a.name, a.name === picked.name)
+export const algorithmOption = (a, picked) => {
+    const name = assertNotNullish(entry(a, 'name'))
+    return option(name, name, name === assertNotNullish(entry(picked, 'name')))
+}

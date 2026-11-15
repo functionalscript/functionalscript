@@ -37,15 +37,15 @@
 
 import { step, history, historyStep } from '../effects/module.f.js'
 import { create } from '../effects/memory/module.f.js'
-import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
+import { stdioTransport } from '../protocol/mcp/stdio/module.f.js'
 import {
     mcpStep, uninitializedState, fromRegistry,
 } from '../protocol/mcp/module.f.js'
 import { fileCas } from '../cas/module.f.js'
-import { initEvo, evo } from '../cas/evo/module.f.mjs'
+import { initEvo, evo } from '../cas/evo/module.f.js'
 import { sha256 } from '../crypto/sha2/module.f.js'
-import { casToolRegistry } from './cas/module.f.mjs'
-import { evoToolRegistry } from './evo/module.f.mjs'
+import { casToolRegistry } from './cas/module.f.js'
+import { evoToolRegistry } from './evo/module.f.js'
 
 // ── Handlers ────────────────────────────────────────────────────────────────────
 

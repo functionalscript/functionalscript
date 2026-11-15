@@ -513,7 +513,7 @@ const brStep = (go, env, label, value, owned, n) => {
  * what the function owns but what the call borrows, each argument held by
  * a new local meanwhile, then the call, so that a throw leaves nothing
  * behind but the value that it takes over
- * ([slice 7's choice 4](../todo/slices.md#decisions-for-slice-7)).
+ * ([slice 7's choice 4](../todo/slices.md#decisions-for-slice-7-2026-11-15)).
  *
  * @type {(env: _Env, module: string, name: string, args: readonly Term[], lent: readonly string[], owned: readonly string[], n: number) => Result<_Step, string>}
  */

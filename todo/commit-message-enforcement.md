@@ -44,7 +44,7 @@ The `edited` trigger re-runs the check when the title or description is fixed �
 no push needed to re-green. Branch protection marks it required, which disables
 the merge button until it passes. The linter is a self-hosted FunctionalScript
 module (`fjs/ci`), and the changelog-subset Markdown parser
-[`fjs/media/markdown`](../fjs/media/markdown/module.f.mjs) validates the
+[`fjs/media/markdown`](../fjs/media/markdown/module.f.js) validates the
 section's items.
 
 #### What no pre-merge check can decide
@@ -105,7 +105,7 @@ it outright but require an Enterprise plan.
   enforces, and the reasoning for merge-commits-only
 - [changelog/RELEASE.md](../changelog/RELEASE.md) — the release procedure whose
   inputs include descriptions, diffs, and optional release-note sections
-- [`fjs/media/markdown`](../fjs/media/markdown/module.f.mjs) — the changelog
+- [`fjs/media/markdown`](../fjs/media/markdown/module.f.js) — the changelog
   Markdown-subset parser the section validator reuses, and
   [`fjs/ebnf/lib/markdown`](../fjs/ebnf/lib/markdown/module.f.js) the grammar
   it reads the subset with

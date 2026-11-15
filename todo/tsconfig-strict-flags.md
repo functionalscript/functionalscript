@@ -44,7 +44,7 @@ sites were switches whose exhaustiveness TypeScript could not see, so the end of
 the enclosing `case` was reachable and control would have fallen into the next
 one:
 
-- `fjs/js/tokenizer/module.f.mjs` — `stringDecodeScan`'s `escape` state
+- `fjs/js/tokenizer/module.f.js` — `stringDecodeScan`'s `escape` state
   switches on a code point against the ASCII constants of `fjs/text/ascii`,
   which are `number`, not literal types. No such switch can ever be exhaustive
   to TypeScript, so the last clause became a `default`.

@@ -99,7 +99,7 @@ assignments with an untaken write; this retains the existing static refusal
 of assignment to const/import bindings in unreachable code. A compound
 spelling cannot bypass the source rules.
 
-[`js/ast/sugar`](../../fjs/js/ast/sugar/module.f.mjs) owns expansion to
+[`js/ast/sugar`](../../fjs/js/ast/sugar/module.f.js) owns expansion to
 ordinary writes with binary values or conditional regions, preserving the
 target's binding identity and evaluation order. Reuse the existing logical
 normalization rather than introduce a second truthiness/nullishness policy.

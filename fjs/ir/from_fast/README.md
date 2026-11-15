@@ -8,8 +8,9 @@ the first slice admits, for values of unknown kind, which the third reads
 through the L0 view, for the loops that the fourth adds, for the
 functions that the module does not export, the records and L1's native
 rows that the fifth adds, for the module constants that slice 6c adds, the
-string literals that 6d adds, the array literals that 6e adds and the
-reads of an array at a number key that 6f adds.
+string literals that 6d adds, the array literals that 6e adds, the
+reads of an array at a number key that 6f adds, the `throw` and L1's
+error table that 7b adds, and the L0 view's `buildArray` that 8b adds.
 It reads FAST before
 [preparation](../../js/ast/prepare/README.md) adds mutable slots, as
 definition.md's
@@ -42,9 +43,8 @@ range in these slices.
 The table also chooses what to lower. The lowering reads a module's
 functions, not its evaluation: of everything else that the module defines,
 it reads only what a function that it lowers reads, so L1, which exports
-far more, gives the five functions that the slices name so far:
-`toBoolean`, `stringEquals`, `stringLess`, `strictEquals` and
-`stringIndex`.
+far more, gives only the functions that the slices name as subjects so far
+([todo/slices.md](../todo/slices.md)) and what they read.
 
 ## What it lowers
 
@@ -210,13 +210,14 @@ the [L0 view](../../wasm/runtime/l0/module.f.js) and
 lowering resolves no path, and the module then imports
 [the interfaces of L0](../l0/module.f.js) and
 [of the rows](../native/module.f.js). Every function of the view that it
-reads takes a value of `any` first, but `fromUnit`, which takes a unit.
+reads takes a value of `any` first, but `fromUnit`, which takes a unit,
+and `buildArray`, which takes a count.
 
 | The L0 view | The IR |
 | --- | --- |
 | `kind(v)` | `float(Any.kind(v))` |
 | `UNDEFINED`, `NULL`, …, `FUNCTION` | the tag, a `lit` of `f64c` |
-| `asBoolean(v)`, `asNumber(v)`, `asString(v)` | a `cast` of `v` to `boolean`, `number` or `string`, whose arm calls `Any.to_bool` or `Any.to_f64`, or is `v.string`, and a trap for the other kinds; `v` itself where it holds no other kind, and refused where it never holds the kind |
+| `asBoolean(v)`, `asNumber(v)`, `asString(v)`, `asArray(v)` | a `cast` of `v` to `boolean`, `number`, `string` or `array`, whose arm calls `Any.to_bool` or `Any.to_f64`, or is `v.string` or `v.array`, and a trap for the other kinds; `v` itself where it holds no other kind, and refused where it never holds the kind |
 | `length(v)` | `float` of a `match` of `v`: an arm for each module of L0 that has a `length`, and a trap for the kinds that none takes; a call where one module takes every kind that `v` holds, `String.length(v.string)` |
 | `unit(s, i)` | `float` of a `cast` of `s` to `string`, whose arm reads the integer of `u(31)` that `i` holds, with `exact`, and calls `String.unit`; it traps (`'inexact'`) where `i` holds none |
 | `same(a, b)` | a `cast` of each to `array`, `object` and `function`, named `a.same`, around `Any.same(a.same, b.same)` |
@@ -224,6 +225,7 @@ reads takes a value of `any` first, but `fromUnit`, which takes a unit.
 | `concat(a, b)` | a `cast` of each to `string`, named `a.string`, around `String.concat(a.string, b.string)` |
 | `substring(s, start, end)` | a `cast` of `s` to `string`, whose arm reads the integers of `u(31)` that `end` and then `start` hold, as the view does, named `s.end` and `s.start`, and calls `String.substring` |
 | `item(v, i)` | a `cast` of `v` to `array` and `object`, named `v.item`, whose arm reads the integer of `u(31)` that `i` holds, named `v.index`, and calls `Containers.item`; `v` itself where it holds no other kind |
+| `buildArray(n, s, next, at)`, with arrow literals of at most one parameter as `next` and `at` | the integer of `u(31)` that `n` holds, with `exact`, named `B0.n`, then a `loop`, labelled `B0`, `B1`, … by its depth, as a `let`'s local is numbered, of `B0.b: builder = Containers.begin_array(B0.n)`, `B0.s`, the state, and `B0.i: f64`, the count of items pushed: each round pushes what `at` answers for the state, then, before the last item, steps the state by `next`, and the round after the last is `Containers.seal(B0.b)`; the callbacks' bodies are inlined, as a function that the module does not export is |
 
 `fromUnit`, `concat` and `substring` answer a string and `item` a value of
 any kind, which the caller owns: L0 makes them, or counts them once more
@@ -356,11 +358,16 @@ something, it is bound to a local first, so that it is still done before
 Everything else, with the function's name and the reason
 ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
 an import other than the runtime's, among them a JSON module, a function of
-the view other than these eleven, a cast of a value that never holds its
-kind, a native row other than `bigintEquals` and
+the view other than these thirteen, a cast of a value that never holds its
+kind, a callback of `buildArray` that is not an arrow literal of at most
+one parameter, a count of it that is not a number, a state of it of an
+integer range, in a record too, an item of it that is not a value of
+`any`, a `throw` inside one of its callbacks, which would leave the
+builder behind, a native row other than `bigintEquals` and
 `numberRemainder`, a constant of a record, a read of a constant before its
 definition, an exported function that the table does not name, which a
-lowered function or constant calls, a function as a value, a function that calls itself or whose call
+lowered function or constant calls, a function as a value but a callback of
+`buildArray`, a function that calls itself or whose call
 gives another number of arguments than it takes, a loop of more than one
 variable, a loop parameter of an integer range, in a record too, a `break`
 that does not end its loop's body, a `return` inside a loop or before the
@@ -421,7 +428,17 @@ that leaves its function.
   open, and [`reads.f.js`](./reads.f.js), four functions that read an
   array at a number key, on the edges of floats, past the end, at a
   fraction and at a NaN among them. L1's `typeOf` runs against L1's own
-  on values of every kind.
+  on values of every kind. It lowers [`throws.f.js`](./throws.f.js) too,
+  over L1's error table, which the lowering reads from the table's text: a
+  copy of L1's `bigintPair`, a throw of a literal, a rethrow and two of
+  L1's errors one after the other, each of which throws what its original
+  throws and leaves every cell as it found it, and L1's `functionText`
+  runs against L1's own. And [`builds.f.js`](./builds.f.js), whose
+  functions build arrays by the view's `buildArray`, nested builds and a
+  state that is a record among them, and two whose callbacks call
+  functions that throw, which shows the view's order, an item before the
+  next state; L1's `toIterable` runs against L1's own on values of every
+  kind and on strings of code points.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript. Prefer
   `node --test` for it.

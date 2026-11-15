@@ -19,7 +19,7 @@ import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare } from '../../../js/ast/prepare/module.f.mjs'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs'
-import { tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { tokenize } from '../../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { toText } from '../../../text/marked/module.f.js'

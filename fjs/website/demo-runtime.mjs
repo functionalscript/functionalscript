@@ -26,7 +26,7 @@ import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.js'
 import { editOf } from './demo/mirror/module.f.js'
-import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
+import { dragAxisAttributes, dragValue } from './demo/module.f.js'
 
 /**
  * What a demo may ask this page for.

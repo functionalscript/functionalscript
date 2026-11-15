@@ -1,7 +1,113 @@
-import { sum, min, max, cmp, countOnes, isByte, isUintUpTo } from './module.f.js'
+import { sum, min, max, cmp, countOnes, isByte, isUintUpTo, bitsOf, fromBits, fromBits32 } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
+/**
+ * Binary64 encodings and their exact values, including adjacent values at
+ * the normal/subnormal boundary and either side of one.
+ *
+ * @type {readonly (readonly [bigint, number])[]}
+ */
+const binary64 = [
+    [0x0000_0000_0000_0000n, 0],
+    [0x8000_0000_0000_0000n, -0],
+    [0x3ff0_0000_0000_0000n, 1],
+    [0xbff0_0000_0000_0000n, -1],
+    [0x4002_6666_6666_6666n, 2.3],
+    [0xbfd3_3333_3333_3333n, -0.3],
+    [0xc06d_e000_0000_0000n, -239],
+    [0x444b_1ae4_d6e2_ef50n, 1e21],
+    [0x4090_0000_0000_0000n, 1_024],
+    [0x3fef_ffff_ffff_ffffn, 0.9999999999999999],
+    [0x3ff0_0000_0000_0001n, 1.0000000000000002],
+    [0x7fef_ffff_ffff_ffffn, 1.7976931348623157e308],
+    [0xffef_ffff_ffff_ffffn, -1.7976931348623157e308],
+    [0x0010_0000_0000_0000n, 2.2250738585072014e-308],
+    [0x8010_0000_0000_0000n, -2.2250738585072014e-308],
+    [0x000f_ffff_ffff_ffffn, 2.225073858507201e-308],
+    [0x800f_ffff_ffff_ffffn, -2.225073858507201e-308],
+    [0x0000_0000_0000_0001n, 5e-324],
+    [0x8000_0000_0000_0001n, -5e-324],
+    [0x7ff0_0000_0000_0000n, Infinity],
+    [0xfff0_0000_0000_0000n, -Infinity],
+]
+
+/**
+ * Binary32 encodings promoted exactly to JavaScript numbers; in particular,
+ * the neighbours of one remain distinct, and no subnormal is rounded away.
+ *
+ * @type {readonly (readonly [bigint, number])[]}
+ */
+const binary32 = [
+    [0x0000_0000n, 0],
+    [0x8000_0000n, -0],
+    [0x3f80_0000n, 1],
+    [0xbf80_0000n, -1],
+    [0x3fc0_0000n, 1.5],
+    [0xc020_0000n, -2.5],
+    [0x3dcc_cccdn, 0.10000000149011612],
+    [0x3f7f_ffffn, 1 - 2 ** -24],
+    [0x3f80_0001n, 1 + 2 ** -23],
+    [0x7f7f_ffffn, 3.4028234663852886e38],
+    [0xff7f_ffffn, -3.4028234663852886e38],
+    [0x0080_0000n, 2 ** -126],
+    [0x8080_0000n, -(2 ** -126)],
+    [0x007f_ffffn, 2 ** -126 - 2 ** -149],
+    [0x807f_ffffn, -(2 ** -126 - 2 ** -149)],
+    [0x0000_0001n, 2 ** -149],
+    [0x8000_0001n, -(2 ** -149)],
+    [0x7f80_0000n, Infinity],
+    [0xff80_0000n, -Infinity],
+]
+
 export const proof = {
+    bitsOf: () => {
+        for (const [bits, value] of binary64) { assertEq(bitsOf(value), bits, value) }
+        assertEq(bitsOf(NaN), 0x7ff8_0000_0000_0000n)
+        assertEq(bitsOf(-NaN), 0x7ff8_0000_0000_0000n)
+    },
+    fromBits: () => {
+        for (const [bits, value] of binary64) {
+            assert(Object.is(fromBits(bits), value), [bits, value])
+        }
+    },
+    fromBits32: () => {
+        for (const [bits, value] of binary32) {
+            assert(Object.is(fromBits32(bits), value), [bits, value])
+        }
+    },
+    nanEncodings: () => {
+        // Quiet and signalling encodings, both signs and non-canonical
+        // payloads, all decode to the language's one NaN.
+        for (const bits of [0x7ff8_0000_0000_0000n, 0xfff8_0000_0000_0000n, 0x7ff0_0000_0000_0001n, 0xffff_ffff_ffff_ffffn]) {
+            const value = fromBits(bits)
+            assert(Number.isNaN(value), bits)
+            assertEq(bitsOf(value), 0x7ff8_0000_0000_0000n)
+        }
+        for (const bits of [0x7fc0_0000n, 0xffc0_0000n, 0x7f80_0001n, 0xffff_ffffn]) {
+            const value = fromBits32(bits)
+            assert(Number.isNaN(value), bits)
+            assertEq(bitsOf(value), 0x7ff8_0000_0000_0000n)
+        }
+    },
+    lowBits: () => {
+        // Only the format's width is observed, including for negative
+        // integers whose low bits are their two's-complement encoding.
+        assertEq(fromBits(0x1_3ff0_0000_0000_0000n), 1)
+        assert(Object.is(fromBits(0x1_8000_0000_0000_0000n), -0))
+        assert(Object.is(fromBits(0x1_0000_0000_0000_0000n), 0))
+        assertEq(fromBits(-0x4010_0000_0000_0000n), -1)
+        assert(Number.isNaN(fromBits(-1n)))
+        assertEq(fromBits32(0x1_3f80_0000n), 1)
+        assert(Object.is(fromBits32(0x1_8000_0000n), -0))
+        assert(Object.is(fromBits32(0x1_0000_0000n), 0))
+        assertEq(fromBits32(-0x4080_0000n), -1)
+        assert(Number.isNaN(fromBits32(-1n)))
+    },
+    floatRoundTrips: () => {
+        for (const [, value] of [...binary64, ...binary32]) {
+            assert(Object.is(fromBits(bitsOf(value)), value), value)
+        }
+    },
     sum: () => {
         const result = sum([2, 3, 4, 5])
         assertEq(result, 14)

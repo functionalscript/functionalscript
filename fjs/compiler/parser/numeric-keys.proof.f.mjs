@@ -1,7 +1,7 @@
 /** Number literal keys reuse computed-key graphs and the existing binding policy. */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { normalize } from '../../js/ast/sugar/module.f.mjs'
+import { normalize } from '../../js/ast/sugar/module.f.js'
 import { parseFromTokens } from './module.f.mjs'
 import { expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
 

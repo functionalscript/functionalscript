@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`maxDeltaBytes`](../module.f.mjs) is 8 MiB. [`fjs/git/packstore`](../../packstore/module.f.mjs)
+[`maxDeltaBytes`](../module.f.js) is 8 MiB. [`fjs/git/packstore`](../../packstore/module.f.js)
 holds a delta chain's deltas, and the base they are applied to, as dense
 arrays (a number a byte, about eight bytes of heap a byte), and a delta is
 applied over arrays too, so a chain costs memory in proportion to what its

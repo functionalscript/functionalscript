@@ -82,7 +82,7 @@ spreads. Selection also recognizes exact prepared declaration and loop
 occurrences inside operands, so locally owned cells stay within their selected
 evaluation region. The scan follows eager regions and capture expressions;
 ordinary function bodies and deferred initializers keep separate boundaries.
-[`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
+[`memo`](./memo/module.f.js) owns this shared normalization and cell planning;
 [`control`](./control/module.f.js) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.
 

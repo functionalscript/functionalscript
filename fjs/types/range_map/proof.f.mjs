@@ -4,7 +4,7 @@
  */
 
 import { get, merge, fromRange, rangeMap, mapValue, values } from './module.f.js'
-import { stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.js'
 import { union } from '../sorted_set/module.f.js'
 import { equal } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'

@@ -1,6 +1,6 @@
 /**
  * From a worktree to the repository directory that holds its objects: the
- * step [`fjs/git/store`](../store/module.f.mjs) and
+ * step [`fjs/git/store`](../store/module.f.js) and
  * [`fjs/git/walk`](../walk/module.f.js) leave to their caller, since both
  * take that directory as it is given rather than finding it.
  *

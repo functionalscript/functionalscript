@@ -92,7 +92,7 @@ that one was not, which is why it was fixed instead of listed.
 - [`fjs/git/alternates`](../module.f.js) — the decoder this issue is
   entirely about: `alternatesIn` and its note on why neither line is refused,
   and `untilNul` for the shape that was a third.
-- [`fjs/git/store`](../../store/module.f.mjs) — owns where a store looks, over
+- [`fjs/git/store`](../../store/module.f.js) — owns where a store looks, over
   the directories `alternatesIn` answers.
 - [byte-paths.md](../../todo/byte-paths.md) — owns what a path can spell, and where the
   `NUL` cut belongs once one is a byte list.

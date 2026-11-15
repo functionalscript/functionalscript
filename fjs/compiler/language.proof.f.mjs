@@ -580,7 +580,7 @@ export const proof = {
         },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
-    // `parseFloat` keeps the sign, and the serializer writes it back as
+    // Numeric conversion keeps the sign, and the serializer writes it back as
     // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can
     // state this and why the round trip is pinned rather than assumed.
     negativeZero: {

@@ -36,14 +36,18 @@ import {
     packageJob,
     packageJobId,
     platformNodeSteps,
-} from './node/module.f.mjs'
+} from './node/module.f.js'
 import { environmentCommand, environmentSteps } from './environment/module.f.js'
 import { bunSteps } from './bun/module.f.js'
 import { denoSteps } from './deno/module.f.js'
 import { spiderMonkeySteps } from './spidermonkey/module.f.js'
-import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.js'
 import { miseJobs } from './mise/module.f.js'
 import { smartJobs } from './smart/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { stringifyIndented } from '../media/json/module.f.js'
+import { identity } from '../types/function/module.f.js'
 
 /**
  * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
@@ -54,12 +58,11 @@ export const ciPath = /** @type {const} */ (`${_workflowsDirectory}/gen.ci.yml`)
 
 /**
  * A workflow as the file the generator writes. JSON, which every YAML reader
- * accepts, so nothing here has to decide how a string is quoted or how deep a
- * block is indented.
+ * accepts, with two-space indentation and original property order.
  *
  * @type {(gha: GitHubAction) => string}
  */
-const workflowText = gha => JSON.stringify(gha, null, '  ')
+const workflowText = stringifyIndented('  ')(identity)
 
 /**
  * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}
@@ -148,7 +151,7 @@ const mergeQueue = /** @type {const} */ (`github.event_name == 'merge_group'`)
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[], mergeQueueOnly: boolean) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const id = `${o}-${a}`
-    const image = images[o][a]
+    const image = assertNotNullish(entry(assertNotNullish(entry(images, o)), a))
     // Direct-install jobs keep injected steps on the runner too.
     const result = o === 'windows'
         ? [

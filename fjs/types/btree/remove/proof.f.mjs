@@ -5,7 +5,7 @@
 import { nodeRemove, remove as removeTree } from './module.f.js'
 import { cmp } from '../../string/module.f.js'
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 import { expectedSquares38, set, squares } from '../testlib.f.js'
 
 /** @type {(node: TNode<string>) => (value: string) => TNode<string> | null} */

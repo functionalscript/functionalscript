@@ -15,7 +15,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemo } from './demo-runtime.mjs'
-import { dragAxis } from './demo/module.f.mjs'
+import { dragAxis } from './demo/module.f.js'
 import { toDom } from '../media/html/module.mjs'
 
 /**

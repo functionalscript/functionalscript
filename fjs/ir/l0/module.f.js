@@ -11,7 +11,8 @@
  *   of the tags that `kind` answers, which are the
  *   [L0 view's](../../wasm/runtime/l0/module.f.js), and a WASM `i64`
  *   carries it. `dup` and `drop` make it counted: every value of `any` is
- *   counted in this slice (copy variants wait until after slice 6).
+ *   counted (copy variants wait for the item after slice 10 of
+ *   [slices.md](../todo/slices.md#later)).
  * - **`undefined`, `null`, `true` and `false` are Any's constants**, which a
  *   module imports as immutable globals that the host makes
  *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).

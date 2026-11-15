@@ -255,7 +255,7 @@ Some text has no producer behind it: an example a reader typed, or a
 JavaScript or JSON code fence in a `README.md` the site renders
 ([`website/readme`](../../website/readme/module.f.mjs)). For that,
 [`fjs/js/marked`](../../js/marked/module.f.mjs) finds the runs by tokenizing,
-with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)),
+with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)),
 and the website's `highlight(text)` draws them:
 
 - `spansOf(text)`, in `js/marked`, answers the `Span`s the tokenizer finds (`keyword`,
@@ -283,7 +283,7 @@ and the website's `highlight(text)` draws them:
   `keyword`s where an operand follows them on their line, so a variable named
   `type` stays an `identifier`. The primitive type names (`string`, `number`,
   `boolean`, `unknown`, …) are `keyword`s where a type stands for certain, as
-  [`js/type_position`](../../js/type_position/module.f.mjs) reads it from the
+  [`js/type_position`](../../js/type_position/module.f.js) reads it from the
   brackets around them: an annotation, an alias, an interface, a return type,
   `as`. Anywhere they may be values they stay `identifier`s, as the `rtti`
   builders `string` and `number` are in `or(option, number)`: a token's

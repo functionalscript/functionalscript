@@ -30,7 +30,7 @@
 
 import { array, open, string } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.js'
-import { parse as parseJson } from '../../media/json/module.f.mjs'
+import { parse as parseJson } from '../../media/json/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { charIs, hyphenMinus, isDigit, isDigits, isLatinLetter } from '../../text/ascii/module.f.js'
 

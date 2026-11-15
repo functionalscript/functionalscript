@@ -1,7 +1,7 @@
 /**
  * This repository's own CI generation: `ci` with what only this repository
  * can name. `npm run gen` runs it, through `fjs/dev/gen`, where the built-in
- * `fjs ci` — `../module.f.mjs`'s `main` — stays the generator any project
+ * `fjs ci` — `../module.f.js`'s `main` — stays the generator any project
  * gets, since that command cannot know what another package publishes.
  *
  * @module
@@ -12,13 +12,13 @@
  * @import { Job, GitHubAction } from '../common/types.ts'
  */
 
-import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
+import { ciWorkflow, ciJobs, writeCi } from '../module.f.js'
 import { uses, _workflowsDirectory } from '../common/module.f.js'
 import { step } from '../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.js'
-import { installNode } from '../node/module.f.mjs'
+import { installNode } from '../node/module.f.js'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 

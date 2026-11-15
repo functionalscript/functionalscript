@@ -4,7 +4,7 @@
 
 import { assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { normalize } from '../../js/ast/sugar/module.f.mjs'
+import { normalize } from '../../js/ast/sugar/module.f.js'
 import { parseFromTokens } from './module.f.mjs'
 import { _evaluate, stringifyModule, tokenizeString } from './proof.f.mjs'
 

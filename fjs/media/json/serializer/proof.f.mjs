@@ -2,8 +2,9 @@
  * @import { List } from '../../../types/list/types.ts'
  */
 
-import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.js'
+import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSerialize, objectWrap, stringSerialize, treeSerialize } from './module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { next } from '../../../types/list/module.f.js'
 import { sort } from '../../../types/object/module.f.js'
 import { chunksText } from '../../../text/marked/module.f.js'
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -26,6 +27,9 @@ const full = leafSerialize(hash)({
  * @type {(value: unknown) => never}
  */
 const unchecked = value => /** @type {never} */ (value)
+
+/** @type {(value: number) => never} */
+const refusedLeaf = () => { throw 'refused leaf' }
 
 export const proof = {
     arrayWrap: [
@@ -137,5 +141,27 @@ export const proof = {
         assertStructurallySame(toArray(serialize(sort)([true])), ['[', 'true', ']'])
         // the same walk as runs: the leaves with their kinds, the containers plain
         assertStructurallySame(marked(sort)([true, 'x']), [['['], ['true', 'literal'], [','], ['"x"', 'string'], [']']])
+    },
+    indentation: () => {
+        const { stringify, serialize, marked } = codec(plain, '  ')
+        const value = { b: [1, [], { x: null }], a: {}, omitted: undefined }
+        const expected = '{\n  "a": {},\n  "b": [\n    #1,\n    [],\n    {\n      "x": null\n    }\n  ]\n}'
+        assertEq(stringify(sort)(value), expected)
+        assertEq(toArray(serialize(sort)(value)).join(''), expected)
+        assertEq(chunksText(marked(sort)(value)), expected)
+        assertEq(stringify(sort)({ omitted: undefined }), '{}')
+        assertEq(stringify(sort)([]), '[]')
+        assertEq(stringify(sort)(true), 'true')
+        assertEq(codec(plain, '\t').stringify(sort)([false, null]), '[\n\tfalse,\n\tnull\n]')
+        assertEq(chunksText(treeSerialize(plain)(sort)(value)), '{"a":{},"b":[#1,[],{"x":null}]}')
+        assertEq(codec(plain, '').stringify(sort)(value), '{"a":{},"b":[#1,[],{"x":null}]}')
+    },
+    // Indented containers stream their opening before visiting a leaf.
+    lazyIndentation: () => {
+        const chunks = treeSerialize(refusedLeaf, '  ')(sort)([1])
+        assertEq(next(chunks)?.first, '[')
+    },
+    throw: {
+        indentedLeaf: () => chunksText(treeSerialize(refusedLeaf, '  ')(sort)([1])),
     },
 }

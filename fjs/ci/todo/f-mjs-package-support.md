@@ -436,7 +436,7 @@ not, and the pipeline is simplified accordingly.
   — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
   no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
-- [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
+- [`../package/module.f.js`](../package/module.f.js) — the packed-package
   check in the `package` job, which imports a published `.f.js` from a
   clean consumer of the packed package.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.

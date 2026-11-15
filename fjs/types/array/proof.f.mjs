@@ -1,5 +1,5 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.js'
-import { stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {

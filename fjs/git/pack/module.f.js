@@ -249,9 +249,9 @@ const wholeCopy = /** @type {const} */ (65_536)
  */
 const selected = (b, at, mask, count, k, value) => {
     if (k === count) { return [value, at] }
-    if (Math.floor(mask / Math.pow(2, k)) % 2 === 0) { return selected(b, at, mask, count, k + 1, value) }
+    if (Math.floor(mask / 2 ** k) % 2 === 0) { return selected(b, at, mask, count, k + 1, value) }
     if (at >= b.length) { return null }
-    return selected(b, at + 1, mask, count, k + 1, value + b[Number(at)] * Math.pow(0x100, k))
+    return selected(b, at + 1, mask, count, k + 1, value + b[Number(at)] * 0x100 ** k)
 }
 
 /**

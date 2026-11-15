@@ -26,9 +26,9 @@ Three reasons to finish the job:
    `fjs/` defines it and NaNVM (`nanvm/lib/src`) has no `JSON` object, so a
    `.f.mjs` module reaching for it depends on the JS host rather than on
    FunctionalScript. The remaining callers can use the shared serializer.
-3. **Pretty output still needs a shared implementation.** The CI writer asks
-   native JSON for indentation, which the FunctionalScript serializer does
-   not yet provide.
+3. **Pretty output belongs to the shared implementation.** The CI writer now
+   uses `stringifyIndented('  ')(identity)`, backed by the same container walk
+   as compact JSON.
 
 #### `JSON.stringify` in six shapes
 
@@ -42,7 +42,7 @@ phase starts.
 | Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/compiler`'s `_stringifyTree` |
 | Source-text quoting | done: `fjs/types/ts`, `fjs/emergent_testing` and `fjs/ci/package` | `fjs/js/string_escape`'s `stringLiteral`, which `stringSerialize` also wraps |
 | JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.mjs`; done: `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
-| Pretty-printed file output | `fjs/ci/module.f.mjs`'s `workflowText` | needs indentation support, which `serialize` does not have |
+| Pretty-printed file output | done: `fjs/ci/module.f.js`'s `workflowText` | `stringifyIndented('  ')(identity)` |
 
 Three semantic differences to respect while migrating, none of them blocking:
 
@@ -64,8 +64,8 @@ Three semantic differences to respect while migrating, none of them blocking:
 
 Four phases. They are separable and each is a complete change on its own, so
 they should ship as separate PRs
-([AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases)); phases 1
-and 2 are complete.
+([AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases)); phases 1,
+2 and 4 are complete.
 
 **1. `stringSerialize` in FunctionalScript — done in
 [#1438](https://github.com/functionalscript/functionalscript/pull/1438).**
@@ -109,11 +109,11 @@ reporter in `fjs/emergent_testing/module.f.js` renders a failure payload with
 `String(v)`, so passing a raw object degrades the message. Either serialize with `fjs/compiler`'s `_stringifyTree` (it handles the
 `bigint` token payloads) or improve the reporter's rendering first.
 
-**4. Indentation for `fjs/ci/module.f.mjs`'s `workflowText`**, the only site asking for
-something `serialize` cannot do (`JSON.stringify(gha, null, '  ')`). Add an
-indenting variant to `fjs/media/json/serializer` — the natural shape is
-`serialize` parameterized by an indent unit, with today's behavior as the
-empty-indent case, rather than a second serializer beside it. This also unblocks
+**4. Indentation for `fjs/ci/module.f.js`'s `workflowText` — done.**
+`fjs/media/json/serializer` parameterizes the shared container walk by a literal
+indent unit; the empty unit retains compact output. The public JSON helper is
+`stringifyIndented(indent)(sort)(value)`. CI uses two spaces and keeps its exact
+generated workflow text, including no final newline. This also unblocks
 `fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`, whose
 `writeJsonFile` sketch needs indented output.
 
@@ -129,7 +129,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 - [x] Phase 2: replace native JSON number formatting with the admitted `String`
       builtin, preserving explicit `-0` and the non-finite `null` policy.
 - [ ] Phase 3: migrate the write sites, row by row from the shape table.
-- [ ] Phase 4: indenting serializer; migrate `fjs/ci/module.f.mjs`.
+- [x] Phase 4: indenting serializer; migrate `fjs/ci/module.f.js`.
 - [ ] Per phase: `tsc`, `fjs t`, `npm start cov node`, and an explanation of the
       behavior changes in the phase's PR. A `Changelog:` section is optional
       before 1.0. The [release policy after 1.0](../../../../todo/post-1.0-release-policy.md) remains undecided.
@@ -137,7 +137,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 ### Related
 
 - [`fjs/media/json/serializer/module.f.js`](../serializer/module.f.js) — the
-  compiler-accepted serializer; phases 1 and 2 are complete.
+  compiler-accepted serializer; phases 1, 2 and 4 are complete.
 - [`fjs/text/utf16/module.f.js`](../../../text/utf16/module.f.js) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
 - [`fjs/js/string_escape/module.f.js`](../../../js/string_escape/module.f.js)
@@ -150,7 +150,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   stream against a JSON *string literal*.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.
-- `stringifySorted` in [`../module.f.mjs`](../module.f.mjs) — the canonical,
+- `stringifySorted` in [`../module.f.js`](../module.f.js) — the canonical,
   key-sorted serializer, for the key-order question phase 3 meets at every
   comparison site.
 - `parse`'s per-container call-stack cost was found while migrating the reading

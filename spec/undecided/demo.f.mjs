@@ -29,12 +29,12 @@
  */
 
 import { mapStep, pureOk } from '../../fjs/effects/module.f.js'
-import { tryParseBlocks } from '../../fjs/media/markdown/module.f.mjs'
+import { tryParseBlocks } from '../../fjs/media/markdown/module.f.js'
 import { basename, parent } from '../../fjs/path/module.f.js'
 import { error, ok } from '../../fjs/types/result/module.f.js'
 import { compileAs, fetchFile, reportText } from '../../fjs/compiler/refused_demo/module.f.mjs'
 import { loadedView } from '../../fjs/nanvm/demos/page/module.f.mjs'
-import { caption } from '../../fjs/website/demo/module.f.mjs'
+import { caption } from '../../fjs/website/demo/module.f.js'
 import { isTodoDir } from '../../fjs/website/module.f.mjs'
 import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.mjs'
 import { codeMarker, registerRowMarker, resultMarker, undecidedMarker } from '../../fjs/website/style/module.f.js'

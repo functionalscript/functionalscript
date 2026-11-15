@@ -7,7 +7,7 @@
 
 import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent, tryFold, repeat, transduce, run, fromAccumulator } from './module.f.js'
 import { toArray } from './alt/module.f.js'
-import { stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.js'
 import { addition, reduceToScan, nextStep, doneStep } from '../function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, listing, parse } from './demo.f.mjs'

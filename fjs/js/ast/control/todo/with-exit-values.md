@@ -24,7 +24,7 @@ const mapped = (exit[0] === 'yield' ? ['yield', replacement]
         : exit[0] === 'return' ? ['return', exit[1], replacement[0]] : ['throw', replacement[0]])
 ```
 
-The same split is in `exitTask` of [`memo`](../../memo/module.f.mjs),
+The same split is in `exitTask` of [`memo`](../../memo/module.f.js),
 `blockTask` of
 [`fjs/edag/to_fast/source/loops`](../../../../edag/to_fast/source/loops/module.f.js)
 and `exitTask` of

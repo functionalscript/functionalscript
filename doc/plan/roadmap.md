@@ -23,15 +23,15 @@
 ## Now — Layers 1 + 2 + 3
 
 **Layer 1 — Base (done)**
-- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.mjs` ✓
-- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.mjs` ✓
+- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.js` ✓
+- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.js` ✓
 - `fjs mcp` CLI command registered in `fjs/module.f.mjs`, running
-  `casMcpServer` from `fjs/mcp/module.f.mjs` ✓
+  `casMcpServer` from `fjs/mcp/module.f.js` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
 **Layer 2 — Content encoding (done)**
 - No more cBase32 for content — replaced by text/base64 (MCP-idiomatic for
-  binary), wired in `fjs/mcp/cas/module.f.mjs` via `fjs/basen/base64/module.f.js`
+  binary), wired in `fjs/mcp/cas/module.f.js` via `fjs/basen/base64/module.f.js`
   (`encode`/`decode`) ✓
 - `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
   or `'base64'`) — decoding follows what the caller says, not autodetection ✓
@@ -147,7 +147,7 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
    [`fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md) performs them — on
    two checks that run in CI: `fjs compile` with no arguments holds every
    `.f.js` to the compiler, and the packed-package check in the `package`
-   job ([`fjs/ci/package`](../../fjs/ci/package/module.f.mjs)) imports a published
+   job ([`fjs/ci/package`](../../fjs/ci/package/module.f.js)) imports a published
    `.f.js` from a clean consumer of the packed package, so a standalone `.f.js`
    is type-checked, gets a `.d.ts`, is packed, and resolves. The
    boundary the rename must respect is in

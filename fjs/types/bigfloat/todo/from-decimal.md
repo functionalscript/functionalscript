@@ -9,7 +9,7 @@ Both tokenizers convert a decimal number literal into the same
 `BigFloat = readonly [mantissa: bigint, exp: number]`, by different
 algorithms, and neither lives in this module:
 
-- `fjs/js/tokenizer/module.f.mjs:267-286` — incremental accumulator threaded
+- `fjs/js/tokenizer/module.f.js:267-286` — incremental accumulator threaded
   through the scan state (`addFracDigit`, `addExpDigit`,
   `bufferToNumberToken` computing `[b.s * b.m, b.f + b.es * b.e]`);
 - `fjs/compiler/tokenizer/module.f.mjs:378-390` — `decodeNumber` doing string

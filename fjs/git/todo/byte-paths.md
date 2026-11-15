@@ -114,7 +114,7 @@ why `fjs/git` wants it and what it does until then.
 
 ### Related
 
-- [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks; this
+- [`fjs/git/store`](../store/module.f.js) — owns where a store looks; this
   issue owns what it can spell.
 - [alternates-line-quirks.md](../alternates/todo/alternates-line-quirks.md) — carries this as one
   of the two lines where that reader and Git look in different directories, and

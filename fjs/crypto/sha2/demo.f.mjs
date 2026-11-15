@@ -17,10 +17,10 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { sha256 } from './module.f.js'
-import { selectField, textField, fieldUpdate } from '../../website/demo/module.f.mjs'
-import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.mjs'
+import { selectField, textField, fieldUpdate } from '../../website/demo/module.f.js'
+import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.js'
 
 const algorithms = sha2Algorithms.map(a => ({ name: a.name, output: hashOutput(a) }))
 const selectedAlgorithm = algorithmOf(algorithms)

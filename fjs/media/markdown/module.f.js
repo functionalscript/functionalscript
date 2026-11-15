@@ -393,6 +393,9 @@ const strongOf = node => {
     }
 }
 
+/** Append buffered text to the spans. @type {(spans: readonly Italicised[], chunk: string) => readonly Italicised[]} */
+const flushed = (spans, chunk) => chunk === '' ? spans : [...spans, ['text', chunk]]
+
 /**
  * An emphasised body as its spans, from the grammar's states: words and
  * spaces read together as text, code, links, and bold, each state naming
@@ -406,27 +409,25 @@ const emOf = node => {
     /** @type {readonly Italicised[]} */
     let out = []
     let text = ''
-    /** @type {() => readonly Italicised[]} */
-    const flushed = () => text === '' ? out : [...out, ['text', text]]
     let state = node
     while (true) {
         const [tag, body] = items(state)
-        if (tag === 'close') { return ok(flushed()) }
+        if (tag === 'close') { return ok(flushed(out, text)) }
         const parts = items(body)
         if (tag === 'word' || tag === 'space') {
             text = text + lexeme(parts[0])
             state = parts[1]
             continue
         }
-        if (tag === 'code') { out = [...flushed(), ['code', codeText(parts[0])]] }
+        if (tag === 'code') { out = [...flushed(out, text), ['code', codeText(parts[0])]] }
         else if (tag === 'link') {
             if (text.endsWith('!')) { return error('an image inside bold or emphasis') }
-            out = [...flushed(), ['link', ...plainLinkOf(parts[0])]]
+            out = [...flushed(out, text), ['link', ...plainLinkOf(parts[0])]]
         }
         else {
             const read = emphasisOf(parts[1])
             if (read[0] === 'error') { return read }
-            out = [...flushed(), ['strong', read[1]]]
+            out = [...flushed(out, text), ['strong', read[1]]]
             const [after, rest] = items(parts[3])
             if (after === 'close') { return ok(out) }
             text = lexeme(items(rest)[0])
@@ -536,8 +537,9 @@ export const entryTexts = text => {
     let contentIndent = 2
     for (let i = 0; i < lines.length; i += 1) {
         const line = lines[Number(i)]
+        const lineNumber = i + 1
         const refuse = /** @type {(why: string) => Result<readonly string[], string>} */(
-            why => error(`line ${i + 1}: ${why}`))
+            why => error(`line ${lineNumber}: ${why}`))
         if (line.trim() === '') { blankAt = blankAt === -1 ? i : blankAt }
         else if (blankAt !== -1) {
             // The only blank a released file has is the newline it ends
@@ -802,7 +804,8 @@ const readProse = entry => {
      * @type {(body: readonly (Bolded | Italicised)[]) => Result<void, string>}
      */
     const nestedEmphasis = body => {
-        for (const [i, b] of body.entries()) {
+        for (let i = 0; i < body.length; i += 1) {
+            const b = body[Number(i)]
             if (b[0] !== 'em' && b[0] !== 'strong') { continue }
             if (unflanked(lastChar(body[Number(i - 1)]))(firstChar(b[1][0]))
                 || unflanked(i === body.length - 1 ? undefined : firstChar(body[Number(i + 1)]))(lastChar(b[1][Number(b[1].length - 1)]))) {
@@ -817,7 +820,8 @@ const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
     if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
-    for (const [i, span] of entry.entries()) {
+    for (let i = 0; i < entry.length; i += 1) {
+        const span = entry[Number(i)]
         if (span[0] === 'code') { out = [...out, span]; continue }
         // A strikethrough body is checked as an entry is.
         if (span[0] === 'del') {
@@ -927,7 +931,8 @@ export const tryParse = text => {
     if (texts[0] === 'error') { return texts }
     /** @type {readonly Entry[]} */
     let out = []
-    for (const [i, t] of texts[1].entries()) {
+    for (let i = 0; i < texts[1].length; i += 1) {
+        const t = texts[1][Number(i)]
         const one = tryParseEntry(t)
         if (one[0] === 'error') { return error(`entry ${i}: ${one[1]}`) }
         out = [...out, one[1]]
@@ -1168,7 +1173,8 @@ const readBlocks = (base, container) => lines => {
             if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuseAt(i, 'a code fence whose info string is not one word') }
             if (info.includes('\\')) { return refuseAt(i, 'a code fence whose info string contains a backslash escape') }
             if ([...info].some((_, index) => entityAt(info, index))) { return refuseAt(i, 'an entity in a code fence info string') }
-            const close = lines.findIndex((candidate, index) => index > i && isClosingFence(candidate))
+            const start = i
+            const close = lines.findIndex((candidate, index) => index > start && isClosingFence(candidate))
             if (close === -1) { return refuseAt(i, 'a code fence that is never closed') }
             out = [...out, [['code', info, close === i + 1 ? '' : lines.slice(i + 1, close).join('\n') + '\n'], i, close]]
             i = close + 1
@@ -1300,7 +1306,8 @@ const readBlocks = (base, container) => lines => {
             const rows = lines.slice(i, end)
             /** @type {(readonly Entry[])[]} */
             let read = []
-            for (const [r, row] of rows.entries()) {
+            for (let r = 0; r < rows.length; r += 1) {
+                const row = rows[Number(r)]
                 if (r === 1) { continue }
                 // A backslash before an escaped pipe leaves which of the
                 // two the escape is to GitHub's reading of backslashes.

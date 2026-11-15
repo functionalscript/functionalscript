@@ -28,7 +28,7 @@ compute data; `export default 2 + 2;` no longer fails with the historical
 proofs in [`compiler/proof.f.mjs`](../../compiler/proof.f.mjs).
 
 The MCP tool remains unimplemented: the
-[server registry](../module.f.mjs) still contains only CAS and Evo tools.
+[server registry](../module.f.js) still contains only CAS and Evo tools.
 `interpret(load)(path)` is an effectful file/dependency loader, not a pure
 source-text API. The compiler already exposes pure
 [`source.parse(path)(text)`](../../compiler/source/module.f.mjs) and
@@ -48,8 +48,8 @@ that takes a module's text and returns the module's
 For example, `{ "text": "export default 2 + 2;" }` returns `4`.
 
 The tool is a new registry, `fjs/mcp/eval/`, a sibling of
-[`cas`](../cas/module.f.mjs) and [`evo`](../evo/module.f.mjs). That is the
-extension point [`fjs/mcp/module.f.mjs`](../module.f.mjs) documents: the
+[`cas`](../cas/module.f.js) and [`evo`](../evo/module.f.js). That is the
+extension point [`fjs/mcp/module.f.js`](../module.f.js) documents: the
 composition root knows about registries, not about what is in them. The
 registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.f.js).
 The tool calls a reusable pure source-text evaluator in `fjs/compiler`, so a
@@ -195,7 +195,7 @@ a name for its location because there is no file. Use a fixed pseudo-path such a
 **A result too large to encode is the transport's failure, not the tool's.**
 The input cap does not bound the output. At `940eff9`, a 420-byte module of
 eighteen `const aN = aM + aM;` doublings evaluated to a string whose JSON text
-is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.mjs) answers
+is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.js) answers
 a response line over its 128 KiB `maxLength` with a JSON-RPC `-32603` that
 keeps the request's `id`. The server stays up, but the client gets a transport
 error, not an `errorResult`. That is the outcome every JSON-returning tool has
@@ -252,7 +252,7 @@ which fixes it in the transport for every tool at once.
       overflows `maxLength` gets the transport's `-32603` with the request's `id`, as
       `cas_get`'s overflow proofs pin.
 - [ ] Add the tool to the tool tables in [`../README.md`](../README.md) and in
-      [`fjs/mcp/module.f.mjs`](../module.f.mjs)'s JSDoc, with the oversize
+      [`fjs/mcp/module.f.js`](../module.f.js)'s JSDoc, with the oversize
       outcome in its error list.
 
 ### Related

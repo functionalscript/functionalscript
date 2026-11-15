@@ -90,7 +90,7 @@ source through spread and use the same aggregate loop state and completion
 machinery. `for…in`, assignment-target iteration and update operators remain
 separate features.
 
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) owns pattern/default expansion and
+[`js/ast/sugar`](../js/ast/sugar/module.f.js) owns pattern/default expansion and
 normalization into immutable FAST values. It keeps one required initializer,
 creates fresh versions for assignments, and supplies explicit loop inputs and
 results. A const snapshot retains its own source identity even when its current
@@ -324,7 +324,7 @@ two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. One call lowers to no call at all: a parameterless function written
 at the call and called with no arguments, `(() => { const x = f(); return
 [x, x]; })()`, becomes a normalized value block in
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs), with the enclosing binding
+[`js/ast/sugar`](../js/ast/sugar/module.f.js), with the enclosing binding
 values and required evaluations retained at that point. No invocation boundary
 is added by this block; [spec: functions](../../spec/functions/README.md)
 states the source rule. The writer
@@ -428,7 +428,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without an explicit `return`, which the compiler refuses — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without an explicit `return`, which the compiler refuses — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.js)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -651,7 +651,7 @@ type-checked, receives a `.d.ts`, is packed in the clean CI package build and
 is covered, and the packed-package check in the `package` CI job imports
 a published one from a clean consumer, runs it and type-checks a use of its
 declaration with a negative control
-([`fjs/ci/package`](../ci/package/module.f.mjs)); and the first
+([`fjs/ci/package`](../ci/package/module.f.js)); and the first
 renames followed — every module the compiler accepted whole,
 `fjs/js/prototype` and `fjs/types/range` among them. What keeps them honest is
 `fjs compile` with no arguments, which CI runs.
@@ -680,7 +680,7 @@ it does not change the extension contract for repository source.
 Decided with the retirement of the hand-written scanner, and not to reopen
 without a reason. The grammar's tokens,
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) read by
-[`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
+[`fjs/js/tokenizer`](../js/tokenizer/module.f.js), grow toward the whole
 JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and

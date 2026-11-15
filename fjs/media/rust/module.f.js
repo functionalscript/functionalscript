@@ -38,8 +38,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { map } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isWellFormed, stringToList } from '../../text/utf16/module.f.js'
-import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
-import { bigint } from '../../types/bigint/from_number/module.f.js'
+import { bitsOf } from '../../types/number/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 
 /**
@@ -129,52 +128,11 @@ export const utf16Units = v => toArray(map(u16Hex)(stringToList(v)))
 export const utf16Literal = v => sliceLiteral(utf16Units(v))
 
 /**
- * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
- * found by bisection over the exponent range, every step an exact
- * comparison against a power of two.
- *
- * @type {(a: number) => number}
- */
-const exponentOf = a => {
-    let low = -1_022
-    let high = 1_024
-    while (high - low > 1) {
-        const mid = Math.floor((low + high) / 2)
-        if (2 ** mid <= a) { low = mid } else { high = mid }
-    }
-    return low
-}
-
-/** The one `NaN` this writer spells: the quiet `NaN` with an empty payload. @type {bigint} */
-const canonicalNan = 0x7ff8_0000_0000_0000n
-
-/**
- * The IEEE 754 binary64 bits of a number, as a `bigint`: what
- * {@link f64Bits} spells, and what a WebAssembly `f64.const` holds. Every
- * `NaN` is {@link canonicalNan}.
- *
- * @type {(v: number) => bigint}
- */
-export const bitsOf = v => {
-    if (Number.isNaN(v)) { return canonicalNan }
-    const sign = v < 0 || isNegativeZero(v) ? 1n << 63n : 0n
-    const a = Math.abs(v)
-    if (a === Infinity) { return sign | 0x7ff0_0000_0000_0000n }
-    if (a === 0) { return sign }
-    // scaled in two exact steps: `2 ** 1074` itself is past the largest double
-    if (a < 2 ** -1_022) { return sign | bigint(a * 2 ** 1_023 * 2 ** 51) }
-    const exponent = exponentOf(a)
-    const fraction = bigint((a / 2 ** exponent - 1) * 2 ** 52)
-    return sign | bigint(exponent + 1_023) << 52n | fraction
-}
-
-/**
  * The IEEE 754 binary64 bits of a number as a Rust `u64` literal in sixteen
  * hex digits — `f64::from_bits` reads it back as the same number, `-0`, the
- * infinities and subnormals included. Found in exact arithmetic: scaling by
- * a power of two is exact, so a significand is read off as an integer
- * rather than approximated, a normal number's exponent being
- * {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}, whatever sign
+ * infinities and subnormals included. The shared {@link bitsOf} conversion
+ * supplies the bits in exact arithmetic. Every `NaN` uses the canonical
+ * quiet-NaN encoding `0x7ff8000000000000`, whatever sign
  * or payload an engine holds it with: FunctionalScript has one `NaN`
  * ([spec](../../../spec/values/numbers/README.md)), a `NaN`'s bits being no
  * observation the language admits, so one spelling is the whole of what

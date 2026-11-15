@@ -4,7 +4,7 @@
  * @import { DemoController } from './demo/sharing/types.ts'
  */
 
-import { decodeQuery, encodeQuery, restoreInputs } from './demo/sharing/module.f.mjs'
+import { decodeQuery, encodeQuery, restoreInputs } from './demo/sharing/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'
 import { revealFragment } from './fragment-runtime.mjs'
 import { scopeMarker } from './demo/control_ids/module.f.js'

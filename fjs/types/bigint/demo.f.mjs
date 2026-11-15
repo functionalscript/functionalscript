@@ -25,7 +25,7 @@
  * @import { DemoRow, DemoState } from './types.ts'
  */
 
-import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 import { codeMarker } from '../../website/style/module.f.js'
 import { log2 } from './module.f.js'

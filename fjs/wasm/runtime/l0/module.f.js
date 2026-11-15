@@ -331,26 +331,31 @@ export const join = (parts, separator) => {
 }
 
 /**
- * The `n` states a builder visits, from `s`, each next one `next` of the
- * one before: `next` is called `n - 1` times, never after the last. `n`
- * is a count an `i32` holds. The array grows one state at a time, which is
- * quadratic, but only on a JavaScript host: the WASM backend lowers a
- * builder to one loop.
+ * The `n` items of a builder, one for each state it visits, from `s`, each
+ * next state `next` of the one before. `item` of a state is called before
+ * `next` of it, and `next` is called `n - 1` times, never after the last,
+ * so the calls come in the order of one loop: `item(s0)`, `next(s0)`,
+ * `item(s1)`, and so on. That order shows only where a callback fails, and
+ * it is the order of the WASM backend's loop. `n` is a count an `i32`
+ * holds. The array grows one item at a time, which is quadratic, but only
+ * on a JavaScript host: the WASM backend lowers a builder to one loop.
  *
- * @template S
+ * @template S, T
  * @param {string} name
  * @param {unknown} n
  * @param {S} s
  * @param {(s: S) => S} next
- * @returns {readonly S[]}
+ * @param {(s: S) => T} item
+ * @returns {readonly T[]}
  */
-const states = (name, n, s, next) => {
+const walk = (name, n, s, next, item) => {
     const c = index(name, n, 0x8000_0000)
-    /** @type {{ readonly i: number, readonly s: S, readonly out: readonly S[] }} */
+    /** @type {{ readonly i: number, readonly s: S, readonly out: readonly T[] }} */
     let r = { i: 0, s, out: [] }
     while (r.i < c) {
+        const x = item(r.s)
         const i = r.i + 1
-        r = { i, s: i < c ? next(r.s) : r.s, out: [...r.out, r.s] }
+        r = { i, s: i < c ? next(r.s) : r.s, out: [...r.out, x] }
     }
     return r.out
 }
@@ -358,9 +363,10 @@ const states = (name, n, s, next) => {
 /**
  * An array of `n` items built in one pass: item `i` is `at` of state `i`,
  * where state `0` is `s` and each next state is `next` of the one before.
- * The WASM backend lowers a call whose `next` and `at` are arrow literals
- * to L0 `begin_array(n)`, a loop that keeps the state in a local and
- * `push`es each item, and `seal`, with no closure allocated.
+ * `at` of a state is called before `next` of it. The WASM backend lowers a
+ * call whose `next` and `at` are arrow literals to L0 `begin_array(n)`, a
+ * loop that keeps the state in a local and `push`es each item, and `seal`,
+ * with no closure allocated.
  *
  * @template S
  * @param {unknown} n
@@ -369,14 +375,16 @@ const states = (name, n, s, next) => {
  * @param {(s: S) => unknown} at
  * @returns {L0Array}
  */
-export const buildArray = (n, s, next, at) => states('buildArray', n, s, next).map(x => at(x))
+export const buildArray = (n, s, next, at) => walk('buildArray', n, s, next, at)
 
 /**
  * An object of `n` properties built in one pass, as {@link buildArray}
  * builds an array: property `i` has the key `keyAt` and the value
- * `valueAt` of state `i`. Each key must be a string. Of two equal keys the
- * first keeps its position and the last its value, as L0 `seal` does. The
- * call lowers to `begin_object(n)`, `push_property` and `seal`.
+ * `valueAt` of state `i`, called in that order, and both before `next` of
+ * it. Each key must be a string, which is checked before `valueAt` is
+ * called. Of two equal keys the first keeps its position and the last its
+ * value, as L0 `seal` does. The call lowers to `begin_object(n)`,
+ * `push_property` and `seal`.
  *
  * @template S
  * @param {unknown} n
@@ -386,8 +394,8 @@ export const buildArray = (n, s, next, at) => states('buildArray', n, s, next).m
  * @param {(s: S) => unknown} valueAt
  * @returns {L0Object}
  */
-export const buildObject = (n, s, next, keyAt, valueAt) => Object.fromEntries(states('buildObject', n, s, next).map(x => {
+export const buildObject = (n, s, next, keyAt, valueAt) => Object.fromEntries(walk('buildObject', n, s, next, x => {
     const k = keyAt(x)
     if (typeof k !== 'string') { throw 'l0.buildObject: not a string' }
-    return [k, valueAt(x)]
+    return /** @type {const} */ ([k, valueAt(x)])
 }))

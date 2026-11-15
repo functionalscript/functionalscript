@@ -20,7 +20,7 @@ import { assert } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit,
+    asBoolean, asNumber, asString, buildArray, concat, fromUnit, item, kind, length, substring, unit,
 } from '../../../wasm/runtime/l0/module.f.js'
 import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import { numberRemainder } from '../../../wasm/runtime/l1/native/module.f.js'
@@ -435,10 +435,32 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ðŸ˜
  * }}
  */
 export const anyProgram = rnd => {
-    const form = below(rnd, 14)
+    const form = below(rnd, 15)
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
     /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 14) {
+        // buildArray of the L0 view, one loop of the builder, whose arrow callbacks are inlined: at times nested, and at
+        // times in an arm of a `kind` test
+        const step = pick(rnd, ['s => s + 1', 's => s * 2 + 1', 's => s - 0.5', '() => 0'])
+        const at = pick(rnd, ['() => v', '() => "x"', '() => concat(w, w)', '() => [v, w]', 's => buildArray(s, 0, t => t + 1, () => w)'])
+        const built = `buildArray(n, 0, ${step}, ${at})`
+        const body = rnd() < 0.3 ? `kind(w) === STRING ? ${built} : []` : built
+        const fn = new Function('STRING', 'buildArray', 'concat', 'kind', `return (v, w, n) => ${body}`)(STRING, buildArray, concat, kind)
+        return {
+            text: `${l0Import.replace('asString,', 'asString, buildArray,')}export const f = (v, w, n) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['w', any], ['n', f64]], any) },
+            inputs: {
+                f: Array.from({ length: 10 }, () => /** @type {const} */ ([
+                    { any: pick(rnd, anySamples) },
+                    { any: pick(rnd, stringSamples) },
+                    pick(rnd, [0, 1, 2, 3, 0.5, -1, NaN]),
+                ])),
+            },
+            twin: xs => ({ any: fn(held(xs[0]), held(xs[1]), float64(xs[2])) }),
+            runtime,
+        }
+    }
     if (form === 13) {
         // a throw where a value is of a kind: of a literal, of the value itself, or of one of L1's errors, which the
         // lowering reads from the error table

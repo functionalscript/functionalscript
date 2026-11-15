@@ -32,8 +32,8 @@
 
 import { open } from '../../rtti/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { jsonDialect } from '../module.f.mjs'
-import { lock, lockMapError } from '../revision/module.f.mjs'
+import { jsonDialect } from '../module.f.js'
+import { lock, lockMapError } from '../revision/module.f.js'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served

@@ -64,7 +64,7 @@ absorbs, so every other failure stays red. Sketch, not a design:
 The comparison wants the tool that parses what it checks rather than a pattern
 over `npm view` output (root [`AGENTS.md`](../../../AGENTS.md) §6) — this
 repository already has a JSON reader and a semantic-version comparison. The
-generator itself reads no `package.json` today — `ci` in `fjs/ci/module.f.mjs`
+generator itself reads no `package.json` today — `ci` in `fjs/ci/module.f.js`
 probes only `Cargo.toml`, and the compiler pin is `typescript` in
 `fjs/ci/config/module.f.js`. What it must not become is a shell pipeline in a
 generated `run:` line.

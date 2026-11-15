@@ -82,7 +82,9 @@ export type _Tail = readonly ['value'] | readonly ['return'] | readonly ['loop',
  * which reads them itself, the module's binding and the import. Then how
  * many locals of FAST enclose it, which name the next one, the loops whose
  * bodies hold it, innermost first, the functions that are inlined around
- * it, innermost first, whose `return` must end its body, and what a capture
+ * it, innermost first, whose `return` must end its body, the labels of
+ * the builds whose callbacks hold it, innermost first, whose builders a
+ * throw would leave behind, and what a capture
  * of a function of the module stands for, given the value that it
  * captures.
  */
@@ -94,6 +96,7 @@ export type _Scope = {
     readonly depth: number
     readonly loops: readonly _Loop[]
     readonly inlining: readonly FastFunction[]
+    readonly building: readonly string[]
     readonly module: (v: Value) => Result<_Meaning, string>
 }
 

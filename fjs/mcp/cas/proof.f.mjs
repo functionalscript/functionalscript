@@ -7,7 +7,7 @@
  * @import { ToolsCallResult } from '../../protocol/mcp/types.ts'
  */
 
-import { casToolRegistry } from './module.f.mjs'
+import { casToolRegistry } from './module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { ioError } from '../../effects/node/module.f.js'
 import { maxLengthBytes, vec, vec8 } from '../../types/bit_vec/module.f.js'
@@ -17,7 +17,7 @@ import { tryUtf8 } from '../../text/module.f.js'
 import { number as rttiNumber, string as rttiString } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { parse as parseJson } from '../../media/json/module.f.mjs'
+import { parse as parseJson } from '../../media/json/module.f.js'
 import { fileCas } from '../../cas/module.f.js'
 import { _driveCas } from '../../cas/proof.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.js'

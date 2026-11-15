@@ -2,7 +2,7 @@
  * The changelog as the website shows it: a reference turned into the link it
  * names, and releases in the order they shipped.
  *
- * The entries themselves are read by [`media/markdown`](../../media/markdown/module.f.mjs),
+ * The entries themselves are read by [`media/markdown`](../../media/markdown/module.f.js),
  * which leaves a reference inside a `text` span on purpose — deriving its
  * link needs a repository, which a parser has no business knowing, and
  * leaving it as text is what lets that grammar avoid telling `(#1807)` from

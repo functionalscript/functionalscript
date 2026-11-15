@@ -293,32 +293,31 @@ const functionValueWith = (normalizedBlock, stateTask) => (source, environment, 
     const sources = captureSources(context, source)
     const captures = sources.map((id, i) => ({ binding: binding(source.length + 2 + i), value: lookup(environment, id) }))
     /** @type {Environment} */
-    let inner = sources.map((id, i) => [id, reference(captures[Number(i)].binding)])
-    if (source.self !== null) { inner = [...inner, [source.self, reference(self)]] }
-    /** @type {readonly Statement[]} */
-    let prefix = []
+    const captured = sources.map((id, i) => [id, reference(captures[Number(i)].binding)])
+    /** @type {Established} */
+    let current = { environment: source.self === null ? captured : [...captured, [source.self, reference(self)]], statements: [] }
     for (let index = 0; index < source.parameters.length; index += 1) {
         const parameter = source.parameters[Number(index)]
         const read = index < source.length ? reference(parameters[Number(index)]) : /** @type {Value} */ (['.', reference(rest), index - source.length])
         const rawBinding = binding(index)
         const raw = index < source.length ? read : reference(rawBinding)
-        if (index >= source.length) { prefix = [...prefix, ['define', rawBinding, read, 'required']] }
-        const selected = parameter.default === null ? unchangedValue(raw, inner)
-            : conditionalValue(unchangedValue(['===', raw, undefined], inner), normalizedStateWith(stateTask)(inner, context)(parameter.default.value), unchangedValue(raw, inner), context)
+        /** @type {readonly Statement[]} */
+        const prefix = index >= source.length ? [...current.statements, ['define', rawBinding, read, 'required']] : current.statements
+        const selected = parameter.default === null ? unchangedValue(raw, current.environment)
+            : conditionalValue(unchangedValue(['===', raw, undefined], current.environment), normalizedStateWith(stateTask)(current.environment, context)(parameter.default.value), unchangedValue(raw, current.environment), context)
         const made = expandedWith(stateTask)(parameter.plan, selected.value, selected.environment, parameter.default === null, context)
-        inner = made.environment
-        prefix = [...prefix, ...selected.statements, ...made.statements]
+        current = { environment: made.environment, statements: [...prefix, ...selected.statements, ...made.statements] }
     }
     if (source.rest !== null) {
         const late = source.parameters.length - source.length
         const value = late === 0 ? reference(rest) : /** @type {Value} */ (['()', ['.', reference(rest), 'slice'], [late]])
-        const made = expandedWith(stateTask)(source.rest, value, inner, late === 0, context)
-        inner = made.environment
-        prefix = [...prefix, ...made.statements]
+        const made = expandedWith(stateTask)(source.rest, value, current.environment, late === 0, context)
+        current = { environment: made.environment, statements: [...current.statements, ...made.statements] }
     }
-    const completion = normalizedBlock(returnedBlock(source.body), inner, context)
+    const completion = normalizedBlock(returnedBlock(source.body), current.environment, context)
     const normalized = completion.block
-    const body = { statements: [...prefix, ...normalized.statements], exit: normalized.exit }
+    /** @type {Block} */
+    const body = { statements: [...current.statements, ...normalized.statements], exit: normalized.exit }
     const used = references(body)
     return {
         target: source.target, parameters, rest: used.includes(rest) ? rest : null, self: used.includes(self) ? self : null,
