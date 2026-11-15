@@ -11,7 +11,7 @@
  * @import { List, Result as ListResult } from '../../../types/list/types.ts'
  * @import { MemoLayout } from './cells/types.ts'
  * @import { PersistentMap } from '../../../types/map/types.ts'
- * @import { _Block, _Context, _Exit, _Loop, _Recipe, _Value, _Values } from './private.ts'
+ * @import { _Block, _BlockTask, _Context, _Exit, _Loop, _Recipe, _Value, _ValueTask, _Values } from './private.ts'
  * @import { Task } from '../task/types.ts'
  */
 
@@ -53,8 +53,8 @@ const memoResult = result => result.normal && result.block.exit[0] === 'yield'
 const valueMemoResult = result => result.normal && result.block.exit[0] === 'yield'
     ? { ...result.block, exit: ['yield', [result.block.exit[1].length === 1 ? result.block.exit[1][0] : ['array', result.block.exit[1]], ref(result.memo)]] } : result.block
 
-/** Establish eager operands before later demand prefixes. @type {(input: readonly Value[], context: _Context) => Task<_Values>} */
-const valuesTask = (input, context) => {
+/** Establish eager operands before later demand prefixes. @type {(valueTask: _ValueTask, input: readonly Value[], context: _Context) => Task<_Values>} */
+const valuesTask = (valueTask, input, context) => {
     /** @type {(index: number, values: List<_Value>, memo: BindingId) => Task<_Values>} */
     const each = (index, values, memo) => call(() => {
         if (index !== input.length) {
@@ -83,9 +83,9 @@ const valuesTask = (input, context) => {
  * Snapshot established prerequisites at the original lazy declaration. Fresh
  * getter-local cells extend only this invocation; the pair result trims them
  * while retaining updates to the parent layout.
- * @type {(index: number, context: _Context) => Task<FastFunction>}
+ * @type {(blockTask: _BlockTask, valueTask: _ValueTask, index: number, context: _Context) => Task<FastFunction>}
  */
-const recipeFunction = (index, context) => call(() => {
+const recipeFunction = (blockTask, valueTask, index, context) => call(() => {
     const source = context.plan.cells[index]
     const initialized = binding(source.binding.index)
     /** @type {Value} */
@@ -221,75 +221,79 @@ const conditionalValue = (test, then, otherwise, source) => {
     return { statements: test.statements, value: source, memo: test.memo, usesMemo }
 }
 
-/** Normalize demands inside values while preserving conditional evaluation. @type {(source: Value, context: _Context) => Task<_Value>} */
-const valueTask = (source, context) => call(() => {
-    if (source === null || typeof source !== 'object') { return done(plain(source, context)) }
-    if (source[0] === 'ref') {
-        if (_isSelf(source, context.selfAliases)) { return done(plain(ref(assertNotNullish(context.sourceSelf)), context)) }
-        const index = mapGet(context.aliases, source[1])
-        return done(index === undefined ? plain(source, context) : demand(index, context))
-    }
-    if (source[0] === 'function') {
-        return bind(valuesTask(source[1].captures.map(capture => capture.value), context), values => {
-            if (values.values.every((value, i) => value === source[1].captures[i].value)) { return done({ ...plain(source, context), memo: values.memo, statements: values.statements, usesMemo: values.usesMemo }) }
-            const fn = /** @type {FastFunction} */ ({ ...source[1], captures: source[1].captures.map((capture, i) => ({ binding: capture.binding, value: values.values[i] })) })
-            return done({ statements: values.statements, value: ['function', fn], memo: values.memo, usesMemo: values.usesMemo })
+/** Normalize demands inside values while preserving conditional evaluation. @type {(blockTask: _BlockTask) => _ValueTask} */
+const valueTaskWith = blockTask => {
+    /** @type {_ValueTask} */
+    const valueTask = (source, context) => call(() => {
+        if (source === null || typeof source !== 'object') { return done(plain(source, context)) }
+        if (source[0] === 'ref') {
+            if (_isSelf(source, context.selfAliases)) { return done(plain(ref(assertNotNullish(context.sourceSelf)), context)) }
+            const index = mapGet(context.aliases, source[1])
+            return done(index === undefined ? plain(source, context) : demand(index, context))
+        }
+        if (source[0] === 'function') {
+            return bind(valuesTask(valueTask, source[1].captures.map(capture => capture.value), context), values => {
+                if (values.values.every((value, i) => value === source[1].captures[i].value)) { return done({ ...plain(source, context), memo: values.memo, statements: values.statements, usesMemo: values.usesMemo }) }
+                const fn = /** @type {FastFunction} */ ({ ...source[1], captures: source[1].captures.map((capture, i) => ({ binding: capture.binding, value: values.values[i] })) })
+                return done({ statements: values.statements, value: ['function', fn], memo: values.memo, usesMemo: values.usesMemo })
+            })
+        }
+        if (source[0] === 'block') {
+            return bind(blockTask(source[1], { ...context, operand: true, owners: null }), result => {
+                if (result.normal && result.memo !== context.memo) {
+                    const value = binding()
+                    const memo = binding()
+                    return done(/** @type {_Value} */ ({ statements: [['block', [value, memo], valueMemoResult(result)]], value: ref(value), memo, usesMemo: result.usesMemo }))
+                }
+                return done(/** @type {_Value} */ ({ statements: null, value: result.block === source[1] ? source : ['block', result.block], memo: context.memo, usesMemo: result.usesMemo }))
+            })
+        }
+        if (source[0] === 'if' || source[0] === '?:') {
+            const then = source[0] === 'if' ? source[2] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[2]]] })
+            const otherwise = source[0] === 'if' ? source[3] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[3]]] })
+            return bind(valueTask(source[1], context), test =>
+                bind(blockTask(then, { ...context, memo: test.memo, operand: true, owners: null }), a =>
+                    bind(blockTask(otherwise, { ...context, memo: test.memo, operand: true, owners: null }), b => {
+                        const original = test.value === source[1] && a.block === then && b.block === otherwise ? source : /** @type {Value} */ (['if', test.value, a.block, b.block])
+                        return done(conditionalValue(test, a, b, original))
+                    })))
+        }
+        if ((guarded(source) || source[0] === 'object' || itemSpreads(source))
+            && (freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => mapHas(context.aliases, id)) || ownsMemo(source, context.plan))) {
+            const value = _exposeOperands(source, binding(), context.sourceOwner)
+            if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
+            return valueTask(['block', { statements: [value.statement], exit: ['yield', [value.value]] }], context)
+        }
+        const operands = operatorOperands(source)
+        return bind(valuesTask(valueTask, operands, context), values => {
+            const unchanged = values.values.every((value, i) => value === operands[i])
+            return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
         })
-    }
-    if (source[0] === 'block') {
-        return bind(blockTask(source[1], { ...context, operand: true, owners: null }), result => {
-            if (result.normal && result.memo !== context.memo) {
-                const value = binding()
-                const memo = binding()
-                return done(/** @type {_Value} */ ({ statements: [['block', [value, memo], valueMemoResult(result)]], value: ref(value), memo, usesMemo: result.usesMemo }))
-            }
-            return done(/** @type {_Value} */ ({ statements: null, value: result.block === source[1] ? source : ['block', result.block], memo: context.memo, usesMemo: result.usesMemo }))
-        })
-    }
-    if (source[0] === 'if' || source[0] === '?:') {
-        const then = source[0] === 'if' ? source[2] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[2]]] })
-        const otherwise = source[0] === 'if' ? source[3] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[3]]] })
-        return bind(valueTask(source[1], context), test =>
-            bind(blockTask(then, { ...context, memo: test.memo, operand: true, owners: null }), a =>
-                bind(blockTask(otherwise, { ...context, memo: test.memo, operand: true, owners: null }), b => {
-                    const original = test.value === source[1] && a.block === then && b.block === otherwise ? source : /** @type {Value} */ (['if', test.value, a.block, b.block])
-                    return done(conditionalValue(test, a, b, original))
-                })))
-    }
-    if ((guarded(source) || source[0] === 'object' || itemSpreads(source))
-        && (freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => mapHas(context.aliases, id)) || ownsMemo(source, context.plan))) {
-        const value = _exposeOperands(source, binding(), context.sourceOwner)
-        if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
-        return valueTask(['block', { statements: [value.statement], exit: ['yield', [value.value]] }], context)
-    }
-    const operands = operatorOperands(source)
-    return bind(valuesTask(operands, context), values => {
-        const unchanged = values.values.every((value, i) => value === operands[i])
-        return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
     })
-})
+    return valueTask
+}
 
-/** Returned normal values belong to the source function, even inside a recipe. @type {(block: Block, context: _Context) => Task<_Block>} */
-const returnedBlockTask = (block, context) => blockTask(block.exit[0] === 'yield' && block.exit[1].length === 1
+/** Returned normal values belong to the source function, even inside a recipe. @type {(blockTask: _BlockTask, block: Block, context: _Context) => Task<_Block>} */
+const returnedBlockTask = (blockTask, block, context) => blockTask(block.exit[0] === 'yield' && block.exit[1].length === 1
     ? { ...block, exit: ['return', assertNotNullish(context.sourceOwner), block.exit[1][0]] } : block, { ...context, operand: false })
 
 /**
  * Keep an owning tail call outside the getter's invocation. The private packet
  * carries evaluated arguments, never a computed recursive result. Other getters
  * forward the packet until the original demand can make the owning return.
- * @type {(source: Value, context: _Context) => Task<_Exit>}
+ * @type {(blockTask: _BlockTask, valueTask: _ValueTask, source: Value, context: _Context) => Task<_Exit>}
  */
-const returnedValueTask = (source, context) => {
+const returnedValueTask = (blockTask, valueTask, source, context) => {
     /** @type {() => Task<_Exit>} */
     const visit = () => {
         const region = _tailRegion(source)
         if (region.kind === 'block') {
-            return bind(returnedBlockTask(region.block, context), result => done({ statements: result.block.statements,
+            return bind(returnedBlockTask(blockTask, region.block, context), result => done({ statements: result.block.statements,
                 exit: result.block.exit, memo: result.memo, normal: false, usesMemo: result.usesMemo }))
         }
         if (region.kind === 'if') {
-            return bind(valueTask(region.test, context), test => bind(returnedBlockTask(region.then, { ...context, memo: test.memo }), then =>
-                bind(returnedBlockTask(region.otherwise, { ...context, memo: test.memo }), otherwise => done({
+            return bind(valueTask(region.test, context), test => bind(returnedBlockTask(blockTask, region.then, { ...context, memo: test.memo }), then =>
+                bind(returnedBlockTask(blockTask, region.otherwise, { ...context, memo: test.memo }), otherwise => done({
                     statements: concat(test.statements)([['if', [], test.value, then.block, otherwise.block]]), exit: ['yield', []], memo: test.memo,
                     normal: false, usesMemo: test.usesMemo || then.usesMemo || otherwise.usesMemo,
                 }))))
@@ -298,7 +302,7 @@ const returnedValueTask = (source, context) => {
         const tail = value instanceof Array && value[0] === '()' && _isSelf(value[1], context.selfAliases)
         /** @type {Value} */
         const input = tail ? ['array', value[2]] : value
-        return bind(valuesTask([input], context), values => done({ statements: values.statements,
+        return bind(valuesTask(valueTask, [input], context), values => done({ statements: values.statements,
             exit: ['return', assertNotNullish(context.recipeOwner), ['array', [tail ? 'tail' : 'return', values.values[0]]]],
             memo: values.memo, normal: false, usesMemo: values.usesMemo,
         }))
@@ -306,37 +310,10 @@ const returnedValueTask = (source, context) => {
     return call(visit)
 }
 
-/** @type {(exit: Exit, context: _Context) => Task<_Exit>} */
-const exitTask = (exit, context) => call(() => {
-    if (exit[0] === 'loop') {
-        return bind(loopTask(exit[1], context, true), loop => done({
-            statements: loop.statements, exit: assertNotNullish(loop.exit), memo: loop.memo, normal: false, usesMemo: loop.usesMemo,
-        }))
-    }
-    if (!context.lexicalOnly && context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
-    if (context.completions && context.recipeOwner !== null && context.sourceSelf !== null
-        && exit[0] === 'return' && exit[1] === context.sourceOwner) { return returnedValueTask(exit[2], context) }
-    const inputs = exitValues(exit)
-    return bind(valuesTask(inputs, context), values => {
-        /** @type {Exit} */
-        let mapped = values.values.every((value, i) => value === inputs[i]) ? exit
-            : exit[0] === 'yield' ? ['yield', values.values]
-                : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values.values]
-                    : exit[0] === 'throw' ? ['throw', values.values[0]] : ['return', exit[1], values.values[0]]
-        if (context.completions && context.recipeOwner !== null && exit[0] === 'return') {
-            mapped = ['return', context.recipeOwner, ['array', ['return', values.values[0]]]]
-        } else if (exit[0] === 'break' || exit[0] === 'continue') {
-            const owner = toArray(context.owners).find(owner => owner.source === exit[1])
-            if (owner !== undefined) { mapped = [exit[0], owner.target, [['array', values.values], ref(values.memo)]] }
-        }
-        return done({ statements: values.statements, exit: mapped, memo: values.memo, normal: exit[0] === 'yield', usesMemo: values.usesMemo })
-    })
-})
-
-/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context, terminal?: boolean) => Task<_Loop>} */
-const loopTask = (loop, context, terminal = false) => call(() => {
+/** Replace one source loop by a private user-state/memo transport loop. @type {(blockTask: _BlockTask, valueTask: _ValueTask, loop: Loop, context: _Context, terminal?: boolean) => Task<_Loop>} */
+const loopTask = (blockTask, valueTask, loop, context, terminal = false) => call(() => {
     if (!setHas(loop)(context.plan.loops)) {
-        return bind(valuesTask(loop.initial, context), initial => {
+        return bind(valuesTask(valueTask, loop.initial, context), initial => {
             /** @type {(body: Block) => Task<_Loop>} */
             const finish = body => {
                 const mapped = body === loop.body && initial.values.every((value, i) => value === loop.initial[i])
@@ -359,7 +336,7 @@ const loopTask = (loop, context, terminal = false) => call(() => {
     const result = binding(loop.target.index)
     const outputMemo = binding(loop.target.index)
     const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
-    return bind(valuesTask(loop.initial, context), initial =>
+    return bind(valuesTask(valueTask, loop.initial, context), initial =>
         bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), selfAliases: withoutSelfAliases(context.selfAliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
                 target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: terminal ? [] : [result, outputMemo],
@@ -375,8 +352,36 @@ const loopTask = (loop, context, terminal = false) => call(() => {
         }))
 })
 
+/** @type {(blockTask: _BlockTask, valueTask: _ValueTask, exit: Exit, context: _Context) => Task<_Exit>} */
+const exitTask = (blockTask, valueTask, exit, context) => call(() => {
+    if (exit[0] === 'loop') {
+        return bind(loopTask(blockTask, valueTask, exit[1], context, true), loop => done({
+            statements: loop.statements, exit: assertNotNullish(loop.exit), memo: loop.memo, normal: false, usesMemo: loop.usesMemo,
+        }))
+    }
+    if (!context.lexicalOnly && context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
+    if (context.completions && context.recipeOwner !== null && context.sourceSelf !== null
+        && exit[0] === 'return' && exit[1] === context.sourceOwner) { return returnedValueTask(blockTask, valueTask, exit[2], context) }
+    const inputs = exitValues(exit)
+    return bind(valuesTask(valueTask, inputs, context), values => {
+        /** @type {Exit} */
+        let mapped = values.values.every((value, i) => value === inputs[i]) ? exit
+            : exit[0] === 'yield' ? ['yield', values.values]
+                : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values.values]
+                    : exit[0] === 'throw' ? ['throw', values.values[0]] : ['return', exit[1], values.values[0]]
+        if (context.completions && context.recipeOwner !== null && exit[0] === 'return') {
+            mapped = ['return', context.recipeOwner, ['array', ['return', values.values[0]]]]
+        } else if (exit[0] === 'break' || exit[0] === 'continue') {
+            const owner = toArray(context.owners).find(owner => owner.source === exit[1])
+            if (owner !== undefined) { mapped = [exit[0], owner.target, [['array', values.values], ref(values.memo)]] }
+        }
+        return done({ statements: values.statements, exit: mapped, memo: values.memo, normal: exit[0] === 'yield', usesMemo: values.usesMemo })
+    })
+})
+
 /** Thread normal-path memo bindings through source statement regions. @type {(block: Block, context: _Context) => Task<_Block>} */
 const blockTask = (block, context) => {
+    const valueTask = valueTaskWith(blockTask)
     /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: PersistentMap<BindingId, number>, selfAliases: readonly BindingId[], changed: boolean, usesMemo: boolean) => Task<_Block>} */
     const each = (index, statements, memo, aliases, selfAliases, changed, usesMemo) => call(() => {
         const current = /** @type {_Context} */ ({ ...context, memo, aliases, selfAliases })
@@ -387,7 +392,7 @@ const blockTask = (block, context) => {
                 : done({ block: { statements: toArray(next), exit: block.exit }, memo: nextMemo, normal: false, usesMemo: usesMemo || used })
         }
         if (index === block.statements.length) {
-            return bind(exitTask(block.exit, current), exit => done({
+            return bind(exitTask(blockTask, valueTask, block.exit, current), exit => done({
                 block: changed || exit.exit !== block.exit || exit.statements !== null ? { statements: toArray(concat(statements)(exit.statements)), exit: exit.exit } : block,
                 memo: exit.memo, normal: exit.normal, usesMemo: usesMemo || exit.usesMemo,
             }))
@@ -406,7 +411,7 @@ const blockTask = (block, context) => {
                         const nextMemo = local ? binding() : memo
                         /** @type {readonly Statement[]} */
                         const reset = local ? [['define', nextMemo, withCell(context.plan, memo, selected, ['array', [false, undefined]]), 'required']] : []
-                        return bind(recipeFunction(selected, current), fn => resume(
+                        return bind(recipeFunction(blockTask, valueTask, selected, current), fn => resume(
                             [...reset, ['define', context.recipes[selected].binding, ['function', fn], 'required']], nextMemo, true, local, true, active, shadowedSelf))
                     }
                     return resume(null, memo, true, false, true, active, shadowedSelf)
@@ -430,7 +435,7 @@ const blockTask = (block, context) => {
             ]), value.memo, value.value !== statement[2] || value.statements !== null, value.usesMemo, true, shadowed, shadowedSelf))
         }
         if (statement[0] === 'loop') {
-            return bind(loopTask(statement[1], current), loop => resume(loop.statements, loop.memo,
+            return bind(loopTask(blockTask, valueTask, statement[1], current), loop => resume(loop.statements, loop.memo,
                 loop.changed, loop.usesMemo, true, withoutAliases(aliases, statement[1].results), withoutSelfAliases(selfAliases, statement[1].results)))
         }
         if (statement[0] === 'block') {

@@ -4,6 +4,7 @@ import type { BindingId, Block, Exit, FunctionTarget, Loop, LoopTarget, Statemen
 import type { List } from '../../../types/list/types.ts'
 import type { PersistentMap } from '../../../types/map/types.ts'
 import type { MemoLayout } from './cells/types.ts'
+import type { Task } from '../task/types.ts'
 
 export type _LoopOwner = { readonly source: LoopTarget; readonly target: LoopTarget }
 /** Each getter owns a fixed prefix; narrower calls preserve their caller's suffix. */
@@ -14,3 +15,7 @@ export type _Values = { readonly statements: List<Statement>; readonly values: r
 export type _Block = { readonly block: Block; readonly memo: BindingId; readonly normal: boolean; readonly usesMemo: boolean }
 export type _Exit = { readonly statements: List<Statement>; readonly exit: Exit; readonly memo: BindingId; readonly normal: boolean; readonly usesMemo: boolean }
 export type _Loop = { readonly statements: List<Statement>; readonly exit: readonly ['loop', Loop] | null; readonly memo: BindingId; readonly usesMemo: boolean; readonly changed: boolean }
+
+/** Recursive walkers supplied to the helpers that enter another source region. */
+export type _BlockTask = (block: Block, context: _Context) => Task<_Block>
+export type _ValueTask = (source: Value, context: _Context) => Task<_Value>
