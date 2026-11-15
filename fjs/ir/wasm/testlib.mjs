@@ -267,7 +267,7 @@ export const dataOf = m => {
  * Checks and emits a module, compiles it on the host's engine, and calls
  * each function that it exports on its inputs, comparing its outcome with
  * its twin's: the same value, a throw of the same value, or a trap of both
- * ([slice 7's choice 6](../todo/slices.md#decisions-for-slice-7)). A
+ * ([slice 7's choice 6](../todo/slices.md#decisions-for-slice-7-2026-11-15)). A
  * function's inputs are the edges of its parameters' types, unless
  * `inputs` gives them. A function that the checker says cannot fail never
  * fails. After a throw or a trap, the host recovers what the call

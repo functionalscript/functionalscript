@@ -69,9 +69,11 @@ Each step ends in a discussion before the next one starts. Steps 1 and 2
 are done as drafts: the designs for [L0](./l0-design.md), [L1](./l1-design.md)
 and [L2](./l2-design.md). Step 3 is mostly done, in `fjs/wasm/runtime` (#3615 to
 #3655): the L0 view, today's natives and a first slice of L1 bodies. L1
-rows such as `instanceof`, `resolveMember`, `%`, `**`, the integer
-operators and `nativeMember` are still to come. Step 4 has started with the code IR, in `fjs/ir` (#3806), and its
-notes are in [`../ir`](../ir/README.md). The aim since 2026-11-03 is to write as much of
+rows such as `instanceof`, `resolveMember`, `**`, the integer operators
+and `nativeMember` are still to come; `%` of two numbers is the native row
+`numberRemainder`. Step 4 is under way in `fjs/ir`, a slice at a time
+([slices.md](../../../fjs/ir/todo/slices.md)), and its notes are in
+[`../ir`](../ir/README.md). The aim since 2026-11-03 is to write as much of
 the runtime as possible in FunctionalScript first, and to make it faster
 later by substitution.
 
@@ -113,6 +115,10 @@ inliner.
 | 2026-11-09 | An unpacked value borrows its source `any`, which the code generator keeps alive until the last access, so unpacking costs no reference count ([modular-runtime.md](./modular-runtime.md)). |
 | 2026-11-09 | A runtime module's functions are inlined, and its stack frame offsets are local indices fixed at compile time, so no shadow stack is needed ([modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion)). |
 | 2026-11-11 | A NaN-boxed reference is an offset into a heap the runtime owns, on Rust as on WASM: Rust's heap is one buffer read through indexed loads and stores in safe code, and imported bits never become a reference ([pointer-width.md](../ir/pointer-width.md#decision)). |
+| 2026-11-13 | The code IR, its lowering from normalized FAST and its WASM emitter live in `fjs/ir`, built in vertical slices: each is one PR that proves the emitted WASM against its FunctionalScript original and refuses everything outside the slice ([slices.md](../../../fjs/ir/todo/slices.md)). |
+| 2026-11-14 | Slice 6, counted values: `typeOf` lowers from L1's own text, with array literals and the linear builder brought forward. String and bigint literals are built in the start function and every other constant in `init`, containers too, where [L0 §6](./l0-design.md#6-literals-built-once-at-start-up) builds constant containers at start-up. The linear kind comes now, for the builder, and every `any` is counted, with copy variants later ([slices.md](../../../fjs/ir/todo/slices.md#decisions-for-slice-6-2026-11-14)). |
+| 2026-11-15 | Slice 7, failure: a throw is a call of L0's `Functions.throw`, which answers `never`. Each function of an interface says whether it may fail, and the checker infers it for each function of a module. The lifetime pass drops what a function owns before a throw, and every proof judges three outcomes: the same value, a throw of the same value, or a trap of both ([slices.md](../../../fjs/ir/todo/slices.md#decisions-for-slice-7-2026-11-15)). |
+| 2026-11-15 | Slice 8, builders: a call of `buildArray` or `buildObject` lowers to one IR `loop` over the builder, with its arrow-literal callbacks inlined. The L0 view calls them in that loop's order: an item before the next state, and a key, its check, then its value. Object literals as values, and spread, move to programs ([slices.md](../../../fjs/ir/todo/slices.md#decisions-for-slice-8-2026-11-15)). |
 
 ## Open questions
 

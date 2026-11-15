@@ -111,6 +111,3 @@ its modules (a build flag, the manifest, the loader).
 - **The modular runtime memo's shape.** Once its parts settle, it could
   split into a decided part (what the README records) and an open part
   (the experiment plan, the CPU-saving layout).
-- **Where the IR code lives.** The [IR design](../ir/ir-design.md#where-this-draft-is-least-sure)
-  proposes `fjs/codegen/ir`, while the runtime lives in
-  `fjs/wasm/runtime`. Deciding before IR step 1 avoids a move PR later.

@@ -29,7 +29,12 @@
  * [`throws.f.js`](./throws.f.js), which throw, over L1's error table, which
  * the lowering reads from the table's text, and so does L1's
  * `functionText`: each throws what its original throws, and leaves every
- * cell as it found it.
+ * cell as it found it. So do the functions of [`builds.f.js`](./builds.f.js),
+ * which build arrays by the L0 view's `buildArray`, and so does L1's
+ * `toIterable`, on values of every kind and strings of code points: each
+ * builds what its original builds, and throws what it throws, in the
+ * view's order. A throw of a function that a callback calls abandons the
+ * builder, as a trap does, which the host recovers.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -38,7 +43,7 @@
 
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { functionText, strictEquals, stringEquals, stringIndex, stringLess, toBoolean, typeOf } from '../../wasm/runtime/l1/module.f.js'
+import { functionText, strictEquals, stringEquals, stringIndex, stringLess, toBoolean, toIterable, typeOf } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
@@ -53,8 +58,10 @@ import * as literals from './literals.f.js'
 import * as arrays from './arrays.f.js'
 import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
+import * as builds from './builds.f.js'
 import {
-    arrays as arraySignatures, constants as constantSignatures, helpers as helperSignatures, l1, l1Runtime, l1Throws, literals as literalSignatures,
+    arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures, l1, l1Iterable, l1Runtime, l1Throws,
+    literals as literalSignatures,
     reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime, throws as throwSignatures, throwsRuntime,
 } from './testlib.f.mjs'
 
@@ -96,6 +103,12 @@ const fromThrows = () => assertOk(lifetime(fromText(new URL('./throws.f.js', imp
 
 /** The owned stage of the module that the lowering makes of L1's text for the functions that throw its errors, over the runtime and the table. @type {() => Module} */
 const fromL1Throws = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Throws, l1Runtime(errors))))
+
+/** The owned stage of the module that the lowering makes of the builds' text, over the runtime: what the lifetime pass writes. @type {() => Module} */
+const fromBuilds = () => assertOk(lifetime(fromText(new URL('./builds.f.js', import.meta.url), buildSignatures, stringsRuntime)))
+
+/** The owned stage of the module that the lowering makes of L1's `toIterable`, over the runtime and the table. @type {() => Module} */
+const fromL1Iterable = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Iterable, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -178,6 +191,22 @@ const literalTwins = {
     surrogate: ([i]) => literals.surrogate(float64(i)),
     hello: ([s]) => ({ any: literals.hello(held(s)) }),
 }
+
+/** The twins of the builds, on the values that values of `any` hold. @type {StringMap<_Twin>} */
+const buildTwins = {
+    units: ([s]) => ({ any: builds.units(held(s)) }),
+    repeated: ([v, n]) => ({ any: builds.repeated(held(v), float64(n)) }),
+    rows: ([v]) => ({ any: builds.rows(held(v)) }),
+    backwards: ([s]) => ({ any: builds.backwards(held(s)) }),
+    step: ([s]) => builds.step(float64(s)),
+    at: ([v, s]) => ({ any: builds.at(held(v), float64(s)) }),
+    ordered: ([v]) => ({ any: builds.ordered(held(v)) }),
+    stepped: ([v]) => ({ any: builds.stepped(held(v)) }),
+}
+
+/** Strings, and a value of each other kind. @type {readonly (readonly _Value[])[]} */
+const iterables = [...['', 'a', 'ab', '\uD83D\uDE00', 'a\uD83D\uDE00b', '\uD800', '\uDC00a', '\uD800\uD800'], [], ['x', 'y'], {}, 1, 0n, undefined, null, true]
+    .map(any => [{ any }])
 
 /** The functions that make arrays, on values as the host holds them. @type {StringMap<_Twin>} */
 const arrayTwins = {
@@ -1175,6 +1204,33 @@ export const proof = {
         '',
     ].join('\n')),
     l1ThrowsRun: () => run(fromL1Throws(), { functionText: ([t]) => ({ any: functionText(held(t)) }) }, {}),
+    // buildArray is one loop of Containers' builder, and the callbacks are inlined in it.
+    builds: () => assertEq(print({ ...fromBuilds(), imports: [] }).split('\n\n').find(f => f.startsWith('fn repeated(')), [
+        'fn repeated(v: any, n: f64) -> any.only(array) =',
+        '    let B0.n = trunc_sat(u(31), n)',
+        '    if eq(float(B0.n), n)',
+        '    then',
+        '        loop B0 (B0.b: builder = Containers.begin_array(B0.n), B0.s: f64 = 0.0, B0.i: f64 = 0.0)',
+        '            if lt(B0.i, float(B0.n))',
+        '            then',
+        '                let B0.item = Any.dup(v)',
+        '                let B0.pushed = Containers.push(B0.b, B0.item)',
+        '                let B0.i.next = add(B0.i, 1.0)',
+        '                let B0.s.next = if lt(B0.i.next, float(B0.n)) then add(B0.s, 1.0) else B0.s',
+        '                br B0 { B0.b: B0.pushed, B0.s: B0.s.next, B0.i: B0.i.next }',
+        '            else',
+        '                Containers.seal(B0.b)',
+        '    else',
+        "        trap('inexact')",
+    ].join('\n')),
+    // `ordered` throws `at`'s value, not `step`'s, and `stepped` throws `step`'s after its first item: each leaves its builder behind, which the host recovers.
+    buildsRun: () => run(fromBuilds(), buildTwins, {
+        repeated: product([[{ any: 'v' }, { any: [] }], [0, -0, 1, 3, 0.5, -1, NaN, Infinity, 2147483648]]),
+        step: [0, 1, -1, NaN].map(x => [x]),
+        at: product([[{ any: 'v' }], [0, 1]]),
+    }, ['ordered', 'stepped']),
+    // L1's toIterable, lowered from L1's text: an array as it is, and a string's code points, each built in one pass.
+    l1IterableRun: () => run(fromL1Iterable(), { toIterable: ([v]) => ({ any: toIterable(held(v)) }) }, { toIterable: iterables }),
     l1Run: () => run(assertOk(lifetime(fromL1())), {
         toBoolean: ([v]) => toBoolean(held(v)),
         stringEquals: ([a, b]) => stringEquals(held(a), held(b)),

@@ -25,14 +25,16 @@ const out = compare(0x4f1c_5e2d, 120, 80)
 | Generator | Writes |
 | --- | --- |
 | typed | floats, booleans, small integer ranges, an unexported helper, a short loop, `%`, a record kept inside the function; since 6c, module constants of floats, each reading the ones before it, and a `bool` of two of them |
-| any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind; since 6b, `concat`, `fromUnit`, `substring` and `item`, whose values the caller owns, and a loop that owns its string; since 6c, a constant of a string that `init` makes, and `undefined` and `null`; since 6d, string literals, the empty one, a unit past ASCII and a pair of surrogates among them, raw and escaped, at times one written twice and at times through a definition of the module; since 6e, array literals of parameters, literals, Any's constants, strings that `concat` makes and arrays, at times one that `init` builds, in the arms of a `kind` test, and read by `length` and `item` or answered; since 6f, a read of an array at a number key, `a[0]` or `a[Number(k)]`, at an index, past the end, at a fraction, a NaN and `-0` |
+| any | `kind`, `asBoolean`, `asNumber`, `length` and `unit`, over values of every kind; since 6b, `concat`, `fromUnit`, `substring` and `item`, whose values the caller owns, and a loop that owns its string; since 6c, a constant of a string that `init` makes, and `undefined` and `null`; since 6d, string literals, the empty one, a unit past ASCII and a pair of surrogates among them, raw and escaped, at times one written twice and at times through a definition of the module; since 6e, array literals of parameters, literals, Any's constants, strings that `concat` makes and arrays, at times one that `init` builds, in the arms of a `kind` test, and read by `length` and `item` or answered; since 6f, a read of an array at a number key, `a[0]` or `a[Number(k)]`, at an index, past the end, at a fraction, a NaN and `-0`; since 7b, a throw where a value is of a kind; since 8b, `buildArray` of a count that may be no index, with arrow callbacks that step a number and answer a parameter, a literal, a string or an array that they make, or another `buildArray` of the state, at times in an arm of a `kind` test |
 
 A program whose **integer** signature's body range past that signature the
 checker refuses is counted and not run. The same diagnostic against an
 `f64` or `bool` signature is a failure, so a regression that gives an
 integer body where a float or bool was declared fails the proof. Any other
-refusal is a failure too. Where JavaScript throws, the comparison accepts
-any trap, as [`testlib.mjs`](../../wasm/testlib.mjs) does today; a stricter
-match of traps waits until slice 7 makes throws meaningful.
+refusal is a failure too. Since 7a, each call is judged as
+[`testlib.mjs`](../../wasm/testlib.mjs) judges one, by three outcomes:
+the same value, a throw of the same value, or a trap of both, where the
+body traps as JavaScript by a misuse of the L0 view, which throws a reason
+that starts with `l0.`.
 
 Prefer `node --test` for [`proof.mjs`](./proof.mjs).
