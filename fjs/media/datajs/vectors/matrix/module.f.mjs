@@ -59,6 +59,7 @@ import { fromVec } from '../../../../text/utf8/module.f.js'
 import { tryParse } from '../../module.f.js'
 import { difference } from '../module.f.js'
 import { occurrences } from '../../../../types/array/module.f.js'
+import { entry } from '../../../../types/object/entry/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
@@ -171,9 +172,9 @@ const showScope = ([tag, name]) => `${tag} ${name}`
 const reasonOf = ({ roles, notApplicable }, role, c) => {
     let best = -1
     for (let i = 0; i < notApplicable.length; i += 1) {
-        const n = notApplicable[i]
+        const n = notApplicable[Number(i)]
         if (n.role !== role || !reaches(roles, n.scope, c)) { continue }
-        if (best === -1 || specificity(n.scope) > specificity(notApplicable[best].scope)) { best = i }
+        if (best === -1 || specificity(n.scope) > specificity(notApplicable[Number(best)].scope)) { best = i }
     }
     return best
 }
@@ -323,7 +324,9 @@ const unrenderable = ({ roles, notApplicable }) => [
  * @type {(names: readonly string[], say: (n: string) => string) => readonly string[]}
  */
 const twiceNamed = (names, say) => {
-    const { indexOf, lastIndexOf } = occurrences(names)
+    const positions = occurrences(names)
+    const indexOf = assertNotNullish(entry(positions, 'indexOf'))
+    const lastIndexOf = assertNotNullish(entry(positions, 'lastIndexOf'))
     return names.flatMap((n, i) => i === indexOf(n) || i !== lastIndexOf(n) ? [] : [say(n)])
 }
 
@@ -565,13 +568,13 @@ const table = ({ roles, notApplicable }) => rows => {
         '',
         '| role | sets | classes covered | not applicable | awaiting |',
         '| - | - | -: | -: | -: |',
-        ...roles.map((r, i) => summary(r, rows.map(row => row[i]))),
+        ...roles.map((r, i) => summary(r, rows.map(row => row[Number(i)]))),
         '',
         `${classes.length} classes.`,
         '',
         `| class | ${header.join(' | ')} |`,
         `| - |${header.map(() => ' - |').join('')}`,
-        ...classes.map((c, i) => `| ${code(c)} | ${rows[i].map(render).join(' | ')} |`),
+        ...classes.map((c, i) => `| ${code(c)} | ${rows[Number(i)].map(render).join(' | ')} |`),
         '',
         '## Notes',
         '',

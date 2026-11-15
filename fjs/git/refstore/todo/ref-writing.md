@@ -5,7 +5,7 @@
 
 ### Problem
 
-Reading refs is done: [`fjs/git/ref`](../../ref/module.f.mjs) reads the three
+Reading refs is done: [`fjs/git/ref`](../../ref/module.f.js) reads the three
 files as the grammars they are, and
 [`fjs/git/refstore`](../module.f.mjs) finds and opens them, answering
 every ref a repository holds and the id one name resolves to.
@@ -512,7 +512,7 @@ else in the name has moved DISOT semantics into Git's namespace.
   `tryDelete`, with the measurements behind every refusal.
 - [`fjs/git/refname`](../../refname/module.f.js) — `lockSuffix`, and why no ref
   is ever named by a writer's lock file.
-- [`fjs/git/ref`](../../ref/module.f.mjs) — the file grammars a writer must
+- [`fjs/git/ref`](../../ref/module.f.js) — the file grammars a writer must
   produce, measured against Git, and `writeLoose`, the bytes `tryWrite` puts
   in a loose file. A symbolic write's `ref: <name>\n` belongs beside it, as a
   `writeSymbolic` proved by its round trip through `tryRef`, not as a format

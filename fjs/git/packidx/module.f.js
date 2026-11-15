@@ -56,6 +56,7 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { uint } from '../../types/bit_vec/module.f.js'
 import { bsearch, cmp } from '../../types/function/compare/module.f.js'
 import { take } from '../../types/list/module.f.js'
@@ -81,7 +82,7 @@ const fanout = /** @type {const} */ (256)
  * @type {(b: readonly number[], x: number, y: number, width: number, k: number) => number}
  */
 const differsAt = (b, x, y, width, k) =>
-    k === width ? width : b[x + k] !== b[y + k] ? k : differsAt(b, x, y, width, k + 1)
+    k === width ? width : b[Number(x + k)] !== b[Number(y + k)] ? k : differsAt(b, x, y, width, k + 1)
 
 /**
  * Whether the fanout table agrees with the ids that follow it: every
@@ -107,15 +108,15 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
      * would pass a bucket whose own order is wrong, and the search inside a
      * bucket is where that would answer falsely.
      */
-    const ascends = Array.from({ length: n === 0 ? 0 : n - 1 }, (_, i) => i).every(i => {
+    const ascends = generate(n === 0 ? 0 : n - 1, i => i).every(i => {
         const x = idsAt + i * stride
         const y = x + stride
         const at = differsAt(b, x, y, width, 0)
-        return at !== width && b[x + at] < b[y + at]
+        return at !== width && b[Number(x + at)] < b[Number(y + at)]
     })
     if (!ascends) { return false }
     /** The first byte of each id, which is the bucket the fanout counts. */
-    const firsts = Array.from({ length: n }, (_, i) => b[idsAt + i * stride])
+    const firsts = generate(n, i => b[Number(idsAt + i * stride)])
     const search = bsearch(n)
     /**
      * How many of `firsts` are `k` or less: a search, not a filter per bucket,
@@ -126,8 +127,8 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
      *
      * @type {(k: number) => number}
      */
-    const upTo = k => search(mid => firsts[mid] <= k ? 1 : -1)
-    return Array.from({ length: fanout }, (_, k) => k)
+    const upTo = k => search(mid => firsts[Number(mid)] <= k ? 1 : -1)
+    return generate(fanout, k => k)
         .every(k => u32be(b, fanoutAt + k * 4) === upTo(k))
 }
 
@@ -182,8 +183,8 @@ const tryV1 = (b, oidBytes) => {
     if (!checksumAgrees(b, oidBytes)) { return null }
     return {
         oidBytes,
-        ids: Array.from({ length: n }, (_, i) => oidAt(b, entriesAt + i * stride + 4, width)),
-        offsets: Array.from({ length: n }, (_, i) => u32be(b, entriesAt + i * stride)),
+        ids: generate(n, i => oidAt(b, entriesAt + i * stride + 4, width)),
+        offsets: generate(n, i => u32be(b, entriesAt + i * stride)),
         packChecksum: oidAt(b, entriesAt + n * stride, width),
     }
 }
@@ -233,7 +234,7 @@ const tryV2 = (b, oidBytes) => {
     const large = largeBytes / 8
     if (!fanoutAgrees(b, fanoutAt, idsAt, width, n, width)) { return null }
     /** The 4-byte offset words, each either an offset or an index into the table. */
-    const words = Array.from({ length: n }, (_, i) => u32be(b, offsetsAt + i * 4))
+    const words = generate(n, i => u32be(b, offsetsAt + i * 4))
     /** The indexes into the 8-byte table, in the order the words name them. */
     const named = words.filter(w => w >= largeOffsetFlag).map(w => w - largeOffsetFlag)
     // Every slot is named, exactly once, and in order: the k-th word that sets
@@ -259,7 +260,7 @@ const tryV2 = (b, oidBytes) => {
     if (!checksumAgrees(b, oidBytes)) { return null }
     return {
         oidBytes,
-        ids: Array.from({ length: n }, (_, i) => oidAt(b, idsAt + i * width, width)),
+        ids: generate(n, i => oidAt(b, idsAt + i * width, width)),
         offsets: /** @type {readonly number[]} */ (offsets),
         packChecksum: oidAt(b, largeAt + large * 8, width),
     }
@@ -332,8 +333,8 @@ export const offsetOf = ({ oidBytes, ids, offsets }) => {
     const search = bsearch(ids.length)
     return ofWidth(oidBytes)(id => {
         const target = uint(id)
-        const at = search(mid => cmp(target)(uint(ids[mid])))
-        return at < ids.length && uint(ids[at]) === target ? offsets[at] : null
+        const at = search(mid => cmp(target)(uint(ids[Number(mid)])))
+        return at < ids.length && uint(ids[Number(at)]) === target ? offsets[Number(at)] : null
     })
 }
 

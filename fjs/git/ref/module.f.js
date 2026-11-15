@@ -50,10 +50,12 @@
  * @import { Meta } from '../../ebnf/ast/types.ts'
  */
 
+import { assert } from '../../asserts/module.f.js'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.js'
 import { lf, space as traitSeparator } from '../../text/ascii/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { cmp, cString } from '../bytes/module.f.js'
 import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.js'
 import { isWholeName } from '../refname/module.f.js'
@@ -446,12 +448,12 @@ const entryOf = id => ([h, , n, , , p]) => {
  * @type {(oidBytes: OidBytes) => (input: Bytes) => Nullable<readonly PackedRef[]>}
  */
 export const tryPacked = oidBytes => {
-    const entry = entryOf(tryFromHexOf(oidBytes))
+    const readEntry = entryOf(tryFromHexOf(oidBytes))
     return input => {
         const r = parsePacked(symbols(input))
         if (r[0] === 'error') { return null }
         const [[, entries]] = r[1]
-        const read = entries.map(entry)
+        const read = entries.map(readEntry)
         return read.every(e => e !== null) ? /** @type {readonly PackedRef[]} */ (read) : null
     }
 }
@@ -488,7 +490,7 @@ const sortedTrait = ascii('sorted')
 const traitsOf = rest => cString(rest).reduce(
     (words, b) => b === traitSeparator
         ? [...words, []]
-        : [...words.slice(0, -1), [...words[words.length - 1], b]],
+        : [...words.slice(0, -1), [...words[Number(words.length - 1)], b]],
     /** @type {readonly (readonly number[])[]} */ ([[]]))
 
 /**
@@ -532,19 +534,23 @@ const traitsOf = rest => cString(rest).reduce(
  * @type {(oidBytes: OidBytes) => (name: Bytes) => (input: Bytes) => PackedWithout}
  */
 export const tryPackedWithout = oidBytes => {
-    const entry = entryOf(tryFromHexOf(oidBytes))
+    const readEntry = entryOf(tryFromHexOf(oidBytes))
     return name => input => {
         const r = parsePacked(symbols(input))
         if (r[0] === 'error') { return ['malformed'] }
         const [[head, entries]] = r[1]
-        const read = entries.map(entry)
+        const read = entries.map(readEntry)
         if (!read.every(e => e !== null)) { return ['malformed'] }
-        const names = read.map(e => byteArray(/** @type {PackedRef} */ (e).name))
+        const names = read.map(e => {
+            const name = entry(/** @type {PackedRef} */ (e), 'name')
+            assert(name !== undefined)
+            return byteArray(name)
+        })
         const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameItems(sortedTrait)))
-        if (claimsSorted && !names.every((n, i) => i === 0 || cmp(names[i - 1], n) <= 0)) {
+        if (claimsSorted && !names.every((n, i) => i === 0 || cmp(names[Number(i - 1)], n) <= 0)) {
             return ['unsorted']
         }
-        const kept = entries.filter((_, i) => !sameItems(names[i])(name))
+        const kept = entries.filter((_, i) => !sameItems(names[Number(i)])(name))
         return kept.length === entries.length
             ? ['absent']
             : ['removed', [...bytesOf(head), ...kept.flatMap(bytesOf)]]

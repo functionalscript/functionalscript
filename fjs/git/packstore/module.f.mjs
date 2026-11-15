@@ -6,7 +6,7 @@
  * place an object lives, and the two answer alike on purpose — a caller above
  * [`fjs/git/store`](../store/module.f.mjs) never learns which file held the
  * object it asked for. This module is where a pack stops being a format
- * ([`fjs/git/pack`](../pack/module.f.mjs), [`fjs/git/packidx`](../packidx/module.f.mjs),
+ * ([`fjs/git/pack`](../pack/module.f.mjs), [`fjs/git/packidx`](../packidx/module.f.js),
  * both pure) and becomes a repository's objects.
  *
  * Every claim below was measured against Git 2.43.0, on packs it wrote.
@@ -35,7 +35,7 @@
  * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.js)) knows where a stream
  * ends, so the window is only an upper bound, and it is read in pieces of a
  * `Vec` each, however long the entry is. See `after` in
- * [`fjs/git/packidx`](../packidx/module.f.mjs); the last entry in a pack ends at
+ * [`fjs/git/packidx`](../packidx/module.f.js); the last entry in a pack ends at
  * the file's length less its trailing checksum, which is why a read `stat`s the
  * pack. Bytes between the end of the stream and the next entry are still
  * refused, as Git does — measured on a pack of six objects, two of them deltas:
@@ -50,7 +50,7 @@
  * **A delta chain is walked, not recursed.** Each link reads one entry, and a
  * delta's base is the next item of the same walk rather than a nested read, for
  * the reason [`fjs/effects`](../../effects/module.f.js)' `walkStep` loops and
- * [`fjs/git/walk`](../walk/module.f.mjs) repeats: a `Read` that answers values
+ * [`fjs/git/walk`](../walk/module.f.js) repeats: a `Read` that answers values
  * resumes inside the caller, so a recursion costs a frame per link and a long
  * chain exhausts the stack. `--depth` is 50 by default and takes any number.
  *
@@ -124,7 +124,7 @@ import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.js'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
-import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
+import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.js'
 import { hexText, ofWidth, oidAt } from '../oid/module.f.js'
 
 const { init: [, , initialProgress], end: endInflate } = inflater

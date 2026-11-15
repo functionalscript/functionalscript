@@ -33,6 +33,7 @@ import {
 } from '../../text/ascii/module.f.js'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.js'
 import { flat } from '../../types/list/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { cmp } from '../bytes/module.f.js'
 import { isOidOf } from '../oid/module.f.js'
@@ -139,7 +140,7 @@ const lower = b => isLatinCapitalLetter(b) ? b - latinCapitalLetterA + latinSmal
  *
  * @type {(name: readonly number[]) => boolean}
  */
-const isDotGit = name => name.length === dotGit.length && name.every((b, i) => lower(b) === dotGit[i])
+const isDotGit = name => name.length === dotGit.length && name.every((b, i) => lower(b) === dotGit[Number(i)])
 
 /**
  * Reads a tree of a repository with ids `oidBytes` wide, or refuses it: an
@@ -165,6 +166,13 @@ export const tryRead = oidBytes => {
     }
 }
 
+/** The own name field is a byte list; null is its empty form. @type {(e: TreeEntry) => readonly number[]} */
+const nameArray = e => {
+    const name = entry(e, 'name')
+    assert(name !== undefined)
+    return byteArray(name)
+}
+
 /**
  * The bytes an entry sorts by: its name, with `/` appended where the entry
  * is a subtree, since Git orders a tree as if every subtree's name ended
@@ -172,7 +180,7 @@ export const tryRead = oidBytes => {
  *
  * @type {(e: TreeEntry) => readonly number[]}
  */
-const sortKey = e => mode(e) === subtree ? [...byteArray(e.name), slash] : byteArray(e.name)
+const sortKey = e => mode(e) === subtree ? [...nameArray(e), slash] : nameArray(e)
 
 /**
  * The order of two entries in a tree Git writes: by name, a subtree as if
@@ -194,7 +202,7 @@ export const compare = (a, b) => cmp(sortKey(a), sortKey(b))
  */
 const problem = e => {
     const digits = byteArray(e.mode)
-    const name = byteArray(e.name)
+    const name = nameArray(e)
     const m = tryMode(digits)
     return digits.length > 1 && digits[0] === digit0 ? 'zero-padded mode'
         : m === null || !modes.includes(m) ? 'unknown mode'
@@ -217,9 +225,9 @@ const problem = e => {
  * @type {(entries: readonly TreeEntry[]) => number}
  */
 const duplicateName = entries => {
-    const names = entries.map(e => byteArray(e.name))
+    const names = entries.map(nameArray)
     const sorted = names.toSorted(cmp)
-    const twice = sorted.find((n, i) => i !== 0 && cmp(sorted[i - 1], n) === 0)
+    const twice = sorted.find((n, i) => i !== 0 && cmp(sorted[Number(i - 1)], n) === 0)
     return twice === undefined ? -1 : names.findLastIndex(n => cmp(n, twice) === 0)
 }
 
@@ -240,10 +248,10 @@ const duplicateName = entries => {
 export const validate = entries => {
     const problems = entries.map(problem)
     const i = problems.findIndex(p => p !== null)
-    if (i !== -1) { return error(`${problems[i]} at ${i}`) }
+    if (i !== -1) { return error(`${problems[Number(i)]} at ${i}`) }
     const d = duplicateName(entries)
     if (d !== -1) { return error(`duplicate name at ${d}`) }
-    const unsorted = entries.findIndex((e, i) => i !== 0 && compare(entries[i - 1], e) >= 0)
+    const unsorted = entries.findIndex((e, i) => i !== 0 && compare(entries[Number(i - 1)], e) >= 0)
     return unsorted === -1 ? ok(entries) : error(`not sorted at ${unsorted}`)
 }
 
@@ -258,7 +266,7 @@ const entryBytes = oidBytes => {
     const isOid = isOidOf(oidBytes)
     return e => {
         const digits = byteArray(e.mode)
-        const name = byteArray(e.name)
+        const name = nameArray(e)
         assert(octal(digits) !== null, ['not a mode', digits])
         assert(name.length !== 0 && !name.includes(nul), ['not a name', name])
         assert(isOid(e.oid), ['not an id', e.oid])

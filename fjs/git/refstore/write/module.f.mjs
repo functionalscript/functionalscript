@@ -54,7 +54,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { startsWith } from '../../bytes/module.f.js'
 import { isOidOf } from '../../oid/module.f.js'
-import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.mjs'
+import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.js'
 import { isWholeName, lockSuffix } from '../../refname/module.f.js'
 import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
 import { nameForMessage, nameText, refsPrefix } from '../name/module.f.js'
@@ -202,7 +202,7 @@ const refsText = name => {
  *
  * A ref file holds the id as hex and a reader counts the digits: a 32-byte id
  * written into a SHA-1 repository is sixty-four of them, which
- * [`fjs/git/ref`](../../ref/module.f.mjs) reads as no ref at all — so the write
+ * [`fjs/git/ref`](../../ref/module.f.js) reads as no ref at all — so the write
  * would leave a file this module's own listing refuses. The width is the
  * repository's, out of `extensions.objectFormat`, and not the id's to decide.
  */
@@ -433,7 +433,7 @@ const collided = (packed, name) => {
  * **The bytes are the id's hex digits and an LF**, `oidBytes * 2 + 1` of them
  * and not a fixed 41: the width is the repository's, the same one
  * {@link idWidthCode} refuses an id for missing and
- * [`fjs/git/ref`](../../ref/module.f.mjs) reads back.
+ * [`fjs/git/ref`](../../ref/module.f.js) reads back.
  *
  * **Every refusal comes before any effect that writes**, so a name or an id this
  * cannot write leaves no file behind. Five are decided from the name and the id

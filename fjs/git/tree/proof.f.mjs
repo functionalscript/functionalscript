@@ -9,7 +9,7 @@ import { codePointListToString } from '../../text/utf16/module.f.js'
 import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { latin1, modesTree, rootTree, sha256Tree, undefinedByte } from '../testlib.f.js'
-import { isSubtree, mode, tryRead, validate, write } from './module.f.mjs'
+import { isSubtree, mode, tryRead, validate, write } from './module.f.js'
 
 const read20 = tryRead(20)
 
@@ -166,6 +166,7 @@ export const proof = {
         assertStructurallySame(validate([entry('0100644', 'a', idA)]), ['error', 'zero-padded mode at 0'])
         assertStructurallySame(validate([entry('100664', 'a', idA)]), ['error', 'unknown mode at 0'])
         assertStructurallySame(validate([{ mode: latin1('100644'), name: [], oid: oid(idA) }]), ['error', 'empty name at 0'])
+        assertStructurallySame(validate([{ mode: latin1('100644'), name: null, oid: oid(idA) }]), ['error', 'empty name at 0'])
         assertStructurallySame(validate([entry('100644', 'a/b', idA)]), ['error', 'slash in name at 0'])
         assertStructurallySame(validate([entry('100644', '.', idA)]), ['error', 'dot name at 0'])
         assertStructurallySame(validate([entry('40000', '..', idA)]), ['error', 'dot name at 0'])
@@ -210,6 +211,7 @@ export const proof = {
             emptyMode: () => toArray(write20([{ mode: [], name: latin1('a'), oid: oid(idA) }])),
             notOctal: () => toArray(write20([entry('100648', 'a', idA)])),
             emptyName: () => toArray(write20([{ mode: latin1('100644'), name: [], oid: oid(idA) }])),
+            nullName: () => toArray(write20([{ mode: latin1('100644'), name: null, oid: oid(idA) }])),
             nulInName: () => toArray(write20([entry('100644', 'a\u0000b', idA)])),
             shortId: () => toArray(write20([entry('100644', 'a', '00'.repeat(19))])),
             wideId: () => toArray(write20([entry('100644', 'a', '00'.repeat(32))])),

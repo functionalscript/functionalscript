@@ -83,7 +83,7 @@ import { isWholeName } from '../../git/refname/module.f.js'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { compare, tryRead as readTree, validate, write as writeTree } from '../../git/tree/module.f.mjs'
+import { compare, tryRead as readTree, validate, write as writeTree } from '../../git/tree/module.f.js'
 import { join, parent, under } from '../../path/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.js'
@@ -255,7 +255,7 @@ const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameT
 
 /**
  * What is wrong with a tree as a tree, in a few words, or nothing: what
- * `git fsck` refuses in any tree, as [`fjs/git/tree`](../../git/tree/module.f.mjs)'s
+ * `git fsck` refuses in any tree, as [`fjs/git/tree`](../../git/tree/module.f.js)'s
  * `validate` vouches for it — a name held twice, which a walk answers no
  * one entry for; a name holding `/`, which spells a path no walk reaches;
  * entries out of the order Git writes, which a writer rebuilding the tree

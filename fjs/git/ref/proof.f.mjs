@@ -7,7 +7,7 @@ import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toHex } from '../oid/module.f.js'
 import { latin1 } from '../testlib.f.js'
-import { tryLoose, tryPacked, tryPackedWithout, tryRef, writeLoose } from './module.f.mjs'
+import { tryLoose, tryPacked, tryPackedWithout, tryRef, writeLoose } from './module.f.js'
 
 const loose = tryLoose(20)
 

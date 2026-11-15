@@ -19,7 +19,7 @@
  * directory, `.git` for a main worktree; finding it from a worktree of any
  * kind is [`fjs/git/repo`](../repo/module.f.js)'s `tryCommonDir`.
  * Walking from a commit to the blob a path names is
- * [`fjs/git/walk`](../walk/module.f.mjs), over this reader or any other.
+ * [`fjs/git/walk`](../walk/module.f.js), over this reader or any other.
  *
  * **The loose file is read first, and a pack answers for it where it cannot.**
  * Git asks its packs before the loose path, so an object that is both packed

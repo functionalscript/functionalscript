@@ -155,7 +155,7 @@ const littleVarint = (b, at, value, scale) => {
     let s = scale
     while (true) {
         if (i >= b.length) { return null }
-        const c = b[i]
+        const c = b[Number(i)]
         const group = c % 0x80
         const next = group === 0 ? v : v + group * s
         if (!Number.isSafeInteger(next)) { return null }
@@ -179,7 +179,7 @@ const littleVarint = (b, at, value, scale) => {
  */
 const backVarint = (b, at, value) => {
     if (at >= b.length) { return null }
-    const c = b[at]
+    const c = b[Number(at)]
     if (c < 0x80) { return [value + c, at + 1] }
     const next = (value + (c % 0x80) + 1) * 0x80
     return Number.isSafeInteger(next) ? backVarint(b, at + 1, next) : null
@@ -224,7 +224,7 @@ export const tryEntry = oidBytes => input => {
         if (b.length < after + oidBytes) { return null }
         return { kind: 'refDelta', size: bytes, baseId: oidAt(b, after, oidBytes), dataAt: after + oidBytes }
     }
-    const type = objectTypes[code]
+    const type = objectTypes[Number(code)]
     return type === undefined ? null : { kind: 'object', type, size: bytes, dataAt: after }
 }
 
@@ -251,7 +251,7 @@ const selected = (b, at, mask, count, k, value) => {
     if (k === count) { return [value, at] }
     if (Math.floor(mask / Math.pow(2, k)) % 2 === 0) { return selected(b, at, mask, count, k + 1, value) }
     if (at >= b.length) { return null }
-    return selected(b, at + 1, mask, count, k + 1, value + b[at] * Math.pow(0x100, k))
+    return selected(b, at + 1, mask, count, k + 1, value + b[Number(at)] * Math.pow(0x100, k))
 }
 
 /**
@@ -347,7 +347,7 @@ const deltaPieces = (d, src, at, want) => {
         // stops short is refused here rather than by a length check outside:
         // one place states the rule and one place enforces it.
         if (i === d.length) { return total === want ? toArray(flat(found)) : null }
-        const c = d[i]
+        const c = d[Number(i)]
         if (c < 0x80) {
             // an insert of nothing is written by no encoder, and a stream of
             // them would make no progress

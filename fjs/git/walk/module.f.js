@@ -36,13 +36,15 @@
  */
 
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.js'
+import { assert } from '../../asserts/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.js'
 import { sameItems } from '../../types/list/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
 import { tryTreeAt } from '../commit/module.f.js'
 import { ofWidth } from '../oid/module.f.js'
 import { tryTargetAt } from '../tag/module.f.js'
-import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
+import { isSubtree, tryRead as readTree } from '../tree/module.f.js'
 
 /**
  * The entries of the tree an id names, where it names a tree: read, and
@@ -200,7 +202,11 @@ export const tryEntries = (read, oidBytes) => {
  * @type {(entries: readonly TreeEntry[], want: readonly number[]) => Nullable<TreeEntry>}
  */
 const only = (entries, want) => {
-    const found = entries.filter(e => sameItems(byteArray(e.name))(want))
+    const found = entries.filter(e => {
+        const name = entry(e, 'name')
+        assert(name !== undefined)
+        return sameItems(byteArray(name))(want)
+    })
     return found.length === 1 ? found[0] : null
 }
 
@@ -227,12 +233,19 @@ const lost = /** @type {_PathState} */ ({ entries: null, found: null })
  * @param {Step<O, readonly TreeEntry[]>} at
  * @returns {(item: _PathItem) => (state: _PathState) => Effect<O, _PathState, IoChannel>}
  */
-const componentStep = at => ({ name, last }) => ({ entries }) => {
-    if (entries === null) { return pureOk(lost) }
-    const found = only(entries, name)
-    if (found === null) { return pureOk(lost) }
-    if (last) { return pureOk({ entries: null, found }) }
-    return isSubtree(found) ? mapStep(at(found.oid), next => ({ entries: next, found })) : pureOk(lost)
+const componentStep = at => item => {
+    const name = entry(item, 'name')
+    assert(name !== undefined)
+    const { last } = item
+    return state => {
+        const entries = entry(state, 'entries')
+        assert(entries !== undefined)
+        if (entries === null) { return pureOk(lost) }
+        const found = only(entries, name)
+        if (found === null) { return pureOk(lost) }
+        if (last) { return pureOk({ entries: null, found }) }
+        return isSubtree(found) ? mapStep(at(found.oid), next => ({ entries: next, found })) : pureOk(lost)
+    }
 }
 
 /**
