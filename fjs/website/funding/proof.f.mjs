@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { fundingPath, parse } from './module.f.mjs'
+import { fundingPath, parse } from './module.f.js'
 
 /** @type {(channels: readonly unknown[]) => string} */
 const fundingJson = channels => JSON.stringify({

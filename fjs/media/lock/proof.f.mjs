@@ -10,7 +10,7 @@ import {
     encodeText as revisionEncodeText,
     validate as revisionValidate,
 } from '../revision/module.f.mjs'
-import { stringifySorted } from '../json/module.f.mjs'
+import { stringifySorted } from '../json/module.f.js'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.

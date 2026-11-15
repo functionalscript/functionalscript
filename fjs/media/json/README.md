@@ -4,7 +4,7 @@ Two codecs over one grammar and one reader:
 
 | Codec                              | Numeric leaves     | Entry point                                       |
 | ---------------------------------- | ------------------ | ------------------------------------------------- |
-| standard (`json.parse`/`stringify`) | `number`           | [`module.f.mjs`](./module.f.mjs)                   |
+| standard (`json.parse`/`stringify`) | `number`           | [`module.f.js`](./module.f.js)                   |
 | extended                            | `number \| bigint` | [`extended/module.f.js`](./extended/module.f.js) |
 
 ```text

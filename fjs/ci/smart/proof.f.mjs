@@ -6,7 +6,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../assert
 import { parse } from '../../rtti/parse/module.f.js'
 import { checks, checksSchema, platform, platformSchema, smartJobs } from './module.f.js'
 import { uses } from '../common/module.f.js'
-import { installNode } from '../node/module.f.mjs'
+import { installNode } from '../node/module.f.js'
 import { jobTimeout } from '../config/module.f.js'
 
 /** @type {(steps: readonly Step[], image?: string) => Job} */

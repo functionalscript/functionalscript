@@ -91,5 +91,5 @@ Which serialises to:
 ### Related
 
 - `fjs/media/json/types.ts` — the `Unknown` type
-- `fjs/media/json/module.f.mjs` — `serialize`
+- `fjs/media/json/module.f.js` — `serialize`
 - `fjs/media/json/schema/module.f.js` — sibling JSON-dialect module

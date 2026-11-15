@@ -11,7 +11,7 @@
 import { typescript } from '../config/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
-import { stringify } from '../../media/json/module.f.mjs'
+import { stringify } from '../../media/json/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 
 /**

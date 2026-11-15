@@ -1,7 +1,7 @@
 import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.js'
 import { every, countdown, map } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
-import { stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

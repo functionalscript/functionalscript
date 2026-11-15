@@ -5,7 +5,7 @@
 
 import { iterable, toArray } from './module.mjs'
 import { countdown } from '../module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 
 export const proof = {

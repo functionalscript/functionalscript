@@ -9,7 +9,7 @@ from GitHub, are schemas too:
   Closed: CI reads its own generated workflows back, so a key the schema does
   not name is generator drift;
 - the site's funding manifest, in
-  [`website/funding`](../../../../website/funding/module.f.mjs). `open` at
+  [`website/funding`](../../../../website/funding/module.f.js). `open` at
   every level: the footer reads only the funding channels;
 - the GitHub responses the website reads: the sign-in exchange in
   [`website/github`](../../../../website/github/module.f.js), and the open

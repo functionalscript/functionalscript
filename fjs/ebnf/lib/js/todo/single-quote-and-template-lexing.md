@@ -114,7 +114,7 @@ The grammar has three readers, and the widening reaches each differently.
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
   reads it, and a future `fjs lint` would. It refuses nothing the grammar
   recognises.
-- JSON. Not reached at all: [`media/json`](../../../../media/json/module.f.mjs)
+- JSON. Not reached at all: [`media/json`](../../../../media/json/module.f.js)
   folds [`ebnf/lib/json`](../../json/module.f.js), a separate grammar this
   one *imports rules from* and never the reverse, so `'x'` stays
   `unexpected symbol at 0` there whatever this grammar learns. The JSON

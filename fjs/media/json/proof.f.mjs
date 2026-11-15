@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { marked, parse, serialize, setProperty, stringify, stringifySorted } from './module.f.mjs'
+import { marked, parse, serialize, setProperty, stringify, stringifySorted } from './module.f.js'
 import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
 import { sort } from '../../types/object/module.f.js'
 import { identity } from '../../types/function/module.f.js'
@@ -135,6 +135,14 @@ export const proof = {
         },
     },
     parse: {
+        // The standard codec keeps JavaScript number rounding and range,
+        // including infinities; the extended codec has its own policy.
+        numberBoundaries: () => {
+            assertEq(parsed('1e400'), Infinity)
+            assertEq(parsed('-1e400'), -Infinity)
+            assertEq(parsed('9007199254740993'), 9_007_199_254_740_992)
+            assertEq(parsed('5e-324'), 5e-324)
+        },
         ok: () => {
             const [t, v] = parse('{"a":[1,true,null],"b":"x"}')
             assertEq(t, 'ok')

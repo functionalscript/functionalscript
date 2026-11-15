@@ -14,7 +14,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import { pureOk, step } from '../effects/module.f.js'
-import { parse as parseJson } from '../media/json/module.f.mjs'
+import { parse as parseJson } from '../media/json/module.f.js'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb, vec8, repeat, length, maxLengthBytes, bytesIn } from '../types/bit_vec/module.f.js'

@@ -59,7 +59,7 @@
 
 import { fromVec } from '../text/utf8/module.f.js'
 import { detectVec } from './type/module.f.js'
-import { parse, stringifySorted } from './json/module.f.mjs'
+import { parse, stringifySorted } from './json/module.f.js'
 import { assert, assertNotNullish } from '../asserts/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { toData, unionFold } from '../rtti/data/module.f.js'

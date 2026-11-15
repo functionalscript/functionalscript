@@ -5,7 +5,7 @@
 
 import { toArray } from './module.f.js'
 import { concat, countdown, map } from '../module.f.js'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
+import { stringifySorted } from '../../../media/json/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 
 /** @type {(list: List<Unknown>) => string} */

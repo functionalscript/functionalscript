@@ -44,7 +44,7 @@
  * however large: exponent syntax belongs to the `number` side and would parse
  * back as one. A whole-valued `number` other than `-0` gets a non-integer
  * spelling (`3.0`) for the same reason. This `.0` rule is the extended codec's
- * own; the standard codec in [`../module.f.mjs`](../module.f.mjs) has its own
+ * own; the standard codec in [`../module.f.js`](../module.f.js) has its own
  * numeric spelling and does not route through here.
  *
  * `NaN`, `Infinity` and `-Infinity` cannot arrive from JSON text but can be
