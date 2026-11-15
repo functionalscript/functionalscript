@@ -10,7 +10,7 @@
  * Both places an object lives are read, in every object directory the
  * repository has: the loose file at {@link objectPath}, and the packs below
  * `objects/pack/` through
- * [`fjs/git/packstore`](../packstore/module.f.mjs), which is where
+ * [`fjs/git/packstore`](../packstore/module.f.js), which is where
  * `git clone` and `git gc` put nearly everything. The repository's own
  * `objects/` is the first such directory and its `objects/info/alternates`
  * names the rest, as [`fjs/git/alternates`](../alternates/module.f.js)
@@ -74,7 +74,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { alternatesIn } from '../alternates/module.f.js'
 import { path as loosePath, tryRead as readLoose } from '../loose/module.f.js'
 import { hexText, of, ofWidth } from '../oid/module.f.js'
-import { tryRead as readPacked } from '../packstore/module.f.mjs'
+import { tryRead as readPacked } from '../packstore/module.f.js'
 
 /**
  * Where a loose object lives: `objects/`, a directory named by the first
@@ -368,7 +368,7 @@ const kept = (found, o) => {
  * Which file is read first, and what makes the other one answer, is the module
  * doc's; which directories are searched and in what order is
  * {@link objectsDirs}'s; that a pack's own failures are not a miss is
- * [`fjs/git/packstore`](../packstore/module.f.mjs)'s.
+ * [`fjs/git/packstore`](../packstore/module.f.js)'s.
  *
  * **A store this reader falls through, Git stops at.** Measured on Git 2.43.0
  * with a file of garbage planted at the borrower's own loose path and a good

@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for the delta chain walked in `./module.f.mjs`.
+ * Implementation-private types for the delta chain walked in `./module.f.js`.
  *
  * @module
  */

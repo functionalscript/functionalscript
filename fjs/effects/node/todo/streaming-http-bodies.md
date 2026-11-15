@@ -79,7 +79,7 @@ is a trade rather than a removal.** [`ReadWhole`](../types.ts) was added on
 `Vec`s from **one `open`**, so the chunks it produces are one file's and the
 per-chunk splice the paragraph above describes cannot happen — and it is
 implemented in both runners and read through `readWholeBytes` by `fjs/git`'s
-[`packstore`](../../../git/packstore/module.f.mjs) and
+[`packstore`](../../../git/packstore/module.f.js) and
 [`refstore`](../../../git/refstore/module.f.mjs), so it is a proven operation
 and not a sketch. Its own docstring states the property this
 section needs: *"The chunks are one open's, which is why this is not a fold

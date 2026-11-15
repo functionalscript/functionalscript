@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`packstore`](../module.f.mjs) refuses a `refDelta` whose base is not in the
+[`packstore`](../module.f.js) refuses a `refDelta` whose base is not in the
 pack that names it. That is what Git does with the same pack, measured with the
 base in reach — the table, the control, and `git fsck`'s wording are in
 `packstore`'s module doc, and `baseNotInPack` in its proof pins the refusal. So

@@ -115,6 +115,7 @@
  * @import { Held } from './types.ts'
  */
 
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
 import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.js'
@@ -122,6 +123,7 @@ import { under } from '../../path/module.f.js'
 import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.js'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.js'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.js'
@@ -248,13 +250,16 @@ const notAFile = path => refuseNotAFile(notAFileMessage(path))
  *
  * @type {(pd: string) => (e: Dirent) => (names: List<string>) => Effect<Stat, List<string>, IoChannel>}
  */
-const namedIdx = pd => e => names => {
-    if (e.isFile) { return pureOk(concat(names)([e.name])) }
-    const path = under(pd, e.name)
-    if (e.isDirectory) { return notAFile(path) }
-    return catchStep(
-        step(stat(path), s => s.isFile ? pureOk(concat(names)([e.name])) : notAFile(path)),
-        orElse(leadsNowhere, names))
+const namedIdx = pd => e => {
+    const name = assertNotNullish(entry(e, 'name'))
+    return names => {
+        if (e.isFile) { return pureOk(concat(names)([name])) }
+        const path = under(pd, name)
+        if (e.isDirectory) { return notAFile(path) }
+        return catchStep(
+            step(stat(path), s => s.isFile ? pureOk(concat(names)([name])) : notAFile(path)),
+            orElse(leadsNowhere, names))
+    }
 }
 
 /**
@@ -279,7 +284,7 @@ const idxNames = pd => catchStep(
     step(
         readdir(pd, {}),
         es => foldStep(
-            pureOk(es.filter(e => e.name.endsWith(idxSuffix))),
+            pureOk(es.filter(e => assertNotNullish(entry(e, 'name')).endsWith(idxSuffix))),
             /** @type {List<string>} */ (null),
             namedIdx(pd))),
     orElse(namesNothing, null))

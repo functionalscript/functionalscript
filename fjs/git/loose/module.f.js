@@ -8,7 +8,7 @@
  * {@link write} stores the envelope as one zlib stream through
  * [`fjs/zlib/stored`](../../zlib/stored/module.f.js), under a temporary
  * name renamed into place. One of the two places a real
- * repository meets the decoder — [`fjs/git/packstore`](../packstore/module.f.mjs)
+ * repository meets the decoder — [`fjs/git/packstore`](../packstore/module.f.js)
  * is the other, and is the one a clone takes for most of its objects.
  *
  * Nothing here is bounded by a `Vec`. The file is as many chunks as it takes
