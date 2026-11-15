@@ -82,23 +82,23 @@ export const typePositions = tokens => {
     /** The tokens that are no trivia, by their index in `tokens`. */
     const at = tokens.flatMap((t, i) => isTrivia(t.kind) ? [] : [i])
     /** @type {(j: number) => JsToken | undefined} */
-    const tok = j => j < 0 || j >= at.length ? undefined : tokens[at[j]]
-    const kinds = at.map(i => tokens[i].kind)
+    const tok = j => j < 0 || j >= at.length ? undefined : tokens[Number(at[Number(j)])]
+    const kinds = at.map(i => tokens[Number(i)].kind)
     /** Whether the word at `j` names a property: after `.` or `?.`. @type {(j: number) => boolean} */
-    const isProperty = j => kinds[j - 1] === '.' || kinds[j - 1] === '?.'
+    const isProperty = j => kinds[Number(j - 1)] === '.' || kinds[Number(j - 1)] === '?.'
     /** Whether a line ends between the token before `j` and `j`. @type {(j: number) => boolean} */
-    const lineBefore = j => j > 0 && tokens.slice(at[j - 1] + 1, at[j]).some(t => t.kind === 'nl')
+    const lineBefore = j => j > 0 && tokens.slice(at[Number(j - 1)] + 1, at[Number(j)]).some(t => t.kind === 'nl')
     /**
      * The bracket closing the `(`, `[` or `{` at `j`, or `-1` where none does.
      *
      * @type {(j: number) => number}
      */
     const closing = j => {
-        const open = kinds[j]
+        const open = kinds[Number(j)]
         const close = open === '(' ? ')' : open === '[' ? ']' : '}'
         let depth = 0
         for (let k = j; k < at.length; k = k + 1) {
-            depth = kinds[k] === open ? depth + 1 : kinds[k] === close ? depth - 1 : depth
+            depth = kinds[Number(k)] === open ? depth + 1 : kinds[Number(k)] === close ? depth - 1 : depth
             if (depth === 0) { return k }
         }
         return -1
@@ -114,8 +114,8 @@ export const typePositions = tokens => {
         const c = closing(j)
         let depth = 0
         for (let k = j + 1; k < c; k = k + 1) {
-            if (depth === 0 && (kinds[k] === ':' || kinds[k] === 'in')) { return false }
-            depth = '([{'.includes(kinds[k]) ? depth + 1 : ')]}'.includes(kinds[k]) ? depth - 1 : depth
+            if (depth === 0 && (kinds[Number(k)] === ':' || kinds[Number(k)] === 'in')) { return false }
+            depth = '([{'.includes(kinds[Number(k)]) ? depth + 1 : ')]}'.includes(kinds[Number(k)]) ? depth - 1 : depth
         }
         return c !== -1
     }
@@ -128,8 +128,8 @@ export const typePositions = tokens => {
      */
     const memberStart = j => {
         const before = tok(j - 1)
-        return ['{', ';', ','].includes(kinds[j - 1])
-            || (lineBefore(j) && !continuations.includes(kinds[j - 1]) && !(isName(before) && operators.includes(before.value)))
+        return ['{', ';', ','].includes(kinds[Number(j - 1)])
+            || (lineBefore(j) && !continuations.includes(kinds[Number(j - 1)]) && !(isName(before) && operators.includes(before.value)))
             || (isName(before) && modifiers.includes(before.value) && memberStart(j - 1))
     }
     /**
@@ -141,7 +141,7 @@ export const typePositions = tokens => {
     const arrowAfter = j => {
         let depth = 0
         for (let k = j + 1; k < at.length; k = k + 1) {
-            const kind = kinds[k]
+            const kind = kinds[Number(k)]
             // JavaScript sets no line's end before an arrow's `=>`.
             if (depth === 0 && (lineBefore(k) || [',', ';', ')', ']', '}', '='].includes(kind))) { return false }
             if (depth === 0 && kind === '=>') { return true }
@@ -176,9 +176,9 @@ export const typePositions = tokens => {
     let asGeneric = false
     let skipNext = false
     /** @type {(f: Partial<_Frame>) => void} */
-    const update = f => { frames = [...frames.slice(0, -1), { ...frames[frames.length - 1], ...f }] }
+    const update = f => { frames = [...frames.slice(0, -1), { ...frames[Number(frames.length - 1)], ...f }] }
     /** @type {() => _Frame} */
-    const top = () => frames[frames.length - 1]
+    const top = () => frames[Number(frames.length - 1)]
     /** Pops the types with no bracket of their own. */
     const popExtents = () => {
         while (frames.length > 1 && top().close === null) { frames = frames.slice(0, -1) }
@@ -222,7 +222,7 @@ export const typePositions = tokens => {
         // A function type's parameter bound by a pattern, `([a]: T) =>`,
         // names values.
         const pattern = (kind === '[' || kind === '{') && mode === 'type' && top().close === ')'
-            && ['(', ','].includes(kinds[j - 1]) && closing(j) !== -1 && kinds[closing(j) + 1] === ':'
+            && ['(', ','].includes(kinds[Number(j - 1)]) && closing(j) !== -1 && kinds[Number(closing(j) + 1)] === ':'
         if (kind === '[') {
             // A member's computed key, in a type literal, is a value.
             const key = mode === 'type' && top().close === '}' && memberStart(j) && computedKey(j)
@@ -231,7 +231,7 @@ export const typePositions = tokens => {
         }
         if (kind === '{') {
             // An import's or export's names, whose `as` renames a value.
-            const clause = mode === 'value' && (kinds[j - 1] === 'import' || kinds[j - 1] === 'export' || (isWord('type')(tok(j - 1)) && (kinds[j - 2] === 'import' || kinds[j - 2] === 'export')))
+            const clause = mode === 'value' && (kinds[Number(j - 1)] === 'import' || kinds[Number(j - 1)] === 'export' || (isWord('type')(tok(j - 1)) && (kinds[Number(j - 2)] === 'import' || kinds[Number(j - 2)] === 'export')))
             frames = [...frames, { ...frame((mode === 'type' && !pattern) || iface ? 'type' : 'value', '}'), clause }]
             iface = false
             continue
@@ -273,14 +273,14 @@ export const typePositions = tokens => {
             }
             else if (isName(t)) {
                 if (wasAs) {
-                    typed = [...typed, at[j]]
+                    typed = [...typed, at[Number(j)]]
                     asGeneric = next?.kind === '<'
                 }
                 else if (isWord('type')(t) && isName(next) && !lineBefore(j + 1)) { alias = true }
                 // An import's or export's `as`, in its names or after `*`,
                 // renames a value: it asserts no type.
                 else if ((isWord('as')(t) || isWord('satisfies')(t)) && isName(next) && !lineBefore(j + 1)
-                    && !top().clause && kinds[j - 1] !== '*') { asNext = true }
+                    && !top().clause && kinds[Number(j - 1)] !== '*') { asNext = true }
             }
             continue
         }
@@ -302,7 +302,7 @@ export const typePositions = tokens => {
             || tok(j - 1)?.kind === '.'
             // a type literal's member opens with its name, or a modifier
             || (top().close === '}' && memberStart(j))
-        if (!named && !operators.includes(t.value)) { typed = [...typed, at[j]] }
+        if (!named && !operators.includes(t.value)) { typed = [...typed, at[Number(j)]] }
     }
     return tokens.map((_, i) => typed.includes(i))
 }

@@ -74,7 +74,7 @@ export const proof = {
     // Embedding a word state's data must not add or remove AST nesting:
     // media/markdown walks these tags and tuple positions directly.
     emphasisStateAst: () => {
-        const tail = ['word', [units('a'), ['close', units('*')]]]
+        const tail = /** @type {const} */ (['word', [units('a'), ['close', units('*')]]])
         assertStructurallySame(assertOk(parser(emAfterSpan)(units('a*'), 0)), [tail, 2])
         assertStructurallySame(assertOk(parser(emAfterSpace)(units('a*'), 0)), [tail, 2])
         assertStructurallySame(assertOk(parser(emAfterWord)(units(' a*'), 0)), [['space', [[units(' ')], tail]], 3])

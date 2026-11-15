@@ -198,13 +198,13 @@ const lex = path => cp => {
     let templates = []
     while (pos < cp.length) {
         const active = templates.at(-1)
-        const continuation = active !== undefined && active.braces === 0 && cp[pos] === one('}')
+        const continuation = active !== undefined && active.braces === 0 && cp[Number(pos)] === one('}')
         const match = continuation ? parseTemplateContinuation(symbols, pos) : parseToken(symbols, pos)
-        const previous = pos === 0 ? undefined : cp[pos - 1]
+        const previous = pos === 0 ? undefined : cp[Number(pos - 1)]
         if (match[0] === 'error') {
             /** @type {_Failure} */
             const failure = {
-                number: isDigit(cp[pos]),
+                number: isDigit(cp[Number(pos)]),
                 start: metadata,
                 at: advance(metadata)(previous)(cp.slice(pos, match[1])),
             }
@@ -231,7 +231,7 @@ const lex = path => cp => {
         pos = end
     }
     if (templates.length !== 0) {
-        const active = templates[templates.length - 1]
+        const active = templates[Number(templates.length - 1)]
         assert(active !== undefined)
         return { lexemes: toArray(lexemes), failure: { number: false, start: active.start, at: metadata }, final: metadata }
     }
