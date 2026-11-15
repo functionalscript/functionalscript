@@ -1,5 +1,5 @@
 import { assertEq } from '../../../../asserts/module.f.js'
-import { normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
+import { normalizeLazyReturns, normalizeMemo } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     compatibility: () => {

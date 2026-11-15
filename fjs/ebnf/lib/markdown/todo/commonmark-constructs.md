@@ -41,7 +41,7 @@ than argued from the spec:
 parsed without complaint and produced a document GitHub does not; the rows
 the README renderer needed are now read as GitHub reads them or refused
 (`proseSpans` and `tryParseBlocks` in
-[`media/markdown`](../../../../media/markdown/module.f.mjs)):
+[`media/markdown`](../../../../media/markdown/module.f.js)):
 
 | written | GitHub reads | this subset |
 | --- | --- | --- |

@@ -15,8 +15,9 @@
  * @import { Monoid } from '../../common/monoid/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.js'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.js'
@@ -25,7 +26,7 @@ import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.js'
 import { _directOwningInvocationRoot, directInvocationRoot, invocationRootOf } from './loop/root/module.f.js'
 import { _owningTailCalls } from './loop/owning/module.f.js'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.js'
-import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
+import { normalizeMemo } from '../../js/ast/memo/module.f.js'
 import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.js'
 import { bind, call, done, run } from '../../js/ast/task/module.f.js'
 import { step } from '../../common/monoid/module.f.js'
@@ -46,7 +47,7 @@ export const anchored = (value, established = [], selected = []) => {
         if (exp instanceof Array && exp[0] === 'undefined') { continue }
         // A following required root can own the preceding suffix before the
         // final result proves whether that root itself needs an anchor.
-        while (anchors.length !== 0 && demandsInOrder(exp, [anchors[anchors.length - 1]], [...established, ...anchors.slice(0, -1)], selected)) {
+        while (anchors.length !== 0 && demandsInOrder(exp, [anchors[Number(anchors.length - 1)]], [...established, ...anchors.slice(0, -1)], selected)) {
             anchors = anchors.slice(0, -1)
         }
         anchors = [...anchors, exp]
@@ -96,9 +97,11 @@ const emptyScope = { index: null, entries: null, lazy: null }
 const scopeOf = (environment, parent = emptyScope) => {
     /** @type {readonly BindingId[]} */
     const lazy = environment.flatMap(([id, , mode]) => mode === 'lazy' ? [id] : [])
+    const parentEntries = entry(parent, 'entries')
+    assert(parentEntries !== undefined)
     return {
         index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
-        entries: { head: parent.entries, tail: environment },
+        entries: { head: parentEntries, tail: environment },
         lazy: lazy.length === 0 ? parent.lazy : { head: parent.lazy, tail: lazy },
     }
 }
@@ -107,7 +110,11 @@ const scopeOf = (environment, parent = emptyScope) => {
 const lookup = (scope, binding) => assertNotNullish(bindingOf(scope, binding), 'unbound FAST value')[1]
 
 /** @type {(scope: Scope) => Environment} */
-const environmentOf = scope => toArray(scope.entries)
+const environmentOf = scope => {
+    const entries = entry(scope, 'entries')
+    assert(entries !== undefined)
+    return toArray(entries)
+}
 
 /** @type {(scope: Scope, binding: BindingId) => boolean} */
 const lazyBinding = (scope, binding) => bindingOf(scope, binding)?.[2] === 'lazy'
@@ -116,7 +123,7 @@ const lazyBinding = (scope, binding) => bindingOf(scope, binding)?.[2] === 'lazy
 const lazyBindings = scope => [...new Set(toArray(scope.lazy).filter(id => lazyBinding(scope, id)))]
 
 /** @type {(m: ExpOp, n: ExpOp) => boolean} */
-const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[i]))
+const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[Number(i)]))
 
 /** Positions whose anchors remain in their conditional region. @type {(operator: Operator<Value>, index: number) => boolean} */
 const isLazyOperand = (operator, index) => {
@@ -291,7 +298,7 @@ const summary = (node, parts, external) => {
     for (const statement of node[1].statements) {
         if (!normal) { break }
         active += 1
-        const part = parts[position]
+        const part = parts[Number(position)]
         if (statement[0] === 'define') {
             relations = [...relations, [statement[1], part.references]]
             orderScope = { ...orderScope, reads: [...orderScope.reads, [statement[1], part.prefix]], demands: [...orderScope.demands, [statement[1], part.demand]] }
@@ -327,8 +334,8 @@ const summary = (node, parts, external) => {
             required = [...required, ...part.references]
             if (entering) { entry = [...entry, ...part.references] }
             entering = false
-            returns = returns || parts[position + 1].returns || parts[position + 2].returns
-            normal = parts[position + 1].normal || parts[position + 2].normal
+            returns = returns || parts[Number(position + 1)].returns || parts[Number(position + 2)].returns
+            normal = parts[Number(position + 1)].normal || parts[Number(position + 2)].normal
             position += 3
         } else {
             const length = statement[1].initial.length
@@ -357,7 +364,7 @@ const summary = (node, parts, external) => {
     const references = [...exits.flatMap(part => part.references), ...free]
     /** @type {readonly Summary[]} */
     const tail = terminalLoop === null ? exits : [{ ...empty, references, prefix: [...free, ...prefixReads(exits)], demand: [...free, ...prefixReads(exits, true)],
-        normal: false, returns: parts[parts.length - 1].returns, fails: true, diverges: true }]
+        normal: false, returns: parts[Number(parts.length - 1)].returns, fails: true, diverges: true }]
     const terminal = orderedStep(orderScope, pending, { prefix: prefixReads(tail), demand: prefixReads(tail, true),
         fails: exit[0] === 'throw' || tail.some(part => part.fails), diverges: exit[0] === 'throw' || tail.some(part => part.diverges) })
     const reached = closure(relations, [...(normal ? references : []), ...required])
@@ -368,7 +375,7 @@ const summary = (node, parts, external) => {
         required: [...ordered, ...terminal.required, ...unused],
         reached,
         entry: closure(relations, [...entry, ...(entering ? references : [])]),
-        returns: returns || (normal && (exit[0] === 'return' || terminalLoop !== null && parts[parts.length - 1].returns)),
+        returns: returns || (normal && (exit[0] === 'return' || terminalLoop !== null && parts[Number(parts.length - 1)].returns)),
         normal: normal && exit[0] === 'yield',
         prefix: firstDemands(orderScope.reads, orderScope.opaque, prefixReads([...executions, ...tail])).references.filter(id => !local.has(id)),
         demand: firstDemands(orderScope.demands, orderScope.deferred, prefixReads([...executions, ...tail], true)).references.filter(id => !local.has(id)),
@@ -421,7 +428,7 @@ const blockSummary = (block, context) => context.summaries.get(block) ?? assertN
 const lowerValues = (input, context) => {
     /** @type {(index: number, values: List<Lowered>) => Task<readonly Lowered[]>} */
     const each = (index, values) => call(() => index === input.length ? done(toArray(values).toReversed())
-        : bind(valueTask(input[index], context), value => each(index + 1, { first: value, tail: values })))
+        : bind(valueTask(input[Number(index)], context), value => each(index + 1, { first: value, tail: values })))
     return each(0, null)
 }
 
@@ -441,7 +448,8 @@ const functionValue = (source, context) => call(() => {
         : matched !== null ? directInvocationRoot(normalized, matched) : normalized
     return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
         const placed = orderedOperands(captures, values => ['[]', values])
-        const candidates = placed.values.filter(exp => exp instanceof Array)
+        const placedValues = assertNotNullish(entry(placed, 'values'))
+        const candidates = placedValues.filter(exp => exp instanceof Array)
         const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
         const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
         /** @type {Environment} */
@@ -449,9 +457,12 @@ const functionValue = (source, context) => call(() => {
             ...fn.parameters.map((id, i) => /** @type {const} */ ([id, ['arg', i]])),
             ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
             ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, ['self']])]),
-            ...fn.captures.map((capture, i) => /** @type {const} */ ([capture.binding,
-                placed.values[i] instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (placed.values[i])))] : placed.values[i],
-            ])),
+            ...fn.captures.map((capture, i) => {
+                const value = placedValues[Number(i)]
+                return /** @type {const} */ ([capture.binding,
+                    value instanceof Array ? reads[Number(slots.findIndex(node => sameCapture(node, value)))] : value,
+                ])
+            }),
         ]
         const known = context.external.length === 0 ? context.summaries : new Map()
         /** @type {Context} */
@@ -468,7 +479,7 @@ const scalarRoot = (fn, loop, context) => call(() => {
     /** @type {(index: number, scope: Scope) => Task<Lowered>} */
     const aliases = (index, scope) => call(() => {
         if (index < fn.body.statements.length - 1) {
-            const alias = /** @type {Definition} */ (fn.body.statements[index])
+            const alias = /** @type {Definition} */ (fn.body.statements[Number(index)])
             return bind(valueTask(alias[2], { ...context, scope }), value => aliases(index + 1, scopeOf([[alias[1], value.exp]], scope)))
         }
         return bind(valueTask(loop.initial[0], { ...context, scope }), parameter => {
@@ -486,7 +497,7 @@ const scalarRoot = (fn, loop, context) => call(() => {
 const loopTask = (loop, context) => call(() => {
     const state = invariantState(loop, [...lazyBindings(context.scope), ...context.external])
     return bind(lowerValues(state.aliases.map(alias => alias.value), context), aliases => {
-        const local = /** @type {Context} */ ({ ...context, scope: scopeOf(state.aliases.map((alias, index) => [alias.parameter, aliases[index].exp]), context.scope) })
+        const local = /** @type {Context} */ ({ ...context, scope: scopeOf(state.aliases.map((alias, index) => [alias.parameter, aliases[Number(index)].exp]), context.scope) })
         const scalar = scalarLoopOf(state.loop) !== null
         const helper = scalar ? scalarHelper(state.loop) : aggregateHelper(state.loop)
         return bind(functionValue(helper, local), fn =>
@@ -494,15 +505,16 @@ const loopTask = (loop, context) => call(() => {
                 // An optimized-away source read can leave an invariant entry
                 // outside the helper's captures. Its required demand remains.
                 const demanded = state.aliases.flatMap((alias, index) => {
-                    const value = aliases[index].exp
+                    const value = aliases[Number(index)].exp
                     return !(value instanceof Array) || value === initial.exp || helper.captures.some(capture => capture.binding === alias.parameter) ? [] : [value]
                 })
                 const placed = orderedOperands([fn, initial], values => ['()', values[0], [values[1]]])
+                const placedValues = assertNotNullish(entry(placed, 'values'))
                 /** @type {Lowered} */
-                const value = { exp: ['()', placed.values[0], [placed.values[1]]], anchors: [...demanded, ...placed.anchors] }
+                const value = { exp: ['()', placedValues[0], [placedValues[1]]], anchors: [...demanded, ...placed.anchors] }
                 return done({ value, results: state.loop.results, bindings: [
                     ...state.loop.results.map((binding, i) => /** @type {Environment[number]} */ ([binding, scalar ? value.exp : ['.', value.exp, i]])),
-                    ...state.aliases.map((alias, index) => /** @type {Environment[number]} */ ([alias.result, aliases[index].exp])),
+                    ...state.aliases.map((alias, index) => /** @type {Environment[number]} */ ([alias.result, aliases[Number(index)].exp])),
                 ] })
             }))
     })
@@ -511,19 +523,19 @@ const loopTask = (loop, context) => call(() => {
 const combined = (source, values) => {
     if (source[0] === ',') {
         const before = values.slice(0, -1).flatMap(value => value.exp instanceof Array ? [...value.anchors, value.exp] : value.anchors)
-        const last = values[values.length - 1]
+        const last = values[Number(values.length - 1)]
         return { exp: last.exp, anchors: [...before, ...last.anchors] }
     }
     /** @type {(values: readonly Exp[]) => Exp} */
     const construct = values => {
-        const mapped = mapOperator((_, index) => values[index])(source)
+        const mapped = mapOperator((_, index) => values[Number(index)])(source)
         if (mapped[0] === 'array') { return ['[]', mapped[1]] }
         if (mapped[0] === 'object') { return ['{}', mapped[1]] }
         if (mapped[0] === '-' && mapped.length === 2 && (typeof mapped[1] === 'number' || typeof mapped[1] === 'bigint')) { return -mapped[1] }
         return /** @type {Exp} */ (mapped)
     }
     const placed = orderedOperands(values.map((value, index) => isLazyOperand(source, index) ? plain(anchored(value)) : value), construct)
-    return { exp: construct(placed.values), anchors: placed.anchors }
+    return { exp: construct(assertNotNullish(entry(placed, 'values'))), anchors: placed.anchors }
 }
 
 /** @type {(root: Value, context: Context) => Task<Lowered>} */
@@ -565,7 +577,7 @@ const regionTask = (block, context, normalize = false) => call(() => {
 const resultsValue = values => {
     if (values.length === 1) { return values[0] }
     const placed = orderedOperands(values, values => ['[]', values])
-    return { exp: ['[]', placed.values], anchors: placed.anchors }
+    return { exp: ['[]', assertNotNullish(entry(placed, 'values'))], anchors: placed.anchors }
 }
 
 /** @type {(exit: Exit, context: Context) => Task<Lowered>} */
@@ -645,7 +657,7 @@ const normalTests = flow => call(() => {
  */
 const normalResults = flow => call(() => {
     const node = flow.node
-    if (node.kind === 'normal') { return done({ exp: anchored(resultsValue(node.values)) }) }
+    if (node.kind === 'normal') { return done({ exp: anchored(resultsValue(assertNotNullish(entry(node, 'values')))) }) }
     if (node.kind === 'terminal') { return done(null) }
     if (node.kind === 'prefix' || node.kind === 'join') { return normalResults(node.next) }
     return bind(normalResults(node.then), a => bind(normalResults(node.otherwise), b =>
@@ -660,7 +672,7 @@ const normalResults = flow => call(() => {
  */
 const emitControl = (flow, normal, terminal, established = [], selected = []) => call(() => {
     const node = flow.node
-    if (node.kind === 'normal') { return done(normal(node.values, established, selected)) }
+    if (node.kind === 'normal') { return done(normal(assertNotNullish(entry(node, 'values')), established, selected)) }
     if (node.kind === 'terminal') { return done(terminal(node.value, established, selected)) }
     if (node.kind === 'prefix') { return bind(emitControl(node.next, normal, terminal, established, selected), exp => done(anchored({ exp, anchors: node.anchors }, established, selected))) }
     if (node.kind === 'join') {
@@ -699,7 +711,7 @@ const controlTask = (block, context, expected) => call(() => {
             if (exit[0] === 'return' && exit[1] !== context.functionTarget) { throw 'a control return must name its owning function' }
             return bind(transferTask(exit, current), value => done(controlPrefix(toArray(anchors), { normal: false, node: { kind: 'terminal', value } })))
         }
-        const statement = block.statements[index]
+        const statement = block.statements[Number(index)]
         if (statement[0] === 'define') {
             return bind(definitionTask(statement, current, required, !entry.includes(statement[1])), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
         }
@@ -740,7 +752,7 @@ const blockTask = (block, context) => call(() => {
         if (index === block.statements.length) {
             return bind(transferTask(block.exit, current), result => done({ exp: result.exp, anchors: [...toArray(anchors), ...result.anchors] }))
         }
-        const statement = block.statements[index]
+        const statement = block.statements[Number(index)]
         if (statement[0] === 'define') {
             return bind(definitionTask(statement, current, required), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
         }

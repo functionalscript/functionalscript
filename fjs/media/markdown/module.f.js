@@ -804,7 +804,8 @@ const readProse = entry => {
      * @type {(body: readonly (Bolded | Italicised)[]) => Result<void, string>}
      */
     const nestedEmphasis = body => {
-        for (const [i, b] of body.entries()) {
+        for (let i = 0; i < body.length; i += 1) {
+            const b = body[Number(i)]
             if (b[0] !== 'em' && b[0] !== 'strong') { continue }
             if (unflanked(lastChar(body[Number(i - 1)]))(firstChar(b[1][0]))
                 || unflanked(i === body.length - 1 ? undefined : firstChar(body[Number(i + 1)]))(lastChar(b[1][Number(b[1].length - 1)]))) {
@@ -819,7 +820,8 @@ const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
     if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
-    for (const [i, span] of entry.entries()) {
+    for (let i = 0; i < entry.length; i += 1) {
+        const span = entry[Number(i)]
         if (span[0] === 'code') { out = [...out, span]; continue }
         // A strikethrough body is checked as an entry is.
         if (span[0] === 'del') {
@@ -929,7 +931,8 @@ export const tryParse = text => {
     if (texts[0] === 'error') { return texts }
     /** @type {readonly Entry[]} */
     let out = []
-    for (const [i, t] of texts[1].entries()) {
+    for (let i = 0; i < texts[1].length; i += 1) {
+        const t = texts[1][Number(i)]
         const one = tryParseEntry(t)
         if (one[0] === 'error') { return error(`entry ${i}: ${one[1]}`) }
         out = [...out, one[1]]
@@ -1303,7 +1306,8 @@ const readBlocks = (base, container) => lines => {
             const rows = lines.slice(i, end)
             /** @type {(readonly Entry[])[]} */
             let read = []
-            for (const [r, row] of rows.entries()) {
+            for (let r = 0; r < rows.length; r += 1) {
+                const row = rows[Number(r)]
                 if (r === 1) { continue }
                 // A backslash before an escaped pipe leaves which of the
                 // two the escape is to GitHub's reading of backslashes.

@@ -51,7 +51,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _TemplateContext, _EscapeDecode, _Trivia } from './private.ts'
  */
-import { assert } from '../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { items, variant } from '../../ebnf/ast/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.js'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.js'
@@ -68,6 +68,7 @@ import { codePointListToString } from '../../text/utf16/module.f.js'
 import { mapUnwrap } from '../../types/nullable/module.f.js'
 import { concat, empty, fold, stateScan } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 // -- layer 1: the grammar, one token at a time ------------------------------
 
@@ -472,7 +473,7 @@ export const tokenize = input => path => {
         // token is refused whole, from where it began to the end of input:
         // nothing past a lexical failure is tokenized.
         return failure.number
-            ? failed('invalid number', previous === 'number' ? failure.start : failure.at)
+            ? failed('invalid number', previous === 'number' ? failure.start : assertNotNullish(entry(failure, 'at')))
             : failed('invalid token', failure.start, final)
     }
     if (trivia !== null) {

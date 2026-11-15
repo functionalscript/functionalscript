@@ -27,7 +27,7 @@
  */
 
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'
-import { tryParse } from './module.f.mjs'
+import { tryParse } from './module.f.js'
 import { assertStructurallySame } from '../../asserts/module.f.js'
 
 /**

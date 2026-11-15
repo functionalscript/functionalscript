@@ -5,7 +5,7 @@
  * why: [`fjs/text/marked`](../../text/marked/README.md), which stays
  * language-independent; this is the JavaScript reading of it.
  *
- * **It reads the text with the real tokenizer**, [`tokenizer`](../tokenizer/module.f.mjs),
+ * **It reads the text with the real tokenizer**, [`tokenizer`](../tokenizer/module.f.js),
  * not with a lookalike, so a string that holds `//` is a string and a
  * keyword is whatever [`isKeyword`](../keywords/module.f.js) says, and
  * a literal word is one of its `literalWords`.
@@ -31,7 +31,7 @@
 
 import { isTrivia } from '../../ebnf/lib/js/module.f.js'
 import { typePositions } from '../type_position/module.f.js'
-import { _positions, tokenize } from '../tokenizer/module.f.mjs'
+import { _positions, tokenize } from '../tokenizer/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../keywords/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
@@ -143,7 +143,7 @@ const spansWith = (contextual, typed) => text => {
     // Every token, the `nl` after a block comment included, so a type ends
     // at the line that comment ends.
     const types = typed(tokens.map(({ token }) => token))
-    const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i], next: following[i], type: types[i] }])
+    const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[Number(i)] === starts[Number(i - 1)] ? [] : [{ token, start: starts[Number(i)], next: following[Number(i)], type: types[Number(i)] }])
     // The kind of the word before each token, trivia skipped, in one pass.
     /** @type {StateScan<{ token: JsToken }, string, string>} */
     const word = ({ token }, prior) => [prior, isTrivia(token.kind) ? prior : token.kind]
@@ -152,10 +152,10 @@ const spansWith = (contextual, typed) => text => {
     // kind has a next one to end at.
     return kept.slice(0, -1).flatMap(({ token, start, next, type }, i) => {
         const kind = kindOf(contextual)(token, next)
-        const before = afterWords[i]
+        const before = afterWords[Number(i)]
         const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
         const primitive = kind === 'identifier' && type && token.kind === 'id' && primitives.includes(token.value)
-        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : primitive ? 'keyword' : kind }]
+        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[Number(i + 1)].start).join('').trimEnd()).length, kind: property ? 'identifier' : primitive ? 'keyword' : kind }]
     })
 }
 
@@ -201,7 +201,7 @@ export const disagreement = marked => {
     /** @type {readonly Span[]} */
     const given = marked.flatMap(([chunk, kind], i) => {
         const dash = chunk.startsWith('-') ? 1 : 0
-        return kind === undefined ? [] : [{ start: starts[i] + dash, length: lengths[i] - dash, kind }]
+        return kind === undefined ? [] : [{ start: starts[Number(i)] + dash, length: lengths[Number(i)] - dash, kind }]
     })
     const marks = JSON.stringify(given)
     return marks === found ? null : `marked ${marks}, the tokenizer finds ${found}, in ${text}`

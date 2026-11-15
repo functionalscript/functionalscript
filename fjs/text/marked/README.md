@@ -255,7 +255,7 @@ Some text has no producer behind it: an example a reader typed, or a
 JavaScript or JSON code fence in a `README.md` the site renders
 ([`website/readme`](../../website/readme/module.f.mjs)). For that,
 [`fjs/js/marked`](../../js/marked/module.f.mjs) finds the runs by tokenizing,
-with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)),
+with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)),
 and the website's `highlight(text)` draws them:
 
 - `spansOf(text)`, in `js/marked`, answers the `Span`s the tokenizer finds (`keyword`,

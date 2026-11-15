@@ -680,7 +680,7 @@ it does not change the extension contract for repository source.
 Decided with the retirement of the hand-written scanner, and not to reopen
 without a reason. The grammar's tokens,
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) read by
-[`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
+[`fjs/js/tokenizer`](../js/tokenizer/module.f.js), grow toward the whole
 JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and

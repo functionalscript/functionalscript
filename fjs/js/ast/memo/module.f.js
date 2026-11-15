@@ -17,6 +17,7 @@
 
 import { concat, next } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.js'
 import { exitValues, freeBindings } from '../control/module.f.js'
 import { _hasReturn, memoCells, recipeCells } from './cells/module.f.js'
@@ -58,7 +59,7 @@ const valuesTask = (valueTask, input, context) => {
     /** @type {(index: number, values: List<_Value>, memo: BindingId) => Task<_Values>} */
     const each = (index, values, memo) => call(() => {
         if (index !== input.length) {
-            return bind(valueTask(input[index], { ...context, memo }), value => each(index + 1, { first: value, tail: values }, value.memo))
+            return bind(valueTask(input[Number(index)], { ...context, memo }), value => each(index + 1, { first: value, tail: values }, value.memo))
         }
         const parts = toArray(values).toReversed()
         const lifted = parts.some(part => part.statements !== null)
@@ -86,7 +87,7 @@ const valuesTask = (valueTask, input, context) => {
  * @type {(blockTask: _BlockTask, valueTask: _ValueTask, index: number, context: _Context) => Task<FastFunction>}
  */
 const recipeFunction = (blockTask, valueTask, index, context) => call(() => {
-    const source = context.plan.cells[index]
+    const source = context.plan.cells[Number(index)]
     const initialized = binding(source.binding.index)
     /** @type {Value} */
     const initializer = context.completions ? ['block', liftReturns({
@@ -154,7 +155,7 @@ const demand = (index, context) => {
     const memo = binding()
     const initialized = binding()
     const cell = /** @type {Value} */ (['.', ref(context.memo), index])
-    const recipe = context.recipes[index]
+    const recipe = context.recipes[Number(index)]
     const completed = /** @type {Value} */ (context.completions ? ['.', ref(initialized), 1] : ref(initialized))
     const sameWidth = recipe.width === context.plan.cells.length
     const input = /** @type {Value} */ (sameWidth ? ref(context.memo)
@@ -233,8 +234,9 @@ const valueTaskWith = blockTask => {
         }
         if (source[0] === 'function') {
             return bind(valuesTask(valueTask, source[1].captures.map(capture => capture.value), context), values => {
-                if (values.values.every((value, i) => value === source[1].captures[i].value)) { return done({ ...plain(source, context), memo: values.memo, statements: values.statements, usesMemo: values.usesMemo }) }
-                const fn = /** @type {FastFunction} */ ({ ...source[1], captures: source[1].captures.map((capture, i) => ({ binding: capture.binding, value: values.values[i] })) })
+                const items = assertNotNullish(entry(values, 'values'))
+                if (items.every((value, i) => value === source[1].captures[Number(i)].value)) { return done({ ...plain(source, context), memo: values.memo, statements: values.statements, usesMemo: values.usesMemo }) }
+                const fn = /** @type {FastFunction} */ ({ ...source[1], captures: source[1].captures.map((capture, i) => ({ binding: capture.binding, value: items[Number(i)] })) })
                 return done({ statements: values.statements, value: ['function', fn], memo: values.memo, usesMemo: values.usesMemo })
             })
         }
@@ -266,8 +268,9 @@ const valueTaskWith = blockTask => {
         }
         const operands = operatorOperands(source)
         return bind(valuesTask(valueTask, operands, context), values => {
-            const unchanged = values.values.every((value, i) => value === operands[i])
-            return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
+            const items = assertNotNullish(entry(values, 'values'))
+            const unchanged = items.every((value, i) => value === operands[Number(i)])
+            return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => items[Number(index)])(source), memo: values.memo, usesMemo: values.usesMemo })
         })
     })
     return valueTask
@@ -303,7 +306,7 @@ const returnedValueTask = (blockTask, valueTask, source, context) => {
         /** @type {Value} */
         const input = tail ? ['array', value[2]] : value
         return bind(valuesTask(valueTask, [input], context), values => done({ statements: values.statements,
-            exit: ['return', assertNotNullish(context.recipeOwner), ['array', [tail ? 'tail' : 'return', values.values[0]]]],
+            exit: ['return', assertNotNullish(context.recipeOwner), ['array', [tail ? 'tail' : 'return', assertNotNullish(entry(values, 'values'))[0]]]],
             memo: values.memo, normal: false, usesMemo: values.usesMemo,
         }))
     }
@@ -314,10 +317,11 @@ const returnedValueTask = (blockTask, valueTask, source, context) => {
 const loopTask = (blockTask, valueTask, loop, context, terminal = false) => call(() => {
     if (!setHas(loop)(context.plan.loops)) {
         return bind(valuesTask(valueTask, loop.initial, context), initial => {
+            const items = assertNotNullish(entry(initial, 'values'))
             /** @type {(body: Block) => Task<_Loop>} */
             const finish = body => {
-                const mapped = body === loop.body && initial.values.every((value, i) => value === loop.initial[i])
-                    ? loop : { ...loop, initial: initial.values, body }
+                const mapped = body === loop.body && items.every((value, i) => value === loop.initial[Number(i)])
+                    ? loop : { ...loop, initial: items, body }
                 return done({
                     statements: terminal ? initial.statements : concat(initial.statements)([['loop', mapped]]),
                     exit: terminal ? ['loop', mapped] : null,
@@ -336,10 +340,11 @@ const loopTask = (blockTask, valueTask, loop, context, terminal = false) => call
     const result = binding(loop.target.index)
     const outputMemo = binding(loop.target.index)
     const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
-    return bind(valuesTask(valueTask, loop.initial, context), initial =>
-        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), selfAliases: withoutSelfAliases(context.selfAliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
+    return bind(valuesTask(valueTask, loop.initial, context), initial => {
+        const items = assertNotNullish(entry(initial, 'values'))
+        return bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), selfAliases: withoutSelfAliases(context.selfAliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
-                target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: terminal ? [] : [result, outputMemo],
+                target, parameters: [state, memo], initial: [['array', items], ref(initial.memo)], results: terminal ? [] : [result, outputMemo],
                 body: { statements: [
                     ...loop.parameters.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(state), i], 'required'])),
                     ...body.block.statements,
@@ -349,7 +354,8 @@ const loopTask = (blockTask, valueTask, loop, context, terminal = false) => call
                 ['loop', internal],
                 ...loop.results.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(result), i], 'required'])),
             ]), exit: terminal ? ['loop', internal] : null, memo: terminal ? initial.memo : outputMemo, usesMemo: true, changed: true })
-        }))
+        })
+    })
 })
 
 /** @type {(blockTask: _BlockTask, valueTask: _ValueTask, exit: Exit, context: _Context) => Task<_Exit>} */
@@ -364,16 +370,17 @@ const exitTask = (blockTask, valueTask, exit, context) => call(() => {
         && exit[0] === 'return' && exit[1] === context.sourceOwner) { return returnedValueTask(blockTask, valueTask, exit[2], context) }
     const inputs = exitValues(exit)
     return bind(valuesTask(valueTask, inputs, context), values => {
+        const items = assertNotNullish(entry(values, 'values'))
         /** @type {Exit} */
-        let mapped = values.values.every((value, i) => value === inputs[i]) ? exit
-            : exit[0] === 'yield' ? ['yield', values.values]
-                : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values.values]
-                    : exit[0] === 'throw' ? ['throw', values.values[0]] : ['return', exit[1], values.values[0]]
+        let mapped = items.every((value, i) => value === inputs[Number(i)]) ? exit
+            : exit[0] === 'yield' ? ['yield', items]
+                : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], items]
+                    : exit[0] === 'throw' ? ['throw', items[0]] : ['return', exit[1], items[0]]
         if (context.completions && context.recipeOwner !== null && exit[0] === 'return') {
-            mapped = ['return', context.recipeOwner, ['array', ['return', values.values[0]]]]
+            mapped = ['return', context.recipeOwner, ['array', ['return', items[0]]]]
         } else if (exit[0] === 'break' || exit[0] === 'continue') {
             const owner = toArray(context.owners).find(owner => owner.source === exit[1])
-            if (owner !== undefined) { mapped = [exit[0], owner.target, [['array', values.values], ref(values.memo)]] }
+            if (owner !== undefined) { mapped = [exit[0], owner.target, [['array', items], ref(values.memo)]] }
         }
         return done({ statements: values.statements, exit: mapped, memo: values.memo, normal: exit[0] === 'yield', usesMemo: values.usesMemo })
     })
@@ -397,7 +404,7 @@ const blockTask = (block, context) => {
                 memo: exit.memo, normal: exit.normal, usesMemo: usesMemo || exit.usesMemo,
             }))
         }
-        const statement = block.statements[index]
+        const statement = block.statements[Number(index)]
         if (statement[0] === 'define') {
             const shadowed = withoutAliases(aliases, [statement[1]])
             const shadowedSelf = withoutSelfAliases(selfAliases, [statement[1]])
@@ -406,13 +413,13 @@ const blockTask = (block, context) => {
                 const selected = mapGet(context.plan.definitions, statement)
                 if (selected !== undefined) {
                     const active = mapSet(shadowed, statement[1], selected)
-                    if (context.plan.cells[selected].definition === statement) {
-                        const local = context.plan.cells[selected].iterationLocal
+                    if (context.plan.cells[Number(selected)].definition === statement) {
+                        const local = context.plan.cells[Number(selected)].iterationLocal
                         const nextMemo = local ? binding() : memo
                         /** @type {readonly Statement[]} */
                         const reset = local ? [['define', nextMemo, withCell(context.plan, memo, selected, ['array', [false, undefined]]), 'required']] : []
                         return bind(recipeFunction(blockTask, valueTask, selected, current), fn => resume(
-                            [...reset, ['define', context.recipes[selected].binding, ['function', fn], 'required']], nextMemo, true, local, true, active, shadowedSelf))
+                            [...reset, ['define', context.recipes[Number(selected)].binding, ['function', fn], 'required']], nextMemo, true, local, true, active, shadowedSelf))
                     }
                     return resume(null, memo, true, false, true, active, shadowedSelf)
                 }

@@ -8,7 +8,7 @@ import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
-import { normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
+import { normalizeLazyReturns, normalizeMemo } from './module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const nestedOwner = /** @type {const} */ ({ kind: 'function', index: 1 })
