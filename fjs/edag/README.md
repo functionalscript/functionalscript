@@ -230,7 +230,7 @@ wrapper also prevents asynchronous loading from interpreting a value's own
 callable `then` property. `toData` is the synchronous data-only converter; it
 continues to refuse functions for consumers that require data.
 
-[`compiler/serializer/value`](../compiler/serializer/value/module.f.mjs) emits
+[`compiler/serializer/value`](../compiler/serializer/value/module.f.js) emits
 closed value graphs as JavaScript modules, including executable functions with
 their evaluated captures. Its `stringify` API preserves shared data and function
 references under the JavaScript/memo profile; calls have fresh body allocations

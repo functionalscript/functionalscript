@@ -16,7 +16,7 @@
  */
 
 import { identityAnalysis, checked } from '../analysis/module.f.js'
-import { fromAnalysis } from '../to_fast/module.f.mjs'
+import { fromAnalysis } from '../to_fast/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { functionStringify } from '../../js/ast/serializer/module.f.js'
 import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'

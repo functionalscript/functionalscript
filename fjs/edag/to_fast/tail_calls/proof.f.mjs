@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { analysis, identityAnalysis } from '../../analysis/module.f.js'
-import { functionFromAnalysis, toFast } from '../module.f.mjs'
+import { functionFromAnalysis, toFast } from '../module.f.js'
 import { fromFast } from '../../from_fast/module.f.js'
 import { prepareFunction } from '../../../js/ast/prepare/module.f.js'
 import { evaluate, failure, flat } from '../../from_fast/member_returns/proof.f.mjs'

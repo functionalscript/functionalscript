@@ -16,7 +16,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { interpret, noRuntime } from '../../transpiler/module.f.mjs'
 import { virtualAt } from '../../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
-import { factoryStringify, stringify } from './module.f.mjs'
+import { factoryStringify, stringify } from './module.f.js'
 import { tryStringify } from '../module.f.mjs'
 import { vm } from '../../../edag/amnesia/module.f.mjs'
 import { read } from '../../../edag/value/property/module.f.js'

@@ -9,7 +9,7 @@ import { tryModuleStringify } from '../../compiler/serializer/module.f.mjs'
 import { analysis, identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
-import { toFast } from '../to_fast/module.f.mjs'
+import { toFast } from '../to_fast/module.f.js'
 import { anchored, fromFast } from './module.f.js'
 
 /** @type {(source: string) => Exp} */

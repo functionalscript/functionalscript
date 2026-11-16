@@ -25,7 +25,7 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Const, DemoExample, DemoGroup, DemoSchema, DemoState, Type, _Answer } from '../types.ts'
+ * @import { Const, DemoExample, DemoGroup, DemoSchema, DemoSchemaNames, DemoState, Type, _Answer } from '../types.ts'
  * @import { Marked, Run } from '../../text/marked/types.ts'
  */
 
@@ -106,29 +106,31 @@ const infoShape = name => info => {
 }
 
 /**
- * A thunk is what it returns, with its name on the node. Its identity shares
- * that definition across uses; a recursive use is a back edge to it.
- * Built-ins and primitive constants stay inline.
+ * A thunk is what it returns, with its explicitly supplied name on the node.
+ * Its identity shares that definition across uses; a recursive use is a back
+ * edge to it. Built-ins and primitive constants stay inline. Function `name`
+ * is not an FJS entry, so unnamed thunks use structural labels. This includes
+ * private helpers created during expansion, such as `lockValue`: their old
+ * JavaScript implementation names are no longer part of the diagram.
  *
- * @type {(t: Type) => Shape<Type>}
+ * @type {(names: DemoSchemaNames) => (t: Type) => Shape<Type>}
  */
-const shapeOf = t => {
-    const shape = typeof t !== 'function' ? constShape(t) : infoShape(t.name)(t())
+const shapeOf = names => t => {
+    const shape = typeof t !== 'function' ? constShape(t) : infoShape(names.find(([schema]) => schema === t)?.[1] ?? '')(t())
     return hasEntry(shape, 'children') ? { ...shape, recursive: true } : shape
 }
 
-const schemaGraph = graphOf(shapeOf)
-
 /**
- * `schema` as a graph, including the definitions of every reachable named
+ * `schema` as a graph, including the definitions of every reachable
  * schema. Each definition is drawn once; shared uses point to that node,
  * and recursive uses return inside their cyclic group. Returns to the same
  * definition share a trunk and entry. Hovering a shared segment traces all
- * contributing connections; a source port or keyboard focus traces one.
+ * contributing connections; a source port or keyboard focus traces one. Names
+ * are display metadata: distinct thunks may share a label without sharing a node.
  *
- * @type {(schema: Type) => Graph}
+ * @type {(schema: Type, names?: DemoSchemaNames) => Graph}
  */
-export const _graphOf = schema => ({ ...schemaGraph(schema), trace: true, centerColumns: true })
+export const _graphOf = (schema, names = []) => ({ ...graphOf(shapeOf(names))(schema), trace: true, centerColumns: true })
 
 // ── readers ──────────────────────────────────────────────────────────────────
 
@@ -169,9 +171,12 @@ const answerOf = r => r[0] === 'ok'
  * code runs, not a copy that could drift from it. `modulePath` is the full
  * module filename relative to `fjs/`, including its actual extension.
  *
- * @type {(name: string, modulePath: string, schema: Type) => readonly [DemoSchema]}
+ * Optional graph names identify stable schemas by value; the printed import
+ * name alone does not label a root that was constructed anonymously.
+ *
+ * @type {(name: string, modulePath: string, schema: Type, names?: DemoSchemaNames) => readonly [DemoSchema]}
  */
-export const projectSchema = (name, modulePath, schema) => [{ source: name, schema, module: `fjs/${modulePath}` }]
+export const projectSchema = (name, modulePath, schema, names = []) => [{ source: name, schema, names, module: `fjs/${modulePath}` }]
 
 /**
  * What `parse` and `validate` make of `text` against `schema`, and the value
@@ -590,7 +595,7 @@ export const schemaDemo = groups => {
                 ...pickerView(e),
                 ['p', e.about],
                 schemasView(e, shown),
-                graphSvg(_graphOf(s.schema)),
+                graphSvg(_graphOf(s.schema, s.names)),
                 ...outputsView(s),
                 ...compareView(s, compare),
                 ...valueView(s, text),

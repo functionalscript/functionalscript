@@ -4,7 +4,7 @@
  * schema, a value and an event can take, and through demos of its own for the
  * paths that one cannot reach.
  *
- * @import { _Answer, DemoState } from '../types.ts'
+ * @import { _Answer, DemoState, DemoSchemaNames, Type } from '../types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
@@ -65,8 +65,8 @@ const openCode = `${tok('identifier', 'open')}(${closedCode})`
 const choice = (i, pressed, source) =>
     `<button type="button" name="schema-${i}" aria-pressed="${pressed}"><span data-pick-dot=""></span><span data-pick-code="">${source}</span></button>`
 
-/** A schema's graph as SVG text. @type {(schema: import('../types.ts').Type) => string} */
-const svg = schema => htmlToString(graphSvg(_graphOf(schema)))
+/** A schema's graph as SVG text. @type {(schema: Type, names?: DemoSchemaNames) => string} */
+const svg = (schema, names) => htmlToString(graphSvg(_graphOf(schema, names)))
 
 const demoProof = /** @type {const} */ ({
     // The demo opens on the first example's first schema and its value.
@@ -244,7 +244,7 @@ const demoProof = /** @type {const} */ ({
         // through a box.
         draw: () => {
             for (const e of examples) {
-                for (const s of e.schemas) { assertEq(_crossings(_graphOf(s.schema)), 0) }
+                for (const s of e.schemas) { assertEq(_crossings(_graphOf(s.schema, s.names)), 0) }
             }
         },
     },
@@ -387,7 +387,8 @@ const demoProof = /** @type {const} */ ({
         // A named root is expanded under its name; a use of itself points
         // back to that definition, with no edge through a box.
         recursive: () => {
-            const g = _graphOf(exampleNamed('Recursion').schemas[0].schema)
+            const { schema, names } = exampleNamed('Recursion').schemas[0]
+            const g = _graphOf(schema, names)
             assertEq(g.nodes.length, 2)
             assertStructurallySame(g.edges.filter(e => e.back), [{ from: 1, to: 0, label: '', kind: undefined, back: true }])
             assertEq(_crossings(g), 0)
@@ -402,7 +403,7 @@ const demoProof = /** @type {const} */ ({
             const other = () => ['array', string]
             /** @type {import('../types.ts').Type} */
             const tree = () => ['const', { left: tree, children: array(tree), other }]
-            const g = _graphOf(tree)
+            const g = _graphOf(tree, [[tree, 'tree'], [other, 'other']])
             assertEq(g.nodes.length, 3)
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to, e.label]), [[0, 0, 'left'], [1, 0, '']])
             assertEq(_crossings(g), 0)
@@ -415,28 +416,34 @@ const demoProof = /** @type {const} */ ({
             const lock = () => ['record', lockValue]
             /** @type {import('../types.ts').Type} */
             const lockValue = () => ['or', string, lock]
-            const g = _graphOf({ first: lock, second: lock })
+            const g = _graphOf({ first: lock, second: lock }, [[lock, 'lock'], [lockValue, 'lockValue']])
             assertStructurallySame(g.nodes.map(n => n.label), ['{}', 'lock record', 'lockValue or'])
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[2, 1]])
             assertStructurallySame(g.edges.filter(e => e.from === 0).map(e => [e.label, e.to]), [['first', 1], ['second', 1]])
             assertEq(_crossings(g), 0)
         },
         distinctDefinitions: () => {
-            /** @type {() => import('../types.ts').Type} */
             const make = () => {
                 /** @type {import('../types.ts').Type} */
                 const list = () => ['array', list]
                 return list
             }
-            const g = _graphOf([make(), make()])
+            const first = make()
+            const second = make()
+            const g = _graphOf([first, second], [[first, 'list'], [second, 'list']])
             assertStructurallySame(g.nodes.map(n => n.label), ['[]', 'list array', 'list array'])
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[1, 1], [2, 2]])
             assertEq(_crossings(g), 0)
+            // A name belongs to its schema identity; an equally named
+            // JavaScript function receives no label without its own entry.
+            assertStructurallySame(_graphOf([first, second], [[first, 'first']]).nodes.map(n => n.label), ['[]', 'first array', 'array'])
+            assertStructurallySame(_graphOf(first).nodes.map(n => n.label), ['array'])
         },
         // The dense project schema keeps every original connection while
         // its largest destination bundle is drawn and hovered as one trunk.
         bundledEdagValue: () => {
-            const g = _graphOf(exampleNamed('Evaluated EDAG value').schemas[0].schema)
+            const { schema, names } = exampleNamed('Evaluated EDAG value').schemas[0]
+            const g = _graphOf(schema, names)
             const returns = g.edges.flatMap((edge, index) => edge.back === true ? [{ edge, index }] : [])
             const targets = [...new Set(returns.map(({ edge }) => edge.to))]
             const largest = targets.map(to => returns.filter(({ edge }) => edge.to === to).map(({ index }) => index))
@@ -452,11 +459,38 @@ const demoProof = /** @type {const} */ ({
         namedArray: () => {
             /** @type {import('../types.ts').Type} */
             const list = () => ['array', list]
-            const g = _graphOf(list)
+            const g = _graphOf(list, [[list, 'list']])
             assertStructurallySame(g.edges, [{ from: 0, to: 0, label: '', kind: undefined, back: true }])
             assertEq(_crossings(g), 0)
             const html = htmlToString(graphSvg(g))
             assert(html.includes('>list array<'), html)
+        },
+        // Project labels are explicit too. Private thunks freshly created
+        // by a schema expansion retain their structure without host names.
+        projectNames: () => {
+            const cases = /** @type {const} */ ([
+                ['JSON-RPC request', 'unknown or'],
+                ['MCP tool', 'unknown or'],
+                ['evo_add arguments', 'lockField or'],
+                ['Revision', 'lockField or'],
+                ['Lock', 'lock record'],
+                ['Any JSON value', 'unknown or'],
+                ['JSON Schema', '_unknownThunk {}'],
+                ['Evaluated EDAG value', '_value or'],
+            ])
+            for (const [example, label] of cases) {
+                const { schema, names } = exampleNamed(example).schemas[0]
+                assert(_graphOf(schema, names).nodes.some(node => node.label === label), example)
+                assert(page(example).includes(`>${label}<`), example)
+            }
+            const { schema, names } = exampleNamed('Lock').schemas[0]
+            const labels = _graphOf(schema, names).nodes.map(node => node.label)
+            assert(labels.includes('or'), 'the private lock value remains a union')
+            assert(!labels.includes('lockValue or'), 'private implementation names are not display metadata')
+            const edag = exampleNamed('Evaluated EDAG value').schemas[0]
+            const edagLabels = _graphOf(edag.schema, edag.names).nodes.map(node => node.label)
+            assert(edagLabels.includes('_exp or'), 'the stable expression schema keeps its explicit label')
+            assert(!edagLabels.includes('optionLambdaSchema or'), 'fresh branch thunks keep structural labels')
         },
         // A built-in or a constant draws inline; a root with no port to sit
         // in is one node.

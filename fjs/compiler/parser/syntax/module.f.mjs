@@ -1245,15 +1245,12 @@ const forAt = node => {
     const [first, , header, , block] = unmapped(node)
     const choice = unmapped(header)
     const [kind, branch] = choice
-    /** @type {For['initializer']} */
-    let declaration = null
-    /** @type {Ast<ForClassicTail, ModuleTokenWithMetadata, Out> | null} */
-    let classic = null
-    if (kind === 'empty') { classic = unmapped(branch)[1] }
+    /** @type {readonly [For['initializer'], Ast<ForClassicTail, ModuleTokenWithMetadata, Out>]} */
+    let clauses
+    if (kind === 'empty') { clauses = [null, unmapped(branch)[1]] }
     else if (kind === 'name') {
         const [initial, , tail] = unmapped(branch)
-        declaration = namedExpressionOf(unmapped(initial), true)
-        classic = tail
+        clauses = [namedExpressionOf(unmapped(initial), true), tail]
     } else {
         const [keyword, target, continuation] = forDeclarationOf(choice)
         const [form, following] = unmapped(continuation)
@@ -1262,14 +1259,13 @@ const forAt = node => {
                 iterable: nodeAt(unmapped(following)[1]), block: loopBlockOf(unmapped(block)) }]
         }
         if (form === 'uninitialized') {
-            declaration = ['let', { start: keyword, semicolon: true, target, value: null }]
-            classic = unmapped(following)[1]
+            clauses = [['let', { start: keyword, semicolon: true, target, value: null }], unmapped(following)[1]]
         } else {
             const [, value, , tail] = unmapped(following)
-            declaration = [kind, { start: keyword, semicolon: true, target, value: nodeAt(value) }]
-            classic = tail
+            clauses = [[kind, { start: keyword, semicolon: true, target, value: nodeAt(value) }], tail]
         }
     }
+    const [declaration, classic] = clauses
     const [condition, , step] = unmapped(classic)
     const test = unmapped(condition)[0]
     const update = unmapped(step)[0]

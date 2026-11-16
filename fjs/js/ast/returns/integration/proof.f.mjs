@@ -8,7 +8,7 @@ import { logicalValue } from '../../sugar/logical/module.f.js'
 import { fromFast } from '../../../../edag/from_fast/module.f.js'
 import { identityAnalysis } from '../../../../edag/analysis/module.f.js'
 import { memo } from '../../../../edag/memo/module.f.mjs'
-import { toFast } from '../../../../edag/to_fast/module.f.mjs'
+import { toFast } from '../../../../edag/to_fast/module.f.js'
 import { evaluate as evaluateWithRuntime } from '../../../../edag/from_fast/member_returns/proof.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../../edag/from_fast/proof.f.mjs'
 

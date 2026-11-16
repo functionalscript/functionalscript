@@ -166,7 +166,7 @@ handler for callable results. JSON/DataJS outputs use `toData` and their own
 representability rules: a valid function value can still be refused by a data
 output. Output refusals name the output; initialization failures name the source.
 
-The [JavaScript value emitter](../compiler/serializer/value/module.f.mjs)
+The [JavaScript value emitter](../compiler/serializer/value/module.f.js)
 provides `stringify` for a default-exported value and `factoryStringify` for
 a default-exported construction function. It accepts primitive, repeated and
 unused evaluated capture slots, preserving positions and allocation lifetimes.

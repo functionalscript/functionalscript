@@ -31,9 +31,12 @@
  * member, an `or`, `array`, `record` or `rest` is a node over what it
  * combines, and a built-in or a constant draws inline in its parent's port.
  * One sub-schema used in two places is one node with two incoming edges.
- * **A named thunk is a definition**: it is expanded once, with its name on
- * the node, wherever it is reached. Shared uses point to that definition;
- * recursive uses draw arrows back to it, routed around the graph.
+ * **A thunk is a definition**: it is expanded once, wherever it is reached.
+ * A schema's `names` metadata supplies display labels by thunk identity;
+ * unnamed thunks, including private helpers created during expansion, keep
+ * structural labels such as `or` rather than JavaScript function names.
+ * Shared uses point to that definition; recursive uses draw arrows back to
+ * it, routed around the graph.
  *
  * **One schema, many outputs.** Under the graph come the TypeScript type
  * `fjs/rtti/ts` prints, the JSON Schema `fjs/media/json/schema` converts it

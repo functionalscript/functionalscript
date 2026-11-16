@@ -145,7 +145,7 @@ documents unwrapped. The [transpiler proofs](./transpiler/proof.f.mjs) cover
 calls/operators, projection and unused initialization. The obsolete `Denotation`
 wrapper is removed.
 
-[`serializer/value`](./serializer/value/module.f.mjs) provides the code-generation
+[`serializer/value`](./serializer/value/module.f.js) provides the code-generation
 step for callable runtime compilation: `stringify(value)` emits a JavaScript
 module whose default export constructs a closed `EdagValue` as ordinary runtime
 data and functions. Evaluated captures may be primitive, repeated or unused;

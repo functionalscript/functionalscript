@@ -12,6 +12,12 @@ AST-to-FAST sugar before graph construction; old tagged graphs are rejected at
 checked admission. Output conversion does not carry a compatibility rewrite or
 a second logical-lowering algorithm.
 
+Conversion runs one work thunk at a time. Each step returns the next thunk;
+the final continuation returns the completed root block directly. This keeps
+deep graphs off the host call stack without a callback assigning an outer
+result binding. Operand order and binding identities stay with their existing
+continuations.
+
 Graph conversion assumes the canonical `Exp` shapes. `checked` admits invocation
 bindings and scopes; it does not replace the EDAG shape schema. In particular,
 a plain `.` continuation starts with a terminal `|()` or an optional `|?.()`.

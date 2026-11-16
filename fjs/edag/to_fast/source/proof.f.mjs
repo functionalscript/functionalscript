@@ -10,7 +10,7 @@
 import { conditional } from '../../testlib.f.js'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
-import { fromAnalysis } from '../module.f.mjs'
+import { fromAnalysis } from '../module.f.js'
 import { fromFast } from '../../from_fast/module.f.js'
 import { sourceReason } from './module.f.js'
 import { reverse } from '../../../types/list/module.f.js'

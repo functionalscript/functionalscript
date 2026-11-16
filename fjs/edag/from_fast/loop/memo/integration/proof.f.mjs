@@ -9,7 +9,7 @@ import { anchored, fromFast, lowerValue } from '../../../module.f.js'
 import { normalizeMemo } from '../module.f.js'
 import { identityAnalysis } from '../../../../analysis/module.f.js'
 import { memo } from '../../../../memo/module.f.mjs'
-import { toFast } from '../../../../to_fast/module.f.mjs'
+import { toFast } from '../../../../to_fast/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.mjs'
 
 /** Run a fresh inner entry on each selected outer iteration, retaining its history. @type {(inner: Loop, limit?: Value, selected?: Value, value?: Value, prefix?: (index: Value) => readonly Statement[]) => Loop} */

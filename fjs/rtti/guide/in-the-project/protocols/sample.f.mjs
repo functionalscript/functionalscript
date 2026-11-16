@@ -14,6 +14,8 @@ import { request } from '../../../../protocol/json_rpc/module.f.js'
 import { tool } from '../../../../protocol/mcp/module.f.js'
 import { casAddArgs } from '../../../../mcp/cas/module.f.js'
 import { evoAddArgs } from '../../../../mcp/evo/module.f.js'
+import { unknown as jsonValue } from '../../../../media/json/rtti/module.f.js'
+import { lock, lockField } from '../../../../media/revision/module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [
@@ -21,14 +23,14 @@ export const lessons = [
         id: 'json-rpc-request',
         name: 'JSON-RPC request',
         about: 'A JSON-RPC 2.0 request; without an id it is a notification. open(), so a peer on a later protocol revision can add members. Read with parse.',
-        schemas: projectSchema('request', 'protocol/json_rpc/module.f.js', request),
+        schemas: projectSchema('request', 'protocol/json_rpc/module.f.js', request, [[jsonValue, 'unknown']]),
         value: 'export default {"jsonrpc":"2.0","method":"tools/list","id":1};',
     },
     {
         id: 'mcp-tool',
         name: 'MCP tool',
         about: 'A tool an MCP server advertises in tools/list: a name, a description, and the JSON Schema of its arguments. Read with parse.',
-        schemas: projectSchema('tool', 'protocol/mcp/module.f.js', tool),
+        schemas: projectSchema('tool', 'protocol/mcp/module.f.js', tool, [[jsonValue, 'unknown']]),
         value: 'export default {"name":"cas_get","description":"Read a blob by its hash","inputSchema":{"type":"object","properties":{"hash":{"type":"string"}},"required":["hash"]}};',
     },
     {
@@ -42,7 +44,7 @@ export const lessons = [
         id: 'evo-add-arguments',
         name: 'evo_add arguments',
         about: 'The arguments of the evo_add MCP tool: a new revision. Its lock is the revision format\'s own lockField schema, a recursive map, reused rather than restated.',
-        schemas: projectSchema('evoAddArgs', 'mcp/evo/module.f.js', evoAddArgs),
+        schemas: projectSchema('evoAddArgs', 'mcp/evo/module.f.js', evoAddArgs, [[lockField, 'lockField'], [lock, 'lock']]),
         value: 'export default {"parents":["b7m2mnk9w0vqwhh4"],"subject":"todo","snapshot":"c1dq3pe0t4f7a2kx"};',
     },
 ]

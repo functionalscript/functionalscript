@@ -16,7 +16,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.js'
-import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
+import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
 import { prepare } from '../../../js/ast/prepare/module.f.js'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.js'
 import { tokenize } from '../../../js/tokenizer/module.f.js'
