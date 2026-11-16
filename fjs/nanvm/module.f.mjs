@@ -60,6 +60,8 @@ import { groups as memberGroups } from './member/module.f.js'
 import { logicalExp } from '../edag/from_fast/source/module.f.js'
 import { entry, hasEntry } from '../types/object/entry/module.f.js'
 import { assertNotNullish } from '../asserts/module.f.js'
+import { stringSerialize } from '../media/json/serializer/module.f.js'
+import { chunksText } from '../text/marked/module.f.js'
 
 export const callback = constructorsCallback
 export const functionValue = constructorsFunctionValue
@@ -147,7 +149,7 @@ export const groupKey = g =>
     // is: the name is the group's, not the operand's
     : hasEntry(g, 'name') ? `${g.op} ${entry(g, 'name')}`
     // and one per key, `in "x"`, the key the group's, as the source has it
-    : hasEntry(g, 'key') ? `${g.op} ${JSON.stringify(g.key)}`
+    : hasEntry(g, 'key') ? `${g.op} ${chunksText(stringSerialize(g.key))}`
     : g.op
 
 /**

@@ -20,6 +20,7 @@ import { sha256 } from '../../../crypto/sha2/module.f.js'
 import { catchStep, history, historyStep, mapStep, pureError, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { fromList } from '../../../effects/list/module.f.js'
 import { execFile } from '../../../effects/node/module.f.js'
+import { requiredName } from '../../../git/refstore/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.js'
 import { stringToU8List } from '../../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../../types/bit_vec/module.f.js'
@@ -102,10 +103,10 @@ const inventory = dir => {
 
 /** Native Git supplies a valid raw ident; explicit invalid names are refused before it runs. @type {(dir: string, options: NodeProgramOptions) => Effect<NodeOp, string, IoChannel>} */
 const identity = (dir, options) => step(authorOf(dir, options), author => {
-    if ([author.name, author.email].some(value => value.trim() === '' || ['<', '>', '\n', '\r', '\u0000'].some(c => value.includes(c)))) {
+    if ([requiredName(author), author.email].some(value => value.trim() === '' || ['<', '>', '\n', '\r', '\u0000'].some(c => value.includes(c)))) {
         return refuse('ERR_COV_AUTHOR')('invalid coverage cache identity')
     }
-    const found = execFile('git', ['--git-dir', dir, '-c', `user.name=${author.name}`, '-c', `user.email=${author.email}`, 'var', 'GIT_COMMITTER_IDENT'])
+    const found = execFile('git', ['--git-dir', dir, '-c', `user.name=${requiredName(author)}`, '-c', `user.email=${author.email}`, 'var', 'GIT_COMMITTER_IDENT'])
     return step(found, ({ stdout }) => stdout.endsWith('\n') && stdout.length > 1 && !stdout.slice(0, -1).includes('\n')
         ? pureOk(stdout.slice(0, -1))
         : refuse('ERR_COV_AUTHOR')('git returned an invalid committer identity'))

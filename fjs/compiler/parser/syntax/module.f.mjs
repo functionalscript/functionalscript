@@ -51,7 +51,7 @@ import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry as ownEntry, hasEntry } from '../../../types/object/entry/module.f.js'
 import {
     arrayExpressionStatement, arrayStatementValue, statementContinuations, definitions, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
@@ -82,7 +82,7 @@ import {
 const splitEof = tokens => {
     const eofIdx = tokens.findIndex(({ token }) => token.kind === 'eof')
     if (eofIdx === -1) {
-        const lastToken = tokens[tokens.length - 1]
+        const lastToken = tokens[Number(tokens.length - 1)]
         return lastToken !== undefined && lastToken.token.kind === 'error'
             // the token's own span survives into the parse error: it is the one
             // failure here that knows how far the offending source runs
@@ -95,9 +95,9 @@ const splitEof = tokens => {
     }
     const last = tokens.length - 1
     if (eofIdx !== last) {
-        return error({ message: 'end-of-input token is not final', metadata: tokens[eofIdx].metadata })
+        return error({ message: 'end-of-input token is not final', metadata: tokens[Number(eofIdx)].metadata })
     }
-    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[last].metadata })
+    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[Number(last)].metadata })
 }
 
 // -- reading the tree ---------------------------------------------------------
@@ -762,7 +762,7 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const right = applyLayers(nodeAt(v), lowerTails)
     // every round's operator is a rule the grammar made from the same
     // records, so a name the map lacks is the grammar's bug, not the input's
-    const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
+    const tag = assertNotNullish(ownEntry(binaryOpTag, opTag), ['binary operator without a tag', opTag])
     // `instanceof` keeps its operator token: the fold refuses a right
     // operand that is no reference to `Array` there, where every spelling
     // of the right side has a token; `in` keeps it for its left operand,
@@ -925,7 +925,7 @@ const firstAt = node => {
  *
  * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object' | 'construct', base: _Leaf) => ModuleTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[Number(tag === 'array' || tag === 'object' ? 0 : 1)]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -1075,7 +1075,7 @@ const toNode = node => {
     if (isPrefix(node)) {
         const [op, v, ...tailLists] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: applyTail([prefixLayer[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
+        return symbol({ id: 'value', node: applyTail([assertNotNullish(ownEntry(prefixLayer, node[0])), nodeAt(v)], tailLists), first, target: invalid(first) })
     }
     if (node[0] === 'block') {
         const children = unmapped(node[1])
@@ -1113,7 +1113,7 @@ const operandToNode = node => {
     if (isPrefix(node)) {
         const [op, v] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: [prefixLayer[node[0]], nodeAt(v)], first, target: invalid(first) })
+        return symbol({ id: 'value', node: [assertNotNullish(ownEntry(prefixLayer, node[0])), nodeAt(v)], first, target: invalid(first) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
@@ -1283,7 +1283,7 @@ const namedExpressionOf = ([name, rest], semicolon) => {
     }
     const [op, v] = unmapped(assigned)
     const [kind, operatorToken] = unmapped(op)
-    const operator = assignmentOperators[kind][1]
+    const operator = assertNotNullish(ownEntry(assignmentOperators, kind))[1]
     return ['assign', {
         start: token, semicolon, name: token, value: nodeAt(v),
         operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
@@ -1743,7 +1743,7 @@ export const parseSyntax = tokenList => {
         const atEnd = result >= tokens.length
         return error({
             message: atEnd ? 'unexpected end' : 'unexpected token',
-            metadata: atEnd ? eofMetadata : tokens[result].metadata,
+            metadata: atEnd ? eofMetadata : tokens[Number(result)].metadata,
         })
     }
     const [tree] = result

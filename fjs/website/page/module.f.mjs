@@ -130,7 +130,7 @@ const firstSentence = runs => {
         // Code units, as `text` is indexed: every character looked for is one.
         return code ? [] : t.split('').flatMap((c, j) => {
             const end = start + j + 1
-            return '.!?'.includes(c) && (end === text.length || text[end] === ' ') ? [end] : []
+            return '.!?'.includes(c) && (end === text.length || text[Number(end)] === ' ') ? [end] : []
         })
     })
     return text.slice(0, ends[0] ?? text.length)
