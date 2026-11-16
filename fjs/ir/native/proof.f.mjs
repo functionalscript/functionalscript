@@ -11,6 +11,8 @@ export const proof = {
         'bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool',
         'numberRemainder(a: f64, b: f64) -> f64',
         'numberToString(n: f64) -> any.only(string)',
+        'stringToNumber(s: any.only(string)) -> f64',
+        'bigintToString(b: any.only(bigint)) -> any.only(string)',
     ].join('; ')),
     // A module may import it beside L0, which seals its values of `any`, and not without.
     checked: () => {

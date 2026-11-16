@@ -202,7 +202,7 @@ export const toString = v => {
     if (k === UNDEFINED) { return 'undefined' }
     if (k === NULL) { return 'null' }
     if (k === BOOLEAN) { return asBoolean(v) ? 'true' : 'false' }
-    if (k === NUMBER) { return numberToString(v) }
+    if (k === NUMBER) { return numberToString(asNumber(v)) }
     if (k === STRING) { return /** @type {string} */ (v) }
     if (k === BIGINT) { return bigintToString(v) }
     if (k === FUNCTION) { return functionText(text(v)) }

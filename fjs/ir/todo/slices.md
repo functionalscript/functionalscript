@@ -218,8 +218,8 @@ PRs as decided below.
 - [ ] **9b2. L0 `Functions.call` / `make_function`** (#3928). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
   `make_function` of an IR `code` waits for slice 11.
-- [ ] **9b3. Lowering and subjects** (this PR). `asFunction(f)(…)` as L0 `call(f,
-  args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
+- [ ] **9b3. Lowering and subjects** (this PR / #3929). `asFunction(f)(…)` as L0
+  `call(f, args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
   **Status:** wip
 

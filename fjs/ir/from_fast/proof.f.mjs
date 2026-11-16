@@ -223,15 +223,15 @@ export const proof = {
             'export g, h',
             '',
         ].join('\n'))
-        assertEq(why(fa, fast('export const f = g => g(1)')), 'f: a call of a value is not in this slice')
-        assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g(a)(a)')), 'f: a call of a value is not in this slice')
+        assertEq(why(fa, fast('export const f = g => g(1)')), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
+        assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g(a)(a)')), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
         assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g(...a)')), 'f: a spread argument is not in this slice')
         assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g("s")')), noString)
         assertEq(why({ ...fa, g: signature([['a', f64]], f64) }, fast('export const g = a => a\nexport const f = a => g')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => { const s = Math.sqrt; return s(a) + s }')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('export const f = a => Math.floor(a)')), 'f: Math.floor is not in this slice')
-        assertEq(why(fa, module([], ['()', ['ref', id(99)], []])), 'f: a call of a value is not in this slice')
-        assertEq(why(fa, module([], ['()', 1, []])), 'f: a call of a value is not in this slice')
+        assertEq(why(fa, module([], ['()', ['ref', id(99)], []])), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
+        assertEq(why(fa, module([], ['()', 1, []])), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
     },
     refused: () => {
         const mixed = only([['a', f64], ['b', u(8)]], f64)
@@ -329,7 +329,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(why(fa, calling({ ...g, rest: id(4) })), 'f: a rest parameter is not in this slice')
-        assertEq(why(fa, module([['define', x, ['()', ['function', g], [['ref', a]]], 'required']], ['ref', x])), 'f: a call of a value is not in this slice')
+        assertEq(why(fa, module([['define', x, ['()', ['function', g], [['ref', a]]], 'required']], ['ref', x])), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
         assertEq(why(fa, calling({ ...g, self: id(4) })), 'f: a function that calls itself is not in this slice')
         assertEq(why(fa, calling({ ...g, captures: [{ binding: id(4), value: 1 }] })), 'f: a capture that is no binding of the function is not in this slice')
         assertEq(why(fa, calling({ ...g, captures: [{ binding: id(4), value: ['ref', id(99)] }] })), 'f: a capture that is no binding of the function is not in this slice')
@@ -417,7 +417,7 @@ export const proof = {
             [['define', g, ['function', relay(p, hc, ['ref', h])], 'required'], ['define', h, ['function', relay(q, gc, other)], 'required']],
             ['yield', [['object', [[':', 'f', ['function', fun(blk([], ['return', target, ['()', ['ref', fc], [['ref', a]]]]), [{ binding: fc, value: ['ref', g] }])]]]]]])
         assertEq(why(fa, relaying(['ref', g])), 'f: a function that calls itself is not in this slice')
-        assertEq(why(fa, relaying(1)), 'f: a call of a value is not in this slice')
+        assertEq(why(fa, relaying(1)), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
         assertEq(why(fa, fast('const g = a => a\nexport const f = a => g')), 'f: a function as a value is not in this slice')
         assertEq(why(fa, fast('const g = a => a\nexport const f = a => g(a, a)')), 'f: a function that is inlined takes one argument, and its call gives 2')
         // A function that the module does not export reads the constants that it captures.

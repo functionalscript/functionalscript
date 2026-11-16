@@ -64,13 +64,19 @@
  *   give back the builder they own, so their imports take it once and
  *   answer nothing. Pushing more items than `n`, sealing with fewer, or a
  *   builder that is sealed already traps.
+ * - **`find` is an object's property index**, or `-1` where it has no such
+ *   key ([L0 design §9](../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered)):
+ *   `find(o, k)` borrows an object and a string key and answers an `i32`.
+ *   `join` joins the strings of a borrowed array with a borrowed separator
+ *   and answers an owned string; it fails where an item is not a string.
  * - **`call` invokes an existing function value**
  *   ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
  *   `call(f, args)` borrows a function and a sealed array of arguments and
  *   answers the result, owned. A throw from the function fails, as
- *   `throw` does. `make_function` of an IR `code` waits for slice 11 of
- *   [slices.md](../todo/slices.md); the interface names it so a later
- *   host can bind it, and this host refuses a call of it.
+ *   `throw` does. `text(f)` borrows a function and answers its source text,
+ *   an owned string or `undefined`. `make_function` of an IR `code` waits
+ *   for slice 11 of [slices.md](../todo/slices.md); the interface names it
+ *   so a later host can bind it, and this host refuses a call of it.
  * - **A throw is Functions' `throw`**
  *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   it takes over a value, which the host keeps, and fails, so it answers
@@ -81,15 +87,15 @@
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
  *   `throw`, `call`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
- *   `item`, `push`, `push_property` and `seal`. Every other function of L0
- *   completes on the values of its parameters' types.
+ *   `item`, `push`, `push_property`, `seal` and `join`. Every other function
+ *   of L0 completes on the values of its parameters' types.
  *
  * @module
  *
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, code, f64, f64c, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
+import { bool, code, f64, f64c, i, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
@@ -183,27 +189,32 @@ const strings = [
 
 /**
  * Containers' functions besides its `length`: `item`, the item `i` of an
- * array or the value of the property `i` of an object, owned; and the
- * builder's: `begin_array` and `begin_object`, a builder of `n` items or
- * properties, `push` and `push_property`, which own the builder and an
- * item or a key and a value and give the builder back, and `seal`, which
- * owns the builder and answers the array or the object.
+ * array or the value of the property `i` of an object, owned; `find`, the
+ * index of an object's property or `-1`; `join`, the owned string of an
+ * array's string items with a separator; and the builder's: `begin_array`
+ * and `begin_object`, a builder of `n` items or properties, `push` and
+ * `push_property`, which own the builder and an item or a key and a value
+ * and give the builder back, and `seal`, which owns the builder and answers
+ * the array or the object.
  *
  * @type {Interface['functions']}
  */
 const containers = [
     ['item', mayFail(signature([['c', container], ['i', index]], any))],
+    ['find', signature([['o', object], ['k', string]], i(32))],
     ['begin_array', signature([['n', index]], builder)],
     ['begin_object', signature([['n', index]], builder)],
     ['push', mayFail(signature([own('b', builder), own('v', any)], builder, 'b'))],
     ['push_property', mayFail(signature([own('b', builder), own('k', string), own('v', any)], builder, 'b'))],
     ['seal', mayFail(signature([own('b', builder)], container))],
+    ['join', mayFail(signature([['parts', array], ['separator', string]], string))],
 ]
 
 /**
  * Functions' functions besides its `length`: `make_function`, which an IR
  * `code` waits for slice 11 to use; `call`, which borrows a function and
- * its arguments array and may fail where the function throws; and `throw`,
+ * its arguments array and may fail where the function throws; `text`, the
+ * owned source text of a function, a string or `undefined`; and `throw`,
  * which takes over a value and fails, so that it answers `never`.
  *
  * @type {Interface['functions']}
@@ -216,6 +227,7 @@ const functions = [
         own('text', text),
     ], func)],
     ['call', mayFail(signature([['f', func], ['args', array]], any))],
+    ['text', signature([['f', func]], text)],
     ['throw', mayFail(signature([own('v', any)], never))],
 ]
 

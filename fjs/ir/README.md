@@ -379,6 +379,16 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   a host that builds a function from an IR `code` waits for slice 11. This
   host takes the owned frame and text and traps.
 
+## What 9b3 adds
+
+- **`asFunction(f)(…)` lowered** to L0 `call(f, args)` with an args array:
+  Containers builds one from positional arguments, or a single spread of a
+  known array passes that array. `asFunction` is a cast.
+- **`find`, `text`, `join`**: Containers' `find` (as a float) and `join`,
+  and Functions' `text`, on the L0 interfaces and the counting host.
+- **Subjects**: L1's `toPrimitive`, `toNumber`, `toNumeric`, `toString` and
+  `call`, lowered from L1's text over its error table.
+
 ## What 8b adds
 
 - **`buildArray(n, s, next, at)` of the L0 view, lowered**
