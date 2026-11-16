@@ -6,7 +6,7 @@
  * @import { _Cell, _List } from './private.ts'
  */
 
-import { binaryKeys, census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.mjs'
+import { binaryKeys, census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { graphSvg } from '../graph/module.f.js'
 import { commandsOf, runPure } from '../../../effects/module.f.js'

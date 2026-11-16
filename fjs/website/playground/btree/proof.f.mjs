@@ -7,7 +7,7 @@
 
 import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step, undo } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
-import { graphOf } from '../../demo/versions/module.f.mjs'
+import { graphOf } from '../../demo/versions/module.f.js'
 import { values } from '../../../types/btree/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { commandsOf } from '../../../effects/module.f.js'

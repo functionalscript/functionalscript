@@ -56,7 +56,7 @@
  */
 
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
-import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.mjs'
+import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.js'
 import { graphSvg } from '../../demo/graph/module.f.js'
 import { button, option, selectField, refusal } from '../../demo/module.f.js'
 import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.js'

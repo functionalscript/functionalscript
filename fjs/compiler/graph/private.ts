@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for `fjs/compiler/graph/module.f.mjs`.
+ * Implementation-private types for `fjs/compiler/graph/module.f.js`.
  *
  * @module
  */

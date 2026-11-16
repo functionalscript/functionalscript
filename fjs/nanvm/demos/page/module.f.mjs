@@ -54,6 +54,7 @@ import { fromTagged, toText } from '../../../text/marked/module.f.js'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
 export const samplePath = directory => `${directory}/sample.f.js`
@@ -222,7 +223,7 @@ export const runWasm = name => ({ exports }) => {
     /** @type {(value: number) => Result<string, string>} */
     const output = value => value < 0
         ? error('the sample threw')
-        : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
+        : decode(generate(value, i => /** @type {(i: number) => number} */ (outputByte)(i)))
     // Each size is read outside the sandbox, so the timed interval holds
     // `run_sample` alone.
     const before = history(mapStep(loaded, () => live.buffer.byteLength))

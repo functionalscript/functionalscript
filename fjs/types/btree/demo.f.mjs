@@ -8,7 +8,7 @@
  * a copy, and it is not: only the path from the root to the change is built
  * again, and every other subtree is the same object in both versions.
  *
- * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
+ * **The demo is a [versions demo](../../website/demo/versions/module.f.js)**,
  * which draws the new version and marks what the old one holds too; this
  * module says only what a B-tree is. Its nodes are compared as objects, since that
  * is how a B-tree shares. **It is drawn as a table**: every key in a row
@@ -36,7 +36,7 @@
 import { set } from './set/module.f.js'
 import { remove } from './remove/module.f.js'
 import { cmp, sum } from '../number/module.f.js'
-import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
+import { versionsDemo } from '../../website/demo/versions/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
 
 /** @type {(key: number) => Row<TNode<number>>} */

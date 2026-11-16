@@ -72,7 +72,7 @@ export const decimal = {
         const key = Number(text)
         return Number.isSafeInteger(key) && String(key) === text ? key : null
     },
-    show: String,
+    show: key => String(key),
     label: 'Key',
     accepts: 'an integer',
 }

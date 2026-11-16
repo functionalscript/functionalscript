@@ -27,6 +27,7 @@
 import { tryFlowchart } from '../../media/mermaid/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { graphSvg, ranked } from '../demo/graph/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /**
  * The edges depth-first search finds closing a cycle, by index: from each
@@ -44,7 +45,7 @@ const cycleEdges = (count, edges) => {
         : visit([...path, to], { ...s, seen: [...s.seen, to] }), search)
     /** @type {Search} */
     const start = { seen: [], back: [] }
-    return Array.from({ length: count }, (_, n) => n)
+    return generate(count, n => n)
         .reduce((s, n) => s.seen.includes(n) ? s : visit([n], { ...s, seen: [...s.seen, n] }), start)
         .back
 }
