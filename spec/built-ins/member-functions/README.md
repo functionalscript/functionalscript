@@ -45,7 +45,7 @@ Native execution has these limits:
 - `toSorted` with an inconsistent comparator has the order the executor's
   sorting algorithm gives it, as ECMAScript permits.
 - `toLowerCase` and `toUpperCase` are the Unicode Default Case Conversion at
-  **Unicode 17.0.0**, the version the pinned Rust standard library carries
+  **Unicode 18.0.0**, the version the pinned Rust standard library carries
   and `nanvm-lib` asserts at compile time
   ([prototype names](../../../fjs/js/prototype/README.md#unicode-version)). A host
   engine on another Unicode version may case a character assigned since

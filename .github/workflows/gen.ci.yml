@@ -44,7 +44,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -160,7 +160,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -393,7 +393,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -484,7 +484,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -597,7 +597,7 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -705,7 +705,7 @@
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },

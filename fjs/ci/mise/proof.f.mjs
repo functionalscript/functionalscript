@@ -9,7 +9,7 @@ const source = {
     'runs-on': 'ubuntu-26.04',
     'timeout-minutes': jobTimeout,
     steps: [
-        { uses: 'dtolnay/rust-toolchain@1.99.1' },
+        { uses: 'dtolnay/rust-toolchain@1.100.0' },
         { uses: 'actions/setup-node@v1', with: { 'node-version': node } },
         { uses: 'actions/cache@v1' },
         { uses: 'actions/checkout@v1' },
