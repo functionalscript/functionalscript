@@ -17,7 +17,7 @@
  * reason beside it.
  *
  * **A Mermaid flowchart is drawn, as on GitHub,** by the site's own graph
- * renderer ([`mermaid`](../mermaid/module.f.mjs)). A `mermaid` fence it
+ * renderer ([`mermaid`](../mermaid/module.f.js)). A `mermaid` fence it
  * cannot draw stays its source, as every fence did before: the author's
  * own text, not a wrong picture.
  *
@@ -48,7 +48,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
 import { highlight, tsHighlight } from '../demo/highlight/module.f.js'
-import { flowchartSvg } from '../mermaid/module.f.mjs'
+import { flowchartSvg } from '../mermaid/module.f.js'
 import { codeBlock } from '../demo/code/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 

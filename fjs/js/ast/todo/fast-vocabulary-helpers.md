@@ -49,7 +49,7 @@ which the `fjs/js/ast` modules may not import
 so [`loop`](../loop/module.f.js), [`loop/invariant`](../loop/invariant/module.f.js)
 and [`invocation`](../invocation/module.f.js) each keep a private `names`,
 `prepare` spells it inline against `loop.parameters[0]`, and `sameTest` in
-[`fjs/edag/to_fast/join`](../../../edag/to_fast/join/module.f.mjs) spells
+[`fjs/edag/to_fast/join`](../../../edag/to_fast/join/module.f.js) spells
 it against a second reference. The export in the wrong layer is what makes
 the copies, which is the case [AGENTS.md §1](../../../../AGENTS.md#1-workflow)
 names. The `ref` constructor itself is a private `ref` or `reference` in

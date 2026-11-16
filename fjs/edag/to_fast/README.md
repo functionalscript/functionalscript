@@ -161,7 +161,7 @@ wrapper using shared [normal-result forwarding](../../js/ast/results/README.md).
 Its test and arms retain their scopes and transfer owners. Source coordination
 reuses the same rewrite before checking its existing loop profiles.
 
-After tail-control placement, [`join`](join/module.f.mjs) recovers normal
+After tail-control placement, [`join`](join/module.f.js) recovers normal
 statement results selected by the same established test. A residual value, or
 shared selected recipe first demanded by following work, becomes an explicit
 result of that statement conditional. Terminal arms keep their transfers and

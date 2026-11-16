@@ -8,7 +8,7 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { evaluate } from '../../../edag/from_fast/member_returns/proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
-import { _joinResults } from '../../../edag/to_fast/join/module.f.mjs'
+import { _joinResults } from '../../../edag/to_fast/join/module.f.js'
 import { _sourceLoops } from '../../../edag/to_fast/source/loops/module.f.js'
 import { _forwardResult } from './module.f.js'
 

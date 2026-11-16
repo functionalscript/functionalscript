@@ -17,7 +17,7 @@
  * this one by content. The names are how the drawing knows two nodes are
  * one, and are not shown.
  *
- * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
+ * **The demo is a [versions demo](../../website/demo/versions/module.f.js)**,
  * which draws the new version and marks what the old one holds too; this
  * module says only what the trie is.
  *
@@ -37,7 +37,7 @@
  */
 
 import { patriciaTrie } from './module.f.js'
-import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.mjs'
+import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'
 import { run } from '../list/module.f.js'

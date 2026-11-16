@@ -195,6 +195,16 @@ const present = e => resultMapStep(e, r => r[0] === 'error' && namesNothing(r[1]
  */
 const regularFile = '100644'
 
+/**
+ * An entry's name as text, byte for code point: a cBase32 name is ASCII and
+ * reads as itself, and a byte above `0x7F` spells a code point no cBase32
+ * digit is, so a name holding one decodes to no key and the listing skips
+ * it as `fileCas` skips a file that is no shard.
+ *
+ * @type {(name: TreeEntry['name']) => string}
+ */
+const nameText = name => codePointListToString(toArray(name))
+
 /** Whether an entry's mode is {@link regularFile}, spelled as it is. @type {(e: TreeEntry) => boolean} */
 const isRegularFile = e => nameText(e.mode) === regularFile
 
@@ -233,16 +243,6 @@ const components = key => toPath(key).split('/').map(ascii)
 
 /** The path of the `.cas` directory itself: where a listing starts. */
 const casDir = [ascii(prefix)]
-
-/**
- * An entry's name as text, byte for code point: a cBase32 name is ASCII and
- * reads as itself, and a byte above `0x7F` spells a code point no cBase32
- * digit is, so a name holding one decodes to no key and the listing skips
- * it as `fileCas` skips a file that is no shard.
- *
- * @type {(name: TreeEntry['name']) => string}
- */
-const nameText = name => codePointListToString(toArray(name))
 
 /**
  * The key a file below `.cas` spells, or none: `unshard` over its path

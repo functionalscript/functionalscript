@@ -96,7 +96,7 @@ export const isThrows = v => typeof v === 'function' && v()[0] === 'throw'
  */
 export const hasUnreached = v => {
     if (typeof v === 'function') { return v()[0] === 'unreached' }
-    if (Array.isArray(v)) { return v.some(hasUnreached) }
+    if (v instanceof Array) { return v.some(hasUnreached) }
     return typeof v === 'object' && v !== null && Object.values(v).some(hasUnreached)
 }
 

@@ -14,7 +14,7 @@ expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
 [`memo`](../memo/module.f.js), `references` in
 [`sugar`](../sugar/module.f.js), `facts` in
 [`prepare`](../prepare/module.f.js), `definitions` in
-[`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs), `children` in
+[`fjs/compiler/graph`](../../../compiler/graph/module.f.js), `children` in
 [`fjs/edag/from_fast`](../../../edag/from_fast/module.f.js) and once more in
 its `loop/root`:
 

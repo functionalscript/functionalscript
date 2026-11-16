@@ -10,7 +10,7 @@
  * @import { ResolvedModule } from '../parser/types.ts'
  */
 
-import { fastGraph, operatorShape, sourceGraph, unsupported } from './module.f.mjs'
+import { fastGraph, operatorShape, sourceGraph, unsupported } from './module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'

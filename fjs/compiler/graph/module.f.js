@@ -307,51 +307,53 @@ export const operatorShape = ({ array, object }) => other => {
 const definitions = ({ parameters, body }) => {
     /** @type {(id: BindingId) => _DefinitionTask} */
     const bare = id => ({ definition: [id, []] })
-    /** @type {(value: Value) => readonly _DefinitionTask[]} */
-    const value = v => [{ expand: () => {
-        if (v === null || typeof v !== 'object' || v[0] === 'ref') { return [] }
-        if (v[0] === 'function') {
-            const { parameters, rest, self, captures, body } = v[1]
-            return [
-                ...parameters.map(bare),
-                ...(rest === null ? [] : [bare(rest)]),
-                ...(self === null ? [] : [bare(self)]),
-                ...captures.flatMap(({ binding, value: c }) => [/** @type {_DefinitionTask} */ ({ definition: [binding, [['captured', c]]] }), ...value(c)]),
-                ...block(body),
-            ]
-        }
-        if (v[0] === 'block') { return block(v[1]) }
-        if (v[0] === 'if') { return [...value(v[1]), ...block(v[2]), ...block(v[3])] }
-        return operatorOperands(v).flatMap(value)
-    } }]
-    /** @type {(statement: Statement) => readonly _DefinitionTask[]} */
-    const statement = s => {
-        switch (s[0]) {
-            case 'define': {
-                const [, id, v, mode] = s
-                return [{ definition: [id, [mode === 'lazy' ? ['value', v, 'lazy'] : ['value', v]]] }, ...value(v)]
-            }
-            case 'block': { return [...s[1].map(bare), ...block(s[2])] }
-            case 'if': { return [...s[1].map(bare), ...value(s[2]), ...block(s[3]), ...block(s[4])] }
-            default: {
-                const { parameters, initial, results, body } = s[1]
-                return [...parameters.map(bare), ...initial.flatMap(value), ...results.map(bare), ...block(body)]
-            }
-        }
-    }
-    /** @type {(exit: Exit) => readonly _DefinitionTask[]} */
-    const exit = e => {
-        switch (e[0]) {
-            case 'loop': { return statement(e) }
-            case 'yield': { return e[1].flatMap(value) }
-            case 'continue':
-            case 'break': { return e[2].flatMap(value) }
-            case 'return': { return value(e[2]) }
-            default: { return value(e[1]) }
-        }
-    }
     /** @type {(block: Block) => readonly _DefinitionTask[]} */
-    const block = ({ statements, exit: e }) => [{ expand: () => [...statements.flatMap(statement), ...exit(e)] }]
+    const block = ({ statements, exit: e }) => {
+        /** @type {(value: Value) => readonly _DefinitionTask[]} */
+        const value = v => [{ expand: () => {
+            if (v === null || typeof v !== 'object' || v[0] === 'ref') { return [] }
+            if (v[0] === 'function') {
+                const { parameters, rest, self, captures, body } = v[1]
+                return [
+                    ...parameters.map(bare),
+                    ...(rest === null ? [] : [bare(rest)]),
+                    ...(self === null ? [] : [bare(self)]),
+                    ...captures.flatMap(({ binding, value: c }) => [/** @type {_DefinitionTask} */ ({ definition: [binding, [['captured', c]]] }), ...value(c)]),
+                    ...block(body),
+                ]
+            }
+            if (v[0] === 'block') { return block(v[1]) }
+            if (v[0] === 'if') { return [...value(v[1]), ...block(v[2]), ...block(v[3])] }
+            return operatorOperands(v).flatMap(value)
+        } }]
+        /** @type {(statement: Statement) => readonly _DefinitionTask[]} */
+        const statement = s => {
+            switch (s[0]) {
+                case 'define': {
+                    const [, id, v, mode] = s
+                    return [{ definition: [id, [mode === 'lazy' ? ['value', v, 'lazy'] : ['value', v]]] }, ...value(v)]
+                }
+                case 'block': { return [...s[1].map(bare), ...block(s[2])] }
+                case 'if': { return [...s[1].map(bare), ...value(s[2]), ...block(s[3]), ...block(s[4])] }
+                default: {
+                    const { parameters, initial, results, body } = s[1]
+                    return [...parameters.map(bare), ...initial.flatMap(value), ...results.map(bare), ...block(body)]
+                }
+            }
+        }
+        /** @type {(exit: Exit) => readonly _DefinitionTask[]} */
+        const exit = e => {
+            switch (e[0]) {
+                case 'loop': { return statement(e) }
+                case 'yield': { return e[1].flatMap(value) }
+                case 'continue':
+                case 'break': { return e[2].flatMap(value) }
+                case 'return': { return value(e[2]) }
+                default: { return value(e[1]) }
+            }
+        }
+        return [{ expand: () => [...statements.flatMap(statement), ...exit(e)] }]
+    }
     // Expand depth first without borrowing the host call stack. Tasks retain
     // the order of definitions, including captures before their values.
     let pending = [...parameters.map(bare), ...block(body)]

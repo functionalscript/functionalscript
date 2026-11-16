@@ -68,7 +68,7 @@ const selectedTask = (value, test, result) => call(() => {
     const operands = operatorOperands(value)
     /** @type {(index: number) => Task<_Selected | null>} */
     const each = index => call(() => index === operands.length ? done(null)
-        : bind(selectedTask(operands[index], test, result), selected => selected === null ? each(index + 1)
+        : bind(selectedTask(operands[Number(index)], test, result), selected => selected === null ? each(index + 1)
             : done(/** @type {_Selected} */ ({ ...selected, value: mapOperator((operand, position) => position === index ? selected.value : operand)(value) }))))
     return each(0)
 })
@@ -106,11 +106,11 @@ const recipeScope = definition => ({ statements: [], exit: ['yield', [definition
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {
     let index = 0
-    while (index < body.statements.length && !freeBindings({ statements: [body.statements[index]], exit: ['yield', []] }).includes(definition[1])) {
+    while (index < body.statements.length && !freeBindings({ statements: [body.statements[Number(index)]], exit: ['yield', []] }).includes(definition[1])) {
         index = index + 1
     }
     if (index < start) { return null }
-    const statement = body.statements[index]
+    const statement = body.statements[Number(index)]
     const value = statement === undefined ? /** @type {Value} */ (['array', exitValues(body.exit)])
         : statement[0] === 'define' && statement[3] === 'required' || statement[0] === 'if' ? statement[2]
             : statement[0] === 'loop' ? /** @type {Value} */ (['array', statement[1].initial]) : null
@@ -151,14 +151,14 @@ const localizedTask = (source, definition, deferred, origin) => call(() => {
     const following = localized({ ...source, statements: source.statements.filter(statement => statement !== definition) }, definition, deferred, Math.max(0, origin))
     if (following !== null) { return done(following) }
     const index = source.statements.findIndex(statement => statement !== definition && freeBindings({ statements: [statement], exit: ['yield', []] }).includes(definition[1]))
-    const branch = source.statements[index]
+    const branch = source.statements[Number(index)]
     if (branch === undefined || branch[0] !== 'if' || origin >= index) { return done(null) }
     const outside = /** @type {Block} */ ({ ...source, statements: source.statements.filter(statement => statement !== definition && statement !== branch) })
     if (references(outside, definition[1], deferred) || references({ statements: [], exit: ['yield', [branch[2]]] }, definition[1], deferred)) { return done(null) }
     const left = references(branch[3], definition[1], deferred)
     const right = references(branch[4], definition[1], deferred)
     if (left === right || shadows({ statements: source.statements.slice(origin + 1, index), exit: ['yield', []] }, recipeScope(definition), deferred)) { return done(null) }
-    return bind(localizedTask(branch[left ? 3 : 4], definition, deferred, -1), body => done(body === null ? null : {
+    return bind(localizedTask(left ? branch[3] : branch[4], definition, deferred, -1), body => done(body === null ? null : {
         ...source, statements: source.statements.filter(statement => statement !== definition).map(statement => statement === branch
             ? /** @type {Statement} */ (['if', branch[1], branch[2], left ? body : branch[3], right ? body : branch[4]]) : statement),
     }))
@@ -184,7 +184,7 @@ const localRecipes = (block, selected, inherited, result) => {
  */
 const recipeJoin = (block, deferred, inherited) => {
     for (let index = block.statements.length - 1; index >= 0; index = index - 1) {
-        const branch = block.statements[index]
+        const branch = block.statements[Number(index)]
         if (branch[0] !== 'if') { continue }
         for (const definition of block.statements.slice(0, index)) {
             if (definition[0] !== 'define' || definition[3] !== 'lazy') { continue }
@@ -215,8 +215,8 @@ const requiredJoin = (block, deferred, inherited) => {
     /** @type {(index: number) => Task<Block | null>} */
     const each = index => call(() => {
         if (index < 0) { return done(null) }
-        const branch = block.statements[index]
-        const following = block.statements[index + 1]
+        const branch = block.statements[Number(index)]
+        const following = block.statements[Number(index + 1)]
         if (branch[0] !== 'if' || following[0] !== 'define' || following[3] !== 'required') { return each(index - 1) }
         const result = /** @type {BindingId} */ ({ index: 0 })
         return bind(selectedTask(following[2], branch[2], result), selected => {
@@ -264,7 +264,7 @@ const blockTask = (block, inherited = []) => {
                 ? bind(blockTask(exit[1].body, deferred), body => done({ statements, exit: ['loop', { ...exit[1], body }] }))
                 : joinTask({ ...block, statements }, inherited)
         }
-        const statement = block.statements[index]
+        const statement = block.statements[Number(index)]
         if (statement[0] === 'define') { return each(index + 1, [...statements, statement], statement[3] === 'lazy' ? [...deferred, statement] : deferred) }
         if (statement[0] === 'loop') { return bind(blockTask(statement[1].body, deferred), body => each(index + 1, [...statements, ['loop', { ...statement[1], body }]], deferred)) }
         if (statement[0] === 'block') { return bind(blockTask(statement[2], deferred), body => each(index + 1, [...statements, _forwardResult(['block', statement[1], body])], deferred)) }

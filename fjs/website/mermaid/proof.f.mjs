@@ -1,7 +1,7 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error } from '../../types/result/module.f.js'
 import { maxEdges } from '../../media/mermaid/module.f.js'
-import { flowchartGraph, flowchartSvg } from './module.f.mjs'
+import { flowchartGraph, flowchartSvg } from './module.f.js'
 
 /** @type {(from: number, to: number, label?: string) => import('../../media/mermaid/types.ts').FlowEdge} */
 const arrow = (from, to, label = '') => ({ from, to, label, both: false })

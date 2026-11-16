@@ -58,7 +58,7 @@ sideways: its picture changes direction, not its content.
       `tryFlowchart`).
 - [x] Mark an edge that closes a cycle as a `back` edge, so the layout ranks
       the rest: `disot`'s document → hash → document drew badly without it
-      ([`mermaid`](../mermaid/module.f.mjs)'s `flowchartGraph`; `ranked` in
+      ([`mermaid`](../mermaid/module.f.js)'s `flowchartGraph`; `ranked` in
       `demo/graph` starts every source at rank 0, so a flowchart with
       several starting points ranks them all).
 - [x] Draw a node's label of several lines: the reader reads Mermaid's
