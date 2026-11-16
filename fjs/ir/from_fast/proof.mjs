@@ -1421,29 +1421,35 @@ export const proof = {
         assert(text.includes('Functions.text'))
         assert(text.includes('Containers.join'))
     },
-    l1CoerceRun: () => run(fromL1Coerce(), {
-        functionText: ([t]) => ({ any: functionText(held(t)) }),
-        toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString) }),
-        toNumber: ([v]) => toNumber(held(v)),
-        toNumeric: ([v]) => ({ any: toNumeric(held(v)) }),
-        toString: ([v]) => ({ any: l1ToString(held(v)) }),
-        call: ([f, args]) => ({ any: l1Call(held(f), held(args)) }),
-    }, {
-        toPrimitive: [
-            ...[1, 'a', true, null, undefined, 1n, [], {}, (/** @type {unknown} */ x) => x].map(any => [{ any }, false]),
-        ],
-        toNumber: [
-            ...[1, '1', true, false, null, undefined, [], (/** @type {unknown} */ x) => x].map(any => [{ any }]),
-        ],
-        toNumeric: [
-            ...[1, 1n, '1', true, null, (/** @type {unknown} */ x) => x].map(any => [{ any }]),
-        ],
-        toString: [
-            ...[1, 'a', true, null, undefined, 1n, [], {}, (/** @type {unknown} */ x) => x].map(any => [{ any }]),
-        ],
-        call: [
-            [{ any: (/** @type {unknown} */ a, /** @type {unknown} */ b) => /** @type {number} */ (a) + /** @type {number} */ (b) }, { any: [2, 3] }],
-            [{ any: () => 'ok' }, { any: [] }],
-        ],
-    }, ['toPrimitive', 'toNumber', 'toNumeric', 'toString', 'call']),
+    l1CoerceRun: () => {
+        /** @type {StringMap<_Twin>} */
+        const twins = {
+            functionText: ([t]) => ({ any: functionText(held(t)) }),
+            toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
+            toNumber: ([v]) => toNumber(held(v)),
+            toNumeric: ([v]) => ({ any: toNumeric(held(v)) }),
+            // `toString` as a key needs an explicit `_Twin`: Object's method
+            // type and a destructuring twin do not assign under StringMap.
+            toString: /** @type {_Twin} */ (xs => ({ any: l1ToString(held(xs[0])) })),
+            call: ([f, args]) => ({ any: l1Call(held(f), held(args)) }),
+        }
+        return run(fromL1Coerce(), twins, {
+            toPrimitive: [
+                ...[1, 'a', true, null, undefined, 1n, [], {}, (/** @type {unknown} */ x) => x].map(any => [{ any }, false]),
+            ],
+            toNumber: [
+                ...[1, '1', true, false, null, undefined, [], (/** @type {unknown} */ x) => x].map(any => [{ any }]),
+            ],
+            toNumeric: [
+                ...[1, 1n, '1', true, null, (/** @type {unknown} */ x) => x].map(any => [{ any }]),
+            ],
+            toString: [
+                ...[1, 'a', true, null, undefined, 1n, [], {}, (/** @type {unknown} */ x) => x].map(any => [{ any }]),
+            ],
+            call: [
+                [{ any: (/** @type {unknown} */ a, /** @type {unknown} */ b) => /** @type {number} */ (a) + /** @type {number} */ (b) }, { any: [2, 3] }],
+                [{ any: () => 'ok' }, { any: [] }],
+            ],
+        }, ['toPrimitive', 'toNumber', 'toNumeric', 'toString', 'call'])
+    },
 }

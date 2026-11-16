@@ -334,22 +334,25 @@ const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v
  * `any` is boxed
  * ([definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
  *
- * @type {(scope: _Scope, a: Term, b: Term) => Result<readonly [Term, Term], string>}
+ * @type {(scope: _Scope, a: Term, b: Term) => readonly [Term, Term]}
  */
 const aligned = (scope, a, b) => {
     // Skip arms that typeOf cannot place yet (a bare `next` of a loop still
     // open, a `return` outside its label): leave them for the checker.
     const ta = typeOf(scope.ir)(a)
     const tb = typeOf(scope.ir)(b)
-    if (ta[0] === 'error' || tb[0] === 'error') { return ok([a, b]) }
+    if (ta[0] === 'error' || tb[0] === 'error') { return [a, b] }
     const left = isAny(tb[1]) ? asAny(ta[1], a) : a
     const right = isAny(ta[1]) ? asAny(tb[1], b) : b
-    if (left === null || right === null) { return ok([a, b]) }
-    return ok([left, right])
+    if (left === null || right === null) { return [a, b] }
+    return [left, right]
 }
 
-/** @type {(t: Term) => boolean} */
-const isTransfer = t => t[0] === 'return' || t[0] === 'br' || t[0] === 'next' || t[0] === 'trap'
+/** A `br` (return or continue) or a trap: `aligned` cannot type those. @type {(t: Term) => boolean} */
+const isTransfer = t => t[0] === 'br' || t[0] === 'trap'
+
+/** A term's local name, or `fallback` where it is no `get`. @type {(t: Term, fallback: string) => string} */
+const localOf = (t, fallback) => t[0] === 'get' ? t[1] : fallback
 
 /** @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, c: Value, a: Block, b: Block, tail: _Tail) => Result<Term, string>} */
 const choice = (lowerValue, lowerBlock, scope, c, a, b, tail) => {
@@ -357,8 +360,8 @@ const choice = (lowerValue, lowerBlock, scope, c, a, b, tail) => {
     if (parts[0] === 'error') { return parts }
     const [, cond, x, y] = [null, parts[1][0], parts[1][1], parts[1][2]]
     if (isTransfer(x) || isTransfer(y)) { return ok(if_(cond, x, y)) }
-    const arms = aligned(scope, x, y)
-    return arms[0] === 'error' ? arms : ok(if_(cond, arms[1][0], arms[1][1]))
+    const [left, right] = aligned(scope, x, y)
+    return ok(if_(cond, left, right))
 }
 
 // loops and inlined functions
@@ -681,7 +684,7 @@ const fromUnitTerm = (scope, c) => {
     const t = typeOf(scope.ir)(c)
     if (t[0] === 'error') { return t }
     return !isFloat(t[1]) ? refuse(scope)(`fromUnit of ${show(t[1])} is not in this slice`)
-        : ok(exact(u(16), c, `${c[0] === 'get' ? c[1] : 'fromUnit'}.unit`, k => call('String', 'from_unit', [k])))
+        : ok(exact(u(16), c, `${localOf(c, 'fromUnit')}.unit`, k => call('String', 'from_unit', [k])))
 }
 
 /**
@@ -739,8 +742,9 @@ const viewTerm = (scope, name, args) => {
             if (at[0] !== 'sealed' || !(at[3] ?? kinds).includes('string')) { return no(`find of a key of ${show(at)}: find takes a string`) }
             // JavaScript reads the index as a number.
             return ok(float(as('object', y => {
+                const keyName = `${localOf(i, 'find')}.string`
                 const key = (at[3] ?? kinds).every(k => k === 'string') ? i
-                    : cast(only(any, 'string'), i, `${i[0] === 'get' ? i[1] : 'find'}.string`, k => k)
+                    : cast(only(any, 'string'), i, keyName, get(keyName))
                 return call('Containers', 'find', [y, key])
             })))
         }
@@ -1147,8 +1151,10 @@ const valueCall = (lowerValue, scope, callee, items) => {
             const aHeld = at[0] === 'sealed' ? at[3] ?? kinds : []
             if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
             if (!aHeld.includes('array')) { return no(`a spread of ${show(at)} is not in this slice: only an array's is`) }
-            const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, `${f[0] === 'get' ? f[1] : 'call'}.function`, x => x)
-            const arr = aHeld.every(k => k === 'array') ? args : cast(array, args, `${args[0] === 'get' ? args[1] : 'call'}.array`, x => x)
+            const fnName = `${localOf(f, 'call')}.function`
+            const arrName = `${localOf(args, 'call')}.array`
+            const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, fnName, get(fnName))
+            const arr = aHeld.every(k => k === 'array') ? args : cast(array, args, arrName, get(arrName))
             return ok(call('Functions', 'call', [fn, arr]))
         })
     }
@@ -1157,9 +1163,6 @@ const valueCall = (lowerValue, scope, callee, items) => {
         if (ft[0] === 'error') { return ft }
         const fHeld = ft[1][0] === 'sealed' ? ft[1][3] ?? kinds : []
         if (!fHeld.includes('function')) { return no(`a call of ${show(ft[1])} is not in this slice: only a function's is`) }
-        if (!s.ir.imports.some(([k]) => k === 'Containers')) {
-            return no('a call of a value builds its arguments with Containers, which a module lowered without the runtime does not import')
-        }
         const typed = okList(xs.map(x => typeOf(s.ir)(x)))
         if (typed[0] === 'error') { return typed }
         const boxed = okList(typed[1].map((t, i) => {
@@ -1167,7 +1170,8 @@ const valueCall = (lowerValue, scope, callee, items) => {
             return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
         }))
         if (boxed[0] === 'error') { return boxed }
-        const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, `${f[0] === 'get' ? f[1] : 'call'}.function`, x => x)
+        const fnName = `${localOf(f, 'call')}.function`
+        const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, fnName, get(fnName))
         const begun = call('Containers', 'begin_array', [n(BigInt(boxed[1].length))])
         const args = cast(array, call('Containers', 'seal', [boxed[1].reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'args', a => a)
         return ok(call('Functions', 'call', [fn, args]))
@@ -1304,8 +1308,8 @@ const value = (scope, v) => {
         case '?:': {
             const parts = values(value, scope, [v[1], v[2], v[3]])
             if (parts[0] === 'error') { return parts }
-            const arms = aligned(scope, parts[1][1], parts[1][2])
-            return arms[0] === 'error' ? arms : ok(if_(parts[1][0], arms[1][0], arms[1][1]))
+            const [left, right] = aligned(scope, parts[1][1], parts[1][2])
+            return ok(if_(parts[1][0], left, right))
         }
         case '()': { return callTerm(value, scope, v[1], v[2]) }
         case '-': {

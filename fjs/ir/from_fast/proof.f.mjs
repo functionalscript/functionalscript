@@ -1781,6 +1781,57 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // `find`: the index of a key of an object, or `-1`.
+        const findImport = "import { find } from '../l0/module.f.js'\n"
+        assertEq(irOver(only([['v', any], ['k', any]], f64), `${findImport}export const f = (v, k) => find(v, k)`), [
+            'fn f(v: any, k: any) -> f64 =',
+            '    float(',
+            '        match v',
+            '          object as v.object =>',
+            '            Containers.find(',
+            '                v.object,',
+            '                match k',
+            '                  string as k.string =>',
+            '                    k.string',
+            '                  else =>',
+            "                    trap('not string')",
+            '            )',
+            '          else =>',
+            "            trap('not object')",
+            '    )',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(irOver(only([['v', object], ['k', subset(any, 'string')]], f64), `${findImport}export const f = (v, k) => find(v, k)`), [
+            'fn f(v: any.only(object), k: any.only(string)) -> f64 =',
+            '    float(Containers.find(v, k))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(only([['v', subset(any, 'string')], ['k', subset(any, 'string')]], f64), `${findImport}export const f = (v, k) => find(v, k)`)), 'f: find of any.only(string): find takes an object')
+        assertEq(assertError(over(only([['v', object], ['k', f64]], f64), `${findImport}export const f = (v, k) => find(v, k)`)), 'f: find of a key of f64: find takes a string')
+        // `text` and `join` of the L0 view: Functions.text and Containers.join.
+        const textJoin = "import { join, text } from '../l0/module.f.js'\n"
+        assertEq(irOver(only([['v', any]], any), `${textJoin}export const f = v => text(v)`).includes('Functions.text'), true)
+        assertEq(irOver(only([['parts', array], ['sep', subset(any, 'string')]], subset(any, 'string')), `${textJoin}export const f = (parts, sep) => join(parts, sep)`).includes('Containers.join'), true)
+        // A call of a function value: positional args build an array; a lone spread passes one.
+        // Direct `v(…)` casts a wide callee; `asFunction(v)(…)` calls a function-only value.
+        const asFunctionImport = "import { asFunction } from '../l0/module.f.js'\n"
+        assertEq(irOver(only([['v', any], ['a', any]], any), 'export const f = (v, a) => v(a)').includes('Functions.call'), true)
+        assertEq(irOver(only([['v', any], ['xs', any]], any), 'export const f = (v, xs) => v(...xs)').includes('Functions.call'), true)
+        assertEq(irOver(only([['v', subset(any, 'function')], ['xs', array]], any), 'export const f = (v, xs) => v(...xs)').includes('Functions.call'), true)
+        assertEq(irOver(only([['v', any], ['a', any]], any), `${asFunctionImport}export const f = (v, a) => asFunction(v)(a)`).includes('Functions.call'), true)
+        assertEq(irOver(only([['v', any], ['xs', array]], any), `${asFunctionImport}export const f = (v, xs) => asFunction(v)(...xs)`).includes('Functions.call'), true)
+        assertEq(assertError(over(only([['v', any], ['a', any], ['xs', array]], any), `${asFunctionImport}export const f = (v, a, xs) => asFunction(v)(a, ...xs)`)), 'f: a spread among positional arguments is not in this slice')
+        assertEq(assertError(over(only([['v', any], ['xs', array], ['ys', array]], any), `${asFunctionImport}export const f = (v, xs, ys) => asFunction(v)(...xs, ...ys)`)), 'f: a spread among positional arguments is not in this slice')
+        assertEq(assertError(over(fa, 'export const f = a => a(a)')), "f: a call of f64 is not in this slice: only a function's is")
+        assertEq(assertError(over(only([['a', f64], ['xs', array]], any), 'export const f = (a, xs) => a(...xs)')), "f: a call of f64 is not in this slice: only a function's is")
+        assertEq(assertError(over(only([['v', any], ['xs', subset(any, 'string')]], any), 'export const f = (v, xs) => v(...xs)')), 'f: a spread of any.only(string) is not in this slice: only an array\'s is')
+        assertEq(assertError(over(only([['v', any], ['a', f64]], any), 'export const f = (v, a) => v(...a)')), 'f: a spread of f64 is not in this slice: only an array\'s is')
+        assertEq(assertError(over(only([['v', any], ['a', f64]], any), 'export const f = (v, a) => v({ a })')), 'f: an argument of a call is a value of any, and argument 0 is { a: f64 }')
+        assertEq(assertError(over(only([['v', any], ['a', any]], any), `${asFunctionImport}export const f = (v, a) => asFunction(v)(a)`, null)), 'f: an import of ../l0/module.f.js is not in this slice')
         // A number that is no float, and an operand of no kind that a function takes, are refused.
         assertEq(assertError(over(only([['v', any]], string), `${imports}export const f = v => fromUnit(v)`)), 'f: fromUnit of any is not in this slice')
         assertEq(assertError(over(only([['s', any], ['v', any]], string), `${imports}export const f = (s, v) => substring(s, v, v)`)), 'f: substring from any to any is not in this slice')

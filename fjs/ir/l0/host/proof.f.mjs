@@ -53,7 +53,7 @@ export const proof = {
         const j = over([['a', '', 'b'], ', '])
         assertEq(j.join(0n, 1n), 'a, , b')
     },
-    text: () => assertEq(h.text(8n), values[8].toString()),
+    text: () => assertEq(h.text(8n), values.at(8)?.toString()),
     // Where L0 traps, the import throws: a handle of no value, or a value of another kind.
     throw: {
         negative: () => { h.kind(-1n) },

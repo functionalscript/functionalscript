@@ -211,11 +211,11 @@ PRs as decided below.
   [definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
   has it; with them, numbers and booleans as items of an array literal.
   Float records stay products.
-- [ ] **9b1. `code` and `call_ref`** (#3922). The `code` type, the
+- [x] **9b1. `code` and `call_ref`** (#3922). The `code` type, the
   `code(f)` and `call_ref(c, …)` terms, the checker, the printer and the
   emitter (`ref.func` / `call_indirect` over a module table). Hand-written
   only.
-- [ ] **9b2. L0 `Functions.call` / `make_function`** (#3928). The interface rows and
+- [x] **9b2. L0 `Functions.call` / `make_function`** (#3928 / #3932). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
   `make_function` of an IR `code` waits for slice 11.
 - [ ] **9b3. Lowering and subjects** (this PR / #3929). `asFunction(f)(…)` as L0
