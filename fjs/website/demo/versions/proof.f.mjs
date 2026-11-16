@@ -215,8 +215,11 @@ export const proof = {
         // Repeated references are drawn once, distinct equal objects stay
         // distinct, and an equal sort order preserves the first encounter.
         referenceOrder: () => {
+            /** @type {object} */
             const root = {}
+            /** @type {object} */
             const shared = {}
+            /** @type {object} */
             const distinct = {}
             /** @type {Structure<object | null, object>} */
             const structure = {
