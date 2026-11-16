@@ -10,7 +10,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
 import { any, builder, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, never, next, only, own,
+    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, never, next, only, own,
     return_, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
@@ -170,6 +170,114 @@ export const proof = {
             '',
             'fn f(a: any.only(string)) -> unit =',
             '    g(Any.dup(a))',
+        ]),
+        // A `call_ref` of a `code` value is an indirect call; nothing is counted for the code itself.
+        callRef: () => golden({
+            imports: l0,
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call_ref(codeOf('sum'), [a, b]))],
+            ],
+            exports: ['f'],
+        }, [
+            'fn sum(a: f64, b: f64) -> f64 =',
+            '    add(a, b)',
+            '',
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    call_ref(code(sum), a, b)',
+        ]),
+        // A `call_ref` that answers never drops what the function owns first.
+        callRefNever: () => golden({
+            imports: l0,
+            functions: [
+                ['die', fn([], never, trap('die'))],
+                ['f', fn([own('v', any)], never, call_ref(codeOf('die'), []))],
+            ],
+            exports: ['f'],
+        }, [
+            'fn die() -> never =',
+            "    trap('die')",
+            '',
+            'fn f(own v: any) -> never =',
+            '    let $0 = Any.drop(v)',
+            '    call_ref(code(die))',
+        ]),
+        // A never `call_ref` keeps what it borrows; a non-value argument is bound first.
+        callRefNeverLends: () => golden(module_([own('v', any), ['a', string]], never, let_('t', concat(a, a), t => call_ref(codeOf('die'), [t])),
+            [['die', fn([['x', any]], never, x => throw_(x))]]), [
+            'fn die(x: any) -> never =',
+            '    Functions.throw(Any.dup(x))',
+            '',
+            'fn f(own v: any, a: any.only(string)) -> never =',
+            '    let t = String.concat(a, a)',
+            '    let $0 = Any.drop(v)',
+            '    call_ref(code(die), t)',
+        ]),
+        // A never `call_ref` whose argument is not a value binds it before the drops.
+        callRefNeverExpr: () => golden({
+            imports: l0,
+            functions: [
+                ['die', fn([['x', f64]], never, () => trap('die'))],
+                ['f', fn([own('v', any), ['a', f64]], never, (v, a) => call_ref(codeOf('die'), [add(a, a)]))],
+            ],
+            exports: ['f'],
+        }, [
+            'fn die(x: f64) -> never =',
+            "    trap('die')",
+            '',
+            'fn f(own v: any, a: f64) -> never =',
+            '    let $0 = add(a, a)',
+            '    let $1 = Any.drop(v)',
+            '    call_ref(code(die), $0)',
+        ]),
+        // A `call_ref` of a sealed borrow that is not already a value names that temporary.
+        callRefTemporary: () => golden(module_([['c', u(16)]], u(31), call_ref(codeOf('len'), [fromUnit(c)]),
+            [['len', fn([['s', string]], u(31), s => length(s))]]), [
+            'fn len(s: any.only(string)) -> u(31) =',
+            '    String.length(s)',
+            '',
+            'fn f(c: u(16)) -> u(31) =',
+            '    let $0 = String.from_unit(c)',
+            '    let $1 = call_ref(code(len), $0)',
+            '    let $2 = Any.drop($0)',
+            '    $1',
+        ]),
+        // A `call_ref` nested as a borrowed argument reads through `free`.
+        callRefNested: () => golden({
+            imports: l0,
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['id', fn([['x', f64]], f64, x => x)],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call('self', 'id', [call_ref(codeOf('sum'), [a, b])]))],
+            ],
+            exports: ['f'],
+        }, [
+            'fn sum(a: f64, b: f64) -> f64 =',
+            '    add(a, b)',
+            '',
+            'fn id(x: f64) -> f64 =',
+            '    x',
+            '',
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    id(call_ref(code(sum), a, b))',
+        ]),
+        // The callee is done before the arguments, so a trapping callee never runs an argument's effect.
+        callRefCalleeFirst: () => golden(module_([['c', u(16)]], u(31), call_ref(call('self', 'pick', [true_]), [fromUnit(c)]), [
+            ['len', fn([['s', string]], u(31), s => length(s))],
+            ['pick', fn([['b', bool]], code([['borrow', string]], u(31)), b => if_(b, trap('no'), codeOf('len')))],
+        ]), [
+            'fn len(s: any.only(string)) -> u(31) =',
+            '    String.length(s)',
+            '',
+            'fn pick(b: bool) -> code([any.only(string)], u(31)) =',
+            "    if b then trap('no') else code(len)",
+            '',
+            'fn f(c: u(16)) -> u(31) =',
+            '    let $0 = pick(true)',
+            '    let $1 = String.from_unit(c)',
+            '    let $2 = call_ref($0, $1)',
+            '    let $3 = Any.drop($1)',
+            '    $2',
         ]),
         // A match lends its operand to its arms, so the function drops it after the match's value.
         lends: () => golden(module_([own('v', any)], u(31), match(get('v'), [[['string'], 's', length(get('s'))], [null, null, lit(u(31), 0n)]])), [
@@ -584,6 +692,24 @@ export const proof = {
         loop: () => refused(module_([], f64, loop('L', [['r', res, open]], r => peek(r))), leftOver('r')),
         // A throw that would have to drop a value of a linear type.
         throwing: () => refused(module_([], never, let_('r', open, () => throw_(lit(string, 'no')))), leftOver('r')),
+        // A never `call_ref` that would have to drop a value of a linear type.
+        callRefThrowing: () => refused({
+            imports: [...l0, linear],
+            functions: [
+                ['die', fn([], never, trap('die'))],
+                ['f', fn([], never, let_('r', open, () => call_ref(codeOf('die'), [])))],
+            ],
+            exports: ['f'],
+        }, leftOver('r')),
+        // A `call_ref` that takes a linear field would have to copy it.
+        callRefField: () => refused({
+            imports: [...l0, linear],
+            functions: [
+                ['take', fn([own('r', res)], unit, r => close(r))],
+                ['f', fn([], unit, let_('r', open, r => let_('p', make([['x', r]]), p => call_ref(codeOf('take'), [field(p, 'x')]))))],
+            ],
+            exports: ['f'],
+        }, 'f: a copy of field x is needed, and res is linear: nothing copies it'),
         // A br that leaves before the call takes a linear value over would have to drop it.
         leaving: () => refused(module_([], unit, call('Lin', 'give', [open, away])), leftOver('$0')),
         // A refusal inside each kind of term reaches the function.

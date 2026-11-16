@@ -55,7 +55,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, CheckedFn, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { ArmOf, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
  * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
@@ -137,11 +137,11 @@ const unsealed = (env, t) => {
  * parameter's type and the result are types a module may write, an `own`
  * parameter only of a sealed type, and no parameter of type `never`.
  *
- * @type {(env: _Env, t: import('../types.ts').Code) => string | null}
+ * @type {(env: _Env, checkType: (env: _Env, t: Type) => string | null, t: Code) => string | null}
  */
-const uncode = (env, [, params, result]) => {
-    const resultOk = equal(result, unit) ? null : unsupported(env, result)
-    const why = [...params.map(([, x]) => unsupported(env, x)), resultOk].find(x => x !== null)
+const uncode = (env, checkType, [, params, result]) => {
+    const resultOk = equal(result, unit) ? null : checkType(env, result)
+    const why = [...params.map(([, x]) => checkType(env, x)), resultOk].find(x => x !== null)
     const unreachable = params.find(([, x]) => isNever(x))
     const unowned = params.find(([mode, x]) => mode === 'own' && x[0] !== 'sealed')
     return typeof why === 'string' ? why
@@ -161,7 +161,7 @@ const uncode = (env, [, params, result]) => {
 const unsupported = (env, t) =>
     t[0] === 'int' ? (t[1] > t[2] ? `${show(t)} is empty` : fits(64)(t) ? null : `${show(t)} needs more than one word`)
     : t[0] === 'sealed' ? unsealed(env, t)
-    : t[0] === 'code' ? uncode(env, t)
+    : t[0] === 'code' ? uncode(env, unsupported, t)
     : isFloat(t) || equal(t, bool) || isNever(t) ? null
     : `${show(t)} is not in this slice`
 
@@ -792,7 +792,6 @@ const uses = ([, t]) => {
     /** @type {readonly [readonly string[], readonly string[]]} */
     const own = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
         : t[0] === 'call' && t[1] === 'self' ? [[], [t[2]]]
-        : t[0] === 'code' ? [[], [t[1]]]
         : [[], []]
     return inside(t).reduce(([cs, fs], x) => {
         const [c, f] = uses(x)

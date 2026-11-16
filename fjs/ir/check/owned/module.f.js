@@ -208,33 +208,20 @@ const callTerm = (walk, env, alive, type, mode, module, name, args) => {
 }
 
 /**
- * A `call_ref`: each argument as the code type's parameter takes it, then
- * the code value borrowed, as a call of a named function does.
+ * A `call_ref`: its arguments and the code value, each borrowed, in their
+ * order. Own parameters of a code type wait for a later slice; this slice's
+ * hand-written modules borrow only.
  *
  * @type {(walk: _Walk, env: _Env, alive: readonly string[], type: Type, mode: _Mode, callee: Typed, args: readonly Typed[]) => Result<_Out, string>}
  */
 const callRefTerm = (walk, env, alive, type, mode, callee, args) => {
-    const of = callee[0]
-    if (of[0] !== 'code') { return no(env, `call_ref of ${of[0]}, which is no code`) }
-    const params = of[1]
     /** @type {readonly (readonly [Typed, _Mode])[]} */
-    const items = [...args.map((x, k) => /** @type {const} */ ([x, params[Number(k)][0] === 'own' ? 'take' : 'read'])), [callee, 'read']]
+    const items = [[callee, 'read'], ...args.map(x => /** @type {const} */ ([x, 'read']))]
     const r = sequence(walk, env, alive, items)
     if (r[0] === 'error') { return r }
-    const { owned: after, results, exits } = r[1]
-    const strand = stranded(items, results)
-    if (strand !== null) {
-        return no(env, `call_ref: argument ${strand[1]} may leave before the call takes argument ${strand[0]} over: bind it first`)
-    }
-    if (after === null) { return ok(out(null, plain, exits)) }
-    const lent = results.findIndex((v, k) => k < params.length && params[Number(k)][0] === 'own' && v[0] !== 'owned')
-    if (lent >= 0) {
-        const [, arg] = args[Number(lent)]
-        return no(env, arg[0] === 'get' ? `call_ref's argument ${lent}: ${arg[1]} is borrowed` : `call_ref's argument ${lent} is own, and its argument is borrowed`)
-    }
-    const gone = results.flatMap(v => minus(rootsOf(v), after))
-    return gone.length > 0 ? no(env, `call_ref borrows ${gone[0]}, which an argument of the call consumes`)
-        : !holds(type) ? ok(out(equal(type, never) ? null : after, plain, exits))
+    const { owned: after, exits } = r[1]
+    return after === null || equal(type, never) ? ok(out(null, plain, exits))
+        : !holds(type) ? ok(out(after, plain, exits))
         : mode === 'read' ? no(env, `call_ref answers an owned value that nothing takes over: bind it first`)
         : ok(out(after, owned, exits))
 }

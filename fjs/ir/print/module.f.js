@@ -38,7 +38,7 @@
  *
  * @module
  *
- * @import { ArmOf, Code, CodeParam, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
+ * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
  */
 
 import { encodeScalar } from '../../basen/base16/module.f.js'
@@ -65,12 +65,6 @@ const showParts = (show, parts) => parts.map(([name, t]) => `${name}: ${show(t)}
 /** A sealed type by its name, and the variants it keeps where it keeps some: `any`, `any.only(number)`. @type {(t: Sealed) => string} */
 const showSealed = ([, , name, only]) => only === null ? name : `${name}.only(${only.join(', ')})`
 
-/** A code parameter: `own any`, or `f64` when borrowed. @type {(p: CodeParam) => string} */
-const showCodeParam = ([mode, t]) => mode === 'own' ? `own ${show(t)}` : show(t)
-
-/** A code type: `code([f64, f64], f64)`. @type {(t: Code) => string} */
-const showCode = ([, params, result]) => `code([${params.map(showCodeParam).join(', ')}], ${show(result)})`
-
 /**
  * A type as text: `unit`, `never` and `bool` by their names, a product as
  * its fields in braces, a sealed type as its interface names it, a code
@@ -84,7 +78,10 @@ export const show = t => {
         case 'f64': case 'f64c': { return t[0] }
         case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(show, t[1])} }` }
         case 'sealed': { return showSealed(t) }
-        case 'code': { return showCode(t) }
+        case 'code': {
+            const params = t[1].map(([mode, x]) => mode === 'own' ? `own ${show(x)}` : show(x))
+            return `code([${params.join(', ')}], ${show(t[2])})`
+        }
         default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(show, t[1])} })` }
     }
 }

@@ -9,7 +9,8 @@
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { functions, wat } from '../../media/wasm/wat/module.f.js'
-import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, i, int, let_, lit, n, never, only, own, sealed, signature, throw_, u } from '../module.f.js'
+import { assert } from '../../asserts/module.f.js'
+import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, i, if_, int, let_, lit, n, never, only, own, sealed, signature, throw_, trap, true_, u } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0, string } from '../l0/module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
@@ -2166,8 +2167,11 @@ export const proof = {
         assertEq(m.tables[0].limits.min, 1)
         assertEq(m.tables[0].limits.max, 1)
         assertEq(m.elements.length, 1)
-        assertEq(m.elements[0].init[0], 'func')
-        assertEq(m.elements[0].init[1].join(','), '0')
+        {
+            const init = m.elements[0].init
+            assert(init[0] === 'func', init)
+            assertEq(init[1].join(','), '0')
+        }
         assertEq(functions(m)[0], [
             '  (func $sum (;0;) (type 0) (param $a f64) (param $b f64) (result f64)',
             '    local.get $a',
@@ -2178,9 +2182,12 @@ export const proof = {
         ].join('\n'))
         assertEq(functions(m)[1], [
             '  (func $apply (;1;) (type 1) (param $c i32) (param $a f64) (param $b f64) (result f64)',
+            '    (local $code i32)',
+            '    local.get $c',
+            '    local.set $code',
             '    local.get $a',
             '    local.get $b',
-            '    local.get $c',
+            '    local.get $code',
             '    call_indirect (type 0)',
             '  )',
             '',
@@ -2194,6 +2201,17 @@ export const proof = {
             '  )',
             '',
         ].join('\n'))
+        // The callee is evaluated and saved before the arguments, so a trap in it never runs them.
+        assertEq(body({
+            imports: [],
+            functions: [
+                ['f', fn([], f64, call_ref(call('self', 'pick', [true_]), [call('self', 'bump', []), lit(f64, 2)]))],
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['pick', fn([['b', bool]], bin, b => if_(b, trap('no'), codeOf('sum')))],
+                ['bump', fn([], f64, lit(f64, 1))],
+            ],
+            exports: [],
+        }), 'i32.const 1, call 2, local.set 0, call 3, f64.const 4611686018427387904, local.get 0, call_indirect 1 0')
     },
     sole: () => {
         const label = sealed('Label', 'label')

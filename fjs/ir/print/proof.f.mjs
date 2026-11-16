@@ -93,6 +93,43 @@ export const proof = {
     'export f',
     '',
     ].join('\n')),
+    // A `call_ref` whose argument needs lines of its own.
+    codeLines: () => assertEq(print({
+        imports: [],
+        functions: [
+            ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+            ['f', fn([], f64, call_ref(codeOf('sum'), [let_('x', lit(f64, 1), x => x), lit(f64, 2)]))],
+        ],
+        exports: [],
+    }), [
+    'fn sum(a: f64, b: f64) -> f64 =',
+    '    add(a, b)',
+    '',
+    'fn f() -> f64 =',
+    '    call_ref(',
+    '        code(sum),',
+    '        let x = 1.0 as f64',
+    '        x,',
+    '        2.0 as f64',
+    '    )',
+    '',
+    ].join('\n')),
+    // A `call_ref` nested in a flat application, so `flat` prints it on one line.
+    codeFlat: () => assertEq(print({
+        imports: [],
+        functions: [
+            ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+            ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => add(call_ref(codeOf('sum'), [a, b]), lit(f64, 0)))],
+        ],
+        exports: [],
+    }), [
+    'fn sum(a: f64, b: f64) -> f64 =',
+    '    add(a, b)',
+    '',
+    'fn f(a: f64, b: f64) -> f64 =',
+    '    add(call_ref(code(sum), a, b), 0.0 as f64)',
+    '',
+    ].join('\n')),
     // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is.
     trap: () => assertEq(print({
         imports: [],

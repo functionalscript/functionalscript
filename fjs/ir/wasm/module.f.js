@@ -141,17 +141,17 @@ const scalar = (interfaces, t) =>
     : t[0] === 'code' ? 'i32'
     : 'i32'
 
-/** The WASM type of a code value's call. @type {(interfaces: OrderedMap<Interface>, t: Code) => FuncType} */
-const codeType = (interfaces, [, params, result]) => ({
-    params: params.flatMap(([, x]) => carrier(interfaces, x)),
-    results: carrier(interfaces, result),
-})
-
 /** The locals that hold a value of `t`, named for the parts they hold. @type {(interfaces: OrderedMap<Interface>, name: string, t: Type) => _Code['locals']} */
 const localsOf = (interfaces, name, t) => scalars(name, t).map(([k, x]) => [k, scalar(interfaces, x)])
 
 /** The WASM values that hold a value of `t`, in their order. @type {(interfaces: OrderedMap<Interface>, t: Type) => readonly ValType[]} */
 const carrier = (interfaces, t) => localsOf(interfaces, '', t).map(([, x]) => x)
+
+/** The WASM type of a code value's call. @type {(interfaces: OrderedMap<Interface>, t: Code) => FuncType} */
+const codeType = (interfaces, [, params, result]) => ({
+    params: params.flatMap(([, x]) => carrier(interfaces, x)),
+    results: carrier(interfaces, result),
+})
 
 /** @type {(a: FuncType, b: FuncType) => boolean} */
 const same = (a, b) => equal(a.params, b.params) && equal(a.results, b.results)
@@ -501,9 +501,21 @@ const term = (env, [type, t]) => {
             assert(of[0] === 'code', of)
             const typeIndex = env.types.findIndex(x => same(x, codeType(env.interfaces, of)))
             assert(typeIndex >= 0, of)
+            // The checker and `terms` evaluate the callee first. Save its table index
+            // so the arguments' effects cannot run before it, then push the index last.
+            const before = sequence(term, env, [[callee, of]], [])
+            const slot = env.next + before.locals.length
             /** @type {readonly (readonly [Typed, Type])[]} */
-            const parts = [...args.map((x, k) => /** @type {const} */ ([x, of[1][Number(k)][1]])), [callee, of]]
-            return sequence(term, env, parts, [['call_indirect', typeIndex, 0], ...afterNever(type)])
+            const parts = args.map((x, k) => /** @type {const} */ ([x, of[1][Number(k)][1]]))
+            const rest = sequence(term, { ...env, next: slot + 1 }, parts, [
+                ['local.get', slot],
+                ['call_indirect', typeIndex, 0],
+                ...afterNever(type),
+            ])
+            return {
+                code: [...before.code, ['local.set', slot], ...rest.code],
+                locals: [...before.locals, /** @type {const} */ (['code', 'i32']), ...rest.locals],
+            }
         }
         case 'make': { return sequence(term, env, t[1].map(([, x]) => /** @type {const} */ ([x, x[0]])), []) }
         case 'field': { return fieldOf(term, env, type, t[1], t[2]) }
