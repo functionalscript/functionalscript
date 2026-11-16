@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.js'
-import { toFast } from '../../to_fast/module.f.mjs'
+import { toFast } from '../../to_fast/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
 import { requiredFunction, failed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
 import { _acrossLoop as acrossLoop } from '../normal_memo_members/proof.f.mjs'

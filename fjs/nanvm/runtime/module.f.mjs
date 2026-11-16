@@ -25,7 +25,7 @@ import { writeFiles } from '../../effects/node/module.f.js'
 import { runtimeSource } from '../../compiler/module.f.mjs'
 import { runtimeAt } from '../../compiler/transpiler/module.f.mjs'
 import { resolve } from '../../compiler/edag/module.f.mjs'
-import { generateRuntime } from '../../compiler/rust/runtime/module.f.mjs'
+import { generateRuntime } from '../../compiler/rust/runtime/module.f.js'
 import { _tryUnknownStringify } from '../../media/datajs/serializer/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 

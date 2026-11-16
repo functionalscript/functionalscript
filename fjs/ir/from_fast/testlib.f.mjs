@@ -18,7 +18,7 @@
 import { error, ok } from '../../types/result/module.f.js'
 import { tryUnresolved } from '../../compiler/edag/module.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
-import { toFast } from '../../edag/to_fast/module.f.mjs'
+import { toFast } from '../../edag/to_fast/module.f.js'
 import { any, array, container } from '../l0/module.f.js'
 import { bool, f64, i, int, only, signature, u } from '../module.f.js'
 

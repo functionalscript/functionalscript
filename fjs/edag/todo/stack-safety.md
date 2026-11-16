@@ -101,7 +101,7 @@ Two narrower versions of the same shape were already fixed for
 **operator chains** in `fjs/compiler/ast/module.f.js` (`refsOf`'s
 operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.mjs`
 (`lower`'s own), each with an explicit heap-allocated stack in place of
-recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.mjs`
+recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.js`
 already resolves a value's own operators. Those two fixes do not reach
 containers or function bodies: a nested container or function still
 recurses in the compiler before this walk is ever reached, which
@@ -110,7 +110,7 @@ This issue is the same fix, one layer further down, in code shared by
 every EDAG consumer rather than one compiler stage — a bigger, more
 central rewrite, out of Stage A's own scope.
 
-Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.mjs`'s
+Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.js`'s
 `bodyLines`, added by Stage A): at the time it called `analysis(root)` to
 find every operator node *before* it could report the clean refusal Stage
 A's PR description promised, so a chain of a few thousand terms crashed
@@ -133,7 +133,7 @@ parser resolves a body tens of thousands of functions deep — a capture
 through every one of them included — but the lowering recurses once per
 function ([deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md)),
 as does the Rust printer (`closure` → `statements` in
-[`../rust/module.f.mjs`](../rust/module.f.mjs)), so at `36c8d4a`
+[`../rust/module.f.js`](../rust/module.f.js)), so at `36c8d4a`
 `export default ${'() => '.repeat(20000)}1;` still overflows, with a
 capture or without one.
 
@@ -213,5 +213,5 @@ discovered one `RangeError` at a time.
   issue's.
 - [`spec/datajs/vectors/accept/data.f.js`](../../../spec/datajs/vectors/accept/data.f.js)
   — the DataJS accept vectors, whose deep graphs reach this crash.
-- [`../../compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) —
+- [`../../compiler/parser/module.f.js`](../../compiler/parser/module.f.js) —
   `evaluate`, whose `_Stack` is the same shape again, for the same reason.

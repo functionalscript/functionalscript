@@ -31,9 +31,12 @@
  * member, an `or`, `array`, `record` or `rest` is a node over what it
  * combines, and a built-in or a constant draws inline in its parent's port.
  * One sub-schema used in two places is one node with two incoming edges.
- * **A named thunk is a definition**: it is expanded once, with its name on
- * the node, wherever it is reached. Shared uses point to that definition;
- * recursive uses draw arrows back to it, routed around the graph.
+ * **A thunk is a definition**: it is expanded once, wherever it is reached.
+ * A schema's `names` metadata supplies display labels by thunk identity;
+ * unnamed thunks, including private helpers created during expansion, keep
+ * structural labels such as `or` rather than JavaScript function names.
+ * Shared uses point to that definition; recursive uses draw arrows back to
+ * it, routed around the graph.
  *
  * **One schema, many outputs.** Under the graph come the TypeScript type
  * `fjs/rtti/ts` prints, the JSON Schema `fjs/media/json/schema` converts it
@@ -56,7 +59,7 @@
  * value is written again with the member its error path reaches marked.
  *
  * **The machinery is a factory**, `schemaDemo` in
- * [`schema-demo`](./schema-demo/module.f.mjs), so a guide page's demo is the
+ * [`schema-demo`](./schema-demo/module.f.js), so a guide page's demo is the
  * same demo over that page's lessons alone.
  *
  * **It needs no operations.** Every part is a pure function of the state, so
@@ -70,8 +73,8 @@
 import { lessons as schemaLessons } from './guide/schemas/module.f.js'
 import { lessons as readerLessons } from './guide/readers/module.f.js'
 import { lessons as outputLessons } from './guide/outputs/module.f.js'
-import { lessons as inTheProject } from './guide/in-the-project/module.f.mjs'
-import { schemaDemo } from './schema-demo/module.f.mjs'
+import { lessons as inTheProject } from './guide/in-the-project/module.f.js'
+import { schemaDemo } from './schema-demo/module.f.js'
 
 /**
  * The lessons: schemas written to show one rule each, every one owned by the
@@ -86,7 +89,7 @@ export const lessons = [...schemaLessons, ...readerLessons, ...outputLessons]
 
 /**
  * Schemas the project uses, each owned by the page of the guide's
- * [`in-the-project`](./guide/in-the-project/module.f.mjs) area that names the
+ * [`in-the-project`](./guide/in-the-project/module.f.js) area that names the
  * modules declaring it, and imported from there. Each value is one the schema
  * accepts, so a reader starts from a working document and breaks it.
  *

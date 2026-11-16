@@ -150,7 +150,7 @@ Every README has a heading, so today's reader renders none of them.
 - [x] The page generator renders a directory's `README.md` at the top of
       its page, above its demo, when the reader accepts it, and shows the
       refusal with the file link when it does not
-      ([`readme`](../readme/module.f.mjs)). Rendered at build time.
+      ([`readme`](../readme/module.f.js)). Rendered at build time.
 - [x] Relative links resolved as above, and heading ids made as GitHub
       makes them, so a `#fragment` finds its heading.
 - [x] Fenced code blocks.

@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tokenizeString } from '../proof.f.mjs'
-import { parseSyntax } from './module.f.mjs'
+import { parseSyntax } from './module.f.js'
 
 /** @type {(source: string) => Node} */
 const expression = source => assertNotNullish(assertOk(parseSyntax(tokenizeString(`export default ${source};`))).exported).value

@@ -4,7 +4,7 @@
  * finds it").
  *
  * The module's `runtime` export is printed by the ordinary backend as any
- * module is ([`../module.f.mjs`](../module.f.mjs)'s `itemTagged`), a scope
+ * module is ([`../module.f.js`](../module.f.js)'s `itemTagged`), a scope
  * that evaluates, into `pub fn runtime<A: IStaticFunction>() ->
  * Result<Any<A>, Any<A>>`: the object of four functions, `static`,
  * `dot`, `in` and `Boolean`, which whoever runs compiled modules builds once and hands
@@ -51,7 +51,9 @@ import { generatedHeader } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.js'
 import { isNative } from '../../../js/static/module.f.js'
 import { isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f.js'
-import { itemTagged } from '../module.f.mjs'
+import { itemTagged } from '../module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /** Inspect a sequence's value without forgetting the required work before it. @type {(root: Exp) => _Sequenced} */
 const sequenced = root => {
@@ -64,28 +66,6 @@ const sequenced = root => {
         value = next === undefined ? ['undefined'] : next
     }
     return { prefix, value }
-}
-
-/**
- * A module-level node the `statics` table holds, resolved: a function,
- * which is a built-in; a native static the table lists as itself,
- * `Object.entries`, which is no built-in of the module's; or anything
- * else, which is no built-in. An import is read off its export object by a literal key,
- * `{ f }.f`, and folds to the property's value, resolved in turn.
- *
- * @type {(node: Exp) => _Resolved}
- */
-const resolve = root => {
-    const node = sequenced(root).value
-    if (!(node instanceof Array)) { return ['other', node] }
-    const [id, a, key] = /** @type {readonly any[]} */ (node)
-    if (id === '=>') { return ['function', node] }
-    if (isStatic(node) && isNative(staticPath(node[0]))) { return ['native', node] }
-    if (id === '.' && node.length === 3 && typeof key === 'string') {
-        const property = literalProperties(a)?.find(p => p[1] === key)
-        return property === undefined ? ['other', node] : resolve(/** @type {Exp} */ (property[2]))
-    }
-    return ['other', node]
 }
 
 /**
@@ -109,6 +89,28 @@ const literalProperties = root => {
     const properties = literalEntries(root)
     return properties === null ? null
         : properties.filter((p, i) => properties.findLastIndex(q => q[1] === p[1]) === i)
+}
+
+/**
+ * A module-level node the `statics` table holds, resolved: a function,
+ * which is a built-in; a native static the table lists as itself,
+ * `Object.entries`, which is no built-in of the module's; or anything
+ * else, which is no built-in. An import is read off its export object by a literal key,
+ * `{ f }.f`, and folds to the property's value, resolved in turn.
+ *
+ * @type {(node: Exp) => _Resolved}
+ */
+const resolve = root => {
+    const node = sequenced(root).value
+    if (!(node instanceof Array)) { return ['other', node] }
+    const [id, a, key] = /** @type {readonly any[]} */ (node)
+    if (id === '=>') { return ['function', node] }
+    if (isStatic(node) && isNative(staticPath(node[0]))) { return ['native', node] }
+    if (id === '.' && node.length === 3 && typeof key === 'string') {
+        const property = literalProperties(a)?.find(p => p[1] === key)
+        return property === undefined ? ['other', node] : resolve(/** @type {Exp} */ (property[2]))
+    }
+    return ['other', node]
 }
 
 /**
@@ -161,7 +163,7 @@ const table = root => {
         /** @type {Exp} */
         const value = [',', [...sequence.prefix, ...initializers, runtime[2]]]
         return twice === undefined ? ok({ builtIns: all, value })
-            : error(['a function two built-ins name; JavaScript keeps them apart', twice.name])
+            : error(['a function two built-ins name; JavaScript keeps them apart', entry(twice, 'name')])
     })(builtIns(statics[2]))
 }
 
@@ -176,7 +178,7 @@ const valueLines = ({ builtIns, value }) => {
     /** @type {(node: Exp) => string | undefined} */
     const text = node => {
         const named = builtIns.find(b => b.node === node)
-        return named === undefined ? undefined : nativeFunctionText(`${named.name.split('.').at(-1)}`)
+        return named === undefined ? undefined : nativeFunctionText(`${assertNotNullish(entry(named, 'name')).split('.').at(-1)}`)
     }
     return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }} */ { lines, uses, bound }) => ({
         lines: [
@@ -211,11 +213,11 @@ export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ secti
 
 /**
  * {@link generateRuntimeTagged} as plain text, with a refusal as text:
- * `[reason, detail]` pairs joined as `../module.f.mjs` joins its own.
+ * `[reason, detail]` pairs joined as `../module.f.js` joins its own.
  *
  * @type {(root: Exp) => Result<string, string>}
  */
 export const generateRuntime = root => {
     const result = generateRuntimeTagged(root)
-    return result[0] === 'ok' ? ok(untagged(result[1])) : error(result[1].map(String).join(': '))
+    return result[0] === 'ok' ? ok(untagged(result[1])) : error(result[1].map(value => String(value)).join(': '))
 }

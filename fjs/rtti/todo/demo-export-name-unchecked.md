@@ -8,8 +8,8 @@
 
 Each project schema in the demo is declared with its export's name as a
 string, beside the schema value itself, through `projectSchema` in
-[`../schema-demo/module.f.mjs`](../schema-demo/module.f.mjs), in each
-`sample.f.mjs` of the guide's
+[`../schema-demo/module.f.js`](../schema-demo/module.f.js), in each
+`sample.f.js` of the guide's
 [`in-the-project`](../guide/in-the-project/README.md) pages:
 
 ```js
@@ -50,7 +50,7 @@ the same slip, so it is no fallback.
 
 ### Related
 
-- [`../schema-demo/module.f.mjs`](../schema-demo/module.f.mjs) —
+- [`../schema-demo/module.f.js`](../schema-demo/module.f.js) —
   `projectSchema`; the [`in-the-project`](../guide/in-the-project/README.md)
   pages — the lists.
 - [Link a demo schema to its export](demo-link-to-schema-export.md) — the

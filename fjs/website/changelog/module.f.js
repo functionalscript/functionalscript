@@ -199,8 +199,8 @@ export const descending = versions => versions.toSorted((x, y) => versionCmp(y)(
  */
 export const releases = versions => descending(versions).map((version, i, all) => ({
     version,
-    previous: all[i + 1] ?? null,
-    next: all[i - 1] ?? null,
+    previous: all[Number(i + 1)] ?? null,
+    next: all[Number(i - 1)] ?? null,
 }))
 
 /**

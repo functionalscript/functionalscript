@@ -9,7 +9,7 @@ import { linkedHeading } from '../permalink/module.f.js'
 import { codeBlock } from '../demo/code/module.f.js'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { anchors, readmeName, readmeNodes, readmeSection, resolveHref, slug } from './module.f.mjs'
+import { anchors, readmeName, readmeNodes, readmeSection, resolveHref, slug } from './module.f.js'
 
 /** Pages for the root, `spec` and `spec/a`, and none for anything else. @type {(path: string) => boolean} */
 const isPage = path => path === '.' || path === 'spec' || path === 'spec/a'

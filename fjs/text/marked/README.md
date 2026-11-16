@@ -253,7 +253,7 @@ is a summary rather than code. How a demo's code blocks look is
 
 Some text has no producer behind it: an example a reader typed, or a
 JavaScript or JSON code fence in a `README.md` the site renders
-([`website/readme`](../../website/readme/module.f.mjs)). For that,
+([`website/readme`](../../website/readme/module.f.js)). For that,
 [`fjs/js/marked`](../../js/marked/module.f.js) finds the runs by tokenizing,
 with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)),
 and the website's `highlight(text)` draws them:

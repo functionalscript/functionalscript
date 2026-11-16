@@ -8,7 +8,7 @@
 `SourceBlock`, `SourceStatement` and `SourceExit` are defined in
 [`source.ts`](../source.ts), yet their nesting is re-enumerated by four
 functions. `hasTargetBreak` and `internalReturn` in
-[`fjs/compiler/parser`](../../../../compiler/parser/module.f.mjs) are the same
+[`fjs/compiler/parser`](../../../../compiler/parser/module.f.js) are the same
 explicit-stack loop differing only in the predicate (and `internalReturn`
 also descending `exit`):
 

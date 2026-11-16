@@ -5,11 +5,11 @@
  * [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
- * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits the graph, then
+ * [`fjs/edag/rust`](../../edag/rust/module.f.js) admits the graph, then
  * the shared EDAG-to-FAST conversion and preparation passes establish its
  * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.js)
  * spells that prepared program, through the same pipeline used by
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) for the operator corpus.
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.js) for the operator corpus.
  * What is specific to this module:
  * laying a module's scope out as the body of the
  * `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>` a
@@ -39,7 +39,7 @@
 
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.js'
-import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.js'
 import { useLinesTagged } from '../../rust/serializer/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.js'
@@ -68,7 +68,7 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  *
  * `text` is the text a caller gives a function node in place of the
  * writer's, where it gives one: the runtime's built-ins
- * ([`./runtime`](./runtime/module.f.mjs)), each the NativeFunction text of
+ * ([`./runtime`](./runtime/module.f.js)), each the NativeFunction text of
  * its path. `runtime` names the runtime value in the scope, a compiled
  * module's parameter, or is `null` for the runtime module itself, which
  * has none and may use nothing it defines.
@@ -91,7 +91,7 @@ const body = (root, text, runtime) => {
  * of the runtime value every compiled module takes — named `_runtime`
  * where the module reaches no built-in, so the parameter is the same and
  * `-D warnings` is kept — and the runtime module's own `runtime`
- * ([`./runtime`](./runtime/module.f.mjs)), `pub fn runtime<A: bound>()`,
+ * ([`./runtime`](./runtime/module.f.js)), `pub fn runtime<A: bound>()`,
  * with no parameter, since it is the value, and with the texts `text`
  * gives its built-ins. `runtime` is the parameter's name, or `null` for
  * none.
@@ -125,7 +125,7 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
  * refused through the same diagnostic channel.
  *
  * `pub fn module` carries `#[rustfmt::skip]` — the policy
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs)'s output gets once, on
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.js)'s output gets once, on
  * its `mod` declaration, which a compiled module has no hand-written
  * owner to carry: the layout is
  * the serializer's own — prepared declarations and expression regions,
@@ -166,14 +166,26 @@ export const generate = root => unwrap(generateResult(root))
 
 /**
  * The reason {@link generateResult} refused, as text. Every refusal
- * `scopeTagged` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
+ * `scopeTagged` reports (`fjs/edag/rust/module.f.js`) is a `[reason, detail]`
  * pair — `lookup`'s convention, kept by every refusal added since — never a
  * bare value, so joining the pair's own `String` forms is exact rather than
  * approximate.
  *
  * @type {(reason: readonly unknown[]) => string}
  */
-const reasonText = reason => reason.map(String).join(': ')
+const reasonText = reason => reason.map(value => String(value)).join(': ')
+
+/**
+ * The Rust module with token kinds still tagged in the text, or its refusal.
+ *
+ * @type {(root: Exp) => Result<string, string>}
+ */
+const toRustTagged = root => {
+    const result = generateTagged(root)
+    return result[0] === 'ok'
+        ? result
+        : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
+}
 
 /**
  * The EDAG as Rust, or the refusal: a node shape this printer has no
@@ -197,15 +209,3 @@ export const toRust = root => mapOk(untagged)(toRustTagged(root))
  * @type {(root: Exp) => Result<Marked, string>}
  */
 export const toRustMarked = root => mapOk(text => withNames(unwrap(fromTagged(text))))(toRustTagged(root))
-
-/**
- * The same, with its kinds still tagged in the text, and the refusal.
- *
- * @type {(root: Exp) => Result<string, string>}
- */
-const toRustTagged = root => {
-    const result = generateTagged(root)
-    return result[0] === 'ok'
-        ? result
-        : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
-}

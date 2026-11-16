@@ -6,7 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { normalizeLazyReturns, normalizeMemo } from './module.f.js'
 import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.mjs'

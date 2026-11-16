@@ -12,7 +12,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
-import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
+import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
 import { prepare, prepareFunction } from './module.f.js'
 import { functionStringify, stringify } from '../serializer/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'

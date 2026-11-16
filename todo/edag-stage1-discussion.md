@@ -1525,8 +1525,8 @@ record these implemented answers.
 
 The APIs have distinct contracts. `tryStringify` is a partial structural FJS
 source serializer. The JavaScript
-[value emitter](../fjs/compiler/serializer/value/module.f.mjs) and effectful
-[`toUnknown`](../fjs/edag/value/to_unknown/module.f.mjs) already construct
+[value emitter](../fjs/compiler/serializer/value/module.f.js) and effectful
+[`toUnknown`](../fjs/edag/value/to_unknown/module.f.js) already construct
 ordinary runtime values with captured sharing and EDAG reflection erased.
 Runtime compilation may emit JavaScript outside the current FJS grammar.
 General callable interchange, canonical hashing and exact representation

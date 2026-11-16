@@ -6,10 +6,10 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { parse } from '../../../compiler/source/module.f.mjs'
 import { tryUnresolved } from '../../../compiler/edag/module.f.mjs'
 import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
-import { toRust } from '../../../compiler/rust/module.f.mjs'
+import { toRust } from '../../../compiler/rust/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import { normalize } from './module.f.js'
 

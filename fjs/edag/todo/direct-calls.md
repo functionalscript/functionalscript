@@ -9,7 +9,7 @@ finds it")
 
 ### Problem
 
-The ordinary backend ([`../rust/module.f.mjs`](../rust/module.f.mjs))
+The ordinary backend ([`../rust/module.f.js`](../rust/module.f.js))
 prints a module-scope function another body calls — `found` in
 [`../../js/runtime`](../../js/runtime/module.f.js), which `startsWith`'s
 body calls — as a static function held in a slot, and the body that calls
@@ -36,7 +36,7 @@ reads that need one.
 
 ### Related
 
-- [`../rust/module.f.mjs`](../rust/module.f.mjs): the printer, and
+- [`../rust/module.f.js`](../rust/module.f.js): the printer, and
   `loopClosure` in it.
 - [`../../js/runtime/README.md`](../../js/runtime/README.md): how a
   compiled module and the runtime value reach each other.

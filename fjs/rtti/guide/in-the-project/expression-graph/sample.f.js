@@ -8,8 +8,8 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { projectSchema } from '../../../schema-demo/module.f.mjs'
-import { op1Id } from '../../../../edag/module.f.js'
+import { projectSchema } from '../../../schema-demo/module.f.js'
+import { exp, op1Id } from '../../../../edag/module.f.js'
 import { value as edagValue } from '../../../../edag/value/module.f.js'
 
 /** @type {readonly DemoExample[]} */
@@ -25,7 +25,7 @@ export const lessons = [
         id: 'evaluated-edag-value',
         name: 'Evaluated EDAG value',
         about: 'An evaluated value of the expression graph: data, and functions whose captures are values. Recursive. Read with validate, so a checked value keeps its identity and sharing.',
-        schemas: projectSchema('value', 'edag/value/module.f.js', edagValue),
+        schemas: projectSchema('value', 'edag/value/module.f.js', edagValue, [[edagValue, '_value'], [exp, '_exp']]),
         value: 'export default ["[]",[1,"a",["undefined"]]];',
     },
 ]

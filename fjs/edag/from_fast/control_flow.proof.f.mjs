@@ -7,7 +7,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { fromFast } from './module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'
-import { toData } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.js'
 
 /** Equal presentation indices deliberately retain distinct identities. @type {() => BindingId} */
 const id = () => ({ index: 0 })

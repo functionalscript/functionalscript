@@ -12,7 +12,7 @@ import { throws } from 'node:assert/strict'
 import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { toFast } from './module.f.mjs'
+import { toFast } from './module.f.js'
 import { _snapshotCases } from './proof.f.mjs'
 import { fromFast } from '../from_fast/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'

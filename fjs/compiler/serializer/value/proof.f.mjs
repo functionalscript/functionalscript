@@ -5,7 +5,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { factoryStringify, stringify } from './module.f.mjs'
+import { factoryStringify, stringify } from './module.f.js'
 
 export const proof = {
     factoryStringify: () => {

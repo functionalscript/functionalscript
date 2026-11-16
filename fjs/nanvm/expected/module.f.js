@@ -34,9 +34,9 @@
  * @import { Unknown } from '../../media/datajs/types.ts'
  */
 
-import { toRust } from '../../compiler/rust/module.f.mjs'
+import { toRust } from '../../compiler/rust/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { tryJsonStringify } from '../../media/datajs/serializer/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'

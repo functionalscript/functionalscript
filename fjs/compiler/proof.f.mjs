@@ -20,7 +20,7 @@ import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.js'
 import { memo } from '../edag/memo/module.f.mjs'
 import { read } from '../edag/value/property/module.f.js'
-import { toData, compileCommands } from '../edag/value/to_unknown/module.f.mjs'
+import { toData, compileCommands } from '../edag/value/to_unknown/module.f.js'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.js'
 import { bytes, difference } from '../media/datajs/vectors/module.f.js'
 import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.js'
@@ -1177,8 +1177,8 @@ export const proof = {
         },
     },
     // The `.rs` output: the linked EDAG printed as a generated Rust module
-    // against the `nanvm-lib` API, by `fjs/compiler/rust/module.f.mjs`'s shared
-    // printer — see `fjs/edag/rust/module.f.mjs`.
+    // against the `nanvm-lib` API, by `fjs/compiler/rust/module.f.js`'s shared
+    // printer — see `fjs/edag/rust/module.f.js`.
     rustOutput: {
         // Property access on an object literal, the same source the EDAG
         // and value outputs above compile, to a `pub fn module<A: IVm>(_runtime: Any<A>)`.

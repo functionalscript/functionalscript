@@ -26,7 +26,7 @@ import { vm, invoke } from '../edag/amnesia/module.f.mjs'
 import { call } from '../edag/value/call/module.f.js'
 import { read } from '../edag/value/property/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
-import { toData } from '../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../edag/value/to_unknown/module.f.js'
 import { ok } from '../types/result/module.f.js'
 import { validate } from '../rtti/validate/module.f.js'
 import {

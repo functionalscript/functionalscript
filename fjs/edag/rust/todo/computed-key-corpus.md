@@ -30,6 +30,6 @@ bindings are established in the group's `run`, outside individual case scopes.
 
 ### Related
 
-- [Rust admission adapter](../module.f.mjs) — `expExpr`, `scope`, `bindingLine`.
-- [Corpus generator](../../../nanvm/rust/module.f.mjs) — `caseText`, `groupFile`.
+- [Rust admission adapter](../module.f.js) — `expExpr`, `scope`, `bindingLine`.
+- [Corpus generator](../../../nanvm/rust/module.f.js) — `caseText`, `groupFile`.
 - [PR review](https://github.com/functionalscript/functionalscript/pull/2528#discussion_r4174133383).

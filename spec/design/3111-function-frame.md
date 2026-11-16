@@ -124,7 +124,7 @@ The named parameter and the conditional are in the language; `a` reaching
 mutual-recursion/slot sketches, not implemented source or permission to
 expose a complete `args` binding. Ordinary captures are implemented: the
 compiler's frame is described under [EDAG](../../fjs/compiler/README.md#edag), and
-[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs) prints it as the frame
+[`fjs/edag/rust`](../../fjs/edag/rust/module.f.js) prints it as the frame
 array a Rust closure is built with.
 
 This document's frame is the bytecode-interpreter design. The parallel AOT

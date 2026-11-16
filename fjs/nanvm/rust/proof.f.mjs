@@ -11,7 +11,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { callback, casesOf, data, functionValue, lambdaExp, ref, returns, throws, unreached, valueExp } from '../module.f.js'
-import { directory, fnName, generate, nodeExpr, rustName } from './module.f.mjs'
+import { directory, fnName, generate, nodeExpr, rustName } from './module.f.js'
 
 /** A value as the printer meets it: its lowering, printed. @type {(v: Value) => string} */
 const valueExpr = v => nodeExpr(valueExp(v))

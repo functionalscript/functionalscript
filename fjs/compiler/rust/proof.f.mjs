@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { generate, itemTagged, toRust } from './module.f.mjs'
+import { generate, itemTagged, toRust } from './module.f.js'
 import { toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'

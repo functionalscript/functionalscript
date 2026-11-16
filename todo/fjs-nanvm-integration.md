@@ -1841,7 +1841,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       The original literal/container walking skeleton has grown to include
       operators, calls and capturing functions; current coverage lives in
       the [parser](../fjs/compiler/parser/README.md),
-      [shared Rust printer](../fjs/edag/rust/module.f.mjs) and
+      [shared Rust printer](../fjs/edag/rust/module.f.js) and
       [harness fixtures](../nanvm/harness/fixtures).
 - [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
       selects a generated module's `default` property and prints that value

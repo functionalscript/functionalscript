@@ -8,8 +8,8 @@
 Two readers walk `fjs/media/markdown`'s `Inline` union, `text`, `code`,
 `strong`, `em`, `del`, `link` and `image` in
 [`types.ts`](../../media/markdown/types.ts), to `fjs/media/html` nodes:
-`spanNode` in [`changelog`](../changelog/module.f.mjs) and `node` inside
-`readmeNodes` in [`readme`](../readme/module.f.mjs).
+`spanNode` in [`changelog`](../changelog/module.f.js) and `node` inside
+`readmeNodes` in [`readme`](../readme/module.f.js).
 
 ```js
 // changelog: spanNode

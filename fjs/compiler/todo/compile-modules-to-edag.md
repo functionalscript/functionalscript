@@ -756,7 +756,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/compiler/transpiler/module.f.mjs`](../../compiler/transpiler/module.f.mjs) — loads imports
   recursively and interprets module EDAGs with represented import values. Runtime
   conversion occurs at the requested output boundary.
-- [`fjs/compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) — DJS parser that must support the
+- [`fjs/compiler/parser/module.f.js`](../../compiler/parser/module.f.js) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
 - [`fjs/media/datajs/serializer/module.f.js`](../../media/datajs/serializer/module.f.js)
   — the writer, where special-number handling lives.
@@ -772,7 +772,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/compiler/ast/module.f.js`](../../compiler/ast/module.f.js) — lowering and reachability helpers; the value evaluator is retired.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
-- [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — the
+- [`fjs/edag/rust/module.f.js`](../../edag/rust/module.f.js) — the
   Rust output of the `=>`/`()` shapes Stage 2 here lowers: a closure bound
   through `IStaticFunction`, and `Any::call`.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter

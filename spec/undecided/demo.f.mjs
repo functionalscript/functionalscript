@@ -36,7 +36,7 @@ import { compileAs, fetchFile, reportText } from '../../fjs/compiler/refused_dem
 import { loadedView } from '../../fjs/nanvm/demos/page/module.f.js'
 import { caption } from '../../fjs/website/demo/module.f.js'
 import { isTodoDir } from '../../fjs/website/module.f.mjs'
-import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.mjs'
+import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.js'
 import { codeMarker, registerRowMarker, resultMarker, undecidedMarker } from '../../fjs/website/style/module.f.js'
 import { samples } from './samples.f.js'
 

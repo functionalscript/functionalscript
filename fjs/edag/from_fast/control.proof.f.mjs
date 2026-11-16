@@ -8,7 +8,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { fromFast } from './module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'
-import { toData } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 /** @type {() => BindingId} */

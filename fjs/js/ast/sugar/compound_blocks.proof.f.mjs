@@ -5,7 +5,7 @@ import { parse } from '../../../compiler/source/module.f.mjs'
 import { unresolved } from '../../../compiler/edag/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 
 /** @param {string} source */
 const evaluate = source => memo(assertOk(analysis(unresolved(assertOk(parse('/compound-blocks.f.js')(source))).edag)))({ args: [] })

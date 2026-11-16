@@ -12,7 +12,7 @@ import { identityAnalysis } from '../../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../../edag/from_fast/module.f.js'
 import { invocationRootOf } from '../../../../edag/from_fast/loop/root/module.f.js'
 import { memo } from '../../../../edag/memo/module.f.mjs'
-import { toData } from '../../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../../edag/value/to_unknown/module.f.js'
 import { _recoverOnePassJoin } from './module.f.js'
 
 /** Equal debug indices preserve independent lexical identities. @type {() => BindingId} */

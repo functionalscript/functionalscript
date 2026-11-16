@@ -118,7 +118,7 @@ which is the reverse direction, over every actual binding.
 
 **The compiler is the generator.** The module is an authored `.f.js` the
 current compiler accepts, so `fjs compile` through the Rust backend
-([`edag/rust`](../../edag/rust/module.f.mjs)) is the runtime for Rust, and
+([`edag/rust`](../../edag/rust/module.f.js)) is the runtime for Rust, and
 another target's backend is the runtime for that target. No generator is
 written for this; the module adds `npm start compile` to the checks it calls
 for, as every authored `.f.js` does.

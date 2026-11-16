@@ -10,7 +10,7 @@ import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/mod
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { stringify } from './module.f.mjs'
+import { stringify } from './module.f.js'
 
 /** @type {(length: number) => Promise<any>} */
 const load = async length => {

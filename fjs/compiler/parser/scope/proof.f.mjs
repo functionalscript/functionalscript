@@ -11,7 +11,7 @@ import { at, empty, setReplace } from '../../../types/ordered_map/module.f.js'
 import {
     _completedTrace, _declared, _initialized, _isVariable, _moduleScope,
     _planOrigins, _regionScope, _restoredScope, _sourceBinding, _traced,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** A declaration token with a distinct diagnostic position. @type {(name: string, column: number) => ModuleTokenWithMetadata} */
 const token = (name, column) => ({ token: { kind: 'id', value: name }, metadata: { path: '/scope.f.js', line: 1, column }, newline: false })

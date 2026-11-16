@@ -28,7 +28,7 @@
 
 import { textDemo, refusal } from '../demo/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.js'
-import { entryNode, linked } from './module.f.mjs'
+import { entryNode, linked } from './module.f.js'
 
 /**
  * How many references the page shows, and how many of them this module

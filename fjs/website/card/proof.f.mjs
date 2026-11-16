@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { readmeSection } from '../readme/module.f.mjs'
+import { readmeSection } from '../readme/module.f.js'
 import { siteDescription, siteName } from '../page/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { cardContent, cardPage, cardPagePath, cardSize, cardsPath } from './module.f.js'

@@ -21,7 +21,7 @@ from GitHub, are schemas too:
 
 The demo on this page offers three schemas: a GitHub Actions workflow, the
 funding channels, and the open pull requests, each with a value it accepts.
-They are defined in [`sample.f.mjs`](./sample.f.mjs), and the
+They are defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
 ## Where it is implemented

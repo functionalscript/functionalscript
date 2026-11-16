@@ -17,7 +17,7 @@ consumers read the expression rather than each reading the case its own way.
 ```text
                               ┌─> proof.f.mjs ──────────────────────────> a JS engine
 module.f.js ──> an EDAG exp ─┤     (amnesia)
- (data + the     per case     └─> rust/module.f.mjs ──> gen.corpus/ ──────> nanvm-lib
+ (data + the     per case     └─> rust/module.f.js ──> gen.corpus/ ──────> nanvm-lib
   lowering)                          (print)             (generated)
 ```
 
@@ -30,7 +30,7 @@ module.f.js ──> an EDAG exp ─┤     (amnesia)
 | [`member/module.f.js`](member/module.f.js) | The member-function cases, one group per method, which `data` appends to the operator groups. A module of its own so that no one file outgrows the repository's 128 KiB file reader. |
 | [`constructors/module.f.js`](constructors/module.f.js) | The format's constructors, re-exported by `module.f.js`; apart so that `member/` can use them without an import cycle. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
-| [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
+| [`rust/module.f.js`](rust/module.f.js) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
 | [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
 | [`runtime/module.f.mjs`](runtime/module.f.mjs) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
 | [`corpus/module.f.js`](corpus/module.f.js) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
@@ -80,7 +80,7 @@ establishes a lazy operand only when the operator selects it, and the Rust
 printer prints one as the thunk `nanvm-lib`'s four methods take — an `impl
 FnOnce() -> Result<Any<A>, Any<A>>` they call at most once, here `||
 bigint_any(1) / bigint_any(0)`, the operation's own `Result`
-([`fjs/edag/rust`](../edag/rust/module.f.mjs), `lazy`).
+([`fjs/edag/rust`](../edag/rust/module.f.js), `lazy`).
 
 A **method group** is the one kind that is not an operator: `{ method: 'at',
 cases }` holds the cases of a built-in member function, and each case's `args`

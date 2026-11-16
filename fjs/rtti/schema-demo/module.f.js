@@ -25,7 +25,7 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Const, DemoExample, DemoGroup, DemoSchema, DemoState, Type, _Answer } from '../types.ts'
+ * @import { Const, DemoExample, DemoGroup, DemoSchema, DemoSchemaNames, DemoState, Type, _Answer } from '../types.ts'
  * @import { Marked, Run } from '../../text/marked/types.ts'
  */
 
@@ -52,7 +52,7 @@ import { highlight, render } from '../../website/demo/highlight/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { pageHref } from '../../website/page/module.f.js'
 import { chunksMarked, chunksText, keyword } from '../../text/marked/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry as ownEntry, hasEntry } from '../../types/object/entry/module.f.js'
 import { parent } from '../../path/module.f.js'
 
 // ── graph ────────────────────────────────────────────────────────────────────
@@ -106,29 +106,31 @@ const infoShape = name => info => {
 }
 
 /**
- * A thunk is what it returns, with its name on the node. Its identity shares
- * that definition across uses; a recursive use is a back edge to it.
- * Built-ins and primitive constants stay inline.
+ * A thunk is what it returns, with its explicitly supplied name on the node.
+ * Its identity shares that definition across uses; a recursive use is a back
+ * edge to it. Built-ins and primitive constants stay inline. Function `name`
+ * is not an FJS entry, so unnamed thunks use structural labels. This includes
+ * private helpers created during expansion, such as `lockValue`: their old
+ * JavaScript implementation names are no longer part of the diagram.
  *
- * @type {(t: Type) => Shape<Type>}
+ * @type {(names: DemoSchemaNames) => (t: Type) => Shape<Type>}
  */
-const shapeOf = t => {
-    const shape = typeof t !== 'function' ? constShape(t) : infoShape(t.name)(t())
+const shapeOf = names => t => {
+    const shape = typeof t !== 'function' ? constShape(t) : infoShape(names.find(([schema]) => schema === t)?.[1] ?? '')(t())
     return hasEntry(shape, 'children') ? { ...shape, recursive: true } : shape
 }
 
-const schemaGraph = graphOf(shapeOf)
-
 /**
- * `schema` as a graph, including the definitions of every reachable named
+ * `schema` as a graph, including the definitions of every reachable
  * schema. Each definition is drawn once; shared uses point to that node,
  * and recursive uses return inside their cyclic group. Returns to the same
  * definition share a trunk and entry. Hovering a shared segment traces all
- * contributing connections; a source port or keyboard focus traces one.
+ * contributing connections; a source port or keyboard focus traces one. Names
+ * are display metadata: distinct thunks may share a label without sharing a node.
  *
- * @type {(schema: Type) => Graph}
+ * @type {(schema: Type, names?: DemoSchemaNames) => Graph}
  */
-export const _graphOf = schema => ({ ...schemaGraph(schema), trace: true, centerColumns: true })
+export const _graphOf = (schema, names = []) => ({ ...graphOf(shapeOf(names))(schema), trace: true, centerColumns: true })
 
 // ── readers ──────────────────────────────────────────────────────────────────
 
@@ -169,9 +171,12 @@ const answerOf = r => r[0] === 'ok'
  * code runs, not a copy that could drift from it. `modulePath` is the full
  * module filename relative to `fjs/`, including its actual extension.
  *
- * @type {(name: string, modulePath: string, schema: Type) => readonly [DemoSchema]}
+ * Optional graph names identify stable schemas by value; the printed import
+ * name alone does not label a root that was constructed anonymously.
+ *
+ * @type {(name: string, modulePath: string, schema: Type, names?: DemoSchemaNames) => readonly [DemoSchema]}
  */
-export const projectSchema = (name, modulePath, schema) => [{ source: name, schema, module: `fjs/${modulePath}` }]
+export const projectSchema = (name, modulePath, schema, names = []) => [{ source: name, schema, names, module: `fjs/${modulePath}` }]
 
 /**
  * What `parse` and `validate` make of `text` against `schema`, and the value
@@ -249,7 +254,7 @@ export const _marked = path => value => {
     if (path.length === 0 || value === null || typeof value !== 'object') { return [['mark', boundedText(markLimit)(value)]] }
     const [step, ...rest] = path
     const key = String(step)
-    if (Object.getOwnPropertyDescriptor(value, key) === undefined) { return [['mark', boundedText(markLimit)(value)]] }
+    if (!hasEntry(value, key)) { return [['mark', boundedText(markLimit)(value)]] }
     /** @type {(k: string, v: Unknown) => readonly Node[]} */
     const member = (k, v) => k === key ? _marked(rest)(v) : [boundedText(besideLimit)(v)]
     /** @type {(nodes: readonly (readonly Node[])[]) => readonly Node[]} */
@@ -423,13 +428,16 @@ const valueView = (s, text) => {
 
 // ── the demo ─────────────────────────────────────────────────────────────────
 
+/** A demo record's own name field. @type {(value: RequiredMap<'name', string>) => string} */
+const requiredName = value => assertNotNullish(ownEntry(value, 'name'))
+
 /**
  * The key a schema is picked by in the comparison's drop-down: its example's
  * name and its place in the example.
  *
  * @type {(e: DemoExample, i: number) => string}
  */
-const schemaKey = (e, i) => `${e.name}#${i}`
+const schemaKey = (e, i) => `${requiredName(e)}#${i}`
 
 /**
  * What the shown schema is compared with when the reader picks example `e`
@@ -441,7 +449,7 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
 const exampleOption = (e, picked) =>
-    ['option', { ...option(e.name, e.name, e === picked)[1], 'data-example-id': e.id }, e.name]
+    ['option', { ...option(requiredName(e), requiredName(e), e === picked)[1], 'data-example-id': e.id }, requiredName(e)]
 
 /**
  * The state on picking `e`: its first schema, compared with its pair's other
@@ -449,7 +457,7 @@ const exampleOption = (e, picked) =>
  *
  * @type {(e: DemoExample) => DemoState}
  */
-const picking = e => ({ example: e.name, shown: 0, compare: partnerOf(e, 0), text: e.value })
+const picking = e => ({ example: requiredName(e), shown: 0, compare: partnerOf(e, 0), text: e.value })
 
 /**
  * The demo offering `groups`, each a label and its examples, in the order the
@@ -471,7 +479,7 @@ export const schemaDemo = groups => {
 
     /** @type {(name: string) => DemoExample} */
     const exampleOf = name => {
-        const found = examples.find(e => e.name === name)
+        const found = examples.find(e => requiredName(e) === name)
         if (found === undefined) { throw 'rtti demo: no example has this name' }
         return found
     }
@@ -516,7 +524,7 @@ export const schemaDemo = groups => {
         /** @type {(group: readonly DemoExample[]) => readonly Element[]} */
         const options = group => keyedSchemas
             .filter(([, e]) => group.includes(e))
-            .map(([k, e, x]) => compareOption(k, compare, e.schemas.length === 1 ? e.name : `${e.name}: ${x.source}`))
+            .map(([k, e, x]) => compareOption(k, compare, e.schemas.length === 1 ? requiredName(e) : `${requiredName(e)}: ${x.source}`))
         const c = compare === '' ? undefined : _compare(s.schema, schemaOf(compare).schema)
         return [
             selectField({ name: 'compare', label: 'Compare with' }, [
@@ -561,7 +569,7 @@ export const schemaDemo = groups => {
         restore: inputs => {
             // The restore boundary receives these finite, validated fields.
             const values = /** @type {RequiredMap<'example' | 'schema' | 'value' | 'compare', string>} */ (inputs)
-            return { example: assertNotNullish(examples.find(e => e.id === values.example)).name,
+            return { example: requiredName(assertNotNullish(examples.find(e => e.id === values.example))),
                 shown: values.schema === '0' ? 0 : 1, text: values.value,
                 compare: values.compare === '' ? '' : assertNotNullish(sharedSchemas.find(s => s.key === values.compare)).internal }
         },
@@ -571,13 +579,13 @@ export const schemaDemo = groups => {
         init: picking(start),
         update: state => event => pureOk(
             event.kind === 'input'
-                ? event.name === 'example'
+                ? requiredName(event) === 'example'
                     ? picking(exampleOf(event.value))
-                    : event.name === 'compare'
+                    : requiredName(event) === 'compare'
                         ? { ...state, compare: event.value }
                         : { ...state, text: event.value }
-                : event.kind === 'click' && (event.name === 'schema-0' || event.name === 'schema-1')
-                    ? showing(state, event.name === 'schema-0' ? 0 : 1)
+                : event.kind === 'click' && (requiredName(event) === 'schema-0' || requiredName(event) === 'schema-1')
+                    ? showing(state, requiredName(event) === 'schema-0' ? 0 : 1)
                     : state),
         view: ({ example, shown, compare, text }) => {
             const e = exampleOf(example)
@@ -590,7 +598,7 @@ export const schemaDemo = groups => {
                 ...pickerView(e),
                 ['p', e.about],
                 schemasView(e, shown),
-                graphSvg(_graphOf(s.schema)),
+                graphSvg(_graphOf(s.schema, s.names)),
                 ...outputsView(s),
                 ...compareView(s, compare),
                 ...valueView(s, text),

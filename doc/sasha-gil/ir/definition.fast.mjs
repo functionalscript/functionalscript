@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from '../../../fjs/compiler/transpiler/module.f.mjs'
 import { tryUnresolved } from '../../../fjs/compiler/edag/module.f.mjs'
 import { checked, identityAnalysis } from '../../../fjs/edag/analysis/module.f.js'
-import { fromAnalysis } from '../../../fjs/edag/to_fast/module.f.mjs'
+import { fromAnalysis } from '../../../fjs/edag/to_fast/module.f.js'
 
 const isFile = arg => arg.endsWith('.js') || arg.endsWith('.mjs')
 const args = process.argv.slice(2)

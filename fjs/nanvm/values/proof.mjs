@@ -7,7 +7,7 @@
 import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
+import { toUnknown } from '../../edag/value/to_unknown/module.f.js'
 import { javascriptOperationMap } from '../../edag/value/to_unknown/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { isObject } from '../../types/object/module.f.js'

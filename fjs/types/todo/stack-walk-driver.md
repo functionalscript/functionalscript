@@ -41,7 +41,7 @@ while (true) {
 }
 ```
 
-[`fjs/compiler/parser`](../../compiler/parser/module.f.mjs) has one of its
+[`fjs/compiler/parser`](../../compiler/parser/module.f.js) has one of its
 own, and [deep-nesting](../../ebnf/data/todo/deep-nesting.md) schedules the
 next,
 "over an explicit stack … the ll1 machine is the shape to follow" — a pattern

@@ -12,7 +12,7 @@
 
 import { identityAnalysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { generate as generateRust } from '../../compiler/rust/module.f.mjs'
+import { generate as generateRust } from '../../compiler/rust/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /**

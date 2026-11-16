@@ -228,7 +228,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             if (has(place)(once)) { repeated = add(place)(repeated) }
             else { once = add(place)(once) }
         }
-        const repeatedHere = all.filter(i => has(i)(repeated) && !isRead(a.nodes[Number(i)]))
+        const repeatedNodes = repeated
+        const repeatedHere = all.filter(i => has(i)(repeatedNodes) && !isRead(a.nodes[Number(i)]))
         // A value used only within one operand belongs to that operand's
         // region, after the preceding operands and their implicit work.
         const operands = node === null ? [] : node[0] === '=>' ? node[2] : operatorOperands(graphOperator(a, node))
@@ -295,7 +296,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                     // dependencies. A new snapshot must not rebind them to a
                     // declaration that follows their first demand.
                     const prior = reachable(a, ownOperandsOf, bound)(ordered.map(plan => plan.value))
-                    for (const j of eagerHere.filter(j => j < i && !owned.includes(j) && !bound.includes(j) && !prior.includes(j) && !isRead(a.nodes[Number(j)])).toSorted((x, y) => x - y)) {
+                    const priorOwned = owned
+                    for (const j of eagerHere.filter(j => j < i && !priorOwned.includes(j) && !bound.includes(j) && !prior.includes(j) && !isRead(a.nodes[Number(j)])).toSorted((x, y) => x - y)) {
                         if (!demandsInOrder(exp, [a.exps[Number(j)]], earlier)) { continue }
                         owned = [...owned, j]
                         required = [...required, j]
@@ -314,8 +316,10 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             }
             reached = [...reached, ...allHere]
         }
-        const lazy = owned.filter(i => !required.includes(i))
-        const available = [...bound, ...owned]
+        const regionOwned = owned
+        const regionRequired = required
+        const lazy = regionOwned.filter(i => !regionRequired.includes(i))
+        const available = [...bound, ...regionOwned]
         // Declarations precede their first use and follow their dependencies.
         // Initializers stay deferred; required work follows the actual roots.
         /** @type {readonly { binding: BindingId, value: Operand, own: number | null, mode: 'lazy' | 'required' }[]} */
@@ -327,7 +331,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                 ...plan.binding === null ? [] : [{ ...plan, binding: plan.binding, mode: /** @type {const} */ ('required') }]]
             placed = [...placed, ...needed, ...plan.own === null ? [] : [plan.own]]
         }
-        return gather(plans, (plan, _, next) => valueOf(localContext, [...bound, ...owned.filter(i => i !== plan.own)], plan.value, value => deliver(next, /** @type {Statement} */ (['define', plan.binding, value, plan.mode]))), statements => roots.length === 0
+        return gather(plans, (plan, _, next) => valueOf(localContext, [...bound, ...regionOwned.filter(i => i !== plan.own)], plan.value, value => deliver(next, /** @type {Statement} */ (['define', plan.binding, value, plan.mode]))), statements => roots.length === 0
             ? deliver(done, { statements, exit: ['yield', [undefined]] })
             : valueOf(localContext, available, roots[Number(roots.length - 1)], value => deliver(done, { statements, exit: ['yield', [value]] })))
     }
@@ -383,24 +387,19 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             })
         })
     }
-    /** @type {Block | null} */
-    let result = null
     /** Graph entries are in operand postorder, including nested function bodies. @type {(index: number, functions: Context['functions']) => Work} */
     const prepareFunctions = (index, functions) => () => {
         if (index === count) {
-            return region({ ...rootContext, functions, regions: [] }, external.map(([index]) => index), [a.root], block => {
-                result = terminal(block)
-                return null
-            })
+            return region({ ...rootContext, functions, regions: [] }, external.map(([index]) => index), [a.root], terminal)
         }
         return a.nodes[Number(index)][0] === '=>'
             ? functionBody(index, functions, body => prepareFunctions(index + 1, setReplace(String(index))(body)(functions)))
             : prepareFunctions(index + 1, functions)
     }
-    /** @type {Work | null} */
+    /** @type {Work | Block} */
     let work = prepareFunctions(0, null)
-    while (work !== null) { work = work() }
-    return assertNotNullish(/** @type {Block | null} */ (result), 'missing FAST conversion result')
+    while (typeof work === 'function') { work = work() }
+    return work
 }
 
 /** Validate separately supplied graph data once, then construct normalized FAST. @type {(root: Exp) => import('../../types/result/types.ts').Result<Block, string>} */

@@ -217,7 +217,7 @@ and the EDAG function stays well under it either way.
 2. **Grammar.** `parameterNames`' fixed target and a pattern's target take
    an optional `= value`. `=` follows a target nowhere else, so the grammar
    stays LL(1), which its proof checks.
-3. **Binding.** In [`parser`](../../fjs/compiler/parser/module.f.mjs)'s
+3. **Binding.** In [`parser`](../../fjs/compiler/parser/module.f.js)'s
    `functionScope`, the `length` stops at the first default; each
    parameter from it on is bound to its read of `['rest']`, and the
    source's rest parameter to the slice. Every parameter name is bound

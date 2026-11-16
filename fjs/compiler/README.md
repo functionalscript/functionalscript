@@ -145,7 +145,7 @@ documents unwrapped. The [transpiler proofs](./transpiler/proof.f.mjs) cover
 calls/operators, projection and unused initialization. The obsolete `Denotation`
 wrapper is removed.
 
-[`serializer/value`](./serializer/value/module.f.mjs) provides the code-generation
+[`serializer/value`](./serializer/value/module.f.js) provides the code-generation
 step for callable runtime compilation: `stringify(value)` emits a JavaScript
 module whose default export constructs a closed `EdagValue` as ordinary runtime
 data and functions. Evaluated captures may be primitive, repeated or unused;
@@ -154,7 +154,7 @@ memo semantics with fresh invocation-local allocations. The emitter trusts
 constructed values and reuses the function-body renderer. Its output promises
 runtime behavior, not a structural FJS source round trip. `factoryStringify`
 emits the same construction inside a default-exported factory, which the
-effectful [`toUnknown`](../edag/value/to_unknown/module.f.mjs) uses for runtime
+effectful [`toUnknown`](../edag/value/to_unknown/module.f.js) uses for runtime
 loading. Supply its [`javascriptOperationMap`](../edag/value/to_unknown/module.mjs)
 alongside read/resolve handlers to run `transpile` with callable exports.
 
@@ -248,7 +248,7 @@ A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
 — and was once the language's only operator. It is no part of the literal
 after it, so `-1` is the negation of `1` in the parser's tree, and the
 lowering folds that one case back into the leaf: negating a numeric literal
-is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.mjs)
+is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.js)
 prints it. A negation of anything else stays a node — folding one would mean
 saying what a container converts to. Code outputs retain that operation; value
 outputs interpret it, including container conversion and represented failures
@@ -279,7 +279,7 @@ wrapping a shared primary the ladder above negation once tried and
 retired, since `func`'s body is unbounded and a wrapped primary would leak
 the ladder's own follow set into it — `unary`, negation's own narrow
 operand, is every layer's operand instead, `./parser/README.md` has the
-argument. [`rust`](rust/module.f.mjs) already spelled every one of these
+argument. [`rust`](rust/module.f.js) already spelled every one of these
 EDAG nodes but `!==`, which this front end had no path to produce before —
 the front end is what was missing, not the code generator.
 
@@ -305,7 +305,7 @@ tokenizer refused; `typeof` is a keyword the tokenizer hands over as an
 `id`, so the grammar gives it a symbol of its own, as it gives `return` and
 `throw`, and since it opens a value it is the one such keyword `identifier`
 leaves out — a reference cannot be a reserved word anyway, and a key or a
-property name may still be one. [`rust`](rust/module.f.mjs) and both
+property name may still be one. [`rust`](rust/module.f.js) and both
 interpreters already answered both nodes; the front end was what was
 missing, as for `!==` above.
 

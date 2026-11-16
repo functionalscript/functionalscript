@@ -67,9 +67,9 @@ import { contains, empty as noPaths, set as addPath, values as paths } from '../
 import { toArray } from '../types/list/alt/module.f.js'
 import { catch_, import_, log } from '../effects/common/module.f.js'
 import { run as runInMemory } from '../effects/mock/module.f.js'
-import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
+import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.js'
 import { tryParse, tryParseBlocks } from '../media/markdown/module.f.js'
-import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
+import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.js'
 import { pageRefusal } from '../media/html/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
@@ -828,7 +828,7 @@ const writeCargoDocIndex = build => crates => {
 
 /**
  * A directory's `README.md` as the top of its page, or nothing where it has
- * none ([`./readme`](./readme/module.f.mjs)).
+ * none ([`./readme`](./readme/module.f.js)).
  *
  * **A README the reader refuses is a note on its page, not a failed build.**
  * A release file's author can rewrite an entry the reader refuses; a README

@@ -14,7 +14,7 @@ validation for the same data. Written by hand, those would be a second
 definition of the schema, free to drift from the first. The direct Rust backend
 and the planned AOT-compiled FJS interpreter do not need those native types.
 
-[`../rust/module.f.mjs`](../rust/module.f.mjs) does not close this: it prints
+[`../rust/module.f.js`](../rust/module.f.js) does not close this: it prints
 EDAG *values* as Rust expressions — the operator corpus and the `.rs` output
 of `fjs compile` — and generates no Rust *types* or validation from a schema.
 

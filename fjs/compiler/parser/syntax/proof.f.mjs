@@ -4,7 +4,7 @@
  * @import { Node, ParameterList } from './types.ts'
  */
 
-import { _baseOf, _primitiveOf, _toMember, parseSyntax } from './module.f.mjs'
+import { _baseOf, _primitiveOf, _toMember, parseSyntax } from './module.f.js'
 import { tokenizeString } from '../proof.f.mjs'
 import { _valueKinds } from '../grammar/module.f.js'
 import { fromEntries } from '../../../types/object/module.f.js'

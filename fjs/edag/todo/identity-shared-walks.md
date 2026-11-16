@@ -37,7 +37,7 @@ captures. `analysis.operandsOf` walks analyzed `Node` operands and includes
 captures followed by the body. A one-invocation query must stop at nested
 function bodies; whole-program capability queries may include them.
 
-The [EDAG-to-Rust adapter](../rust/module.f.mjs) still makes raw graph queries
+The [EDAG-to-Rust adapter](../rust/module.f.js) still makes raw graph queries
 for capability/import metadata and supplied invocation environments. It does
 not make binding-placement decisions. `compiler/rust` delegates common graph
 conversion and prepared emission through that adapter.

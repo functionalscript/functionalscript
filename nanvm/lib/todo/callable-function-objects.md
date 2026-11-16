@@ -484,7 +484,7 @@ positive-arity/full-arguments sketches rather than silently normalize them.
 **Default function text — implemented.** The Rust printer's `textExpr` uses
 the shared `tryFunctionText` renderer and passes the result as the fourth
 argument of `A::static_function`, `text: Option<&'static str>`
-([printer](../../../fjs/edag/rust/module.f.mjs),
+([printer](../../../fjs/edag/rust/module.f.js),
 [`IStaticFunction`](../src/vm/internal/istatic_function.rs)). Every instance
 of one function template shares that text. Captures appear as slot names,
 without rendering their values; a body reading `self` has a named function

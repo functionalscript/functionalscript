@@ -13,7 +13,7 @@ import { assertEq, assertError, assertOk, assertStructurallySame } from '../../.
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { prepare, prepareFunction } from './module.f.js'
 import { functionStringify, stringify } from '../serializer/module.f.js'
 

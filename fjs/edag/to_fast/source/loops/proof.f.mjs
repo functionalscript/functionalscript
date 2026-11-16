@@ -10,7 +10,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { parse } from '../../../../compiler/transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../../../compiler/edag/module.f.mjs'
 import { tryStringify } from '../../../../compiler/serializer/module.f.mjs'
-import { fromAnalysis, toFast } from '../../module.f.mjs'
+import { fromAnalysis, toFast } from '../../module.f.js'
 import { fromFast } from '../../../from_fast/module.f.js'
 import { identityAnalysis } from '../../../analysis/module.f.js'
 import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.mjs'

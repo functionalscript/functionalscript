@@ -3,9 +3,9 @@
 /** @import { Node } from './syntax/types.ts' */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.mjs'
-import { parseSyntax } from './syntax/module.f.mjs'
+import { parseSyntax } from './syntax/module.f.js'
 
 /** @type {(source: string) => Node} */
 const expression = source => assertNotNullish(assertOk(parseSyntax(tokenizeString('export default ' + source + ';'))).exported).value

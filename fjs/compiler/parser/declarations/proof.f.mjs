@@ -1,5 +1,5 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { parseSyntax } from '../syntax/module.f.mjs'
+import { parseSyntax } from '../syntax/module.f.js'
 import { tokenizeString } from '../proof.f.mjs'
 import { declarations } from './module.f.js'
 

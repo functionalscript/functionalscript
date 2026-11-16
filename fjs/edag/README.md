@@ -213,7 +213,7 @@ conversion. It does not save captured values or implement callable runtime
 compilation. Source serialization with `tryStringify` remains partial and
 requires every slot to survive its structural round trip.
 
-[`value/to_unknown`](value/to_unknown/module.f.mjs) exposes
+[`value/to_unknown`](value/to_unknown/module.f.js) exposes
 `toUnknown(value): Effect<CompileValue, unknown, IoChannel>`. Data-only graphs
 materialize without a host operation. Callable graphs request `compileValue`
 with a generated construction module, and a runner can provide the
@@ -230,7 +230,7 @@ wrapper also prevents asynchronous loading from interpreting a value's own
 callable `then` property. `toData` is the synchronous data-only converter; it
 continues to refuse functions for consumers that require data.
 
-[`compiler/serializer/value`](../compiler/serializer/value/module.f.mjs) emits
+[`compiler/serializer/value`](../compiler/serializer/value/module.f.js) emits
 closed value graphs as JavaScript modules, including executable functions with
 their evaluated captures. Its `stringify` API preserves shared data and function
 references under the JavaScript/memo profile; calls have fresh body allocations

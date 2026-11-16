@@ -3,7 +3,7 @@
  *
  * The data described here is the single source of truth for operator
  * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
- * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
+ * JavaScript engine, and [`rust/module.f.js`](./rust/module.f.js) prints it
  * as the Rust tests in `nanvm/lib/tests/test/gen.corpus/`.
  *
  * Canonical operation identity and operand contract come
@@ -142,7 +142,7 @@ export type Throws = Special<readonly ['throw']>
  * throws, which is only ever an `expected: throws` case written the long
  * way. Its use is the lazy positions — `&&`/`||`/`??`'s right operand and
  * either arm of `?:` — where the Rust printer prints it inside the thunk
- * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.mjs`,
+ * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.js`,
  * `lazy`). Not in {@link Data}'s `shared`, at any depth: a shared value is
  * established before any case on both sides, so `sharedExp` refuses one
  * holding this — the type admits it there only because {@link Struct} is

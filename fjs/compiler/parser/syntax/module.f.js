@@ -2,7 +2,7 @@
  * The syntax reader: the rewrite set that folds the tree of the grammar
  * in `../grammar` into a module record as the LL(1) backend builds it, and
  * {@link parseSyntax}, the reader over a token stream. What it builds is
- * the syntax tree, `./types.ts`; the fold in `../module.f.mjs` resolves
+ * the syntax tree, `./types.ts`; the fold in `../module.f.js` resolves
  * its names and makes the AST of it.
  *
  * ```text
@@ -265,7 +265,7 @@ const literalWordSet = fromValues(literalWords)
  * The word a name token spells. A framing keyword is an identifier too,
  * arriving as the same `id` token; each of the six words that denote a
  * value is a token kind of its own, and *is* its own word. Exported, with
- * {@link textOf}, for the fold in `../module.f.mjs`, which reads the words
+ * {@link textOf}, for the fold in `../module.f.js`, which reads the words
  * of the tokens the records here hold.
  *
  * @type {(t: ModuleTokenWithMetadata) => string}
@@ -1245,15 +1245,12 @@ const forAt = node => {
     const [first, , header, , block] = unmapped(node)
     const choice = unmapped(header)
     const [kind, branch] = choice
-    /** @type {For['initializer']} */
-    let declaration = null
-    /** @type {Ast<ForClassicTail, ModuleTokenWithMetadata, Out> | null} */
-    let classic = null
-    if (kind === 'empty') { classic = unmapped(branch)[1] }
+    /** @type {readonly [For['initializer'], Ast<ForClassicTail, ModuleTokenWithMetadata, Out>]} */
+    let clauses
+    if (kind === 'empty') { clauses = [null, unmapped(branch)[1]] }
     else if (kind === 'name') {
         const [initial, , tail] = unmapped(branch)
-        declaration = namedExpressionOf(unmapped(initial), true)
-        classic = tail
+        clauses = [namedExpressionOf(unmapped(initial), true), tail]
     } else {
         const [keyword, target, continuation] = forDeclarationOf(choice)
         const [form, following] = unmapped(continuation)
@@ -1262,14 +1259,13 @@ const forAt = node => {
                 iterable: nodeAt(unmapped(following)[1]), block: loopBlockOf(unmapped(block)) }]
         }
         if (form === 'uninitialized') {
-            declaration = ['let', { start: keyword, semicolon: true, target, value: null }]
-            classic = unmapped(following)[1]
+            clauses = [['let', { start: keyword, semicolon: true, target, value: null }], unmapped(following)[1]]
         } else {
             const [, value, , tail] = unmapped(following)
-            declaration = [kind, { start: keyword, semicolon: true, target, value: nodeAt(value) }]
-            classic = tail
+            clauses = [[kind, { start: keyword, semicolon: true, target, value: nodeAt(value) }], tail]
         }
     }
+    const [declaration, classic] = clauses
     const [condition, , step] = unmapped(classic)
     const test = unmapped(condition)[0]
     const update = unmapped(step)[0]
@@ -1323,6 +1319,25 @@ const toBodyNameStatement = ([name, rest, end]) => {
 }
 
 /**
+ * The record of a statement that is a keyword and a value — `return`,
+ * `throw`, `export default` — from `keyword value end`: it begins at the
+ * keyword, and the value's first token is kept for the line the fold asks
+ * of it after `return` and `throw`.
+ *
+ * @type {(node: Children<(typeof terminator)['return'], ModuleTokenWithMetadata, Out>) => ValueStatement}
+ */
+const valueStatementOf = ([keyword, v, end]) =>
+    ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
+
+/** Preserve the omitted operand of a written bare return.
+ * @type {(node: Children<(typeof terminator)['bareReturn'], ModuleTokenWithMetadata, Out>) => ReturnStatement}
+ */
+const bareReturnOf = ([keyword, end]) => {
+    const start = tokenAt(keyword)
+    return { start, semicolon: ended(end), first: null, value: null }
+}
+
+/**
  * A loop block's statement, tagged: a declaration, a conditional, a nested
  * loop, a switch, a loop or function exit, or what begins with a name.
  *
@@ -1345,25 +1360,6 @@ const toLoopStatement = ([kind, branch]) => {
     if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
     return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch)
         : kind === 'let' ? ['let', letAt(branch)] : ['const', constAt(branch)] })
-}
-
-/**
- * The record of a statement that is a keyword and a value — `return`,
- * `throw`, `export default` — from `keyword value end`: it begins at the
- * keyword, and the value's first token is kept for the line the fold asks
- * of it after `return` and `throw`.
- *
- * @type {(node: Children<(typeof terminator)['return'], ModuleTokenWithMetadata, Out>) => ValueStatement}
- */
-const valueStatementOf = ([keyword, v, end]) =>
-    ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
-
-/** Preserve the omitted operand of a written bare return.
- * @type {(node: Children<(typeof terminator)['bareReturn'], ModuleTokenWithMetadata, Out>) => ReturnStatement}
- */
-const bareReturnOf = ([keyword, end]) => {
-    const start = tokenAt(keyword)
-    return { start, semicolon: ended(end), first: null, value: null }
 }
 
 /** A member's record as the rewrite returns it, with the property it is where a binding is wanted. @type {(member: Member, target: BindingProperty) => Meta<Out>} */
@@ -1735,7 +1731,7 @@ const parseModule = parser(/** @type {Rule} */ (module), mappings, statementCont
  *
  * Its result has not passed binding, JavaScript early-error or
  * FunctionalScript admission checks, which are the fold's in
- * `../module.f.mjs`; callers compiling source use `parseFromTokens` there.
+ * `../module.f.js`; callers compiling source use `parseFromTokens` there.
  *
  * @type {(tokenList: List<ModuleTokenWithMetadata>) => Result<Module, ParseError>}
  */

@@ -35,7 +35,7 @@ conditional receivers; static string keys retain their typed literal spelling.
 `bindingTagged` spells a declaration under a caller-supplied name through the
 same declaration path as ordinary prepared bindings. The corpus supplies its
 named values through [common graph conversion](../../edag/to_fast/README.md),
-including values reached once. The [EDAG adapter](../../edag/rust/module.f.mjs)
+including values reached once. The [EDAG adapter](../../edag/rust/module.f.js)
 preserves their identities and dependencies. `External` entries associate
 already established binding identities with Rust expressions and optional
 import uses; the target does not rediscover those bindings.
@@ -66,8 +66,8 @@ binary, property-continuation and final-region trees, including regions with
 required definitions. This depth guarantee covers admitted prepared IR;
 separate raw graph admission retains its own domain.
 
-Function item wrappers belong to the [compiler](../../compiler/rust/module.f.mjs)
-and [corpus generator](../../nanvm/rust/module.f.mjs). Their precise
+Function item wrappers belong to the [compiler](../../compiler/rust/module.f.js)
+and [corpus generator](../../nanvm/rust/module.f.js). Their precise
 `clippy::if_same_then_else` allowance preserves condition evaluation when
 source arms happen to agree. Item formatting attributes also belong there;
 the serializer performs no branch simplification or temporary placement.

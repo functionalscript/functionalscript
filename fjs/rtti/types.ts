@@ -204,10 +204,15 @@ export type _MakeRest =
 export type _MakeOpen =
     <const C extends ConstObject>(c: C) => Rest<C, Unknown>
 
+/** Explicit graph labels for schema thunks, matched by identity rather than function names. */
+export type DemoSchemaNames = readonly (readonly [schema: Exclude<Type, Const>, label: string])[]
+
 /** One schema of a demo example: the source a reader sees, and the schema it builds. */
 export type DemoSchema = {
     readonly source: string
     readonly schema: Type
+    /** Thunks without a display name draw under their structural label, such as `or`. */
+    readonly names?: DemoSchemaNames
     /**
      * The full path of the module that declares the schema, for one the project
      * uses — `fjs/media/note/module.f.js` — or absent for one written for the demo.

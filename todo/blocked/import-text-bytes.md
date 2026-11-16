@@ -50,7 +50,7 @@ the type without a flag. Either type may land alone.
   is not parsed at all — and the proposal's own example imports `./LICENSE`,
   a file no extension rule recognizes. Follow what the engines settle on.
 - The parser reads the attribute's value as a word and knows `json`
-  ([`fjs/compiler/parser`](../../fjs/compiler/parser/module.f.mjs)); the readers
+  ([`fjs/compiler/parser`](../../fjs/compiler/parser/module.f.js)); the readers
   choose by the import's `json` flag
   ([`fjs/compiler/ast/types.ts`](../../fjs/compiler/ast/types.ts)). A new type is a
   new word there and a new reader in `fjs/compiler/transpiler` and

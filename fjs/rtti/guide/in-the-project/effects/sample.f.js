@@ -8,7 +8,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { projectSchema } from '../../../schema-demo/module.f.mjs'
+import { projectSchema } from '../../../schema-demo/module.f.js'
 import { dirent } from '../../../../effects/schema/module.f.js'
 
 /** @type {readonly DemoExample[]} */

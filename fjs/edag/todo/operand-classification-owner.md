@@ -20,7 +20,7 @@ have different uses:
 - [`sharing`](../sharing/module.f.js) queries linked `Exp` objects by identity.
 - [`operations`](../operations/module.f.mjs) implements reference evaluation and
   its operational operand-demand order.
-- [`to_fast`](../to_fast/module.f.mjs) classifies operands for common placement,
+- [`to_fast`](../to_fast/module.f.js) classifies operands for common placement,
   stopping at established bindings and respecting successful lazy paths.
 - [`js/ast`](../../js/ast/module.f.js) maps normalized value operands and chain
   metadata without choosing evaluation regions.

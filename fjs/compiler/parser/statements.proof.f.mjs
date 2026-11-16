@@ -14,7 +14,7 @@
  * API, which is the case that rule names outright.
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { expectModule, expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.js'

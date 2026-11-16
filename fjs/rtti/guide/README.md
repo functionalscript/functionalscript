@@ -19,7 +19,7 @@ A page is a directory, `guide/<area>/<page>/`, beside the modules rather than
 among them, so a concept directory is never mistaken for a module. It holds
 the `README.md`, a `sample.f.js` (or `sample.f.mjs` until it compiles) with the
 page's lessons, a `demo.f.mjs` that
-runs them through [`schemaDemo`](../schema-demo/module.f.mjs), and a
+runs them through [`schemaDemo`](../schema-demo/module.f.js), and a
 `proof.f.mjs` that checks the page's examples and the values its text invites
 the reader to type. Each area's `module.f.js` (or `module.f.mjs` until it
 compiles) lists its pages' lessons, and
@@ -28,7 +28,7 @@ the [module page's demo](../demo.f.mjs) offers them in a group per area.
 ## Contents
 
 `●` has a demo of its own, a lesson the page owns run through
-[`schemaDemo`](../schema-demo/module.f.mjs), the machinery behind the module
+[`schemaDemo`](../schema-demo/module.f.js), the machinery behind the module
 page's demo; `○` has none, and says why; `◌` is planned and has a
 `todo/`.
 

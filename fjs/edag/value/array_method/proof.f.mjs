@@ -6,7 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { error } from '../../../types/result/module.f.js'
 import { invoke } from '../../memo/module.f.mjs'
-import { toData } from '../to_unknown/module.f.mjs'
+import { toData } from '../to_unknown/module.f.js'
 import { arrayMethod } from './module.f.mjs'
 
 /** Literal fixtures are already evaluated, closed functions. @type {(length: number, body: Exp) => ValueFunction} */

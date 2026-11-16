@@ -11,14 +11,20 @@ It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into a `ResolvedModule`. Both layers use predictive grammars read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
-draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
+draw: [`./syntax`](./syntax/module.f.js) holds the rewrite set, which turns
 the grammar's tree into the syntax tree — a node per value, a record per
-statement — and `parseSyntax`, the reader over tokens; `./module.f.mjs` is
+statement — and `parseSyntax`, the reader over tokens; `./module.f.js` is
 the fold, which resolves the tree's names into the AST and refuses what only
 a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is in neither alphabet's stream for
 long: the tokenizer reads it and leaves it out, keeping of it the one fact a
 rule of the language asks, whether a newline stood before a token
 ([`fjs/compiler/tokenizer`](../tokenizer/module.f.js)).
+
+Pattern, parameter and loop continuations use `pattern`, `parameter` and
+`region` steps on the shared resolution worklist. `evaluateState` dispatches
+the next step after its handler returns, keeping helper dependencies acyclic
+and deeply nested source off the host call stack. The frames carry their
+original binding identities, scopes and evaluation order through each step.
 
 ## Resolved source bindings
 
@@ -504,7 +510,7 @@ the fold's:
 - the empty reference map, matched whole as well
   ([reference map](../../../spec/built-ins/reference-map/README.md)), by another means, since
   its body is some thirty lines where a helper's is two statements:
-  [`./ref_map`](./ref_map/module.f.mjs) holds the canonical body as source,
+  [`./ref_map`](./ref_map/module.f.js) holds the canonical body as source,
   parses it with this grammar, and a function is the map where its syntax
   tree is the canonical one once names and layout are taken out of both —
   each name read as the depth of what binds it, so any renaming of the
@@ -673,7 +679,7 @@ natural span. `export default <value>` is a span, not a point. The moment a
 formatter wants to underline a rule rather than a character, every token needs
 an end, and the change belongs in `JsTokenWithMetadata.metadata` rather than in
 more special cases beside `ErrorToken.end`. Nothing wants that yet:
-`errorLocation` in [`./module.f.mjs`](./module.f.mjs) renders the span
+`errorLocation` in [`./module.f.js`](./module.f.js) renders the span
 an error already carries and the point when there is none.
 
 ## What changed at the LL(1) port

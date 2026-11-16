@@ -324,10 +324,10 @@ export const readmeNodes = href => blocks => {
     const row = (cell, aligns) => cellsOf => {
         /** @type {readonly Element[]} */
         let read = []
-        for (const [k, spans] of cellsOf.entries()) {
+        for (const [k, spans] of cellsOf.map((spans, k) => /** @type {const} */ ([k, spans]))) {
             const n = nodes(spans)
             if (n[0] === 'error') { return n }
-            const align = aligns[k]
+            const align = aligns[Number(k)]
             read = [...read, align === null ? [cell, ...n[1]] : [cell, { align }, ...n[1]]]
         }
         return ok(['tr', ...read])
@@ -405,7 +405,7 @@ export const readmeNodes = href => blocks => {
             const n = nodes(b[0] === 'heading' ? b[2] : b[1])
             if (n[0] === 'error') { return n }
             if (b[0] === 'heading') {
-                out = [...out, linkedHeading(b[1], ids[heading], b[2].map(words).join(''), n[1])]
+                out = [...out, linkedHeading(b[1], ids[Number(heading)], b[2].map(words).join(''), n[1])]
                 heading += 1
                 continue
             }

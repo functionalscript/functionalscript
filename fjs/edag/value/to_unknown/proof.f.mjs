@@ -12,8 +12,8 @@ import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStruct
 import { notImplemented, runPure } from '../../../effects/module.f.js'
 import { partialRun, run } from '../../../effects/mock/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
-import { compileCommands, toData, toUnknown } from './module.f.mjs'
+import { factoryStringify } from '../../../compiler/serializer/value/module.f.js'
+import { compileCommands, toData, toUnknown } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 

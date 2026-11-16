@@ -9,7 +9,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { projectSchema } from '../../../schema-demo/module.f.mjs'
+import { projectSchema } from '../../../schema-demo/module.f.js'
 import { gitHubActionSchema } from '../../../../ci/common/module.f.js'
 import { jobTimeout } from '../../../../ci/config/module.f.js'
 import { fundingSchema } from '../../../../website/funding/module.f.js'

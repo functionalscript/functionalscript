@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/compiler/parser/syntax/module.f.mjs`: the syntax
+ * Type-level API for `fjs/compiler/parser/syntax/module.f.js`: the syntax
  * tree its rewrite set builds — a node per value, a record per statement,
  * a module of them — and the alphabet it returns them in, `Out`. The input
  * alphabet is the grammar's, in `../grammar/types.ts`, and the error a

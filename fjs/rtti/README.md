@@ -106,7 +106,7 @@ siblings there are single data structures and type-level helpers.
 - `demo.f.mjs` — the module page's demo: every guide page's lessons, then
   schemas the project itself uses, imported from the modules that declare
   them (its module comment describes each part)
-- `schema-demo/module.f.mjs` — the demo as a factory, `schemaDemo`, over the
+- `schema-demo/module.f.js` — the demo as a factory, `schemaDemo`, over the
   examples it offers: the module page's demo and every guide page's demo are
   this one function of their lessons
 

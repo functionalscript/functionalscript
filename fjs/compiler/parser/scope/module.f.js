@@ -14,7 +14,7 @@ import { concat, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { empty, setReplace } from '../../../types/ordered_map/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { nameOf } from '../syntax/module.f.mjs'
+import { nameOf } from '../syntax/module.f.js'
 
 /** Source identity is independent of the value its initialization computes. @type {(index: number) => BindingId} */
 export const _sourceBinding = index => ({ index })
@@ -32,10 +32,10 @@ export const _planOrigins = (plan, kind) => {
     let named = 0
     // Names follow their read indices, so each name and hidden read is visited once.
     for (let index = 0; index < plan.ids.length; index += 1) {
-        const entry = plan.names[named]
+        const entry = plan.names[Number(named)]
         const name = entry !== undefined && entry[1] === index ? entry[0] : undefined
         if (name !== undefined) { named += 1 }
-        origins = { first: { id: plan.ids[index], name: name === undefined ? null : nameOf(name), kind: name === undefined ? 'temporary' : kind, metadata: name?.metadata ?? plan.metadata }, tail: origins }
+        origins = { first: { id: plan.ids[Number(index)], name: name === undefined ? null : nameOf(name), kind: name === undefined ? 'temporary' : kind, metadata: name?.metadata ?? plan.metadata }, tail: origins }
     }
     return toArray(reverse(origins))
 }
@@ -49,7 +49,7 @@ export const _isVariable = kind => kind !== 'const'
 /** Initialize each expanded identity once; aliases retain separate source IDs. @type {(scope: _Scope, plan: _Plan) => _Scope} */
 export const _initialized = (scope, plan) => _traced({
     ...scope,
-    origins: plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[index])(origins), scope.origins),
+    origins: plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[Number(index)])(origins), scope.origins),
 }, plan.ids.map(id => ['initialize', id]))
 
 /** @type {() => _Scope} */

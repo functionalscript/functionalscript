@@ -11,8 +11,8 @@ import { completeTransfers } from './loop/completions/module.f.js'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'
-import { toFast } from '../to_fast/module.f.mjs'
-import { toData } from '../value/to_unknown/module.f.mjs'
+import { toFast } from '../to_fast/module.f.js'
+import { toData } from '../value/to_unknown/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

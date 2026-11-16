@@ -3,7 +3,7 @@ import { assert, assertEq, assertError, assertOk } from '../../../asserts/module
 import { fromTagged } from '../../../text/marked/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 import runtime from '../../../js/runtime/gen.edag.js'
-import { generateRuntime, generateRuntimeTagged } from './module.f.mjs'
+import { generateRuntime, generateRuntimeTagged } from './module.f.js'
 
 /** A function node: its length, slots and body. @type {(length: number, slots: readonly Exp[], body: Exp) => Exp} */
 const fn = (length, slots, body) => ['=>', length, slots, body]

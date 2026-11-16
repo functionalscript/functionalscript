@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
 import { tokenizeString } from '../proof.f.mjs'
-import { parseSyntax } from './module.f.mjs'
+import { parseSyntax } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     retainsTheArrayMemberCallAndOpeningToken: () => {

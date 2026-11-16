@@ -139,7 +139,7 @@ need their own [proposal](../compiler/todo/047-compiler-meta-programming.md).
 
 ## Runtime compilation
 
-[`toUnknown`](value/to_unknown/module.f.mjs) has type
+[`toUnknown`](value/to_unknown/module.f.js) has type
 `(value: EdagValue) => Effect<CompileValue, unknown, IoChannel>`. Here `unknown`
 means an ordinary FJS runtime value with reflection erased: primitives and
 containers become ordinary data, and represented functions become callables
@@ -166,7 +166,7 @@ handler for callable results. JSON/DataJS outputs use `toData` and their own
 representability rules: a valid function value can still be refused by a data
 output. Output refusals name the output; initialization failures name the source.
 
-The [JavaScript value emitter](../compiler/serializer/value/module.f.mjs)
+The [JavaScript value emitter](../compiler/serializer/value/module.f.js)
 provides `stringify` for a default-exported value and `factoryStringify` for
 a default-exported construction function. It accepts primitive, repeated and
 unused evaluated capture slots, preserving positions and allocation lifetimes.
@@ -174,7 +174,7 @@ It follows the JavaScript/memo profile and may emit JavaScript beyond the
 current FJS parser. The separate source writer's `tryStringify` preserves a
 structural source round trip and can refuse those captures.
 
-The existing [Rust emitter](../compiler/rust/module.f.mjs) accepts `EdagValue`
+The existing [Rust emitter](../compiler/rust/module.f.js) accepts `EdagValue`
 directly as an EDAG subset and emits native value construction and function
 bodies. Both backends preserve their supported result-graph profile:
 primitives, containers, nested captures, distinct closures, shared identity,
