@@ -368,6 +368,17 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   spells the call as `call_indirect`. Hand-written only; L0's `call` /
   `make_function` and the lowering wait for 9b2 and 9b3.
 
+## What 9b2 adds
+
+- **`Functions.call(f, args)`**: borrows a function value and a sealed
+  arguments array, answers the result owned, and may fail where the
+  function throws. The counting host calls existing JavaScript function
+  values (`any.only(function)`).
+- **`Functions.make_function`**: the interface row
+  ([L0 design §12](../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text));
+  a host that builds a function from an IR `code` waits for slice 11. This
+  host takes the owned frame and text and traps.
+
 ## What 8b adds
 
 - **`buildArray(n, s, next, at)` of the L0 view, lowered**
