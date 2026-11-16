@@ -9,7 +9,7 @@
 import { assertEq } from '../../../asserts/module.f.js'
 import { emptyModule, everything } from '../testlib.f.js'
 import { toText } from '../../../text/marked/module.f.js'
-import { functions, functionsMarked, wat } from './module.f.mjs'
+import { functions, functionsMarked, wat } from './module.f.js'
 
 /** `wasmprinter`'s text of `everything`. */
 const everythingWat = [

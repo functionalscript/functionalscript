@@ -49,8 +49,9 @@ export const samples = [
         [2, ['returned', '"30-40"']],
     ] },
     { name: 'static_functions', directory: 'spec/built-ins/static-functions', calls: [
-        [0, ['returned', '[false,true,false,[["0",2],["b",0]]]']],
-        [1.5, ['returned', '[false,false,true,[["0",2],["b",1.5]]]']],
+        [0, ['returned', '[false,true,false,[["0",2],["b",0]],0]']],
+        [1.5, ['returned', '[false,false,true,[["0",2],["b",1.5]],1.5]']],
+        [0.1, ['returned', '[false,false,true,[["0",2],["b",0.1]],0.10000000149011612]']],
     ] },
     { name: 'reference_map', directory: 'spec/built-ins/reference-map', calls: [
         [0, ['returned', '"an object"']],

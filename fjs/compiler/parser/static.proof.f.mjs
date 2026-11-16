@@ -223,6 +223,20 @@ export const proof = {
         expectModule('export default { Math: 1 }.Math;',
             exported('[".",["{}",[[":","Math",1]]],"Math"]'))
     },
+    mathFround: () => {
+        for (const source of ['Math.fround', 'Math["fround"]', '(Math.fround)']) {
+            expectModule(`export default ${source};`, exported('["Math.fround"]'))
+        }
+        expectModule('export default Math.fround(1.1);', exported('["()",["Math.fround"],[1.1]]'))
+        expectModule('export default Math["fround"]?.();', exported('["?.()",["Math.fround"],[]]'))
+        expectModule('const { fround: f, "fround": g, fround: { length } } = Math; export default [f, g, length];',
+            exported('["[]",[["Math.fround"],["Math.fround"],[".",["Math.fround"],"length"]]]'))
+        expectModule('const { fround } = Math; export default [fround === Math.fround, x => fround(x)];',
+            exported('["[]",[["===",["Math.fround"],["Math.fround"]],["=>",1,[["Math.fround"]],["()",["frame",0],[["arg",0]]]]]]'))
+        for (const source of ['Math?.fround', 'Math?.["fround"](1)', 'Number.fround', 'Object.fround']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+    },
     mathTrunc: () => {
         for (const source of ['Math.trunc', 'Math["trunc"]', '(Math.trunc)']) {
             expectModule(`export default ${source};`, exported('["Math.trunc"]'))

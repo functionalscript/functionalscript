@@ -29,7 +29,7 @@ export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.
 ```
 
 The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`,
-`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min`,
+`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min`, `Math.fround`,
 `Object.is`, `Object.entries`, `Object.keys`, `Object.values`, `Object.fromEntries`,
 `String.fromCharCode` and the four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
@@ -157,6 +157,20 @@ results are implementation-approximated, as ECMAScript specifies. The
 common runtime supplies the numerical body for the interpreter and Rust;
 WASM can compile that same body without an external math library.
 
+`Math.fround(x)` converts its first argument with `ToNumber` and rounds it
+to binary32 precision, returning an ordinary FJS number. Rounding is to the
+nearest representable value, with exact halfway cases choosing the even
+significand: `Math.fround(1 + 2 ** -24)` is `1`, while
+`Math.fround(1 + 3 * 2 ** -24)` is `1 + 2 ** -22`. Signed zero, NaN and
+infinities are preserved. Tiny negative values can round to negative zero;
+overflow produces the corresponding infinity. Subnormals are retained.
+An omitted argument produces NaN, bigint inputs and failed conversions throw,
+and extra arguments are evaluated but not converted. Its `length` is 1 and
+its text is `function fround() { [native code] }`. One FJS common-runtime body
+supplies the conversion and numeric operation for every backend; no native
+fround binding is added
+([admission](../../todo/2360-built-in.md#mathfround-proposal-and-approval)).
+
 Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
 read, so `Object.is === Object.is`. A value is a function, not an operator,
@@ -203,7 +217,7 @@ conversion already, is a namespace the same way, beside the call
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
 `Math` is reserved in the same way and admits `log2`, `trunc`, `floor`, `abs`,
-`sqrt`, `ceil`, `imul`, `max` and `min`.
+`sqrt`, `ceil`, `imul`, `max`, `min` and `fround`.
 `Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
 function, with `length` 1 and text `function log2() { [native code] }`.
 The word alone, namespace guards, computed keys and other `Math` members
@@ -219,9 +233,9 @@ for exact semantic cases, with separate numerical accuracy cases for
 `Math.log2`;
 every executor answers the node from it, and an executor with no binding
 for it fails, naming it, rather than answer. `Object.entries`,
-`String.fromCharCode` and the admitted `Math` functions other than `log2` are
+`String.fromCharCode` and the admitted `Math` functions other than `log2` and `fround` are
 native primitives; the others, `Object.keys`, `Object.values`, `Object.fromEntries` and
-`Math.log2` among them, have bodies. The native
+`Math.log2` and `Math.fround` among them, have bodies. The native
 primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
@@ -238,16 +252,16 @@ The compiler demo offers the programs `staticFunctions` in [`module.f.js`](../mo
 
 The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
 example as a function of one number — the static functions as values:
-`Object.is`, the `Number` predicates and `Object.entries` — with every
+`Object.is`, the `Number` predicates, `Object.entries` and `Math.fround` — with every
 output `fjs compile` makes of it: the expression graph (EDAG), the Rust and
 the WebAssembly that Rust builds to. Its Run button calls the default export
-with `0` and `1.5`, as JavaScript and as WebAssembly, and shows what each
+with `0`, `1.5` and `0.1`, as JavaScript and as WebAssembly, and shows what each
 call returned or threw.
 
 ```js
 const { is } = Object;
 const { isInteger } = Number;
-export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 })];
+export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 }), Math.fround(a[0])];
 ```
 
 ## Reference

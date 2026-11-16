@@ -703,21 +703,23 @@ export const proof = /** @type {const} */ ({
         // runtime, is the same failure
         assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['error', noStatic('Object.is')])
     },
-    // A logarithm static runs the body supplied by the runtime, including
+    // Shared Math statics run the body supplied by the runtime, including
     // its argument binding and metadata. This synthetic body returns its
     // arguments so the dispatch contract is independent of numerical tests.
-    mathLog2: () => {
-        /** @type {Runtime} */
-        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Math.log2', ['=>', 1, [], ['[]', [['arg', 0], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
-        assertStructurallySame(under(runtime, ['Math.log2']), ['ok', ['Math.log2']])
-        assertStructurallySame(under(runtime, ['()', ['Math.log2'], [8, 9]]), ['ok', ['[]', [8, ['Math.log2'], ['[]', [9]]]]])
-        assertStructurallySame(under(runtime, ['()', ['Math.log2'], []]), ['ok', ['[]', [['undefined'], ['Math.log2'], ['[]', []]]]])
-        assertStructurallySame(under(runtime, ['.', ['Math.log2'], 'length']), ['ok', 1])
-        assertStructurallySame(under(runtime, ['String', ['Math.log2']]), ['ok', 'function log2() { [native code] }'])
-        assertStructurallySame(under(runtime, ['===', ['Math.log2'], ['Math.log2']]), ['ok', true])
-        failure(['Math.log2'], noStatic('Math.log2'))
-        failure(['()', ['Math.log2'], [8]], noStatic('Math.log2'))
-        assertStructurallySame(under(['{}', []], ['Math.log2']), ['error', noStatic('Math.log2')])
+    mathCommon: () => {
+        for (const id of /** @type {const} */ (['Math.log2', 'Math.fround'])) {
+            /** @type {Runtime} */
+            const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', id, ['=>', 1, [], ['[]', [['arg', 0], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
+            assertStructurallySame(under(runtime, [id]), ['ok', [id]])
+            assertStructurallySame(under(runtime, ['()', [id], [8, 9]]), ['ok', ['[]', [8, [id], ['[]', [9]]]]])
+            assertStructurallySame(under(runtime, ['()', [id], []]), ['ok', ['[]', [['undefined'], [id], ['[]', []]]]])
+            assertStructurallySame(under(runtime, ['.', [id], 'length']), ['ok', 1])
+            assertStructurallySame(under(runtime, ['String', [id]]), ['ok', `function ${id.slice(5)}() { [native code] }`])
+            assertStructurallySame(under(runtime, ['===', [id], [id]]), ['ok', true])
+            failure([id], noStatic(id))
+            failure(['()', [id], [8]], noStatic(id))
+            assertStructurallySame(under(['{}', []], [id]), ['error', noStatic(id)])
+        }
     },
     // `Object.entries` is the dispatcher's own, with no runtime: a static
     // like every other, called natively on its first argument.

@@ -526,7 +526,10 @@ For `Math` admissions, the approved
 [target rule](../spec/todo/2360-built-in.md#mathlog2-proposal-and-approval)
 defines the native surface: use compatible native operations when both Rust
 and core WASM provide them; otherwise write the common body and use it in Rust
-too. WASM adds no third-party dependencies.
+too. `Math.fround` is an explicitly approved exception: its
+[admission](../spec/todo/2360-built-in.md#mathfround-proposal-and-approval)
+uses one FJS body on every backend, with native substitutions left for a
+separate change. WASM adds no third-party dependencies.
 
 1. **The source is complete and naive.** It expresses the semantics in the
    simplest correct form, allocating a closure or an object wherever the

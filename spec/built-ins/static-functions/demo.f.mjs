@@ -1,7 +1,7 @@
 /**
  * The example of [`README.md`](./README.md) (Built-in Static Functions) with every output
  * `fjs compile` makes of it, called as JavaScript and as WebAssembly with
- * `0` and `1.5`.
+ * `0`, `1.5` and `0.1`.
  *
  * @module
  */

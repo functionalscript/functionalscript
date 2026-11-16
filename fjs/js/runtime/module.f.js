@@ -183,6 +183,40 @@ const fromEntries = entries => {
  */
 const toNumber = value => /** @type {number} */ (value) - 0
 
+/**
+ * Round to binary32 precision, returning an ordinary number. The spacing
+ * is 2^-149 for subnormals and 2^(exponent-23) for normal values. Scaling
+ * by these powers of two is exact, leaving an integer and its discarded
+ * fraction to round with nearest, ties-to-even. The scaled integer fits
+ * in 24 bits, so `| 0` gives its floor without another runtime function.
+ * Apply the sign last to preserve negative underflow to zero.
+ *
+ * @type {(n: number) => number}
+ */
+const numberFround = n => {
+    if (n * 0 !== 0 || n === 0) { return n }
+    const negative = n < 0
+    const a = negative ? -n : n
+    // The midpoint above the largest finite binary32 value rounds to infinity.
+    if (a >= 2 ** 128 - 2 ** 103) { return negative ? -Infinity : Infinity }
+    let low = -126
+    let high = 128
+    while (high - low > 1) {
+        const mid = (low + high) >> 1
+        if (2 ** mid <= a) { low = mid } else { high = mid }
+    }
+    const step = 2 ** (low - 23)
+    const units = a / step
+    const lower = units | 0
+    const fraction = units - lower
+    const rounded = lower + (fraction > 0.5 || fraction === 0.5 && (lower & 1) !== 0 ? 1 : 0)
+    const magnitude = rounded * step
+    return negative ? -magnitude : magnitude
+}
+
+/** Math.fround: ToNumber once, then the shared numerical kernel. @type {(value?: unknown) => number} */
+const fround = value => numberFround(toNumber(value))
+
 /*
  * The logarithm polynomial and compensated combination follow OpenLibm's
  * src/e_log2.c and src/k_log.h (FreeBSD/fdlibm). Exact power-of-two scaling
@@ -373,6 +407,7 @@ export const statics = {
     'Number.isNaN': isNaN_,
     'Number.isFinite': isFinite_,
     'Math.log2': log2,
+    'Math.fround': fround,
     'Math.trunc': Math.trunc,
     'Math.floor': Math.floor,
     'Math.abs': Math.abs,

@@ -270,6 +270,7 @@ const handlers = {
     'Math.imul': o0,
     'Math.max': o0,
     'Math.min': o0,
+    'Math.fround': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,

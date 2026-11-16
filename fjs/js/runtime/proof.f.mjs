@@ -24,10 +24,11 @@ const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unkn
 
 /**
  * Statics with their own oracle proofs: structural results, entry-shaped
- * arguments, and a numerical approximation needing an accuracy bound.
+ * arguments, numerical rounding or approximation, and coercions that throw
+ * on some of the generic samples.
  * @type {readonly string[]}
  */
-const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2']
+const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2', 'Math.fround']
 
 /**
  * Correctly rounded log2 and the output's ULP, computed from the exact
@@ -319,6 +320,65 @@ export const proof = /** @type {const} */ ({
             assertEq(trunc({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 2)
             assertEq(trunc({ valueOf: () => ({}), toString: () => '-3.9' }), -3)
             assertEq(trunc(4.9, { valueOf: () => { throw 'unused' } }), 4)
+        },
+    },
+    fround: {
+        specialCases: () => {
+            const body = statics['Math.fround']
+            assert(body !== Math.fround)
+            assertEq(body.length, Math.fround.length)
+            assertEq(runtime.static('Math.fround'), body)
+            assert(Object.is(body(), NaN))
+            for (const value of [NaN, Infinity, -Infinity, 0, -0]) {
+                assert(Object.is(body(value), value), value)
+            }
+        },
+        rounding: () => {
+            for (const [value, expected] of [
+                [0.1, 0.10000000149011612],
+                [1 + 2 ** -24, 1],
+                [1 + 2 ** -24 - 2 ** -52, 1],
+                [1 + 2 ** -24 + 2 ** -52, 1 + 2 ** -23],
+                [1 + 3 * 2 ** -24, 1 + 2 ** -22],
+                [2 - 2 ** -24 - 2 ** -52, 2 - 2 ** -23],
+                [2 - 2 ** -24, 2],
+                [2 - 2 ** -24 + 2 ** -52, 2],
+                [0x100_0001, 0x100_0000], [0x100_0003, 0x100_0004],
+                [5e-324, 0],
+                [2 ** -150 - 2 ** -202, 0],
+                [2 ** -150, 0],
+                [2 ** -150 + 2 ** -202, 2 ** -149],
+                [3 * 2 ** -150, 2 ** -148],
+                [2 ** -126 - 2 ** -150 - 2 ** -179, 2 ** -126 - 2 ** -149],
+                [2 ** -126 - 2 ** -150, 2 ** -126],
+                [2 ** -126 - 2 ** -150 + 2 ** -179, 2 ** -126],
+                [2 ** 128 - 2 ** 103 - 2 ** 75, 2 ** 128 - 2 ** 104],
+                [2 ** 128 - 2 ** 103, Infinity],
+                [2 ** 128 - 2 ** 103 + 2 ** 75, Infinity],
+                [2 ** 128, Infinity], [1.7976931348623157e308, Infinity],
+            ]) {
+                assert(Object.is(statics['Math.fround'](value), expected), value)
+                assert(Object.is(statics['Math.fround'](-value), -expected), -value)
+            }
+        },
+        powersOfTwo: () => {
+            for (let exponent = -149; exponent <= 127; exponent = exponent + 1) {
+                const value = 2 ** exponent
+                assertEq(statics['Math.fround'](value), value, exponent)
+                assertEq(statics['Math.fround'](-value), -value, exponent)
+            }
+        },
+        conversion: () => {
+            const body = statics['Math.fround']
+            const { fround } = Math
+            for (const value of ['', ' -0 ', ' 0.1 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [0.1], [8n], [[-0.1]], {}, () => 1]) {
+                const expected = Math.fround(/** @type {number} */ (value))
+                assert(Object.is(body(value), expected), value)
+                assert(Object.is(fround(/** @type {number} */ (value)), expected), value)
+            }
+            assertEq(body({ valueOf: () => 0.1, toString: () => { throw 'unreached' } }), 0.10000000149011612)
+            assertEq(body({ valueOf: () => ({}), toString: () => '-0.1' }), -0.10000000149011612)
+            assertEq(table['Math.fround'](1, { valueOf: () => { throw 'unused' } }), 1)
         },
     },
     log2: {
@@ -790,6 +850,10 @@ export const proof = /** @type {const} */ ({
         truncBigintPrimitive: () => { table['Math.trunc']({ valueOf: () => 1n }, undefined) },
         truncConversion: () => { table['Math.trunc']({ valueOf: () => { throw 'conversion' } }, undefined) },
         truncNoPrimitive: () => { table['Math.trunc']({ valueOf: () => ({}), toString: () => [] }, undefined) },
+        froundBigint: () => { statics['Math.fround'](1n) },
+        froundBigintPrimitive: () => { statics['Math.fround']({ valueOf: () => 1n }) },
+        froundConversion: () => { statics['Math.fround']({ valueOf: () => { throw 'conversion' } }) },
+        froundNoPrimitive: () => { statics['Math.fround']({ valueOf: () => ({}), toString: () => [] }) },
         log2Bigint: () => { statics['Math.log2'](1n) },
         log2BigintPrimitive: () => { statics['Math.log2']({ valueOf: () => 1n }) },
         log2Conversion: () => { statics['Math.log2']({ valueOf: () => { throw 'conversion' } }) },
