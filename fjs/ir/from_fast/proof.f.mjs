@@ -741,6 +741,16 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A nested `?:` whose else continues: the outer else is no top-level `br`, so
+        // `aligned` skips typing it under `scope.ir` (no loop label yet).
+        assertEq(ir(fa, fast('export const f = a => a < 0 ? a : a === 0 ? 0 : f(a - 1)')), [
+            'fn f(a: f64) -> f64 =',
+            '    loop L0 (#0: f64 = a)',
+            '        if lt(#0, 0.0) then #0 else if eq(#0, 0.0) then 0.0 else br L0 { #0: sub(#0, 1.0) }',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // Normalized FAST keeps the variables of a loop of more than one in an array, which Containers builds.
         assertEq(why(fa, fast([
             'export const f = a => {',

@@ -337,18 +337,30 @@ const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v
  * @type {(scope: _Scope, a: Term, b: Term) => readonly [Term, Term]}
  */
 const aligned = (scope, a, b) => {
-    // Transfer arms (`br` / `trap`) never reach here; every other arm that
-    // the lowering made is typed under `scope.ir`.
-    const ta = assertOk(typeOf(scope.ir)(a))
-    const tb = assertOk(typeOf(scope.ir)(b))
-    const left = isAny(tb) ? asAny(ta, a) : a
-    const right = isAny(ta) ? asAny(tb, b) : b
+    // Skip an arm that typeOf cannot place yet under `scope.ir` (a nested
+    // `br` to a loop label inside a non-transfer arm, as in a chain of
+    // `if`s that ends in continue): leave it for the checker.
+    const ta = typeOf(scope.ir)(a)
+    const tb = typeOf(scope.ir)(b)
+    if (ta[0] === 'error' || tb[0] === 'error') { return [a, b] }
+    const left = isAny(tb[1]) ? asAny(ta[1], a) : a
+    const right = isAny(ta[1]) ? asAny(tb[1], b) : b
     if (left === null || right === null) { return [a, b] }
     return [left, right]
 }
 
-/** A `br` (return or continue) or a trap: `aligned` cannot type those. @type {(t: Term) => boolean} */
-const isTransfer = t => t[0] === 'br' || t[0] === 'trap'
+/**
+ * A `br` / `trap`, or `let`s whose body is one: `aligned` cannot type those
+ * under `scope.ir`, which has no loop labels. Statements before a continue
+ * wrap the `br` in `let`s.
+ *
+ * @type {(t: Term) => boolean}
+ */
+const isTransfer = t => {
+    let x = t
+    while (x[0] === 'let') { x = x[3] }
+    return x[0] === 'br' || x[0] === 'trap'
+}
 
 /** A term's local name, or `fallback` where it is no `get`. @type {(t: Term, fallback: string) => string} */
 const localOf = (t, fallback) => t[0] === 'get' ? t[1] : fallback
