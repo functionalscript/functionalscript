@@ -52,6 +52,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
 import { entry as ownEntry, hasEntry } from '../../../types/object/entry/module.f.js'
+import { fromValues, has as setHas } from '../../../types/set/module.f.js'
 import {
     arrayExpressionStatement, arrayStatementValue, statementContinuations, definitions, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
@@ -245,10 +246,8 @@ const moduleAt = node => outOf('module', node).module
  * ECMAScript `IdentifierName`, which admits every reserved word — and
  * the fold then refuses them where a *binding* is wanted, as it refuses
  * every other keyword.
- *
- * @type {ReadonlySet<string>}
  */
-const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
+const literalWordSet = fromValues(literalWords)
 
 /**
  * The word a name token spells. A framing keyword is an identifier too,
@@ -261,7 +260,7 @@ const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
  */
 export const nameOf = ({ token }) => {
     if (token.kind === 'id') { return token.value }
-    assert(literalWordSet.has(token.kind), token.kind)
+    assert(setHas(token.kind)(literalWordSet), token.kind)
     return token.kind
 }
 

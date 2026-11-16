@@ -16,7 +16,7 @@ import { nodeCommands, readUtf8File } from '../../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { open } from './module.f.mjs'
+import { open } from './module.f.js'
 
 /** @type {NodeProgramOptions} */
 const options = { ...defaultNodeProgramOptions, home: '/home' }

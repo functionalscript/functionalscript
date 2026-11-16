@@ -45,6 +45,8 @@ import { intersperse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { priorities, statuses } from '../issue/module.f.js'
 import { origin } from '../origin/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -272,9 +274,12 @@ const report = ['div', { 'data-test-results': '' }]
  */
 export const subtree = dir => all => {
     const prefix = dir === '.' ? '' : `${dir}/`
-    return all.flatMap(proof => proof.name.startsWith(prefix)
-        ? [{ name: `./${proof.name.slice(prefix.length)}`, blockers: proof.blockers }]
-        : [])
+    return all.flatMap(proof => {
+        const name = assertNotNullish(entry(proof, 'name'))
+        return name.startsWith(prefix)
+            ? [{ name: `./${name.slice(prefix.length)}`, blockers: proof.blockers }]
+            : []
+    })
 }
 
 /**
@@ -325,8 +330,8 @@ document.querySelector('[data-test-run]').addEventListener(
  * @type {(proof: Proof) => Element}
  */
 const proofItem = proof => proof.blockers.length === 0
-    ? ['li', { 'data-source': proof.name }, proof.name]
-    : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
+    ? ['li', { 'data-source': assertNotNullish(entry(proof, 'name')) }, assertNotNullish(entry(proof, 'name'))]
+    : ['li', { 'data-blocked': '' }, `${entry(proof, 'name')} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
  * A section's title: the `summary` a reader folds the section by, holding
@@ -471,7 +476,7 @@ export const testSection = dir => intro => {
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
-        runner(linkable.map(proof => proof.name)),
+        runner(linkable.map(proof => assertNotNullish(entry(proof, 'name')))),
     ])
 }
 
@@ -592,10 +597,14 @@ const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, t
  *
  * @type {(href: string) => (issue: Issue) => Element}
  */
-export const issueItem = href => ({ name, status, priority }) => ['li',
-    ['span', { 'data-priority': priority }, priority],
-    ' ',
-    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+export const issueItem = href => issue => {
+    const name = assertNotNullish(entry(issue, 'name'))
+    const { status, priority } = issue
+    return ['li',
+        ['span', { 'data-priority': priority }, priority],
+        ' ',
+        ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+}
 
 /**
  * The order a directory lists its issues in: by priority, most urgent first,
@@ -611,7 +620,7 @@ export const issueOrder = (a, b) => {
     if (priority !== 0) { return priority }
     const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
     if (status !== 0) { return status }
-    return a.name < b.name ? -1 : 1
+    return assertNotNullish(entry(a, 'name')) < assertNotNullish(entry(b, 'name')) ? -1 : 1
 }
 
 /**
@@ -679,7 +688,7 @@ export const sections = commit => dir => [
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
     ...section('Issues')(dir.todo.toSorted(issueOrder).map(issue =>
-        issueItem(fileHref(commit)(dir.path)(`todo/${issue.name}`))(issue))),
+        issueItem(fileHref(commit)(dir.path)(`todo/${entry(issue, 'name')}`))(issue))),
 ]
 
 /**

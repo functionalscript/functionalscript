@@ -25,7 +25,7 @@ import { stringifySorted } from '../../../media/json/module.f.js'
 import { stringToU8List } from '../../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../../types/bit_vec/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry as ownEntry, hasEntry } from '../../../types/object/entry/module.f.js'
 
 const branch = /** @type {const} */ ('refs/heads/build-cache')
 const captureBytes = /** @type {const} */ (0x400_0000)
@@ -122,13 +122,13 @@ const pathMap = paths => Object.fromEntries(paths.map(file => [file, true]))
 /** A path is a hit only when its pinned blob still holds the exact prepared manifest. @type {(dir: string, entries: readonly Entry[], objects: Readonly<Record<string, string>>) => Effect<NodeOp, readonly boolean[], IoChannel>} */
 const lookup = (dir, entries, objects) => {
     const found = entries.map(entry => hasEntry(objects, entry.path))
-    const hits = Object.values(Object.fromEntries(entries.filter((_, i) => found[i]).map(entry => [entry.path, entry])))
+    const hits = Object.values(Object.fromEntries(entries.filter((_, i) => found[Number(i)]).map(entry => [entry.path, entry])))
     if (hits.length === 0) { return pureOk(found) }
     // Matching complete expected frames checks oid, type, UTF-8 byte length,
     // payload, separators and end-of-output without guessing where a bad blob
     // ends. One missing, corrupt or changed blob refuses this cache batch.
-    const stdin = hits.map(entry => `${objects[entry.path]}\n`).join('')
-    const expected = hits.map(entry => `${objects[entry.path]} blob ${entry.byteLength}\n${entry.payload}\n`).join('')
+    const stdin = hits.map(entry => `${ownEntry(objects, entry.path)}\n`).join('')
+    const expected = hits.map(entry => `${ownEntry(objects, entry.path)} blob ${entry.byteLength}\n${entry.payload}\n`).join('')
     const checked = execFile('git', ['--git-dir', dir, 'cat-file', '--batch'], { stdin, maxBuffer: captureBytes })
     return step(checked, ({ stdout, stderr }) => stdout === expected && stderr === ''
         ? pureOk(found)
