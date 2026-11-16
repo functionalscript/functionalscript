@@ -205,14 +205,27 @@ Slice 8, cut in three as decided above.
 
 Slice 9, cut in two: boxing first, then `call`.
 
-- [ ] **9a. Any's `from_f64` and `from_bool`** (this PR). Written where a
+- [ ] **9a. Any's `from_f64` and `from_bool`** (#3918). Written where a
   number or a boolean meets `any`, as
   [definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
   has it; with them, numbers and booleans as items of an array literal.
   Float records stay products. Subjects wait for 9b.
-- [ ] **9b. Calling function values.** L0's `call` from WASM into the host
-  and back, with the `code` type and `call_ref`. Subjects: `toPrimitive`,
-  `toNumber`, `toNumeric`, `toString` and `call`.
+- [ ] **9b. Calling function values** (this PR). L0's `call` from WASM into
+  the host and back, with the `code` type and `call_ref`. Subjects:
+  `toPrimitive`, `toNumber`, `toNumeric`, `toString` and `call`. The
+  supporting L0 rows those bodies read (`find`, `text`, `join`, …) land
+  with them or wait for a cut the owner picks below.
+
+### Decisions for slice 9 (open)
+
+Owner to pick before 9b lands code. Proposed defaults in parentheses.
+
+| Choice | Options |
+| --- | --- |
+| How 9b is cut | **(A)** three stacked PRs: (1) `code` / `call_ref` in the IR + checker + printer + emitter; (2) L0 `Functions.call` / `make_function` and the counting host; (3) lowering of `asFunction(f)(…)` and the subjects. **(B)** two PRs: hand+host first, then lowering+subjects. **(C)** one PR |
+| What 9b makes as a function value | **(A)** call existing function values only (host / sealed `any.only(function)`); `make_function` + `code` of a module's own top-level wait for slice 11's closures. **(B)** `make_function` of an IR `code` too, so a top-level export is a value |
+| How `asFunction(f)(…xs)` lowers | **(A)** always L0 `call(f, args)` with an args array, as [L0 §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text). **(B)** a fixed-arity host path beside it for zero/one/two args |
+| Rows the subjects need beside `call` | **(A)** bring `find`, `text`, `join` (and whatever `toString` / `toPrimitive` still miss) into 9b with the subjects. **(B)** stub/refuse those paths until a later cut; only lower `call` and the primitive arms |
 - [ ] **The whole L1 module** (10), against the cases of its parity proof.
   `get` is among it: its throw for `undefined` and `null`, and its reads
   of an object or a string by a string, which 6f left out.
