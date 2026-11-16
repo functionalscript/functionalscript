@@ -215,12 +215,13 @@ PRs as decided below.
   `code(f)` and `call_ref(c, …)` terms, the checker, the printer and the
   emitter (`ref.func` / `call_indirect` over a module table). Hand-written
   only.
-- [ ] **9b2. L0 `Functions.call` / `make_function`** (this PR). The interface rows and
+- [ ] **9b2. L0 `Functions.call` / `make_function`** (#3928). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
   `make_function` of an IR `code` waits for slice 11.
-- [ ] **9b3. Lowering and subjects.** `asFunction(f)(…)` as L0 `call(f,
+- [ ] **9b3. Lowering and subjects** (this PR). `asFunction(f)(…)` as L0 `call(f,
   args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
+  **Status:** wip
 
 ### Decisions for slice 9 (2026-11-15)
 
