@@ -38,7 +38,7 @@
  *
  * @module
  *
- * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
+ * @import { ArmOf, Code, CodeParam, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
  */
 
 import { encodeScalar } from '../../basen/base16/module.f.js'
@@ -65,10 +65,16 @@ const showParts = (show, parts) => parts.map(([name, t]) => `${name}: ${show(t)}
 /** A sealed type by its name, and the variants it keeps where it keeps some: `any`, `any.only(number)`. @type {(t: Sealed) => string} */
 const showSealed = ([, , name, only]) => only === null ? name : `${name}.only(${only.join(', ')})`
 
+/** A code parameter: `own any`, or `f64` when borrowed. @type {(p: CodeParam) => string} */
+const showCodeParam = ([mode, t]) => mode === 'own' ? `own ${show(t)}` : show(t)
+
+/** A code type: `code([f64, f64], f64)`. @type {(t: Code) => string} */
+const showCode = ([, params, result]) => `code([${params.map(showCodeParam).join(', ')}], ${show(result)})`
+
 /**
  * A type as text: `unit`, `never` and `bool` by their names, a product as
- * its fields in braces, a sealed type as its interface names it, and any
- * other sum as `sum({ … })`.
+ * its fields in braces, a sealed type as its interface names it, a code
+ * type as `code([…], …)`, and any other sum as `sum({ … })`.
  *
  * @type {(t: Type) => string}
  */
@@ -78,6 +84,7 @@ export const show = t => {
         case 'f64': case 'f64c': { return t[0] }
         case 'product': { return equal(t, unit) ? 'unit' : `{ ${showParts(show, t[1])} }` }
         case 'sealed': { return showSealed(t) }
+        case 'code': { return showCode(t) }
         default: { return equal(t, never) ? 'never' : equal(t, bool) ? 'bool' : `sum({ ${showParts(show, t[1])} })` }
     }
 }
@@ -169,6 +176,8 @@ const flat = t => {
         case 'get': { return t[1] }
         case 'op': { return apply(t[1], t[2], target(t[3])) }
         case 'call': { return apply(callee(t[1], t[2]), t[3]) }
+        case 'code': { return `code(${t[1]})` }
+        case 'call_ref': { return apply('call_ref', [t[1], ...t[2]]) }
         case 'make': {
             const texts = t[1].map(([k, x]) => [k, flat(x)])
             return texts.some(([, x]) => x === null) ? null
@@ -246,6 +255,8 @@ const lines = (t, pad) => {
         }
         case 'op': { return apply(t[1], t[2], target(t[3])) }
         case 'call': { return apply(callee(t[1], t[2]), t[3]) }
+        case 'code': { return [`${pad}code(${t[1]})`] }
+        case 'call_ref': { return apply('call_ref', [t[1], ...t[2]]) }
         case 'make': {
             const one = flat(t)
             return one !== null ? [`${pad}${one}`] : [

@@ -25,7 +25,7 @@ import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, l0 } from '../l0/module.f.js'
-import { call, fn, get, n } from '../module.f.js'
+import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
@@ -293,6 +293,23 @@ export const proof = {
     constants: () => run(constants, twins, inputs),
     literals: () => run(literals, twins, inputs),
     arrays: () => run(arrays, twins, inputs),
+    // A `call_ref` of a `code` value computes what a direct call of that function computes.
+    code: () => {
+        const bin = code([['borrow', f64], ['borrow', f64]], f64)
+        /** @type {Module} */
+        const m = {
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['apply', fn([['c', bin], ['a', f64], ['b', f64]], f64, (c, a, b) => call_ref(c, [a, b]))],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call('self', 'apply', [codeOf('sum'), a, b]))],
+            ],
+            exports: ['f'],
+        }
+        /** @type {_Twin} */
+        const twin = ([a, b]) => num(a) + num(b)
+        run(m, { f: twin }, { f: product([edges(['f64']), edges(['f64'])]) })
+    },
     // An array that a call is given is answered as itself: a copy of it, though its items agree, is another value.
     given: () => {
         const item = call('Containers', 'item', [get('v'), n(0n)])

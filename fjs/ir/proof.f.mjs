@@ -4,7 +4,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
-    abs, add, block, bool, br, call, cast, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
+    abs, add, block, bool, br, call, call_ref, cast, code, codeOf, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
     get, i, if_, inside, int, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
     sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
@@ -18,6 +18,7 @@ export const proof = {
         assert(equal(unit, ['product', []]))
         assert(equal(never, ['sum', []]))
         assert(equal(bool, ['sum', [['false', unit], ['true', unit]]]))
+        assert(equal(code([['borrow', f64], ['own', unit]], f64), ['code', [['borrow', f64], ['own', unit]], f64]))
     },
     equal: () => {
         assert(equal([1, [2n, 'a']], [1, [2n, 'a']]))
@@ -61,6 +62,8 @@ export const proof = {
             [sub, mul, div, neg, abs, sqrt, eq, lt, le, float].map(o => o(get('x'))),
             ['sub', 'mul', 'div', 'neg', 'abs', 'sqrt', 'eq', 'lt', 'le', 'float'].map(k => ['op', k, [get('x')]])))
         assert(equal(call('self', 'f', [n(1n)]), ['call', 'self', 'f', [n(1n)]]))
+        assert(equal(codeOf('f'), ['code', 'f']))
+        assert(equal(call_ref(codeOf('f'), [n(1n)]), ['call_ref', ['code', 'f'], [n(1n)]]))
         assert(equal(make([['a', n(1n)]]), ['make', [['a', n(1n)]]]))
         assert(equal(variant(bool, 'true', make([])), true_))
         assert(equal(false_, ['variant', bool, 'false', ['make', []]]))
@@ -77,6 +80,8 @@ export const proof = {
             [let_('v', x, y), [x, y]],
             [add(x, y), [x, y]],
             [call('self', 'f', [x, y]), [x, y]],
+            [call_ref(x, [y, z]), [x, y, z]],
+            [codeOf('f'), []],
             [make([['a', x], ['b', y]]), [x, y]],
             [field(x, 'a'), [x]],
             [variant(bool, 'true', x), [x]],
@@ -97,6 +102,8 @@ export const proof = {
             [['let', 'v', tx, ty], [tx, ty]],
             [['op', 'add', [tx, ty]], [tx, ty]],
             [['call', 'self', 'f', [tx, ty]], [tx, ty]],
+            [['call_ref', tx, [ty, tz]], [tx, ty, tz]],
+            [['code', 'f'], []],
             [['make', [['a', tx], ['b', ty]]], [tx, ty]],
             [['field', tx, 'a'], [tx]],
             [['variant', bool, 'true', tx], [tx]],

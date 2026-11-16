@@ -5,7 +5,7 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { any, string } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
+    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
@@ -66,7 +66,33 @@ export const proof = {
         // A sealed type is named as its interface names it, with the variants that it keeps.
         assertEq(show(any), 'any')
         assertEq(show(only(any, 'number', 'string')), 'any.only(number, string)')
+        assertEq(show(code([['borrow', f64], ['own', any]], f64)), 'code([f64, own any], f64)')
     },
+    code: () => assertEq(print({
+        imports: [],
+        functions: [
+            ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+            ['apply', fn(
+                [['c', code([['borrow', f64], ['borrow', f64]], f64)], ['a', f64], ['b', f64]],
+                f64,
+                (c, a, b) => call_ref(c, [a, b]),
+            )],
+            ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call('self', 'apply', [codeOf('sum'), a, b]))],
+        ],
+        exports: ['f'],
+    }), [
+    'fn sum(a: f64, b: f64) -> f64 =',
+    '    add(a, b)',
+    '',
+    'fn apply(c: code([f64, f64], f64), a: f64, b: f64) -> f64 =',
+    '    call_ref(c, a, b)',
+    '',
+    'fn f(a: f64, b: f64) -> f64 =',
+    '    apply(code(sum), a, b)',
+    '',
+    'export f',
+    '',
+    ].join('\n')),
     // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is.
     trap: () => assertEq(print({
         imports: [],

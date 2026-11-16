@@ -133,15 +133,35 @@ const unsealed = (env, t) => {
 }
 
 /**
+ * Why a module may not write a code type, or `null` where it may: each
+ * parameter's type and the result are types a module may write, an `own`
+ * parameter only of a sealed type, and no parameter of type `never`.
+ *
+ * @type {(env: _Env, t: import('../types.ts').Code) => string | null}
+ */
+const uncode = (env, [, params, result]) => {
+    const resultOk = equal(result, unit) ? null : unsupported(env, result)
+    const why = [...params.map(([, x]) => unsupported(env, x)), resultOk].find(x => x !== null)
+    const unreachable = params.find(([, x]) => isNever(x))
+    const unowned = params.find(([mode, x]) => mode === 'own' && x[0] !== 'sealed')
+    return typeof why === 'string' ? why
+        : unreachable !== undefined ? `a code parameter is never, so no call reaches the function`
+        : unowned !== undefined ? `a code parameter is own, and ${show(unowned[1])} is not sealed, so there is nothing to own`
+        : null
+}
+
+/**
  * Why a module may not write a type, or `null` where it may: a range holds
- * an integer and fits one word, the only sums are `bool` and `never`, and a
- * sealed type is one that an imported interface names.
+ * an integer and fits one word, the only sums are `bool` and `never`, a
+ * sealed type is one that an imported interface names, and a code type's
+ * parameters and result are types a module may write.
  *
  * @type {(env: _Env, t: Type) => string | null}
  */
 const unsupported = (env, t) =>
     t[0] === 'int' ? (t[1] > t[2] ? `${show(t)} is empty` : fits(64)(t) ? null : `${show(t)} needs more than one word`)
     : t[0] === 'sealed' ? unsealed(env, t)
+    : t[0] === 'code' ? uncode(env, t)
     : isFloat(t) || equal(t, bool) || isNever(t) ? null
     : `${show(t)} is not in this slice`
 
@@ -453,6 +473,30 @@ const term = (env, t) => {
             const isDup = iface !== null && iface.types.some(([, d]) => d.dup === name)
             return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
         }
+        case 'code': {
+            const f = callee(env, 'self', t[1])
+            if (f[0] === 'error') { return no(f[1]) }
+            const { params, result } = f[1]
+            /** @type {import('../types.ts').Code} */
+            const type = ['code', params.map(p => /** @type {const} */ ([isOwn(p) ? 'own' : 'borrow', p[1]])), result]
+            return ok([type, t])
+        }
+        case 'call_ref': {
+            const [, e, xs] = t
+            const c = value(term, env, e)
+            if (c[0] === 'error') { return c }
+            const [of] = c[1]
+            if (of[0] !== 'code') { return no(`call_ref of ${show(of)}, which is no code`) }
+            const [, params, result] = of
+            if (xs.length !== params.length) { return no(`call_ref takes ${count(params.length, 'argument')}, not ${xs.length}`) }
+            const args = values(term, env, xs)
+            if (args[0] === 'error') { return args }
+            const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
+            if (wrong >= 0) {
+                return no(`call_ref's argument ${wrong} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
+            }
+            return ok([result, ['call_ref', c[1], args[1]]])
+        }
         case 'make': {
             const names = t[1].map(([k]) => k)
             const twice = names.find((k, j) => names.indexOf(k) !== j)
@@ -748,6 +792,7 @@ const uses = ([, t]) => {
     /** @type {readonly [readonly string[], readonly string[]]} */
     const own = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
         : t[0] === 'call' && t[1] === 'self' ? [[], [t[2]]]
+        : t[0] === 'code' ? [[], [t[1]]]
         : [[], []]
     return inside(t).reduce(([cs, fs], x) => {
         const [c, f] = uses(x)
@@ -803,9 +848,13 @@ const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at
  * @type {(imports: OrderedMap<Interface>) => (x: Typed) => readonly [boolean, readonly string[]]}
  */
 const failures = imports => ([, t]) => {
-    const itself = t[0] === 'trap' || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
+    // A `call_ref` of a known `code(f)` fails as `f` does; any other code value may fail.
+    const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
+    const itself = t[0] === 'trap'
+        || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
+        || (t[0] === 'call_ref' && known === null)
     /** @type {readonly [boolean, readonly string[]]} */
-    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : []]
+    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : known !== null ? [known] : []]
     return inside(t).reduce(([f, fs], x) => {
         const [g, gs] = failures(imports)(x)
         return [f || g, union(fs, gs)]
