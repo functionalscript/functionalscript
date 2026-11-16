@@ -60,7 +60,7 @@ what a grammar can and cannot do for the formats.
   made with `byteArray`, not the lazy `Bytes`.
 - [`refstore/`](refstore/module.f.js) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
-  in hand; and [`refstore/write/`](refstore/write/module.f.mjs), the writers
+  in hand; and [`refstore/write/`](refstore/write/module.f.js), the writers
   over the same name rules: `tryWrite` to put one at an id — the loose file, through the
   `.lock` name Git takes, created and filled in **one** exclusive open so no
   second writer and no symlink can reach the pathname in between, and reading
@@ -458,7 +458,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`refstore/todo/ref-writing.md`](refstore/todo/ref-writing.md). Reading the refs is done, and
   so are writing and deleting one — [`ref/`](ref/module.f.js) for the file
   grammars, [`refstore/`](refstore/module.f.js)'s `tryRoots` and `tryResolve`,
-  and [`refstore/write/`](refstore/write/module.f.mjs)'s `tryWrite` and
+  and [`refstore/write/`](refstore/write/module.f.js)'s `tryWrite` and
   `tryDelete` over the effects. Every way the two writers are
   narrower than `git update-ref` — no check that the object is there or, under
   `refs/heads/`, that it is a commit, no `core.sharedRepository` mode, no reflog

@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { logicalValue } from '../../sugar/logical/module.f.js'
-import { fromFast } from '../../../../edag/from_fast/module.f.mjs'
+import { fromFast } from '../../../../edag/from_fast/module.f.js'
 import { identityAnalysis } from '../../../../edag/analysis/module.f.js'
 import { memo } from '../../../../edag/memo/module.f.mjs'
 import { toFast } from '../../../../edag/to_fast/module.f.mjs'

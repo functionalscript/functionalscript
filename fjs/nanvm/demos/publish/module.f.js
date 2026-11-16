@@ -27,7 +27,7 @@
  * is removed, so a sample removed or renamed leaves no disassembly behind; any
  * other file there is kept.
  *
- * `fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...`
+ * `fjs run ./fjs/nanvm/demos/publish/module.f.js <built .wasm> <published .wasm> <WAT directory> <sample>...`
  *
  * @module
  *
@@ -52,6 +52,8 @@ import { toTagged } from '../../../text/marked/module.f.js'
 import { u8ArrayMsb } from '../../../types/bit_vec/module.f.js'
 import { fromEntries, mapGet } from '../../../types/map/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /**
  * `module` with every function name in its name section demangled.
@@ -103,9 +105,12 @@ const watExtension = '.wat.marked'
 export const removeStale = extension => (directory, samples) => step(
     readdir(directory, {}),
     entries => forEachStep(
-        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > extension.length && name.endsWith(extension)
-            && !samples.includes(name.slice(0, -extension.length)))),
-        ({ name }) => rm(`${directory}/${name}`)))
+        pureOk(entries.filter(file => {
+            const name = assertNotNullish(entry(file, 'name'))
+            return file.isFile && name.length > extension.length && name.endsWith(extension)
+                && !samples.includes(name.slice(0, -extension.length))
+        })),
+        file => rm(`${directory}/${entry(file, 'name')}`)))
 
 /**
  * The module at `from`, read and parsed, with each sample's WAT, or why
@@ -147,7 +152,7 @@ export const publish = (from, to, watDirectory, samples) =>
     step(check(from, samples), save(to, watDirectory, samples))
 
 /** The command line, when it has too few arguments. */
-export const usage = 'usage: fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...'
+export const usage = 'usage: fjs run ./fjs/nanvm/demos/publish/module.f.js <built .wasm> <published .wasm> <WAT directory> <sample>...'
 
 /** @type {NodeProgram} */
 export const main = ({ args }) => {

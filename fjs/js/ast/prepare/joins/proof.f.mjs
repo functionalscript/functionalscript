@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../../edag/analysis/module.f.js'
-import { fromFast } from '../../../../edag/from_fast/module.f.mjs'
+import { fromFast } from '../../../../edag/from_fast/module.f.js'
 import { memo } from '../../../../edag/memo/module.f.mjs'
 import { toData } from '../../../../edag/value/to_unknown/module.f.mjs'
 import { _freshAtRoot, _immutableJoin } from './module.f.js'

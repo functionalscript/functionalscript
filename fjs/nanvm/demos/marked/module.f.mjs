@@ -6,7 +6,7 @@
  *
  * **Written when the site is built, not committed.** Only the page reads a
  * marked file, so it is a build asset like the WAT
- * ([`publish`](../publish/module.f.mjs)), and the committed tree holds the
+ * ([`publish`](../publish/module.f.js)), and the committed tree holds the
  * `.rs` `cargo` builds and nothing more. The deploy's build script,
  * `nanvm/demos/gen.build.sh`, runs this after `publish`.
  *
@@ -36,7 +36,7 @@ import { exitStep, writeFiles } from '../../../effects/node/module.f.js'
 import { toTagged } from '../../../text/marked/module.f.js'
 import { samples } from '../samples/module.f.js'
 import { buildDirectory, rustMarkedExtension, rustMarkedPath, rustPath, samplePath } from '../page/module.f.mjs'
-import { removeStale } from '../publish/module.f.mjs'
+import { removeStale } from '../publish/module.f.js'
 
 /**
  * Each of `places` compiled, in order, as `[name, marked]`, or the first

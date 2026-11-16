@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { fromFast } from './module.f.mjs'
+import { fromFast } from './module.f.js'
 import { evaluate, failure } from './member_returns/proof.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../compiler/edag/module.f.mjs'

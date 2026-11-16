@@ -84,7 +84,7 @@ built:
   [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and
   `instantiate`.
 - **The build script** builds `nanvm-demos` for `wasm32-unknown-unknown`,
-  and [`fjs/nanvm/demos/publish`](../fjs/nanvm/demos/publish/module.f.mjs)
+  and [`fjs/nanvm/demos/publish`](../fjs/nanvm/demos/publish/module.f.js)
   copies the module to `nanvm/demos/wasm/`, served after the website build,
   and writes each sample's WAT beside it with
   [`fjs/media/wasm`](../fjs/media/wasm/README.md)'s parser and WAT writer,

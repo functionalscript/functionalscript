@@ -16,7 +16,7 @@ export const namesNothing = e => leadsNowhere(e) || (e[0] === 'ioError' && e[1].
 export const isDirectory = ([tag, payload]) => tag === 'ioError' && payload.code === 'EISDIR'
 ```
 
-and `madeHere` in [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)
+and `madeHere` in [`fjs/git/refstore/write`](../../git/refstore/write/module.f.js)
 writes a fifth inline, `orElse(e => e[0] === 'ioError' && e[1].code ===
 'EEXIST', false)`. The vocabulary, `ioError` and `IoChannel`, is this
 directory's [`module.f.js`](../module.f.js), not `node`'s, so the

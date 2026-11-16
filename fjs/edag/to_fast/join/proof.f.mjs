@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { _joinResults } from './module.f.mjs'
 import { identityAnalysis } from '../../analysis/module.f.js'
-import { fromFast } from '../../from_fast/module.f.mjs'
+import { fromFast } from '../../from_fast/module.f.js'
 import { memo } from '../../memo/module.f.mjs'
 import { toData } from '../../value/to_unknown/module.f.mjs'
 import { parse } from '../../../compiler/transpiler/module.f.mjs'

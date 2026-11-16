@@ -52,6 +52,8 @@ import { codeBlock } from '../../../website/demo/code/module.f.js'
 import { highlight, render } from '../../../website/demo/highlight/module.f.js'
 import { fromTagged, toText } from '../../../text/marked/module.f.js'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
 export const samplePath = directory => `${directory}/sample.f.js`
@@ -113,7 +115,9 @@ const loadedMarked = ([tag, value]) => tag === 'ok' ? fromTagged(value) : error(
  *
  * @type {(place: Place) => Effect<FetchText | Instantiate, State, never>}
  */
-export const load = ({ name, directory }) => {
+export const load = place => {
+    const name = assertNotNullish(entry(place, 'name'))
+    const { directory } = place
     const source = resultStep(fetchText(`/${samplePath(directory)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
     const rust = step(source, state => resultStep(fetchText(`/${rustMarkedPath(name)}`), r => pureOk({ ...state, rust: loadedMarked(r) })))
     const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loadedMarked(r) })))
@@ -203,7 +207,7 @@ export const runJs = program => {
  * @type {(name: string) => (instance: WasmInstance) => Effect<Sandbox, Result<WasmRun, string>, never>}
  */
 export const runWasm = name => ({ exports }) => {
-    const load = exports[name]
+    const load = entry(exports, name)
     const runSample = exports['run_sample']
     const outputByte = exports['output_byte']
     const memory = /** @type {{ readonly buffer?: { readonly byteLength: number } } | undefined} */ (exports['memory'])
@@ -244,7 +248,7 @@ export const runBoth = ({ place, program }) => state => {
     const { wasm } = state
     const js = history(runJs(program))
     const both = historyStep(js, () => wasm[0] === 'ok'
-        ? runWasm(place.name)(wasm[1])
+        ? runWasm(assertNotNullish(entry(place, 'name')))(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
     return step(both, ([wasmRun, jsRun]) => pureOk(/** @type {State} */ ({ ...state, runs: { js: jsRun, wasm: wasmRun } })))
 }
@@ -406,8 +410,8 @@ export const view = name => state => ['div', {},
 /** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox | JsHeapSize, State, never>} */
 export const update = sample => state => event =>
     event.kind === 'start' ? load(sample.place)
-    : event.kind === 'click' && event.name === 'run' ? runBoth(sample)(state)
+    : event.kind === 'click' && entry(event, 'name') === 'run' ? runBoth(sample)(state)
     : pureOk(state)
 
 /** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox | JsHeapSize>} */
-export const wasmDemo = sample => ({ init, update: update(sample), view: view(sample.place.name) })
+export const wasmDemo = sample => ({ init, update: update(sample), view: view(assertNotNullish(entry(sample.place, 'name'))) })

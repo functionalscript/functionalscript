@@ -22,7 +22,7 @@ it, and renames it over `refs/heads/x`, so a concurrent writer fails to create
 the lock rather than interleaving. The rename is the atomic step, and the lock
 file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
-[`refstore/write`](../write/module.f.mjs)'s `tryWrite` does that, in five
+[`refstore/write`](../write/module.f.js)'s `tryWrite` does that, in five
 effects — `packed-refs`, a `stat` of the ref's own path, the directories above
 the file, the exclusive write of the id's hex digits and an LF, the rename — and
 gives the lock back where a
@@ -508,7 +508,7 @@ else in the name has moved DISOT semantics into Git's namespace.
   above, and why a ref is only a retention root.
 - [`fjs/git/refstore`](../module.f.js) — the reading half, and the name rules
   both halves share.
-- [`fjs/git/refstore/write`](../write/module.f.mjs) — `tryWrite` and
+- [`fjs/git/refstore/write`](../write/module.f.js) — `tryWrite` and
   `tryDelete`, with the measurements behind every refusal.
 - [`fjs/git/refname`](../../refname/module.f.js) — `lockSuffix`, and why no ref
   is ever named by a writer's lock file.

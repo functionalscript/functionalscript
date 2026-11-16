@@ -25,7 +25,7 @@ import { ok, unwrap } from '../../types/result/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { fromFast } from '../../edag/from_fast/module.f.mjs'
+import { fromFast } from '../../edag/from_fast/module.f.js'
 import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
 
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */

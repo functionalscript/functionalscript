@@ -26,7 +26,7 @@ Nothing is lost either way (the packed line stays a root, and `tryRoots`
 lists it), so this is a lookup answering a name Git's lookup refuses rather
 than a retention error. Found while answering a review of
 [#2315](https://github.com/functionalscript/functionalscript/pull/2315), where
-[`tryDelete`](../write/module.f.mjs) removes such a link as Git does and
+[`tryDelete`](../write/module.f.js) removes such a link as Git does and
 answers `true` only for the packed line.
 
 ### Proposal

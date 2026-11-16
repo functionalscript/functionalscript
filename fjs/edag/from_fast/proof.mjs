@@ -7,7 +7,7 @@
 import { throws } from 'node:assert/strict'
 import { runInNewContext } from 'node:vm'
 import { assertEq, assertOk } from '../../asserts/module.f.js'
-import { fromFast } from './module.f.mjs'
+import { fromFast } from './module.f.js'
 import { toFast } from '../to_fast/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'

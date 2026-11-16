@@ -15,7 +15,7 @@ and the rewrite is written in `valueTask` and `_exposeOperands` of
 [`returns`](../returns/module.f.js), `prepareValue` of
 [`prepare`](../prepare/module.f.js), `sequencedOperator` of
 [`sugar`](../sugar/module.f.js) and `valueTask` of
-[`fjs/edag/from_fast`](../../../edag/from_fast/module.f.mjs); `guarded` in
+[`fjs/edag/from_fast`](../../../edag/from_fast/module.f.js); `guarded` in
 [`memo`](../memo/module.f.js) asks the test without the rewrite:
 
 ```js

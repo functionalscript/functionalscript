@@ -16,7 +16,7 @@
  * argued in that module's header.
  *
  * Nothing here runs an effect. The store asks these of every name before it
- * opens a file, and [`../write`](../write/module.f.mjs) before it writes one;
+ * opens a file, and [`../write`](../write/module.f.js) before it writes one;
  * which of the two directories a name's file sits in is
  * [`../scope`](../scope/module.f.js)'s question, not this module's.
  *
@@ -98,7 +98,7 @@ export const refsPrefix = /** @type {const} */ ('refs/')
  *
  * **A name past `maxLengthBytes` is `null` too**, and the check has to come
  * before the conversion: `Bytes` is unbounded and `u8ListToVecMsb` asserts, so one
- * byte over escaped both [`tryWrite`](../write/module.f.mjs) and
+ * byte over escaped both [`tryWrite`](../write/module.f.js) and
  * [`tryResolve`](../module.f.js) as a bare `'assertion failed'` rather than as
  * an answer — measured, at 131,073 bytes. Found by review of
  * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).

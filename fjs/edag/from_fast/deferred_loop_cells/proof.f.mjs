@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { fromFast } from '../module.f.mjs'
+import { fromFast } from '../module.f.js'
 import { toFast } from '../../to_fast/module.f.mjs'
 import { normalizeMemo } from '../../../js/ast/memo/module.f.js'
 import { prepareFunction } from '../../../js/ast/prepare/module.f.js'

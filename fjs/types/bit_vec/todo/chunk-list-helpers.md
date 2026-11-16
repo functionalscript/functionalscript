@@ -31,7 +31,7 @@ in [`fjs/effects/node`](../../../effects/node/module.f.js),
 [`fjs/zlib/inflate`](../../../zlib/inflate/module.f.js) spells it the same
 way. The array form of the forward direction,
 `toArray(u8ListToMaxVecChunksMsb(bytes))`, is a private `chunked` in
-[`fjs/git/refstore/write`](../../../git/refstore/write/module.f.mjs) and
+[`fjs/git/refstore/write`](../../../git/refstore/write/module.f.js) and
 inline in `write` of [`fjs/git/loose`](../../../git/loose/module.f.js).
 [`fjs/git/packstore`](../../../git/packstore/module.f.js)'s `denseBytes`,
 `byteArray(u8ListMsb(v))`, is this module's `u8ArrayMsb` with an assertion

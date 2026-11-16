@@ -179,7 +179,7 @@
  * [`fjs/git/ref`](../ref/module.f.js) —
  * [`todo/packed-refs-sorted.md`](./todo/packed-refs-sorted.md).
  *
- * **Writing and deleting a ref are [`./write`](./write/module.f.mjs)**, which
+ * **Writing and deleting a ref are [`./write`](./write/module.f.js)**, which
  * holds `tryWrite` and `tryDelete`, the codes they refuse with, and the
  * measurements behind each. They share this module's name rules, and none is
  * written twice: both halves import `./name` and `./scope`, and the reads and
@@ -222,7 +222,7 @@ import { dirOf, sharedScope, worktreeScope } from './scope/module.f.js'
  * @param {{ readonly name: T }} named
  * @returns {T}
  */
-const requiredName = named => {
+export const requiredName = named => {
     const name = /** @type {T | undefined} */ (entry(named, 'name'))
     assert(name !== undefined)
     return name
@@ -1148,13 +1148,13 @@ const refusePackedHead = refuse(packedHeadCode)
  * again — `warning: ignoring broken ref` and exit 0 — and this module follows
  * `show-ref`, which is the listing it has matched throughout.
  *
- * It is also the code [`tryWrite`](./write/module.f.mjs) refuses with, for the same condition and
+ * It is also the code [`tryWrite`](./write/module.f.js) refuses with, for the same condition and
  * one more reason: to `git update-ref` the zero id is not a value at all but the
  * *delete*. Measured on 2.43.0, `git update-ref refs/heads/z 0000…` removes
  * `refs/heads/z` at exit 0, and the same on a name that does not exist is a
  * no-op. So a writer that put those bytes in a file would be doing what no Git
  * command does, and leaving a listing this module refuses. The delete is
- * [`tryDelete`](./write/module.f.mjs), which is its own call rather than a value.
+ * [`tryDelete`](./write/module.f.js), which is its own call rather than a value.
  */
 export const zeroIdCode = /** @type {const} */ ('ERR_ZERO_ID')
 
