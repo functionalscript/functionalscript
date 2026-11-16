@@ -66,6 +66,7 @@ far more, gives only the functions that the slices name as subjects so far
 | a string, `"abc"` | a `lit` of `any.only(string)`, `"abc"`, which the module's start function makes once |
 | an array literal of values, `[a, "x"]` | its items, each bound to a local first where it does something, then `Containers.seal` of a `Containers.push` of each onto `Containers.begin_array` of their count |
 | `a[0]`, `a[Number(k)]` of an array | the integer of `u(31)` that the key holds, named `a.index`, then `Containers.item(a, a.index)` where it is less than `Containers.length(a)`, and `Any.undefined` where it is not or the key holds no integer, by L1's `get` |
+| `v.x`, `o[0]` of sealed `any` (not array-only at a number) | `self.get(v, "x")` / `self.get(o, from_f64(0))` where the table names `get`; otherwise refused |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
 | `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
@@ -330,9 +331,9 @@ constant, which `init` builds. A read of an array at a number key,
 then the key, each lowered as an argument is, then the item where the key
 is an integer from `0` up to the array's length, `-0` reading `0`, and
 `undefined` where it is anything else, a fraction, a NaN or past the end.
-The receiver is an array alone, `any.only(array)`: `get` of `undefined`
-or `null` throws, which this lowering does not write yet, and one of an object or a
-string reads by a string, which is not in 6f. So
+The receiver is an array alone, `any.only(array)`, keeps that path. A sealed
+`any` of another kind is a call of the module's `get` where the signature
+table names it (slice 10a); without `get`, that read is refused. So
 [L1's `typeOf`](../../wasm/runtime/l1/module.f.js) lowers from its text:
 its `typeNames` is a constant that `init` builds, read at `kind(v)`. A definition of
 `Math.abs` or `Math.sqrt`, which the normalization writes where a

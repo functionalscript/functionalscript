@@ -1267,7 +1267,7 @@ export const proof = {
         const av = only([['v', any]], any)
         // `get` of any other kind than an array throws or reads by a string.
         assertEq(assertError(over(av, 'export const f = v => v[0]')), "f: a read of any at a number is not in this slice: only an array's is")
-        // A Containers object is not an array: refuse a numeric read of one.
+        // A Containers object is not an array: refuse a numeric read of one without `get`.
         assertEq(assertError(over(av, 'export const f = v => ({ a: v })[0]')), "f: a read of any.only(object) at a number is not in this slice: only an array's is")
         // A receiver that is pure but does not type-check is refused with its own error.
         assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: .b of any.only(object) is not in this slice')
@@ -1277,6 +1277,39 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => v.x(1)')), 'f: a member read with a further step, such as a call of the member, is not in this slice')
         // The parser takes a computed key that is `Number` of a value alone.
         assertEq(assertError(sourceOf('export const f = (a, k) => a[k]')), 'parse: computed key is not Number(...)')
+        // With `get` in the table, a member or index of sealed `any` is a call of it.
+        const withGet = {
+            get: signature([['a', any], ['k', any]], any),
+            f: signature([['v', any]], any),
+        }
+        const getStub = 'export const get = (a, k) => a\n'
+        assertEq(checked(withGet, `${getStub}export const f = v => v.x`), [
+            'fn f(v: any) -> any =',
+            '    get(v, "x")',
+            '',
+            'fn get(a: any, k: any) -> any =',
+            '    a',
+            '',
+            'export f, get',
+            '',
+        ].join('\n'))
+        assertEq(checked(withGet, `${getStub}export const f = v => ({ a: v })[0]`), [
+            'fn f(v: any) -> any =',
+            '    let #0 =',
+            '        match Containers.seal(Containers.push_property(Containers.begin_object(1), "a", v))',
+            '          object as object =>',
+            '            object',
+            '          else =>',
+            "            trap('not object')",
+            '    get(#0, Any.from_f64(0.0))',
+            '',
+            'fn get(a: any, k: any) -> any =',
+            '    a',
+            '',
+            'export f, get',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(withGet, `${getStub}export const f = v => v.x(1)`)), 'f: a member read with a further step, such as a call of the member, is not in this slice')
     },
     /** The originals of `reads.f.js` themselves, which the host proof runs as WASM against. */
     readsOf: () => {

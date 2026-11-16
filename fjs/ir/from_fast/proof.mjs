@@ -37,7 +37,9 @@
  * builder, as a trap does, which the host recovers. So do the functions of
  * [`objects.f.js`](./objects.f.js), which make records and Containers
  * objects, and L1's `objectSpread`, lowered from L1's text over the
- * runtime and the table: each builds what L1's own builds.
+ * runtime and the table: each builds what L1's own builds. So does L1's
+ * `get`, on receivers and keys of every kind: each answers what L1's own
+ * answers, and throws what it throws.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -47,7 +49,7 @@
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
-    call as l1Call, functionText, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, toBoolean,
+    call as l1Call, functionText, get as l1GetFn, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, toBoolean,
     toIterable, toNumber, toNumeric, toPrimitive, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
@@ -67,7 +69,7 @@ import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
-    l1, l1Builders, l1Coerce, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures, objects as objectSignatures,
+    l1, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures, objects as objectSignatures,
     reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
     throws as throwSignatures, throwsRuntime,
 } from './testlib.f.mjs'
@@ -125,6 +127,9 @@ const fromL1Builders = () => assertOk(lifetime(fromText(new URL('../../wasm/runt
 
 /** The owned stage of L1's coercions and `call`, over the runtime and the table. @type {() => Module} */
 const fromL1Coerce = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Coerce, l1Runtime(errors))))
+
+/** The owned stage of L1's `get`, over the runtime and the table. @type {() => Module} */
+const fromL1Get = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Get, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -1451,5 +1456,49 @@ export const proof = {
                 [{ any: () => 'ok' }, { any: [] }],
             ],
         }, ['toPrimitive', 'toNumber', 'toNumeric', 'toString', 'call'])
+    },
+    // L1's `get`, lowered from L1's text: each answers what L1's own answers.
+    l1Get: () => {
+        const text = print({ ...fromL1Get(), imports: [] })
+        assert(text.includes('Containers.find'))
+        assert(text.includes('Native.numberToString'))
+        assert(text.includes('Functions.throw'))
+        assert(text.includes('stringEquals'))
+        assert(text.includes('stringIndex'))
+    },
+    l1GetRun: () => {
+        /** @type {StringMap<_Twin>} */
+        const twins = {
+            stringEquals: ([a, b]) => stringEquals(held(a), held(b)),
+            stringIndex: ([s]) => stringIndex(held(s)),
+            get: ([a, k]) => ({ any: l1GetFn(held(a), held(k)) }),
+        }
+        const f = /** @type {() => unknown} */ (() => {})
+        return run(fromL1Get(), twins, {
+            stringEquals: [
+                [{ any: 'a' }, { any: 'a' }],
+                [{ any: 'a' }, { any: 'b' }],
+            ],
+            stringIndex: [
+                [{ any: '0' }],
+                [{ any: '01' }],
+                [{ any: 'a' }],
+            ],
+            get: [
+                [{ any: { a: 1 } }, { any: 'a' }],
+                [{ any: { a: 1 } }, { any: 0 }],
+                [{ any: [10, 20] }, { any: 1 }],
+                [{ any: [10, 20] }, { any: '1' }],
+                [{ any: [10, 20] }, { any: 'length' }],
+                [{ any: 'ab' }, { any: 1 }],
+                [{ any: 'ab' }, { any: 'length' }],
+                [{ any: f }, { any: 'length' }],
+                [{ any: f }, { any: 'name' }],
+                [{ any: 1 }, { any: 'x' }],
+                [{ any: true }, { any: 0 }],
+                [{ any: undefined }, { any: 'a' }],
+                [{ any: null }, { any: 'a' }],
+            ],
+        })
     },
 }
