@@ -6,6 +6,19 @@ import { parseFromTokens } from './module.f.mjs'
 import { tokenizeString } from './proof.f.mjs'
 
 export const proof = /** @type {const} */ ({
+    deepBodiesUseTheWorklist: () => {
+        const depth = 4_096
+        const source = `${'do{'.repeat(depth)}${'}while(false);'.repeat(depth)}export default 0;`
+        let statements = assertOk(parseFromTokens(tokenizeString(source))).body.statements
+        for (let i = 0; i < depth; i += 1) {
+            const statement = statements[0]
+            assert(statement[0] === 'while')
+            assertEq(statement[1].postTest, true)
+            assertEq(statement[1].condition, false)
+            statements = statement[1].body.statements
+        }
+        assertEq(statements.length, 0)
+    },
     writtenKindBodyAndEndingRemainIntact: () => {
         for (const ending of [';', '']) {
             const module = assertOk(parseSyntax(tokenizeString('do{break;const unreachable=1;}while(false)' + ending + 'export default 0;')))

@@ -23,6 +23,7 @@ import { concat, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { sort } from '../../types/object/module.f.js'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
+import { empty as emptyRefMap } from '../../types/ref_map/module.f.js'
 import { assert, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { analyzeBindings } from '../../js/ast/module.f.js'
 import { planPattern } from '../../js/ast/sugar/pattern/module.f.js'
@@ -528,8 +529,8 @@ const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: pl
  */
 const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
 
-/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {<F extends _LoopBodyFrame>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, kind: 'const' | 'let', value: SourceValue) => _State} */
-const landed = (round, stack, scope, frame, kind, value) => {
+/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame, kind: 'const' | 'let', value: SourceValue) => _State} */
+const landed = (stack, scope, frame, kind, value) => {
     const plan = assertNotNullish(frame.plan, 'a declaration with no plan')
     const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
     if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
@@ -538,9 +539,9 @@ const landed = (round, stack, scope, frame, kind, value) => {
         const source = frame
         /** @type {_PatternFrame['continuation']} */
         const continuation = { loop: source, value }
-        return patternRound(stack, scope, { pattern: plan, index: 0, reads: [], kind, continuation })
+        return [stack, scope, ['pattern', { pattern: plan, index: 0, reads: [], kind, continuation }]]
     }
-    return round(stack, boundPlan(scope, plan, isVariable(kind)), advanced(frame, [['initialize', expansion(plan), value]]))
+    return [stack, boundPlan(scope, plan, isVariable(kind)), ['region', advanced(frame, [['initialize', expansion(plan), value]])]]
 }
 
 /**
@@ -556,19 +557,28 @@ const patternSelected = (scope, frame, fallback) => {
         const [token] = named
         const word = nameOf(token)
         if (at(word)(scope.names) !== null) { return error(captureShadowed(token)) }
-        scope = { ...scope, names: extended(scope.names)(word, { id: pattern.ids[index], kind: 'own', assignable: isVariable(frame.kind) }),
-            origins: setReplace(word)(pattern.ids[index])(scope.origins) }
+        scope = { ...scope, names: extended(scope.names)(word, { id: pattern.ids[Number(index)], kind: 'own', assignable: isVariable(frame.kind) }),
+            origins: setReplace(word)(pattern.ids[Number(index)])(scope.origins) }
     }
-    scope = traced(scope, [['initialize', pattern.ids[index]]])
-    const { source, spread } = pattern.reads[index]
+    scope = traced(scope, [['initialize', pattern.ids[Number(index)]]])
+    const { source, spread } = pattern.reads[Number(index)]
     const read = fallback === null ? { source, spread } : { source, spread, default: fallback }
     return ok([scope, { ...frame, index: index + 1, reads: [...frame.reads, read] }])
 }
 
+/** The body owns a lexical scope inside the per-iteration declaration scope.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, plan: ExpansionPlan) => _State}
+ */
+const forOfBody = (stack, scope, frame, plan) => [{
+    top: { ...frame, initial: [['initialize', plan, ['ref', frame.item]]] }, rest: stack,
+}, regionScope(scope, empty, null), ['region', {
+    block: frame.forOf.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+}]]
+
 /** Resolve the next default on the shared worklist, keeping source depth off the host stack. @type {(stack: _Stack, scope: _Scope, frame: _PatternFrame) => _State} */
 const patternRound = (stack, scope, frame) => {
     while (frame.index < frame.pattern.reads.length) {
-        const fallback = frame.pattern.reads[frame.index].default
+        const fallback = frame.pattern.reads[Number(frame.index)].default
         if (fallback !== undefined) { return [{ top: frame, rest: stack }, scope, ['enter', fallback.value]] }
         const [tag, selected] = patternSelected(scope, frame, null)
         if (tag === 'error') { return [stack, scope, error(selected)] }
@@ -581,11 +591,52 @@ const patternRound = (stack, scope, frame) => {
     if ('parameter' in continuation) {
         /** @type {_Scope} */
         const next = { ...scope, parameters: [...scope.parameters, { plan, default: continuation.value }] }
-        return lateRound(stack, next, { ...continuation.parameter, index: continuation.parameter.index + 1 })
+        return [stack, next, ['parameter', { ...continuation.parameter, index: continuation.parameter.index + 1 }]]
     }
     if ('forOf' in continuation) { return forOfBody(stack, scope, continuation.forOf, plan) }
-    if ('loop' in continuation) { return loopRound(stack, scope, advanced(continuation.loop, [['initialize', plan, continuation.value]])) }
+    if ('loop' in continuation) { return [stack, scope, ['region', advanced(continuation.loop, [['initialize', plan, continuation.value]])]] }
     return [stack, scope, ok(['block', { statements: [['initialize', plan, continuation.module]], exit: ['yield', undefined] }])]
+}
+
+/** A function's declaration is its self only where no parameter/local shadows it. @type {(scope: _Scope, word: string) => _Ref | null} */
+const bound = (scope, word) => at(word)(scope.names) ?? (scope.self === word
+    ? { id: assertNotNullish(scope.selfBinding), kind: 'self', assignable: scope.selfVariable } : null)
+
+/** Retain lexical read evidence for existing capture-shadow admission, without frames. @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]} */
+const captured = (body, word, [outer, ref]) => {
+    const captured = /** @type {_Ref} */ ({ id: ref.id, kind: 'capture', assignable: ref.assignable })
+    return [{ ...body, outer, names: extended(body.names)(word, captured), origins: setReplace(word)(ref.id)(body.origins) }, captured]
+}
+
+/**
+ * Resolve an original declaration identity and remember each intervening read
+ * for the existing capture-shadow rule. No capture frame or value version is
+ * chosen here. The outward search and inward rebuilding use explicit lists,
+ * keeping deeply nested source functions off the host stack. The third
+ * element is whether the search crossed a function boundary — a region's is
+ * none — the reference being a capture then.
+ *
+ * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref, boolean] | null}
+ */
+const resolve = (scope, word) => {
+    /** The bodies the word is read through, the one just inside the binding scope on top. @type {List<_Scope>} */
+    let through = null
+    let binder = scope
+    let ref = bound(binder, word)
+    while (ref === null) {
+        if (binder.outer === null) { return null }
+        through = { first: binder, tail: through }
+        binder = binder.outer
+        ref = bound(binder, word)
+    }
+    /** @type {readonly [_Scope, _Ref]} */
+    let result = [ref.kind === 'self' ? { ...binder, names: extended(binder.names)(word, ref) } : binder, ref]
+    let crossed = false
+    for (const body of toArray(through)) {
+        result = captured(body, word, result)
+        crossed = crossed || !body.region
+    }
+    return [result[0], result[1], crossed]
 }
 
 /**
@@ -664,6 +715,28 @@ const referenced = ([scope, ref, crossed], name) => crossed ? { ...scope, captur
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
 
+/**
+ * The node an item evaluates: a value's own, or a spread's operand — the
+ * spread itself is put back once the operand has its value,
+ * {@link itemValue}.
+ *
+ * @type {(item: Item) => Node}
+ */
+const operandOf = item => item[0] === '...' ? item[1] : item
+
+/**
+ * An item's value from its operand's: the value, or the spread of it where
+ * the item was a spread.
+ *
+ * @type {(item: Item) => (value: SourceValue) => ValueItem}
+ */
+const itemValue = item => value => {
+    if (item[0] !== '...') { return value }
+    /** @type {ValueSpread} */
+    const spread = ['...', value]
+    return spread
+}
+
 /** The parts of a chain's steps, {@link chainParts}: each key with whether a call follows it, and each argument's operand. @type {(step: Step | undefined) => readonly _ChainPart[]} */
 const stepParts = step => {
     if (step === undefined) { return [] }
@@ -694,10 +767,10 @@ const chainParts = chain => {
 const stepClosed = (step, values, at) => {
     const [tag, x, next] = step
     if (tag === '|.') {
-        const key = /** @type {ValueKey} */ (values[at])
+        const key = /** @type {ValueKey} */ (values[Number(at)])
         return next === undefined ? ['|.', key] : ['|.', key, stepClosed(next, values, at + 1)]
     }
-    const args = x.map((item, i) => itemValue(item)(values[at + i]))
+    const args = x.map((item, i) => itemValue(item)(values[Number(at + i)]))
     return /** @type {ValueStep} */ (next === undefined ? [tag, args] : [tag, args, stepClosed(next, values, at + x.length)])
 }
 
@@ -711,7 +784,7 @@ const stepClosed = (step, values, at) => {
 const chainClosed = (chain, values) => {
     if (chain[0] === '?.()') {
         const [, , items, step] = chain
-        const args = items.map((item, i) => itemValue(item)(values[1 + i]))
+        const args = items.map((item, i) => itemValue(item)(values[Number(1 + i)]))
         return step === undefined ? ['?.()', values[0], args] : ['?.()', values[0], args, stepClosed(step, values, 1 + items.length)]
     }
     const [tag, , , step] = chain
@@ -730,7 +803,7 @@ const chainClosed = (chain, values) => {
 const chainRound = (stack, scope, frame) => {
     const { parts, index } = frame
     if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
-    const part = parts[index]
+    const part = parts[Number(index)]
     if (hasEntry(part, 'value')) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
     const { key } = part
     if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
@@ -748,28 +821,6 @@ const chainRound = (stack, scope, frame) => {
  * @type {(stack: _Stack) => boolean}
  */
 const isCallee = stack => stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0
-
-/**
- * The node an item evaluates: a value's own, or a spread's operand — the
- * spread itself is put back once the operand has its value,
- * {@link itemValue}.
- *
- * @type {(item: Item) => Node}
- */
-const operandOf = item => item[0] === '...' ? item[1] : item
-
-/**
- * An item's value from its operand's: the value, or the spread of it where
- * the item was a spread.
- *
- * @type {(item: Item) => (value: SourceValue) => ValueItem}
- */
-const itemValue = item => value => {
-    if (item[0] !== '...') { return value }
-    /** @type {ValueSpread} */
-    const spread = ['...', value]
-    return spread
-}
 
 /**
  * The node an entry evaluates: a member's value, or a spread's operand —
@@ -792,7 +843,7 @@ const elementItem = element => {
 
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? operandOf(elementItem(items[index])) : entryOperandOf(items[index])
+    kind === 'array' ? operandOf(elementItem(items[Number(index)])) : entryOperandOf(items[Number(index)])
 
 /**
  * The node of a computed or numeric-literal key, or `null` where the item
@@ -802,7 +853,7 @@ const itemAt = ([kind, items], index) =>
  */
 const computedKeyAt = ([kind, items], index) => {
     if (kind === 'array') { return null }
-    const entry = items[index]
+    const entry = items[Number(index)]
     return entry instanceof Array || !hasEntry(entry, 'node') ? null : entry.node
 }
 
@@ -816,10 +867,10 @@ const computedKeyAt = ([kind, items], index) => {
  * @type {(container: Container, index: number, key: readonly [SourceValue] | null, value: SourceValue) => ValueItem | ValueMember}
  */
 const containerValue = ([, items], index, key, value) => {
-    const entry = items[index]
-    if (entry instanceof Array) { return itemValue(elementItem(entry))(value) }
+    const item = items[Number(index)]
+    if (item instanceof Array) { return itemValue(elementItem(item))(value) }
     /** @type {ValueMember} */
-    const member = [':', key === null ? /** @type {ConstantMember} */ (entry).name : key[0], value]
+    const member = [':', key === null ? assertNotNullish(entry(/** @type {ConstantMember} */ (item), 'name')) : key[0], value]
     return member
 }
 
@@ -838,14 +889,14 @@ const containerValue = ([, items], index, key, value) => {
  */
 const badKey = ([kind, items], index) => {
     if (kind === 'array') {
-        const element = items[index]
+        const element = items[Number(index)]
         return element[0] === 'elision' ? arrayHole(element[1]) : null
     }
-    const member = items[index]
+    const member = items[Number(index)]
     // A spread names no key; computed and numeric-literal keys name own properties.
     if (member instanceof Array || hasEntry(member, 'node')) { return null }
-    const { key, name, spelling } = member
-    return name === protoKey && spelling !== 'shorthand' ? protoKeyError(key) : null
+    const { key, spelling } = member
+    return entry(member, 'name') === protoKey && spelling !== 'shorthand' ? protoKeyError(key) : null
 }
 
 /**
@@ -920,7 +971,7 @@ const callOperandCount = call => call[2].length + 1
  *
  * @type {(call: _CallFrame['call'], index: number) => Node}
  */
-const callOperandAt = (call, index) => index === 0 ? call[1] : operandOf(call[2][index - 1])
+const callOperandAt = (call, index) => index === 0 ? call[1] : operandOf(call[2][Number(index - 1)])
 
 /**
  * A call's value at `index`, an argument's spread put back: the callee is
@@ -928,7 +979,7 @@ const callOperandAt = (call, index) => index === 0 ? call[1] : operandOf(call[2]
  *
  * @type {(call: _CallFrame['call'], index: number, value: SourceValue) => ValueItem}
  */
-const callValue = (call, index, value) => index === 0 ? value : itemValue(call[2][index - 1])(value)
+const callValue = (call, index, value) => index === 0 ? value : itemValue(call[2][Number(index - 1)])(value)
 
 /**
  * The next operand of a call, or the call closed when none is left: the
@@ -937,7 +988,8 @@ const callValue = (call, index, value) => index === 0 ? value : itemValue(call[2
  * @type {(stack: _Stack, scope: _Scope, frame: _CallFrame) => _State}
  */
 const callRound = (stack, scope, frame) => {
-    const { call, index } = frame
+    const { index } = frame
+    const call = assertNotNullish(entry(frame, 'call'))
     if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, scope, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
     /** @type {ValueCall} */
@@ -951,7 +1003,7 @@ const callRound = (stack, scope, frame) => {
  *
  * @type {(conditional: _ConditionalFrame['conditional'], index: number) => Node}
  */
-const conditionalOperandAt = ([, condition, then, otherwise], index) => [condition, then, otherwise][index]
+const conditionalOperandAt = ([, condition, then, otherwise], index) => [condition, then, otherwise][Number(index)]
 
 /**
  * The next operand of a conditional, or the conditional closed when none
@@ -981,62 +1033,65 @@ const conditionalRound = (stack, scope, frame) => {
  */
 const commaRound = (stack, scope, frame) => {
     const { comma, index } = frame
-    if (index < comma.length) { return [{ top: frame, rest: stack }, scope, ['enter', comma[index]]] }
+    if (index < comma.length) { return [{ top: frame, rest: stack }, scope, ['enter', comma[Number(index)]]] }
     /** @type {ValueComma} */
     const closed = [',', toArray(frame.done)]
     return [stack, scope, ok(closed)]
 }
 
-/** A function's declaration is its self only where no parameter/local shadows it. @type {(scope: _Scope, word: string) => _Ref | null} */
-const bound = (scope, word) => at(word)(scope.names) ?? (scope.self === word
-    ? { id: assertNotNullish(scope.selfBinding), kind: 'self', assignable: scope.selfVariable } : null)
-
-/**
- * Resolve an original declaration identity and remember each intervening read
- * for the existing capture-shadow rule. No capture frame or value version is
- * chosen here. The outward search and inward rebuilding use explicit lists,
- * keeping deeply nested source functions off the host stack. The third
- * element is whether the search crossed a function boundary — a region's is
- * none — the reference being a capture then.
- *
- * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref, boolean] | null}
- */
-const resolve = (scope, word) => {
-    /** The bodies the word is read through, the one just inside the binding scope on top. @type {List<_Scope>} */
-    let through = null
-    let binder = scope
-    let ref = bound(binder, word)
-    while (ref === null) {
-        if (binder.outer === null) { return null }
-        through = { first: binder, tail: through }
-        binder = binder.outer
-        ref = bound(binder, word)
-    }
-    /** @type {readonly [_Scope, _Ref]} */
-    let result = [ref.kind === 'self' ? { ...binder, names: extended(binder.names)(word, ref) } : binder, ref]
-    let crossed = false
-    for (const body of toArray(through)) {
-        result = captured(body, word, result)
-        crossed = crossed || !body.region
-    }
-    return [result[0], result[1], crossed]
-}
-
-/** Retain lexical read evidence for existing capture-shadow admission, without frames. @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]} */
-const captured = (body, word, [outer, ref]) => {
-    const captured = /** @type {_Ref} */ ({ id: ref.id, kind: 'capture', assignable: ref.assignable })
-    return [{ ...body, outer, names: extended(body.names)(word, captured), origins: setReplace(word)(ref.id)(body.origins) }, captured]
-}
-
 /** @type {(bound: _Bound, plan: _Plan, initialize: boolean) => _Bound} */
 const parameterBindings = (bound, plan, initialize) => ({
     ...bound,
-    origins: initialize ? plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[index])(origins), bound.origins) : bound.origins,
+    origins: initialize ? plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[Number(index)])(origins), bound.origins) : bound.origins,
     bindings: [...bound.bindings, ...plan.ids],
     sourceOrigins: [...bound.sourceOrigins, ...planOrigins(plan, 'parameter')],
     initialized: initialize ? [...bound.initialized, ...plan.ids] : bound.initialized,
 })
 
+
+/**
+ * The word a binding may take: an identifier, refusing a keyword, and one
+ * the environment does not hold — `import` and `const` share the one map,
+ * so a name taken by either is taken for both, `duplicate id`.
+ *
+ * Separate from the binding itself because a `const` asks the two questions
+ * at different moments: its name is refused before its value is read, so
+ * that `const NaN = missing;` answers for the name and not for `missing`,
+ * while the binding lands after, keeping the name out of its own
+ * initializer's scope.
+ *
+ * @type {(env: _Env) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
+ */
+const bindable = env => name => {
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
+    return at(word)(env) === null ? ok(word) : error(duplicateId(name))
+}
+
+/**
+ * The word a body `const` may take: {@link bindable}'s question asked of
+ * the body's own names and of the names of the block it continues, the
+ * statements after a guard being JavaScript's one block with the ones
+ * before it. A name any of them binds is `duplicate id`; one none binds
+ * but one has read from outside — bound to a slot of its frame, or to the
+ * function itself, {@link bound} — is `capture shadowed`, and the binding
+ * wins where both hold, as it does in JavaScript, where the read named the
+ * block's own binding. A name the
+ * body's own initializer reads is refused once it has been, in
+ * {@link returned}.
+ *
+ * @type {(scope: _Scope) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
+ */
+const bodyBindable = scope => name => {
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
+    const refs = [scope.names, ...toArray(scope.enclosing)].flatMap(env => {
+        const ref = at(word)(env)
+        return ref === null ? [] : [ref]
+    })
+    if (refs.some(ref => ref.kind === 'own')) { return error(duplicateId(name)) }
+    return refs.length === 0 ? ok(word) : error(captureShadowed(name))
+}
 
 /**
  * Check every parameter declaration before resolving defaults in order. The
@@ -1048,24 +1103,26 @@ const parameterBindings = (bound, plan, initialize) => ({
 const functionScope = list => {
     if (hasEntry(list, 'invalid')) { return error(malformedParameters(list.invalid)) }
     if (hasEntry(list, 'arrow')) { return error(unexpectedToken(list.arrow)) }
-    const defaulted = list.fixed.findIndex(parameter => parameter[0] === '=')
-    const count = defaulted === -1 ? list.fixed.length : defaulted
+    const fixed = assertNotNullish(entry(list, 'fixed'))
+    const defaulted = fixed.findIndex(parameter => parameter[0] === '=')
+    const count = defaulted === -1 ? fixed.length : defaulted
     /** @type {_Bound} */
     let bound = { names: empty, count, parameters: [], rest: null, late: [], origins: empty, bindings: [], sourceOrigins: [], initialized: [] }
     /** @type {_Env} */
     let seen = empty
-    for (const [i, parameter] of list.fixed.entries()) {
+    for (let i = 0; i < fixed.length; i += 1) {
+        const parameter = fixed[Number(i)]
         const target = parameter[0] === '=' ? parameter[1] : parameter
         if (i === maxLength) { return error(tooManyParameters(target[1])) }
         const [tag, plan] = planned(bindable(seen))(target, null)
         if (tag === 'error') { return error(plan) }
         const deferred = i >= count || bound.late.length !== 0 || hasPatternDefault(plan)
         bound = parameterBindings(bound, plan, !deferred)
-        seen = plan.names.reduce(/** @type {(env: _Env, name: readonly [ModuleTokenWithMetadata, number]) => _Env} */ ((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[index], kind: 'own', assignable: true })), seen)
+        seen = plan.names.reduce(/** @type {(env: _Env, name: readonly [ModuleTokenWithMetadata, number]) => _Env} */ ((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[Number(index)], kind: 'own', assignable: true })), seen)
         if (deferred) {
             bound = { ...bound, late: [...bound.late, { plan, init: parameter[0] === '=' ? parameter[3] : null, rest: false }] }
         } else {
-            bound = { ...bound, parameters: [...bound.parameters, { plan: expansion(plan), default: null }], names: plan.names.reduce((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[index], kind: 'own', assignable: true }), bound.names) }
+            bound = { ...bound, parameters: [...bound.parameters, { plan: expansion(plan), default: null }], names: plan.names.reduce((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[Number(index)], kind: 'own', assignable: true }), bound.names) }
         }
     }
     if (list.rest === null) { return ok(bound) }
@@ -1103,17 +1160,17 @@ const enterLoop = (stack, scope, loop, body) =>
 /** Resolve the body before the condition, in a separate lexical region. @type {(stack: _Stack, scope: _Scope, loop: DoWhile, body: _LoopBodyFrame | null) => _State} */
 const enterDoLoop = (stack, scope, loop, body) => {
     const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
-    return loopRound({ top: { doLoop: loop, target, body, resolvedBody: null }, rest: stack }, regionScope(regionScope(scope, empty, null), empty, null), {
+    return [{ top: { doLoop: loop, target, body, resolvedBody: null }, rest: stack }, regionScope(regionScope(scope, empty, null), empty, null), ['region', {
         block: loop.block[1], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null,
-    })
+    }]]
 }
 
 /** Resolve a for initializer in a lexical region that remains open for its loop. @type {(stack: _Stack, scope: _Scope, loop: For, body: _LoopBodyFrame | null) => _State} */
 const enterFor = (stack, scope, loop, body) => {
     const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
-    return loopRound({ top: { for: loop, body, initial: null }, rest: stack }, regionScope(scope, empty, null), {
+    return [{ top: { for: loop, body, initial: null }, rest: stack }, regionScope(scope, empty, null), ['region', {
         block: loop.initializer === null ? [] : [loop.initializer], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null, open: true,
-    })
+    }]]
 }
 
 /** Resolve the iterable once, before initializing a fresh iteration binding.
@@ -1128,15 +1185,6 @@ const enterForOf = (stack, scope, loop, body) => {
     return [{ top: frame, rest: stack }, inner, ['enter', loop.iterable]]
 }
 
-/** The body owns a lexical scope inside the per-iteration declaration scope.
- * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, plan: ExpansionPlan) => _State}
- */
-const forOfBody = (stack, scope, frame, plan) => loopRound({
-    top: { ...frame, initial: [['initialize', plan, ['ref', frame.item]]] }, rest: stack,
-}, regionScope(scope, empty, null), {
-    block: frame.forOf.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
-})
-
 /** Keep iterable effects outside iteration events, and retain original transfer owners.
  * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, value: SourceValue) => _State}
  */
@@ -1148,7 +1196,7 @@ const forOfReturned = (stack, scope, frame, value) => {
         const next = { ...frame, source: [value] }
         const inner = declared(regionScope(scope, empty, null), frame.plan, frame.forOf.kind)
         return hasPatternDefault(frame.plan)
-            ? patternRound(stack, inner, { pattern: frame.plan, index: 0, reads: [], kind: frame.forOf.kind, continuation: { forOf: next } })
+            ? [stack, inner, ['pattern', { pattern: frame.plan, index: 0, reads: [], kind: frame.forOf.kind, continuation: { forOf: next } }]]
             : forOfBody(stack, boundPlan(inner, frame.plan, isVariable(frame.forOf.kind)), next, expansion(frame.plan))
     }
     const body = regionBlock(value)
@@ -1159,7 +1207,7 @@ const forOfReturned = (stack, scope, frame, value) => {
     /** @type {SourceStatement} */
     const statement = ['for-of', loop]
     if (frame.body === null) { return [stack, outer, ok(['block', { statements: [statement], exit: ['yield', undefined] }])] }
-    return loopRound(stack, outer, advanced(frame.body, [statement]))
+    return [stack, outer, ['region', advanced(frame.body, [statement])]]
 }
 
 /** Enter a standalone lexical region. @type {(stack: _Stack, scope: _Scope, block: StandaloneLoopBlock) => _State} */
@@ -1183,82 +1231,6 @@ const declarationValue = ({ value }) => value === null ? ['primitive', undefined
  */
 const declaredValue = (kind, target, value, namespace, plan) => namespace !== null ? ok(undefined)
     : target[0] === 'name' ? ['define', value, [nameOf(target[1]), plan.ids[0], isVariable(kind)]] : ['enter', value]
-
-/**
- * Enters a node: a primitive is its value, a reference what `scope`
- * resolves its name to — a capture, where a function's body names what a
- * scope around it binds, {@link resolve} — an access its base under a
- * frame holding the key, a container, a call or a conditional the first
- * round of a new frame, an operator its left operand under a frame holding
- * the right, and a function its body, in a scope of its own inside
- * `scope`. A name no scope binds is `const not found`.
- *
- * A block body is entered the same way, under a frame that also holds its
- * statements: the parameter is the only name bound when the first of them
- * is resolved — none is, where the list is empty — and each binds its own
- * as the module's `const`s do.
- *
- * @type {(stack: _Stack, scope: _Scope, node: Node) => _State}
- */
-const enter = (stack, scope, node) => {
-    if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
-    if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
-    switch (node[0]) {
-        case 'new': { return [stack, scope, error(unsupportedNew(node[3]))] }
-        case 'binding-default': { return [stack, scope, error(unexpectedToken(node[2]))] }
-        // a template without substitutions is its text, as a literal is
-        case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }
-        case 'ref': {
-            const name = nameOf(node[1])
-            const global = staticIds.find(id => id === name)
-            if (global !== undefined) { return [stack, scope, ok([global])] }
-            const [tag, word] = identifierOf(node[1])
-            if (tag === 'error') { return [stack, scope, error(word)] }
-            const found = resolve(scope, word)
-            if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
-            return [stack, traced(referenced(selfReference(found), node[1]), [['read', found[1].id]]), ok(['ref', found[1].id])]
-        }
-        case '.': {
-            const member = staticOf(node)
-            if (member !== null) { return staticRead(stack, scope, node, member) }
-            return node.length === 3
-                ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
-                : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
-        }
-        // a guarded read of a namespace enters the word, which is refused:
-        // a guard asks whether a value is nullish, and a namespace is none
-        case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
-        case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
-        // the left operand first, as every binary operator's: the right
-        // side is checked when the left returns, so a fault in the left is
-        // the one reported, the first in document order
-        case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
-        // the key first, as every operator's left operand is checked first:
-        // a string literal — not a template, even one without substitutions,
-        // which the syntax keeps apart — and no name a built-in prototype gives a value,
-        // the read's rule, `length` allowed as a read allows it, since an
-        // array and a function own it and the operator's body reads it as
-        // the read does — both refused at the operator, the one token every
-        // spelling of the left side shares; then the right operand is entered
-        case 'in': {
-            const [, left, right, at] = node
-            if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
-            if (prohibitedRead(left[1]) !== null) { return [stack, scope, error(prohibitedKey(at))] }
-            return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
-        }
-        case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
-        // a comma the parentheses also hold what no comma has in is
-        // refused at the first of it: a default, a rest or a trailing comma
-        case ',': {
-            const refusal = node[2]
-            return refusal === null ? commaRound(stack, scope, { comma: node[1], index: 0, done: null }) : [stack, scope, error(unexpectedToken(refusal))]
-        }
-        case '=>': { return entered(stack, scope, node, null) }
-        // a block stands only as a function's body, which `'=>'` above
-        // enters; the mapping writes one nowhere else
-        default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null, key: null }) }
-    }
-}
 
 /** Whether a node is the reference `word` spells. @type {(node: Item, word: string) => boolean} */
 const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
@@ -1418,17 +1390,18 @@ const isHasEntryOf = (node, x) => {
  */
 const intrinsicFunction = ([, list, body]) => {
     if (!hasEntry(list, 'fixed') || list.rest !== null || body[0] !== '()') { return null }
+    const fixed = assertNotNullish(entry(list, 'fixed'))
     const [, callee, items] = body
     if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
     const key = keyNamed(callee[2])
     const intrinsic = intrinsics.find(([id]) => id === key)
-    if (intrinsic === undefined || list.fixed.length !== helperLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
-    const tokens = list.fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
-    if (tokens.length !== list.fixed.length) { return null }
+    if (intrinsic === undefined || fixed.length !== helperLength(intrinsic[0]) || items.length !== fixed.length - 1) { return null }
+    const tokens = fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
+    if (tokens.length !== fixed.length) { return null }
     const names = tokens.map(nameOf)
-    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    if (names.some((name, i) => names.indexOf(name) !== i) || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
     const [receiver, ...rest] = names
-    if (!isRef(callee[1], receiver) || !items.every((item, k) => isRef(item, rest[k]))) { return null }
+    if (!isRef(callee[1], receiver) || !items.every((item, k) => isRef(item, rest[Number(k)]))) { return null }
     /** @type {ValueIntrinsic} */
     const helper = [intrinsic[0]]
     return helper
@@ -1447,8 +1420,10 @@ const intrinsicFunction = ([, list, body]) => {
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<ValueEntryFunction | ValueHasEntryFunction, ParseError> | null}
  */
 const entryFunction = ([, list, body]) => {
-    if (!hasEntry(list, 'fixed') || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
-    const [p, q] = list.fixed
+    if (!hasEntry(list, 'fixed')) { return null }
+    const fixed = assertNotNullish(entry(list, 'fixed'))
+    if (fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
+    const [p, q] = fixed
     const first = body[1][0]
     const last = body[1][1]
     if (first[0] !== 'const' || first[1].following !== undefined || last[0] !== 'return' || last[1].value === null) { return null }
@@ -1462,7 +1437,7 @@ const entryFunction = ([, list, body]) => {
     const b = nameOf(q[1])
     const x = nameOf(declaration.target[1])
     const names = [a, b, x]
-    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    if (names.some((name, i) => names.indexOf(name) !== i) || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
     if (!isDescriptorOf(declaration.value, a, b)) { return null }
     const has = isHasEntryOf(assertNotNullish(returned.value), x)
     if (!has && !isEntryOf(assertNotNullish(returned.value), x)) { return null }
@@ -1490,10 +1465,11 @@ const refMapFunction = (scope, node, self) => {
     if (self === null || self[2] || !isRefMap(node, self[0]) || resolve(scope, 'WeakMap') !== null) { return null }
     if (boundNames(node).map(nameOf).some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
     for (const block of blocks(node)) {
-        for (const [index, [tag, statement]] of block.entries()) {
+        for (let index = 0; index < block.length; index += 1) {
+            const [tag, statement] = block[Number(index)]
             // every `return` of the map has a value, so its first token is there
             const next = /** @type {{ readonly start: ModuleTokenWithMetadata, readonly first: ModuleTokenWithMetadata }} */ (statement)
-            if (unterminated(index === 0 ? null : /** @type {{ readonly start: ModuleTokenWithMetadata }} */ (block[index - 1][1]), next)) { return error(unexpectedToken(next.start)) }
+            if (unterminated(index === 0 ? null : /** @type {{ readonly start: ModuleTokenWithMetadata }} */ (block[Number(index - 1)][1]), next)) { return error(unexpectedToken(next.start)) }
             if (tag === 'return' && brokenLine(next)) { return error(unexpectedToken(next.first)) }
         }
     }
@@ -1541,7 +1517,7 @@ const templateScope = (scope, node) => {
         bindings = [...bindings, ...plan.ids]
         sourceOrigins = [...sourceOrigins, ...planOrigins(plan, 'const')]
         events = [...events, ...templateReads(declaration.value, origins), ...plan.ids.map(id => /** @type {BindingEvent} */ (['initialize', id]))]
-        origins = plan.names.reduce((origins, [name, i]) => setReplace(nameOf(name))(plan.ids[i])(origins), origins)
+        origins = plan.names.reduce((origins, [name, i]) => setReplace(nameOf(name))(plan.ids[Number(i)])(origins), origins)
         events = [...events, ...templateReads(/** @type {ValueStatement} */ (last[1]).value, origins)]
     } else {
         events = [...events, ...templateReads(node[2], origins)]
@@ -1573,8 +1549,8 @@ const refMapScope = (scope, node, self) => {
 const entered = (stack, scope, node, self) => {
     // the helpers first, whole: a function that is one has no body to
     // resolve
-    const entry = entryFunction(node)
-    if (entry !== null) { return [stack, entry[0] === 'ok' ? templateScope(scope, node) : scope, entry] }
+    const entryResult = entryFunction(node)
+    if (entryResult !== null) { return [stack, entryResult[0] === 'ok' ? templateScope(scope, node) : scope, entryResult] }
     const intrinsic = intrinsicFunction(node)
     if (intrinsic !== null) { return [stack, templateScope(scope, node), ok(intrinsic)] }
     const refMap = refMapFunction(scope, node, self)
@@ -1586,12 +1562,100 @@ const entered = (stack, scope, node, self) => {
     /** @type {_Scope} */
     const inner = {
         names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false, inFunction: true,
-        blockCall: stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0 && stack.top.call[2].length === 0
+        blockCall: stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0 && assertNotNullish(entry(stack.top, 'call'))[2].length === 0
             && count === 0 && late.length === 0 && rest === null,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
         trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
-    return lateRound(stack, inner, { late, index: 0, body: node[2] })
+    return [stack, inner, ['parameter', { late, index: 0, body: node[2] }]]
+}
+
+/**
+ * Enters a node: a primitive is its value, a reference what `scope`
+ * resolves its name to — a capture, where a function's body names what a
+ * scope around it binds, {@link resolve} — an access its base under a
+ * frame holding the key, a container, a call or a conditional the first
+ * round of a new frame, an operator its left operand under a frame holding
+ * the right, and a function its body, in a scope of its own inside
+ * `scope`. A name no scope binds is `const not found`.
+ *
+ * A block body is entered the same way, under a frame that also holds its
+ * statements: the parameter is the only name bound when the first of them
+ * is resolved — none is, where the list is empty — and each binds its own
+ * as the module's `const`s do.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Node) => _State}
+ */
+const enter = (stack, scope, node) => {
+    if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
+    if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
+    switch (node[0]) {
+        case 'new': { return [stack, scope, error(unsupportedNew(node[3]))] }
+        case 'binding-default': { return [stack, scope, error(unexpectedToken(node[2]))] }
+        // a template without substitutions is its text, as a literal is
+        case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }
+        case 'ref': {
+            const name = nameOf(node[1])
+            const global = staticIds.find(id => id === name)
+            if (global !== undefined) { return [stack, scope, ok([global])] }
+            const [tag, word] = identifierOf(node[1])
+            if (tag === 'error') { return [stack, scope, error(word)] }
+            const found = resolve(scope, word)
+            if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
+            return [stack, traced(referenced(selfReference(found), node[1]), [['read', found[1].id]]), ok(['ref', found[1].id])]
+        }
+        case '.': {
+            const member = staticOf(node)
+            if (member !== null) { return staticRead(stack, scope, node, member) }
+            return node.length === 3
+                ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
+                : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
+        }
+        // a guarded read of a namespace enters the word, which is refused:
+        // a guard asks whether a value is nullish, and a namespace is none
+        case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
+        case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
+        // the left operand first, as every binary operator's: the right
+        // side is checked when the left returns, so a fault in the left is
+        // the one reported, the first in document order
+        case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
+        // the key first, as every operator's left operand is checked first:
+        // a string literal — not a template, even one without substitutions,
+        // which the syntax keeps apart — and no name a built-in prototype gives a value,
+        // the read's rule, `length` allowed as a read allows it, since an
+        // array and a function own it and the operator's body reads it as
+        // the read does — both refused at the operator, the one token every
+        // spelling of the left side shares; then the right operand is entered
+        case 'in': {
+            const [, left, right, at] = node
+            if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
+            if (prohibitedRead(left[1]) !== null) { return [stack, scope, error(prohibitedKey(at))] }
+            return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
+        }
+        case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
+        // a comma the parentheses also hold what no comma has in is
+        // refused at the first of it: a default, a rest or a trailing comma
+        case ',': {
+            const refusal = node[2]
+            return refusal === null ? commaRound(stack, scope, { comma: node[1], index: 0, done: null }) : [stack, scope, error(unexpectedToken(refusal))]
+        }
+        case '=>': { return entered(stack, scope, node, null) }
+        // a block stands only as a function's body, which `'=>'` above
+        // enters; the mapping writes one nowhere else
+        default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null, key: null }) }
+    }
+}
+
+/** @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: { readonly value: SourceValue } | null) => _State} */
+const lateLanded = (stack, scope, frame, value) => {
+    const { plan, rest } = frame.late[Number(frame.index)]
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    if (hasPatternDefault(plan)) {
+        return [stack, scope, ['pattern', { pattern: plan, index: 0, reads: [], kind: 'parameter', continuation: { parameter: frame, value } }]]
+    }
+    const initialized = boundPlan(scope, plan, true)
+    return [stack, rest ? initialized : { ...initialized, parameters: [...initialized.parameters, { plan: expansion(plan), default: value }] }, ['parameter', { ...frame, index: frame.index + 1 }]]
 }
 
 /** Resolve defaults before making the next parameter readable. @type {(stack: _Stack, scope: _Scope, frame: _LateFrame) => _State} */
@@ -1599,23 +1663,212 @@ const lateRound = (stack, scope, frame) => {
     const { late, index, body } = frame
     if (index === late.length) {
         return body[0] === 'block'
-            ? loopRound(stack, scope, { block: body[1], target: null, breakTarget: null, functionBody: true, index: 0, plan: null, assigned: null, done: null })
+            ? [stack, scope, ['region', {
+                block: body[1], target: null, breakTarget: null, functionBody: true, index: 0, plan: null, assigned: null, done: null ,
+            }]]
             : [{ top: { function: true }, rest: stack }, scope, ['enter', body]]
     }
-    const { init } = late[index]
+    const { init } = late[Number(index)]
     return init === null ? lateLanded(stack, scope, frame, null) : [{ top: frame, rest: stack }, scope, ['enter', init]]
 }
 
-/** @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: { readonly value: SourceValue } | null) => _State} */
-const lateLanded = (stack, scope, frame, value) => {
-    const { plan, rest } = frame.late[frame.index]
-    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-    if (hasPatternDefault(plan)) {
-        return patternRound(stack, scope, { pattern: plan, index: 0, reads: [], kind: 'parameter', continuation: { parameter: frame, value } })
+/** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: { readonly firstEvent: number; readonly firstOrigin: number }) => number} */
+const outerArmWrites = (scope, frame) => {
+    const locals = scope.sourceOrigins.slice(frame.firstOrigin).map(origin => origin.id)
+    /** @type {readonly BindingId[]} */
+    let writes = []
+    let pending = completedTrace(scope).events.slice(frame.firstEvent)
+    while (pending.length !== 0) {
+        const [event, ...rest] = pending
+        if (event[0] === 'region') { pending = [...event[1], ...rest]; continue }
+        if (event[0] === 'function') { pending = [...event[1].events, ...rest]; continue }
+        if (event[0] === 'write' && !locals.includes(event[1]) && !writes.includes(event[1])) { writes = [...writes, event[1]] }
+        pending = rest
     }
-    const initialized = boundPlan(scope, plan, true)
-    return lateRound(stack, rest ? initialized : { ...initialized, parameters: [...initialized.parameters, { plan: expansion(plan), default: value }] }, { ...frame, index: frame.index + 1 })
+    return writes.length
+}
+
+/**
+ * An arm may not complete normally. Follow possible source paths on an explicit
+ * stack; a nested switch's break resumes after that switch. Shared continuations
+ * are visited once, so successive conditional arms do not multiply the work.
+ * Loop statements retain the existing requirement for an explicit arm exit.
+ *
+ * @type {(body: SourceBlock) => boolean}
+ */
+const caseFallsThrough = body => {
+    /** @type {readonly _CasePath[]} */
+    let pending = [{ statements: body.statements, index: 0, next: null, breaks: [] }]
+    let seen = emptyRefMap
+    while (pending.length !== 0) {
+        const [path, ...rest] = pending
+        pending = rest
+        const [known, nextSeen] = seen(path, true)
+        if (known !== undefined) { continue }
+        seen = nextSeen
+        if (path.index === path.statements.length) {
+            if (path.next === null) { return true }
+            pending = [path.next, ...pending]
+            continue
+        }
+        const statement = path.statements[Number(path.index)]
+        const next = /** @type {_CasePath} */ ({ ...path, index: path.index + 1 })
+        if (statement[0] === 'break') {
+            const owner = path.breaks.find(([target]) => target === statement[1])
+            if (owner !== undefined) { pending = [owner[1], ...pending] }
+            continue
+        }
+        if (statement[0] === 'while' && statement[1].condition === true && !hasTargetBreak(statement[1].body, statement[1].target)) { continue }
+        if (statement[0] === 'continue' || statement[0] === 'return' || statement[0] === 'throw') { continue }
+        if (statement[0] === 'if') {
+            pending = [...[statement[2], statement[3]].map(arm => ({ statements: arm.statements, index: 0, next, breaks: path.breaks })), ...pending]
+            continue
+        }
+        if (statement[0] === 'switch') {
+            const region = statement[1]
+            const breaks = /** @type {_CasePath['breaks']} */ ([[region.target, next], ...path.breaks])
+            pending = [...[...region.cases.map(arm => arm.body), region.otherwise].map(arm => ({ statements: arm.statements, index: 0, next, breaks })), ...pending]
+            continue
+        }
+        pending = [next, ...pending]
+    }
+    return false
+}
+
+/** A completed switch supplies its normal branch to following source statements. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, otherwise: SourceBlock) => _State} */
+const loopSwitchDone = (stack, scope, frame, otherwise) => {
+    const region = /** @type {SourceSwitch} */ ({
+        target: frame.target, events: completedTrace(scope).events,
+        discriminant: assertNotNullish(frame.discriminant, 'a switch without its discriminant')[0], cases: toArray(reverse(frame.arms)), otherwise,
+    })
+    return [stack, restoredScope(scope, false), ['region', advanced(frame.body, [['switch', region]])]]
+}
+
+/** Resolve one loop-switch label or case without changing its enclosing continue owner. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame) => _State} */
+const loopSwitchRound = (stack, scope, frame) => {
+    const { cases, default: fallback } = frame.loopSwitch
+    const { index, label } = frame
+    const block = index < cases.length ? cases[Number(index)].block : fallback
+    if (index < cases.length && label < cases[Number(index)].labels.length) { return [{ top: frame, rest: stack }, scope, ['enter', cases[Number(index)].labels[Number(label)]]] }
+    return block === null
+        ? loopSwitchDone(stack, scope, frame, { statements: [], exit: ['yield', undefined] })
+        : [{ top: frame, rest: stack }, regionScope(scope, empty, null), ['region', {
+            block: block[1], target: frame.body.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+        }]]
+}
+
+/** Cases keep fresh lexical names and complete legality checks before fallthrough admission. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, value: SourceValue) => _State} */
+const loopSwitchReturned = (stack, scope, frame, value) => {
+    const { cases } = frame.loopSwitch
+    const { index, label } = frame
+    if (index < cases.length && label < cases[Number(index)].labels.length) {
+        return loopSwitchRound(stack, scope, { ...frame, label: label + 1, labels: [...frame.labels, value] })
+    }
+    const body = regionBlock(value)
+    if (caseFallsThrough(body)) { return [stack, scope, error(unterminatedCase(frame.loopSwitch.start))] }
+    return index < cases.length
+        ? loopSwitchRound(stack, scope, { ...frame, index: index + 1, label: 0, labels: [], arms: { first: { labels: frame.labels, body }, tail: frame.arms } })
+        : loopSwitchDone(stack, scope, frame, body)
+}
+
+/**
+ * Whether the node being closed is called where it is written: the frame on
+ * top is a call's, plain or optional, `(f)()` or `(f)?.()`, with no operand
+ * done yet, so the node is its callee.
+ *
+ * @type {(stack: _Stack) => boolean}
+ */
+const isCalledWhereWritten = stack => {
+    if (stack === null) { return false }
+    const { top } = stack
+    return (hasEntry(top, 'call') && top.index === 0) || (hasEntry(top, 'chain') && top.index === 0 && top.chain[0] === '?.()')
+}
+
+/**
+ * Source functions retain their declarations and lexical body; regions create
+ * no invocation. A function is held as a value unless it closes as a call's
+ * callee, called where it is written, {@link isCalledWhereWritten}.
+ *
+ * @type {(stack: _Stack, scope: _Scope, body: SourceBlock) => _State}
+ */
+const closed = (stack, scope, body) => {
+    // A block-call candidate with a nonterminal owning return must still
+    // keep its invocation. Other invocation boundaries were refused at the
+    // assignment, before its right-hand side was entered.
+    const externalWrite = scope.captures.find(capture => capture.written && !scope.trace.bindings.includes(capture.id))
+    if (!scope.region && externalWrite !== undefined && hasRetainedReturn(returnedBlock(body))) { return [stack, scope, error(externalWrite.refusal)] }
+    /** @type {SourceValue} */
+    const value = scope.region ? ['block', body] : ['function', {
+        target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
+    }]
+    return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
+}
+
+/**
+ * Retain declarations and assignments in a loop's block, a region of the
+ * body: `const`s and `let`s as the body's, and assignments, each resolved
+ * as an assignment anywhere is, {@link assigned}. Zero or several outer writes
+ * are admitted. Complete resolved read/write events, rather than a selected
+ * state variable, reach sugar, which chooses immutable versions and explicit
+ * iteration transfers after whole-scope analysis.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
+ */
+const loopRound = (stack, scope, frame) => {
+    if (frame.index === 0) { frame = { ...frame, block: frame.block.flatMap(/** @returns {_LoopBodyFrame['block']} */ statement => statement[0] === 'const'
+        ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
+    while (true) {
+        const { block, index } = frame
+        if (index === block.length) {
+            if (frame.open) { return [stack, scope, ok(['block', { statements: toArray(frame.done), exit: ['yield', undefined] }])] }
+            const statements = toArray(frame.done)
+            const last = statements[Number(statements.length - 1)]
+            if (frame.functionBody && last !== undefined && (last[0] === 'return' || last[0] === 'throw')) {
+                return closed(stack, scope, { statements: statements.slice(0, -1), exit: last })
+            }
+            return closed(stack, scope, { statements, exit: ['yield', undefined] })
+        }
+        const [kind, statement] = block[Number(index)]
+        if (unterminated(index === 0 ? null : block[Number(index - 1)][1], statement)) {
+            return [stack, scope, error(unexpectedToken(statement.start))]
+        }
+        if (kind === 'block') {
+            return [{ top: { scoped: frame }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null,
+            }]]
+        }
+        if (kind === 'break' || kind === 'continue') {
+            const target = kind === 'break' ? frame.breakTarget : frame.target
+            if (target === null) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            frame = advanced(frame, [[kind, target]])
+            continue
+        }
+        if (kind === 'return' || kind === 'throw') {
+            if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            if (brokenLine(statement)) { return [stack, scope, error(unexpectedToken(assertNotNullish(statement.first)))] }
+            return [{ top: frame, rest: stack }, scope, ['enter', statement.value ?? ['primitive', undefined]]]
+        }
+        if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
+        if (kind === 'do') { return enterDoLoop(stack, scope, statement, frame) }
+        if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
+        if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
+        if (kind === 'for-of') { return enterForOf(stack, scope, statement, frame) }
+        if (kind === 'switch') {
+            return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
+                regionScope(scope, empty, null), ['enter', statement.discriminant]]
+        }
+        if (kind === 'assign') {
+            const [tag, target] = assigned(scope, statement.name)
+            if (tag === 'error') { return [stack, scope, error(target)] }
+            return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
+        }
+        const { target } = statement
+        const value = declarationValue(statement)
+        const namespace = namespaceOf(target, value)
+        const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
+        if (tag === 'error') { return [stack, scope, error(plan)] }
+        return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
+    }
 }
 
 /**
@@ -1629,14 +1882,14 @@ const returned = (stack, scope, frame, value) => {
     if (hasEntry(frame, 'scoped')) {
         const statements = flattenedStandalone(regionBlock(value))
         if (frame.scoped === null) { return [stack, scope, ok(['block', { statements, exit: ['yield', undefined] }])] }
-        return loopRound(stack, scope, advanced(frame.scoped, statements))
+        return [stack, scope, ['region', advanced(frame.scoped, statements)]]
     }
     if (hasEntry(frame, 'pattern')) {
         const [tag, selected] = patternSelected(scope, frame, { value })
-        return tag === 'error' ? [stack, scope, error(selected)] : patternRound(stack, selected[0], selected[1])
+        return tag === 'error' ? [stack, scope, error(selected)] : [stack, selected[0], ['pattern', selected[1]]]
     }
     if (hasEntry(frame, 'container')) { return containerReturned(stack, scope, frame, value) }
-    if (hasEntry(frame, 'call')) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
+    if (hasEntry(frame, 'call')) { return callRound(stack, scope, advanced(frame, [callValue(assertNotNullish(entry(frame, 'call')), frame.index, value)])) }
     if (hasEntry(frame, 'conditional')) { return conditionalRound(stack, scope, advanced(frame, [value])) }
     if (hasEntry(frame, 'comma')) { return commaRound(stack, scope, advanced(frame, [value])) }
     if (hasEntry(frame, 'key')) {
@@ -1686,7 +1939,7 @@ const returned = (stack, scope, frame, value) => {
         assert(statement[0] === 'while', 'a for resolves to one loop')
         const statements = [...frame.initial, ...block.statements]
         if (frame.body === null) { return [stack, outer, ok(['block', { statements, exit: ['yield', undefined] }])] }
-        return loopRound(stack, outer, advanced(frame.body, statements))
+        return [stack, outer, ['region', advanced(frame.body, statements)]]
     }
     if (hasEntry(frame, 'doLoop')) {
         if (frame.resolvedBody === null) {
@@ -1695,49 +1948,53 @@ const returned = (stack, scope, frame, value) => {
         const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: value, body: frame.resolvedBody, postTest: true })
         const outer = restoredScope(scope, false)
         if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
-        return loopRound(stack, outer, advanced(frame.body, [['while', loop]]))
+        return [stack, outer, ['region', advanced(frame.body, [['while', loop]])]]
     }
     if (hasEntry(frame, 'loop')) {
         if (frame.condition === null) {
             if ('initializer' in frame.loop && frame.loop.step !== null) {
-                return loopRound({ top: { ...frame, condition: [value] }, rest: stack }, regionScope(scope, empty, null),
-                    { block: [frame.loop.step], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
+                return [{ top: { ...frame, condition: [value] }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                    block: [frame.loop.step], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null ,
+                }]]
             }
-            return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
-                regionScope(scope, empty, null),
-                { block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
+            return [{ top: { ...frame, condition: [value] }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null ,
+            }]]
         }
         if ('initializer' in frame.loop && frame.loop.step !== null && frame.step === null) {
-            return loopRound({ top: { ...frame, step: regionBlock(value) }, rest: stack }, regionScope(scope, empty, null),
-                { block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
+            return [{ top: { ...frame, step: regionBlock(value) }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null ,
+            }]]
         }
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
         const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body,
             ...(frame.step === null ? {} : { step: frame.step }) })
         if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
-        return loopRound(stack, outer, advanced(frame.body, [['while', loop]]))
+        return [stack, outer, ['region', advanced(frame.body, [['while', loop]])]]
     }
     if (hasEntry(frame, 'block')) {
-        const [kind, statement] = frame.block[frame.index]
+        const [kind, statement] = frame.block[Number(frame.index)]
         if (kind === 'if') {
-            return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null, firstEvent: scope.trace.count, firstOrigin: scope.sourceOrigins.length, start: statement.start }, rest: stack }, regionScope(scope, empty, null),
-                { block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null })
+            return [{ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null, firstEvent: scope.trace.count, firstOrigin: scope.sourceOrigins.length, start: statement.start }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null ,
+            }]]
         }
         if (kind === 'assign') {
             const id = assertNotNullish(frame.assigned, 'an assignment with no target')
-            return loopRound(stack, written(scope, statement, id), advanced(frame, [assignmentStatement(statement, id, value)]))
+            return [stack, written(scope, statement, id), ['region', advanced(frame, [assignmentStatement(statement, id, value)])]]
         }
-        if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
-        if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
+        if (kind === 'return') { return [stack, scope, ['region', advanced(frame, [['return', scope.trace.target, value]])]] }
+        if (kind === 'throw') { return [stack, scope, ['region', advanced(frame, [['throw', value]])]] }
         assert(kind !== 'block' && kind !== 'do' && kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
-        return landed(loopRound, stack, scope, frame, kind, value)
+        return landed(stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
         const block = regionBlock(value)
         if (frame.then === null && frame.otherwise !== null) {
-            return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
-                { block: frame.otherwise[1], target: frame.loopGuard.target, breakTarget: frame.loopGuard.breakTarget, index: 0, plan: null, assigned: null, done: null })
+            return [{ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: frame.otherwise[1], target: frame.loopGuard.target, breakTarget: frame.loopGuard.breakTarget, index: 0, plan: null, assigned: null, done: null ,
+            }]]
         }
         const then = frame.then ?? block
         const otherwise = frame.then === null ? { statements: [], exit: /** @type {const} */ (['yield', undefined]) } : block
@@ -1749,7 +2006,7 @@ const returned = (stack, scope, frame, value) => {
                 if (outerArmWrites(scope, frame) > 1) { return [stack, scope, error(multipleJoinBindings(frame.start))] }
             }
         }
-        return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition, then, otherwise]]))
+        return [stack, scope, ['region', advanced(frame.loopGuard, [['if', frame.condition, then, otherwise]])]]
     }
     if (hasEntry(frame, 'loopSwitch')) {
         return frame.discriminant === null
@@ -1758,205 +2015,6 @@ const returned = (stack, scope, frame, value) => {
     }
     if (hasEntry(frame, 'late')) { return lateLanded(stack, scope, frame, { value }) }
     return closed(stack, scope, { statements: [], exit: ['return', scope.trace.target, value] })
-}
-
-/** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: { readonly firstEvent: number; readonly firstOrigin: number }) => number} */
-const outerArmWrites = (scope, frame) => {
-    const locals = scope.sourceOrigins.slice(frame.firstOrigin).map(origin => origin.id)
-    /** @type {readonly BindingId[]} */
-    let writes = []
-    let pending = completedTrace(scope).events.slice(frame.firstEvent)
-    while (pending.length !== 0) {
-        const [event, ...rest] = pending
-        if (event[0] === 'region') { pending = [...event[1], ...rest]; continue }
-        if (event[0] === 'function') { pending = [...event[1].events, ...rest]; continue }
-        if (event[0] === 'write' && !locals.includes(event[1]) && !writes.includes(event[1])) { writes = [...writes, event[1]] }
-        pending = rest
-    }
-    return writes.length
-}
-
-/**
- * An arm may not complete normally. Follow possible source paths on an explicit
- * stack; a nested switch's break resumes after that switch. Shared continuations
- * are visited once, so successive conditional arms do not multiply the work.
- * Loop statements retain the existing requirement for an explicit arm exit.
- *
- * @type {(body: SourceBlock) => boolean}
- */
-const caseFallsThrough = body => {
-    /** @type {readonly _CasePath[]} */
-    let pending = [{ statements: body.statements, index: 0, next: null, breaks: [] }]
-    /** @type {ReadonlySet<_CasePath>} */
-    let seen = new Set()
-    while (pending.length !== 0) {
-        const [path, ...rest] = pending
-        pending = rest
-        if (seen.has(path)) { continue }
-        seen = new Set([...seen, path])
-        if (path.index === path.statements.length) {
-            if (path.next === null) { return true }
-            pending = [path.next, ...pending]
-            continue
-        }
-        const statement = path.statements[path.index]
-        const next = /** @type {_CasePath} */ ({ ...path, index: path.index + 1 })
-        if (statement[0] === 'break') {
-            const owner = path.breaks.find(([target]) => target === statement[1])
-            if (owner !== undefined) { pending = [owner[1], ...pending] }
-            continue
-        }
-        if (statement[0] === 'while' && statement[1].condition === true && !hasTargetBreak(statement[1].body, statement[1].target)) { continue }
-        if (statement[0] === 'continue' || statement[0] === 'return' || statement[0] === 'throw') { continue }
-        if (statement[0] === 'if') {
-            pending = [...[statement[2], statement[3]].map(arm => ({ statements: arm.statements, index: 0, next, breaks: path.breaks })), ...pending]
-            continue
-        }
-        if (statement[0] === 'switch') {
-            const region = statement[1]
-            const breaks = /** @type {_CasePath['breaks']} */ ([[region.target, next], ...path.breaks])
-            pending = [...[...region.cases.map(arm => arm.body), region.otherwise].map(arm => ({ statements: arm.statements, index: 0, next, breaks })), ...pending]
-            continue
-        }
-        pending = [next, ...pending]
-    }
-    return false
-}
-
-/** Resolve one loop-switch label or case without changing its enclosing continue owner. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame) => _State} */
-const loopSwitchRound = (stack, scope, frame) => {
-    const { cases, default: fallback } = frame.loopSwitch
-    const { index, label } = frame
-    const block = index < cases.length ? cases[index].block : fallback
-    if (index < cases.length && label < cases[index].labels.length) { return [{ top: frame, rest: stack }, scope, ['enter', cases[index].labels[label]]] }
-    return block === null
-        ? loopSwitchDone(stack, scope, frame, { statements: [], exit: ['yield', undefined] })
-        : loopRound({ top: frame, rest: stack }, regionScope(scope, empty, null), {
-            block: block[1], target: frame.body.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
-        })
-}
-
-/** Cases keep fresh lexical names and complete legality checks before fallthrough admission. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, value: SourceValue) => _State} */
-const loopSwitchReturned = (stack, scope, frame, value) => {
-    const { cases } = frame.loopSwitch
-    const { index, label } = frame
-    if (index < cases.length && label < cases[index].labels.length) {
-        return loopSwitchRound(stack, scope, { ...frame, label: label + 1, labels: [...frame.labels, value] })
-    }
-    const body = regionBlock(value)
-    if (caseFallsThrough(body)) { return [stack, scope, error(unterminatedCase(frame.loopSwitch.start))] }
-    return index < cases.length
-        ? loopSwitchRound(stack, scope, { ...frame, index: index + 1, label: 0, labels: [], arms: { first: { labels: frame.labels, body }, tail: frame.arms } })
-        : loopSwitchDone(stack, scope, frame, body)
-}
-
-/** A completed switch supplies its normal branch to following source statements. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, otherwise: SourceBlock) => _State} */
-const loopSwitchDone = (stack, scope, frame, otherwise) => {
-    const region = /** @type {SourceSwitch} */ ({
-        target: frame.target, events: completedTrace(scope).events,
-        discriminant: assertNotNullish(frame.discriminant, 'a switch without its discriminant')[0], cases: toArray(reverse(frame.arms)), otherwise,
-    })
-    return loopRound(stack, restoredScope(scope, false), advanced(frame.body, [['switch', region]]))
-}
-
-/**
- * Retain declarations and assignments in a loop's block, a region of the
- * body: `const`s and `let`s as the body's, and assignments, each resolved
- * as an assignment anywhere is, {@link assigned}. Zero or several outer writes
- * are admitted. Complete resolved read/write events, rather than a selected
- * state variable, reach sugar, which chooses immutable versions and explicit
- * iteration transfers after whole-scope analysis.
- *
- * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
- */
-const loopRound = (stack, scope, frame) => {
-    if (frame.index === 0) { frame = { ...frame, block: frame.block.flatMap(/** @returns {_LoopBodyFrame['block']} */ statement => statement[0] === 'const'
-        ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
-    while (true) {
-        const { block, index } = frame
-        if (index === block.length) {
-            if (frame.open) { return [stack, scope, ok(['block', { statements: toArray(frame.done), exit: ['yield', undefined] }])] }
-            const statements = toArray(frame.done)
-            const last = statements[statements.length - 1]
-            if (frame.functionBody && last !== undefined && (last[0] === 'return' || last[0] === 'throw')) {
-                return closed(stack, scope, { statements: statements.slice(0, -1), exit: last })
-            }
-            return closed(stack, scope, { statements, exit: ['yield', undefined] })
-        }
-        const [kind, statement] = block[index]
-        if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
-            return [stack, scope, error(unexpectedToken(statement.start))]
-        }
-        if (kind === 'block') {
-            return [{ top: { scoped: frame }, rest: stack }, regionScope(scope, empty, null), ['region', {
-                block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null,
-            }]]
-        }
-        if (kind === 'break' || kind === 'continue') {
-            const target = kind === 'break' ? frame.breakTarget : frame.target
-            if (target === null) { return [stack, scope, error(unexpectedToken(statement.start))] }
-            frame = advanced(frame, [[kind, target]])
-            continue
-        }
-        if (kind === 'return' || kind === 'throw') {
-            if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
-            if (brokenLine(statement)) { return [stack, scope, error(unexpectedToken(assertNotNullish(statement.first)))] }
-            return [{ top: frame, rest: stack }, scope, ['enter', statement.value ?? ['primitive', undefined]]]
-        }
-        if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
-        if (kind === 'do') { return enterDoLoop(stack, scope, statement, frame) }
-        if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
-        if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
-        if (kind === 'for-of') { return enterForOf(stack, scope, statement, frame) }
-        if (kind === 'switch') {
-            return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
-                regionScope(scope, empty, null), ['enter', statement.discriminant]]
-        }
-        if (kind === 'assign') {
-            const [tag, target] = assigned(scope, statement.name)
-            if (tag === 'error') { return [stack, scope, error(target)] }
-            return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
-        }
-        const { target } = statement
-        const value = declarationValue(statement)
-        const namespace = namespaceOf(target, value)
-        const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
-        if (tag === 'error') { return [stack, scope, error(plan)] }
-        return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
-    }
-}
-
-/**
- * Whether the node being closed is called where it is written: the frame on
- * top is a call's, plain or optional, `(f)()` or `(f)?.()`, with no operand
- * done yet, so the node is its callee.
- *
- * @type {(stack: _Stack) => boolean}
- */
-const isCalledWhereWritten = stack => {
-    if (stack === null) { return false }
-    const { top } = stack
-    return (hasEntry(top, 'call') && top.index === 0) || (hasEntry(top, 'chain') && top.index === 0 && top.chain[0] === '?.()')
-}
-
-/**
- * Source functions retain their declarations and lexical body; regions create
- * no invocation. A function is held as a value unless it closes as a call's
- * callee, called where it is written, {@link isCalledWhereWritten}.
- *
- * @type {(stack: _Stack, scope: _Scope, body: SourceBlock) => _State}
- */
-const closed = (stack, scope, body) => {
-    // A block-call candidate with a nonterminal owning return must still
-    // keep its invocation. Other invocation boundaries were refused at the
-    // assignment, before its right-hand side was entered.
-    const externalWrite = scope.captures.find(capture => capture.written && !scope.trace.bindings.includes(capture.id))
-    if (!scope.region && externalWrite !== undefined && hasRetainedReturn(returnedBlock(body))) { return [stack, scope, error(externalWrite.refusal)] }
-    /** @type {SourceValue} */
-    const value = scope.region ? ['block', body] : ['function', {
-        target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
-    }]
-    return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
 }
 
 /**
@@ -1982,7 +2040,11 @@ const evaluateState = initial => {
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step
-        if (tag === 'region') {
+        if (tag === 'pattern') {
+            state = patternRound(stack, scope, payload)
+        } else if (tag === 'parameter') {
+            state = lateRound(stack, scope, payload)
+        } else if (tag === 'region') {
             state = loopRound(stack, scope, payload)
         } else if (tag === 'enter') {
             state = enter(stack, scope, payload)
@@ -2002,50 +2064,6 @@ const evaluateState = initial => {
 
 /** A source value enters the shared resolution worklist without a statement continuation. @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>} */
 const evaluate = (initial, self) => root => evaluateState([null, initial, self === null ? ['enter', root] : ['define', root, self]])
-
-/**
- * The word a binding may take: an identifier, refusing a keyword, and one
- * the environment does not hold — `import` and `const` share the one map,
- * so a name taken by either is taken for both, `duplicate id`.
- *
- * Separate from the binding itself because a `const` asks the two questions
- * at different moments: its name is refused before its value is read, so
- * that `const NaN = missing;` answers for the name and not for `missing`,
- * while the binding lands after, keeping the name out of its own
- * initializer's scope.
- *
- * @type {(env: _Env) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
- */
-const bindable = env => name => {
-    const [tag, word] = identifierOf(name)
-    if (tag === 'error') { return error(word) }
-    return at(word)(env) === null ? ok(word) : error(duplicateId(name))
-}
-
-/**
- * The word a body `const` may take: {@link bindable}'s question asked of
- * the body's own names and of the names of the block it continues, the
- * statements after a guard being JavaScript's one block with the ones
- * before it. A name any of them binds is `duplicate id`; one none binds
- * but one has read from outside — bound to a slot of its frame, or to the
- * function itself, {@link bound} — is `capture shadowed`, and the binding
- * wins where both hold, as it does in JavaScript, where the read named the
- * block's own binding. A name the
- * body's own initializer reads is refused once it has been, in
- * {@link returned}.
- *
- * @type {(scope: _Scope) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
- */
-const bodyBindable = scope => name => {
-    const [tag, word] = identifierOf(name)
-    if (tag === 'error') { return error(word) }
-    const refs = [scope.names, ...toArray(scope.enclosing)].flatMap(env => {
-        const ref = at(word)(env)
-        return ref === null ? [] : [ref]
-    })
-    if (refs.some(ref => ref.kind === 'own')) { return error(duplicateId(name)) }
-    return refs.length === 0 ? ok(word) : error(captureShadowed(name))
-}
 
 /** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, SourceValue]) => ValueMember} */
 const exportMember = ([name, value]) => [':', name, value]
@@ -2114,7 +2132,7 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
             ...modules,
             ...(statement.bindings.length === 0
                 ? [{ ...record, name: null, binding: null }]
-                : statement.bindings.map(({ name }, i) => ({ ...record, name, binding: importIds[i] }))),
+                : statement.bindings.map(({ name }, i) => ({ ...record, name, binding: importIds[Number(i)] }))),
         ]
     }
     for (const statement of statements) {
@@ -2170,7 +2188,7 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
         const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], isVariable(kind)] : null)(node)
         if (resolved === 'error') { return error(evaluated) }
         if (hasPatternDefault(plan)) {
-            const [tag, selected] = evaluateState(patternRound(null, evaluated.scope, { pattern: plan, index: 0, reads: [], kind, continuation: { module: evaluated.value } }))
+            const [tag, selected] = evaluateState([null, evaluated.scope, ['pattern', { pattern: plan, index: 0, reads: [], kind, continuation: { module: evaluated.value } }]])
             if (tag === 'error') { return error(selected) }
             scope = selected.scope
             body = [...body, ...regionBlock(selected.value).statements]
@@ -2178,7 +2196,7 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
             scope = boundPlan(evaluated.scope, plan, isVariable(kind))
             body = [...body, ['initialize', expansion(plan), evaluated.value]]
         }
-        if (named) { exports = [...exports, ...plan.names.map(([token, i]) => /** @type {const} */ ([nameOf(token), ['ref', plan.ids[i]]]))] }
+        if (named) { exports = [...exports, ...plan.names.map(([token, i]) => /** @type {const} */ ([nameOf(token), ['ref', plan.ids[Number(i)]]]))] }
     }
     if (failing !== null) {
         if (unterminated(previous, failing)) { return error(unexpectedToken(failing.start)) }

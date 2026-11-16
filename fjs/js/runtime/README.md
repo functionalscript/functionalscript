@@ -415,7 +415,7 @@ as it reads any slot; a module whose scope reaches none takes its
 parameter as `_runtime`, so every module has the one signature.
 
 **The runtime module itself is printed with no runtime in scope.** The
-runtime printer, [`fjs/compiler/rust/runtime`](../../compiler/rust/runtime/module.f.mjs),
+runtime printer, [`fjs/compiler/rust/runtime`](../../compiler/rust/runtime/module.f.js),
 hands this module's `runtime` export to the same backend, into
 `pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>>`, with
 two differences. Every static body the `statics` table names carries the

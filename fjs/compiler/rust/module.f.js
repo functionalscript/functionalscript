@@ -68,7 +68,7 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  *
  * `text` is the text a caller gives a function node in place of the
  * writer's, where it gives one: the runtime's built-ins
- * ([`./runtime`](./runtime/module.f.mjs)), each the NativeFunction text of
+ * ([`./runtime`](./runtime/module.f.js)), each the NativeFunction text of
  * its path. `runtime` names the runtime value in the scope, a compiled
  * module's parameter, or is `null` for the runtime module itself, which
  * has none and may use nothing it defines.
@@ -91,7 +91,7 @@ const body = (root, text, runtime) => {
  * of the runtime value every compiled module takes — named `_runtime`
  * where the module reaches no built-in, so the parameter is the same and
  * `-D warnings` is kept — and the runtime module's own `runtime`
- * ([`./runtime`](./runtime/module.f.mjs)), `pub fn runtime<A: bound>()`,
+ * ([`./runtime`](./runtime/module.f.js)), `pub fn runtime<A: bound>()`,
  * with no parameter, since it is the value, and with the texts `text`
  * gives its built-ins. `runtime` is the parameter's name, or `null` for
  * none.

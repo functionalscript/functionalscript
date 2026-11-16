@@ -20,6 +20,12 @@ long: the tokenizer reads it and leaves it out, keeping of it the one fact a
 rule of the language asks, whether a newline stood before a token
 ([`fjs/compiler/tokenizer`](../tokenizer/module.f.js)).
 
+Pattern, parameter and loop continuations use `pattern`, `parameter` and
+`region` steps on the shared resolution worklist. `evaluateState` dispatches
+the next step after its handler returns, keeping helper dependencies acyclic
+and deeply nested source off the host call stack. The frames carry their
+original binding identities, scopes and evaluation order through each step.
+
 ## Resolved source bindings
 
 `parseFromTokens` returns one record with `imports`, a structured source `body`,

@@ -1,5 +1,5 @@
 /**
- * Types private to the runtime's printer, `module.f.mjs`.
+ * Types private to the runtime's printer, `module.f.js`.
  *
  * @module
  */
