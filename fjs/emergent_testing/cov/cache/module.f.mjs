@@ -25,6 +25,7 @@ import { stringifySorted } from '../../../media/json/module.f.js'
 import { stringToU8List } from '../../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../../types/bit_vec/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 const branch = /** @type {const} */ ('refs/heads/build-cache')
 const captureBytes = /** @type {const} */ (0x400_0000)
@@ -120,7 +121,7 @@ const pathMap = paths => Object.fromEntries(paths.map(file => [file, true]))
 
 /** A path is a hit only when its pinned blob still holds the exact prepared manifest. @type {(dir: string, entries: readonly Entry[], objects: Readonly<Record<string, string>>) => Effect<NodeOp, readonly boolean[], IoChannel>} */
 const lookup = (dir, entries, objects) => {
-    const found = entries.map(entry => Object.hasOwn(objects, entry.path))
+    const found = entries.map(entry => hasEntry(objects, entry.path))
     const hits = Object.values(Object.fromEntries(entries.filter((_, i) => found[i]).map(entry => [entry.path, entry])))
     if (hits.length === 0) { return pureOk(found) }
     // Matching complete expected frames checks oid, type, UTF-8 byte length,
@@ -137,7 +138,7 @@ const lookup = (dir, entries, objects) => {
 /** Publish only successes; a concurrent local writer is reread and unioned after rejection. @type {(dir: string, entries: readonly Entry[], found: {readonly tip: string | null, readonly paths: readonly string[]}, ident: string, remaining: number) => Effect<NodeOp, void, IoChannel>} */
 const commit = (dir, entries, found, ident, remaining) => {
     const paths = pathMap(found.paths)
-    const pending = entries.filter(entry => !Object.hasOwn(paths, entry.path))
+    const pending = entries.filter(entry => !hasEntry(paths, entry.path))
     if (pending.length === 0) { return pureOk(undefined) }
     const imported = execFile('git', ['--git-dir', dir, 'fast-import', '--quiet', '--date-format=raw', '--done'], { stdin: batch(pending, found.tip, ident), maxBuffer: captureBytes })
     return catchStep(mapStep(imported, () => undefined), failure => remaining === 1
@@ -160,7 +161,7 @@ export const open = options => {
             const distinct = Object.values(Object.fromEntries(entries.map(entry => [entry.path, entry])))
             return step(inventory(dir), found => {
                 const paths = pathMap(found.paths)
-                return distinct.every(entry => Object.hasOwn(paths, entry.path))
+                return distinct.every(entry => hasEntry(paths, entry.path))
                     ? pureOk(undefined)
                     : step(identity(dir, options), ident => commit(dir, distinct, found, ident, attempts))
             })

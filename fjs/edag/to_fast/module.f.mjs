@@ -26,6 +26,7 @@ import { freeBindings } from '../../js/ast/control/module.f.js'
 import { demandsInOrder } from '../demand/module.f.js'
 import { _tailCalls } from './tail/module.f.js'
 import { _joinResults } from './join/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /** Conditionally evaluated operands, including optional-chain regions. @type {(node: Node) => readonly Operand[]} */
 const lazyOperands = node => {
@@ -146,15 +147,15 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         const base = count + index * width
         return {
             target: /** @type {FunctionTarget} */ ({ kind: 'function', index }),
-            parameters: Array.from({ length: node[0] === '=>' ? node[1] : 0 }, (_, k) => ({ index: base + k })),
+            parameters: generate(node[0] === '=>' ? node[1] : 0, k => ({ index: base + k })),
             rest: { index: base + 16 },
             self: { index: base + 17 },
-            captures: Array.from({ length: node[0] === '=>' ? node[2].length : 0 }, (_, k) => ({ index: base + 32 + k })),
+            captures: generate(node[0] === '=>' ? node[2].length : 0, k => ({ index: base + 32 + k })),
             loop: { index: base + 18 },
             result: { index: base + 19 },
         }
     })
-    const rootContext = { target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? Array.from({ length: Math.max(0, ...a.nodes.map(node => node[0] === 'arg' ? node[1] + 1 : 0)) }, (_, index) => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? Array.from({ length: Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)) }, (_, index) => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
+    const rootContext = { target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'arg' ? node[1] + 1 : 0)), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
     /** @type {(context: Context, bound: readonly number[], value: Operand, done: Done<Value>) => Work} */
     const valueOf = (context, bound, value, done) => () => {
         if (!(value instanceof Array)) { return deliver(done, value) }

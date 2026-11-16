@@ -144,10 +144,17 @@ const nodeAt = node => {
     return out.node
 }
 
+/** The fixed parameters every tail owns, including `null` for no fixed parameter. @type {(parameters: _ParameterTail) => List<Parameter>} */
+const fixedOf = parameters => {
+    const fixed = ownEntry(parameters, 'fixed')
+    assert(fixed !== undefined)
+    return fixed
+}
+
 /** @type {(node: _Leaf) => _ParameterTail} */
 const parametersAt = node => {
-    const { fixed, rest } = outOf('parameters', node)
-    return { fixed, rest }
+    const parameters = outOf('parameters', node)
+    return { fixed: fixedOf(parameters), rest: parameters.rest }
 }
 
 /** @type {(node: _Leaf) => Item} */
@@ -570,7 +577,7 @@ const parameterOf = node => {
 const namedList = (open, head, init, more) => {
     const out = outAt(head)
     if (out.id !== 'value' || out.target[0] === 'invalid') { return { invalid: open } }
-    return { fixed: [init(out.target), ...toArray(more.fixed)], rest: more.rest }
+    return { fixed: [init(out.target), ...toArray(fixedOf(more))], rest: more.rest }
 }
 
 /** A head with no default: the target itself. @type {(target: PlainBindingTarget) => Parameter} */
@@ -997,7 +1004,7 @@ const parenNode = (open, [tag, branch]) => {
         const [, items, close, next] = unmapped(rest)
         const more = parenItemsOf(items)
         const refusal = more.refusal ?? (more.trailing ? tokenAt(close) : null)
-        const list = namedList(open, v, bare, { fixed: more.fixed, rest: more.rest })
+        const list = namedList(open, v, bare, { fixed: fixedOf(more), rest: more.rest })
         return continued(list, comma([nodeAt(v), ...toArray(more.operands)], refusal), true, next)
     }
     if (kind === 'default') {
@@ -1632,7 +1639,7 @@ const toParameterNames = ([tag, branch]) => {
     }
     const [target, init, more] = unmapped(branch)
     const tail = parametersAfter(more)
-    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
+    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: fixedOf(tail) }, rest: tail.rest })
 }
 
 /**
@@ -1656,7 +1663,7 @@ const toParenItems = ([tag, branch]) => {
     const rounds = unmapped(init)
     return symbol({
         id: 'parenItems',
-        fixed: { first: targetWith(valueTargetAt(v), init), tail: tail.fixed },
+        fixed: { first: targetWith(valueTargetAt(v), init), tail: fixedOf(tail) },
         rest: tail.rest,
         operands: { first: nodeAt(v), tail: tail.operands },
         refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),

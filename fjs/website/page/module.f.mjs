@@ -173,6 +173,19 @@ const limit = text => {
 }
 
 /**
+ * What a rendered README holds, or `null` where the README is not rendered:
+ * a page without one, or one whose README the reader refused, which is a
+ * note in its place.
+ *
+ * @type {(readme: readonly Element[]) => readonly Node[] | null}
+ */
+export const readmeArticle = readme => readme
+    .flatMap(e => {
+        const [tag, { 'data-readme': article }, children] = parseElement(e)
+        return tag === 'article' && article !== undefined ? [children] : []
+    })[0] ?? null
+
+/**
  * A directory's description: the first sentence of the first paragraph of
  * prose in its README, or `undefined` for a directory whose README has none,
  * or is not rendered.
@@ -197,19 +210,6 @@ export const readmeDescription = readme => (readmeArticle(readme) ?? [])
         return tag === 'p' && !isField(children) ? [limit(firstSentence(runs(children)).trim())] : []
     })
     .find(text => text !== '')
-
-/**
- * What a rendered README holds, or `null` where the README is not rendered:
- * a page without one, or one whose README the reader refused, which is a
- * note in its place.
- *
- * @type {(readme: readonly Element[]) => readonly Node[] | null}
- */
-export const readmeArticle = readme => readme
-    .flatMap(e => {
-        const [tag, { 'data-readme': article }, children] = parseElement(e)
-        return tag === 'article' && article !== undefined ? [children] : []
-    })[0] ?? null
 
 /**
  * A page's `<title>`: what the page is, then the site it belongs to.
@@ -841,6 +841,46 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 ]]
 
 /**
+ * The large card's tags: `card`'s image at `origin`.
+ *
+ * @type {(origin: string) => (card: Card) => readonly Element[]}
+ */
+const largeCard = origin => ({ href, alt }) => [
+    ['meta', { property: 'og:image', content: `${origin}${href}` }],
+    ['meta', { property: 'og:image:alt', content: alt }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+]
+
+/**
+ * The card tags, showing `card`'s image where the build has an origin.
+ *
+ * @type {(origin: string | null) => (card: Card) => readonly Element[]}
+ */
+const cardMeta = origin => card => [
+    ['meta', { property: 'og:site_name', content: siteName }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ...(origin === null
+        ? [/** @type {Element} */ (['meta', { name: 'twitter:card', content: 'summary' }])]
+        : largeCard(origin)(card)),
+]
+
+/**
+ * A directory's card image, as a root-relative URL.
+ *
+ * @type {(path: string) => string}
+ */
+export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName))}`
+
+/**
+ * The root page's card, which every page without a card of its own shows:
+ * its alt text is the site's name, since it is the site's card wherever it
+ * is shown.
+ *
+ * @type {Card}
+ */
+const rootCard = { href: cardImageHref('.'), alt: siteName }
+
+/**
  * The card tags that are the same on every page: the site, the kind of
  * page and, when the build has an origin, the root page's card image.
  *
@@ -863,46 +903,6 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * @type {(origin: string | null) => readonly Element[]}
  */
 export const siteMeta = origin => cardMeta(origin)(rootCard)
-
-/**
- * The card tags, showing `card`'s image where the build has an origin.
- *
- * @type {(origin: string | null) => (card: Card) => readonly Element[]}
- */
-const cardMeta = origin => card => [
-    ['meta', { property: 'og:site_name', content: siteName }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ...(origin === null
-        ? [/** @type {Element} */ (['meta', { name: 'twitter:card', content: 'summary' }])]
-        : largeCard(origin)(card)),
-]
-
-/**
- * The large card's tags: `card`'s image at `origin`.
- *
- * @type {(origin: string) => (card: Card) => readonly Element[]}
- */
-const largeCard = origin => ({ href, alt }) => [
-    ['meta', { property: 'og:image', content: `${origin}${href}` }],
-    ['meta', { property: 'og:image:alt', content: alt }],
-    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-]
-
-/**
- * A directory's card image, as a root-relative URL.
- *
- * @type {(path: string) => string}
- */
-export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName))}`
-
-/**
- * The root page's card, which every page without a card of its own shows:
- * its alt text is the site's name, since it is the site's card wherever it
- * is shown.
- *
- * @type {Card}
- */
-const rootCard = { href: cardImageHref('.'), alt: siteName }
 
 /**
  * A page's `og:url`: its root-relative `href` under the build's origin, and

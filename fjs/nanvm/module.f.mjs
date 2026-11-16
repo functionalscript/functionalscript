@@ -254,7 +254,7 @@ export const functionExp = body => ['=>', 0, [], body]
  *
  * @type {(name: CallbackName) => Exp}
  */
-export const callbackExp = name => functionExp(callbacks[name]())
+export const callbackExp = name => functionExp(assertNotNullish(entry(callbacks, name))())
 
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
@@ -893,7 +893,7 @@ const comparisonCases = [
 const relationCases = infix => relation => comparisonCases.map(r => ({
     name: `${r.left}${infix}${r.right}`,
     args: r.args,
-    expected: r[relation],
+    expected: assertNotNullish(entry(r, relation)),
 }))
 
 /**
