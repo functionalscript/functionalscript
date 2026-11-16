@@ -373,8 +373,9 @@ gives another number of arguments than it takes, a loop of more than one
 variable, a loop parameter of an integer range, in a record too, a `break`
 that does not end its loop's body, a `return` inside a loop or before the
 end of a function that is inlined, an entry of an object that is not a name
-and its value, such as a spread, a member read of anything but a name
-or an array's at a number, a member read that goes on to a call,
+and its value, such as a spread, a member read of anything but a name,
+an array's at a number, or sealed `any` where the table names `get`, a
+member read that goes on to a call,
 `?.`, a `lazy` definition, a string, an array, `null`, `undefined` and
 `throw` in a module lowered without the runtime, a read of L1's error
 table as a value or at a computed key, another export of its module, an item of an array
