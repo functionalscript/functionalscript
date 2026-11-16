@@ -8,7 +8,7 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first seven and the second PR of the eighth:
+This directory holds the first eight:
 typed code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
@@ -20,10 +20,11 @@ function makes (6d), array literals of values, which Containers'
 builder makes (6e), reads of an array at a number key, with L1's
 `typeOf` (6f), a throw written by hand, with the effect bit that says
 which functions may fail (7a), the lowering of `throw` and of L1's
-error table (7b), and the L0 view's `buildArray`, lowered as one loop of
-Containers' builder (8b). The first PR of the eighth, 8a, changed the
-L0 view itself, so that it calls a builder's callbacks in the order of
-that loop. Next is 8c: `buildObject` and `{}`.
+error table (7b), the L0 view's `buildArray`, lowered as one loop of
+Containers' builder (8b), and `buildObject` with `{}` and `objectSpread`
+(8c). The first PR of the eighth, 8a, changed the L0 view itself, so
+that it calls a builder's callbacks in the order of that loop. Next is
+calling function values (9).
 
 ## Map of this directory
 

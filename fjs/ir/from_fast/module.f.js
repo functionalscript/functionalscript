@@ -144,7 +144,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
-import { any, array, builder, kinds, l0, lengths, string } from '../l0/module.f.js'
+import { any, array, builder, kinds, l0, lengths, object, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
@@ -749,7 +749,7 @@ const buildObjectOf = (lowerValue, scope, vs) => {
                 lt(get(i), float(n)),
                 let_(key, kTerm[1], let_(item, vTerm[1], let_(pushed, call('Containers', 'push_property', [get(b), get(key), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
                     let_(stepped, if_(lt(get(later), float(n)), y[1], get(st)), next(label, [[b, get(pushed)], [st, get(stepped)], [i, get(later)]])))))),
-                call('Containers', 'seal', [get(b)]),
+                cast(object, call('Containers', 'seal', [get(b)]), `${label}.object`, o => o),
             ),
         )))
     })
@@ -919,13 +919,14 @@ const objectOf = (lowerValue, scope, entries) => {
         return ok(make(named.map(([k], i) => /** @type {const} */ ([k, peeked[1][Number(i)]]))))
     }
     // Every value is `any`: bind each that does something before begin/push/seal,
-    // so the builder stays linear between those calls.
+    // so the builder stays linear between those calls. `seal` answers
+    // array|object; `begin_object` makes an object alone, so narrow.
     return settled(lowerValue, scope, named.map(([, v]) => v), (s, xs) => {
         const begun = call('Containers', 'begin_object', [n(BigInt(xs.length))])
-        return ok(call('Containers', 'seal', [xs.reduce(
+        return ok(cast(object, call('Containers', 'seal', [xs.reduce(
             (b, x, i) => call('Containers', 'push_property', [b, lit(string, named[Number(i)][0]), x]),
             begun,
-        )]))
+        )]), 'object', o => o))
     })
 }
 
@@ -1024,8 +1025,9 @@ const arrayOf = (lowerValue, scope, items) => {
         const ts = typed[1]
         const k = ts.findIndex(t => !isAny(t))
         const begun = call('Containers', 'begin_array', [n(BigInt(xs.length))])
+        // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
         return k !== -1 ? no(`an item of an array is a value of any, and item ${k} is ${show(ts[Number(k)])}`)
-            : ok(call('Containers', 'seal', [xs.reduce((b, x) => call('Containers', 'push', [b, x]), begun)]))
+            : ok(cast(array, call('Containers', 'seal', [xs.reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'array', a => a))
     })
 }
 
@@ -1049,8 +1051,10 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
-    // `seal` of a `begin_array` is typed array|object; a literal array still reads as an array.
-    return !isAny(t) || held === null || !held.includes('array') ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
+    // The receiver holds an array alone: a type that may be an object is refused,
+    // since `get` of an object at a number reads by the string key, which is not
+    // this slice's `item` of an array.
+    return !isAny(t) || held === null || held.length !== 1 || held[0] !== 'array' ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
         : ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
 })
 

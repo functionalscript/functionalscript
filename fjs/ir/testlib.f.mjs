@@ -17,7 +17,7 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, array, builder, container, l0 } from './l0/module.f.js'
+import { any, builder, container, l0 } from './l0/module.f.js'
 import {
     abs, add, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
     let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, product, return_, sqrt, sub, throw_, trap,

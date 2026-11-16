@@ -152,11 +152,18 @@ export const spellings = [
     '1.5', '1e3', '\u0663', '/', ':',
 ].map(v => ({ any: v }))
 
-/** The arrays that values hold, at any depth: those that a call is given. @type {(values: readonly unknown[]) => ReadonlySet<unknown>} */
-const arraysIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...arraysIn(v)] : []))
-
 /** Whether `v` is a plain object that Containers may seal, not an array. @type {(v: unknown) => boolean} */
 const plainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+/**
+ * The arrays and plain objects that values hold, at any depth: those that a
+ * call is given, which the module must answer itself rather than a clone.
+ *
+ * @type {(values: readonly unknown[]) => ReadonlySet<unknown>}
+ */
+const givenIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...givenIn(v)]
+    : plainObject(v) ? [v, ...givenIn(Object.values(/** @type {object} */ (v)))]
+    : []))
 
 /**
  * Whether two values that values of `any` hold are the same: by `Object.is`,
@@ -319,7 +326,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             const args = xs.map(arg)
             const got = outcome(() => fromHost(result, f(...args), h), h)
             const expected = expect(() => twin(xs))
-            assert(agrees(arraysIn(values))(got, expected), [name, xs, got, expected])
+            assert(agrees(givenIn(values))(got, expected), [name, xs, got, expected])
             assert(got[0] === 'ok' || fails, [name, xs, 'cannot fail, and it did'])
             const open = h.builders().map(b => `builder ${b}`)
             const abandoned = got[0] === 'ok' ? [] : [...h.recover().map(([k, count]) => `${k}:+${count}`), ...open]

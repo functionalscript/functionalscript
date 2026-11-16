@@ -5,7 +5,7 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
-import { any, array, container, l0 } from '../l0/module.f.js'
+import { any, array, l0, object } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -1082,8 +1082,17 @@ export const proof = {
         // Each item is a term that does nothing before the builder begins: an array in an array is bound first.
         assertEq(checked(a2, 'export const f = (a, b) => [a, [b], "x", null]'), [
             'fn f(a: any, b: any) -> any =',
-            '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), b))',
-            '    Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), a), #0), "x"), Any.null))',
+            '    let #0 =',
+            '        match Containers.seal(Containers.push(Containers.begin_array(1), b))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            "            trap('not array')",
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), a), #0), "x"), Any.null))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
             '',
             'export f',
             '',
@@ -1099,16 +1108,24 @@ export const proof = {
             '                    String.concat(s.string, s.string)',
             '                  else =>',
             "                    trap('not string')",
-            '            Containers.seal(Containers.push(Containers.begin_array(1), #0))',
+            '            match Containers.seal(Containers.push(Containers.begin_array(1), #0))',
+            '              array as array =>',
+            '                array',
+            '              else =>',
+            "                trap('not array')",
             '        )',
             '    )',
             '',
             'export f',
             '',
         ].join('\n'))
-        assertEq(checked(only([['v', any]], subset(any, 'array', 'object')), 'export const f = v => []'), [
-            'fn f(v: any) -> any.only(array, object) =',
-            '    Containers.seal(Containers.begin_array(0))',
+        assertEq(checked(only([['v', any]], array), 'export const f = v => []'), [
+            'fn f(v: any) -> any.only(array) =',
+            '    match Containers.seal(Containers.begin_array(0))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
             '',
             'export f',
             '',
@@ -1119,7 +1136,7 @@ export const proof = {
         assertEq(assertError(over(av, `${imports}export const f = v => [kind(v) === NUMBER]`)), 'f: an item of an array is a value of any, and item 0 is bool')
         assertEq(assertError(over(av, 'export const f = v => [...v]')), 'f: a spread in an array literal is not in this slice')
         // A Containers object has no product fields; a record of floats still does.
-        assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: .b of any.only(object) is not in this slice')
         // A pure missing field of a record fails when the array types its items.
         assertEq(assertError(over(fa, 'export const f = a => [({ a }.b)]')), 'f: { a: f64 } has no field b')
         // Duplicate keys in a Containers object are sealed with the last value, not refused as a product would be.
@@ -1181,7 +1198,7 @@ export const proof = {
         assertEq(refused('buildArray(1, 0, s => s, s => length(s))'), 'f: length of f64 is not in this slice')
         assertEq(refused('buildArray(1, 0, s => length(s), () => v)'), 'f: length of f64 is not in this slice')
         // With Containers imported, `{ a: v }` is a Containers object; a float record still fails to type.
-        assertEq(refused('buildArray(1, { a: v }.b, s => s, () => v)'), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused('buildArray(1, { a: v }.b, s => s, () => v)'), 'f: .b of any.only(object) is not in this slice')
         assertEq(refused('buildArray(1, ({ a: 0 }.b), s => s, () => v)'), 'f: { a: f64c } has no field b')
         assertEq(refused('buildArray(1, 0, s => s, () => ({ a: 0 }.b))'), 'f: { a: f64c } has no field b')
         assertEq(refused('buildArray(1, 0, s => s, () => v, v)'), 'f: buildArray takes 4 arguments, not 5')
@@ -1193,7 +1210,12 @@ export const proof = {
         // The receiver, then the key; the item where the key is an index of the array, and `undefined` where it is anything else.
         assertEq(checked(only([['a', any], ['k', f64]], any), 'export const f = (a, k) => [a][Number(k)]'), [
             'fn f(a: any, k: f64) -> any =',
-            '    let #0 = Containers.seal(Containers.push(Containers.begin_array(1), a))',
+            '    let #0 =',
+            '        match Containers.seal(Containers.push(Containers.begin_array(1), a))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            "            trap('not array')",
             '    let #0.index = trunc_sat(u(31), k)',
             '    if eq(float(#0.index), k)',
             '    then',
@@ -1207,8 +1229,10 @@ export const proof = {
         const av = only([['v', any]], any)
         // `get` of any other kind than an array throws or reads by a string.
         assertEq(assertError(over(av, 'export const f = v => v[0]')), "f: a read of any at a number is not in this slice: only an array's is")
+        // A Containers object is not an array: refuse a numeric read of one.
+        assertEq(assertError(over(av, 'export const f = v => ({ a: v })[0]')), "f: a read of any.only(object) at a number is not in this slice: only an array's is")
         // A receiver that is pure but does not type-check is refused with its own error.
-        assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(assertError(over(av, 'export const f = v => ({ a: v }.b)[0]')), 'f: .b of any.only(object) is not in this slice')
         assertEq(assertError(over(fa, 'export const f = a => ({ a }.b)[0]')), 'f: { a: f64 } has no field b')
         assertEq(assertError(over(av, 'export const f = v => [v][Number(v)]')), 'f: Number of any is not in this slice')
         // A member read of a name or a number is in this slice, and one that goes on to a call is not.
@@ -1303,10 +1327,10 @@ export const proof = {
     // `buildObject`: arrow callbacks inlined to begin_object / push_property / seal, as `buildArray` is.
     builders: () => {
         const builders = "import { buildArray, buildObject, concat } from '../l0/module.f.js'\n"
-        const nv = only([['n', f64], ['v', any]], container)
-        const av = only([['v', any]], container)
+        const nv = only([['n', f64], ['v', any]], object)
+        const av = only([['v', any]], object)
         assertEq(irOver(nv, `${builders}export const f = (n, v) => buildObject(n, v, s => s, () => 'k', () => v)`), [
-            'fn f(n: f64, v: any) -> any.only(array, object) =',
+            'fn f(n: f64, v: any) -> any.only(object) =',
             '    let B0.n = trunc_sat(u(31), n)',
             '    if eq(float(B0.n), n)',
             '    then',
@@ -1320,7 +1344,11 @@ export const proof = {
             '                let B0.s.next = if lt(B0.i.next, float(B0.n)) then B0.s else B0.s',
             '                br B0 { B0.b: B0.pushed, B0.s: B0.s.next, B0.i: B0.i.next }',
             '            else',
-            '                Containers.seal(B0.b)',
+            '                match Containers.seal(B0.b)',
+            '                  object as B0.object =>',
+            '                    B0.object',
+            '                  else =>',
+            "                    trap('not object')",
             '    else',
             "        trap('inexact')",
             '',
@@ -1342,15 +1370,15 @@ export const proof = {
         assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => { throw v })"), 'f: a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of B0, which is linear, behind')
         // Callbacks and args that fail to lower or to type after lowering.
         assertEq(refused("buildObject(({ a: 0 }.b), 0, s => s, () => 'k', () => v)"), 'f: { a: f64c } has no field b')
-        assertEq(refused("buildObject(1, 0, s => ({ a: v }.b), () => 'k', () => v)"), 'f: .b of any.only(array, object) is not in this slice')
-        assertEq(refused("buildObject(1, 0, s => s, () => ({ a: v }.b), () => v)"), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused("buildObject(1, 0, s => ({ a: v }.b), () => 'k', () => v)"), 'f: .b of any.only(object) is not in this slice')
+        assertEq(refused("buildObject(1, 0, s => s, () => ({ a: v }.b), () => v)"), 'f: .b of any.only(object) is not in this slice')
         assertEq(refused("buildObject(1, 0, s => s, () => ({ a: 0 }.b), () => v)"), 'f: { a: f64c } has no field b')
-        assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => ({ a: v }.b))"), 'f: .b of any.only(array, object) is not in this slice')
+        assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => ({ a: v }.b))"), 'f: .b of any.only(object) is not in this slice')
         assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => ({ a: 0 }.b))"), 'f: { a: f64c } has no field b')
         // Object Containers: a non-name entry, a field that fails to lower, and one that fails to type.
-        assertEq(assertError(over(only([['n', f64]], container), `${builders}export const f = n => ({ 0: n })`)), 'f: an entry of an object that is not a name and its value is not in this slice')
-        assertEq(assertError(over(only([['n', f64]], container), `${builders}export const f = n => ({ a: (() => n) })`)), 'f: a function as a value is not in this slice')
-        assertEq(assertError(over(only([['n', f64]], container), `${builders}export const f = n => ({ x: ({ a: n }.b) })`)), 'f: { a: f64 } has no field b')
+        assertEq(assertError(over(only([['n', f64]], object), `${builders}export const f = n => ({ 0: n })`)), 'f: an entry of an object that is not a name and its value is not in this slice')
+        assertEq(assertError(over(only([['n', f64]], object), `${builders}export const f = n => ({ a: (() => n) })`)), 'f: a function as a value is not in this slice')
+        assertEq(assertError(over(only([['n', f64]], object), `${builders}export const f = n => ({ x: ({ a: n }.b) })`)), 'f: { a: f64 } has no field b')
     },
     view: () => {
         const fv = only([['v', any]], f64)
