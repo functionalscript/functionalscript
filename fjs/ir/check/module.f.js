@@ -837,14 +837,19 @@ const readings = direct => {
  * @type {(constants: readonly (readonly [string, ConstantOf<Typed>])[], functions: readonly (readonly [string, FunctionOf<Typed>])[]) => string | null}
  */
 const unordered = (constants, functions) => {
-    const reading = readings(functions.map(([f, { body }]) => /** @type {const} */ ([f, uses(body)])))
-    const names = constants.map(([k]) => k)
     const all = functions.map(([f]) => f)
+    // An unresolved code value may run any function: in an initializer and in
+    // any function body, take every function as a callee so readings grow.
+    /** @type {(x: Typed) => readonly [readonly string[], readonly string[]]} */
+    const deps = x => {
+        const [cs, fs] = uses(x)
+        return [cs, unresolvedCallRef(x) ? all : fs]
+    }
+    const reading = readings(functions.map(([f, { body }]) => /** @type {const} */ ([f, deps(body)])))
+    const names = constants.map(([k]) => k)
     return constants.map(([k, { value: e }], j) => {
-        const [cs, fs] = uses(e)
-        // An unresolved code value may run any function; take every function's readings.
-        const called = unresolvedCallRef(e) ? all : fs
-        const late = called.reduce((r, f) => union(r, assertNotNullish(at(f)(reading))), cs).find(c => names.indexOf(c) >= j)
+        const [cs, fs] = deps(e)
+        const late = fs.reduce((r, f) => union(r, assertNotNullish(at(f)(reading))), cs).find(c => names.indexOf(c) >= j)
         return late === undefined ? null : `${k}: ${late} is read before init evaluates it`
     }).find(x => x !== null) ?? null
 }

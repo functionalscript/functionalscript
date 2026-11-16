@@ -144,6 +144,29 @@ export const proof = {
             [['c', { type: code([], f64), value: codeOf('g') }], ['k', { type: f64, value: one_ }], ['j', { type: f64, value: call_ref(self('c'), []) }]],
             [['g', fn([], f64, self('k'))]],
         )))
+        // An unresolved `call_ref` inside a called helper is the same: readings take every function.
+        assertEq(why(withConstants(
+            [
+                ['c', { type: code([], f64), value: codeOf('g') }],
+                ['j', { type: f64, value: call('self', 'apply', [self('c')]) }],
+                ['k', { type: f64, value: one_ }],
+            ],
+            [
+                ['g', fn([], f64, self('k'))],
+                ['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))],
+            ],
+        )), 'j: k is read before init evaluates it')
+        assertOk(check(withConstants(
+            [
+                ['c', { type: code([], f64), value: codeOf('g') }],
+                ['k', { type: f64, value: one_ }],
+                ['j', { type: f64, value: call('self', 'apply', [self('c')]) }],
+            ],
+            [
+                ['g', fn([], f64, self('k'))],
+                ['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))],
+            ],
+        )))
         // An interface names each of its constants once, each of a type that a global holds.
         assertEq(why(constantsOf([['c', f64], ['c', f64]])), 'Bad: two constants are named c')
         assertEq(why(constantsOf([['c', product([['a', f64]])]])), 'Bad: c: { a: f64 } is not in this slice')
