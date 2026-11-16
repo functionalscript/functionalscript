@@ -205,7 +205,7 @@ Slice 8, cut in three as decided above.
 
 Slice 9, cut in two: boxing first, then `call`.
 
-- [ ] **9a. Any's `from_f64` and `from_bool`** (#3918). Written where a
+- [x] **9a. Any's `from_f64` and `from_bool`** (#3918). Written where a
   number or a boolean meets `any`, as
   [definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
   has it; with them, numbers and booleans as items of an array literal.
