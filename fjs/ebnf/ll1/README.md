@@ -24,6 +24,12 @@ it stopped at, or the index it failed at. `parserRuleSet(ruleSet, entry)` is
 the same over a set written or read by hand, validated on entry as `../data`
 validates it, with nothing mapped.
 
+For separately defined front-end references, pass their definition list as
+the fourth argument: `parser(rule, set, greedy, definitions)`. The same
+reference identities key `set`; the body adds no AST wrapper, so a mapping
+receives the body's ordinary node. Missing or duplicate definitions are
+refused by `toData` before the parser is built.
+
 ```js
 const digit = range('09')
 const digits = repeatFrom1(digit)

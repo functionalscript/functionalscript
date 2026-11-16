@@ -5,7 +5,7 @@
 
 ### Problem
 
-`branchCas`'s `write` in [`fjs/cas/git`](../module.f.mjs) holds a payload
+`branchCas`'s `write` in [`fjs/cas/git`](../module.f.js) holds a payload
 whole while its blob is written: the loose object's envelope,
 `blob <size>\0`, states the size before the first byte, and the Git id is
 the hash over envelope and bytes together, so neither the file's name nor

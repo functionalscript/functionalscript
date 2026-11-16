@@ -45,7 +45,7 @@ Open design points:
 ### Tasks
 
 - [ ] Add a `verify` function over `Cas` that rehashes and reports mismatches
-- [ ] Wire it as a `cas verify` CLI command in `fjs/cas/cli/module.f.mjs`
+- [ ] Wire it as a `cas verify` CLI command in `fjs/cas/cli/module.f.js`
 - [ ] Quarantine corrupted blobs, per `plan/scrub.md`
 - [ ] Tests: seed a store with a corrupted/truncated/misnamed blob and assert it is caught
 - [ ] Document the command in `fjs/cas/README.md`

@@ -95,7 +95,7 @@ export const proof = {
             const html = concat(element(commandSection({ ...local, commit: '0123456789abcdef0123456789abcdef01234567' })(
                 { ...catalogue(commands)[5], aliases: [] })))
             assert(html.includes('Aliases: none'), html)
-            assert(html.includes('/blob/0123456789abcdef0123456789abcdef01234567/fjs/cas/cli/module.f.mjs'), html)
+            assert(html.includes('/blob/0123456789abcdef0123456789abcdef01234567/fjs/cas/cli/module.f.js'), html)
         },
     },
     page: () => {

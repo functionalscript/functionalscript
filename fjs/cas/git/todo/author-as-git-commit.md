@@ -5,7 +5,7 @@
 
 ### Problem
 
-`configuredAuthor` in [`fjs/cas/git`](../module.f.mjs) reads `user.name` and
+`configuredAuthor` in [`fjs/cas/git`](../module.f.js) reads `user.name` and
 `user.email` from the repository's `config` and then `~/.gitconfig`, and
 refuses a `config` holding an `[include]` or `[includeIf]`. `git commit`
 reads more, and strips more:

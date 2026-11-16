@@ -18,7 +18,7 @@
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { collectRead, casAddFile } from '../../cas/module.f.js'
-import { branchCas, snapshot } from '../../cas/git/module.f.mjs'
+import { branchCas, snapshot } from '../../cas/git/module.f.js'
 import { exactArgs } from '../../cli/module.f.js'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, resultStep, step } from '../../effects/module.f.js'

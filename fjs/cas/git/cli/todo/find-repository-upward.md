@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs cas git add`, `get` and `list` in [`fjs/cas/git/cli`](../module.f.mjs)
+`fjs cas git add`, `get` and `list` in [`fjs/cas/git/cli`](../module.f.js)
 take the repository at the current directory: its `.git`, or the directory
 itself where its `config` is one Git opens. `git` searches upward from the
 current directory to the first `.git`, stopping at the filesystem root or

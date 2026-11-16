@@ -97,7 +97,7 @@ const reassignedCaptured = foldError('reassigned variable captured')
  * and no pattern — at the `(` that opened it: `(1) => 2`, `(a.b) => 1`,
  * `((a)) => 1`, JavaScript's own early error, by its own name. The grammar
  * admits the value there so that one symbol can decide between a list and
- * a group (`afterValue` in `./grammar/module.f.mjs`), and this is the
+ * a group (`afterValue` in `./grammar/module.f.js`), and this is the
  * check that decision left. A value that is no target inside the head's
  * pattern, `([(a)]) => 1`, is {@link invalidTarget} where it stands, as in
  * a `const`.

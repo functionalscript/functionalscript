@@ -52,5 +52,5 @@ the shape of the decision does not change, only its answer.
 
 - [`../../../js/ast/serializer/module.f.js`](../../../js/ast/serializer/module.f.js)
   — `functionText`, which chooses the prepared JavaScript spelling.
-- [`../../parser/grammar/module.f.mjs`](../../parser/grammar/module.f.mjs) —
+- [`../../parser/grammar/module.f.js`](../../parser/grammar/module.f.js) —
   `group`, the rule that reads it back.

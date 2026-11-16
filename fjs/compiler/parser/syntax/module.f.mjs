@@ -39,7 +39,7 @@
  * @import { BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ReturnStatement, ValueStatement, While, DoWhile } from './types.ts'
  * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement, DoWhileStatement } from '../grammar/types.ts'
- * @import { namedImports, primitive } from '../grammar/module.f.mjs'
+ * @import { namedImports, primitive } from '../grammar/module.f.js'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
@@ -51,11 +51,11 @@ import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry as ownEntry, hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
+    arrayExpressionStatement, arrayStatementValue, statementContinuations, definitions, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
-} from '../grammar/module.f.mjs'
+} from '../grammar/module.f.js'
 
 /**
  * Splits the tokenizer's single final physical `eof` token off a token list.
@@ -82,7 +82,7 @@ import {
 const splitEof = tokens => {
     const eofIdx = tokens.findIndex(({ token }) => token.kind === 'eof')
     if (eofIdx === -1) {
-        const lastToken = tokens[tokens.length - 1]
+        const lastToken = tokens[Number(tokens.length - 1)]
         return lastToken !== undefined && lastToken.token.kind === 'error'
             // the token's own span survives into the parse error: it is the one
             // failure here that knows how far the offending source runs
@@ -95,9 +95,9 @@ const splitEof = tokens => {
     }
     const last = tokens.length - 1
     if (eofIdx !== last) {
-        return error({ message: 'end-of-input token is not final', metadata: tokens[eofIdx].metadata })
+        return error({ message: 'end-of-input token is not final', metadata: tokens[Number(eofIdx)].metadata })
     }
-    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[last].metadata })
+    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[Number(last)].metadata })
 }
 
 // -- reading the tree ---------------------------------------------------------
@@ -144,10 +144,17 @@ const nodeAt = node => {
     return out.node
 }
 
+/** The fixed parameters every tail owns, including `null` for no fixed parameter. @type {(parameters: _ParameterTail) => List<Parameter>} */
+const fixedOf = parameters => {
+    const fixed = ownEntry(parameters, 'fixed')
+    assert(fixed !== undefined)
+    return fixed
+}
+
 /** @type {(node: _Leaf) => _ParameterTail} */
 const parametersAt = node => {
-    const { fixed, rest } = outOf('parameters', node)
-    return { fixed, rest }
+    const parameters = outOf('parameters', node)
+    return { fixed: fixedOf(parameters), rest: parameters.rest }
 }
 
 /** @type {(node: _Leaf) => Item} */
@@ -570,7 +577,7 @@ const parameterOf = node => {
 const namedList = (open, head, init, more) => {
     const out = outAt(head)
     if (out.id !== 'value' || out.target[0] === 'invalid') { return { invalid: open } }
-    return { fixed: [init(out.target), ...toArray(more.fixed)], rest: more.rest }
+    return { fixed: [init(out.target), ...toArray(fixedOf(more))], rest: more.rest }
 }
 
 /** A head with no default: the target itself. @type {(target: PlainBindingTarget) => Parameter} */
@@ -762,7 +769,7 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const right = applyLayers(nodeAt(v), lowerTails)
     // every round's operator is a rule the grammar made from the same
     // records, so a name the map lacks is the grammar's bug, not the input's
-    const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
+    const tag = assertNotNullish(ownEntry(binaryOpTag, opTag), ['binary operator without a tag', opTag])
     // `instanceof` keeps its operator token: the fold refuses a right
     // operand that is no reference to `Array` there, where every spelling
     // of the right side has a token; `in` keeps it for its left operand,
@@ -872,7 +879,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * position, which is what lets the second `unmapped` below see a precise
  * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
  * one tuple deep for exactly this reason — see its own comment in
- * `./grammar/module.f.mjs` — so the same reads serve both rules.
+ * `../grammar/module.f.js` — so the same reads serve both rules.
  *
  * @type {(node: Exclude<Children<Unary, ModuleTokenWithMetadata, Out> | Children<UnaryOperand, ModuleTokenWithMetadata, Out> | Children<Value, ModuleTokenWithMetadata, Out> | Children<Body, ModuleTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
  */
@@ -925,7 +932,7 @@ const firstAt = node => {
  *
  * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object' | 'construct', base: _Leaf) => ModuleTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[Number(tag === 'array' || tag === 'object' ? 0 : 1)]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -997,7 +1004,7 @@ const parenNode = (open, [tag, branch]) => {
         const [, items, close, next] = unmapped(rest)
         const more = parenItemsOf(items)
         const refusal = more.refusal ?? (more.trailing ? tokenAt(close) : null)
-        const list = namedList(open, v, bare, { fixed: more.fixed, rest: more.rest })
+        const list = namedList(open, v, bare, { fixed: fixedOf(more), rest: more.rest })
         return continued(list, comma([nodeAt(v), ...toArray(more.operands)], refusal), true, next)
     }
     if (kind === 'default') {
@@ -1075,7 +1082,7 @@ const toNode = node => {
     if (isPrefix(node)) {
         const [op, v, ...tailLists] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: applyTail([prefixLayer[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
+        return symbol({ id: 'value', node: applyTail([assertNotNullish(ownEntry(prefixLayer, node[0])), nodeAt(v)], tailLists), first, target: invalid(first) })
     }
     if (node[0] === 'block') {
         const children = unmapped(node[1])
@@ -1113,7 +1120,7 @@ const operandToNode = node => {
     if (isPrefix(node)) {
         const [op, v] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: [prefixLayer[node[0]], nodeAt(v)], first, target: invalid(first) })
+        return symbol({ id: 'value', node: [assertNotNullish(ownEntry(prefixLayer, node[0])), nodeAt(v)], first, target: invalid(first) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
@@ -1283,7 +1290,7 @@ const namedExpressionOf = ([name, rest], semicolon) => {
     }
     const [op, v] = unmapped(assigned)
     const [kind, operatorToken] = unmapped(op)
-    const operator = assignmentOperators[kind][1]
+    const operator = assertNotNullish(ownEntry(assignmentOperators, kind))[1]
     return ['assign', {
         start: token, semicolon, name: token, value: nodeAt(v),
         operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
@@ -1632,7 +1639,7 @@ const toParameterNames = ([tag, branch]) => {
     }
     const [target, init, more] = unmapped(branch)
     const tail = parametersAfter(more)
-    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
+    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: fixedOf(tail) }, rest: tail.rest })
 }
 
 /**
@@ -1656,7 +1663,7 @@ const toParenItems = ([tag, branch]) => {
     const rounds = unmapped(init)
     return symbol({
         id: 'parenItems',
-        fixed: { first: targetWith(valueTargetAt(v), init), tail: tail.fixed },
+        fixed: { first: targetWith(valueTargetAt(v), init), tail: fixedOf(tail) },
         rest: tail.rest,
         operands: { first: nodeAt(v), tail: tail.operands },
         refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),
@@ -1718,7 +1725,7 @@ export const mappings = [
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations)
+const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations, definitions)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's
@@ -1743,7 +1750,7 @@ export const parseSyntax = tokenList => {
         const atEnd = result >= tokens.length
         return error({
             message: atEnd ? 'unexpected end' : 'unexpected token',
-            metadata: atEnd ? eofMetadata : tokens[result].metadata,
+            metadata: atEnd ? eofMetadata : tokens[Number(result)].metadata,
         })
     }
     const [tree] = result

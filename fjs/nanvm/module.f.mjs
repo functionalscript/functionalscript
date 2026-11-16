@@ -58,7 +58,10 @@ import {
 } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.js'
 import { logicalExp } from '../edag/from_fast/source/module.f.js'
-import { hasEntry } from '../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../types/object/entry/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
+import { stringSerialize } from '../media/json/serializer/module.f.js'
+import { chunksText } from '../text/marked/module.f.js'
 
 export const callback = constructorsCallback
 export const functionValue = constructorsFunctionValue
@@ -121,8 +124,8 @@ const isCommutative = g => g.commutative === true
  * @type {(g: Group) => (c: AnyCase) => readonly (readonly[string, readonly Value[]])[]}
  */
 export const orders = g => c => isCommutative(g)
-    ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
-    : [[c.name, c.args]]
+    ? [[assertNotNullish(entry(c, 'name')), c.args], [`${entry(c, 'name')}Swapped`, c.args.toReversed()]]
+    : [[assertNotNullish(entry(c, 'name')), c.args]]
 
 /**
  * The name both consumers file a group under: the proof's test key, and the
@@ -144,9 +147,9 @@ export const groupKey = g =>
     : hasEntry(g, 'arity') ? `${g.op}/${g.arity}`
     // one key per constructor, `instanceof Array`, spelled as the source
     // is: the name is the group's, not the operand's
-    : hasEntry(g, 'name') ? `${g.op} ${g.name}`
+    : hasEntry(g, 'name') ? `${g.op} ${entry(g, 'name')}`
     // and one per key, `in "x"`, the key the group's, as the source has it
-    : hasEntry(g, 'key') ? `${g.op} ${JSON.stringify(g.key)}`
+    : hasEntry(g, 'key') ? `${g.op} ${chunksText(stringSerialize(g.key))}`
     : g.op
 
 /**
@@ -251,7 +254,7 @@ export const functionExp = body => ['=>', 0, [], body]
  *
  * @type {(name: CallbackName) => Exp}
  */
-export const callbackExp = name => functionExp(callbacks[name]())
+export const callbackExp = name => functionExp(assertNotNullish(entry(callbacks, name))())
 
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
@@ -326,7 +329,7 @@ export const caseExp = shared => g => args => {
     if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
     const [a, b, c] = args.map(valuesExp(shared))
     // the constructor name is the group's, carried into the node as it is
-    if (hasEntry(g, 'name')) { return ['instanceof', a, g.name] }
+    if (hasEntry(g, 'name')) { return ['instanceof', a, assertNotNullish(entry(g, 'name'))] }
     // and so is the key of an `in`
     if (hasEntry(g, 'key')) { return ['in', g.key, a] }
     if (g.op === '&&' || g.op === '||' || g.op === '??') { return logicalExp(g.op, a, b) }
@@ -890,7 +893,7 @@ const comparisonCases = [
 const relationCases = infix => relation => comparisonCases.map(r => ({
     name: `${r.left}${infix}${r.right}`,
     args: r.args,
-    expected: r[relation],
+    expected: assertNotNullish(entry(r, relation)),
 }))
 
 /**

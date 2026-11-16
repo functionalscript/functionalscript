@@ -3,7 +3,7 @@
  * line — `add`, `get` and `list`, the three commands `fjs cas` has for the
  * store under `~/.cas/`, over a branch of the repository the current
  * directory is in. Each is one call into the API of
- * [`fjs/cas/git`](../module.f.mjs), so what the CLI does is what a program
+ * [`fjs/cas/git`](../module.f.js), so what the CLI does is what a program
  * calling the API does. Nothing moves between repositories here: `git push`
  * and `git fetch` carry the branch, and `git merge` joins two writers'.
  *
@@ -33,7 +33,7 @@ import { exitStep, isNotFound, log, writeFromStream } from '../../../effects/nod
 import { oidBytes as widthOf } from '../../../git/format/module.f.js'
 import { tryCommonDir } from '../../../git/repo/module.f.js'
 import { casAddFile } from '../../module.f.js'
-import { branchCas, configuredAuthor, snapshot } from '../module.f.mjs'
+import { branchCas, configuredAuthor, snapshot } from '../module.f.js'
 
 /** The code the current directory is refused with where it is neither a Git worktree nor a repository directory. */
 export const noRepositoryCode = /** @type {const} */ ('ERR_NO_REPOSITORY')

@@ -10,7 +10,7 @@
  * took.
  *
  * **It is the program page's other half, not a copy of it.** It loads the
- * same four files with the same [`load`](../page/module.f.mjs), from the same
+ * same four files with the same [`load`](../page/module.f.js), from the same
  * `nanvm-demos` module, and draws them with the same views. What differs is
  * the run: a program performs an effect and is read by what it wrote, where
  * a function is called with an argument and read by what it answers.
@@ -60,7 +60,7 @@ import { caption, refusal } from '../../../website/demo/module.f.js'
 import { graphSvg } from '../../../website/demo/graph/module.f.js'
 import { codeOutput } from '../../../website/demo/highlight/module.f.js'
 import { admittedMarker, codeMarker } from '../../../website/style/module.f.js'
-import { decode, filesView, load as loadFiles, startupView, stat } from '../page/module.f.mjs'
+import { decode, filesView, load as loadFiles, startupView, stat } from '../page/module.f.js'
 import { spell } from '../spell/module.f.js'
 
 /** @type {State} */

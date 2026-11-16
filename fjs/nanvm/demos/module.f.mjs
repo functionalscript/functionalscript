@@ -43,7 +43,7 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
-import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
+import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.js'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 

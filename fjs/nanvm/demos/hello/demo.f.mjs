@@ -7,7 +7,7 @@
  */
 
 import program from './sample.f.js'
-import { wasmDemo } from '../page/module.f.mjs'
+import { wasmDemo } from '../page/module.f.js'
 import { placeAt } from '../samples/module.f.js'
 
 /**

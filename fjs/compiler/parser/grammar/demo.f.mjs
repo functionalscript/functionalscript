@@ -4,7 +4,7 @@
  * to its diagram.
  *
  * **Drawn from this grammar, not redrawn by hand.** `toData` lowers the rules
- * `./module.f.mjs` exports, `fjs/ebnf/railroad` reads the lowered set back
+ * `./module.f.js` exports, `fjs/ebnf/railroad` reads the lowered set back
  * as diagrams, and `fjs/website/demo/railroad` lays them out — so a change to
  * the grammar is a change to the picture, as it is for the JSON grammar's
  * (`fjs/ebnf/lib/json/demo.f.mjs`).
@@ -33,13 +33,13 @@
  */
 
 import {
-    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, branchBlock, branchContents, branchElse, ifStatement, simpleStatement, body, callArguments,
+    _ordinaryTokenNames, definitions, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, branchBlock, branchContents, branchElse, ifStatement, simpleStatement, body, callArguments,
     arrayExpressionStatement, arrayStatementValue, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess, module, eagerTail, elements, end, entries, entry, forClassicTail, forDeclarationTail, forHeader, forStatement, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values, whileStatement, doWhileStatement,
-} from './module.f.mjs'
+} from './module.f.js'
 import { eagerLayers } from '../../ast/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { tokens } from '../../../ebnf/railroad/module.f.js'
@@ -137,6 +137,7 @@ const categories = /** @type {const} */ ([
 
 export const demo = grammarDemo({
     grammar: module,
+    definitions,
     alphabet: tokens(encoding(_ordinaryTokenNames), categories),
     description: 'The FunctionalScript module grammar, drawn from the rules the parser reads a module with.',
     guide: 'Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.',

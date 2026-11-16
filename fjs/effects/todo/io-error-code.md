@@ -23,7 +23,7 @@ directory's [`module.f.js`](../module.f.js), not `node`'s, so the
 predicate's maker belongs here.
 
 Two callers also re-derive `orElse` itself, which exists so that a caller
-does not write the ternary: `configAt` in [`fjs/cas/git`](../../cas/git/module.f.mjs)
+does not write the ternary: `configAt` in [`fjs/cas/git`](../../cas/git/module.f.js)
 has `catchStep(readUtf8File(path), e => isNotFound(e) ? pureOk('') :
 pureError(e))`, and `exists` in `node` has the three-way `resultStep` over
 `access`, while `absent` a few lines below it in `cas/git` shows the

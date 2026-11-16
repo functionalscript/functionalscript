@@ -21,14 +21,14 @@ import {
     _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, symbolsOf, template, terminator, value, whileStatement,
-} from './module.f.mjs'
-import { statementContinuations } from './module.f.mjs'
+} from './module.f.js'
+import { definitions, statementContinuations } from './module.f.js'
 
 // The value names itself, and the tree of a whole module is too deep a
 // type for `tsc` to unroll through `parser`'s return type (TS2589); the
 // rules are widened to `Rule` here, where only acceptance is read.
 /** The source grammar declares JavaScript's greedy indexing continuation. @type {typeof predictiveParser} */
-const parser = (rule, set = [], greedy = statementContinuations) => predictiveParser(rule, set, greedy)
+const parser = (rule, set = [], greedy = statementContinuations) => predictiveParser(rule, set, greedy, definitions)
 
 const parseModule = parser(/** @type {Rule} */ (module))
 

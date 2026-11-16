@@ -377,7 +377,7 @@ value output, which reads the value the constructor built, never sees it.
 ## Both grammars use predictive parsing
 
 The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js),
-and the parser's, [`parser/grammar`](./parser/grammar/module.f.mjs), are read
+and the parser's, [`parser/grammar`](./parser/grammar/module.f.js), are read
 by [`fjs/ebnf/ll1`](../ebnf/ll1/README.md), which checks one-symbol choices before any input. Its default policy refuses
 conflicts; the source parser explicitly prefers indexing continuations on `[`
 over a new array-led statement. The classical grammars

@@ -13,8 +13,8 @@ import { hexText } from '../../../git/oid/module.f.js'
 import { tryResolve } from '../../../git/refstore/module.f.js'
 import { initConfig, latin1 } from '../../../git/testlib.f.js'
 import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
-import { commands as casCommands } from '../../cli/module.f.mjs'
-import { branchRef } from '../module.f.mjs'
+import { commands as casCommands } from '../../cli/module.f.js'
+import { branchRef } from '../module.f.js'
 
 const main = dispatch(casCommands)
 
