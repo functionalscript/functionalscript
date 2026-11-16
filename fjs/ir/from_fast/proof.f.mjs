@@ -1172,6 +1172,9 @@ export const proof = {
         assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: .b of any.only(object) is not in this slice')
         // A pure missing field of a record fails when the array types its items.
         assertEq(assertError(over(fa, 'export const f = a => [({ a }.b)]')), 'f: { a: f64 } has no field b')
+        // Same for a value-call argument and a spread operand: refuse, do not throw.
+        assertEq(assertError(over(only([['v', any], ['a', f64]], any), 'export const f = (v, a) => v(({ a }).b)')), 'f: { a: f64 } has no field b')
+        assertEq(assertError(over(only([['v', any], ['a', f64]], any), 'export const f = (v, a) => v(...({ a }).b)')), 'f: { a: f64 } has no field b')
         // Duplicate keys in a Containers object are sealed with the last value, not refused as a product would be.
         assertEq(assertOk(over(av, 'export const f = v => [{ a: v, a: v }]')).exports.join(), 'f')
         assertEq(why(fa, fast('export const f = a => [a]')), `f: ${noArray}`)

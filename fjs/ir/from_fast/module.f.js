@@ -145,7 +145,7 @@
  * @import { _Context, _Errors, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
-import { assertNotNullish, assertOk } from '../../asserts/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
@@ -1155,7 +1155,10 @@ const valueCall = (lowerValue, scope, callee, items) => {
     }
     if (spreads.length === 1) {
         return settled(lowerValue, scope, [callee, spreads[0]], (s, [f, args]) => {
-            const [ft, at] = assertOk(okList([f, args].map(x => typeOf(s.ir)(x))))
+            // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
+            const typed = okList([f, args].map(x => typeOf(s.ir)(x)))
+            if (typed[0] === 'error') { return typed }
+            const [ft, at] = typed[1]
             const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
             const aHeld = at[0] === 'sealed' ? at[3] ?? kinds : []
             if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
@@ -1168,11 +1171,15 @@ const valueCall = (lowerValue, scope, callee, items) => {
         })
     }
     return settled(lowerValue, scope, [callee, ...plain], (s, [f, ...xs]) => {
-        const ft = assertOk(typeOf(s.ir)(f))
+        // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
+        const typedF = typeOf(s.ir)(f)
+        if (typedF[0] === 'error') { return typedF }
+        const ft = typedF[1]
         const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
         if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
-        const typed = assertOk(okList(xs.map(x => typeOf(s.ir)(x))))
-        const boxed = okList(typed.map((t, i) => {
+        const typed = okList(xs.map(x => typeOf(s.ir)(x)))
+        if (typed[0] === 'error') { return typed }
+        const boxed = okList(typed[1].map((t, i) => {
             const y = asAny(t, xs[Number(i)])
             return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
         }))
