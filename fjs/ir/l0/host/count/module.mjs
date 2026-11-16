@@ -32,6 +32,15 @@
  *   a repeated key keeps its first position and its last value). A push
  *   past `n` items, a seal of fewer, and a handle of no builder, or of one
  *   that is sealed, throw. `builders` tells which are not sealed.
+ * - **`call` invokes an existing function value**
+ *   ([L0 design §12](../../../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
+ *   it borrows a cell that holds a JavaScript function and a cell that
+ *   holds a sealed array of arguments, applies the function to those
+ *   arguments, and answers a new cell of the result. A throw from the
+ *   function keeps its value as `throw` does and traps. A value that is
+ *   not a function, or arguments that are not an array, trap as misuse.
+ *   `make_function` of an IR `code` waits for slice 11: a call of it
+ *   takes over its frame and text and traps.
  * - **A throw keeps its value**
  *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   `throw` takes over a cell, as `push` does, keeps its value and
@@ -208,6 +217,24 @@ export const counting = (values, data = 0) => {
                     last.set(key, value)
                 }
                 return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
+            },
+            make_function: (_code, frame, _length, text) => {
+                drop(frame)
+                drop(text)
+                throw 'fjs:l0 host: make_function of an IR code waits for slice 11'
+            },
+            call: (f, args) => {
+                const fn = read(f)
+                const a = read(args)
+                if (typeof fn !== 'function') { throw 'fjs:l0 host: call of a non-function' }
+                if (!Array.isArray(a)) { throw 'fjs:l0 host: call args is not an array' }
+                try {
+                    return make(fn(...a))
+                } catch (e) {
+                    if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
+                    held = { value: e }
+                    throw e
+                }
             },
             throw: h => {
                 if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }

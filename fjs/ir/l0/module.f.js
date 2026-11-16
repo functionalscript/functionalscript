@@ -64,6 +64,13 @@
  *   give back the builder they own, so their imports take it once and
  *   answer nothing. Pushing more items than `n`, sealing with fewer, or a
  *   builder that is sealed already traps.
+ * - **`call` invokes an existing function value**
+ *   ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
+ *   `call(f, args)` borrows a function and a sealed array of arguments and
+ *   answers the result, owned. A throw from the function fails, as
+ *   `throw` does. `make_function` of an IR `code` waits for slice 11 of
+ *   [slices.md](../todo/slices.md); the interface names it so a later
+ *   host can bind it, and this host refuses a call of it.
  * - **A throw is Functions' `throw`**
  *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   it takes over a value, which the host keeps, and fails, so it answers
@@ -72,7 +79,7 @@
  *   `recover` frees what the frames that the trap abandoned held.
  * - **A function that may fail says so**
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
- *   `throw`, and the functions that trap where the view throws, which
+ *   `throw`, `call`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
  *   `item`, `push`, `push_property` and `seal`. Every other function of L0
  *   completes on the values of its parameters' types.
@@ -82,7 +89,7 @@
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, f64, f64c, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
+import { bool, code, f64, f64c, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
@@ -105,8 +112,20 @@ export const array = only(any, 'array')
 /** An object, which `seal` of a `begin_object` answers. */
 export const object = only(any, 'object')
 
+/** A function, which `call` takes and `make_function` answers. */
+export const func = only(any, 'function')
+
 /** An array or an object, which `seal` answers. */
 export const container = only(any, 'array', 'object')
+
+/** A string or `undefined`, the text `make_function` takes. */
+const text = only(any, 'string', 'undefined')
+
+/**
+ * The code type of every L0 function value: `(self, args) -> any`, both
+ * borrowed ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
+ */
+const functionCode = code([['borrow', func], ['borrow', array]], any)
 
 /** A builder of an array or an object, which nothing copies or drops. */
 export const builder = sealed('Containers', 'builder')
@@ -182,12 +201,21 @@ const containers = [
 ]
 
 /**
- * Functions' functions besides its `length`: `throw`, which takes over a
- * value and fails, so that it answers `never`.
+ * Functions' functions besides its `length`: `make_function`, which an IR
+ * `code` waits for slice 11 to use; `call`, which borrows a function and
+ * its arguments array and may fail where the function throws; and `throw`,
+ * which takes over a value and fails, so that it answers `never`.
  *
  * @type {Interface['functions']}
  */
 const functions = [
+    ['make_function', signature([
+        ['c', functionCode],
+        own('frame', array),
+        ['length', index],
+        own('text', text),
+    ], func)],
+    ['call', mayFail(signature([['f', func], ['args', array]], any))],
     ['throw', mayFail(signature([own('v', any)], never))],
 ]
 

@@ -421,6 +421,8 @@ export const proof = {
         "",
         "import Functions from fjs:l0",
         "    fn length(f: any.only(function)) -> u(31)",
+        "    fn make_function(c: code([any.only(function), any.only(array)], any), own frame: any.only(array), length: u(31), own text: any.only(string, undefined)) -> any.only(function)",
+        "    fn call(f: any.only(function), args: any.only(array)) -> any may fail",
         "    fn throw(own v: any) -> never may fail",
         "",
         "import Native from fjs:l1-native",

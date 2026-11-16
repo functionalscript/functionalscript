@@ -24,7 +24,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
-import { any, array, container, l0 } from '../l0/module.f.js'
+import { any, array, container, func, l0 } from '../l0/module.f.js'
 import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
@@ -293,6 +293,25 @@ export const proof = {
     constants: () => run(constants, twins, inputs),
     literals: () => run(literals, twins, inputs),
     arrays: () => run(arrays, twins, inputs),
+    // `Functions.call` applies an existing function value to a sealed args array.
+    call: () => {
+        /** @type {Module} */
+        const m = {
+            imports: l0,
+            functions: [['apply', fn([['f', func], ['args', array]], any, (f, args) => call('Functions', 'call', [f, args]))]],
+            exports: ['apply'],
+        }
+        const id = (/** @type {unknown} */ x) => x
+        const pair = (/** @type {unknown} */ a, /** @type {unknown} */ b) => [a, b]
+        run(m, {
+            apply: ([f, args]) => ({ any: /** @type {(...xs: unknown[]) => unknown} */ (held(f))(.../** @type {unknown[]} */ (held(args))) }),
+        }, {
+            apply: [
+                [{ any: id }, { any: [1] }],
+                [{ any: pair }, { any: ['a', 'b'] }],
+            ],
+        })
+    },
     // A `call_ref` of a `code` value computes what a direct call of that function computes.
     code: () => {
         const bin = code([['borrow', f64], ['borrow', f64]], f64)

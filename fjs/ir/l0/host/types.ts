@@ -40,8 +40,11 @@ export type View = {
  * `begin_array` makes one of a number of items, `begin_object` one of a
  * number of properties, `push` or `push_property` takes over a cell as its
  * next item or property, and `seal` ends it and makes a cell of the array
- * or the object. `throw` takes over a cell, keeps its value and returns,
- * so that the `unreachable` after its call traps.
+ * or the object. `call` borrows a function and an arguments array and
+ * answers a new cell of the result; a throw from the function keeps the
+ * value and traps. `make_function` waits for slice 11. `throw` takes over
+ * a cell, keeps its value and returns, so that the `unreachable` after its
+ * call traps.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
@@ -70,6 +73,8 @@ export type Imports = {
     readonly push: (b: number, v: bigint) => void
     readonly push_property: (b: number, k: bigint, v: bigint) => void
     readonly seal: (b: number) => bigint
+    readonly make_function: (code: number, frame: bigint, length: number, text: bigint) => bigint
+    readonly call: (f: bigint, args: bigint) => bigint
     readonly throw: (v: bigint) => void
 }
 

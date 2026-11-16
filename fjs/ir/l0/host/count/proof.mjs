@@ -17,7 +17,7 @@ import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
 import { add, bool, call, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, u, unit } from '../../../module.f.js'
 import { emit } from '../../../wasm/module.f.js'
-import { any, l0 } from '../../module.f.js'
+import { any, array, func, l0 } from '../../module.f.js'
 import { counting } from './module.mjs'
 
 const string = only(any, 'string')
@@ -135,6 +135,44 @@ export const proof = {
         assertEq(JSON.stringify(h.read(emptyObject)), '{}')
         h.imports.drop(emptyObject)
     },
+    // `call` applies an existing function value to a sealed args array and answers a new cell of the result.
+    call: () => {
+        const add = (/** @type {unknown} */ a, /** @type {unknown} */ b) => /** @type {number} */ (a) + /** @type {number} */ (b)
+        const h = counting([add, [2, 3]])
+        h.keep()
+        const r = h.imports.call(0n, 1n)
+        assertEq(`${h.read(r)} ${cells(h)}`, `5 ${r}:1`)
+        h.imports.drop(r)
+        assertEq(cells(h), '')
+        const { f, h: m } = load(
+            [['f', func], ['args', array]],
+            any,
+            call('Functions', 'call', [get('f'), get('args')]),
+            [(/** @type {unknown} */ x) => x, ['ok']],
+        )
+        m.keep()
+        const got = f(0n, 1n)
+        assert(typeof got === 'bigint')
+        assertEq(`${m.read(got)} ${cells(m)}`, `ok ${got}:1`)
+        m.imports.drop(got)
+        assertEq(cells(m), '')
+    },
+    // A throw from the function keeps its value and traps.
+    callThrows: () => {
+        const h = counting([() => { throw 'no' }, []])
+        h.keep()
+        try {
+            h.imports.call(0n, 1n)
+            assert(false)
+        } catch (e) {
+            assertEq(e, 'no')
+        }
+        assertEq(`${h.has_thrown()} ${cells(h)}`, '1 ')
+        const t = h.thrown()
+        assertEq(`${h.read(t)} ${cells(h)}`, `no ${t}:1`)
+        h.imports.drop(t)
+        assertEq(cells(h), '')
+    },
     // A throw takes over a cell and keeps its value, which `thrown` gives the caller as a cell of its own.
     thrown: () => {
         const h = counting(['x', 'y'])
@@ -163,6 +201,7 @@ export const proof = {
     },
     // A handle of no cell throws, and so does one whose cell a drop freed, units past the memory, a handle of no builder or of
     // a sealed one, a push past a builder's length, a seal of fewer items, a throw after a throw and `thrown` after none.
+    // `call` of a non-function or non-array, and `make_function` while an IR code waits for slice 11, trap as misuse.
     throw: {
         none: () => { counting([]).read(0n) },
         freed: () => {
@@ -195,6 +234,12 @@ export const proof = {
             h.imports.throw(1n)
         },
         nothing: () => { counting([]).thrown() },
+        callNotFunction: () => { counting(['x', []]).imports.call(0n, 1n) },
+        callNotArray: () => { counting([() => 0, 'x']).imports.call(0n, 1n) },
+        makeFunction: () => {
+            const h = counting([[], undefined])
+            h.imports.make_function(0, 0n, 0, 1n)
+        },
     },
     // concat of a borrowed string answers an owned one, which the caller drops.
     concat: () => {
