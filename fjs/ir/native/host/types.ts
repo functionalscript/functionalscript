@@ -14,4 +14,6 @@ export type Host = {
     readonly bigintEquals: (a: bigint, b: bigint) => 0 | 1
     readonly numberRemainder: (a: number, b: number) => number
     readonly numberToString: (n: number) => bigint
+    readonly stringToNumber: (s: bigint) => number
+    readonly bigintToString: (b: bigint) => bigint
 }

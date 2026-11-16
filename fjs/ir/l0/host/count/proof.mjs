@@ -157,6 +157,29 @@ export const proof = {
         m.imports.drop(got)
         assertEq(cells(m), '')
     },
+    // `find` answers a property index or `-1`; `join` and `text` make owned cells.
+    find: () => {
+        const h = counting([{ b: 1, a: 2 }, 'b', 'a', 'z'])
+        h.keep()
+        assertEq(`${h.imports.find(0n, 1n)} ${h.imports.find(0n, 2n)} ${h.imports.find(0n, 3n)} ${cells(h)}`, '0 1 -1 ')
+    },
+    join: () => {
+        const h = counting([['a', '', 'b'], ', '])
+        h.keep()
+        const r = h.imports.join(0n, 1n)
+        assertEq(`${h.read(r)} ${cells(h)}`, `a, , b ${r}:1`)
+        h.imports.drop(r)
+        assertEq(cells(h), '')
+    },
+    text: () => {
+        const f = (/** @type {unknown} */ a) => a
+        const h = counting([f])
+        h.keep()
+        const r = h.imports.text(0n)
+        assertEq(`${h.read(r)} ${cells(h)}`, `${f.toString()} ${r}:1`)
+        h.imports.drop(r)
+        assertEq(cells(h), '')
+    },
     // A throw from the function keeps its value and traps.
     callThrows: () => {
         const h = counting([() => { throw 'no' }, []])

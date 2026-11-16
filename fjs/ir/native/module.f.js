@@ -18,6 +18,9 @@
  * - **`numberToString` takes a float and answers an owned string**, the
  *   decimal spelling of the float, which object spread uses as an index
  *   key. The caller owns the string, as it owns what L0 makes.
+ * - **`stringToNumber` takes a string and answers a float**, the number its
+ *   text spells. **`bigintToString` takes a bigint and answers an owned
+ *   string**, its decimal spelling. Both join with L1's coercions.
  *
  * These are the rows that the slices read so far. Each joins with its first
  * caller.
@@ -41,5 +44,7 @@ export const native = {
         ['bigintEquals', signature([['a', bigint], ['b', bigint]], bool)],
         ['numberRemainder', signature([['a', f64], ['b', f64]], f64)],
         ['numberToString', signature([['n', f64]], string)],
+        ['stringToNumber', signature([['s', string]], f64)],
+        ['bigintToString', signature([['b', bigint]], string)],
     ],
 }

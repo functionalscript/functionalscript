@@ -98,6 +98,21 @@ export const l1Builders = {
     objectSpread: signature([['v', any]], container),
 }
 
+/**
+ * The signatures of L1's coercions and `call`, which slice 9b3 lowers over
+ * `l1Runtime`. `functionText` is among them so `toString` can call it.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Coerce = {
+    functionText: signature([['t', any]], any),
+    toPrimitive: signature([['v', any], ['preferString', bool]], any),
+    toNumber: signature([['v', any]], f64),
+    toNumeric: signature([['v', any]], any),
+    toString: signature([['v', any]], any),
+    call: signature([['f', any], ['args', any]], any),
+}
+
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
 const b2 = /** @type {const} */ ([['a', bool], ['b', bool]])
 

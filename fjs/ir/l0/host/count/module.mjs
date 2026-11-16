@@ -9,9 +9,10 @@
  *   whose cell a `drop` freed.
  * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
  *   answers its handle; `drop` takes one away, and frees the cell at zero.
- * - **`from_unit`, `concat`, `substring` and `item` make a cell** of the
- *   value that the view answers, counted once, and answer its handle, which
- *   the caller owns: an item read from an array is a cell of its own.
+ * - **`from_unit`, `concat`, `substring`, `item`, `join` and `text` make a
+ *   cell** of the value that the view answers, counted once, and answer its
+ *   handle, which the caller owns: an item read from an array is a cell of
+ *   its own. `find` answers an `i32`, the property index or `-1`.
  * - **What a constant holds is kept.** Any's `undefined`, `null`, `true`
  *   and `false` are the cells `-1` to `-4`, each counted once for the
  *   immutable global that holds it, and kept from the start. `keep` keeps
@@ -181,6 +182,7 @@ export const counting = (values, data = 0) => {
             concat: (a, b) => make(v.concat(a, b)),
             substring: (s, start, end) => make(v.substring(s, start, end)),
             item: (c, i) => make(v.item(c, i)),
+            find: v.find,
             begin_array: n => begin('array', n),
             begin_object: n => begin('object', n),
             push: (b, h) => {
@@ -218,6 +220,7 @@ export const counting = (values, data = 0) => {
                 }
                 return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
             },
+            join: (parts, separator) => make(v.join(parts, separator)),
             make_function: (_code, frame, _length, text) => {
                 drop(frame)
                 drop(text)
@@ -236,6 +239,7 @@ export const counting = (values, data = 0) => {
                     throw e
                 }
             },
+            text: f => make(v.text(f)),
             throw: h => {
                 if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
                 const value = read(h)

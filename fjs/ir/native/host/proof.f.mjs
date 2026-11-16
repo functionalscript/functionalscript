@@ -1,4 +1,4 @@
-import { assertEq } from '../../../asserts/module.f.js'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import { handles } from '../../l0/host/module.f.js'
 import { host } from './module.f.js'
 
@@ -29,9 +29,16 @@ export const proof = {
         const k = h.numberToString(10)
         assertEq(owned[Number(k) - values.length], '10')
     },
+    stringToNumber: () => assert(Number.isNaN(h.stringToNumber(5n))),
+    bigintToString: () => {
+        const k = h.bigintToString(0n)
+        assertEq(owned[Number(k) - values.length], '1')
+    },
     // Where the row throws, so does the import: a value of another kind, or a handle of none.
     throw: {
         notBigint: () => { h.bigintEquals(0n, 4n) },
         notHandle: () => { h.bigintEquals(0n, 6n) },
+        stringToNumber: () => { h.stringToNumber(0n) },
+        bigintToString: () => { h.bigintToString(5n) },
     },
 }

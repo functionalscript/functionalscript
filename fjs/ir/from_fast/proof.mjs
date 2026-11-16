@@ -47,7 +47,8 @@
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
-    functionText, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, toBoolean, toIterable, typeOf,
+    call as l1Call, functionText, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, toBoolean,
+    toIterable, toNumber, toNumeric, toPrimitive, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
@@ -66,7 +67,7 @@ import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
-    l1, l1Builders, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures, objects as objectSignatures,
+    l1, l1Builders, l1Coerce, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures, objects as objectSignatures,
     reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
     throws as throwSignatures, throwsRuntime,
 } from './testlib.f.mjs'
@@ -121,6 +122,9 @@ const fromObjects = () => assertOk(lifetime(fromText(new URL('./objects.f.js', i
 
 /** The owned stage of the module that the lowering makes of L1's builders, over the runtime and the table. @type {() => Module} */
 const fromL1Builders = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Builders, l1Runtime(errors))))
+
+/** The owned stage of L1's coercions and `call`, over the runtime and the table. @type {() => Module} */
+const fromL1Coerce = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Coerce, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -413,22 +417,27 @@ export const proof = {
         "        carrier: i32",
         "    fn length(c: any.only(array, object)) -> u(31)",
         "    fn item(c: any.only(array, object), i: u(31)) -> any may fail",
+        "    fn find(o: any.only(object), k: any.only(string)) -> i(32)",
         "    fn begin_array(n: u(31)) -> builder",
         "    fn begin_object(n: u(31)) -> builder",
         "    fn push(own b: builder, own v: any) -> builder, gives back b may fail",
         "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
         "    fn seal(own b: builder) -> any.only(array, object) may fail",
+        "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
         "",
         "import Functions from fjs:l0",
         "    fn length(f: any.only(function)) -> u(31)",
         "    fn make_function(c: code([any.only(function), any.only(array)], any), own frame: any.only(array), length: u(31), own text: any.only(string, undefined)) -> any.only(function)",
         "    fn call(f: any.only(function), args: any.only(array)) -> any may fail",
+        "    fn text(f: any.only(function)) -> any.only(string, undefined)",
         "    fn throw(own v: any) -> never may fail",
         "",
         "import Native from fjs:l1-native",
         "    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool",
         "    fn numberRemainder(a: f64, b: f64) -> f64",
         "    fn numberToString(n: f64) -> any.only(string)",
+        "    fn stringToNumber(s: any.only(string)) -> f64",
+        "    fn bigintToString(b: any.only(bigint)) -> any.only(string)",
         "",
         "const #c0: any.only(array) =",
         "    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(9), \"undefined\"), \"object\"), \"boolean\"), \"number\"), \"string\"), \"bigint\"), \"object\"), \"object\"), \"function\"))",
@@ -1404,4 +1413,43 @@ export const proof = {
             ...[{}, { a: 1 }, [], [1, 2], 'ab', 1, null, undefined].map(any => [{ any }]),
         ],
     }, ['toIterable']),
+    // L1's coercions and call, lowered from L1's text: each answers what L1's own answers.
+    l1Coerce: () => {
+        const text = print({ ...fromL1Coerce(), imports: [] })
+        assert(text.includes('Functions.call'))
+        assert(text.includes('Containers.find'))
+        assert(text.includes('Functions.text'))
+        assert(text.includes('Containers.join'))
+    },
+    l1CoerceRun: () => {
+        /** @type {StringMap<_Twin>} */
+        const twins = {
+            functionText: ([t]) => ({ any: functionText(held(t)) }),
+            toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
+            toNumber: ([v]) => toNumber(held(v)),
+            toNumeric: ([v]) => ({ any: toNumeric(held(v)) }),
+            // `toString` as a key needs an explicit `_Twin`: Object's method
+            // type and a destructuring twin do not assign under StringMap.
+            toString: /** @type {_Twin} */ (xs => ({ any: l1ToString(held(xs[0])) })),
+            call: ([f, args]) => ({ any: l1Call(held(f), held(args)) }),
+        }
+        return run(fromL1Coerce(), twins, {
+            toPrimitive: [
+                ...[1, 'a', true, null, undefined, 1n, [], {}, (/** @type {unknown} */ x) => x].map(any => [{ any }, false]),
+            ],
+            toNumber: [
+                ...[1, '1', true, false, null, undefined, [], (/** @type {unknown} */ x) => x].map(any => [{ any }]),
+            ],
+            toNumeric: [
+                ...[1, 1n, '1', true, null, (/** @type {unknown} */ x) => x].map(any => [{ any }]),
+            ],
+            toString: [
+                ...[1, 'a', true, null, undefined, 1n, [], {}, (/** @type {unknown} */ x) => x].map(any => [{ any }]),
+            ],
+            call: [
+                [{ any: (/** @type {unknown} */ a, /** @type {unknown} */ b) => /** @type {number} */ (a) + /** @type {number} */ (b) }, { any: [2, 3] }],
+                [{ any: () => 'ok' }, { any: [] }],
+            ],
+        }, ['toPrimitive', 'toNumber', 'toNumeric', 'toString', 'call'])
+    },
 }

@@ -39,19 +39,24 @@
  *   `float(Any.kind(v))`, and a tag such as `BOOLEAN` is its float.
  *   `undefined` and `null` are Any's constants, which the host makes
  *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).
- *   `asBoolean`, `asNumber` and `asString` are casts, to `to_bool`,
- *   `to_f64` and the string itself, and `length(v)` is a `match` of `v`'s
- *   kinds, an arm for each module of L0 that has a `length`, and a trap for
- *   the kinds that none takes, or a call where one module takes them all.
- *   `unit(s, i)` reads the integer that the float `i` holds exactly, and
- *   traps where it holds none, and so do `fromUnit`, `substring` and
- *   `item` with their numbers. `same`, `concat` and each native row cast
- *   each argument to the kinds that they take. `fromUnit`, `concat` and
- *   `substring` answer a string and `item` a value that the caller owns,
- *   which the [lifetime pass](../lifetime/module.f.js) drops: the lowering
- *   writes the plain stage. `%` of two floats is the row `numberRemainder`.
- *   Any other import is refused, and so is a cast of a value that never
- *   holds its kind, which would always trap.
+ *   `asBoolean`, `asNumber`, `asString`, `asArray`, `asObject` and
+ *   `asFunction` are casts, to `to_bool`, `to_f64` and the value itself, and
+ *   `length(v)` is a `match` of `v`'s kinds, an arm for each module of L0
+ *   that has a `length`, and a trap for the kinds that none takes, or a call
+ *   where one module takes them all. `unit(s, i)` reads the integer that the
+ *   float `i` holds exactly, and traps where it holds none, and so do
+ *   `fromUnit`, `substring` and `item` with their numbers. `find(o, k)` is
+ *   Containers' `find` as a float, `text(f)` and `join(parts, separator)`
+ *   Functions' `text` and Containers' `join`. `same`, `concat` and each
+ *   native row cast each argument to the kinds that they take. `fromUnit`,
+ *   `concat`, `substring`, `join` and `text` answer a string (or
+ *   `undefined`, for `text`) and `item` a value that the caller owns, which
+ *   the [lifetime pass](../lifetime/module.f.js) drops: the lowering writes
+ *   the plain stage. A call of a function value is L0 `call(f, args)` with
+ *   an args array, built by Containers or passed as it is when a single
+ *   spread names a known array. `%` of two floats is the row
+ *   `numberRemainder`. Any other import is refused, and so is a cast of a
+ *   value that never holds its kind, which would always trap.
  * - **A throw is `Functions.throw`** of its value
  *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)),
  *   a term of type `never`, which ends its block as a `return` does, and
@@ -145,7 +150,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
-import { any, array, builder, kinds, l0, lengths, object, string } from '../l0/module.f.js'
+import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
@@ -262,7 +267,7 @@ const unwrapped = v => {
 // casts
 
 /** The casts of the L0 view, each with the kind that it narrows to. @type {readonly (readonly [string, string])[]} */
-const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string'], ['asArray', 'array'], ['asObject', 'object']]
+const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string'], ['asArray', 'array'], ['asObject', 'object'], ['asFunction', 'function']]
 
 /** Whether a local holds a value of a sealed type that has `kind` and other kinds too, which a cast to `kind` narrows. @type {(scope: _Scope, name: string, kind: string) => boolean} */
 const wider = (scope, name, kind) => {
@@ -324,10 +329,50 @@ const narrow = (scope, [name, kind], rest) => {
 /** @type {(lowerValue: _LowerValue, scope: _Scope, vs: readonly Value[]) => Result<readonly Term[], string>} */
 const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v)))
 
+/**
+ * Two arms of an `if` at the same type: a float or boolean that meets
+ * `any` is boxed
+ * ([definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
+ *
+ * @type {(scope: _Scope, a: Term, b: Term) => readonly [Term, Term]}
+ */
+const aligned = (scope, a, b) => {
+    // Skip an arm that typeOf cannot place yet under `scope.ir` (a nested
+    // `br` to a loop label inside a non-transfer arm, as in a chain of
+    // `if`s that ends in continue): leave it for the checker.
+    const ta = typeOf(scope.ir)(a)
+    const tb = typeOf(scope.ir)(b)
+    if (ta[0] === 'error' || tb[0] === 'error') { return [a, b] }
+    const left = isAny(tb[1]) ? asAny(ta[1], a) : a
+    const right = isAny(ta[1]) ? asAny(tb[1], b) : b
+    if (left === null || right === null) { return [a, b] }
+    return [left, right]
+}
+
+/**
+ * A `br` / `trap`, or `let`s whose body is one: `aligned` cannot type those
+ * under `scope.ir`, which has no loop labels. Statements before a continue
+ * wrap the `br` in `let`s.
+ *
+ * @type {(t: Term) => boolean}
+ */
+const isTransfer = t => {
+    let x = t
+    while (x[0] === 'let') { x = x[3] }
+    return x[0] === 'br' || x[0] === 'trap'
+}
+
+/** A term's local name, or `fallback` where it is no `get`. @type {(t: Term, fallback: string) => string} */
+const localOf = (t, fallback) => t[0] === 'get' ? t[1] : fallback
+
 /** @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, c: Value, a: Block, b: Block, tail: _Tail) => Result<Term, string>} */
 const choice = (lowerValue, lowerBlock, scope, c, a, b, tail) => {
     const parts = okList([lowerValue(scope, c), lowerBlock(lowerValue, scope, a, tail), lowerBlock(lowerValue, scope, b, tail)])
-    return parts[0] === 'error' ? parts : ok(if_(parts[1][0], parts[1][1], parts[1][2]))
+    if (parts[0] === 'error') { return parts }
+    const [, cond, x, y] = [null, parts[1][0], parts[1][1], parts[1][2]]
+    if (isTransfer(x) || isTransfer(y)) { return ok(if_(cond, x, y)) }
+    const [left, right] = aligned(scope, x, y)
+    return ok(if_(cond, left, right))
 }
 
 // loops and inlined functions
@@ -595,9 +640,9 @@ const lengthOf = (x, held, base) => {
 
 /** The functions of the L0 view that the lowering reads, beside its tags, each with how many arguments it takes. @type {readonly (readonly [string, number])[]} */
 const viewFunctions = [
-    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['asArray', 1], ['asObject', 1],
-    ['length', 1], ['unit', 2], ['same', 2],
-    ['fromUnit', 1], ['concat', 2], ['substring', 3], ['item', 2],
+    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['asArray', 1], ['asObject', 1], ['asFunction', 1],
+    ['length', 1], ['unit', 2], ['same', 2], ['text', 1],
+    ['fromUnit', 1], ['concat', 2], ['substring', 3], ['item', 2], ['find', 2], ['join', 2],
     ['buildArray', 4], ['buildObject', 5],
 ]
 
@@ -650,7 +695,7 @@ const fromUnitTerm = (scope, c) => {
     const t = typeOf(scope.ir)(c)
     if (t[0] === 'error') { return t }
     return !isFloat(t[1]) ? refuse(scope)(`fromUnit of ${show(t[1])} is not in this slice`)
-        : ok(exact(u(16), c, `${c[0] === 'get' ? c[1] : 'fromUnit'}.unit`, k => call('String', 'from_unit', [k])))
+        : ok(exact(u(16), c, `${localOf(c, 'fromUnit')}.unit`, k => call('String', 'from_unit', [k])))
 }
 
 /**
@@ -684,10 +729,12 @@ const viewTerm = (scope, name, args) => {
         case 'asString': { return ok(as('string', y => y)) }
         case 'asArray': { return ok(as('array', y => y)) }
         case 'asObject': { return ok(as('object', y => y)) }
+        case 'asFunction': { return ok(as('function', y => y)) }
         case 'length': {
             return lengths.some(([, , ks]) => ks.some(k => held.includes(k))) ? ok(lengthOf(x, held, base))
                 : no(`length of ${show(type)}: none of its kinds has a length`)
         }
+        case 'text': { return ok(as('function', y => call('Functions', 'text', [y]))) }
         case 'substring': {
             if (!isFloat(at) || !isFloat(to)) { return no(`substring from ${show(at)} to ${show(to)} is not in this slice`) }
             // JavaScript reads the string, then the end, then the start
@@ -700,6 +747,17 @@ const viewTerm = (scope, name, args) => {
             /** @type {(y: Term) => Term} */
             const read = y => exact(u(31), i, `${base}.index`, k => call('Containers', 'item', [y, k]))
             return ok(ks.length === held.length ? read(x) : cast(only(any, ...ks), x, `${base}.${ks.length === 1 ? ks[0] : 'item'}`, read))
+        }
+        case 'find': {
+            if (!held.includes('object')) { return no(`find of ${show(type)}: find takes an object`) }
+            if (at[0] !== 'sealed' || !(at[3] ?? kinds).includes('string')) { return no(`find of a key of ${show(at)}: find takes a string`) }
+            // JavaScript reads the index as a number.
+            return ok(float(as('object', y => {
+                const keyName = `${localOf(i, 'find')}.string`
+                const key = (at[3] ?? kinds).every(k => k === 'string') ? i
+                    : cast(only(any, 'string'), i, keyName, get(keyName))
+                return call('Containers', 'find', [y, key])
+            })))
         }
         default: {
             // JavaScript reads an index and a unit as numbers: the index must hold an integer exactly.
@@ -844,6 +902,7 @@ const viewCall = (lowerValue, scope, name, vs) => {
     if (vs.length !== arity) { return no(`${name} takes ${count(arity, 'argument')}, not ${vs.length}`) }
     if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
     if (name === 'concat') { return castCall(lowerValue, scope, 'String', 'concat', paramsOf('String', 'concat'), vs) }
+    if (name === 'join') { return castCall(lowerValue, scope, 'Containers', 'join', paramsOf('Containers', 'join'), vs) }
     if (name === 'buildArray') { return buildArrayOf(lowerValue, scope, vs) }
     if (name === 'buildObject') { return buildObjectOf(lowerValue, scope, vs) }
     if (arity > 1) { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
@@ -1077,17 +1136,73 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
 })
 
 /**
+ * A call of a function value: L0 `call(f, args)` with an args array
+ * ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
+ * A single spread of a known array passes that array; otherwise Containers
+ * builds one from the positional arguments.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
+ */
+const valueCall = (lowerValue, scope, callee, items) => {
+    const no = refuse(scope)
+    if (!scope.ir.imports.some(([k]) => k === 'Functions')) {
+        return no('a call of a value uses Functions.call, which a module lowered without the runtime does not import')
+    }
+    const spreads = items.flatMap(item => isSpread(item) ? [item[1]] : [])
+    const plain = items.flatMap(item => isSpread(item) ? [] : [item])
+    if (spreads.length > 1 || (spreads.length === 1 && plain.length > 0)) {
+        return no('a spread among positional arguments is not in this slice')
+    }
+    if (spreads.length === 1) {
+        return settled(lowerValue, scope, [callee, spreads[0]], (s, [f, args]) => {
+            // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
+            const typed = okList([f, args].map(x => typeOf(s.ir)(x)))
+            if (typed[0] === 'error') { return typed }
+            const [ft, at] = typed[1]
+            const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
+            const aHeld = at[0] === 'sealed' ? at[3] ?? kinds : []
+            if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
+            if (!aHeld.includes('array')) { return no(`a spread of ${show(at)} is not in this slice: only an array's is`) }
+            const fnName = `${localOf(f, 'call')}.function`
+            const arrName = `${localOf(args, 'call')}.array`
+            const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, fnName, get(fnName))
+            const arr = aHeld.every(k => k === 'array') ? args : cast(array, args, arrName, get(arrName))
+            return ok(call('Functions', 'call', [fn, arr]))
+        })
+    }
+    return settled(lowerValue, scope, [callee, ...plain], (s, [f, ...xs]) => {
+        // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
+        const typed = okList([f, ...xs].map(x => typeOf(s.ir)(x)))
+        if (typed[0] === 'error') { return typed }
+        const [ft, ...ats] = typed[1]
+        const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
+        if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
+        const boxed = okList(ats.map((t, i) => {
+            const y = asAny(t, xs[Number(i)])
+            return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
+        }))
+        if (boxed[0] === 'error') { return boxed }
+        const fnName = `${localOf(f, 'call')}.function`
+        const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, fnName, get(fnName))
+        const begun = call('Containers', 'begin_array', [n(BigInt(boxed[1].length))])
+        const args = cast(array, call('Containers', 'seal', [boxed[1].reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'args', a => a)
+        return ok(call('Functions', 'call', [fn, args]))
+    })
+}
+
+/**
  * A call of a function of the module, of a static function that is an
- * operator, of a function of the L0 view or of L1's native rows, or of a
- * function that the function defines or that the module does not export,
- * which are inlined: the callee is a binding that stands for one.
+ * operator, of a function of the L0 view or of L1's native rows, of a
+ * function value, or of a function that the function defines or that the
+ * module does not export, which are inlined: the callee is a binding that
+ * stands for one.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
  */
 const callTerm = (lowerValue, scope, callee, items) => {
     const no = refuse(scope)
     const m = calleeOf(scope, callee)
-    if (m === null || m[0] === 'local' || m[0] === 'term') { return no('a call of a value is not in this slice') }
+    if (m === null || m[0] === 'local' || m[0] === 'term') { return valueCall(lowerValue, scope, callee, items) }
     if (m[0] === 'refused') { return no(m[1]) }
     if (m[0] === 'errors') { return no("a call of L1's error table is not in this slice") }
     const vs = items.flatMap(item => isSpread(item) ? [] : [item])
@@ -1204,7 +1319,9 @@ const value = (scope, v) => {
         case 'if': { return choice(value, block, scope, v[1], v[2], v[3], ['value']) }
         case '?:': {
             const parts = values(value, scope, [v[1], v[2], v[3]])
-            return parts[0] === 'error' ? parts : ok(if_(parts[1][0], parts[1][1], parts[1][2]))
+            if (parts[0] === 'error') { return parts }
+            const [left, right] = aligned(scope, parts[1][1], parts[1][2])
+            return ok(if_(parts[1][0], left, right))
         }
         case '()': { return callTerm(value, scope, v[1], v[2]) }
         case '-': {

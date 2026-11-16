@@ -44,6 +44,16 @@ export const proof = {
     concat: () => assertEq(h.concat(4n, 4n), 'abab'),
     substring: () => assertEq(`${h.substring(4n, 0, 1)},${h.substring(4n, 1, 2)},${h.substring(4n, 2, 2)}`, 'a,b,'),
     item: () => assertEq(`${h.item(6n, 2)},${h.item(7n, 0)}`, '3,1'),
+    // `find` is the index of a key, or `-1`; `join` and `text` answer strings.
+    find: () => {
+        const o = over([{ b: 1, a: 2 }, 'b', 'a', 'z'])
+        assertEq(`${o.find(0n, 1n)},${o.find(0n, 2n)},${o.find(0n, 3n)}`, '0,1,-1')
+    },
+    join: () => {
+        const j = over([['a', '', 'b'], ', '])
+        assertEq(j.join(0n, 1n), 'a, , b')
+    },
+    text: () => assertEq(h.text(8n), values.at(8)?.toString()),
     // Where L0 traps, the import throws: a handle of no value, or a value of another kind.
     throw: {
         negative: () => { h.kind(-1n) },
@@ -61,5 +71,8 @@ export const proof = {
         substringBackwards: () => { h.substring(4n, 2, 1) },
         itemPast: () => { h.item(6n, 3) },
         itemOfNoContainer: () => { h.item(4n, 0) },
+        findArray: () => { h.find(6n, 4n) },
+        joinPart: () => { over([['a', 1], ',']).join(0n, 1n) },
+        text: () => { h.text(7n) },
     },
 }
