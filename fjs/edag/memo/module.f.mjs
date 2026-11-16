@@ -27,13 +27,12 @@ import { assertOk } from '../../asserts/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { checked, identityAnalysis } from '../analysis/module.f.js'
-import { invokerWith, operation } from '../operations/module.f.mjs'
+import { invokerWith, operation } from '../operations/module.f.js'
 import { settle } from '../value/call/module.f.js'
 
-/** The root in tail position: its value, or the call it leaves. @type {(a: Analysis, context: Context, root: Operand) => Outcome} */
-const evaluate = (a, context, root) => {
+/** The root in tail position: its value, or the call it leaves. @type {(a: Analysis, context: Context, root: Operand, invoke: Invoke) => Outcome} */
+const evaluate = (a, context, root, invoke) => {
     const { nodes, shared, exps } = a
-    const invoke = invokeWith(context.runtime)
     const settled = settle(invoke)
 
     /** A shared node's established value, where it has one. @type {(index: number, cache: _Cache) => Evaluation<_Cache> | undefined} */
@@ -65,7 +64,7 @@ const evaluate = (a, context, root) => {
         const [, index] = operand
         const found = established(index, cache)
         if (found !== undefined) { return found }
-        const [next, outcome] = run(nodes[index], cache)
+        const [next, outcome] = run(nodes[Number(index)], cache)
         return retained(index, next, settled(outcome))
     }
 
@@ -75,11 +74,11 @@ const evaluate = (a, context, root) => {
         const [, index] = operand
         const found = established(index, cache)
         if (found !== undefined) { return found }
-        const [next, outcome] = run(nodes[index], cache)
+        const [next, outcome] = run(nodes[Number(index)], cache)
         return retained(index, next, outcome)
     }
 
-    const run = operation({ context, operand, tail, expression: e => isArray(e) ? exps[e[1]] : e, invoke })
+    const run = operation({ context, operand, tail, expression: e => isArray(e) ? exps[Number(e[1])] : e, invoke })
     return tail(root, [])[1]
 }
 
@@ -90,12 +89,12 @@ const evaluate = (a, context, root) => {
  *
  * @type {(runtime: Runtime | undefined) => Invoke}
  */
-export const invokeWith = invokerWith((fn, context) => {
+export const invokeWith = runtime => invokerWith((fn, context) => {
     const a = assertOk(identityAnalysis(fn))
     const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
-    const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
-    return evaluate(a, context, root)
-})
+    const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[Number(index)])
+    return evaluate(a, context, root, invokeWith(context.runtime))
+})(runtime)
 
 /** {@link invokeWith} no runtime: every member function it answers is one the dispatcher implements natively. @type {Invoke} */
 export const invoke = invokeWith(undefined)
@@ -103,5 +102,8 @@ export const invoke = invokeWith(undefined)
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */
 export const memo = a => {
     const table = unwrap(checked(a))
-    return context => settle(invokeWith(context.runtime))(evaluate(table, { ...context, frame: [] }, table.root))
+    return context => {
+        const invoke = invokeWith(context.runtime)
+        return settle(invoke)(evaluate(table, { ...context, frame: [] }, table.root, invoke))
+    }
 }

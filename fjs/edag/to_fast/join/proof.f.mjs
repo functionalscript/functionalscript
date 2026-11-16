@@ -13,7 +13,7 @@ import { memo } from '../../memo/module.f.mjs'
 import { toData } from '../../value/to_unknown/module.f.js'
 import { parse } from '../../../compiler/transpiler/module.f.mjs'
 import { unresolved, _defaultExport } from '../../../compiler/edag/module.f.js'
-import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
+import { tryModuleStringify } from '../../../compiler/serializer/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

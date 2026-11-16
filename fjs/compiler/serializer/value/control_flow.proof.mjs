@@ -22,7 +22,7 @@ import { stringify as javascript } from '../../../js/ast/serializer/module.f.js'
 import { toText } from '../../../text/marked/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
-import { tryMarked, tryModuleStringify, tryStringify } from '../module.f.mjs'
+import { tryMarked, tryModuleStringify, tryStringify } from '../module.f.js'
 
 /** @type {(source: string) => Exp} */
 const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/control-flow.f.mjs')(source))).edag)

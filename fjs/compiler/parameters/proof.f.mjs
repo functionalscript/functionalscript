@@ -18,7 +18,7 @@ import { utf8 } from '../../text/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 import { unresolved, resolve, _defaultExport } from '../edag/module.f.js'
-import { tryStringify, tryModuleStringify } from '../serializer/module.f.mjs'
+import { tryStringify, tryModuleStringify } from '../serializer/module.f.js'
 
 /** @type {(source: string) => Exp} */
 const graph = source => _defaultExport(unresolved(unwrap(parse('parameters.f.mjs')(source))).edag)

@@ -14,24 +14,12 @@
 
 import { isArray } from '../../types/array/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { invokerWith, operation } from '../operations/module.f.mjs'
+import { invokerWith, operation } from '../operations/module.f.js'
 import { settle } from '../value/call/module.f.js'
 
-/**
- * The invoker of an executor given `runtime`, its closure bodies walked
- * afresh under each invocation's context ({@link invokerWith}).
- *
- * @type {(runtime: Runtime | undefined) => Invoke}
- */
-export const invokeWith = invokerWith((fn, context) => outcome(context)(fn[3]))
-
-/** {@link invokeWith} no runtime: every member function it answers is one the dispatcher implements natively. @type {Invoke} */
-export const invoke = invokeWith(undefined)
-
-/** An expression in tail position: its value, or the call it leaves. @type {(context: Context) => (e: Exp) => Outcome} */
-const outcome = context => {
-    const { memo, runtime } = context
-    const invoke = invokeWith(runtime)
+/** An expression in tail position: its value, or the call it leaves. @type {(context: Context, invoke: Invoke) => (e: Exp) => Outcome} */
+const outcome = (context, invoke) => {
+    const { memo } = context
     const settled = settle(invoke)
     const run = operation({
         context,
@@ -49,9 +37,21 @@ const outcome = context => {
     return last
 }
 
+/**
+ * The invoker of an executor given `runtime`, its closure bodies walked
+ * afresh under each invocation's context ({@link invokerWith}).
+ *
+ * @type {(runtime: Runtime | undefined) => Invoke}
+ */
+export const invokeWith = runtime => invokerWith((fn, context) => outcome(context, invokeWith(context.runtime))(fn[3]))(runtime)
+
+/** {@link invokeWith} no runtime: every member function it answers is one the dispatcher implements natively. @type {Invoke} */
+export const invoke = invokeWith(undefined)
+
 /** @type {(context: Context) => (e: Exp) => ValueResult} */
 export const vm = context => {
-    const last = outcome(context)
-    const settled = settle(invokeWith(context.runtime))
+    const invoke = invokeWith(context.runtime)
+    const last = outcome(context, invoke)
+    const settled = settle(invoke)
     return e => settled(last(e))
 }

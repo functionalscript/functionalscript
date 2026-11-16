@@ -39,7 +39,7 @@
 import { allowedCalls, prohibitedCalls, prototypeNames, prototypes } from '../../js/prototype/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { statics } from '../../js/static/module.f.js'
-import { _runtimeOnly } from '../../edag/value/method/module.f.mjs'
+import { _runtimeOnly } from '../../edag/value/method/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { mapOk, okList, unwrap } from '../../types/result/module.f.js'
@@ -161,7 +161,7 @@ export const generate = () => {
     const r = rows(pending)
     const runtimeOnly = [...r.answered, ...r.pending].filter(([, name]) => _runtimeOnly.includes(name))
     return [
-        generatedHeader('`npm run gen` from `fjs/nanvm/methods/module.f.mjs`', 'change the pending list there and regenerate'),
+        generatedHeader('`npm run gen` from `fjs/nanvm/methods/module.f.js`', 'change the pending list there and regenerate'),
         '',
         unwrap(constSlice('Admitted pairs whose ordinary member resolution requires a runtime implementation.', 'RUNTIME_ONLY', '(&str, &str)', runtimeOnly, pairRow)),
         '',

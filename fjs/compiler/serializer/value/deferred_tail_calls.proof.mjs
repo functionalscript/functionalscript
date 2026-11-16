@@ -25,7 +25,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { toText } from '../../../text/marked/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
-import { tryMarked, tryStringify } from '../module.f.mjs'
+import { tryMarked, tryStringify } from '../module.f.js'
 
 /** @type {(fn: FastFunction) => Exp} */
 const graphOf = fn => fromFast({ statements: [], exit: ['yield', [['function', fn]]] })

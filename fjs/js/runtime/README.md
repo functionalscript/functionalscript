@@ -274,12 +274,12 @@ never as an entry in the table. The corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks every body
 against the host engine, which stays the oracle for a name without one,
 as it was for every name before. The completeness table
-[`../../nanvm/methods`](../../nanvm/methods/module.f.mjs) generates counts
+[`../../nanvm/methods`](../../nanvm/methods/module.f.js) generates counts
 a body as an answer: every admitted pair is answered, natively or by a
 body, and no other pair is.
 
 - **The represented interpreter** —
-  [`edag/value/method`](../../edag/value/method/module.f.mjs) — implements
+  [`edag/value/method`](../../edag/value/method/module.f.js) — implements
   most names natively through the host's own built-ins, and the rest from
   the runtime its executor is given: the evaluated `runtime` export, in the
   `runtime` field of an `amnesia` or `memo` context

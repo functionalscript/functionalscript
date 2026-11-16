@@ -16,7 +16,7 @@ import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { asNominal } from '../../types/nominal/module.f.js'
-import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _runPlan, _saveBatch, isCoverageTarget, main } from './module.f.mjs'
+import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _runPlan, _saveBatch, isCoverageTarget, main } from './module.f.js'
 
 /** @type {IoResult<ExitStatus>} */
 const passed = ok(['exited', 0])

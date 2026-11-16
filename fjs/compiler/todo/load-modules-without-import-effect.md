@@ -69,7 +69,7 @@ it self-hosting:
   open. Replace these uses with immutable containers expressed in admitted FJS,
   or obtain an approved `Map` design before implementing language support.
 - Tag dispatch also uses host-only property access:
-  [operations](../../edag/operations/module.f.mjs)'s `semanticUnary[node[0]]`,
+  [operations](../../edag/operations/module.f.js)'s `semanticUnary[node[0]]`,
   `numericUnary[node[0]]`, `semanticBinary[tag]`, `relational[tag]` and
   `numericBinary[tag]`, and
   [analysis](../../edag/analysis/module.f.js)'s `handlers[e[0]]` select functions

@@ -24,7 +24,7 @@ import { tokenize } from '../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { parse } from '../../compiler/source/module.f.js'
-import { tryStringify } from '../../compiler/serializer/module.f.mjs'
+import { tryStringify } from '../../compiler/serializer/module.f.js'
 
 /** @type {(binding: BindingId) => Value} */
 const ref = binding => ['ref', binding]

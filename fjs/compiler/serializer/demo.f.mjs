@@ -4,7 +4,7 @@
  *
  * **It is the `.js` output, not a lookalike.** The text is parsed and lowered
  * as the compiler does, then written by
- * [`tryModuleStringify`](./module.f.mjs), so what the page shows is what
+ * [`tryModuleStringify`](./module.f.js), so what the page shows is what
  * the command would write: a value used twice becomes a `const`, a function is
  * written with its parameters renamed, named exports keep their names.
  *
@@ -28,7 +28,7 @@
 import { codeOutput } from '../../website/demo/highlight/module.f.js'
 import { tryUnresolved } from '../edag/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
-import { tryModuleMarked } from './module.f.mjs'
+import { tryModuleMarked } from './module.f.js'
 
 /**
  * `text` as a `.js` module, or why it is not one.

@@ -4,7 +4,7 @@ Amnesia walks an EDAG directly and returns `Result<EdagValue, EdagValue>`.
 It is an execution model for proofs: every incoming edge evaluates its node
 again unless the caller supplies an established value. Use
 [Memo](../memo/module.f.mjs) when shared code must evaluate once per invocation.
-Both executors use the same represented [operations](../operations/module.f.mjs).
+Both executors use the same represented [operations](../operations/module.f.js).
 
 `vm(context)(expression)` receives evaluated `frame` and module `args` values,
 optional fixed arguments and a represented rest array. Functions retain their

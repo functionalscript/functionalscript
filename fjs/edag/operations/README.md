@@ -2,7 +2,7 @@
 
 The dispatcher both interpreters share: given an operation node, it demands
 the node's operands from the interpreter and applies the operation from
-[`../value`](../value/README.md). [`module.f.mjs`](./module.f.mjs) holds it.
+[`../value`](../value/README.md). [`module.f.mjs`](./module.f.js) holds it.
 
 An interpreter supplies two things: how to evaluate an operand, and how to
 invoke a function. [`memo`](../memo/README.md) evaluates an operand through

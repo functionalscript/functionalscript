@@ -189,7 +189,7 @@ Computed keys retain the existing `['Number', ['ref', binding]]` wrapper around
 the established number; a bare binding reference is not an `Index`/`Key`.
 
 One shared resolver derived from
-[`operations.property`](../operations/module.f.mjs) serves the existing call
+[`operations.property`](../operations/module.f.js) serves the existing call
 and the query:
 
 1. Perform [`read`](../value/property/module.f.js) first and propagate its
@@ -198,7 +198,7 @@ and the query:
 2. Retain exact stored-object own-property presence, even for a stored undefined
    value. An own field suppresses native/runtime fallback.
 3. With no stored own field and an admitted built-in name, use the existing
-   [`hasMethod`](../value/method/module.f.mjs) guard. Otherwise answer whether
+   [`hasMethod`](../value/method/module.f.js) guard. Otherwise answer whether
    the read value is nonnullish. Reuse the current method inventory.
 
 | Resolved case | Query outcome |

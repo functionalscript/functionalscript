@@ -18,7 +18,7 @@ have different uses:
 
 - [`analysis`](../analysis/module.f.js) supplies operands of analyzed `Node`s.
 - [`sharing`](../sharing/module.f.js) queries linked `Exp` objects by identity.
-- [`operations`](../operations/module.f.mjs) implements reference evaluation and
+- [`operations`](../operations/module.f.js) implements reference evaluation and
   its operational operand-demand order.
 - [`to_fast`](../to_fast/module.f.js) classifies operands for common placement,
   stopping at established bindings and respecting successful lazy paths.

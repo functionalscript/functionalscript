@@ -32,11 +32,13 @@ import { throwValue } from '../value/control/module.f.js'
 import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.js'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.js'
 import { binary as relational } from '../value/relational/module.f.js'
-import { toPrimitive, toString, toNumber } from '../value/convert/module.f.mjs'
-import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
+import { toPrimitive, toString, toNumber } from '../value/convert/module.f.js'
+import { admits, callee, hasMethod, method } from '../value/method/module.f.js'
 import { staticBody } from '../value/property/module.f.js'
 import { ownEntries } from '../value/entries/module.f.js'
 import { isIntrinsic, isStatic, noRefMap, noStatic } from '../module.f.js'
+import { entry as objectEntry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 /**
  * The failure of an `in` node under an executor whose runtime has no
@@ -178,13 +180,16 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
 export const invokerWith = run => runtime => {
     /** @type {(fn: Closure, fixed: Values, rest: ValueArray, self: ValueFunction) => Outcome} */
     const closure = (fn, fixed, rest, self) => run(fn, { frame: fn[2], args: [], fixed, rest, self, runtime })
-    /** @type {Body} */
-    const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
-        : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
-        : isIntrinsic(fn) ? intrinsicCall(fn, fixed, invoke)
-        : isStatic(fn) ? staticCall(runtime, fn, rest, closure, invoke)
-        : closure(fn, fixed, rest, fn)
-    const invoke = invoker(body)
+    /** @type {Invoke} */
+    const invoke = (fn, fixed, rest) => {
+        /** @type {Body} */
+        const body = (callee, bound, remaining) => callee[0] === 'entry' ? entryCall(bound, invoke)
+            : callee[0] === 'hasEntry' ? hasEntryCall(bound, invoke)
+            : isIntrinsic(callee) ? intrinsicCall(callee, bound, invoke)
+            : isStatic(callee) ? staticCall(runtime, callee, remaining, closure, invoke)
+            : closure(callee, bound, remaining, callee)
+        return invoker(body)(fn, fixed, rest)
+    }
     return invoke
 }
 
@@ -195,7 +200,8 @@ export const invokerWith = run => runtime => {
  */
 export const operation = evaluator => {
     const { context, operand, tail, expression, invoke } = evaluator
-    const { args, frame, fixed, rest, self, runtime } = context
+    const { args, frame, rest, self, runtime } = context
+    const fixed = objectEntry(context, 'fixed')
     const moduleArgs = /** @type {ValueArray} */ (['[]', args])
     const made = settle(invoke)
 
@@ -222,23 +228,15 @@ export const operation = evaluator => {
     const callValue = (callee, args, state) => then(items(args, state), (value, next) =>
         [next, prepare(ok(callee), /** @type {ValueArray} */ (value)[1].map(v => () => ok(v)))])
 
-    /** Continue past a call step, or leave its call where no step follows. @type {(after: Tail<S>, continuation: StepOver<E> | undefined) => Tail<S>} */
-    const continued = (after, continuation) => continuation === undefined ? after
-        : then(settled(after), (value, next) => continueValue(value, continuation, next))
+    /** Continue past a call step, or leave its call where no step follows. @type {(after: Tail<S>, continuation: StepOver<E> | undefined, nextStep: (value: EdagValue, step: StepOver<E>, state: S) => Tail<S>) => Tail<S>} */
+    const continued = (after, continuation, nextStep) => continuation === undefined ? after
+        : then(settled(after), (value, next) => nextStep(value, continuation, next))
 
     /** @type {(step: StepOver<E> | undefined, state: S) => Tail<S>} */
     const skip = (step, state) => {
         if (step === undefined) { return [state, ok(['undefined'])] }
         const [tag, args, continuation] = step
         return tag === '|!()' ? callValue(['undefined'], args, state) : skip(continuation, state)
-    }
-
-    /** @type {(value: EdagValue, step: StepOver<E>, state: S) => Tail<S>} */
-    const continueValue = (value, step, state) => {
-        const [tag, arg, continuation] = step
-        return tag === '|.'
-            ? then(operand(arg, state), (key, next) => property(value, key, continuation, next))
-            : continued(callValue(value, arg, state), continuation)
     }
 
     /** Read first, retaining own-field shadowing and built-in dispatch. @type {(receiver: EdagValue, key: EdagValue) => Result<_ResolvedMember, EdagValue>} */
@@ -253,18 +251,22 @@ export const operation = evaluator => {
     }
 
     /** Presence is checked before arguments; callable validation belongs to the call. @type {(receiver: EdagValue, member: _ResolvedMember) => Result<boolean, EdagValue>} */
-    const memberPresent = (receiver, { name, value, builtin }) =>
-        builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!isNullish(value))
+    const memberPresent = (receiver, member) => {
+        const { value, builtin } = member
+        const name = assertNotNullish(objectEntry(member, 'name'))
+        return builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!isNullish(value))
+    }
 
-    /** Resolve a receiver and key before any call arguments. @type {(receiver: EdagValue, key: EdagValue, step: StepOver<E> | undefined, state: S) => Tail<S>} */
-    const property = (receiver, key, step, state) => {
+    /** Resolve a receiver and key before any call arguments. @type {(receiver: EdagValue, key: EdagValue, step: StepOver<E> | undefined, state: S, nextStep: (value: EdagValue, step: StepOver<E>, state: S) => Tail<S>) => Tail<S>} */
+    const property = (receiver, key, step, state, nextStep) => {
         const resolved = resolveMember(receiver, key)
         if (resolved[0] === 'error') { return [state, resolved] }
         const member = resolved[1]
-        const { name, value, builtin } = member
+        const { value, builtin } = member
+        const name = assertNotNullish(objectEntry(member, 'name'))
         if (step === undefined) { return [state, ok(value)] }
         const [tag, arg, continuation] = step
-        if (tag === '|.') { return continueValue(value, step, state) }
+        if (tag === '|.') { return nextStep(value, step, state) }
         /** The call, after its arguments. @type {(callee: EdagValue, state: S) => Tail<S>} */
         const proceed = (callee, next) => then(items(arg, next), (args, afterArgs) => {
             const values = /** @type {ValueArray} */ (args)[1]
@@ -272,7 +274,7 @@ export const operation = evaluator => {
             // function's call is left for the executor
             const result = builtin ? method(receiver, name, values, invoke, runtime)
                 : prepare(ok(callee), values.map(v => () => ok(v)))
-            return continued([afterArgs, result], continuation)
+            return continued([afterArgs, result], continuation, nextStep)
         })
         if (tag !== '|?.()') {
             // the callee is read before the arguments, as `a.f` is
@@ -287,6 +289,14 @@ export const operation = evaluator => {
         // bound for, which the runtime's body decides for its receiver
         // and may throw deciding
         return then([state, memberPresent(receiver, member)], (has, after) => has ? proceed(value, after) : skip(continuation, after))
+    }
+
+    /** @type {(value: EdagValue, step: StepOver<E>, state: S) => Tail<S>} */
+    const continueValue = (value, step, state) => {
+        const [tag, arg, continuation] = step
+        return tag === '|.'
+            ? then(operand(arg, state), (key, next) => property(value, key, continuation, next, continueValue))
+            : continued(callValue(value, arg, state), continuation, continueValue)
     }
 
     /** @type {(entries: Over<import('../types.ts').Object, E>[1], state: S) => Evaluation<S>} */
@@ -315,14 +325,35 @@ export const operation = evaluator => {
     return [state, object(properties.map(p => () => ok(p)))]
     }
 
+    /** @type {(node: readonly [import('../types.ts').Op2Id | import('../types.ts').Op12Id, E, E], state: S) => Evaluation<S>} */
+    const binary = (node, state) => then(operand(node[1], state), (left, next) =>
+        then(operand(node[2], next), (right, after) => {
+            const [tag] = node
+            switch (tag) {
+                case '===': case '!==': { return [after, assertNotNullish(objectEntry(semanticBinary, tag))(left, right)] }
+                default: {
+                    const a = toPrimitive(left, 'number', invoke)
+                    const [kind, x] = a
+                    if (kind === 'error') { return [after, a] }
+                    const b = toPrimitive(right, 'number', invoke)
+                    const [other, y] = b
+                    if (other === 'error') { return [after, b] }
+                    switch (tag) {
+                        case '<': case '<=': case '>': case '>=': { return [after, assertNotNullish(objectEntry(relational, tag))(x, y)] }
+                        default: { return [after, assertNotNullish(objectEntry(numericBinary, /** @type {keyof typeof numericBinary} */ (tag)))(x, y)] }
+                    }
+                }
+            }
+        }))
+
     /** @type {(node: Over<ExpOp, E>, state: S) => Tail<S>} */
     const operation = (node, state) => {
         switch (node[0]) {
             case 'undefined': { return [state, ok(['undefined'])] }
             case 'args': { return [state, ok(moduleArgs)] }
-            case 'arg': { return [state, ok(/** @type {Values} */ (fixed)[node[1]])] }
+            case 'arg': { return [state, ok(/** @type {Values} */ (fixed)[Number(node[1])])] }
             case 'rest': { return [state, ok(/** @type {ValueArray} */ (rest))] }
-            case 'frame': { return [state, ok(frame[node[1]])] }
+            case 'frame': { return [state, ok(frame[Number(node[1])])] }
             // the function itself, the value the call was made on: the
             // analysis refuses a `self` outside a function, so none is a
             // precondition this evaluator restates as a thrown `undefined`
@@ -367,10 +398,10 @@ export const operation = evaluator => {
             case '()': { return then(operand(node[1], state), (callee, next) => callValue(callee, node[2], next)) }
             case '?.()': { return then(operand(node[1], state), (callee, next) => isNullish(callee)
                 ? skip(node[3], next)
-                : continued(callValue(callee, node[2], next), node[3])) }
+                : continued(callValue(callee, node[2], next), node[3], continueValue)) }
             case '.': case '?.': { return then(operand(node[1], state), (receiver, next) =>
                 node[0] === '?.' && isNullish(receiver) ? skip(node[3], next)
-                    : then(operand(node[2], next), (key, after) => property(receiver, key, node[3], after))) }
+                    : then(operand(node[2], next), (key, after) => property(receiver, key, node[3], after, continueValue))) }
             case 'memberPresent': { return then(operand(node[1], state), (receiver, next) =>
                 then(operand(node[2], next), (key, after) =>
                     [after, okThen(member => memberPresent(receiver, member))(resolveMember(receiver, key))])) }
@@ -390,14 +421,14 @@ export const operation = evaluator => {
                 const [next, result] = operand(node[1], state)
                 return [next, throwValue(result)]
             }
-            case '?:': { return then(operand(node[1], state), (value, next) => tail(node[truthy(value) ? 2 : 3], next)) }
+            case '?:': { return then(operand(node[1], state), (value, next) => tail(truthy(value) ? node[2] : node[3], next)) }
             case '!': case 'typeof': {
-                const apply = semanticUnary[node[0]]
+                const apply = assertNotNullish(objectEntry(semanticUnary, node[0]))
                 return then(operand(node[1], state), (value, next) => [next, apply(value)])
             }
             // the constructor is a name, read from the node, never evaluated
             case 'instanceof': {
-                const test = instanceOf[node[2]]
+                const test = assertNotNullish(objectEntry(instanceOf, node[2]))
                 return then(operand(node[1], state), (value, next) => [next, ok(test(value))])
             }
             // the key is a spelling, read from the node, never evaluated;
@@ -419,40 +450,17 @@ export const operation = evaluator => {
             }
             case 'String': { return then(operand(node[1], state), (value, next) => [next, toString(value, invoke)]) }
             case '~': case 'Number': case 'BigInt': {
-                const apply = numericUnary[node[0]]
+                const apply = assertNotNullish(objectEntry(numericUnary, node[0]))
                 return then(operand(node[1], state), (value, next) =>
                     [next, okThen(apply)(toPrimitive(value, 'number', invoke))])
             }
             case '+': case '-': {
                 if (node.length === 2) { return then(operand(node[1], state), (value, next) =>
-                    [next, okThen(numericUnary[node[0]])(toPrimitive(value, 'number', invoke))]) }
+                    [next, okThen(assertNotNullish(objectEntry(numericUnary, node[0])))(toPrimitive(value, 'number', invoke))]) }
                 return binary(node, state)
             }
             default: { return binary(node, state) }
         }
     }
-
-    /** @type {(node: readonly [import('../types.ts').Op2Id | import('../types.ts').Op12Id, E, E], state: S) => Evaluation<S>} */
-    const binary = (node, state) => then(operand(node[1], state), (left, next) =>
-        then(operand(node[2], next), (right, after) => {
-            const [tag] = node
-            switch (tag) {
-                case '===': case '!==': { return [after, semanticBinary[tag](left, right)] }
-                default: {
-                    const a = toPrimitive(left, 'number', invoke)
-                    const [kind, x] = a
-                    if (kind === 'error') { return [after, a] }
-                    const b = toPrimitive(right, 'number', invoke)
-                    const [other, y] = b
-                    if (other === 'error') { return [after, b] }
-                    switch (tag) {
-                        case '<': case '<=': case '>': case '>=': { return [after, relational[tag](x, y)] }
-                        default: { return [after, numericBinary[/** @type {keyof typeof numericBinary} */ (tag)](x, y)] }
-                    }
-                }
-            }
-        }))
-
-
     return operation
 }

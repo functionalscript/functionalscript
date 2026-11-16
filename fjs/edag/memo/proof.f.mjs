@@ -12,7 +12,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.js'
 import { memo, invoke } from './module.f.mjs'
-import { noBoolean, noIn } from '../operations/module.f.mjs'
+import { noBoolean, noIn } from '../operations/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { read } from '../value/property/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'

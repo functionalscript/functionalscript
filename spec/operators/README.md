@@ -76,7 +76,7 @@ reserved word, so it names no `const` and no parameter, while `{ typeof: 1 }`
 and `a.typeof` are a key and a property name as in JavaScript; the
 FunctionalScript writer spells it with a space after the word, `typeof 1`
 and `typeof (1+2)`.
-[`fjs/edag/operations`](../../fjs/edag/operations/module.f.mjs) owns each
+[`fjs/edag/operations`](../../fjs/edag/operations/module.f.js) owns each
 node's meaning, and the [`fjs/nanvm`](../../fjs/nanvm/module.f.js) corpus
 checks its cases against a JavaScript engine.
 

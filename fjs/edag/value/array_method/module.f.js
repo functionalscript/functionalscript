@@ -17,7 +17,7 @@ import { ok, error } from '../../../types/result/module.f.js'
 import { join } from '../array/module.f.js'
 import { at } from '../at/module.f.js'
 import { call } from '../call/module.f.js'
-import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
+import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.js'
 import { is, isFunction, isUndefined, strictEqual, tagUndefined, truthy } from '../semantics/module.f.js'
 import { slice } from '../slice/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
@@ -44,19 +44,18 @@ const visit = (receiver, key, fn, invoke) => {
     let output = []
     for (let offset = 0; offset < values.length; offset += 1) {
         const index = reverse ? values.length - 1 - offset : offset
-        const element = values[index]
+        const element = values[Number(index)]
         const result = apply(fn, [element, index, receiver], invoke)
         const [kind, value] = result
         if (kind === 'error') { return result }
-        switch (key) {
-            case 'flatMap': { output = [...output, ...flatten([value], 1)]; break }
-            case 'filter': { if (truthy(value)) { output = [...output, element] } break }
-            case 'every': { if (!truthy(value)) { return ok(false) } break }
-            default: {
-                if (truthy(value)) {
-                    return ok(key === 'some' ? true : key === 'findIndex' || key === 'findLastIndex' ? index : element)
-                }
-            }
+        if (key === 'flatMap') {
+            output = [...output, ...flatten([value], 1)]
+        } else if (key === 'filter') {
+            if (truthy(value)) { output = [...output, element] }
+        } else if (key === 'every') {
+            if (!truthy(value)) { return ok(false) }
+        } else if (truthy(value)) {
+            return ok(key === 'some' ? true : key === 'findIndex' || key === 'findLastIndex' ? index : element)
         }
     }
     switch (key) {
@@ -73,10 +72,10 @@ const reduce = (receiver, key, args, fn, invoke) => {
     const [, values] = receiver
     if (args.length < 2 && values.length === 0) { return error(['undefined']) }
     const reverse = key === 'reduceRight'
-    let accumulated = args.length < 2 ? values[reverse ? values.length - 1 : 0] : args[1]
+    let accumulated = args.length < 2 ? values[Number(reverse ? values.length - 1 : 0)] : args[1]
     for (let offset = args.length < 2 ? 1 : 0; offset < values.length; offset += 1) {
         const index = reverse ? values.length - 1 - offset : offset
-        const result = apply(fn, [accumulated, values[index], index, receiver], invoke)
+        const result = apply(fn, [accumulated, values[Number(index)], index, receiver], invoke)
         const [kind, value] = result
         if (kind === 'error') { return result }
         accumulated = value
@@ -97,7 +96,7 @@ const search = (receiver, key, args, invoke) => {
     const index = reverse ? min(start < 0 ? values.length + start : start, values.length - 1) : position(start, values.length)
     const sought = tagUndefined(args[0])
     for (let i = index; i >= 0 && i < values.length; i += reverse ? -1 : 1) {
-        const value = values[i]
+        const value = values[Number(i)]
         if (strictEqual(value, sought) || key === 'includes' && is(value, sought)) { return ok(key === 'includes' ? true : i) }
     }
     return ok(missing)

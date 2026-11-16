@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { tryStringify } from '../../../../compiler/serializer/module.f.mjs'
+import { tryStringify } from '../../../../compiler/serializer/module.f.js'
 import { identityAnalysis } from '../../../analysis/module.f.js'
 import { evaluate } from '../../../from_fast/member_returns/proof.f.mjs'
 import { _sourceGraph as graph } from './proof.f.mjs'

@@ -19,7 +19,7 @@ import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.j
 import { within } from '../../effects/node/testlib.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { _runPlan, _saveBatch } from './module.f.mjs'
+import { _runPlan, _saveBatch } from './module.f.js'
 
 /** @type {(name: string) => Entry} */
 const entry = name => ({ manifest: { module: name }, key: name, path: `.cas/${name}`, payload: name, byteLength: name.length })

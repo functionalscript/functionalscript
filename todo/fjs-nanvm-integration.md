@@ -1193,7 +1193,7 @@ relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `nanvm/methods/module.f.mjs` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
+| `nanvm/methods/module.f.js` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal, since `Object.entries` is admitted, `const { entries } = Object` with it |
@@ -1263,7 +1263,7 @@ relative to `fjs/`.
 | `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Every read of the `sub` field, `acc.sub` in `subStep` first, a prohibited property name |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | The loop in `exponentOf`: two `let` variables, an `if … else` assigning inside it, `Math.floor`; `Math.abs`; `Array(…).keys()`, a reserved word and a prohibited call; four forward references, `utf16Literal` to `utf16Units`, `f64Bits` to `bitsOf`, `u64Words` to `u64WordItems`, `u64WordItems` to `words` |
-| `nanvm/methods/module.f.mjs` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
+| `nanvm/methods/module.f.js` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignment, `continue` and `'head' in head`; `while` over a parameter in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys |
@@ -1316,7 +1316,7 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `emergent_testing/node/module.f.mjs` | 25:18 | Destructured parameter in `coverage` | The computed key `file[cwd.length]` in `located`, no `Number(...)`; a destructured parameter in `log` |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Destructured parameters in `lineStep`, `valueAt` and `extensionAt` |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, four forward references |
-| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `nanvm/methods/module.f.js` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
 | `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys; the destructured `([k, v])` callback |
@@ -1369,7 +1369,7 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `emergent_testing/node/module.f.mjs` | 26:11 | Destructuring `const { summary } = data` in `coverage` | A destructured parameter before it, more destructuring after |
 | `git/config/module.f.mjs` | 473:11 | Destructuring `const { sub, after }` in `trySub` | `toLowerCase` at six sites, a prohibited member call; four more destructuring sites |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, `toLowerCase`, four forward references |
-| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `nanvm/methods/module.f.js` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
 | `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 22:7 | Destructuring `const { entries } = Object` | `Object.entries`: the language enumerates no keys; `new Map` with `has` and `get` besides |
@@ -1432,7 +1432,7 @@ names what it reached before the compiler refused again. Locations are
 | `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites, `toLowerCase` at six, five more destructuring sites |
 | `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, `Array(n)`, `let`/`while`, `Math`, `Number.isNaN`, `Object.is`, `toLowerCase`, four forward references |
-| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
+| `nanvm/methods/module.f.js` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, the imperative `next` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` | `Object.entries`: the language enumerates no keys; `Map` besides |
@@ -1517,7 +1517,7 @@ large text templates or substantially rewrite the remaining modules.
 | `git/config/module.f.mjs` | 400:60 | Template literal extending `pending` |
 | `media/rust/module.f.mjs` | 65:44 | Template literal producing a Rust Unicode escape |
 | `nanvm/member/module.f.mjs` | 335:13 | Template literal in a generated test name |
-| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `nanvm/methods/module.f.js` | 125:21 | Template literal in `path` |
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
@@ -1571,7 +1571,7 @@ the file. Locations are `line:column`; paths are relative to `fjs/`.
 | `git/config/module.f.mjs` | 90:57 | `\v` escape |
 | `js/keywords/module.f.mjs` | 103:24 | `new Set(keywords)` |
 | `nanvm/member/module.f.mjs` | 59:38 | `\u{1F600}` escape |
-| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `nanvm/methods/module.f.js` | 125:21 | Template literal in `path` |
 | `types/function/module.f.mjs` | 33:5 | `let v = value` in `iterate` |
 | `types/function/operator/module.f.mjs` | 11:5 | Template literal in `join` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` |

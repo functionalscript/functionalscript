@@ -9,8 +9,8 @@
 import { conditional } from '../../testlib.f.js'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { toPrimitive, toString, toNumber, toIntegerOrInfinity } from './module.f.mjs'
-import { tryFunctionText } from '../../../compiler/serializer/module.f.mjs'
+import { toPrimitive, toString, toNumber, toIntegerOrInfinity } from './module.f.js'
+import { tryFunctionText } from '../../../compiler/serializer/module.f.js'
 
 /** @type {Invoke} */
 const skipped = () => { assert(false, 'unexpected represented call') }

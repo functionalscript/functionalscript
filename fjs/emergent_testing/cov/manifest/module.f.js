@@ -27,6 +27,7 @@ import { u8ListMsb } from '../../../types/bit_vec/module.f.js'
 import { equal, flatMap, sameItems } from '../../../types/list/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { cmp } from '../../../types/string/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 const digest = computeSync(sha256)
 /** @type {(a: string, b: string) => number} */
@@ -55,7 +56,7 @@ const scopes = (root, path) => {
 }
 
 /** Retain failures as well as bytes so each path is read and hashed only once. @type {(graph: Graph, path: string) => Effect<NodeOp, Graph, never>} */
-const read = (graph, path) => graph.files[path] !== undefined ? pureOk(graph)
+const read = (graph, path) => entry(graph.files, path) !== undefined ? pureOk(graph)
     : resultStep(readWhole(path), result => pureOk({
         ...graph,
         files: { ...graph.files, [path]: result[0] === 'error' ? result : ok({ chunks: result[1], bytes: bytes(result[1]), hash: hash(result[1]) }) },
@@ -68,14 +69,14 @@ const recordNode = (graph, source, result) => ({ ...graph, nodes: { ...graph.nod
 const visit = source => graph => {
     const path = normalize(source.path)
     // Import attributes belong to each edge, even when its node was visited.
-    if (_attributeError(source) !== null || graph.nodes[source.id] !== undefined) { return pureOk(graph) }
+    if (_attributeError(source) !== null || entry(graph.nodes, source.id) !== undefined) { return pureOk(graph) }
     if (!inside(graph.root, path)) {
         return pureOk(recordNode(graph, source, error(problem(`coverage dependency is outside the repository: ${path}`))))
     }
     return step(read(graph, path), graph => {
-        const file = assertNotNullish(graph.files[path])
+        const file = assertNotNullish(entry(graph.files, path))
         if (file[0] === 'error') { return pureOk(recordNode(graph, source, file)) }
-        const parsed = graph.imports[path] ?? (() => {
+        const parsed = entry(graph.imports, path) ?? (() => {
             const text = source.json ? '' : fromU8List(file[1].bytes)
             if (text === null) { return error(problem(`${path}: not UTF-8 text`)) }
             const result = dependencyImports(source, text)
@@ -97,13 +98,15 @@ const visit = source => graph => {
 
 /** The shallow proof loader imports every immediate authored sibling. @type {(directory: string) => Effect<NodeOp, readonly string[], IoChannel>} */
 const inventory = directory => mapStep(readdir(directory, {}), entries => entries
-    .filter(({ name, isDirectory }) => !isDirectory && !name.startsWith('.') && isAuthored(name))
-    .map(({ name }) => under(directory, name)).toSorted(compare))
+    .flatMap(file => {
+        const name = assertNotNullish(entry(file, 'name'))
+        return file.isDirectory || name.startsWith('.') || !isAuthored(name) ? [] : [under(directory, name)]
+    }).toSorted(compare))
 
 /** @type {(directory: string) => (graph: Graph) => Effect<NodeOp, Graph, never>} */
 const directoryGraph = directory => graph => {
     const selected = normalize(directory)
-    if (graph.directories[selected] !== undefined) { return pureOk(graph) }
+    if (entry(graph.directories, selected) !== undefined) { return pureOk(graph) }
     /** @type {(result: Result<_Directory, IoChannel>) => Graph} */
     const recorded = result => ({ ...graph, directories: { ...graph.directories, [selected]: result } })
     if (!inside(graph.root, selected)) {
@@ -121,7 +124,7 @@ const directoryGraph = directory => graph => {
         return foldStep(pureOk(result[1].roots), next, ({ path, source }) => graph =>
             mapStep(visit(source)(graph), graph => {
                 // A sibling alias is another inventory name for the same bytes.
-                const file = graph.files[normalize(source.path)]
+                const file = entry(graph.files, normalize(source.path))
                 return path === normalize(source.path) || file === undefined ? graph
                     : { ...graph, files: { ...graph.files, [path]: file } }
             }))
@@ -144,7 +147,7 @@ export const buildGraph = (root, directories) => {
 /** Derive a directory's reachable closure without filesystem work. @type {(graph: Graph, directory: string) => Result<_Closure, IoChannel>} */
 const closure = (graph, directory) => {
     const selected = normalize(directory)
-    const record = graph.directories[selected]
+    const record = entry(graph.directories, selected)
     if (record === undefined) { return error(problem(`coverage directory was not included in the graph: ${directory}`)) }
     if (record[0] === 'error') { return record }
     /** @type {(source: _Source, state: _Closure) => Result<_Closure, IoChannel>} */
@@ -152,7 +155,7 @@ const closure = (graph, directory) => {
         const mismatch = _attributeError(source)
         if (mismatch !== null) { return error(problem(`${source.path}: ${mismatch.message}`)) }
         if (state.seen.includes(source.id)) { return ok(state) }
-        const node = assertNotNullish(graph.nodes[source.id])
+        const node = assertNotNullish(entry(graph.nodes, source.id))
         if (node[0] === 'error') { return node }
         /** @type {_Closure} */
         const entered = {
@@ -168,7 +171,7 @@ const closure = (graph, directory) => {
     if (reached[0] === 'error') { return reached }
     const value = reached[1]
     for (const path of unique([...value.required, ...value.scopes])) {
-        const file = assertNotNullish(graph.files[path])
+        const file = assertNotNullish(entry(graph.files, path))
         if (file[0] === 'error' && (value.required.includes(path) || !isNotFound(file[1]))) { return file }
     }
     return ok({ ...value, required: unique(value.required), scopes: unique(value.scopes) })
@@ -179,14 +182,14 @@ export const graphManifest = (graph, directory, targets, contract) => {
     const reached = closure(graph, directory)
     if (reached[0] === 'error') { return pure(reached) }
     const sources = reached[1]
-    const record = assertOk(assertNotNullish(graph.directories[normalize(directory)]))
+    const record = assertOk(assertNotNullish(entry(graph.directories, normalize(directory))))
     const paths = unique([...sources.required, ...sources.scopes]).toSorted(compare)
     const prefix = graph.root.endsWith('/') ? graph.root : `${graph.root}/`
     return pureOk({
         version: 2, directory: normalize(directory).slice(prefix.length) || '.',
         targets: targets.toSorted(compare), contract,
         files: Object.fromEntries(paths.flatMap(path => {
-            const file = assertNotNullish(graph.files[path])
+            const file = assertNotNullish(entry(graph.files, path))
             return file[0] === 'error' ? [] : [[path.slice(prefix.length), file[1].hash]]
         })),
         // Closure order gives opaque host identities portable local names.
@@ -211,13 +214,13 @@ const sameSource = (a, b) => a.id === b.id && a.path === b.path && a.json === b.
 export const validateGraph = (graph, directory) => {
     const reached = closure(graph, directory)
     if (reached[0] === 'error') { return pureOk(false) }
-    const record = assertOk(assertNotNullish(graph.directories[normalize(directory)]))
+    const record = assertOk(assertNotNullish(entry(graph.directories, normalize(directory))))
     const paths = unique([...reached[1].required, ...reached[1].scopes])
     const checked = resultStep(inventory(normalize(directory)), result =>
         pureOk(result[0] === 'ok' && sameItems(record.files)(result[1])))
     const files = step(checked, valid => foldStep(pureOk(paths), valid, path => valid => !valid ? pureOk(false)
         : resultStep(readWhole(path), result => {
-            const before = assertNotNullish(graph.files[path])
+            const before = assertNotNullish(entry(graph.files, path))
             return pureOk(before[0] === 'error'
                 ? result[0] === 'error' && isNotFound(result[1])
                 : result[0] === 'ok' && (sameItems(before[1].chunks)(result[1])

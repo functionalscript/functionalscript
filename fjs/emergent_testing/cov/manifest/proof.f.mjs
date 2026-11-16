@@ -10,7 +10,7 @@ import { utf8 } from '../../../text/module.f.js'
 import { stringToU8List } from '../../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb, vec8 } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildGraph, graphManifest, manifest, validateGraph } from './module.f.mjs'
+import { buildGraph, graphManifest, manifest, validateGraph } from './module.f.js'
 
 const digest = computeSync(sha256)
 /** @type {(text: string) => string} */

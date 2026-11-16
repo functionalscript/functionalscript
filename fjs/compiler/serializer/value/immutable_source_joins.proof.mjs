@@ -16,7 +16,7 @@ import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proo
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
-import { tryStringify } from '../module.f.mjs'
+import { tryStringify } from '../module.f.js'
 import { tokenize } from '../../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'

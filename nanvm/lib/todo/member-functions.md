@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
-and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
+and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.js`,
 `nanvm/lib/README.md`, `spec/built-ins/member-functions/README.md`,
 `spec/todo/cavm-function-to-string.md`, `spec/design/serialization.md`,
 `spread-operations.md` and `fjs/nanvm/todo/corpus-improvements.md`

@@ -161,7 +161,7 @@ first question, not a settled one. The walk here is one of several on
 the way to a graph output: past it, the FunctionalScript writer —
 `operand`, `entry` and, since the writer spells every operator, `binary`
 and its operand helpers in
-[`../../compiler/serializer/module.f.mjs`](../../compiler/serializer/module.f.mjs),
+[`../../compiler/serializer/module.f.js`](../../compiler/serializer/module.f.js),
 one frame set per level of a chain or a container — `fjs/edag/sharing`'s
 `visit` and the Rust printer each descend the same depth, and a
 walk made iterative here only moves the overflow to the next one. The

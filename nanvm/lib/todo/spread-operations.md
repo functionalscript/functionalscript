@@ -9,7 +9,7 @@ The EDAG already has a spread entry, `['...', exp]`, valid only inside an
 array's items or an object's properties
 ([`fjs/edag/README.md`](../../../fjs/edag/README.md), `Items` and `Properties` in
 [`fjs/edag/types.ts`](../../../fjs/edag/types.ts)). The JS evaluator in
-[`fjs/edag/operations`](../../../fjs/edag/operations/module.f.mjs) runs both
+[`fjs/edag/operations`](../../../fjs/edag/operations/module.f.js) runs both
 entries with JavaScript's semantics. The Rust writer,
 [`fjs/edag/rust`](../../../fjs/edag/rust/module.f.js), refused both: `Any` had
 no operation for either. It now prints an array's spread, and a call's,
@@ -209,7 +209,7 @@ produces part of a string, not for this one alone.
 
 ### Related
 
-- [`fjs/edag/operations`](../../../fjs/edag/operations/module.f.mjs): the JS
+- [`fjs/edag/operations`](../../../fjs/edag/operations/module.f.js): the JS
   evaluator's `[]` and `{}`, the reference semantics.
 - [undefined-property](../../../spec/todo/1010-undefined-property.md): the
   overwrite and order constraints any object construction keeps.

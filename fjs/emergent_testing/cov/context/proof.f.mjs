@@ -17,7 +17,7 @@ import { stringToU8List } from '../../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb, uint } from '../../../types/bit_vec/module.f.js'
 import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { openCoverageCache } from './module.f.mjs'
+import { openCoverageCache } from './module.f.js'
 
 /** @type {NodeProgramOptions} */
 const options = {

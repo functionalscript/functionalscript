@@ -16,7 +16,7 @@ and `fjs/djs` emptied. Module interpretation uses
 ordinary runtime data before serialization. `fjs compile` writes
 the language its output name declares: a `.data.js` document through
 [`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.js) in
-normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
+normalized form, a `.js` module through [`serializer`](./serializer/module.f.js)
 from the linked graph, and a `.json` output that refuses what JSON cannot
 spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
 
@@ -200,7 +200,7 @@ it.
 `.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
 nodes hoisted as the DataJS output's are, and writes it back as source under
 any other `.js` or `.mjs` name, through
-[`serializer`](serializer/module.f.mjs), retaining function code. What
+[`serializer`](serializer/module.f.js), retaining function code. What
 the export does not reach is anchored by the comma operation rather than
 dropped, `[',', [...roots, exported]]`: interpretation reads every dependency and
 establishes every required initializer, so a failure behind an unused one fails
@@ -329,7 +329,7 @@ values and required evaluations retained at that point. No invocation boundary
 is added by this block; [spec: functions](../../spec/functions/README.md)
 states the source rule. The writer
 spells the same idiom back where a lazy operand shares a value nothing else
-reaches. [`serializer`](serializer/module.f.mjs) writes both ordinary and method
+reaches. [`serializer`](serializer/module.f.js) writes both ordinary and method
 calls, including chained calls, spreads and calls shared through a `const`.
 Common graph placement establishes computed callees before the call, as in
 `const f=x+1;export default f();`. A function callee takes a binding so reading

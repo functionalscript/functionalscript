@@ -71,7 +71,7 @@ arrow parameter lists. The task extends that syntax
 without losing the function's observable `length` when compiling, executing
 or writing its EDAG.
 
-The previous [`=>` operation](../../fjs/edag/operations/module.f.mjs) constructs
+The previous [`=>` operation](../../fjs/edag/operations/module.f.js) constructs
 `(...args) => ...`, whose `length` is zero. Merely lowering named parameters
 to indexed reads of the existing `['args']` would therefore change results.
 

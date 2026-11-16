@@ -126,8 +126,8 @@ or `undefined`, so an array's or a string's elements and never a
 call of the `hasEntry` helper answers.
 Callers own operand evaluation order, key resolution and source-name
 admission. Memo connects these reads to chains and to the helper's calls;
-[`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
-represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
+[`value/method`](value/method/module.f.js) dispatches admitted built-ins, with
+represented array callbacks in [`value/array_method`](value/array_method/module.f.js).
 The internal `memberPresent` query shares the call resolver: it reads the
 property first, retains own-field shadowing and then asks whether the resolved
 member is present. Presence does not imply callable: an own `0` is present,
@@ -135,7 +135,7 @@ while own null or undefined is absent. For an admitted built-in name with no
 own field, the runtime's answer is present unless it is undefined, with native
 fallback where the executor supplies one. Resolution failures propagate before
 any subsequent argument work. The query itself invokes no argument-stage body.
-[`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
+[`value/convert`](value/convert/module.f.js) supplies primitive conversion for
 objects, arrays and functions, using the shared function-text renderer in both
 interpreters; a static function, the built-in and not its body, answers the
 NativeFunction text of its name.
@@ -152,7 +152,7 @@ run through the call helper; their first primitive result or failure returns
 unchanged. Its primitive helpers convert the represented `Primitive` subset
 to strings and numeric values, decoding tagged undefined through the shared
 semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
-[`value/convert`](value/convert/module.f.mjs) composes these helpers with array
+[`value/convert`](value/convert/module.f.js) composes these helpers with array
 and function conversion; memo owns operation dispatch.
 
 [`value/numeric`](value/numeric/module.f.js) supplies a `unary` operation
@@ -197,7 +197,7 @@ Both take numbers: the array and string method dispatchers convert the
 operands with `toNumber` first, so a bigint index fails there, once, and
 neither module converts again.
 
-The shared [serializer](../compiler/serializer/module.f.mjs) exposes
+The shared [serializer](../compiler/serializer/module.f.js) exposes
 `functionText(analysis, index): string` for a function whose analysis and body
 bindings are already established. It renders every admitted body without
 repeating admission; `tryFunctionText` remains the checked raw-expression entry
@@ -264,7 +264,7 @@ whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
 not a VM to run FunctionalScript on — over represented
-[operations](operations/module.f.mjs), parameterized by how an
+[operations](operations/module.f.js), parameterized by how an
 operand is evaluated, how one in tail position is, and which interpreter
 invokes a function. Both Amnesia
 and memo return `Result<EdagValue, EdagValue>`, each making the calls a body

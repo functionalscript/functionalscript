@@ -13,7 +13,7 @@ import { invoke, invokeWith, vm } from '../../amnesia/module.f.mjs'
 import runtimeEdag from '../../../js/runtime/gen.edag.js'
 import { read } from '../property/module.f.js'
 import { toData } from '../to_unknown/module.f.js'
-import { admits, hasMethod, method } from './module.f.mjs'
+import { admits, hasMethod, method } from './module.f.js'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 const fn = /** @type {const} */ (['=>', 0, [], 5])

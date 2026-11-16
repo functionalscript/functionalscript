@@ -30,7 +30,7 @@ such answer to give.
 
 The classes now live in `fjs/text/ascii`, exported, and JavaScript's rule
 over them in [`fjs/js/identifier`](../module.f.js), which the writer in
-[`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs), the
+[`fjs/compiler/serializer`](../../../compiler/serializer/module.f.js), the
 tokenizer and `fjs/emergent_testing` ask.
 
 ### Proposal
@@ -115,5 +115,5 @@ written out again.
 
 - [`fjs/text/ascii/module.f.js`](../../../text/ascii/module.f.js) — the
   owner of the classes, and of the hexadecimal codec that states the reason.
-- [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.js) — the writer
   whose Kelvin-sign hole raised this.

@@ -10,7 +10,7 @@
 [`function`](../function/module.f.js) and `prepare`/`call` in
 [`call`](../call/module.f.js) take deferred operands — `ValueThunk`,
 `ObjectItems`, a `callee: ValueResult`. Their consumers outside proofs,
-[`fjs/edag/operations`](../../operations/module.f.mjs) and the dispatchers
+[`fjs/edag/operations`](../../operations/module.f.js) and the dispatchers
 under `value/`, already hold evaluated values and wrap them to fit:
 
 ```js
@@ -24,7 +24,7 @@ call(ok(own[2]), args.map(v => () => ok(v)), invoke)
 call(ok(dot), [() => ok(receiver), () => ok(key)], invoke)
 ```
 
-[`array_method`](../array_method/module.f.mjs) keeps a private `apply` that
+[`array_method`](../array_method/module.f.js) keeps a private `apply` that
 is this wrapper named; the other sites re-spell it inline. No call site passes
 a callee that is not `ok(...)` and no thunk that is not `() => ok(v)`, so
 `prepare`'s error-callee branch and the laziness are reached by proofs alone.

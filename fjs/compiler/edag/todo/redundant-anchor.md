@@ -80,7 +80,7 @@ and agrees with the writers on what is eager.
 
 ### Related
 
-- [`../../serializer/module.f.mjs`](../../serializer/module.f.mjs) —
+- [`../../serializer/module.f.js`](../../serializer/module.f.js) —
   `statement`, which writes such an anchor as its node's `const`.
 - [`../../../edag/todo/operand-classification-owner.md`](../../../edag/todo/operand-classification-owner.md)
   — what is eager in a method call.

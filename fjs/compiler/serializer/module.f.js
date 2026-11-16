@@ -24,7 +24,8 @@ import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.js'
 import { _resolve } from '../../js/ast/serializer/names/module.f.js'
 
-const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
+/** @type {readonly string[]} */
+const reservedExports = [...keywords, ...literalWords, ...reservedGlobals, 'then']
 
 /** Tagged lexical output as the established chunk API. @type {(text: string) => Document} */
 const chunks = text => mapOk((/** @type {import('../../text/marked/types.ts').Marked} */ runs) => runs.map(run => run[1] === undefined ? run[0] : run))(fromTagged(text))
@@ -56,7 +57,7 @@ export const tryStringify = e => mapOk(chunksText)(_trySerialize(e))
  * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
-    const node = a.nodes[i]
+    const node = a.nodes[Number(i)]
     if (isHelper(node)) { return chunksText(_resolve([_helperText(node[0])('function')])) }
     return functionStringify(prepareFunction(functionFromAnalysis(a, i)))
 }
@@ -76,8 +77,9 @@ export const _tryModuleSerialize = e => {
     const members = _moduleExports(e)
     if (members.length === 0) { return error('a module without exports') }
     const keys = members.map(([, key]) => key)
-    if (new Set(keys).size !== keys.length) { return error('duplicate export names') }
-    if (keys.some(key => key !== 'default' && (!isIdentifier(key) || reservedExports.has(key)))) { return error('an unsupported export name') }
+    const sorted = keys.toSorted()
+    if (sorted.some((key, index) => index > 0 && key === sorted[Number(index - 1)])) { return error('duplicate export names') }
+    if (keys.some(key => key !== 'default' && (!isIdentifier(key) || reservedExports.includes(key)))) { return error('an unsupported export name') }
     if (keys.length === 1 && keys[0] === 'default') {
         const compact = _trySerialize(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }

@@ -73,5 +73,5 @@ answer.
 - [`analysis.md`](./analysis.md) — the table the rule lives in.
 - [`../execution-models.md`](../execution-models.md) — where a scope is
   defined, and where the answer belongs.
-- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.js) — the writer
   whose round trip met the crash.

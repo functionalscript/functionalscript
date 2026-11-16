@@ -13,7 +13,7 @@ import { error, errorMessage, execFile } from '../../../effects/node/module.f.js
 import { parse } from '../../../media/json/module.f.js'
 import { join } from '../../../path/module.f.js'
 import { open } from '../cache/module.f.js'
-import { buildGraph, graphManifest, validateGraph } from '../manifest/module.f.mjs'
+import { buildGraph, graphManifest, validateGraph } from '../manifest/module.f.js'
 import { openSync } from '../sync/module.f.js'
 
 /** @type {(options: NodeProgramOptions, synchronize: boolean, commands: readonly Command[]) => Effect<NodeOp, CoverageCache, IoChannel>} */

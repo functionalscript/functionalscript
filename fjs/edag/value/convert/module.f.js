@@ -15,10 +15,13 @@ import { assertOk } from '../../../asserts/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
-import { functionText } from '../../../compiler/serializer/module.f.mjs'
+import { functionText } from '../../../compiler/serializer/module.f.js'
 import { isStatic, staticText } from '../../module.f.js'
 import { join } from '../array/module.f.js'
 import { objectToPrimitive, primitiveToString, primitiveToNumber } from '../coercion/module.f.js'
+
+/** @type {(result: Result<Primitive, EdagValue>) => Result<string, EdagValue>} */
+const stringResult = result => result[0] === 'error' ? result : ok(primitiveToString(result[1]))
 
 /** @type {(value: EdagValue, hint: 'number' | 'string', invoke: Invoke) => Result<Primitive, EdagValue>} */
 export const toPrimitive = (value, hint, invoke) => {
@@ -26,7 +29,7 @@ export const toPrimitive = (value, hint, invoke) => {
     if (isStatic(value)) { return ok(staticText(value[0])) }
     switch (value[0]) {
         case '{}': { return objectToPrimitive(value, hint, invoke) }
-        case '[]': { return join(value, ',', element => toString(element, invoke)) }
+        case '[]': { return join(value, ',', element => stringResult(toPrimitive(element, 'string', invoke))) }
         default: {
             // The writer's table, by node identity, so that a node the body
             // shares is one `const` and two equal nodes are two. Captures
@@ -39,11 +42,7 @@ export const toPrimitive = (value, hint, invoke) => {
 }
 
 /** @type {(value: EdagValue, invoke: Invoke) => Result<string, EdagValue>} */
-export const toString = (value, invoke) => {
-    const result = toPrimitive(value, 'string', invoke)
-    const [kind, primitive] = result
-    return kind === 'error' ? result : ok(primitiveToString(primitive))
-}
+export const toString = (value, invoke) => stringResult(toPrimitive(value, 'string', invoke))
 
 /** Abstract ToNumber rejects bigint after ordinary conversion. @type {(value: EdagValue, invoke: Invoke) => Result<number, EdagValue>} */
 export const toNumber = (value, invoke) => {
