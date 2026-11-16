@@ -218,10 +218,9 @@ PRs as decided below.
 - [x] **9b2. L0 `Functions.call` / `make_function`** (#3928 / #3932). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
   `make_function` of an IR `code` waits for slice 11.
-- [ ] **9b3. Lowering and subjects** (this PR / #3929). `asFunction(f)(…)` as L0
+- [ ] **9b3. Lowering and subjects** (#3929). `asFunction(f)(…)` as L0
   `call(f, args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
-  **Status:** wip
 
 ### Decisions for slice 9 (2026-11-15)
 
@@ -234,11 +233,30 @@ Owner chose option A on each of four choices.
 | How `asFunction(f)(…xs)` lowers | Always L0 `call(f, args)` with an args array ([L0 §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)) |
 | Rows the subjects need beside `call` | Bring `find`, `text`, `join` (and whatever the subjects still miss) into 9b3 with them |
 
+#### Next — the whole L1 module
+
+Slice 10, cut as decided below once the owner picks.
+
+- [ ] **10. The whole L1 module** (this PR). Against the cases of its parity
+  proof. `get` is among it: its throw for `undefined` and `null`, and its
+  reads of an object or a string by a string, which 6f left out. Remaining
+  L1 exports that are not yet subjects (`add` / `subtract` / …,
+  `toPropertyKey`, …) land with the cut the owner picks below.
+  **Status:** wip
+
+### Decisions for slice 10 (open)
+
+Owner to pick before 10 lands code. Proposed defaults in parentheses.
+
+| Choice | Options |
+| --- | --- |
+| How 10 is cut | **(A)** three stacked PRs: (1) `get` and the keyed object/string reads 6f refused; (2) arithmetic and relational L1 bodies as subjects; (3) remaining L1 exports and parity against the whole module. **(B)** two PRs: `get` first, then the rest of L1. **(C)** one PR |
+| How `a[k]` / `.` of `any` lowers | **(A)** always L1 `get`, keeping 6f's array-at-number specialization. **(B)** more specialized IR paths before calling L1 |
+| What "the whole L1 module" covers | **(A)** every export of [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already a subject. **(B)** include [`l1/builtin`](../../wasm/runtime/l1/builtin/module.f.js) too |
+| Parity | **(A)** extend the existing host twin runs so every remaining export runs against L1's own. **(B)** a separate parity module |
+
 #### Later
 
-- [ ] **The whole L1 module** (10), against the cases of its parity proof.
-  `get` is among it: its throw for `undefined` and `null`, and its reads
-  of an object or a string by a string, which 6f left out.
 - [ ] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
   and `boolean` as needing no release, as
   [definition.md's open question 6](../../../doc/sasha-gil/ir/definition.md#open-questions)
