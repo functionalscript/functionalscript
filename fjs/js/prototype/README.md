@@ -147,7 +147,7 @@ native implementation.
 `toLowerCase` and `toUpperCase` are defined over "the latest version of the
 Unicode Standard", so two engines shipping different Unicode versions can
 case a newly assigned character differently. A module must mean one thing
-everywhere, so the language pins the version: **Unicode 17.0.0**, the one the
+everywhere, so the language pins the version: **Unicode 18.0.0**, the one the
 pinned Rust standard library carries
 ([`fjs/ci/config`](../../ci/config/module.f.js)). NaNVM converts through that
 library and asserts the version at compile time

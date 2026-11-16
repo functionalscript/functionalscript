@@ -441,9 +441,9 @@ backend = "npm:typescript"
 specifiers = ["7.0.2"]
 
 [[tools.rust]]
-version = "1.99.1"
+version = "1.100.0"
 backend = "core:rust"
-specifiers = ["1.99.1"]
+specifiers = ["1.100.0"]
 
 [tools.rust.options]
 components = "clippy,rustfmt"
@@ -451,9 +451,9 @@ profile = "minimal"
 targets = "i686-unknown-linux-gnu,wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2"
 
 [[tools.rust]]
-version = "1.99.1"
+version = "1.100.0"
 backend = "core:rust"
-specifiers = ["1.99.1"]
+specifiers = ["1.100.0"]
 
 [tools.rust.options]
 components = "clippy,rustfmt"
@@ -461,9 +461,9 @@ profile = "minimal"
 targets = "wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2"
 
 [[tools.rust]]
-version = "1.99.1"
+version = "1.100.0"
 backend = "core:rust"
-specifiers = ["1.99.1"]
+specifiers = ["1.100.0"]
 
 [tools.rust.options]
 components = "clippy,rustfmt"
@@ -471,9 +471,9 @@ profile = "minimal"
 targets = "i686-pc-windows-msvc"
 
 [[tools.rust]]
-version = "1.99.1"
+version = "1.100.0"
 backend = "core:rust"
-specifiers = ["1.99.1"]
+specifiers = ["1.100.0"]
 
 [tools.rust.options]
 components = "clippy,rustfmt"

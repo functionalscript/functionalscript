@@ -9,7 +9,7 @@ use crate::vm::{Any, IVm};
 /// standard library carries (`fjs/ci/config`), named in `spec/README.md` and
 /// in `fjs/js/prototype/README.md`. A module must mean one thing everywhere,
 /// so a build whose standard library carries another version does not build.
-pub const UNICODE_VERSION: (u8, u8, u8) = (17, 0, 0);
+pub const UNICODE_VERSION: (u8, u8, u8) = (18, 0, 0);
 
 const _: () = assert!(
     char::UNICODE_VERSION.0 == UNICODE_VERSION.0

@@ -30,7 +30,7 @@ export const typescript = /** @type {const} */({
     version: '7.0.2',
 })
 
-export const rust = '1.99.1'
+export const rust = '1.100.0'
 
 export const jobTimeout = /** @type {const} */ (30)
 

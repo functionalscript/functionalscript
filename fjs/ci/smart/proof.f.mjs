@@ -40,7 +40,7 @@ const deps = /** @type {const} */ ({ run: 'mise exec -- npm start deps', shell: 
 const tsc = /** @type {const} */ ({ run: 'mise exec -- tsc' })
 const fjsSuite = /** @type {const} */ ({ run: 'mise exec -- npm start t' })
 const pack = /** @type {const} */ ({ run: 'mise exec -- npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
-const rustVersion = /** @type {const} */ ({ run: `test "$(mise exec -- rustc --version | cut -d' ' -f1,2)" = "rustc 1.99.1"`, shell: 'bash' })
+const rustVersion = /** @type {const} */ ({ run: `test "$(mise exec -- rustc --version | cut -d' ' -f1,2)" = "rustc 1.100.0"`, shell: 'bash' })
 const multilib = /** @type {const} */ ({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386', shell: 'bash' })
 const spidermonkeyLock = /** @type {const} */ ({ run: 'mise -E spidermonkey lock http:spidermonkey --platform linux-arm64', shell: 'bash' })
 const spidermonkeyInstall = /** @type {const} */ ({ run: 'mise -E spidermonkey install --locked http:spidermonkey', shell: 'bash' })
