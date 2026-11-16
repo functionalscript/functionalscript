@@ -27,8 +27,11 @@
  *   maker of its literals, and only the emitter calls it.
  * - **The casts' targets are the arguments.** `to_f64` takes a number and
  *   `to_bool` a boolean, so passing a value of unknown kind is a type error,
- *   and a module narrows its value with a `match` first. So does `same`,
- *   reference identity
+ *   and a module narrows its value with a `match` first. `from_f64` and
+ *   `from_bool` are their inverses: a float or a boolean meets `any` through
+ *   them
+ *   ([definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
+ *   So does `same`, reference identity
  *   ([L0 design §14](../../../doc/sasha-gil/wasm/l0-design.md#14-identity-same-is-reference-identity-and-a-runtime-may-merge-equal-values)),
  *   which takes two arrays, objects or functions.
  * - **`length` is one function per module**
@@ -79,7 +82,7 @@
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, f64c, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
+import { bool, f64, f64c, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
@@ -119,7 +122,9 @@ const anyInterface = {
     functions: [
         ['kind', signature([['v', any]], int(0n, 8n))],
         ['to_f64', signature([['v', only(any, 'number')]], f64c)],
+        ['from_f64', signature([['x', f64]], only(any, 'number'))],
         ['to_bool', signature([['v', only(any, 'boolean')]], bool)],
+        ['from_bool', signature([['b', bool]], boolean)],
         ['same', signature([['a', reference], ['b', reference]], bool)],
         ['dup', signature([['v', any]], any)],
         ['drop', signature([own('v', any)], unit)],

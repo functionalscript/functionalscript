@@ -17,9 +17,17 @@ export const proof = {
     // A handle is an index of the table, and each import answers for its value.
     kind: () => assertEq(values.map((_, k) => h.kind(BigInt(k))).join(), '0,1,2,3,4,5,6,7,8'),
     to_f64: () => assertEq(h.to_f64(3n), 1.5),
+    from_f64: () => {
+        assertEq(h.from_f64(1.5), 1.5)
+        assertEq(Number.isNaN(h.from_f64(NaN)), true)
+    },
     to_bool: () => {
         assertEq(h.to_bool(2n), 1)
         assertEq(over([false]).to_bool(0n), 0)
+    },
+    from_bool: () => {
+        assertEq(h.from_bool(1), true)
+        assertEq(h.from_bool(0), false)
     },
     // `same` is identity: two handles of one value are the same, and two equal values are not.
     same: () => {

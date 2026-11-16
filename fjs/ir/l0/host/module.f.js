@@ -9,13 +9,13 @@
  *   [counting host](./count/module.mjs) reads its cells.
  * - **Each import is the view's function**: `kind` is its `kind`,
  *   `to_f64` its `asNumber`, `to_bool` its `asBoolean`, `same` its `same`,
- *   `length` its `length`, and `unit` its `unit`. Where L0 traps, the view
+ *   `length` its `length`, and `unit` its `unit`. `from_f64` and `from_bool`
+ *   box a float or a boolean as a value of `any`. Where L0 traps, the view
  *   throws, and so does the import.
- * - **`from_unit`, `concat`, `substring` and `item` answer a value**, the
- *   view's `fromUnit`, `concat`, `substring` and `item`, which a host gives
- *   a handle of its own, since the caller owns it. Counting is the host's:
- *   `dup`, `drop` and the cells are state, which a host boundary holds and
- *   FunctionalScript does not.
+ * - **`from_f64`, `from_bool`, `from_unit`, `concat`, `substring` and `item`
+ *   answer a value**, which a host gives a handle of its own, since the
+ *   caller owns it. Counting is the host's: `dup`, `drop` and the cells are
+ *   state, which a host boundary holds and FunctionalScript does not.
  *
  * The [host of L1's native rows](../../native/host/module.f.js) reads
  * values the same way.
@@ -46,7 +46,11 @@ export const handles = values => h => {
 export const view = read => ({
     kind: h => kind(read(h)),
     to_f64: h => asNumber(read(h)),
+    // A JS number is already a value of `any`; the runtime may still
+    // canonicalise a NaN's payload ([L0 §4](../../../../doc/sasha-gil/wasm/l0-design.md#4-numbers-the-runtime-canonicalises-nan)).
+    from_f64: x => x,
     to_bool: h => asBoolean(read(h)) ? 1 : 0,
+    from_bool: b => b !== 0,
     same: (a, b) => same(read(a), read(b)) ? 1 : 0,
     length: h => length(read(h)),
     unit: (h, i) => unit(read(h), i),

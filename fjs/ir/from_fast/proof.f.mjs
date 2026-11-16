@@ -1131,9 +1131,32 @@ export const proof = {
             '',
         ].join('\n'))
         const av = only([['v', any]], any)
-        // An item is a value of `any`: a number or a boolean is none in this slice.
-        assertEq(assertError(over(av, 'export const f = v => [v, 1]')), 'f: an item of an array is a value of any, and item 1 is f64c')
-        assertEq(assertError(over(av, `${imports}export const f = v => [kind(v) === NUMBER]`)), 'f: an item of an array is a value of any, and item 0 is bool')
+        // A number or a boolean meets `any` through `from_f64` or `from_bool`.
+        assertEq(checked(av, 'export const f = v => [v, 1]'), [
+            'fn f(v: any) -> any =',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), v), Any.from_f64(1.0)))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(checked(av, `${imports}export const f = v => [kind(v) === NUMBER]`), [
+            'fn f(v: any) -> any =',
+            '    let #0 = eq(float(Any.kind(v)), 3.0)',
+            '    match Containers.seal(Containers.push(Containers.begin_array(1), Any.from_bool(#0)))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A float record is not a value of `any`; only floats and booleans box.
+        assertEq(assertError(over(fa, 'export const f = a => [{ a }]')), 'f: an item of an array is a value of any, and item 0 is { a: f64 }')
         assertEq(assertError(over(av, 'export const f = v => [...v]')), 'f: a spread in an array literal is not in this slice')
         // A Containers object has no product fields; a record of floats still does.
         assertEq(assertError(over(av, 'export const f = v => [{ a: v }.b]')), 'f: .b of any.only(object) is not in this slice')
@@ -1194,7 +1217,9 @@ export const proof = {
         assertEq(refused('buildArray(1, 0, s => s, (...s) => s)'), 'f: a callback of buildArray that is not an arrow literal of at most one parameter is not in this slice')
         assertEq(refused('buildArray(v, 0, s => s + 1, () => v)'), 'f: buildArray of any items is not in this slice')
         assertEq(refused('buildArray(1, 0n, s => s, () => v)'), 'f: a state of buildArray of int(0, 0) is not in this slice')
-        assertEq(refused('buildArray(1, 0, s => s, s => s)'), 'f: an item of buildArray is a value of any, and this one is f64')
+        // A float item is boxed; a length is still not a value of `any`, nor is a float record.
+        assertEq(checked(av, `${view}export const f = v => buildArray(1, 0, s => s, s => s)`).includes('Any.from_f64(B0.s)'), true)
+        assertEq(refused('buildArray(1, 0, s => s, () => ({ a: 0 }))'), 'f: an item of buildArray is a value of any, and this one is { a: f64c }')
         assertEq(refused('buildArray(1, 0, s => s, s => length(s))'), 'f: length of f64 is not in this slice')
         assertEq(refused('buildArray(1, 0, s => length(s), () => v)'), 'f: length of f64 is not in this slice')
         // With Containers imported, `{ a: v }` is a Containers object; a float record still fails to type.
@@ -1365,7 +1390,8 @@ export const proof = {
         assertEq(refused("buildObject(1, 0, s => s, () => 'k', (...s) => s)"), 'f: a callback of buildObject that is not an arrow literal of at most one parameter is not in this slice')
         assertEq(refused("buildObject(v, 0, s => s + 1, () => 'k', () => v)"), 'f: buildObject of any items is not in this slice')
         assertEq(refused("buildObject(1, 0n, s => s, () => 'k', () => v)"), 'f: a state of buildObject of int(0, 0) is not in this slice')
-        assertEq(refused("buildObject(1, 0, s => s, () => 'k', s => s)"), 'f: a value of buildObject is a value of any, and this one is f64')
+        assertEq(irOver(nv, `${builders}export const f = (n, v) => buildObject(1, 0, s => s, () => 'k', s => s)`).includes('Any.from_f64(B0.s)'), true)
+        assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => ({ a: 0 }))"), 'f: a value of buildObject is a value of any, and this one is { a: f64c }')
         assertEq(refused("buildObject(1, 0, s => s, s => s, () => v)"), 'f: a key of buildObject is a string, and this one is f64')
         assertEq(refused("buildObject(1, 0, s => s, () => 'k', () => { throw v })"), 'f: a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of B0, which is linear, behind')
         // Callbacks and args that fail to lower or to type after lowering.
