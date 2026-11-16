@@ -671,6 +671,8 @@ export const proof = {
         assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals`)), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(ab, `${imports}export const f = (a, b) => same(a)`)), 'f: same takes 2 arguments, not 1')
         assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals(a, b)`, null)), 'f: an import of ./native/module.f.js is not in this slice')
+        // A name on the native specifier that is not a row of the interface is refused.
+        assertEq(assertError(over(ab, "import { bigintPow } from './native/module.f.js'\nexport const f = (a, b) => bigintPow(a, b)")), "f: bigintPow of L1's native rows is not in this slice")
     },
     loops: () => {
         // A loop's parameters are locals of their first values' types, a float widened to `f64`.
