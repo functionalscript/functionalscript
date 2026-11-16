@@ -203,29 +203,38 @@ Slice 8, cut in three as decided above.
 
 #### Next — function values
 
-Slice 9, cut in two: boxing first, then `call`.
+Slice 9, cut in two: boxing first, then `call`. Slice 9b is three stacked
+PRs as decided below.
 
 - [x] **9a. Any's `from_f64` and `from_bool`** (#3918). Written where a
   number or a boolean meets `any`, as
   [definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
   has it; with them, numbers and booleans as items of an array literal.
-  Float records stay products. Subjects wait for 9b.
-- [ ] **9b. Calling function values** (this PR). L0's `call` from WASM into
-  the host and back, with the `code` type and `call_ref`. Subjects:
-  `toPrimitive`, `toNumber`, `toNumeric`, `toString` and `call`. The
-  supporting L0 rows those bodies read (`find`, `text`, `join`, …) land
-  with them or wait for a cut the owner picks below.
+  Float records stay products.
+- [ ] **9b1. `code` and `call_ref`** (this PR). The `code` type, the
+  `code(f)` and `call_ref(c, …)` terms, the checker, the printer and the
+  emitter (`ref.func` / `call_indirect` over a module table). Hand-written
+  only.
+- [ ] **9b2. L0 `Functions.call` / `make_function`.** The interface rows and
+  the counting host: call existing function values (`any.only(function)`).
+  `make_function` of an IR `code` waits for slice 11.
+- [ ] **9b3. Lowering and subjects.** `asFunction(f)(…)` as L0 `call(f,
+  args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
+  `toNumber`, `toNumeric`, `toString` and `call`.
 
-### Decisions for slice 9 (open)
+### Decisions for slice 9 (2026-11-15)
 
-Owner to pick before 9b lands code. Proposed defaults in parentheses.
+Owner chose option A on each of four choices.
 
-| Choice | Options |
+| Choice | Decision |
 | --- | --- |
-| How 9b is cut | **(A)** three stacked PRs: (1) `code` / `call_ref` in the IR + checker + printer + emitter; (2) L0 `Functions.call` / `make_function` and the counting host; (3) lowering of `asFunction(f)(…)` and the subjects. **(B)** two PRs: hand+host first, then lowering+subjects. **(C)** one PR |
-| What 9b makes as a function value | **(A)** call existing function values only (host / sealed `any.only(function)`); `make_function` + `code` of a module's own top-level wait for slice 11's closures. **(B)** `make_function` of an IR `code` too, so a top-level export is a value |
-| How `asFunction(f)(…xs)` lowers | **(A)** always L0 `call(f, args)` with an args array, as [L0 §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text). **(B)** a fixed-arity host path beside it for zero/one/two args |
-| Rows the subjects need beside `call` | **(A)** bring `find`, `text`, `join` (and whatever `toString` / `toPrimitive` still miss) into 9b with the subjects. **(B)** stub/refuse those paths until a later cut; only lower `call` and the primitive arms |
+| How 9b is cut | Three stacked PRs: 9b1 `code` / `call_ref`; 9b2 L0 `call` / `make_function` + host; 9b3 lowering + subjects |
+| What 9b makes as a function value | Call existing function values only; `make_function` of an IR `code` waits for slice 11 |
+| How `asFunction(f)(…xs)` lowers | Always L0 `call(f, args)` with an args array ([L0 §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)) |
+| Rows the subjects need beside `call` | Bring `find`, `text`, `join` (and whatever the subjects still miss) into 9b3 with them |
+
+#### Later
+
 - [ ] **The whole L1 module** (10), against the cases of its parity proof.
   `get` is among it: its throw for `undefined` and `null`, and its reads
   of an object or a string by a string, which 6f left out.
