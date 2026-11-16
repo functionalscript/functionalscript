@@ -9,7 +9,7 @@
  * API.
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { source } from './ref_map/module.f.js'
 import { stringifyModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'

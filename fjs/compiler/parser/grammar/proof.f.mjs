@@ -501,7 +501,7 @@ export const proof = /** @type {const} */ ({
         // the bare one-parameter form, `a => …`. The newline JavaScript
         // refuses before its `=>` is not the grammar's to see: trivia is
         // not in the stream, and whether a newline stood before the `=>`
-        // is a fact of the token the reader in `../module.f.mjs` checks,
+        // is a fact of the token the reader in `../module.f.js` checks,
         // so `a\n=> 1` parses here and is refused there, at the `=>`
         assertStructurallySame(read('export default a => 1;'), ['ok'])
         assertStructurallySame(read('export default a => b => [a, b];'), ['ok'])
@@ -563,7 +563,7 @@ export const proof = /** @type {const} */ ({
         // a statement's `;` may be omitted, before the `}` and before the
         // next statement alike: the grammar reads both, and whether the
         // next statement began a line — which is what JavaScript asks of
-        // it — the reader in `../module.f.mjs` checks, so `const x = 1
+        // it — the reader in `../module.f.js` checks, so `const x = 1
         // return x` is refused there and not here
         assertStructurallySame(read('export default (...a) => { const x = 1 return x; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { const x = 1\nreturn x };'), ['ok'])
@@ -991,7 +991,7 @@ export const proof = /** @type {const} */ ({
     // whose statements omit it, however they stand, since `;` begins no
     // statement and one symbol of lookahead still decides. Whether a
     // statement after an omitted `;` began a line — JavaScript's own rule —
-    // is a fact of the token, which the reader in `../module.f.mjs` checks:
+    // is a fact of the token, which the reader in `../module.f.js` checks:
     // `const a = 1 export default a;` is that reader's to refuse. Two `;`
     // are still one too many: there is no empty statement.
     terminator: () => {

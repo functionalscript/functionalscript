@@ -756,7 +756,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/compiler/transpiler/module.f.mjs`](../../compiler/transpiler/module.f.mjs) — loads imports
   recursively and interprets module EDAGs with represented import values. Runtime
   conversion occurs at the requested output boundary.
-- [`fjs/compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) — DJS parser that must support the
+- [`fjs/compiler/parser/module.f.js`](../../compiler/parser/module.f.js) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
 - [`fjs/media/datajs/serializer/module.f.js`](../../media/datajs/serializer/module.f.js)
   — the writer, where special-number handling lives.

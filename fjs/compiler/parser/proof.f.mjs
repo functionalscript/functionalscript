@@ -6,7 +6,7 @@
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
-import { errorLocation, parseFromTokens } from './module.f.mjs'
+import { errorLocation, parseFromTokens } from './module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.js'

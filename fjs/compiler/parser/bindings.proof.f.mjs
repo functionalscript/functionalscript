@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.mjs'
 
 /** @type {(source: string) => ResolvedModule} */
@@ -28,6 +28,26 @@ const functionScopes = events => events.flatMap(event => event[0] === 'function'
 /** @type {(events: readonly BindingEvent[]) => readonly BindingEvent[]} */
 const allEvents = events => events.flatMap(event => event[0] === 'function'
     ? allEvents(event[1].events) : event[0] === 'region' ? allEvents(event[1]) : [event])
+
+/** Whole helpers retain their original binding identities and ordered initialization/read events.
+ * @type {(module: ResolvedModule, names: readonly string[], events: readonly (readonly ['initialize' | 'read', string])[]) => void}
+ */
+const assertTemplateTrace = (module, names, events) => {
+    const scopes = functionScopes(module.scope.events)
+    assertEq(scopes.length, 1)
+    const scope = scopes[0]
+    assertEq(scope.bindings.length, names.length)
+    for (let i = 0; i < names.length; i += 1) {
+        assertEq(scope.bindings[Number(i)], named(module, names[Number(i)]).origin.id)
+    }
+    assertEq(scope.events.length, events.length)
+    for (let i = 0; i < events.length; i += 1) {
+        const [tag, name] = events[Number(i)]
+        const event = scope.events[Number(i)]
+        assertEq(event[0], tag)
+        assertEq(event[1], named(module, name).origin.id)
+    }
+}
 
 export const proof = {
     compoundAssignmentEvidence: () => {
@@ -391,6 +411,10 @@ export const proof = {
             assertEq(binding.capturedBy.length, 0)
         }
         assertEq(named(entry, 'descriptor', 'const').binding.isMutable, false)
+        assertTemplateTrace(entry, ['a', 'b', 'descriptor'], [
+            ['initialize', 'a'], ['initialize', 'b'], ['read', 'a'], ['read', 'b'],
+            ['initialize', 'descriptor'], ['read', 'descriptor'], ['read', 'descriptor'],
+        ])
         const intrinsic = parsed('const slice=(s,a,b)=>s.slice(a,b); export default slice;')
         assertEq(functionScopes(intrinsic.scope.events).length, 1)
         for (const name of ['s', 'a', 'b']) {
@@ -398,6 +422,10 @@ export const proof = {
             assertEq(binding.isMutable, false)
             assertEq(binding.capturedBy.length, 0)
         }
+        assertTemplateTrace(intrinsic, ['s', 'a', 'b'], [
+            ['initialize', 's'], ['initialize', 'a'], ['initialize', 'b'],
+            ['read', 's'], ['read', 'a'], ['read', 'b'],
+        ])
     },
     currentAdmission: () => {
         assertError(parseFromTokens(tokenizeString('export default ()=>{const value=0; value=1; return value;};')))

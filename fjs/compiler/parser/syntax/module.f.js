@@ -2,7 +2,7 @@
  * The syntax reader: the rewrite set that folds the tree of the grammar
  * in `../grammar` into a module record as the LL(1) backend builds it, and
  * {@link parseSyntax}, the reader over a token stream. What it builds is
- * the syntax tree, `./types.ts`; the fold in `../module.f.mjs` resolves
+ * the syntax tree, `./types.ts`; the fold in `../module.f.js` resolves
  * its names and makes the AST of it.
  *
  * ```text
@@ -265,7 +265,7 @@ const literalWordSet = fromValues(literalWords)
  * The word a name token spells. A framing keyword is an identifier too,
  * arriving as the same `id` token; each of the six words that denote a
  * value is a token kind of its own, and *is* its own word. Exported, with
- * {@link textOf}, for the fold in `../module.f.mjs`, which reads the words
+ * {@link textOf}, for the fold in `../module.f.js`, which reads the words
  * of the tokens the records here hold.
  *
  * @type {(t: ModuleTokenWithMetadata) => string}
@@ -1731,7 +1731,7 @@ const parseModule = parser(/** @type {Rule} */ (module), mappings, statementCont
  *
  * Its result has not passed binding, JavaScript early-error or
  * FunctionalScript admission checks, which are the fold's in
- * `../module.f.mjs`; callers compiling source use `parseFromTokens` there.
+ * `../module.f.js`; callers compiling source use `parseFromTokens` there.
  *
  * @type {(tokenList: List<ModuleTokenWithMetadata>) => Result<Module, ParseError>}
  */

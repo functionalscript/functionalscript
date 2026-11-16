@@ -190,7 +190,7 @@ failures, data/JSON refusals and caught host failures become `errorResult`s.
 These tool responses still need implementation and proofs. A parse error needs
 a name for its location because there is no file. Use a fixed pseudo-path such as
 `<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
-`errorLocation` in [`fjs/compiler/parser`](../../compiler/parser/module.f.mjs).
+`errorLocation` in [`fjs/compiler/parser`](../../compiler/parser/module.f.js).
 
 **A result too large to encode is the transport's failure, not the tool's.**
 The input cap does not bound the output. At `940eff9`, a 420-byte module of

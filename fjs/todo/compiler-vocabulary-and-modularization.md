@@ -774,7 +774,7 @@ Where the original implementation placed a feature, and its intended owner:
 **Destructuring belongs to desugaring.** The syntax tree,
 [`parser/syntax`](../compiler/parser/syntax/types.ts)'s `BindingTarget`,
 retains the source pattern. Binding and admission in
-[`parser`](../compiler/parser/module.f.mjs) check its names and keys and
+[`parser`](../compiler/parser/module.f.js) check its names and keys and
 resolve initializer references while their source evidence remains available.
 The resulting plan retains original binding identities and ordered reads;
 [`js/ast/sugar`](../js/ast/sugar/module.f.js) expands it into explicit FAST

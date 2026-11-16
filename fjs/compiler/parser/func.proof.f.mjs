@@ -8,7 +8,7 @@
  * API, which is the case that rule names outright.
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { stringifyModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 

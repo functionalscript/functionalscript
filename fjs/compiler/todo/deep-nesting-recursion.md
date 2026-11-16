@@ -36,7 +36,7 @@ of steps ([optional chaining](../../../spec/property-access/optional-chaining/RE
 holds out longer and fails the same way at five thousand: the walks over a
 continuation — `after`, `continuedSteps` and `stateOf` in
 [`../parser/syntax/module.f.js`](../parser/syntax/module.f.js),
-`stepParts` and `stepClosed` in [`../parser/module.f.mjs`](../parser/module.f.mjs),
+`stepParts` and `stepClosed` in [`../parser/module.f.js`](../parser/module.f.js),
 `lowerStep` in [`../edag/module.f.mjs`](../edag/module.f.mjs), the former direct
 source writer's retired `chainSteps` and `lastStep`, and `stepOperands` in
 [`../../edag/analysis/module.f.js`](../../edag/analysis/module.f.js)

@@ -1505,23 +1505,21 @@ const templateReads = (node, origins) => {
  */
 const templateScope = (scope, node) => {
     const bound = assertOk(functionScope(node[1]))
-    let origins = bound.origins
-    let bindings = bound.bindings
-    let sourceOrigins = bound.sourceOrigins
-    /** @type {readonly BindingEvent[]} */
-    let events = bound.initialized.map(id => ['initialize', id])
+    /** @type {Pick<_Bound, 'bindings' | 'sourceOrigins'> & { readonly events: readonly BindingEvent[] }} */
+    let trace = { bindings: bound.bindings, sourceOrigins: bound.sourceOrigins, events: bound.initialized.map(id => ['initialize', id]) }
     if (node[2][0] === 'block') {
         const [first, last] = node[2][1]
         const declaration = /** @type {Const} */ (first[1])
         const plan = assertOk(planned(bindable(bound.names))(declaration.target, null))
-        bindings = [...bindings, ...plan.ids]
-        sourceOrigins = [...sourceOrigins, ...planOrigins(plan, 'const')]
-        events = [...events, ...templateReads(declaration.value, origins), ...plan.ids.map(id => /** @type {BindingEvent} */ (['initialize', id]))]
-        origins = plan.names.reduce((origins, [name, i]) => setReplace(nameOf(name))(plan.ids[Number(i)])(origins), origins)
-        events = [...events, ...templateReads(/** @type {ValueStatement} */ (last[1]).value, origins)]
+        const bindings = [...trace.bindings, ...plan.ids]
+        const sourceOrigins = [...trace.sourceOrigins, ...planOrigins(plan, 'const')]
+        const events = [...trace.events, ...templateReads(declaration.value, bound.origins), ...plan.ids.map(id => /** @type {BindingEvent} */ (['initialize', id]))]
+        const origins = plan.names.reduce((origins, [name, i]) => setReplace(nameOf(name))(plan.ids[Number(i)])(origins), bound.origins)
+        trace = { bindings, sourceOrigins, events: [...events, ...templateReads(/** @type {ValueStatement} */ (last[1]).value, origins)] }
     } else {
-        events = [...events, ...templateReads(node[2], origins)]
+        trace = { ...trace, events: [...trace.events, ...templateReads(node[2], bound.origins)] }
     }
+    const { bindings, sourceOrigins, events } = trace
     return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
 }
 
@@ -1858,7 +1856,7 @@ const loopRound = (stack, scope, frame) => {
                 regionScope(scope, empty, null), ['enter', statement.discriminant]]
         }
         if (kind === 'assign') {
-            const [tag, target] = assigned(scope, statement.name)
+            const [tag, target] = assigned(scope, assertNotNullish(entry(statement, 'name')))
             if (tag === 'error') { return [stack, scope, error(target)] }
             return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
         }
@@ -1912,7 +1910,7 @@ const returned = (stack, scope, frame, value) => {
         // language has a meaning for, never resolved in scope — `Array` is
         // a reserved global, so no scope binds it
         const right = frame.instanceof
-        if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(frame.at))] }
+        if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(assertNotNullish(entry(frame, 'at'))))] }
         /** @type {ValueInstanceOf} */
         const checked = ['instanceof', value, 'Array']
         return [stack, scope, ok(checked)]
@@ -2128,11 +2126,12 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
         }
         const [read, record] = _readImport(statement)
         if (read === 'error') { return error(record) }
+        const ids = importIds
         modules = [
             ...modules,
             ...(statement.bindings.length === 0
                 ? [{ ...record, name: null, binding: null }]
-                : statement.bindings.map(({ name }, i) => ({ ...record, name, binding: importIds[Number(i)] }))),
+                : statement.bindings.map((binding, i) => ({ ...record, name: assertNotNullish(entry(binding, 'name')), binding: ids[Number(i)] }))),
         ]
     }
     for (const statement of statements) {
@@ -2159,7 +2158,7 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
             const assignment = statement[1]
             if (unterminated(previous, assignment)) { return error(unexpectedToken(assignment.start)) }
             previous = assignment
-            const [tag, target] = assigned(scope, assignment.name)
+            const [tag, target] = assigned(scope, assertNotNullish(entry(assignment, 'name')))
             if (tag === 'error') { return error(target) }
             const [resolved, evaluated] = evaluate(assignmentScope(target[0], assignment, target[1]), null)(assignment.value)
             if (resolved === 'error') { return error(evaluated) }
@@ -2207,23 +2206,23 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
         const failingModule = { imports: modules, body: { statements: body, exit: ['throw', evaluated.value] } }
         return resolvedModule(failingModule, evaluated.scope)
     }
+    let completed = { scope, exports }
     if (exported !== null) {
         if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
         const [resolved, evaluated] = evaluate(scope, null)(exported.value)
         if (resolved === 'error') { return error(evaluated) }
-        scope = evaluated.scope
-        exports = [...exports, ['default', evaluated.value]]
+        completed = { scope: evaluated.scope, exports: [...exports, ['default', evaluated.value]] }
     }
     // an exported pattern binding no name exports nothing, and the grammar
     // saw only the `export`: the module is refused where a name was owed
-    if (exports.length === 0) {
+    if (completed.exports.length === 0) {
         const last = assertNotNullish(statements.findLast(s => s[0] === 'const' && s[1].exported), ['a module with no export and no throw', statements])
         assert(last[0] === 'const')
         return error(noExport(last[1].declaration.start))
     }
     /** @type {SourceModule} */
-    const sourceModule = { imports: modules, body: { statements: body, exit: ['yield', ['object', toArray(sort(exports)).map(exportMember)]] } }
-    return resolvedModule(sourceModule, scope)
+    const sourceModule = { imports: modules, body: { statements: body, exit: ['yield', ['object', toArray(sort(completed.exports)).map(exportMember)]] } }
+    return resolvedModule(sourceModule, completed.scope)
 }
 
 /**

@@ -6,7 +6,7 @@
  * @import { SourceValue } from '../../js/ast/sugar/source.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.js'

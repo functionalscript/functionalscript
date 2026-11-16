@@ -4,7 +4,7 @@
 
 import { assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.mjs'
 
 /** @type {(source: string) => Node} */

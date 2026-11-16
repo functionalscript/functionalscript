@@ -101,7 +101,7 @@ Two narrower versions of the same shape were already fixed for
 **operator chains** in `fjs/compiler/ast/module.f.js` (`refsOf`'s
 operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.mjs`
 (`lower`'s own), each with an explicit heap-allocated stack in place of
-recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.mjs`
+recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.js`
 already resolves a value's own operators. Those two fixes do not reach
 containers or function bodies: a nested container or function still
 recurses in the compiler before this walk is ever reached, which
@@ -213,5 +213,5 @@ discovered one `RangeError` at a time.
   issue's.
 - [`spec/datajs/vectors/accept/data.f.js`](../../../spec/datajs/vectors/accept/data.f.js)
   — the DataJS accept vectors, whose deep graphs reach this crash.
-- [`../../compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) —
+- [`../../compiler/parser/module.f.js`](../../compiler/parser/module.f.js) —
   `evaluate`, whose `_Stack` is the same shape again, for the same reason.

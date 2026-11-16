@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { toData } from '../../../edag/value/to_unknown/module.f.js'
-import { parseFromTokens } from '../module.f.mjs'
+import { parseFromTokens } from '../module.f.js'
 import { _evaluate, tokenizeString } from '../proof.f.mjs'
 import { parseSyntax } from './module.f.js'
 

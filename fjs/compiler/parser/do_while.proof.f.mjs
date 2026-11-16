@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.mjs'
 
 export const proof = /** @type {const} */ ({

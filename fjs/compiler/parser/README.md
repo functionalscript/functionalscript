@@ -13,7 +13,7 @@ the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
 draw: [`./syntax`](./syntax/module.f.js) holds the rewrite set, which turns
 the grammar's tree into the syntax tree — a node per value, a record per
-statement — and `parseSyntax`, the reader over tokens; `./module.f.mjs` is
+statement — and `parseSyntax`, the reader over tokens; `./module.f.js` is
 the fold, which resolves the tree's names into the AST and refuses what only
 a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is in neither alphabet's stream for
 long: the tokenizer reads it and leaves it out, keeping of it the one fact a
@@ -679,7 +679,7 @@ natural span. `export default <value>` is a span, not a point. The moment a
 formatter wants to underline a rule rather than a character, every token needs
 an end, and the change belongs in `JsTokenWithMetadata.metadata` rather than in
 more special cases beside `ErrorToken.end`. Nothing wants that yet:
-`errorLocation` in [`./module.f.mjs`](./module.f.mjs) renders the span
+`errorLocation` in [`./module.f.js`](./module.f.js) renders the span
 an error already carries and the point when there is none.
 
 ## What changed at the LL(1) port

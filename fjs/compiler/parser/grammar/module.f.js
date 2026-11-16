@@ -146,7 +146,7 @@
  *   final optional `;` both did, a first/first conflict on the trivia
  *   symbols — and the two places JavaScript forbids a line break, before
  *   `=>` and after `return`, are a fact of a token the reader in
- *   `../module.f.mjs` checks rather than a shape the grammar spells.
+ *   `../module.f.js` checks rather than a shape the grammar spells.
  * - **A statement ends at `;`, or at nothing.** A newline is never a
  *   symbol a statement ends at, and deciding between a newline and a `;`
  *   reached through newlines took unbounded lookahead while it was one.
@@ -722,7 +722,7 @@ const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromE
  * followed by these lists, which is what a `bitwiseOr`-level expression
  * is. `instanceof`'s right operand is read as `<`'s is; which values may
  * stand there — a reference to `Array` — is the fold's to say,
- * `../module.f.mjs`.
+ * `../module.f.js`.
  *
  * Each layer is zero or more `(op, operand)` rounds, the operand {@link
  * unary} followed by every layer below it, so `1 + 2 * 3` nests as
@@ -861,7 +861,7 @@ const tail = [...eagerTail, circuitTail, conditionalTail]
  * A function after its `(`, where the list is the rest parameter or empty:
  * that list, the `)`, `=>` and the body. JavaScript requires the `=>` on
  * the line of the `)`, which is a fact of the `=>` token the reader in
- * `../module.f.mjs` checks, trivia being no symbol here. The rest
+ * `../module.f.js` checks, trivia being no symbol here. The rest
  * parameter is the arguments array, and the body names it
  * and nothing outside — which names it may use is the fold's to say, since
  * a name is a word the grammar does not see. A function with no parameter
@@ -885,7 +885,7 @@ export const func = [parameters, sym(')'), sym('=>'), body]
  *
  * `=>` decides it in one symbol. JavaScript's `[no LineTerminator here]`
  * before `=>` is no shape of this rule: `a\n.b` and `a\n=> 1` are read
- * alike, and the reader in `../module.f.mjs` refuses the second at the
+ * alike, and the reader in `../module.f.js` refuses the second at the
  * `=>`, whose `newline` says a line break stood before it, as JavaScript
  * refuses it.
  *
@@ -1098,7 +1098,7 @@ export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')
  * of what follows: `;` begins no statement and no statement's
  * continuation, so one symbol of lookahead still decides. Whether the
  * token after an omitted `;` begins a line is the token's to say,
- * `newline` in `ModuleTokenWithMetadata`, and the reader in `../module.f.mjs`
+ * `newline` in `ModuleTokenWithMetadata`, and the reader in `../module.f.js`
  * refuses the same-line case JavaScript refuses.
  *
  * @type {End}
@@ -1398,7 +1398,7 @@ export const blockContents = repeatFrom0(loopStatement)
  * there ends the statement by automatic semicolon insertion, so `return`
  * and the value on two lines would return `undefined` in JavaScript and
  * this value here. The grammar reads the value either way, trivia being
- * no symbol of it, and the reader in `../module.f.mjs` refuses the value
+ * no symbol of it, and the reader in `../module.f.js` refuses the value
  * whose first token began a line — the same way it refuses an `=>` after
  * one, {@link func}.
  *

@@ -483,7 +483,7 @@ module linkage requires an export" is the reach of the rule, not an example of
 it. A `const` that is never exported reaches no emitted declaration and no
 consumer, so it has nothing to disclaim and takes no prefix: `toNode` and
 `accessed` in
-[`fjs/compiler/parser`](./compiler/parser/module.f.mjs) are the
+[`fjs/compiler/parser`](./compiler/parser/module.f.js) are the
 ordinary shape, beside the exported `_Frame` and `_UnaryFrame` in its
 [`private.ts`](./compiler/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
