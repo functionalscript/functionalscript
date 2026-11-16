@@ -1172,14 +1172,12 @@ const valueCall = (lowerValue, scope, callee, items) => {
     }
     return settled(lowerValue, scope, [callee, ...plain], (s, [f, ...xs]) => {
         // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
-        const typedF = typeOf(s.ir)(f)
-        if (typedF[0] === 'error') { return typedF }
-        const ft = typedF[1]
+        const typed = okList([f, ...xs].map(x => typeOf(s.ir)(x)))
+        if (typed[0] === 'error') { return typed }
+        const [ft, ...ats] = typed[1]
         const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
         if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
-        const typed = okList(xs.map(x => typeOf(s.ir)(x)))
-        if (typed[0] === 'error') { return typed }
-        const boxed = okList(typed[1].map((t, i) => {
+        const boxed = okList(ats.map((t, i) => {
             const y = asAny(t, xs[Number(i)])
             return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
         }))
