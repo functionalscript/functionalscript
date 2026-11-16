@@ -145,7 +145,7 @@
  * @import { _Context, _Errors, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.js'
+import { assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
@@ -337,13 +337,12 @@ const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v
  * @type {(scope: _Scope, a: Term, b: Term) => readonly [Term, Term]}
  */
 const aligned = (scope, a, b) => {
-    // Skip arms that typeOf cannot place yet (a bare `next` of a loop still
-    // open, a `return` outside its label): leave them for the checker.
-    const ta = typeOf(scope.ir)(a)
-    const tb = typeOf(scope.ir)(b)
-    if (ta[0] === 'error' || tb[0] === 'error') { return [a, b] }
-    const left = isAny(tb[1]) ? asAny(ta[1], a) : a
-    const right = isAny(ta[1]) ? asAny(tb[1], b) : b
+    // Transfer arms (`br` / `trap`) never reach here; every other arm that
+    // the lowering made is typed under `scope.ir`.
+    const ta = assertOk(typeOf(scope.ir)(a))
+    const tb = assertOk(typeOf(scope.ir)(b))
+    const left = isAny(tb) ? asAny(ta, a) : a
+    const right = isAny(ta) ? asAny(tb, b) : b
     if (left === null || right === null) { return [a, b] }
     return [left, right]
 }
@@ -1144,9 +1143,7 @@ const valueCall = (lowerValue, scope, callee, items) => {
     }
     if (spreads.length === 1) {
         return settled(lowerValue, scope, [callee, spreads[0]], (s, [f, args]) => {
-            const types = okList([f, args].map(x => typeOf(s.ir)(x)))
-            if (types[0] === 'error') { return types }
-            const [ft, at] = types[1]
+            const [ft, at] = assertOk(okList([f, args].map(x => typeOf(s.ir)(x))))
             const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
             const aHeld = at[0] === 'sealed' ? at[3] ?? kinds : []
             if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
@@ -1159,13 +1156,11 @@ const valueCall = (lowerValue, scope, callee, items) => {
         })
     }
     return settled(lowerValue, scope, [callee, ...plain], (s, [f, ...xs]) => {
-        const ft = typeOf(s.ir)(f)
-        if (ft[0] === 'error') { return ft }
-        const fHeld = ft[1][0] === 'sealed' ? ft[1][3] ?? kinds : []
-        if (!fHeld.includes('function')) { return no(`a call of ${show(ft[1])} is not in this slice: only a function's is`) }
-        const typed = okList(xs.map(x => typeOf(s.ir)(x)))
-        if (typed[0] === 'error') { return typed }
-        const boxed = okList(typed[1].map((t, i) => {
+        const ft = assertOk(typeOf(s.ir)(f))
+        const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
+        if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
+        const typed = assertOk(okList(xs.map(x => typeOf(s.ir)(x))))
+        const boxed = okList(typed.map((t, i) => {
             const y = asAny(t, xs[Number(i)])
             return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
         }))
