@@ -9,7 +9,7 @@ import { exitCode } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
-import { rustdocHead } from '../cargo-doc/module.f.mjs'
+import { rustdocHead } from '../cargo-doc/module.f.js'
 import { rustdocStylesheet } from '../style/module.f.js'
 import { main } from './module.f.mjs'
 

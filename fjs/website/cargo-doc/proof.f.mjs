@@ -2,7 +2,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { productionOrigin } from '../origin/module.f.js'
-import { cargoDocHref, cargoDocPage, crateHref, crateOf, pageUrlMarker, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader, withPageUrl } from './module.f.mjs'
+import { cargoDocHref, cargoDocPage, crateHref, crateOf, pageUrlMarker, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader, withPageUrl } from './module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'

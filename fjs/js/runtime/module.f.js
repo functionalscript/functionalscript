@@ -15,9 +15,10 @@
  * `statics` holds the static functions by id, the path
  * [`../static`](../static/module.f.js) admits joined by `.` as the EDAG
  * spells the node, `Object.is`, each a function of the arguments alone.
- * Each body is a VM's and no module's: a module calls the built-in,
- * `Object.is` or `Number.isInteger`, and every executor answers it from
- * here, so nothing else exports the body. A name without a body is absent
+ * A module calls the built-in, `Object.is` or `Number.isInteger`, and
+ * every executor answers it from here. A body shared with an ordinary
+ * library, such as the URI-component encoder, is imported once rather
+ * than implemented again. A name without a body is absent
  * — a primitive no body can define in terms of the rest, or a name whose
  * body waits on a primitive the language has not admitted yet,
  * [`README.md`](./README.md) says which — and each VM answers it from its
@@ -55,6 +56,7 @@ import { refMap } from '../ref_map/module.f.js'
 import { map as arrayMap } from '../members/array/map/module.f.js'
 import { concat as arrayConcat } from '../members/array/concat/module.f.js'
 import { concat as stringConcat } from '../members/string/concat/module.f.js'
+import { encodeUriComponent } from '../../text/percent/encode_uri_component/module.f.js'
 
 /** The native enumerator, shared by its own static entry and the keys and values bodies. */
 const ownEntries = Object.entries
@@ -396,6 +398,7 @@ export const member = {
  * that every admitted id holds a value and the table is complete.
  */
 export const statics = {
+    encodeURIComponent: encodeUriComponent,
     'Object.is': is,
     'Object.entries': ownEntries,
     'Object.keys': keys,

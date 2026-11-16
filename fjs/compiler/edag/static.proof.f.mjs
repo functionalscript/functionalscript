@@ -35,6 +35,23 @@ const commonRuntime = () => {
 const executeWithRuntime = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [], runtime: commonRuntime() }))))
 
 export const proof = {
+    uriComponent: () => {
+        expectEdag(compile('export default encodeURIComponent("a b");').edag, ['()', ['encodeURIComponent'], ['a b']])
+        const shared = compile('const encode = encodeURIComponent; export default [encode, encodeURIComponent];').edag
+        expectEdag(shared, ['[]', [['encodeURIComponent'], ['encodeURIComponent']]])
+        const run = memo(assertOk(analysis(shared)))
+        assertEq(assertError(run({ args: [] })), 'no binding for the static encodeURIComponent')
+        assertStructurallySame(executeWithRuntime(compile('const encode = encodeURIComponent; const read = () => encodeURIComponent; export default [encode("a b/雪😀"), encodeURIComponent?.(), ["a b", "/", "雪"].map(encodeURIComponent), encode === read(), read() === read(), encode.length, typeof encode, String(encode), encode(1n, "ignored")];').edag),
+            ['a%20b%2F%E9%9B%AA%F0%9F%98%80', 'undefined', ['a%20b', '%2F', '%E9%9B%AA'], true, true, 1, 'function', 'function encodeURIComponent() { [native code] }', '1'])
+        const malformed = memo(assertOk(analysis(compile('export default encodeURIComponent("\\ud800");').edag)))
+        assertError(malformed({ args: [], runtime: commonRuntime() }))
+    },
+    numberLimits: () => {
+        const expected = (2 - 2 ** -52) * 2 ** 1023
+        expectEdag(compile('export default Number.MAX_VALUE;').edag, expected)
+        assertStructurallySame(execute(compile('const { MAX_VALUE: max } = Number; export default [max, Number["MAX_VALUE"], max / 2, max * 2, Number.MAX_SAFE_INTEGER];').edag),
+            [expected, expected, expected / 2, Infinity, 0x1f_ffff_ffff_ffff])
+    },
     mathFround: () => {
         expectEdag(compile('export default Math.fround(1.337);').edag, ['()', ['Math.fround'], [1.337]])
         expectEdag(compile('const { fround } = Math; export default [fround, Math["fround"], fround.length];').edag,

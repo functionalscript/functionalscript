@@ -23,7 +23,7 @@
       reasoning is [`../README.md`](../README.md))
 - [x] One header on every page: the logo and the name, Releases, GitHub, and
       on a preview its branch and commit (`header` in
-      `fjs/website/page/module.f.mjs`; the reasoning is
+      `fjs/website/page/module.f.js`; the reasoning is
       [`../README.md`](../README.md))
 - [x] Decide what the build owes its own leftovers: nothing — `git clean -Xd`
       already removes a stale generated page, so the fix is a note where the

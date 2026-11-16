@@ -41,11 +41,12 @@
  * `String.fromCharCode` for native UTF-16 construction,
  * the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
- * the common-runtime functions `Math.log2` and `Math.fround`, and native
+ * the common-runtime functions `encodeURIComponent`, `Math.log2` and `Math.fround`, and native
  * numeric functions `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`,
  * `Math.imul`, `Math.max` and `Math.min`.
  */
 export const statics = /** @type {const} */ ([
+    ['encodeURIComponent'],
     ['Object', 'is'],
     ['Object', 'entries'],
     ['Object', 'keys'],

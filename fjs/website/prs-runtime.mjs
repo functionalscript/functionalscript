@@ -18,7 +18,7 @@
 
 import { toDom } from '../media/html/module.mjs'
 import { parse } from '../rtti/parse/module.f.js'
-import { checksSchema, checkSummary, pullsSchema, row, statusesSchema } from './prs/module.f.mjs'
+import { checksSchema, checkSummary, pullsSchema, row, statusesSchema } from './prs/module.f.js'
 import { checkFailure, finishedNote, hasNextLink, listFailure, pageRequest, pageStep, refreshStart, refusalDecision, refusalNote, responseMessages, transportFailure, unavailableLabel, unavailableMessage, workerCount } from './prs/load/module.f.js'
 
 const api = 'https://api.github.com/repos/functionalscript/functionalscript'

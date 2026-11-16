@@ -1,6 +1,6 @@
 /**
  * The screenshot step: each card page the generator wrote
- * ([`./card`](./card/module.f.mjs)), taken by headless Chromium as the card
+ * ([`./card`](./card/module.f.js)), taken by headless Chromium as the card
  * image its page's `og:image` names.
  *
  * Run from the repository root after `npm run website`:
@@ -27,8 +27,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { extname, join, resolve, sep } from 'node:path'
-import { cardPagePath, cardSize, cardsPath } from './card/module.f.mjs'
-import { cardImageName, urlPath } from './page/module.f.mjs'
+import { cardPagePath, cardSize, cardsPath } from './card/module.f.js'
+import { cardImageName, urlPath } from './page/module.f.js'
 import { concat as pathConcat } from '../path/module.f.js'
 
 /** @type {Readonly<Record<string, string>>} */

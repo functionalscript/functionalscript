@@ -46,7 +46,7 @@ import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 import { basename, concat as pathConcat, escapes, normalize, parent } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
-import { fileHref, pageHref } from '../page/module.f.mjs'
+import { fileHref, pageHref } from '../page/module.f.js'
 import { highlight, tsHighlight } from '../demo/highlight/module.f.js'
 import { flowchartSvg } from '../mermaid/module.f.js'
 import { codeBlock } from '../demo/code/module.f.js'
@@ -286,31 +286,31 @@ export const readmeNodes = href => blocks => {
         return error('a second `#` title, which would give the page a second heading')
     }
     const ids = anchors(blocks)
-    /** @type {(span: Inline) => Result<Node, string>} */
-    const node = span => {
-        const kind = span[0]
-        if (kind === 'code') { return ok(['code', span[1]]) }
-        if (kind === 'strong' || kind === 'em' || kind === 'del') {
-            const inner = nodes(span[1])
-            return inner[0] === 'error' ? inner : ok([kind, ...inner[1]])
-        }
-        if (kind === 'image') { return imageNode(span) }
-        if (kind === 'link') {
-            const target = href(span[2])
-            if (target[0] === 'error') { return target }
-            /** @type {readonly Node[]} */
-            let label = []
-            for (const l of span[1]) {
-                const n = l[0] === 'image' ? imageNode(l) : ok(labelNode(l))
-                if (n[0] === 'error') { return n }
-                label = [...label, n[1]]
-            }
-            return ok(['a', { href: target[1] }, ...label])
-        }
-        return ok(span[1])
-    }
     /** @type {(spans: readonly Inline[]) => Result<readonly Node[], string>} */
     const nodes = spans => {
+        /** @type {(span: Inline) => Result<Node, string>} */
+        const node = span => {
+            const kind = span[0]
+            if (kind === 'code') { return ok(['code', span[1]]) }
+            if (kind === 'strong' || kind === 'em' || kind === 'del') {
+                const inner = nodes(span[1])
+                return inner[0] === 'error' ? inner : ok([kind, ...inner[1]])
+            }
+            if (kind === 'image') { return imageNode(span) }
+            if (kind === 'link') {
+                const target = href(span[2])
+                if (target[0] === 'error') { return target }
+                /** @type {readonly Node[]} */
+                let label = []
+                for (const l of span[1]) {
+                    const n = l[0] === 'image' ? imageNode(l) : ok(labelNode(l))
+                    if (n[0] === 'error') { return n }
+                    label = [...label, n[1]]
+                }
+                return ok(['a', { href: target[1] }, ...label])
+            }
+            return ok(span[1])
+        }
         /** @type {readonly Node[]} */
         let read = []
         for (const span of spans) {

@@ -26,7 +26,7 @@
 import { assert } from '../../../asserts/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
-import { encodeURIComponent } from '../../../text/percent/module.f.js'
+import { encodeUriComponent } from '../../../text/percent/module.f.js'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.js'
 import {
     admitsAbsence,
@@ -105,7 +105,7 @@ export const unknown = _unknownThunk
 const refEncode = name => {
     let result = ''
     for (const c of name) {
-        result += c === '~' ? '~0' : c === '/' ? '~1' : encodeURIComponent(c)
+        result += c === '~' ? '~0' : c === '/' ? '~1' : encodeUriComponent(c)
     }
     return result
 }

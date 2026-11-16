@@ -156,55 +156,62 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         }
     })
     const rootContext = { target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'arg' ? node[1] + 1 : 0)), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
-    /** @type {(context: Context, bound: readonly number[], value: Operand, done: Done<Value>) => Work} */
-    const valueOf = (context, bound, value, done) => () => {
-        if (!(value instanceof Array)) { return deliver(done, value) }
-        const i = value[1]
-        if (bound.includes(i)) { return deliver(done, ['ref', ids[Number(i)]]) }
-        if (context.regions.includes(i)) {
-            return region(context, bound, [value], block => deliver(done, block.statements.length === 0 && block.exit[0] === 'yield'
-                ? block.exit[1][0] : ['block', block]))
-        }
-        const node = a.nodes[Number(i)]
-        switch (node[0]) {
-            case 'undefined': { return deliver(done, undefined) }
-            case 'arg': { return deliver(done, ['ref', context.parameters[Number(node[1])]]) }
-            case 'rest': { return deliver(done, ['ref', context.rest]) }
-            case 'args': { return deliver(done, ['ref', invocation.args ?? rootContext.rest]) }
-            case 'self': { return deliver(done, ['ref', context.self]) }
-            case 'frame': { return deliver(done, ['ref', context.captures[Number(node[1])]]) }
-            case '=>': {
-                const captures = node[2].flatMap(value => value instanceof Array && !bound.includes(value[1]) && !isRead(a.nodes[Number(value[1])]) ? [value[1]] : [])
-                return gather(captures, (capture, _, next) => valueOf(context, bound, ['#', capture], value => deliver(next, /** @type {Statement} */ (['define', ids[Number(capture)], value, 'required']))), statements =>
-                    functionOf(context, [...bound, ...captures], i, fn => deliver(done, statements.length === 0 ? ['function', fn]
-                        : ['block', { statements, exit: ['yield', [['function', fn]]] }])))
-            }
-            case ',': { return region(context, bound, node[1], block => deliver(done, ['block', block])) }
-            case 'throw': { return valueOf(context, bound, node[1], value => deliver(done, ['block', { statements: [], exit: ['throw', value] }])) }
-            case '?:': {
-                return valueOf(context, bound, node[1], condition => region(context, bound, [node[2]], then => region(context, bound, [node[3]], otherwise => deliver(done, ['if', condition, then, otherwise]))))
-            }
-            default: {
-                const operator = graphOperator(a, node)
-                const operands = operatorOperands(operator)
-                const eagerCount = eagerOperands(node).length - (node[0] === '.' && !(node[2] instanceof Array) ? 1 : 0)
-                /** @type {(available: readonly number[], statements: readonly Statement[]) => Work} */
-                const construct = (available, statements) => gather(operands, (operand, position, next) => position >= eagerCount
-                    ? region(context, available, [operand], block => deliver(next, /** @type {Value} */ (['block', block])))
-                    : valueOf(context, available, operand, next), values => {
-                    const value = mapOperator((_, index) => values[Number(index)])(operator)
-                    return deliver(done, statements.length === 0 ? value : ['block', { statements, exit: ['yield', [value]] }])
-                })
-                const callee = node[0] === '()' || node[0] === '?.()' ? node[1] : null
-                return callee instanceof Array && !bound.includes(callee[1]) && !isRead(a.nodes[Number(callee[1])])
-                    ? valueOf(context, bound, callee, value => construct([...bound, callee[1]], [['define', ids[Number(callee[1])], value, 'required']]))
-                    : construct(bound, [])
-            }
-        }
-    }
-
     /** @type {(context: Context, bound: readonly number[], roots: readonly Operand[], done: Done<Block>) => Work} */
     const region = (context, bound, roots, done) => () => {
+        /** @type {(context: Context, bound: readonly number[], value: Operand, done: Done<Value>) => Work} */
+        const valueOf = (context, bound, value, done) => () => {
+            if (!(value instanceof Array)) { return deliver(done, value) }
+            const i = value[1]
+            if (bound.includes(i)) { return deliver(done, ['ref', ids[Number(i)]]) }
+            if (context.regions.includes(i)) {
+                return region(context, bound, [value], block => deliver(done, block.statements.length === 0 && block.exit[0] === 'yield'
+                    ? block.exit[1][0] : ['block', block]))
+            }
+            const node = a.nodes[Number(i)]
+            switch (node[0]) {
+                case 'undefined': { return deliver(done, undefined) }
+                case 'arg': { return deliver(done, ['ref', context.parameters[Number(node[1])]]) }
+                case 'rest': { return deliver(done, ['ref', context.rest]) }
+                case 'args': { return deliver(done, ['ref', invocation.args ?? rootContext.rest]) }
+                case 'self': { return deliver(done, ['ref', context.self]) }
+                case 'frame': { return deliver(done, ['ref', context.captures[Number(node[1])]]) }
+                case '=>': {
+                    /** @type {(outer: Context, bound: readonly number[], i: number, done: Done<FastFunction>) => Work} */
+                    const functionOf = (outer, bound, i, done) => () => {
+                        const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[Number(i)])
+                        const context = contexts[Number(i)]
+                        const body = assertNotNullish(at(String(i))(outer.functions))
+                        return gather(node[2], (value, k, next) => valueOf(outer, bound, value, value => deliver(next, { binding: context.captures[Number(k)], value })), captures =>
+                            deliver(done, { parameters: body.parameters, rest: body.rest, self: body.self, body: body.body, target: context.target, captures }))
+                    }
+                    const captures = node[2].flatMap(value => value instanceof Array && !bound.includes(value[1]) && !isRead(a.nodes[Number(value[1])]) ? [value[1]] : [])
+                    return gather(captures, (capture, _, next) => valueOf(context, bound, ['#', capture], value => deliver(next, /** @type {Statement} */ (['define', ids[Number(capture)], value, 'required']))), statements =>
+                        functionOf(context, [...bound, ...captures], i, fn => deliver(done, statements.length === 0 ? ['function', fn]
+                            : ['block', { statements, exit: ['yield', [['function', fn]]] }])))
+                }
+                case ',': { return region(context, bound, node[1], block => deliver(done, ['block', block])) }
+                case 'throw': { return valueOf(context, bound, node[1], value => deliver(done, ['block', { statements: [], exit: ['throw', value] }])) }
+                case '?:': {
+                    return valueOf(context, bound, node[1], condition => region(context, bound, [node[2]], then => region(context, bound, [node[3]], otherwise => deliver(done, ['if', condition, then, otherwise]))))
+                }
+                default: {
+                    const operator = graphOperator(a, node)
+                    const operands = operatorOperands(operator)
+                    const eagerCount = eagerOperands(node).length - (node[0] === '.' && !(node[2] instanceof Array) ? 1 : 0)
+                    /** @type {(available: readonly number[], statements: readonly Statement[]) => Work} */
+                    const construct = (available, statements) => gather(operands, (operand, position, next) => position >= eagerCount
+                        ? region(context, available, [operand], block => deliver(next, /** @type {Value} */ (['block', block])))
+                        : valueOf(context, available, operand, next), values => {
+                        const value = mapOperator((_, index) => values[Number(index)])(operator)
+                        return deliver(done, statements.length === 0 ? value : ['block', { statements, exit: ['yield', [value]] }])
+                    })
+                    const callee = node[0] === '()' || node[0] === '?.()' ? node[1] : null
+                    return callee instanceof Array && !bound.includes(callee[1]) && !isRead(a.nodes[Number(callee[1])])
+                        ? valueOf(context, bound, callee, value => construct([...bound, callee[1]], [['define', ids[Number(callee[1])], value, 'required']]))
+                        : construct(bound, [])
+                }
+            }
+        }
         const only = roots.length === 1 ? roots[0] : undefined
         const node = only instanceof Array && !bound.includes(only[1]) ? a.nodes[Number(only[1])] : null
         if (node !== null && node[0] === ',') { return region(context, bound, node[1], done) }
@@ -271,7 +278,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         let reached = []
         /** @type {readonly { binding: BindingId, value: Operand, own: number | null }[]} */
         let ordered = []
-        for (const [position, root] of roots.entries()) {
+        for (const [position, root] of roots.map((root, position) => /** @type {const} */ ([position, root]))) {
             const exp = root instanceof Array ? a.exps[Number(root[1])] : root
             const eagerHere = reachable(a, eagerOperands, bound)([root])
             const allHere = reachable(a, ownOperandsOf, bound)([root])
@@ -376,14 +383,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             })
         })
     }
-    /** @type {(outer: Context, bound: readonly number[], i: number, done: Done<FastFunction>) => Work} */
-    const functionOf = (outer, bound, i, done) => () => {
-        const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[Number(i)])
-        const context = contexts[Number(i)]
-        const body = assertNotNullish(at(String(i))(outer.functions))
-        return gather(node[2], (value, k, next) => valueOf(outer, bound, value, value => deliver(next, { binding: context.captures[Number(k)], value })), captures =>
-            deliver(done, { parameters: body.parameters, rest: body.rest, self: body.self, body: body.body, target: context.target, captures }))
-    }
+    /** @type {Block | null} */
+    let result = null
     /** Graph entries are in operand postorder, including nested function bodies. @type {(index: number, functions: Context['functions']) => Work} */
     const prepareFunctions = (index, functions) => () => {
         if (index === count) {
@@ -396,8 +397,6 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             ? functionBody(index, functions, body => prepareFunctions(index + 1, setReplace(String(index))(body)(functions)))
             : prepareFunctions(index + 1, functions)
     }
-    /** @type {Block | null} */
-    let result = null
     /** @type {Work | null} */
     let work = prepareFunctions(0, null)
     while (work !== null) { work = work() }

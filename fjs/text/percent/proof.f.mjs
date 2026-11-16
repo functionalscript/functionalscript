@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.js'
-import { encodeURIComponent as encodeUriComponent, percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.js'
+import { encodeUriComponent, percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { codeUnitToString } from '../utf16/module.f.js'
 

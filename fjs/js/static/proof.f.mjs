@@ -8,7 +8,11 @@ export const proof = {
     // namespace, the global called as a function and the converting global
     // `isNaN` are not.
     isStatic: () => {
-        assertEq(statics.length, 20)
+        assertEq(statics.length, 21)
+        assertEq(isStatic(['encodeURIComponent']), true)
+        assertEq(isStatic(['encodeURIComponent', '']), false)
+        assertEq(isStatic(['encodeURIComponent', 'length']), false)
+        assertEq(isStatic(['Number', 'MAX_VALUE']), false)
         for (const path of [['String', 'fromCharCode'], ['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['Object', 'values'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2'], ['Math', 'trunc'], ['Math', 'floor'], ['Math', 'abs'], ['Math', 'sqrt'], ['Math', 'ceil'], ['Math', 'imul'], ['Math', 'max'], ['Math', 'min'], ['Math', 'fround']]) {
             assertEq(isStatic(path), true)
         }
@@ -20,6 +24,7 @@ export const proof = {
     // are native, admitted and bodiless; every other
     // admitted path has a body, and a path no list holds is native nowhere.
     isNative: () => {
+        assertEq(isNative(['encodeURIComponent']), false)
         assertEq(natives.length, 10)
         assertEq(isNative(['Object', 'entries']), true)
         assertEq(isNative(['String', 'fromCharCode']), true)

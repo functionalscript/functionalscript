@@ -7,7 +7,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { element } from '../../media/html/module.f.js'
 import { parse } from '../../rtti/parse/module.f.js'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { checkSummary, checksSchema, prsPage, pullsSchema, row, statusesSchema } from './module.f.mjs'
+import { checkSummary, checksSchema, prsPage, pullsSchema, row, statusesSchema } from './module.f.js'
 
 /** The values are literal so the proof pins the provider's vocabulary. */
 const pull = /** @type {const} */ ({

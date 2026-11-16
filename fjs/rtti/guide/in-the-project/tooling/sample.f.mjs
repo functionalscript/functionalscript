@@ -13,7 +13,7 @@ import { projectSchema } from '../../../schema-demo/module.f.mjs'
 import { gitHubActionSchema } from '../../../../ci/common/module.f.js'
 import { jobTimeout } from '../../../../ci/config/module.f.js'
 import { fundingSchema } from '../../../../website/funding/module.f.js'
-import { pullsSchema } from '../../../../website/prs/module.f.mjs'
+import { pullsSchema } from '../../../../website/prs/module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [
@@ -35,7 +35,7 @@ export const lessons = [
         id: 'open-pull-requests',
         name: 'Open pull requests',
         about: 'The open pull requests as the site\'s PR page reads them from the GitHub API. open() at every object, so a field GitHub adds does not change what the page accepts; user is null for a deleted account.',
-        schemas: projectSchema('pullsSchema', 'website/prs/module.f.mjs', pullsSchema),
+        schemas: projectSchema('pullsSchema', 'website/prs/module.f.js', pullsSchema),
         value: 'export default [{"number":3174,"user":{"login":"sasha-gil"},"draft":false,"head":{"sha":"bb979ee"},"title":"rtti: review fixes"}];',
     },
 ]

@@ -44,7 +44,7 @@
  * @example
  *
  * ```js
- * import { data } from './module.f.mjs'
+ * import { data } from './module.f.js'
  *
  * data.groups.length // 74
  * ```
@@ -270,6 +270,9 @@ export const callbackExp = name => functionExp(assertNotNullish(entry(callbacks,
  */
 export const unreachedExp = () => ['/', 1n, 0n]
 
+/** Function bodies and expected values cannot reference shared nodes. @type {(name: string) => never} */
+const noShared = name => { throw ['no shared value here', name] }
+
 /**
  * Lowers a value to the EDAG expression that denotes it.
  *
@@ -292,7 +295,7 @@ const constExp = resolve => fromValue(v => {
     return info[0] === 'ref' ? resolve(info[1])
         : info[0] === 'function' ? lambdaExp()
         : info[0] === 'callback' ? callbackExp(info[1])
-        : info[0] === 'returns' ? functionExp(valueExp(info[1]))
+        : info[0] === 'returns' ? functionExp(constExp(noShared)(info[1]))
         : unreachedExp()
 })
 
@@ -303,48 +306,7 @@ const constExp = resolve => fromValue(v => {
  *
  * @type {(v: Value) => Exp}
  */
-export const valueExp = constExp(name => { throw ['no shared value here', name] })
-
-/**
- * The expression a case denotes: the group's operation applied to its lowered
- * operands, so `mulCases[0]` is `['*', null, null]`.
- *
- * The shared nodes come first because an operand may be a `ref` to one, and
- * two `ref`s to a name must lower to one node rather than two equal ones —
- * which is the whole of what the `'==='` group's `byItself` cases assert.
- * Both consumers hand over the corpus's nodes for every group alike. A
- * group with no `ref` among its operands reaches none of them, which is what
- * makes that uniform rather than wasteful.
- *
- * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
- */
-export const caseExp = shared => g => args => {
-    if (hasEntry(g, 'method')) { return methodExp(valuesExp(shared))(g.method)(args) }
-    // The operand count comes from the group, not from the operands. A
-    // `Case<N>` cannot carry the wrong number, but this function is exported
-    // and its `args` are a plain array, so a caller can hand over a count the
-    // operation does not take — refused here rather than answered with a node
-    // that fails the `exp` schema.
-    const n = arityOf(g)
-    if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
-    const [a, b, c] = args.map(valuesExp(shared))
-    // the constructor name is the group's, carried into the node as it is
-    if (hasEntry(g, 'name')) { return ['instanceof', a, assertNotNullish(entry(g, 'name'))] }
-    // and so is the key of an `in`
-    if (hasEntry(g, 'key')) { return ['in', g.key, a] }
-    if (g.op === '&&' || g.op === '||' || g.op === '??') { return logicalExp(g.op, a, b) }
-    // `n` decides which vocabularies the tag can be in, and the check above
-    // makes that agree with the operands. The casts are that step and nothing
-    // more: an `Op12Id` is legal at either of the first two counts, so it is
-    // in both.
-    /** @type {Op1 | Op2 | Op12 | Op3} */
-    const e = n === 1
-        ? [/** @type {Op1Id | Op12Id} */ (g.op), a]
-        : n === 2
-            ? [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
-            : [/** @type {Op3Id} */ (g.op), a, b, c]
-    return e
-}
+export const valueExp = constExp(noShared)
 
 /**
  * The expression a method case denotes: the call `receiver.method(...rest)`
@@ -407,6 +369,47 @@ export const sharedExp = shared => entries(shared).reduce(
  * @type {(shared: readonly SharedNode[]) => (v: Value) => Exp}
  */
 export const valuesExp = shared => constExp(resolve(shared))
+
+/**
+ * The expression a case denotes: the group's operation applied to its lowered
+ * operands, so `mulCases[0]` is `['*', null, null]`.
+ *
+ * The shared nodes come first because an operand may be a `ref` to one, and
+ * two `ref`s to a name must lower to one node rather than two equal ones —
+ * which is the whole of what the `'==='` group's `byItself` cases assert.
+ * Both consumers hand over the corpus's nodes for every group alike. A
+ * group with no `ref` among its operands reaches none of them, which is what
+ * makes that uniform rather than wasteful.
+ *
+ * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
+ */
+export const caseExp = shared => g => args => {
+    if (hasEntry(g, 'method')) { return methodExp(valuesExp(shared))(g.method)(args) }
+    // The operand count comes from the group, not from the operands. A
+    // `Case<N>` cannot carry the wrong number, but this function is exported
+    // and its `args` are a plain array, so a caller can hand over a count the
+    // operation does not take — refused here rather than answered with a node
+    // that fails the `exp` schema.
+    const n = arityOf(g)
+    if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
+    const [a, b, c] = args.map(valuesExp(shared))
+    // the constructor name is the group's, carried into the node as it is
+    if (hasEntry(g, 'name')) { return ['instanceof', a, assertNotNullish(entry(g, 'name'))] }
+    // and so is the key of an `in`
+    if (hasEntry(g, 'key')) { return ['in', g.key, a] }
+    if (g.op === '&&' || g.op === '||' || g.op === '??') { return logicalExp(g.op, a, b) }
+    // `n` decides which vocabularies the tag can be in, and the check above
+    // makes that agree with the operands. The casts are that step and nothing
+    // more: an `Op12Id` is legal at either of the first two counts, so it is
+    // in both.
+    /** @type {Op1 | Op2 | Op12 | Op3} */
+    const e = n === 1
+        ? [/** @type {Op1Id | Op12Id} */ (g.op), a]
+        : n === 2
+            ? [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
+            : [/** @type {Op3Id} */ (g.op), a, b, c]
+    return e
+}
 
 /**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
