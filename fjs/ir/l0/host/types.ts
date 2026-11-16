@@ -35,10 +35,11 @@ export type View = {
  * its handle. The memory that the host makes holds a module's data
  * segments at `data_base`, from which `make_string` makes a cell of a
  * string of the UTF-16 units at an address. A builder is an `i32` handle:
- * `begin_array` makes one of a number of items, `push` takes over a cell
- * as its next item, and `seal` ends it and makes a cell of the array.
- * `throw` takes over a cell, keeps its value and returns, so that the
- * `unreachable` after its call traps.
+ * `begin_array` makes one of a number of items, `begin_object` one of a
+ * number of properties, `push` or `push_property` takes over a cell as its
+ * next item or property, and `seal` ends it and makes a cell of the array
+ * or the object. `throw` takes over a cell, keeps its value and returns,
+ * so that the `unreachable` after its call traps.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
@@ -61,7 +62,9 @@ export type Imports = {
     readonly substring: (s: bigint, start: number, end: number) => bigint
     readonly item: (c: bigint, i: number) => bigint
     readonly begin_array: (n: number) => number
+    readonly begin_object: (n: number) => number
     readonly push: (b: number, v: bigint) => void
+    readonly push_property: (b: number, k: bigint, v: bigint) => void
     readonly seal: (b: number) => bigint
     readonly throw: (v: bigint) => void
 }
@@ -86,6 +89,8 @@ export type Counting = {
     readonly thrown: () => bigint
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
     readonly read: (h: bigint) => unknown
+    /** A cell of `value`, counted once, which the caller owns. */
+    readonly own: (value: unknown) => bigint
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
     readonly builders: () => readonly number[]

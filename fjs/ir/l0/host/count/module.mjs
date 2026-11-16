@@ -20,14 +20,18 @@
  *   `init` for its constants. `live` then tells what a call changed: a cell
  *   that is not kept and is alive, and a kept one at another count, `0`
  *   where it was freed.
- * - **A builder is a handle of its own**, an `i32` that names an array
- *   that is not sealed yet
+ * - **A builder is a handle of its own**, an `i32` that names an array or
+ *   an object that is not sealed yet
  *   ([L0 design §8](../../../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
- *   `begin_array(n)` begins one of `n` items, `push` takes over a cell as
- *   its next item, a count of it that a `drop` would take away, and `seal`
- *   ends the builder and makes a cell of the array, which the caller owns.
- *   A push past `n` items, a seal of fewer, and a handle of no builder, or
- *   of one that is sealed, throw. `builders` tells which are not sealed.
+ *   `begin_array(n)` begins one of `n` items and `begin_object(n)` one of
+ *   `n` properties, `push` or `push_property` takes over a cell as its next
+ *   item or property (and the key, a string), a count of it that a `drop`
+ *   would take away, and `seal` ends the builder and makes a cell of the
+ *   array or the object, which the caller owns
+ *   ([§9](../../../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered):
+ *   a repeated key keeps its first position and its last value). A push
+ *   past `n` items, a seal of fewer, and a handle of no builder, or of one
+ *   that is sealed, throw. `builders` tells which are not sealed.
  * - **A throw keeps its value**
  *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   `throw` takes over a cell, as `push` does, keeps its value and
@@ -107,14 +111,27 @@ export const counting = (values, data = 0) => {
             cells.set(h, { value, count: count - 1 })
         }
     }
-    /** The builders that are not sealed: how many items each takes, and those it has. @type {Map<number, { readonly length: number, readonly items: readonly unknown[] }>} */
+    /**
+     * The builders that are not sealed: an array or an object, how many
+     * items each takes, and those it has (for an object, each a key and a
+     * value).
+     *
+     * @type {Map<number, { readonly kind: 'array' | 'object', readonly length: number, readonly items: readonly unknown[] }>}
+     */
     const builders = new Map()
     let nextBuilder = 0
-    /** @type {(b: number) => { readonly length: number, readonly items: readonly unknown[] }} */
+    /** @type {(b: number) => { readonly kind: 'array' | 'object', readonly length: number, readonly items: readonly unknown[] }} */
     const builder = b => {
         const x = builders.get(b)
         if (x === undefined) { throw 'fjs:l0 host: not a builder' }
         return x
+    }
+    /** @type {(kind: 'array' | 'object', n: number) => number} */
+    const begin = (kind, n) => {
+        const b = nextBuilder
+        nextBuilder = b + 1
+        builders.set(b, { kind, length: n, items: [] })
+        return b
     }
     /** A constant of Any: a cell of `value`, named `h`, counted once for the global that holds it, and kept. @type {(h: bigint, value: unknown) => WebAssembly.Global} */
     const constant = (h, value) => {
@@ -153,24 +170,42 @@ export const counting = (values, data = 0) => {
             concat: (a, b) => make(v.concat(a, b)),
             substring: (s, start, end) => make(v.substring(s, start, end)),
             item: (c, i) => make(v.item(c, i)),
-            begin_array: n => {
-                const b = nextBuilder
-                nextBuilder = b + 1
-                builders.set(b, { length: n, items: [] })
-                return b
-            },
+            begin_array: n => begin('array', n),
+            begin_object: n => begin('object', n),
             push: (b, h) => {
-                const { length, items } = builder(b)
+                const { kind, length, items } = builder(b)
+                if (kind !== 'array') { throw 'fjs:l0 host: push of an object builder' }
                 if (items.length >= length) { throw 'fjs:l0 host: push past the length of a builder' }
                 const value = read(h)
                 drop(h)
-                builders.set(b, { length, items: [...items, value] })
+                builders.set(b, { kind, length, items: [...items, value] })
+            },
+            push_property: (b, k, h) => {
+                const { kind, length, items } = builder(b)
+                if (kind !== 'object') { throw 'fjs:l0 host: push_property of an array builder' }
+                if (items.length >= length) { throw 'fjs:l0 host: push_property past the length of a builder' }
+                const key = read(k)
+                if (typeof key !== 'string') { throw 'fjs:l0 host: push_property of a key that is not a string' }
+                const value = read(h)
+                drop(k)
+                drop(h)
+                builders.set(b, { kind, length, items: [...items, [key, value]] })
             },
             seal: b => {
-                const { length, items } = builder(b)
+                const { kind, length, items } = builder(b)
                 if (items.length !== length) { throw 'fjs:l0 host: seal of a builder that is not full' }
                 builders.delete(b)
-                return make(items)
+                if (kind === 'array') { return make(items) }
+                // A repeated key keeps its first position and its last value.
+                /** @type {Map<string, unknown>} */
+                const last = new Map()
+                /** @type {string[]} */
+                const order = []
+                for (const [key, value] of /** @type {readonly (readonly [string, unknown])[]} */ (items)) {
+                    if (!last.has(key)) { order.push(key) }
+                    last.set(key, value)
+                }
+                return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
             },
             throw: h => {
                 if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
@@ -204,6 +239,7 @@ export const counting = (values, data = 0) => {
             return freed
         },
         read,
+        own: make,
         keep: () => {
             for (const [h, { count }] of cells) { kept.set(h, count) }
         },

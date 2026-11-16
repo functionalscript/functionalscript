@@ -15,6 +15,9 @@
  * - **A row of numbers takes and gives floats.** `numberRemainder` is `%`
  *   on two numbers, which WASM has no instruction for. It takes and gives
  *   `f64`s, not values of `any`, so no number is boxed to cross.
+ * - **`numberToString` takes a float and answers an owned string**, the
+ *   decimal spelling of the float, which object spread uses as an index
+ *   key. The caller owns the string, as it owns what L0 makes.
  *
  * These are the rows that the slices read so far. Each joins with its first
  * caller.
@@ -24,7 +27,7 @@
  * @import { Interface } from '../types.ts'
  */
 
-import { any } from '../l0/module.f.js'
+import { any, string } from '../l0/module.f.js'
 import { bool, f64, only, signature } from '../module.f.js'
 
 /** A bigint. */
@@ -37,5 +40,6 @@ export const native = {
     functions: [
         ['bigintEquals', signature([['a', bigint], ['b', bigint]], bool)],
         ['numberRemainder', signature([['a', f64], ['b', f64]], f64)],
+        ['numberToString', signature([['n', f64]], string)],
     ],
 }

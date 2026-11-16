@@ -196,9 +196,10 @@ Slice 8, cut in three as decided above.
   Subject: `toIterable`. A throw inside a callback is refused, since it
   would leave the linear builder behind; a call there that fails abandons
   the builder, as a trap does. The random comparison gains a form of it.
-- [ ] **8c. `buildObject` and `{}`, lowered.** Containers' `begin_object`
+- [x] **8c. `buildObject` and `{}`, lowered** (#3898). Containers' `begin_object`
   and `push_property`, in the IR and the counting host; the `asObject`
-  cast; the `numberToString` row. Subject: `objectSpread`.
+  cast; the `numberToString` row. Subject: `objectSpread`. A `{ ...v }`
+  literal waits for a later cut; `objectSpread` is what it copies.
 
 #### Later
 

@@ -24,7 +24,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
-import { any, array, l0 } from '../l0/module.f.js'
+import { any, array, container, l0 } from '../l0/module.f.js'
 import { call, fn, get, n } from '../module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
@@ -299,7 +299,7 @@ export const proof = {
         /** @type {Module} */
         const copied = {
             imports: l0,
-            functions: [['copied', fn([['v', array]], array, seal(push(begin(n(1n)), item)))]],
+            functions: [['copied', fn([['v', array]], container, seal(push(begin(n(1n)), item)))]],
             exports: ['copied'],
         }
         const v = /** @type {const} */ (['x'])

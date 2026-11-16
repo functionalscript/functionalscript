@@ -152,19 +152,37 @@ export const spellings = [
     '1.5', '1e3', '\u0663', '/', ':',
 ].map(v => ({ any: v }))
 
-/** The arrays that values hold, at any depth: those that a call is given. @type {(values: readonly unknown[]) => ReadonlySet<unknown>} */
-const arraysIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...arraysIn(v)] : []))
+/** Whether `v` is a plain object that Containers may seal, not an array. @type {(v: unknown) => boolean} */
+const plainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+/**
+ * The arrays and plain objects that values hold, at any depth: those that a
+ * call is given, which the module must answer itself rather than a clone.
+ *
+ * @type {(values: readonly unknown[]) => ReadonlySet<unknown>}
+ */
+const givenIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...givenIn(v)]
+    : plainObject(v) ? [v, ...givenIn(Object.values(/** @type {object} */ (v)))]
+    : []))
 
 /**
  * Whether two values that values of `any` hold are the same: by `Object.is`,
  * so that `-0` and `NaN` are told apart, and two arrays item by item, since
  * a module makes an array of its own, unless the twin's is one that the
- * call was given, `given`, which the module must answer itself.
+ * call was given, `given`, which the module must answer itself. Two plain
+ * objects compare by their keys in order and their values, as Containers
+ * seals them.
  *
  * @type {(given: ReadonlySet<unknown>) => (a: unknown, b: unknown) => boolean}
  */
 const sameHeld = given => (a, b) => Object.is(a, b)
     || Array.isArray(a) && Array.isArray(b) && !given.has(b) && a.length === b.length && a.every((x, k) => sameHeld(given)(x, b[k]))
+    || plainObject(a) && plainObject(b) && !given.has(b) && (() => {
+        const ka = Object.keys(/** @type {object} */ (a))
+        const kb = Object.keys(/** @type {object} */ (b))
+        return ka.length === kb.length && ka.every((k, i) => k === kb[Number(i)]
+            && sameHeld(given)(/** @type {Record<string, unknown>} */ (a)[k], /** @type {Record<string, unknown>} */ (b)[k]))
+    })()
 
 /** Whether two values are the same: by `Object.is`, and two values of `any` by what they hold. @type {(given: ReadonlySet<unknown>) => (a: _Value, b: _Value) => boolean} */
 const same = given => (a, b) => isAny(a) && isAny(b) ? sameHeld(given)(a.any, b.any) : Object.is(a, b)
@@ -292,7 +310,7 @@ export const run = (m, twins, inputs, abandons = []) => {
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
             const h = counting(values, data)
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read) })
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own) })
             const { init } = exports
             if (typeof init === 'function') { init() }
             h.keep()
@@ -308,7 +326,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             const args = xs.map(arg)
             const got = outcome(() => fromHost(result, f(...args), h), h)
             const expected = expect(() => twin(xs))
-            assert(agrees(arraysIn(values))(got, expected), [name, xs, got, expected])
+            assert(agrees(givenIn(values))(got, expected), [name, xs, got, expected])
             assert(got[0] === 'ok' || fails, [name, xs, 'cannot fail, and it did'])
             const open = h.builders().map(b => `builder ${b}`)
             const abandoned = got[0] === 'ok' ? [] : [...h.recover().map(([k, count]) => `${k}:+${count}`), ...open]

@@ -58,9 +58,13 @@
  *   the checker types its value as `any`. A read of L1's error table,
  *   `error.k`, is the string literal of its text, which the runtime gives
  *   from the table's own text, so that the module throws what L1 throws.
- * - **An object literal is a record**, a product of its keys in their
- *   order, and `r.k` its field. A record stays in its function: the checker
- *   refuses one in a signature.
+ * - **An object literal of names and values whose fields are not all
+ *   values of `any` is a record**, a product of its keys in their order,
+ *   and `r.k` its field. A record stays in its function: the checker
+ *   refuses one in a signature. One whose every value is of `any`, with the
+ *   runtime, is built by Containers as an object. A spread in an object
+ *   literal is not in this slice: L1's `objectSpread` is the subject that
+ *   builds what `{ ...v }` copies.
  * - **An array literal is built by Containers**
  *   ([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
  *   its items first, each lowered where it stands as an argument is, then
@@ -78,6 +82,11 @@
  *   are arrow literals, inlined, so no closure is made. A throw inside one
  *   is refused, since it would leave the builder behind; a call there that
  *   fails abandons it, as a trap does. `asArray` is a cast.
+ * - **`buildObject` and object literals of values of `any`**: Containers'
+ *   `begin_object` / `push_property` / `seal`; arrow callbacks of
+ *   `buildObject` inline as `buildArray`'s do; `asObject` is a cast.
+ *   Float records stay products. A `{ ...v }` literal waits; `objectSpread`
+ *   is what it copies.
  * - **A read of an array at a number key is L1's `get` for that case**:
  *   the item where the key is an index of the array, an integer from `0`
  *   up to its length, and `undefined` where it is anything else. A
@@ -135,7 +144,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
-import { any, builder, kinds, l0, lengths, string } from '../l0/module.f.js'
+import { any, array, builder, kinds, l0, lengths, object, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
@@ -240,7 +249,7 @@ const unwrapped = v => {
 // casts
 
 /** The casts of the L0 view, each with the kind that it narrows to. @type {readonly (readonly [string, string])[]} */
-const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string'], ['asArray', 'array']]
+const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asString', 'string'], ['asArray', 'array'], ['asObject', 'object']]
 
 /** Whether a local holds a value of a sealed type that has `kind` and other kinds too, which a cast to `kind` narrows. @type {(scope: _Scope, name: string, kind: string) => boolean} */
 const wider = (scope, name, kind) => {
@@ -449,7 +458,7 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
         }
         case 'throw': {
             if (!scope.ir.imports.some(([k]) => k === 'Functions')) { return no('a throw is a call of Functions, which a module lowered without the runtime does not import') }
-            if (scope.building.length > 0) { return no(`a throw inside a callback of buildArray is not in this slice: it would leave the builder of ${scope.building[0]}, which is linear, behind`) }
+            if (scope.building.length > 0) { return no(`a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of ${scope.building[0]}, which is linear, behind`) }
             const r = lowerValue(scope, exit[1])
             return r[0] === 'error' ? r : ok(throw_(r[1]))
         }
@@ -573,8 +582,10 @@ const lengthOf = (x, held, base) => {
 
 /** The functions of the L0 view that the lowering reads, beside its tags, each with how many arguments it takes. @type {readonly (readonly [string, number])[]} */
 const viewFunctions = [
-    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['asArray', 1], ['length', 1], ['unit', 2], ['same', 2],
-    ['fromUnit', 1], ['concat', 2], ['substring', 3], ['item', 2], ['buildArray', 4],
+    ['kind', 1], ['asBoolean', 1], ['asNumber', 1], ['asString', 1], ['asArray', 1], ['asObject', 1],
+    ['length', 1], ['unit', 2], ['same', 2],
+    ['fromUnit', 1], ['concat', 2], ['substring', 3], ['item', 2],
+    ['buildArray', 4], ['buildObject', 5],
 ]
 
 /** The parameters of a function of an interface of L0. @type {(module: string, name: string) => readonly Param[]} */
@@ -659,6 +670,7 @@ const viewTerm = (scope, name, args) => {
         case 'asNumber': { return ok(as('number', y => call('Any', 'to_f64', [y]))) }
         case 'asString': { return ok(as('string', y => y)) }
         case 'asArray': { return ok(as('array', y => y)) }
+        case 'asObject': { return ok(as('object', y => y)) }
         case 'length': {
             return lengths.some(([, , ks]) => ks.some(k => held.includes(k))) ? ok(lengthOf(x, held, base))
                 : no(`length of ${show(type)}: none of its kinds has a length`)
@@ -687,6 +699,61 @@ const viewTerm = (scope, name, args) => {
 
 /** Whether a value is a function literal. @type {(v: Value) => v is readonly ['function', FastFunction]} */
 const isFunction = v => v instanceof Array && v[0] === 'function'
+
+/**
+ * `buildObject(n, s, next, keyAt, valueAt)` of the L0 view
+ * ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
+ * as `buildArray` is, of `begin_object`, `push_property` and `seal`. Each
+ * round pushes `keyAt` and `valueAt` of the state; a key is a string, a
+ * value a value of `any`. The callbacks are arrow literals of at most one
+ * parameter, inlined, and they do not throw.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, vs: readonly Value[]) => Result<Term, string>}
+ */
+const buildObjectOf = (lowerValue, scope, vs) => {
+    const no = refuse(scope)
+    const callbacks = vs.slice(2).flatMap(v => isFunction(v) && v[1].rest === null && v[1].parameters.length <= 1 ? [v[1]] : [])
+    if (callbacks.length !== 3) { return no('a callback of buildObject that is not an arrow literal of at most one parameter is not in this slice') }
+    const [step, keyAt, valueAt] = callbacks
+    return settled(lowerValue, scope, vs.slice(0, 2), (s, [size, first]) => {
+        const types = okList([size, first].map(x => typeOf(s.ir)(x)))
+        if (types[0] === 'error') { return types }
+        const [countType, firstType] = types[1]
+        if (!isFloat(countType)) { return no(`buildObject of ${show(countType)} items is not in this slice`) }
+        const state = loose(firstType)
+        if (state === null) { return no(`a state of buildObject of ${show(firstType)} is not in this slice`) }
+        const label = `B${s.depth}`
+        const [b, st, i, key, item, pushed, later, stepped] = ['b', 's', 'i', 'key', 'item', 'pushed', 'i.next', 's.next'].map(k => `${label}.${k}`)
+        /** @type {_Scope} */
+        const inner = {
+            ...s,
+            ir: { ...s.ir, locals: [...s.ir.locals, [b, builder], [st, state], [i, f64]] },
+            depth: s.depth + 1,
+            building: [label, ...s.building],
+        }
+        const kTerm = inlineTerms(lowerValue, inner, keyAt, [get(st)].slice(0, keyAt.parameters.length), local(inner))
+        if (kTerm[0] === 'error') { return kTerm }
+        const kType = typeOf(inner.ir)(kTerm[1])
+        if (kType[0] === 'error') { return kType }
+        if (!equal(kType[1], string)) { return no(`a key of buildObject is a string, and this one is ${show(kType[1])}`) }
+        const vTerm = inlineTerms(lowerValue, inner, valueAt, [get(st)].slice(0, valueAt.parameters.length), local(inner))
+        if (vTerm[0] === 'error') { return vTerm }
+        const vType = typeOf(inner.ir)(vTerm[1])
+        if (vType[0] === 'error') { return vType }
+        if (!isAny(vType[1])) { return no(`a value of buildObject is a value of any, and this one is ${show(vType[1])}`) }
+        const y = inlineTerms(lowerValue, inner, step, [get(st)].slice(0, step.parameters.length), local(inner))
+        return y[0] === 'error' ? y : ok(exact(u(31), size, `${label}.n`, n => loop(
+            label,
+            [[b, builder, call('Containers', 'begin_object', [n])], [st, state, first], [i, f64, lit(f64c, 0)]],
+            if_(
+                lt(get(i), float(n)),
+                let_(key, kTerm[1], let_(item, vTerm[1], let_(pushed, call('Containers', 'push_property', [get(b), get(key), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
+                    let_(stepped, if_(lt(get(later), float(n)), y[1], get(st)), next(label, [[b, get(pushed)], [st, get(stepped)], [i, get(later)]])))))),
+                cast(object, call('Containers', 'seal', [get(b)]), `${label}.object`, o => o),
+            ),
+        )))
+    })
+}
 
 /**
  * `buildArray(n, s, next, at)` of the L0 view
@@ -731,6 +798,7 @@ const buildArrayOf = (lowerValue, scope, vs) => {
         if (t[0] === 'error') { return t }
         if (!isAny(t[1])) { return no(`an item of buildArray is a value of any, and this one is ${show(t[1])}`) }
         const y = inlineTerms(lowerValue, inner, step, [get(st)].slice(0, step.parameters.length), local(inner))
+        // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
         return y[0] === 'error' ? y : ok(exact(u(31), size, `${label}.n`, k => loop(
             label,
             [[b, builder, call('Containers', 'begin_array', [k])], [st, state, first], [i, f64, lit(f64c, 0)]],
@@ -738,7 +806,7 @@ const buildArrayOf = (lowerValue, scope, vs) => {
                 lt(get(i), float(k)),
                 let_(item, x[1], let_(pushed, call('Containers', 'push', [get(b), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
                     let_(stepped, if_(lt(get(later), float(k)), y[1], get(st)), next(label, [[b, get(pushed)], [st, get(stepped)], [i, get(later)]]))))),
-                call('Containers', 'seal', [get(b)]),
+                cast(array, call('Containers', 'seal', [get(b)]), `${label}.array`, a => a),
             ),
         )))
     })
@@ -762,6 +830,7 @@ const viewCall = (lowerValue, scope, name, vs) => {
     if (name === 'same') { return castCall(lowerValue, scope, 'Any', 'same', paramsOf('Any', 'same'), vs) }
     if (name === 'concat') { return castCall(lowerValue, scope, 'String', 'concat', paramsOf('String', 'concat'), vs) }
     if (name === 'buildArray') { return buildArrayOf(lowerValue, scope, vs) }
+    if (name === 'buildObject') { return buildObjectOf(lowerValue, scope, vs) }
     if (arity > 1) { return settled(lowerValue, scope, vs, (s, xs) => viewTerm(s, name, xs)) }
     const xs = values(lowerValue, scope, vs)
     return xs[0] === 'error' ? xs : name === 'fromUnit' ? fromUnitTerm(scope, xs[1][0]) : viewTerm(scope, name, xs[1])
@@ -818,6 +887,62 @@ const record = (lowerValue, scope, entries) => {
         return x[0] === 'error' ? x : ok(/** @type {const} */ ([k, x[1]]))
     }))
     return fields[0] === 'error' ? fields : ok(make(fields[1]))
+}
+
+/**
+ * An object literal built by Containers: each name:value as a
+ * `push_property` of a string literal and a value of `any`. Where a value
+ * is not of `any`, the literal is a record instead. The choice is made
+ * before any `let` binds a field: falling back to a record from inside
+ * `settled` would re-lower fields under those binds and shadow their `#n`
+ * names. A spread is refused here — see `objectLiteral`.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
+ */
+const objectOf = (lowerValue, scope, entries) => {
+    // Spread and a missing Containers import are refused or redirected in
+    // `objectLiteral` before this runs; here every entry is a name:value.
+    const no = refuse(scope)
+    const parsed = okList(entries.map(e => {
+        if (e[0] !== ':' || typeof e[1] !== 'string') { return no('an entry of an object that is not a name and its value is not in this slice') }
+        return ok(/** @type {const} */ ([e[1], e[2]]))
+    }))
+    if (parsed[0] === 'error') { return parsed }
+    const named = parsed[1]
+    // Peek each field as a sibling term (same scope): decide record vs Containers
+    // before `settled` binds any of them.
+    const peeked = okList(named.map(([, v]) => lowerValue(scope, v)))
+    if (peeked[0] === 'error') { return peeked }
+    const typed = okList(peeked[1].map(x => typeOf(scope.ir)(x)))
+    if (typed[0] === 'error') { return typed }
+    if (typed[1].some(t => !isAny(t))) {
+        return ok(make(named.map(([k], i) => /** @type {const} */ ([k, peeked[1][Number(i)]]))))
+    }
+    // Every value is `any`: bind each that does something before begin/push/seal,
+    // so the builder stays linear between those calls. `seal` answers
+    // array|object; `begin_object` makes an object alone, so narrow.
+    return settled(lowerValue, scope, named.map(([, v]) => v), (s, xs) => {
+        const begun = call('Containers', 'begin_object', [n(BigInt(xs.length))])
+        return ok(cast(object, call('Containers', 'seal', [xs.reduce(
+            (b, x, i) => call('Containers', 'push_property', [b, lit(string, named[Number(i)][0]), x]),
+            begun,
+        )]), 'object', o => o))
+    })
+}
+
+/**
+ * An object literal: a Containers object where every value is of `any` and
+ * the runtime is present, otherwise a record. A spread is refused: L1's
+ * `objectSpread` is the subject that builds what `{ ...v }` copies.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, entries: readonly Entry<Value>[]) => Result<Term, string>}
+ */
+const objectLiteral = (lowerValue, scope, entries) => {
+    if (entries.some(e => e[0] === '...')) {
+        return refuse(scope)('a spread in an object literal is not in this slice')
+    }
+    if (!scope.ir.imports.some(([k]) => k === 'Containers')) { return record(lowerValue, scope, entries) }
+    return objectOf(lowerValue, scope, entries)
 }
 
 /**
@@ -900,8 +1025,9 @@ const arrayOf = (lowerValue, scope, items) => {
         const ts = typed[1]
         const k = ts.findIndex(t => !isAny(t))
         const begun = call('Containers', 'begin_array', [n(BigInt(xs.length))])
+        // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
         return k !== -1 ? no(`an item of an array is a value of any, and item ${k} is ${show(ts[Number(k)])}`)
-            : ok(call('Containers', 'seal', [xs.reduce((b, x) => call('Containers', 'push', [b, x]), begun)]))
+            : ok(cast(array, call('Containers', 'seal', [xs.reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'array', a => a))
     })
 }
 
@@ -925,6 +1051,9 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
+    // The receiver holds an array alone: a type that may be an object is refused,
+    // since `get` of an object at a number reads by the string key, which is not
+    // this slice's `item` of an array.
     return !isAny(t) || held === null || held.length !== 1 || held[0] !== 'array' ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
         : ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
 })
@@ -1070,7 +1199,7 @@ const value = (scope, v) => {
         case '*': { return binary(value, scope, mul, v[1], v[2]) }
         case '/': { return binary(value, scope, div, v[1], v[2]) }
         case '%': { return remainder(value, scope, v[1], v[2]) }
-        case 'object': { return record(value, scope, v[1]) }
+        case 'object': { return objectLiteral(value, scope, v[1]) }
         case 'array': { return arrayOf(value, scope, v[1]) }
         case '.': {
             const key = v[2]

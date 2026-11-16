@@ -10,6 +10,7 @@ export const proof = {
         `${f}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`).join('; '), [
         'bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool',
         'numberRemainder(a: f64, b: f64) -> f64',
+        'numberToString(n: f64) -> any.only(string)',
     ].join('; ')),
     // A module may import it beside L0, which seals its values of `any`, and not without.
     checked: () => {
