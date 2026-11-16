@@ -24,7 +24,7 @@ content-addressed store holds is a value the caller must keep, which is what
 
 The demo on this page offers five schemas: a revision, a lock, a note, any
 JSON value, and a JSON Schema, each with a value it accepts. They are defined
-in [`sample.f.mjs`](./sample.f.mjs), and the
+in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
 ## Where it is implemented

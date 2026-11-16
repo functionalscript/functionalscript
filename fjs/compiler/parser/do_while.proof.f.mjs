@@ -1,7 +1,7 @@
 /** A written do-while stays post-test syntax until FAST normalization. */
 
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
-import { parseSyntax } from './syntax/module.f.mjs'
+import { parseSyntax } from './syntax/module.f.js'
 import { parseFromTokens } from './module.f.mjs'
 import { tokenizeString } from './proof.f.mjs'
 

@@ -16,7 +16,7 @@
  */
 
 import { memo } from '../../edag/memo/module.f.mjs'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'

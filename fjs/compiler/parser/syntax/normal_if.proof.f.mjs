@@ -8,7 +8,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { unwrap } from '../../../types/result/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
-import { parseSyntax } from './module.f.mjs'
+import { parseSyntax } from './module.f.js'
 
 /** @type {(source: string) => Block[1]} */
 const statements = source => {

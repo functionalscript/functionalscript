@@ -3,7 +3,7 @@
 import { _evaluate, expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
 import { parseFromTokens } from './module.f.mjs'
 import { assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
 
 /** @type {(source: string) => unknown} */
 const evaluated = source => assertOk(toData(_evaluate(assertOk(parseFromTokens(tokenizeString(source))))))

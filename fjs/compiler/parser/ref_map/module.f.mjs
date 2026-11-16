@@ -18,7 +18,7 @@ import { structurallySame } from '../../../types/object/structurally_same/module
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
-import { nameOf, parseSyntax } from '../syntax/module.f.mjs'
+import { nameOf, parseSyntax } from '../syntax/module.f.js'
 
 /**
  * The canonical body. It names itself, `empty`, so that a read of the

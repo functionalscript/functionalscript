@@ -11,7 +11,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
-import { _readersOf } from '../schema-demo/module.f.mjs'
+import { _readersOf } from '../schema-demo/module.f.js'
 import { parse } from '../parse/module.f.js'
 import { validate } from '../validate/module.f.js'
 import { toData, validate as dataValidate } from '../data/module.f.js'

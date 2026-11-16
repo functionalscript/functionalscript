@@ -139,7 +139,7 @@ need their own [proposal](../compiler/todo/047-compiler-meta-programming.md).
 
 ## Runtime compilation
 
-[`toUnknown`](value/to_unknown/module.f.mjs) has type
+[`toUnknown`](value/to_unknown/module.f.js) has type
 `(value: EdagValue) => Effect<CompileValue, unknown, IoChannel>`. Here `unknown`
 means an ordinary FJS runtime value with reflection erased: primitives and
 containers become ordinary data, and represented functions become callables

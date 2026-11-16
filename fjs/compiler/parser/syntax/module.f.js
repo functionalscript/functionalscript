@@ -1319,6 +1319,25 @@ const toBodyNameStatement = ([name, rest, end]) => {
 }
 
 /**
+ * The record of a statement that is a keyword and a value — `return`,
+ * `throw`, `export default` — from `keyword value end`: it begins at the
+ * keyword, and the value's first token is kept for the line the fold asks
+ * of it after `return` and `throw`.
+ *
+ * @type {(node: Children<(typeof terminator)['return'], ModuleTokenWithMetadata, Out>) => ValueStatement}
+ */
+const valueStatementOf = ([keyword, v, end]) =>
+    ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
+
+/** Preserve the omitted operand of a written bare return.
+ * @type {(node: Children<(typeof terminator)['bareReturn'], ModuleTokenWithMetadata, Out>) => ReturnStatement}
+ */
+const bareReturnOf = ([keyword, end]) => {
+    const start = tokenAt(keyword)
+    return { start, semicolon: ended(end), first: null, value: null }
+}
+
+/**
  * A loop block's statement, tagged: a declaration, a conditional, a nested
  * loop, a switch, a loop or function exit, or what begins with a name.
  *
@@ -1341,25 +1360,6 @@ const toLoopStatement = ([kind, branch]) => {
     if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
     return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch)
         : kind === 'let' ? ['let', letAt(branch)] : ['const', constAt(branch)] })
-}
-
-/**
- * The record of a statement that is a keyword and a value — `return`,
- * `throw`, `export default` — from `keyword value end`: it begins at the
- * keyword, and the value's first token is kept for the line the fold asks
- * of it after `return` and `throw`.
- *
- * @type {(node: Children<(typeof terminator)['return'], ModuleTokenWithMetadata, Out>) => ValueStatement}
- */
-const valueStatementOf = ([keyword, v, end]) =>
-    ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
-
-/** Preserve the omitted operand of a written bare return.
- * @type {(node: Children<(typeof terminator)['bareReturn'], ModuleTokenWithMetadata, Out>) => ReturnStatement}
- */
-const bareReturnOf = ([keyword, end]) => {
-    const start = tokenAt(keyword)
-    return { start, semicolon: ended(end), first: null, value: null }
 }
 
 /** A member's record as the rewrite returns it, with the property it is where a binding is wanted. @type {(member: Member, target: BindingProperty) => Meta<Out>} */

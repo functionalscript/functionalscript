@@ -213,7 +213,7 @@ conversion. It does not save captured values or implement callable runtime
 compilation. Source serialization with `tryStringify` remains partial and
 requires every slot to survive its structural round trip.
 
-[`value/to_unknown`](value/to_unknown/module.f.mjs) exposes
+[`value/to_unknown`](value/to_unknown/module.f.js) exposes
 `toUnknown(value): Effect<CompileValue, unknown, IoChannel>`. Data-only graphs
 materialize without a host operation. Callable graphs request `compileValue`
 with a generated construction module, and a runner can provide the

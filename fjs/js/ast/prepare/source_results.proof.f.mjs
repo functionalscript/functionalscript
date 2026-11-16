@@ -14,7 +14,7 @@ import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proo
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { stringify } from '../serializer/module.f.js'
 import { prepare } from './module.f.js'
 

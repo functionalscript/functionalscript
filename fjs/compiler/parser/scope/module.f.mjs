@@ -14,7 +14,7 @@ import { concat, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { empty, setReplace } from '../../../types/ordered_map/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { nameOf } from '../syntax/module.f.mjs'
+import { nameOf } from '../syntax/module.f.js'
 
 /** Source identity is independent of the value its initialization computes. @type {(index: number) => BindingId} */
 export const _sourceBinding = index => ({ index })

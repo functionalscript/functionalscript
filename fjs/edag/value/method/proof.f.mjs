@@ -12,7 +12,7 @@ import { ok, error } from '../../../types/result/module.f.js'
 import { invoke, invokeWith, vm } from '../../amnesia/module.f.mjs'
 import runtimeEdag from '../../../js/runtime/gen.edag.js'
 import { read } from '../property/module.f.js'
-import { toData } from '../to_unknown/module.f.mjs'
+import { toData } from '../to_unknown/module.f.js'
 import { admits, hasMethod, method } from './module.f.mjs'
 
 const undefinedValue = /** @type {const} */ (['undefined'])

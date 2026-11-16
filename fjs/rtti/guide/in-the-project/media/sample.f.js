@@ -8,7 +8,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { projectSchema } from '../../../schema-demo/module.f.mjs'
+import { projectSchema } from '../../../schema-demo/module.f.js'
 import { lock, lockField, revisionSchema } from '../../../../media/revision/module.f.js'
 import { lockSchema } from '../../../../media/lock/module.f.js'
 import { noteSchema } from '../../../../media/note/module.f.js'

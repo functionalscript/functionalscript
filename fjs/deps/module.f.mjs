@@ -16,7 +16,7 @@ import { join, normalize, parse as pathParts, root as pathRoot } from '../path/m
 import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
 import { tokenize } from '../compiler/tokenizer/module.f.js'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.mjs'
-import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
+import { parseSyntax } from '../compiler/parser/syntax/module.f.js'
 import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, writeUtf8File } from '../effects/node/module.f.js'
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'

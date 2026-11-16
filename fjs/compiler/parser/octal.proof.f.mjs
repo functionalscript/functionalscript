@@ -3,7 +3,7 @@ import { assertEq, assertError, assertOk, assertStructurallySame } from '../../a
 import { parse as parseJson } from '../../media/json/module.f.js'
 import { tryParse as parseDataJs } from '../../media/datajs/parser/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { parseFromTokens } from './module.f.mjs'
 import { _evaluate, tokenizeString } from './proof.f.mjs'
 

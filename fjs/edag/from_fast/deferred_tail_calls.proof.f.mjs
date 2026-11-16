@@ -8,7 +8,7 @@ import { fromFast } from './module.f.js'
 import { _fixtures } from './deferred_tail_calls/fixtures.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'
-import { toData } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.js'
 
 /** @type {(block: Block) => ValueResult} */
 const interpreted = block => memo(assertOk(identityAnalysis(fromFast(block))))({ args: [] })

@@ -17,7 +17,7 @@ import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { memo } from '../memo/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
-import { toData } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.js'
 import { sourceReason } from './source/module.f.js'
 
 /** Compare semantic graph tables without merging allocation identities. @type {(graph: Exp) => void} */

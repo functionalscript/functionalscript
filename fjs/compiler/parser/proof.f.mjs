@@ -7,11 +7,11 @@
  */
 
 import { errorLocation, parseFromTokens } from './module.f.mjs'
-import { parseSyntax } from './syntax/module.f.mjs'
+import { parseSyntax } from './syntax/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { tokenize } from '../tokenizer/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'

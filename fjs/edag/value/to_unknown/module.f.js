@@ -47,9 +47,10 @@ const convert = (copies, input) => {
         copies = next
         items = [...items, item]
     }
+    const convertedItems = items
     const output = value[0] === '[]'
-        ? items
-        : Object.fromEntries(value[1].map(([, key], i) => [key, items[i]]))
+        ? convertedItems
+        : Object.fromEntries(value[1].map(([, key], i) => [key, convertedItems[Number(i)]]))
     return ok([[...copies, [value, output]], output])
 }
 

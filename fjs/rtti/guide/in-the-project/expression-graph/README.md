@@ -20,7 +20,7 @@ helpers after `edag/value`'s shape check, and declares no schema of its own.
 
 The demo on this page offers two schemas: the unary operators, a union of
 strings, and an evaluated value, which is recursive. They are defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
 ## Where it is implemented

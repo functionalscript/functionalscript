@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tokenizeString } from '../proof.f.mjs'
-import { parseSyntax } from './module.f.mjs'
+import { parseSyntax } from './module.f.js'
 
 /** @type {(source: string) => import('./types.ts').Block[1]} */
 const statements = source => {

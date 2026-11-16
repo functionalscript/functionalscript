@@ -11,7 +11,7 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { array, number, open, or, record, rest, string } from '../module.f.js'
 import { demo, examples } from '../demo.f.mjs'
-import { _compare, _graphOf, _marked, _outputsOf, _readersOf, schemaDemo } from './module.f.mjs'
+import { _compare, _graphOf, _marked, _outputsOf, _readersOf, schemaDemo } from './module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
@@ -346,6 +346,11 @@ const demoProof = /** @type {const} */ ({
             JSON.stringify(['{', '"a":', '[', '1', ',', ['mark', '"x"'], ',', '[2]', ']', ',', '"b":', 'null', '}'])),
         // A member that is missing marks the container it is missing from.
         missing: () => assertEq(JSON.stringify(_marked(['b'])({ a: 1 })), JSON.stringify([['mark', '{"a":1}']])),
+        // An undefined value is present, so only that member gets the mark.
+        presentUndefined: () => {
+            assertStructurallySame(_marked(['value'])({ value: undefined }), ['{', '"value":', ['mark', 'undefined'], '}'])
+            assertStructurallySame(_marked([0])([undefined]), ['[', ['mark', 'undefined'], ']'])
+        },
         // A path that runs past a leaf marks the leaf.
         leaf: () => assertEq(JSON.stringify(_marked(['a', 'b'])({ a: 7n })), JSON.stringify(['{', '"a":', ['mark', '7n'], '}'])),
         // A value that shares much is never expanded past what is shown: a

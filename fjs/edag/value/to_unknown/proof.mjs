@@ -16,7 +16,7 @@ import { unreadableThrownValue } from '../../../effects/module.f.js'
 import { virtualAt } from '../../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
-import { compileCommands, toUnknown } from './module.f.mjs'
+import { compileCommands, toUnknown } from './module.f.js'
 import { javascriptOperationMap } from './module.mjs'
 
 const run = asyncRun(javascriptOperationMap)

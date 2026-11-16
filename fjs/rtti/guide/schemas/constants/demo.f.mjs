@@ -6,7 +6,7 @@
  * @module
  */
 
-import { schemaDemo } from '../../../schema-demo/module.f.mjs'
+import { schemaDemo } from '../../../schema-demo/module.f.js'
 import { lessons } from './sample.f.js'
 
 export const demo = schemaDemo([['Constants', lessons]])

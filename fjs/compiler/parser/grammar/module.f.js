@@ -1,6 +1,6 @@
 /**
  * The predictive module grammar over token symbols for
- * `fjs/ebnf/ll1`, which `../syntax/module.f.mjs` reads a module with:
+ * `fjs/ebnf/ll1`, which `../syntax/module.f.js` reads a module with:
  *
  * ```text
  * module ::= import* moduleStatement* last eof
@@ -529,7 +529,7 @@ const reference = /** @type {const} */ ([identifier, accesses])
  * use, read back to the operator's tag — which is also the token the round
  * opens with, so {@link opOf} makes each layer's grammar from its own
  * record of `eagerLayers` or `lazyLayers` in `../../ast/module.f.js`, and
- * this one merged map serves `../syntax/module.f.mjs` a round from any
+ * this one merged map serves `../syntax/module.f.js` a round from any
  * layer with a plain lookup. `**` is not here: it is {@link powTail}'s, no
  * layer's round. The lookup is by a name read at run time, so it is typed
  * as one that may miss, and the reader refuses a name that does rather
@@ -696,7 +696,7 @@ const powTail = option([sym('**'), unary])
  * The four leaves are each still wrapped one tuple deep, `[primitiveValue]`
  * rather than `primitiveValue` bare, matching {@link unary}'s own
  * `[primitiveValue, powTail]` at the same depth minus the slot `powTail`
- * held — `../syntax/module.f.mjs`'s reader shares one function, `baseOf`, between
+ * held — `../syntax/module.f.js`'s reader shares one function, `baseOf`, between
  * both rules, and that depth is what lets it.
  *
  * @type {UnaryOperand}
@@ -733,7 +733,7 @@ const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromE
  * wrapping a shared primary as a unit, which is what let {@link func}'s
  * body leak a wide follow set in the first place.
  *
- * Exported for the reader in `../syntax/module.f.mjs`, which splits a value's
+ * Exported for the reader in `../syntax/module.f.js`, which splits a value's
  * whole {@link tail} at this list's length: the eager layers are one shape,
  * a repeat of rounds each, and the two positions after them another.
  * The fold's list is cast to the tuple type, whose length `./types.ts`

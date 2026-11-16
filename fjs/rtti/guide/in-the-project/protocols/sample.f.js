@@ -9,7 +9,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { projectSchema } from '../../../schema-demo/module.f.mjs'
+import { projectSchema } from '../../../schema-demo/module.f.js'
 import { request } from '../../../../protocol/json_rpc/module.f.js'
 import { tool } from '../../../../protocol/mcp/module.f.js'
 import { casAddArgs } from '../../../../mcp/cas/module.f.js'

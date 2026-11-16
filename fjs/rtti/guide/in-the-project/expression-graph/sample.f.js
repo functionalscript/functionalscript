@@ -8,7 +8,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { projectSchema } from '../../../schema-demo/module.f.mjs'
+import { projectSchema } from '../../../schema-demo/module.f.js'
 import { exp, op1Id } from '../../../../edag/module.f.js'
 import { value as edagValue } from '../../../../edag/value/module.f.js'
 

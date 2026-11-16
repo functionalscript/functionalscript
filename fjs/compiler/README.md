@@ -154,7 +154,7 @@ memo semantics with fresh invocation-local allocations. The emitter trusts
 constructed values and reuses the function-body renderer. Its output promises
 runtime behavior, not a structural FJS source round trip. `factoryStringify`
 emits the same construction inside a default-exported factory, which the
-effectful [`toUnknown`](../edag/value/to_unknown/module.f.mjs) uses for runtime
+effectful [`toUnknown`](../edag/value/to_unknown/module.f.js) uses for runtime
 loading. Supply its [`javascriptOperationMap`](../edag/value/to_unknown/module.mjs)
 alongside read/resolve handlers to run `transpile` with callable exports.
 

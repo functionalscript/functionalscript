@@ -25,7 +25,7 @@ tool's arguments are closed, because the server defines that vocabulary.
 The demo on this page offers four schemas: a JSON-RPC request, an MCP tool,
 and the arguments of `cas_add` and `evo_add`, each shown as the import that
 brings it in and with a value it accepts. They are defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
 ## Where it is implemented

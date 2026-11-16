@@ -9,7 +9,7 @@ import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
 import { toRust } from '../../../compiler/rust/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import { normalize } from './module.f.js'
 

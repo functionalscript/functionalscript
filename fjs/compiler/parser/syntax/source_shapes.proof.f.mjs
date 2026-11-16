@@ -1,10 +1,10 @@
 /** Written source shapes survive the shared block grammar before FAST lowering. */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { parseFromTokens } from '../module.f.mjs'
 import { _evaluate, tokenizeString } from '../proof.f.mjs'
-import { parseSyntax } from './module.f.mjs'
+import { parseSyntax } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     importsKeepBindingsAttributesAndSourcePositions: () => {

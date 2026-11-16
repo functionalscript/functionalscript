@@ -34,7 +34,8 @@ const noText = () => undefined
  * @type {(a: Analysis) => string | null}
  */
 const functionError = a => {
-    for (const [i, node] of a.nodes.entries()) {
+    for (let i = 0; i < a.nodes.length; i += 1) {
+        const node = a.nodes[Number(i)]
         if (node[0] !== '=>') { continue }
         const result = checked(a, i)
         if (result[0] === 'error') { return result[1] }
@@ -54,8 +55,8 @@ const converted = (root, shared, text, runtime) => {
     if (invalid !== null) { return error([invalid, root]) }
     const base = a.nodes.length + 0x100
     const width = a.nodes.length + 0x20
-    const params = a.nodes.flatMap((n, i) => n[0] === 'arg' && a.scope[i] === -1 ? [n[1] + 1] : [])
-    const frames = a.nodes.flatMap((n, i) => n[0] === 'frame' && a.scope[i] === -1 ? [n[1] + 1] : [])
+    const params = a.nodes.flatMap((n, i) => n[0] === 'arg' && a.scope[Number(i)] === -1 ? [n[1] + 1] : [])
+    const frames = a.nodes.flatMap((n, i) => n[0] === 'frame' && a.scope[Number(i)] === -1 ? [n[1] + 1] : [])
     const parameters = Array.from({ length: Math.max(0, ...params) }, (_, i) => ({ index: base + i }))
     const captures = Array.from({ length: Math.max(0, ...frames) }, (_, i) => ({ index: base + width + i }))
     const args = { index: base + width * 2 }
@@ -75,7 +76,7 @@ const converted = (root, shared, text, runtime) => {
         { binding: self, text: 'Function::new(self_.clone()).to_any()', uses: [['vm', 'Function'], ['vm', 'ToAny']] },
     ]
     const block = prepare(fromAnalysis(a, supplied.map(e => [e.index, e.binding]), { parameters, captures, args, rest, self }))
-    const options = { runtime: runtime !== null && needsRuntime(root) ? runtime : null, text: (/** @type {import('../../js/ast/prepare/types.ts').Function} */ fn) => text(a.exps[fn.target.index]) ?? functionStringify(fn) }
+    const options = { runtime: runtime !== null && needsRuntime(root) ? runtime : null, text: (/** @type {import('../../js/ast/prepare/types.ts').Function} */ fn) => text(a.exps[Number(fn.target.index)]) ?? functionStringify(fn) }
     return ok({ block, external, options })
 }
 

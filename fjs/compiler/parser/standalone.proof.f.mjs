@@ -4,9 +4,9 @@
  */
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../source/module.f.mjs'
-import { parseSyntax } from './syntax/module.f.mjs'
+import { parseSyntax } from './syntax/module.f.js'
 import { tokenizeString, _evaluate } from './proof.f.mjs'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
