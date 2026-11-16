@@ -278,7 +278,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         let reached = []
         /** @type {readonly { binding: BindingId, value: Operand, own: number | null }[]} */
         let ordered = []
-        for (const [position, root] of roots.entries()) {
+        for (const [position, root] of roots.map((root, position) => /** @type {const} */ ([position, root]))) {
             const exp = root instanceof Array ? a.exps[Number(root[1])] : root
             const eagerHere = reachable(a, eagerOperands, bound)([root])
             const allHere = reachable(a, ownOperandsOf, bound)([root])

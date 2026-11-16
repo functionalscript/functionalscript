@@ -876,7 +876,7 @@ scheme it would have picked.
 
 Slack, Telegram, Discord, X, Facebook and LinkedIn build a card for a pasted
 link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
-[`page/`](./page/module.f.mjs) writes into every page's `<head>` through
+[`page/`](./page/module.f.js) writes into every page's `<head>` through
 `shell`. They are in the static HTML because a crawler runs no script.
 
 **A title and a description on every page.** A directory's description is
@@ -896,7 +896,7 @@ fragment to every page's `<head>` there, `rustdocHead`. It carries
 the card type and, where the build has an origin, the root page's card
 image. It ends with a marker, `<!--og:url-->`, which the generator replaces
 with the page's `og:url` as it copies the page (`withPageUrl` in
-[`cargo-doc/`](./cargo-doc/module.f.mjs)): the copy knows the page's path,
+[`cargo-doc/`](./cargo-doc/module.f.js)): the copy knows the page's path,
 and the marker is a string the site wrote, so finding it reads nothing of
 rustdoc's markup. A build without an origin leaves the comment, and a
 redirect page, which rustdoc writes without the fragment, has neither.
@@ -926,7 +926,7 @@ alt text is the site's name; a page's own card is described by its title.
 - **A screenshot, taken at build time.** Only a browser lays out the site's
   own CSS, so the card cannot drift from the page. The generator writes a
   card page, `_card.html`, beside each page that has a card, and lists them
-  in `_cards.json` ([`card/`](./card/module.f.mjs)). After it, the website
+  in `_cards.json` ([`card/`](./card/module.f.js)). After it, the website
   workflow runs [`cards.mjs`](./cards.mjs), which serves the built tree and
   has headless Chrome screenshot each as `_card.png`, four tabs at a time
   (`CARD_TABS` overrides it), so a card waiting on a slow image holds up
@@ -959,7 +959,7 @@ before a change keeps its old card for a while.
 
 The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases**,
 **Playground** and **GitHub**.
-It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
+It is one element, `header` in [`page/module.f.js`](./page/module.f.js), and
 every page carries it — the root, a directory's page, the PR queue, and the
 changelog's.
 Before it, the root page had its own "GitHub Repository" and "Releases" links
@@ -1002,7 +1002,7 @@ and no other page had either.
 
 A directory's page opens with its breadcrumb, `root / fjs / rtti`: each
 ancestor a link, the page itself as text marked `aria-current="page"`. It is
-`breadcrumb` in [`page/module.f.mjs`](./page/module.f.mjs), a plain `nav`,
+`breadcrumb` in [`page/module.f.js`](./page/module.f.js), a plain `nav`,
 set as a small muted line. Under it is the page's one `h1`: the README's own
 `#` title, or, where the README gives none, the directory's name
 (`pageHeading`).
@@ -1041,7 +1041,7 @@ set as a small muted line. Under it is the page's one `h1`: the README's own
 
 One line under a rule at the bottom of every page — `Support FunctionalScript:`
 and a link per channel — built by `footer` in
-[`page/module.f.mjs`](./page/module.f.mjs) into the frame every page shares.
+[`page/module.f.js`](./page/module.f.js) into the frame every page shares.
 
 - **The footer, not the header.** The header says where a reader can go on
   this site; a funding page is somewhere else. Five placements were rendered

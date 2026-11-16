@@ -738,6 +738,7 @@ pub const ABSENT: &[(&str, &str)] = &[
 /// Admitted static paths, `fjs/js/static`'s: the VM binds each one.
 #[rustfmt::skip]
 pub const STATICS: &[&[&str]] = &[
+    &["encodeURIComponent"],
     &["Object", "is"],
     &["Object", "entries"],
     &["Object", "keys"],

@@ -73,15 +73,15 @@ import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/mo
 import { pageRefusal } from '../media/html/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
-import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
-import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from './page/module.f.mjs'
-import { prsPage } from './prs/module.f.mjs'
+import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.js'
+import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from './page/module.f.js'
+import { prsPage } from './prs/module.f.js'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.js'
 import { fundingPath, parse as parseFunding } from './funding/module.f.js'
 import { isAuthored, isThirdParty } from '../dev/module.f.js'
 import { header, isIssue } from './issue/module.f.js'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.js'
 import { origin } from './origin/module.f.js'
 
 /**
@@ -854,7 +854,7 @@ const readReadme = commit => isPage => dir => {
  * catalogue.
  *
  * **A card page beside each page that has a card** — its README, and the
- * root's always ([`./card`](./card/module.f.mjs)) — and the list of them in
+ * root's always ([`./card`](./card/module.f.js)) — and the list of them in
  * `_cards.json`, which the screenshot step ([`./cards.mjs`](./cards.mjs))
  * turns into the images the pages name.
  *

@@ -309,7 +309,7 @@ enumeration order and retain explicitly present `undefined` values. Every
 occurrence gets fresh nodes, including repeated input containers.
 
 The `other` hook translates function leaves into expressions and can supply
-shared nodes. The [NaNVM corpus](../nanvm/module.f.mjs) uses it for its function
+shared nodes. The [NaNVM corpus](../nanvm/module.f.js) uses it for its function
 markers and explicit shared references. JSON imports use the same encoder
 with no function leaves. This conversion describes literals; it does not
 recover the code or identity of runtime values after reflection is erased.

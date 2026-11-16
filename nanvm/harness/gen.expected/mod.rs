@@ -28,6 +28,12 @@ pub mod closure_identity;
 pub mod closure_throws;
 pub mod concat;
 pub mod concat_coercion_throws;
+pub mod encode_uri_component;
+pub mod encode_uri_component_coercion_throws;
+pub mod encode_uri_component_extra_argument_throws;
+pub mod encode_uri_component_high_surrogate_throws;
+pub mod encode_uri_component_low_surrogate_throws;
+pub mod encode_uri_component_surrogate_pair_throws;
 pub mod entry;
 pub mod escapes;
 pub mod function_scope;
@@ -178,6 +184,12 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "closure_throws", fixture: crate::fixtures::closure_throws::module::<Naive>, expected: closure_throws::module::<Naive>, json: closure_throws::JSON, throws: closure_throws::THROWS },
     crate::Case { name: "concat", fixture: crate::fixtures::concat::module::<Naive>, expected: concat::module::<Naive>, json: concat::JSON, throws: concat::THROWS },
     crate::Case { name: "concat_coercion_throws", fixture: crate::fixtures::concat_coercion_throws::module::<Naive>, expected: concat_coercion_throws::module::<Naive>, json: concat_coercion_throws::JSON, throws: concat_coercion_throws::THROWS },
+    crate::Case { name: "encode_uri_component", fixture: crate::fixtures::encode_uri_component::module::<Naive>, expected: encode_uri_component::module::<Naive>, json: encode_uri_component::JSON, throws: encode_uri_component::THROWS },
+    crate::Case { name: "encode_uri_component_coercion_throws", fixture: crate::fixtures::encode_uri_component_coercion_throws::module::<Naive>, expected: encode_uri_component_coercion_throws::module::<Naive>, json: encode_uri_component_coercion_throws::JSON, throws: encode_uri_component_coercion_throws::THROWS },
+    crate::Case { name: "encode_uri_component_extra_argument_throws", fixture: crate::fixtures::encode_uri_component_extra_argument_throws::module::<Naive>, expected: encode_uri_component_extra_argument_throws::module::<Naive>, json: encode_uri_component_extra_argument_throws::JSON, throws: encode_uri_component_extra_argument_throws::THROWS },
+    crate::Case { name: "encode_uri_component_high_surrogate_throws", fixture: crate::fixtures::encode_uri_component_high_surrogate_throws::module::<Naive>, expected: encode_uri_component_high_surrogate_throws::module::<Naive>, json: encode_uri_component_high_surrogate_throws::JSON, throws: encode_uri_component_high_surrogate_throws::THROWS },
+    crate::Case { name: "encode_uri_component_low_surrogate_throws", fixture: crate::fixtures::encode_uri_component_low_surrogate_throws::module::<Naive>, expected: encode_uri_component_low_surrogate_throws::module::<Naive>, json: encode_uri_component_low_surrogate_throws::JSON, throws: encode_uri_component_low_surrogate_throws::THROWS },
+    crate::Case { name: "encode_uri_component_surrogate_pair_throws", fixture: crate::fixtures::encode_uri_component_surrogate_pair_throws::module::<Naive>, expected: encode_uri_component_surrogate_pair_throws::module::<Naive>, json: encode_uri_component_surrogate_pair_throws::JSON, throws: encode_uri_component_surrogate_pair_throws::THROWS },
     crate::Case { name: "entry", fixture: crate::fixtures::entry::module::<Naive>, expected: entry::module::<Naive>, json: entry::JSON, throws: entry::THROWS },
     crate::Case { name: "escapes", fixture: crate::fixtures::escapes::module::<Naive>, expected: escapes::module::<Naive>, json: escapes::JSON, throws: escapes::THROWS },
     crate::Case { name: "function_scope", fixture: crate::fixtures::function_scope::module::<Naive>, expected: function_scope::module::<Naive>, json: function_scope::JSON, throws: function_scope::THROWS },

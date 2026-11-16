@@ -6,7 +6,7 @@
 ### Problem
 
 Every case in [`fjs/nanvm/`](../README.md) now denotes an EDAG expression:
-`caseExp` in [`module.f.mjs`](../module.f.mjs) derives it, the proof
+`caseExp` in [`module.f.mjs`](../module.f.js) derives it, the proof
 validates it against the [`fjs/edag`](../../edag/README.md) schema and runs it
 through `amnesia` with the corpus's shared nodes supplied as memoized values.
 [`rust/module.f.mjs`](../rust/module.f.mjs) prints direct operator calls.
@@ -116,6 +116,6 @@ plan or native self-hosting.
   FunctionalScript executor run beside the `amnesia` oracle here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness.
-- `comparisonCases` in [`../module.f.mjs`](../module.f.mjs) (shipped) — the
+- `comparisonCases` in [`../module.f.js`](../module.f.js) (shipped) — the
   four relational groups derived from one table, so an argument pair reaches
   all of them or none.

@@ -59,7 +59,7 @@ export const repository = 'https://github.com/functionalscript/functionalscript'
 /**
  * The name of a directory's card image, written beside its page: the
  * directory's README as its page shows it, at the size a large card shows
- * uncropped ([`../card`](../card/module.f.mjs)).
+ * uncropped ([`../card`](../card/module.f.js)).
  *
  * **Generated, so `_`-prefixed,** as `_main.css` is: git ignores it and the
  * site serves it.
@@ -917,7 +917,7 @@ export const siteMeta = origin => cardMeta(origin)(rootCard)
  * A page's `og:url`: its root-relative `href` under the build's origin, and
  * nothing where the build has none, since Open Graph takes only an absolute
  * URL. One tag, shared with rustdoc's pages
- * ([`../cargo-doc`](../cargo-doc/module.f.mjs)), which get it as they are
+ * ([`../cargo-doc`](../cargo-doc/module.f.js)), which get it as they are
  * copied.
  *
  * @type {(origin: string | null) => (href: string) => readonly Element[]}

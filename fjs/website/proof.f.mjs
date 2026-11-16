@@ -18,8 +18,8 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../a
 import { utf8 } from '../text/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.js'
-import { repository } from './page/module.f.mjs'
-import { pageUrlMarker } from './cargo-doc/module.f.mjs'
+import { repository } from './page/module.f.js'
+import { pageUrlMarker } from './cargo-doc/module.f.js'
 import { productionOrigin } from './origin/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 

@@ -5,7 +5,7 @@
 
 ### Problem
 
-`page`'s `runner` script in [`fjs/website/page/module.f.mjs`](../page/module.f.mjs)
+`page`'s `runner` script in [`fjs/website/page/module.f.js`](../page/module.f.js)
 does two things: it binds the browser test suite, and it calls
 `startDirectoryDrawer` on the page's `[data-directory-layout]`. `testSection`
 emits that script only where something can run: a directory with no proofs

@@ -42,7 +42,7 @@ import type { LogicalTag } from '../js/ast/sugar/source.ts'
  *
  * Writing operands as plain JavaScript is what makes the corpus readable
  * (`args: [2.3], expected: 2.3` rather than a tree of constructor calls) and
- * costs nothing: `fjs/nanvm/module.f.mjs` lowers a value to the EDAG
+ * costs nothing: `fjs/nanvm/module.f.js` lowers a value to the EDAG
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
@@ -94,7 +94,7 @@ export type FunctionValue = Special<readonly ['function']>
 
 /**
  * The names of the corpus's callbacks, each a small function a member
- * function such as `map` is handed — its body in `fjs/nanvm/module.f.mjs`'s
+ * function such as `map` is handed — its body in `fjs/nanvm/module.f.js`'s
  * `callbacks`, with its JavaScript spelling.
  */
 export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair' | 'ascending' | 'descending' | 'zero'

@@ -49,7 +49,7 @@ import {
     unreachedExp,
     valueExp,
     valuesExp,
-} from './module.f.mjs'
+} from './module.f.js'
 import { conditional } from '../edag/testlib.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
@@ -533,7 +533,7 @@ const edagShape = () => {
 
 /**
  * Behaviour that is real JavaScript but has no `nanvm-lib` counterpart to
- * share data with, so it stays here instead of in `module.f.mjs`.
+ * share data with, so it stays here instead of in `module.f.js`.
  */
 const jsOnly = {
     /**

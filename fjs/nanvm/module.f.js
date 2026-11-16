@@ -44,7 +44,7 @@
  * @example
  *
  * ```js
- * import { data } from './module.f.mjs'
+ * import { data } from './module.f.js'
  *
  * data.groups.length // 74
  * ```

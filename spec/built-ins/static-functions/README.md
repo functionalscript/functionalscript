@@ -11,6 +11,11 @@ needs no new graph operation or runtime function. The compiler reads
 `Number.MAX_SAFE_INTEGER` from its host, and an independent numeric proof
 pins that value on every engine.
 
+`Number.MAX_VALUE` is the largest finite binary64 number,
+`(2 - 2 ** -52) * 2 ** 1023`. It lowers to the host-defined numeric value
+in the same way, with no runtime operation. `Number["MAX_VALUE"]` and
+`const { MAX_VALUE: max } = Number` are admitted too.
+
 `Number["MAX_SAFE_INTEGER"]` and namespace destructuring such as
 `const { MAX_SAFE_INTEGER: max } = Number` read the same value. A guard on
 the namespace, `Number?.MAX_SAFE_INTEGER`, a dynamic key, and other
@@ -19,6 +24,31 @@ operations on the resulting number, with their ordinary semantics.
 
 **Language-design approval:** **sergey-shandar** explicitly requested this
 constant lowering in [the working session](https://chatgpt.com/local/01a19f98-0942-73e9-86cb-c7b41536801e).
+The separate [MAX_VALUE approval](../../todo/2360-built-in.md#numbermax_value-proposal-and-approval)
+extends that lowering to the largest finite value.
+
+## URI component encoding
+
+`encodeURIComponent` is a first-class global function, implemented once in
+FunctionalScript in the common runtime. It converts its argument to a string,
+preserves ASCII letters, digits and `-_.!~*'()`, and writes all other characters
+as uppercase UTF-8 percent escapes. For example,
+`encodeURIComponent('a/雪 😀')` is `'a%2F%E9%9B%AA%20%F0%9F%98%80'`.
+An unpaired UTF-16 surrogate fails; the error payload follows the language's
+[failure equivalence](../../principles/README.md#failure-is-one-outcome).
+
+Its function length is 1. No argument encodes `'undefined'`; additional
+arguments are evaluated and ignored. It can be saved in a binding, passed as
+a callback, or called through optional chaining:
+
+```js
+const encode = encodeURIComponent;
+export default ['a/b', '雪'].map(encode);
+```
+
+The global name cannot be rebound, but remains an ordinary property name.
+The [proposal and approval](../../todo/2360-built-in.md#encodeuricomponent-proposal-and-approval)
+record the admission. No native URI encoder is required.
 
 ## Static functions
 
@@ -252,7 +282,8 @@ The compiler demo offers the programs `staticFunctions` in [`module.f.js`](../mo
 
 The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
 example as a function of one number — the static functions as values:
-`Object.is`, the `Number` predicates, `Object.entries` and `Math.fround` — with every
+`Object.is`, the `Number` predicates, `Object.entries`, `Math.fround`,
+`encodeURIComponent` and `Number.MAX_VALUE` — with every
 output `fjs compile` makes of it: the expression graph (EDAG), the Rust and
 the WebAssembly that Rust builds to. Its Run button calls the default export
 with `0`, `1.5` and `0.1`, as JavaScript and as WebAssembly, and shows what each
@@ -261,7 +292,7 @@ call returned or threw.
 ```js
 const { is } = Object;
 const { isInteger } = Number;
-export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 }), Math.fround(a[0])];
+export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 }), Math.fround(a[0]), encodeURIComponent(`n=${a[0]} /😀`), Number.MAX_VALUE];
 ```
 
 ## Reference

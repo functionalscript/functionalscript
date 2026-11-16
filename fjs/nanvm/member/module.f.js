@@ -1,7 +1,7 @@
 /**
  * The member-function cases of the corpus: one group per `Array`, `String`
  * and `Number` method `nanvm-lib` answers, each case a receiver and its
- * arguments. [`../module.f.mjs`](../module.f.mjs) appends these groups to
+ * arguments. [`../module.f.js`](../module.f.js) appends these groups to
  * its operator groups to form `data`; they are a module of their own only so
  * that no one source file outgrows what the repository's file reader accepts.
  *

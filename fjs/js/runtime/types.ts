@@ -75,6 +75,9 @@ export type StaticBody = (...args: never[]) => unknown
 /** Every entry is a function. */
 type _StaticEntries = Assert<Equal<Statics[StaticId] extends StaticBody ? true : false, true>>
 
+/** The common encoder accepts every FJS value, including an omitted argument. */
+type _EncodeUriComponent = Assert<Equal<Statics['encodeURIComponent'], (value?: unknown) => string>>
+
 /** A native is the built-in itself, never a body beside it, which would be a second implementation. */
 type _NativeIsTheBuiltIn = Assert<Equal<Statics['Object.entries'], typeof Object.entries>>
 
