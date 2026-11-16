@@ -8,15 +8,19 @@
  * itself, on the values that the handles name, or on the floats that come:
  * `bigintEquals` is its `bigintEquals` and `numberRemainder` its
  * `numberRemainder`. `numberToString` and `bigintToString` answer a handle
- * that `make` owns for the caller; `stringToNumber` answers a float. Where
- * the row throws, as where WASM would trap, so does the import.
+ * that `make` owns for the caller; so do the bigint arithmetic rows.
+ * `stringToNumber` and `bigintLess` answer a float. Where the row throws,
+ * as where WASM would trap, so does the import.
  *
  * @module
  *
  * @import { Host } from './types.ts'
  */
 
-import { bigintEquals, bigintToString, numberRemainder, numberToString, stringToNumber } from '../../../wasm/runtime/l1/native/module.f.js'
+import {
+    bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
+    bigintToString, numberRemainder, numberToString, stringToNumber,
+} from '../../../wasm/runtime/l1/native/module.f.js'
 
 /**
  * The `fjs:l1-native` imports over a reading of handles, the one that the
@@ -31,4 +35,10 @@ export const host = (read, make) => ({
     numberToString: n => make(numberToString(n)),
     stringToNumber: s => stringToNumber(read(s)),
     bigintToString: b => make(bigintToString(read(b))),
+    bigintAdd: (a, b) => make(bigintAdd(read(a), read(b))),
+    bigintSubtract: (a, b) => make(bigintSubtract(read(a), read(b))),
+    bigintMultiply: (a, b) => make(bigintMultiply(read(a), read(b))),
+    bigintDivide: (a, b) => make(bigintDivide(read(a), read(b))),
+    bigintNegate: a => make(bigintNegate(read(a))),
+    bigintLess: (a, b) => bigintLess(read(a), read(b)),
 })

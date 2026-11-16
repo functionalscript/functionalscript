@@ -125,6 +125,31 @@ export const l1Get = {
     get: signature([['a', any], ['k', any]], any),
 }
 
+/**
+ * The signatures of L1's arithmetic and relational operators, which slice
+ * 10b lowers over `l1Runtime`. Coercions and `stringLess` are among them so
+ * the operators can call them; `functionText` so `toString` can.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Arith = {
+    functionText: signature([['t', any]], any),
+    toPrimitive: signature([['v', any], ['preferString', bool]], any),
+    toNumber: signature([['v', any]], f64),
+    toNumeric: signature([['v', any]], any),
+    toString: signature([['v', any]], any),
+    stringLess: signature(any2, bool),
+    add: signature(any2, any),
+    subtract: signature(any2, any),
+    multiply: signature(any2, any),
+    divide: signature(any2, any),
+    negate: signature([['a', any]], any),
+    lessThan: signature(any2, bool),
+    greaterThan: signature(any2, bool),
+    lessThanOrEqual: signature(any2, bool),
+    greaterThanOrEqual: signature(any2, bool),
+}
+
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
 const b2 = /** @type {const} */ ([['a', bool], ['b', bool]])
 

@@ -399,6 +399,15 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   stays. Without `get` in the table, that read is still refused. A member
   read that goes on to a call stays refused.
 
+## What 10b adds
+
+- **Native bigint arithmetic and `bigintLess`**: `bigintAdd`,
+  `bigintSubtract`, `bigintMultiply`, `bigintDivide` (may fail),
+  `bigintNegate`, and `bigintLess` on the L1 native interface and host.
+- **Subjects**: L1's `add`, `subtract`, `multiply`, `divide`, `negate`,
+  `lessThan`, `greaterThan`, `lessThanOrEqual` and `greaterThanOrEqual`,
+  lowered from L1's text over its error table, run against L1's own.
+
 ## What 8b adds
 
 - **`buildArray(n, s, next, at)` of the L0 view, lowered**

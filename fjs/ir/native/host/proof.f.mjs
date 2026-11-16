@@ -2,8 +2,8 @@ import { assert, assertEq } from '../../../asserts/module.f.js'
 import { handles } from '../../l0/host/module.f.js'
 import { host } from './module.f.js'
 
-/** Bigints, one past a word, and a value of another kind. */
-const values = [1n, 1n, -1n, 1n << 64n, 1 << 30, 'a']
+/** Bigints, one past a word, zero, and a value of another kind. */
+const values = [1n, 1n, -1n, 1n << 64n, 0n, 1 << 30, 'a']
 
 /** @type {unknown[]} */
 const owned = []
@@ -29,16 +29,43 @@ export const proof = {
         const k = h.numberToString(10)
         assertEq(owned[Number(k) - values.length], '10')
     },
-    stringToNumber: () => assert(Number.isNaN(h.stringToNumber(5n))),
+    stringToNumber: () => assert(Number.isNaN(h.stringToNumber(6n))),
     bigintToString: () => {
         const k = h.bigintToString(0n)
         assertEq(owned[Number(k) - values.length], '1')
     },
+    // Bigint arithmetic owns a cell of the answer; bigintLess answers a float.
+    bigintAdd: () => {
+        const k = h.bigintAdd(0n, 3n)
+        assertEq(owned[Number(k) - values.length], 1n + (1n << 64n))
+    },
+    bigintSubtract: () => {
+        const k = h.bigintSubtract(0n, 2n)
+        assertEq(owned[Number(k) - values.length], 2n)
+    },
+    bigintMultiply: () => {
+        const k = h.bigintMultiply(0n, 0n)
+        assertEq(owned[Number(k) - values.length], 1n)
+    },
+    bigintDivide: () => {
+        const k = h.bigintDivide(3n, 0n)
+        assertEq(owned[Number(k) - values.length], 1n << 64n)
+    },
+    bigintNegate: () => {
+        const k = h.bigintNegate(0n)
+        assertEq(owned[Number(k) - values.length], -1n)
+    },
+    bigintLess: () => {
+        assertEq(h.bigintLess(0n, 3n), 1)
+        assertEq(h.bigintLess(3n, 0n), 0)
+    },
     // Where the row throws, so does the import: a value of another kind, or a handle of none.
     throw: {
-        notBigint: () => { h.bigintEquals(0n, 4n) },
-        notHandle: () => { h.bigintEquals(0n, 6n) },
+        notBigint: () => { h.bigintEquals(0n, 5n) },
+        notHandle: () => { h.bigintEquals(0n, 7n) },
         stringToNumber: () => { h.stringToNumber(0n) },
         bigintToString: () => { h.bigintToString(5n) },
+        bigintDivideZero: () => { h.bigintDivide(0n, 4n) },
+        bigintLessNoBigint: () => { h.bigintLess(5n, 6n) },
     },
 }
