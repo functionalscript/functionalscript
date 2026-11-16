@@ -40,6 +40,8 @@ export const proof = {
         'Containers.push_property(own b: builder, own k: any.only(string), own v: any) -> builder may fail',
         'Containers.seal(own b: builder) -> any.only(array, object) may fail',
         'Functions.length(f: any.only(function)) -> u(31)',
+        'Functions.make_function(c: code([any.only(function), any.only(array)], any), own frame: any.only(array), length: u(31), own text: any.only(string, undefined)) -> any.only(function)',
+        'Functions.call(f: any.only(function), args: any.only(array)) -> any may fail',
         'Functions.throw(own v: any) -> never may fail',
     ].join('; ')),
     // A module may import all of them: the checker takes the interfaces.
