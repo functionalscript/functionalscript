@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
+ * @import { ArmOf, Code, CodeParam, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
  */
 
 // types
@@ -44,6 +44,14 @@ export const sealed = (module, name) => ['sealed', module, name, null]
 
 /** The values of some variants of a sealed type: `only(any, 'number')`. @type {(t: Sealed, ...variants: readonly string[]) => Sealed} */
 export const only = ([, module, name], ...variants) => ['sealed', module, name, variants]
+
+/**
+ * A code type: a pointer to a top-level function of these parameters and
+ * this result. Each parameter is `['borrow', T]` or `['own', T]`.
+ *
+ * @type {(params: readonly CodeParam[], result: Type) => Code}
+ */
+export const code = (params, result) => ['code', params, result]
 
 /**
  * Whether two values of the IR's data are the same: equal strings, numbers
@@ -132,6 +140,12 @@ export const trunc_sat = (t, x) => ['op', 'trunc_sat', [x], t]
 
 /** A function of a module, `self` for the module itself. @type {(module: string, name: string, args: readonly Term[]) => Term} */
 export const call = (module, name, args) => ['call', module, name, args]
+
+/** A top-level function of the module as a value. @type {(name: string) => Term} */
+export const codeOf = name => ['code', name]
+
+/** An indirect call of a code value. @type {(c: Term, args: readonly Term[]) => Term} */
+export const call_ref = (c, args) => ['call_ref', c, args]
 
 /** A product from its fields. @type {(fields: readonly (readonly [string, Term])[]) => Term} */
 export const make = fields => ['make', fields]
@@ -272,6 +286,7 @@ export const terms = t => {
         case 'let': { return [t[2], t[3]] }
         case 'op': { return t[2] }
         case 'call': { return t[3] }
+        case 'call_ref': { return [t[1], ...t[2]] }
         case 'make': { return t[1].map(([, x]) => x) }
         case 'field': { return [t[1]] }
         case 'variant': case 'block': { return [t[3]] }
@@ -288,6 +303,7 @@ export const inside = t => {
         case 'let': { return [t[2], t[3]] }
         case 'op': { return t[2] }
         case 'call': { return t[3] }
+        case 'call_ref': { return [t[1], ...t[2]] }
         case 'make': { return t[1].map(([, x]) => x) }
         case 'field': { return [t[1]] }
         case 'variant': case 'block': { return [t[3]] }

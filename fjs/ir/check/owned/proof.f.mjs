@@ -8,7 +8,7 @@
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { any, l0, string } from '../../l0/module.f.js'
 import {
-    add, block, bool, br, call, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, next, only, own, return_, trap, true_, u, unit,
+    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, never, next, only, own, return_, trap, true_, u, unit,
     variant,
 } from '../../module.f.js'
 import { check } from '../module.f.js'
@@ -152,6 +152,60 @@ export const proof = {
         },
         // A call that never returns, and terms that never complete, end the paths they are on.
         never: () => fine(overL0([['x', f64]], f64, call('self', 'g', [get('x')]), [['g', fn([['x', f64]], ['sum', []], trap('g'))]])),
+        // A `call_ref` of a code value borrows its arguments and the code.
+        callRef: () => fine({
+            imports: l0,
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call_ref(codeOf('sum'), [a, b]))],
+            ],
+            exports: ['f'],
+        }),
+        // A `call_ref` that answers never ends the path.
+        callRefNever: () => fine({
+            imports: l0,
+            functions: [
+                ['die', fn([], never, trap('die'))],
+                ['f', fn([own('v', any)], never, let_('d', drop(get('v')), () => call_ref(codeOf('die'), [])))],
+            ],
+            exports: ['f'],
+        }),
+        // A never `call_ref` ends the path even while an owned local is still alive.
+        callRefNeverAlive: () => fine({
+            imports: l0,
+            functions: [
+                ['die', fn([], never, trap('die'))],
+                ['f', fn([own('v', any)], never, call_ref(codeOf('die'), []))],
+            ],
+            exports: ['f'],
+        }),
+        // A stuck argument of a `call_ref` ends the path before the call.
+        callRefStuck: () => fine({
+            imports: l0,
+            functions: [
+                ['id', fn([['a', f64]], f64, a => a)],
+                ['f', fn([], f64, call_ref(codeOf('id'), [stuck(f64)]))],
+            ],
+            exports: ['f'],
+        }),
+        // An owned result of a `call_ref` is taken over as the function's result.
+        callRefOwned: () => fine({
+            imports: l0,
+            functions: [
+                ['box', fn([['a', f64]], any, call('Any', 'from_f64', [get('a')]))],
+                ['f', fn([['a', f64]], any, call_ref(codeOf('box'), [get('a')]))],
+            ],
+            exports: ['f'],
+        }),
+        // A `call_ref` of a code type with an `own` parameter consumes that argument.
+        callRefTake: () => fine({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn([own('v', any)], unit, call_ref(codeOf('take'), [get('v')]))],
+            ],
+            exports: ['f'],
+        }),
         stuck: {
             argument: () => fine(overL0([], u(31), length(stuck(string)))),
             operand: () => fine(overL0([], f64, add(stuck(f64), one))),
@@ -184,6 +238,14 @@ export const proof = {
             field: () => assertEq(why(overL0([], f64, field(make([['x', leak(one)]]), 'x'))), left),
             operand: () => assertEq(why(overL0([], f64, add(leak(one), one))), left),
             argument: () => assertEq(why(overL0([], unit, call('self', 'g', [leak(one), one]), [['g', fn([['x', f64], ['y', f64]], unit, none)]])), left),
+            callRef: () => assertEq(why({
+                imports: l0,
+                functions: [
+                    ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                    ['f', fn([], f64, call_ref(codeOf('sum'), [leak(one), one]))],
+                ],
+                exports: ['f'],
+            }), left),
             match: () => assertEq(why(overL0([], f64, if_(leak(true_), one, zero))), left),
             payload: () => assertEq(why(overL0([], bool, variant(bool, 'true', leak(none)))), left),
             first: () => assertEq(why(overL0([], f64, loop('L', [['i', f64, leak(one)]], i => i))), left),
@@ -213,6 +275,46 @@ export const proof = {
             why(overL0([['c', u(16)]], unit, let_('s', fromUnit(c), s => let_('d', drop(s), () => drop(s))))),
             'f: s is used after it was consumed',
         ),
+        callRefAfterTake: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn([own('v', any)], unit, let_('d', call_ref(codeOf('take'), [get('v')]), () => drop(get('v'))))],
+            ],
+            exports: ['f'],
+        }), 'f: v is used after it was consumed'),
+        callRefBorrowedOwn: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn([['a', string]], unit, call_ref(codeOf('take'), [a]))],
+            ],
+            exports: ['f'],
+        }), "f: call_ref's own: a is borrowed"),
+        callRefBorrowedOwnExpr: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn(ab, unit, call_ref(codeOf('take'), [if_(b, a, a)]))],
+            ],
+            exports: ['f'],
+        }), "f: call_ref's own is own, and its argument is borrowed"),
+        callRefStranded: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['pair', fn([own('x', any), own('y', any)], unit, let_('d', drop(get('x')), () => drop(get('y'))))],
+                ['f', fn([['c', u(16)]], unit, call_ref(codeOf('pair'), [fromUnit(c), away]))],
+            ],
+            exports: ['f'],
+        }), 'f: call_ref: the argument of parameter 1 may leave before the call takes that of parameter 0 over: bind it first'),
+        callRefLentAndConsumed: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['g', fn([['x', any], own('y', any)], unit, drop(get('y')))],
+                ['f', fn([own('v', any)], unit, call_ref(codeOf('g'), [get('v'), get('v')]))],
+            ],
+            exports: ['f'],
+        }), 'f: call_ref borrows v, which an argument of the call consumes'),
         borrowAfter: () => assertEq(
             why(overL0([['a', string]], u(31), let_('t', concat(a, a), t => match(t, [
                 [['string'], 't.s', let_('d', drop(t), () => length(get('t.s')))],
@@ -228,6 +330,14 @@ export const proof = {
             why(overL0([['a', string]], u(31), length(concat(a, a)))),
             'f: String.concat answers an owned value that nothing takes over: bind it first',
         ),
+        callRefTemporary: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['one', fn([], string, fromUnit(letterA))],
+                ['f', fn([], u(31), length(call_ref(codeOf('one'), [])))],
+            ],
+            exports: ['f'],
+        }), 'f: call_ref answers an owned value that nothing takes over: bind it first'),
         productAfter: () => assertEq(
             why(overL0([['a', string]], u(31), let_('t', concat(a, a), t => let_('p', make([['x', t]]), p => let_('d', drop(t), () => length(field(p, 'x'))))))),
             'f: p is used after t, which it borrows, was consumed',

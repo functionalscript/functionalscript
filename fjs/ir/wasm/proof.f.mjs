@@ -9,7 +9,8 @@
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { functions, wat } from '../../media/wasm/wat/module.f.js'
-import { add, bool, call, f64, f64c, fn, get, i, int, let_, lit, n, never, only, own, sealed, signature, throw_, u } from '../module.f.js'
+import { assert } from '../../asserts/module.f.js'
+import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, i, if_, int, let_, lit, n, never, only, own, sealed, signature, throw_, trap, true_, u } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0, string } from '../l0/module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
@@ -2149,6 +2150,83 @@ export const proof = {
     // A literal of a type of one variant is made once whether its type is written in full or as that variant.
     // A throw is a call of Functions' import, which answers nothing, then an `unreachable`, since the call answers never.
     throws: () => assertEq(body({ imports: l0, functions: [['f', fn([own('v', any)], never, v => throw_(v))]], exports: [] }), 'local.get 0, call 22, unreachable'),
+    // A `code` value is a table index; `call_ref` is `call_indirect` of the module's table.
+    code: () => {
+        const bin = code([['borrow', f64], ['borrow', f64]], f64)
+        const m = emitted({
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['apply', fn([['c', bin], ['a', f64], ['b', f64]], f64, (c, a, b) => call_ref(c, [a, b]))],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call('self', 'apply', [codeOf('sum'), a, b]))],
+            ],
+            exports: ['f'],
+        })
+        assertEq(m.tables.length, 1)
+        assertEq(m.tables[0].element, 'funcref')
+        assertEq(m.tables[0].limits.min, 1)
+        assertEq(m.tables[0].limits.max, 1)
+        assertEq(m.elements.length, 1)
+        {
+            const init = m.elements[0].init
+            assert(init[0] === 'func', init)
+            assertEq(init[1].join(','), '0')
+        }
+        assertEq(functions(m)[0], [
+            '  (func $sum (;0;) (type 0) (param $a f64) (param $b f64) (result f64)',
+            '    local.get $a',
+            '    local.get $b',
+            '    f64.add',
+            '  )',
+            '',
+        ].join('\n'))
+        assertEq(functions(m)[1], [
+            '  (func $apply (;1;) (type 1) (param $c i32) (param $a f64) (param $b f64) (result f64)',
+            '    (local $code i32)',
+            '    local.get $c',
+            '    local.set $code',
+            '    local.get $a',
+            '    local.get $b',
+            '    local.get $code',
+            '    call_indirect (type 0)',
+            '  )',
+            '',
+        ].join('\n'))
+        assertEq(functions(m)[2], [
+            '  (func $f (;2;) (type 0) (param $a f64) (param $b f64) (result f64)',
+            '    i32.const 0',
+            '    local.get $a',
+            '    local.get $b',
+            '    call $apply',
+            '  )',
+            '',
+        ].join('\n'))
+        // The callee is evaluated and saved before the arguments, so a trap in it never runs them.
+        assertEq(body({
+            imports: [],
+            functions: [
+                ['f', fn([], f64, call_ref(call('self', 'pick', [true_]), [call('self', 'bump', []), lit(f64, 2)]))],
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['pick', fn([['b', bool]], bin, b => if_(b, trap('no'), codeOf('sum')))],
+                ['bump', fn([], f64, lit(f64, 1))],
+            ],
+            exports: [],
+        }), 'i32.const 1, call 2, local.set 0, call 3, f64.const 4611686018427387904, local.get 0, call_indirect 1 0')
+        // A `call_ref` with no `code(f)` still emits table 0, empty.
+        {
+            const applyOnly = emitted({
+                imports: [],
+                functions: [
+                    ['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))],
+                ],
+                exports: ['apply'],
+            })
+            assertEq(applyOnly.tables.length, 1)
+            assertEq(applyOnly.tables[0].limits.min, 0)
+            assertEq(applyOnly.tables[0].limits.max, 0)
+            assertEq(applyOnly.elements.length, 0)
+        }
+    },
     sole: () => {
         const label = sealed('Label', 'label')
         /** @type {Interface} */

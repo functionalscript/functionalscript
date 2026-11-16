@@ -81,7 +81,7 @@ const union = (a, b) => [...a, ...minus(b, a)]
 const holds = t => t[0] === 'sealed' || (t[0] === 'product' && t[1].some(([, x]) => holds(x)))
 
 /** Whether a term is a value already, so that naming it changes no order of evaluation: a local, a literal, a constant or a field of such a value. @type {(t: Typed) => boolean} */
-const isSimple = ([, t]) => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || (t[0] === 'field' && isSimple(t[1]))
+const isSimple = ([, t]) => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && isSimple(t[1]))
 
 /**
  * Whether a term may complete. A term of type `never` does not, and the
@@ -101,6 +101,7 @@ const free = ([, t]) => {
         case 'let': { return union(free(t[2]), minus(free(t[3]), [t[1]])) }
         case 'op': { return all(t[2]) }
         case 'call': { return all(t[3]) }
+        case 'call_ref': { return all([t[1], ...t[2]]) }
         case 'make': { return all(t[1].map(([, x]) => x)) }
         case 'field': { return free(t[1]) }
         case 'variant': { return free(t[3]) }
@@ -118,6 +119,7 @@ const bound = ([, t]) => {
         case 'let': { return [t[1], ...bound(t[2]), ...bound(t[3])] }
         case 'op': { return t[2].flatMap(x => bound(x)) }
         case 'call': { return t[3].flatMap(x => bound(x)) }
+        case 'call_ref': { return [t[1], ...t[2]].flatMap(x => bound(x)) }
         case 'make': { return t[1].flatMap(([, x]) => bound(x)) }
         case 'field': { return bound(t[1]) }
         case 'variant': { return bound(t[3]) }
@@ -292,6 +294,16 @@ const named = (env, typed, n) => {
             const [args, n1] = each(t[3], n)
             return namedCall(env, type, t[1], t[2], args, n1)
         }
+        case 'call_ref': {
+            const of = t[1][0]
+            assert(of[0] === 'code', of)
+            // The callee first, then the arguments, as the checker and the emitter do.
+            const [parts, n1] = each([t[1], ...t[2]], n)
+            const lent = t[2].map((x, k) => of[1][Number(k)][0] !== 'own' && x[0][0] === 'sealed' && !isSimple(x))
+            const arg = lent.lastIndexOf(true)
+            return settle(env, type, parts, later(arg < 0 ? -1 : arg + 1, lastLeaving(parts)), n1,
+                xs => ['call_ref', xs[0], xs.slice(1)])
+        }
         case 'make': {
             const [xs, n1] = each(t[1].map(([, x]) => x), n)
             return [[type, ['make', t[1].map(([k], j) => [k, xs[Number(j)]])]], n1]
@@ -465,7 +477,7 @@ const repeatOf = ([, t]) => {
 }
 
 /** Whether a term is a value that no drop changes: a local or a literal. @type {(t: Term) => boolean} */
-const isValue = t => t[0] === 'get' || t[0] === 'lit'
+const isValue = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code'
 
 /**
  * A `br`: its values, taken over where the label owns them, then the drops
@@ -565,6 +577,46 @@ const go = (env, typed, mode, owned, live, n) => {
             if (r[0] === 'error') { return r }
             const { terms, owned: o, n: n1 } = r[1]
             return completes(typed) ? ok({ term: ['call', module, name, terms], owned: o, n: n1 }) : failStep(env, module, name, terms, lent, o, n1)
+        }
+        case 'call_ref': {
+            const of = t[1][0]
+            assert(of[0] === 'code', of)
+            const params = of[1]
+            /** @type {readonly (readonly [Typed, _Mode])[]} */
+            const items = [[t[1], 'read'], ...t[2].map((x, k) => /** @type {const} */ ([x, params[Number(k)][0] === 'own' ? 'take' : 'read']))]
+            const lent = t[2].reduce((r, x, k) => params[Number(k)][0] === 'own' ? r : union(r, free(x)), nothing)
+            const r = sequence(go, env, items, owned, union(live, lent), n)
+            if (r[0] === 'error') { return r }
+            const { terms, owned: o, n: n1 } = r[1]
+            const c = terms[0]
+            const args = terms.slice(1)
+            // A call_ref that answers never drops what the function owns, as a failing call does.
+            if (!completes(typed)) {
+                const all = env.frames.reduce((x, [, outer]) => union(x, outer), o)
+                const borrowed = lent.reduce((acc, x) => union(acc, leansOn(env, x)), lent)
+                const leaving = minus(all, borrowed)
+                if (leaving.length !== 0) {
+                    const drops = okList(leaving.map(x => dropOf(env, x)))
+                    if (drops[0] === 'error') { return drops }
+                    const [names, n2] = [c, ...args].reduce(
+                        /** @type {(acc: readonly [readonly (string | null)[], number], x: Term) => readonly [readonly (string | null)[], number]} */
+                        ([done, m], x) => {
+                            if (isValue(x)) { return [[...done, null], m] }
+                            const [y, m1] = fresh(env.taken, m)
+                            return [[...done, y], m1]
+                        },
+                        [[], n1])
+                    const held = [c, ...args].map((x, j) => {
+                        const y = names[Number(j)]
+                        return y === null ? x : /** @type {Term} */ (['get', y])
+                    })
+                    const [exit, n3] = chain(env, drops[1], ['call_ref', held[0], held.slice(1)], n2)
+                    /** @type {(rest: Term, y: string | null, j: number) => Term} */
+                    const hold = (rest, y, j) => y === null ? rest : ['let', y, [c, ...args][Number(j)], rest]
+                    return ok({ term: names.reduceRight(hold, exit), owned: o, n: n3 })
+                }
+            }
+            return ok({ term: ['call_ref', c, args], owned: o, n: n1 })
         }
         case 'make': {
             const r = sequence(go, env, reading(t[1].map(([, x]) => x)), owned, live, n)

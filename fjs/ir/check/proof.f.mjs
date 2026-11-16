@@ -5,7 +5,7 @@
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, builder, l0, string } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, cast, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
+    add, block, bool, br, call, call_ref, cast, code, codeOf, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
     match, mayFail, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, throw_, trap, true_, trunc_sat,
     u, unit, variant,
 } from '../module.f.js'
@@ -125,6 +125,48 @@ export const proof = {
             [['g', fn([], f64, call('self', 'h', []))], ['h', fn([], f64, self('k'))]])),
             'j: k is read before init evaluates it')
         assertOk(check(withConstants([['j', { type: f64, value: one_ }], ['k', { type: f64, value: call('self', 'g', []) }]], [['g', fn([], f64, self('j'))]])))
+        // `code(f)` only takes a table index; it does not run `f`, so a constant of `code(f)` may precede one that `f` reads.
+        assertOk(check(withConstants(
+            [['c', { type: code([], f64), value: codeOf('g') }], ['k', { type: f64, value: one_ }]],
+            [['g', fn([], f64, self('k'))]],
+        )))
+        // A `call_ref` of a known `code(g)` runs `g`, so it may not precede a constant that `g` reads.
+        assertEq(why(withConstants(
+            [['j', { type: f64, value: call_ref(codeOf('g'), []) }], ['k', { type: f64, value: one_ }]],
+            [['g', fn([], f64, self('k'))]],
+        )), 'j: k is read before init evaluates it')
+        // An unresolved code value may run any function; the same order is refused.
+        assertEq(why(withConstants(
+            [['c', { type: code([], f64), value: codeOf('g') }], ['j', { type: f64, value: call_ref(self('c'), []) }], ['k', { type: f64, value: one_ }]],
+            [['g', fn([], f64, self('k'))]],
+        )), 'j: k is read before init evaluates it')
+        assertOk(check(withConstants(
+            [['c', { type: code([], f64), value: codeOf('g') }], ['k', { type: f64, value: one_ }], ['j', { type: f64, value: call_ref(self('c'), []) }]],
+            [['g', fn([], f64, self('k'))]],
+        )))
+        // An unresolved `call_ref` inside a called helper is the same: readings take every function.
+        assertEq(why(withConstants(
+            [
+                ['c', { type: code([], f64), value: codeOf('g') }],
+                ['j', { type: f64, value: call('self', 'apply', [self('c')]) }],
+                ['k', { type: f64, value: one_ }],
+            ],
+            [
+                ['g', fn([], f64, self('k'))],
+                ['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))],
+            ],
+        )), 'j: k is read before init evaluates it')
+        assertOk(check(withConstants(
+            [
+                ['c', { type: code([], f64), value: codeOf('g') }],
+                ['k', { type: f64, value: one_ }],
+                ['j', { type: f64, value: call('self', 'apply', [self('c')]) }],
+            ],
+            [
+                ['g', fn([], f64, self('k'))],
+                ['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))],
+            ],
+        )))
         // An interface names each of its constants once, each of a type that a global holds.
         assertEq(why(constantsOf([['c', f64], ['c', f64]])), 'Bad: two constants are named c')
         assertEq(why(constantsOf([['c', product([['a', f64]])]])), 'Bad: c: { a: f64 } is not in this slice')
@@ -191,6 +233,113 @@ export const proof = {
         assertEq(why(one([['a', f64], ['b', f64]], f64, call('self', 'f', [one_]))), 'f: f takes 2 arguments, not 1')
         assertEq(why(g(call('self', 'f', [y]))), 'f: no local y')
         assertEq(why(g(call('self', 'f', [one_]))), "f: f's a is bool, not f64c")
+    },
+    code: () => {
+        const bin = code([['borrow', f64], ['borrow', f64]], f64)
+        /** @type {Module} */
+        const m = {
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['apply', fn([['c', bin], ['a', f64], ['b', f64]], f64, (c, a, b) => call_ref(c, [a, b]))],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call('self', 'apply', [codeOf('sum'), a, b]))],
+            ],
+            exports: ['f'],
+        }
+        const checked = assertOk(check(m))
+        assertEq(show(checked.functions[1][1].body[0]), 'f64')
+        assertEq(show(checked.functions[2][1].params[0][1]), 'f64')
+        assertEq(show(assertOk(check({
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([], bin, codeOf('sum'))],
+            ],
+            exports: [],
+        })).functions[1][1].body[0]), 'code([f64, f64], f64)')
+        assertEq(why({
+            imports: [],
+            functions: [['f', fn([], bin, codeOf('g'))]],
+            exports: [],
+        }), 'f: no function g')
+        assertEq(why({
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([['a', f64]], f64, a => call_ref(codeOf('sum'), [a]))],
+            ],
+            exports: [],
+        }), 'f: call_ref takes 2 arguments, not 1')
+        assertEq(why({
+            imports: [],
+            functions: [['f', fn([['a', f64]], f64, a => call_ref(a, []))]],
+            exports: [],
+        }), 'f: call_ref of f64, which is no code')
+        assertEq(why({
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([['a', bool], ['b', f64]], f64, (a, b) => call_ref(codeOf('sum'), [a, b]))],
+            ],
+            exports: [],
+        }), "f: call_ref's argument 0 is f64, not bool")
+        assertEq(why({
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([], f64, call_ref(get('c'), [lit(f64, 1), lit(f64, 2)]))],
+            ],
+            exports: [],
+        }), 'f: no local c')
+        assertEq(why({
+            imports: [],
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['f', fn([], f64, call_ref(codeOf('sum'), [get('a'), lit(f64, 2)]))],
+            ],
+            exports: [],
+        }), 'f: no local a')
+        assertEq(why({
+            imports: [],
+            functions: [['f', fn([['c', code([['own', f64]], f64)]], f64, c => call_ref(c, [lit(f64, 1)]))]],
+            exports: [],
+        }), 'f: a code parameter is own, and f64 is not sealed, so there is nothing to own')
+        assertEq(why({
+            imports: [],
+            functions: [['f', fn([['c', code([['borrow', never]], f64)]], f64, c => call_ref(c, [trap('no')]))]],
+            exports: [],
+        }), 'f: a code parameter is never, so no call reaches the function')
+        assertEq(why({
+            imports: [],
+            functions: [['f', fn([['c', code([['borrow', int(1n, 0n)]], f64)]], f64, c => call_ref(c, [n(1n)]))]],
+            exports: [],
+        }), 'f: int(1, 0) is empty')
+        // A code of a function with an `own` parameter, and a code that answers unit.
+        assertOk(check({
+            imports: l0,
+            functions: [
+                ['g', fn([own('v', any)], unit, call('Any', 'drop', [get('v')]))],
+                ['f', fn([], code([['own', any]], unit), codeOf('g'))],
+            ],
+            exports: [],
+        }))
+        assertOk(check({
+            imports: [],
+            functions: [
+                ['none', fn([['a', f64]], unit, make([]))],
+                ['f', fn([['c', code([['borrow', f64]], unit)]], unit, c => call_ref(c, [lit(f64, 1)]))],
+            ],
+            exports: [],
+        }))
+        // A `call_ref` of a known `code(f)` inherits `f`'s effect.
+        assertEq(assertOk(check({
+            imports: [],
+            functions: [
+                ['die', fn([], never, trap('die'))],
+                ['f', fn([], never, call_ref(codeOf('die'), []))],
+            ],
+            exports: [],
+        })).functions[1][1].fails, true)
     },
     products: () => {
         const p = /** @type {const} */ ([['x', f64], ['b', bool]])

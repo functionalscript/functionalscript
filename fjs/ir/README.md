@@ -25,7 +25,8 @@ Containers' builder (8b), and `buildObject` with `{}` and `objectSpread`
 (8c). The first PR of the eighth, 8a, changed the L0 view itself, so
 that it calls a builder's callbacks in the order of that loop. Slice 9a
 adds Any's `from_f64` and `from_bool`, so a number or boolean meets
-`any` and can be an array item. Next is calling function values (9b).
+`any` and can be an array item. Slice 9b1 adds the `code` type and
+`call_ref`.
 
 ## Map of this directory
 
@@ -357,6 +358,15 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   ([definition.md's rule 6](../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
   Array literals and builder items box them; float records stay products.
   Calling function values waits for 9b.
+
+## What 9b1 adds
+
+- **`code`**: a type, a pointer to a top-level function of the module, as an
+  `i32` table index; `code(f)` is the term that names one.
+- **`call_ref(c, …)`**: an indirect call of a code value. The emitter fills
+  a module `funcref` table with every function that a `code` term names and
+  spells the call as `call_indirect`. Hand-written only; L0's `call` /
+  `make_function` and the lowering wait for 9b2 and 9b3.
 
 ## What 8b adds
 

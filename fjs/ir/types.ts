@@ -41,7 +41,17 @@ export type Sum = readonly ['sum', Parts]
  */
 export type Sealed = readonly ['sealed', module: string, name: string, only: readonly string[] | null]
 
-export type Type = Int | F64 | F64c | Product | Sum | Sealed
+/**
+ * A parameter of a code type: whether the callee owns it, and its type. A
+ * missing name is the difference from a function's parameter: a code value
+ * is only its signature's shape.
+ */
+export type CodeParam = readonly ['borrow' | 'own', Type]
+
+/** A pointer to a top-level function: its parameters and its result. */
+export type Code = readonly ['code', readonly CodeParam[], Type]
+
+export type Type = Int | F64 | F64c | Product | Sum | Sealed | Code
 
 /**
  * The operators of the slices so far, each typed by its operands but
@@ -74,6 +84,12 @@ export type Op = readonly ['op', OpName, readonly Term[], target?: Int]
 
 /** A function of a module, `self` for the module itself. */
 export type Call = readonly ['call', module: string, name: string, args: readonly Term[]]
+
+/** A top-level function of the module as a value: its name. */
+export type CodeOf = readonly ['code', string]
+
+/** An indirect call of a code value. */
+export type CallRef = readonly ['call_ref', Term, readonly Term[]]
 
 /** A product, from its fields in their order. */
 export type Make = readonly ['make', readonly (readonly [string, Term])[]]
@@ -113,7 +129,7 @@ export type Trap = readonly ['trap', reason: string]
  */
 export type Constant = readonly ['constant', module: string, name: string]
 
-export type Term = Lit | Get | Let | Op | Call | Make | Field | Variant | Match | Block | Loop | Br | Trap | Constant
+export type Term = Lit | Get | Let | Op | Call | CodeOf | CallRef | Make | Field | Variant | Match | Block | Loop | Br | Trap | Constant
 
 /** A term as the checker answers it: its type, then the term with its parts typed. */
 export type Typed = readonly [Type, TypedTerm]
@@ -132,6 +148,8 @@ export type TypedTerm =
     | readonly ['let', string, Typed, Typed]
     | readonly ['op', OpName, readonly Typed[]]
     | readonly ['call', module: string, name: string, args: readonly Typed[]]
+    | CodeOf
+    | readonly ['call_ref', Typed, readonly Typed[]]
     | readonly ['make', readonly (readonly [string, Typed])[]]
     | readonly ['field', Typed, string]
     | readonly ['variant', Sum, string, Typed]

@@ -35,6 +35,10 @@
  *   interface is an import of the interface's `abi` by the function's name,
  *   so the functions that share a name, as the four `length`s do, share the
  *   host's function too. Imports come first, an interface at a time.
+ * - **A `code` value is an `i32` table index.** `code(f)` is the index of
+ *   `f` in the module's one `funcref` table, filled by an active element
+ *   segment of the functions that any `code` term names. `call_ref` is
+ *   `call_indirect` of that table, with the code value as the index.
  * - **A function that gives back a parameter is an import that answers
  *   nothing** ([definition.md's binding rule 3](../../../doc/sasha-gil/ir/definition.md#bindings)):
  *   the call keeps the parameter's value in a local named for the
@@ -90,7 +94,7 @@
  * @module
  *
  * @import { BlockType, Bytes, Custom, Export, Expr, FuncType, Import, IndirectNameMap, Instruction, Locals, Module as WasmModule, NameMap, ValType } from '../../media/wasm/types.ts'
- * @import { Checked, ConstantOf, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm } from '../types.ts'
+ * @import { Checked, Code, ConstantOf, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
  */
@@ -129,11 +133,12 @@ const scalars = (name, t) =>
     : t[0] === 'sum' && t[1].length === 0 ? []
     : [[name, t]]
 
-/** The WASM value of a scalar. A sealed type's is the one its interface names. @type {(interfaces: OrderedMap<Interface>, t: Type) => ValType} */
+/** The WASM value of a scalar. A sealed type's is the one its interface names. A code value is an `i32` table index. @type {(interfaces: OrderedMap<Interface>, t: Type) => ValType} */
 const scalar = (interfaces, t) =>
     t[0] === 'int' ? (fits(32)(t) ? 'i32' : 'i64')
     : t[0] === 'f64' || t[0] === 'f64c' ? 'f64'
     : t[0] === 'sealed' ? definition(interfaces, t).carrier
+    : t[0] === 'code' ? 'i32'
     : 'i32'
 
 /** The locals that hold a value of `t`, named for the parts they hold. @type {(interfaces: OrderedMap<Interface>, name: string, t: Type) => _Code['locals']} */
@@ -141,6 +146,12 @@ const localsOf = (interfaces, name, t) => scalars(name, t).map(([k, x]) => [k, s
 
 /** The WASM values that hold a value of `t`, in their order. @type {(interfaces: OrderedMap<Interface>, t: Type) => readonly ValType[]} */
 const carrier = (interfaces, t) => localsOf(interfaces, '', t).map(([, x]) => x)
+
+/** The WASM type of a code value's call. @type {(interfaces: OrderedMap<Interface>, t: Code) => FuncType} */
+const codeType = (interfaces, [, params, result]) => ({
+    params: params.flatMap(([, x]) => carrier(interfaces, x)),
+    results: carrier(interfaces, result),
+})
 
 /** @type {(a: FuncType, b: FuncType) => boolean} */
 const same = (a, b) => equal(a.params, b.params) && equal(a.results, b.results)
@@ -483,6 +494,29 @@ const term = (env, [type, t]) => {
             const rest = sequence(term, { ...env, next: slot + kept.length }, parts.slice(k + 1), [['call', index], ['local.get', slot]])
             return { code: [...before.code, ['local.tee', slot], ...rest.code], locals: [...before.locals, ...kept, ...rest.locals] }
         }
+        case 'code': { return just([['i32.const', assertNotNullish(at(t[1])(env.codes))]]) }
+        case 'call_ref': {
+            const [, callee, args] = t
+            const of = callee[0]
+            assert(of[0] === 'code', of)
+            const typeIndex = env.types.findIndex(x => same(x, codeType(env.interfaces, of)))
+            assert(typeIndex >= 0, of)
+            // The checker and `terms` evaluate the callee first. Save its table index
+            // so the arguments' effects cannot run before it, then push the index last.
+            const before = sequence(term, env, [[callee, of]], [])
+            const slot = env.next + before.locals.length
+            /** @type {readonly (readonly [Typed, Type])[]} */
+            const parts = args.map((x, k) => /** @type {const} */ ([x, of[1][Number(k)][1]]))
+            const rest = sequence(term, { ...env, next: slot + 1 }, parts, [
+                ['local.get', slot],
+                ['call_indirect', typeIndex, 0],
+                ...afterNever(type),
+            ])
+            return {
+                code: [...before.code, ['local.set', slot], ...rest.code],
+                locals: [...before.locals, /** @type {const} */ (['code', 'i32']), ...rest.locals],
+            }
+        }
         case 'make': { return sequence(term, env, t[1].map(([, x]) => /** @type {const} */ ([x, x[0]])), []) }
         case 'field': { return fieldOf(term, env, type, t[1], t[2]) }
         case 'variant': {
@@ -589,6 +623,17 @@ const funcExport = (name, index) => ({ name, kind: 'func', index })
 /** The string literals that a typed term holds, with their types, in their order. @type {(x: Typed) => readonly (readonly [Sealed, string])[]} */
 const literalsOf = ([type, t]) => t[0] === 'lit' && type[0] === 'sealed' && typeof t[2] === 'string' ? [[type, t[2]]] : inside(t).flatMap(literalsOf)
 
+/** The names of the module's functions that a typed term takes as `code` values. @type {(x: Typed) => readonly string[]} */
+const codesOf = ([, t]) => t[0] === 'code' ? [t[1]] : inside(t).flatMap(codesOf)
+
+/** Whether a typed term has a `call_ref`. @type {(x: Typed) => boolean} */
+const hasCallRef = ([, t]) => t[0] === 'call_ref' || inside(t).some(hasCallRef)
+
+/** The WASM types of the `call_ref`s in a typed term. @type {(interfaces: OrderedMap<Interface>, x: Typed) => readonly FuncType[]} */
+const callRefTypes = (interfaces, [, t]) => t[0] === 'call_ref' && t[1][0][0] === 'code'
+    ? [codeType(interfaces, t[1][0]), ...inside(t).flatMap(x => callRefTypes(interfaces, x))]
+    : inside(t).flatMap(x => callRefTypes(interfaces, x))
+
 /** A string's UTF-16 units as memory holds them, two bytes each, the low byte first. @type {(s: string) => Bytes} */
 const unitsOf = s => toArray(stringToList(s)).flatMap(u => [u % 0x100, Math.floor(u / 0x100)])
 
@@ -646,6 +691,13 @@ export const emit = m => {
     const init = constants.length === 0 ? [] : [{ params: [], results: [] }]
     /** @type {readonly FuncType[]} */
     const start = literals.length === 0 ? [] : [{ params: [], results: [] }]
+    const referenced = m.functions.map(([name]) => name).filter(name =>
+        m.functions.some(([, f]) => codesOf(f.body).includes(name))
+        || constants.some(([, c]) => codesOf(c.value).includes(name)))
+    // `call_indirect` needs table 0 even when no `code(f)` fills it.
+    const needsTable = referenced.length > 0
+        || m.functions.some(([, f]) => hasCallRef(f.body))
+        || constants.some(([, c]) => hasCallRef(c.value))
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
         ...makers.map(({ type }) => type),
@@ -654,6 +706,8 @@ export const emit = m => {
         ...start,
         ...m.functions.flatMap(([, f]) => blockTypes(interfaces, f.body)),
         ...constants.flatMap(([, c]) => blockTypes(interfaces, c.value)),
+        ...m.functions.flatMap(([, f]) => callRefTypes(interfaces, f.body)),
+        ...constants.flatMap(([, c]) => callRefTypes(interfaces, c.value)),
     ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
@@ -673,9 +727,10 @@ export const emit = m => {
     ])
     const own = imported.length + makers.length
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
+    const codeIndex = fromEntries(referenced.map((name, k) => /** @type {const} */ ([name, k])))
     /** @type {_Env} */
     const base = {
-        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals,
+        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals, codes: codeIndex,
         literals: literals.map(([t, s], j) => /** @type {const} */ ([t, s, literalBase + j])),
     }
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
@@ -734,7 +789,7 @@ export const emit = m => {
             ...(init.length === 0 ? [] : [{ type: typeOf(initIndex), locals: runs(initCode.locals.map(([, t]) => t)), body: initCode.code }]),
             ...(start.length === 0 ? [] : [{ type: typeOf(startIndex), locals: [], body: startCode }]),
         ],
-        tables: [],
+        tables: needsTable ? [{ element: 'funcref', limits: { min: referenced.length, max: referenced.length } }] : [],
         memories: [],
         globals: [
             ...literals.map(([t]) => definition(interfaces, t).carrier),
@@ -745,7 +800,10 @@ export const emit = m => {
             ...(init.length === 0 ? [] : [funcExport('init', initIndex)]),
         ],
         start: start.length === 0 ? null : startIndex,
-        elements: [],
+        elements: referenced.length === 0 ? [] : [{
+            mode: /** @type {const} */ (['active', 0, [['i32.const', 0]]]),
+            init: /** @type {const} */ (['func', referenced.map(name => own + m.functions.findIndex(([k]) => k === name))]),
+        }],
         dataCount: null,
         data: memoryAbi === null ? [] : [{ mode: ['active', 0, [['global.get', dataBase]]], bytes }],
         customs: [
