@@ -13,14 +13,16 @@ export const proof = {
         assertEq(kinds.join(), 'undefined,null,boolean,number,string,bigint,array,object,function')
         assertEq([UNDEFINED, NULL, BOOLEAN, NUMBER, STRING, BIGINT, ARRAY, OBJECT, FUNCTION].join(), '0,1,2,3,4,5,6,7,8')
         assertEq([undefined, null, true, 1, '', 1n, [], {}, () => 0].map(viewKind).join(), '0,1,2,3,4,5,6,7,8')
-        assertEq(`${kind} ${carrier} ${dup} ${drop} ${functions.map(([k]) => k).join()}`, 'kind i64 dup drop kind,to_f64,to_bool,same,dup,drop')
+        assertEq(`${kind} ${carrier} ${dup} ${drop} ${functions.map(([k]) => k).join()}`, 'kind i64 dup drop kind,to_f64,from_f64,to_bool,from_bool,same,dup,drop')
     },
     // Every parameter of an L0 function narrows `any` to the kinds that the function takes.
     signatures: () => assertEq(l0.flatMap(([m, { functions }]) => functions.map(([f, { params, result, fails }]) =>
         `${m}.${f}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}${fails === true ? ' may fail' : ''}`)).join('; '), [
         'Any.kind(v: any) -> int(0, 8)',
         'Any.to_f64(v: any.only(number)) -> f64c',
+        'Any.from_f64(x: f64) -> any.only(number)',
         'Any.to_bool(v: any.only(boolean)) -> bool',
+        'Any.from_bool(b: bool) -> any.only(boolean)',
         'Any.same(a: any.only(array, object, function), b: any.only(array, object, function)) -> bool',
         'Any.dup(v: any) -> any',
         'Any.drop(own v: any) -> unit',

@@ -23,8 +23,9 @@ which functions may fail (7a), the lowering of `throw` and of L1's
 error table (7b), the L0 view's `buildArray`, lowered as one loop of
 Containers' builder (8b), and `buildObject` with `{}` and `objectSpread`
 (8c). The first PR of the eighth, 8a, changed the L0 view itself, so
-that it calls a builder's callbacks in the order of that loop. Next is
-calling function values (9).
+that it calls a builder's callbacks in the order of that loop. Slice 9a
+adds Any's `from_f64` and `from_bool`, so a number or boolean meets
+`any` and can be an array item. Next is calling function values (9b).
 
 ## Map of this directory
 
@@ -348,6 +349,14 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   which make records and Containers object literals, and L1's
   `objectSpread`, lowered from its text, against L1's own. A `{ ...v }`
   literal waits for a later cut; `objectSpread` is what it copies.
+
+## What 9a adds
+
+- **`from_f64` and `from_bool`**: Any's inverses of `to_f64` and `to_bool`,
+  written where a float or a boolean meets `any`
+  ([definition.md's rule 6](../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)).
+  Array literals and builder items box them; float records stay products.
+  Calling function values waits for 9b.
 
 ## What 8b adds
 

@@ -201,14 +201,17 @@ Slice 8, cut in three as decided above.
   cast; the `numberToString` row. Subject: `objectSpread`. A `{ ...v }`
   literal waits for a later cut; `objectSpread` is what it copies.
 
-#### Later
+#### Next — function values
 
-- [ ] **Calling function values** (9). L0's `call` from WASM into the host
-  and back. Any's `from_f64` and `from_bool`, written where a number or a
-  boolean meets `any`, as
+Slice 9, cut in two: boxing first, then `call`.
+
+- [ ] **9a. Any's `from_f64` and `from_bool`** (this PR). Written where a
+  number or a boolean meets `any`, as
   [definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
-  has it, since `toNumeric` answers a number as `any`; with them, numbers
-  and booleans as items of an array literal. Subjects: `toPrimitive`,
+  has it; with them, numbers and booleans as items of an array literal.
+  Float records stay products. Subjects wait for 9b.
+- [ ] **9b. Calling function values.** L0's `call` from WASM into the host
+  and back, with the `code` type and `call_ref`. Subjects: `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
 - [ ] **The whole L1 module** (10), against the cases of its parity proof.
   `get` is among it: its throw for `undefined` and `null`, and its reads

@@ -71,8 +71,9 @@
  *   `seal` of a `push` of each item, in their order, onto `begin_array` of
  *   their count. Nothing between `begin_array` and `seal` traps or leaves,
  *   so the builder, which is linear, is never left behind. An item is a
- *   value of `any`: a number or a boolean is refused, and so are a spread
- *   and an array in a module lowered without the runtime.
+ *   value of `any`: a number or a boolean meets it through `from_f64` or
+ *   `from_bool`, and a spread and an array in a module lowered without the
+ *   runtime are refused.
  * - **`buildArray(n, s, next, at)` of the L0 view is one loop of
  *   Containers' builder**
  *   ([L0 design §22](../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
@@ -160,6 +161,18 @@ const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
 
 /** Whether a type is `any`, of every kind or of some. @type {(t: Type) => boolean} */
 const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2]
+
+/**
+ * A value of `any`, or a float or boolean boxed as one by `from_f64` or
+ * `from_bool` ([definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
+ * or `null` where no conversion of this slice fits.
+ *
+ * @type {(t: Type, x: Term) => Term | null}
+ */
+const asAny = (t, x) => isAny(t) ? x
+    : isFloat(t) ? call('Any', 'from_f64', [x])
+    : equal(t, bool) ? call('Any', 'from_bool', [x])
+    : null
 
 /** The static functions that are operators of the IR. @type {(id: string) => OpName | null} */
 const staticOp = id => id === 'Math.sqrt' ? 'sqrt' : id === 'Math.abs' ? 'abs' : null
@@ -740,14 +753,15 @@ const buildObjectOf = (lowerValue, scope, vs) => {
         if (vTerm[0] === 'error') { return vTerm }
         const vType = typeOf(inner.ir)(vTerm[1])
         if (vType[0] === 'error') { return vType }
-        if (!isAny(vType[1])) { return no(`a value of buildObject is a value of any, and this one is ${show(vType[1])}`) }
+        const boxed = asAny(vType[1], vTerm[1])
+        if (boxed === null) { return no(`a value of buildObject is a value of any, and this one is ${show(vType[1])}`) }
         const y = inlineTerms(lowerValue, inner, step, [get(st)].slice(0, step.parameters.length), local(inner))
         return y[0] === 'error' ? y : ok(exact(u(31), size, `${label}.n`, n => loop(
             label,
             [[b, builder, call('Containers', 'begin_object', [n])], [st, state, first], [i, f64, lit(f64c, 0)]],
             if_(
                 lt(get(i), float(n)),
-                let_(key, kTerm[1], let_(item, vTerm[1], let_(pushed, call('Containers', 'push_property', [get(b), get(key), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
+                let_(key, kTerm[1], let_(item, boxed, let_(pushed, call('Containers', 'push_property', [get(b), get(key), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
                     let_(stepped, if_(lt(get(later), float(n)), y[1], get(st)), next(label, [[b, get(pushed)], [st, get(stepped)], [i, get(later)]])))))),
                 cast(object, call('Containers', 'seal', [get(b)]), `${label}.object`, o => o),
             ),
@@ -796,7 +810,8 @@ const buildArrayOf = (lowerValue, scope, vs) => {
         if (x[0] === 'error') { return x }
         const t = typeOf(inner.ir)(x[1])
         if (t[0] === 'error') { return t }
-        if (!isAny(t[1])) { return no(`an item of buildArray is a value of any, and this one is ${show(t[1])}`) }
+        const boxed = asAny(t[1], x[1])
+        if (boxed === null) { return no(`an item of buildArray is a value of any, and this one is ${show(t[1])}`) }
         const y = inlineTerms(lowerValue, inner, step, [get(st)].slice(0, step.parameters.length), local(inner))
         // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
         return y[0] === 'error' ? y : ok(exact(u(31), size, `${label}.n`, k => loop(
@@ -804,7 +819,7 @@ const buildArrayOf = (lowerValue, scope, vs) => {
             [[b, builder, call('Containers', 'begin_array', [k])], [st, state, first], [i, f64, lit(f64c, 0)]],
             if_(
                 lt(get(i), float(k)),
-                let_(item, x[1], let_(pushed, call('Containers', 'push', [get(b), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
+                let_(item, boxed, let_(pushed, call('Containers', 'push', [get(b), get(item)]), let_(later, add(get(i), lit(f64c, 1)),
                     let_(stepped, if_(lt(get(later), float(k)), y[1], get(st)), next(label, [[b, get(pushed)], [st, get(stepped)], [i, get(later)]]))))),
                 cast(array, call('Containers', 'seal', [get(b)]), `${label}.array`, a => a),
             ),
@@ -1008,7 +1023,8 @@ const isSpread = item => item instanceof Array && item[0] === '...'
  * that does nothing, then `seal` of a `push` of each, in their order, onto
  * `begin_array` of their count. Nothing between `begin_array` and `seal`
  * traps or leaves, so the builder, which is linear, is never left behind.
- * An item is a value of `any`, and a spread is refused.
+ * An item is a value of `any`, or a float or boolean boxed as one, and a
+ * spread is refused.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, items: readonly Item<Value>[]) => Result<Term, string>}
  */
@@ -1022,12 +1038,14 @@ const arrayOf = (lowerValue, scope, items) => {
         // of a field a record has not, may still not type-check.
         const typed = okList(xs.map(x => typeOf(s.ir)(x)))
         if (typed[0] === 'error') { return typed }
-        const ts = typed[1]
-        const k = ts.findIndex(t => !isAny(t))
-        const begun = call('Containers', 'begin_array', [n(BigInt(xs.length))])
+        const boxed = okList(typed[1].map((t, i) => {
+            const y = asAny(t, xs[Number(i)])
+            return y === null ? no(`an item of an array is a value of any, and item ${i} is ${show(t)}`) : ok(y)
+        }))
+        if (boxed[0] === 'error') { return boxed }
+        const begun = call('Containers', 'begin_array', [n(BigInt(boxed[1].length))])
         // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
-        return k !== -1 ? no(`an item of an array is a value of any, and item ${k} is ${show(ts[Number(k)])}`)
-            : ok(cast(array, call('Containers', 'seal', [xs.reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'array', a => a))
+        return ok(cast(array, call('Containers', 'seal', [boxed[1].reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'array', a => a))
     })
 }
 

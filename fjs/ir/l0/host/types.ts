@@ -17,7 +17,9 @@ import type { Kind } from '../../../wasm/runtime/l0/types.ts'
 export type View = {
     readonly kind: (h: bigint) => Kind
     readonly to_f64: (h: bigint) => number
+    readonly from_f64: (x: number) => number
     readonly to_bool: (h: bigint) => 0 | 1
+    readonly from_bool: (b: 0 | 1) => boolean
     readonly same: (a: bigint, b: bigint) => 0 | 1
     readonly length: (h: bigint) => number
     readonly unit: (h: bigint, i: number) => number
@@ -51,7 +53,9 @@ export type Imports = {
     readonly false: WebAssembly.Global
     readonly kind: (h: bigint) => Kind
     readonly to_f64: (h: bigint) => number
+    readonly from_f64: (x: number) => bigint
     readonly to_bool: (h: bigint) => 0 | 1
+    readonly from_bool: (b: 0 | 1) => bigint
     readonly same: (a: bigint, b: bigint) => 0 | 1
     readonly length: (h: bigint) => number
     readonly unit: (h: bigint, i: number) => number
