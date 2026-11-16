@@ -79,7 +79,7 @@ built:
   JavaScript module was imported before the run, then times `run_sample`,
   which performs it on `nanvm-effects-node`'s host and keeps standard output
   for the page to read back with `output_byte`.
-- **The page** is [`fjs/nanvm/demos/page`](../fjs/nanvm/demos/page/module.f.mjs),
+- **The page** is [`fjs/nanvm/demos/page`](../fjs/nanvm/demos/page/module.f.js),
   a demo over two new browser operations,
   [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and
   `instantiate`.

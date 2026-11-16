@@ -19,7 +19,7 @@ computed.f.js:1:27 - error: unexpected token
 ```
 
 The refusal is at `a`: the grammar's `member` rule in
-[`parser/grammar`](../parser/grammar/module.f.mjs) spells the computed
+[`parser/grammar`](../parser/grammar/module.f.js) spells the computed
 form as `[`, a `string` token, `]`, so `{ ["x"]: 5 }` is accepted as a
 third spelling of the constant key `"x"` and nothing else fits between the
 brackets. The spec records the gap

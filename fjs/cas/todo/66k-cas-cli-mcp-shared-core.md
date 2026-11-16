@@ -14,7 +14,7 @@
 
 ### Problem
 
-The CAS CLI (`fjs/cas/cli/module.f.mjs` `commands`) and the CAS MCP server
+The CAS CLI (`fjs/cas/cli/module.f.js` `commands`) and the CAS MCP server
 (`fjs/mcp/cas/module.f.js`) both implement the same three operations — add,
 get, list — but with duplicated logic:
 
@@ -169,7 +169,7 @@ accepted as-is, the same as `cp`.
 - `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed the
   MCP file-path (`url`) source; this issue's shared `add` must keep the
   file-path source CLI-only
-- `fjs/cas/cli/module.f.mjs` — CLI commands; `fjs/cas/module.f.js` — the store
+- `fjs/cas/cli/module.f.js` — CLI commands; `fjs/cas/module.f.js` — the store
   and core types
 - `fjs/mcp/cas/module.f.js` — MCP tool registry and server
 - [`fjs/mcp/todo/remote-url.md`](../../mcp/todo/remote-url.md)

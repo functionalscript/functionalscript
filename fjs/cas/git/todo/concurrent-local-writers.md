@@ -5,7 +5,7 @@
 
 ### Problem
 
-`branchCas`'s `write` in [`fjs/cas/git`](../module.f.mjs) reads the
+`branchCas`'s `write` in [`fjs/cas/git`](../module.f.js) reads the
 branch ref, builds a commit on top of what it read, and writes the ref
 at the new commit through [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.js)'s
 `tryWrite`. That writer takes Git's `.lock` on the ref's file, so two

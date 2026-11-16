@@ -12,7 +12,7 @@ import { codePointToString, stringToCodePointList } from '../../text/utf16/modul
 import { toArray } from '../../types/list/alt/module.f.js'
 import { one as c } from '../../text/ascii/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.js'
+import { define, eof, join, literals, option, range, reference, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.js'
 import { toData } from '../data/module.f.js'
 import { dataJs } from '../lib/datajs/module.f.js'
 import { json } from '../lib/json/module.f.js'
@@ -306,6 +306,32 @@ const array1 = /**@type {const}*/(['array', [[s('[')], [], [[[one1, []], []]], [
 const json1 = [[], array1, []]
 
 export const proof = {
+    referenceMappingsKeepIdentity: () => {
+        const first = reference()
+        const second = reference()
+        /** @type {Mappings<typeof cp, string>} */
+        const mapped = mapping
+        const parse = parser([first, second, first], [mapped(first, () => ({ symbol: 0, meta: 'mapped' }))], [], [
+            define(first)('x'), define(second)('x'),
+        ])
+        assertStructurallySame(unwrap(parse(cps('xxx'))), [[
+            { symbol: 0, meta: 'mapped' }, [s('x')], { symbol: 0, meta: 'mapped' },
+        ], 3])
+    },
+    mutuallyRecursiveReferencesParse: () => {
+        const left = reference()
+        const right = reference()
+        const definitions = /** @type {const} */ ([
+            define(left)({ more: ['(', right, ')'], end: 'x' }),
+            define(right)({ more: ['[', left, ']'], end: 'y' }),
+        ])
+        const parse = parser([left, eof], [], [], definitions)
+        for (const input of ['x', '(y)', '([x])', '([(y)])']) {
+            assertEq(unwrap(parse(cps(input)))[1], input.length)
+        }
+        assertEq(parse(cps('(x)'))[0], 'error')
+        assertEq(parse(cps('([x)'))[0], 'error')
+    },
     explicitContinuationSymbolsConsumeGreedily: () => {
         const rule = /** @type {const} */ ([repeatFrom0('x'), option('x')])
         const greedy = /** @type {const} */ ([c('x'), c('x') + 1])

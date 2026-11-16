@@ -12,7 +12,7 @@ import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../..
 import { untagged } from '../../../text/marked/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { generate, rustPath } from '../module.f.mjs'
-import { rustMarkedPath } from '../page/module.f.mjs'
+import { rustMarkedPath } from '../page/module.f.js'
 import { main, writeMarked } from './module.f.mjs'
 
 /** Two samples, and a build directory a removed sample left its files in. @type {Dir} */

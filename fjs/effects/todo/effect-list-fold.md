@@ -39,7 +39,7 @@ it stays.
 **The stream fold is being hand-written separately.** The *EOF → finalize;
 chunk → fold and recurse* skeleton appears in six places — `detectStream`
 (`fjs/media/type/module.f.js`), `collectRead` and `contentKey`
-(`fjs/cas/module.f.js`), `gathered` (`fjs/cas/git/module.f.mjs`), `writeLoop`
+(`fjs/cas/module.f.js`), `gathered` (`fjs/cas/git/module.f.js`), `writeLoop`
 (`fjs/effects/node/module.f.js`) and `fileCas.write`'s inner loop
 (`fjs/cas/module.f.js`). That is `foldStep` over a stream. The *error item →
 propagate* case it once also had is gone: an `EffectList` cell carries its own failure,
@@ -106,7 +106,7 @@ Six, all currently strict:
 
 | site | argument | after |
 | --- | --- | --- |
-| `fjs/cas/cli/module.f.mjs:63` | `c.list()` | streams once `cas.list()` does |
+| `fjs/cas/cli/module.f.js:63` | `c.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.js:202` | `cas.list()` | streams once `cas.list()` does |
 | `fjs/cas/evo/module.f.js:280` | `pure(parents)` | `fromList(parents)` |
 | `fjs/cas/module.f.js:149` | `pure(expired)` | `fromList(expired)` |

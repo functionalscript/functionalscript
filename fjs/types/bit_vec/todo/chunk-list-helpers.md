@@ -24,7 +24,7 @@ const fileSizeBytes = chunks => chunks.reduce((acc, c) => acc + Number(byteLengt
 
 in [`fjs/effects/node`](../../../effects/node/module.f.js),
 [`fjs/git/inflater`](../../../git/inflater/module.f.js),
-[`fjs/cas/git`](../../../cas/git/module.f.mjs) and
+[`fjs/cas/git`](../../../cas/git/module.f.js) and
 [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.js).
 `inflater` re-derives this module's own `byteLength` as
 `Number(bytesIn(length(v)))`, twice, and

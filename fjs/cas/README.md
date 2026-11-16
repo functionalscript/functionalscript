@@ -10,7 +10,7 @@ need them.
   media-type detection: `cas_add` / `cas_get` / `cas_list` plus
   [fjs/cas/evo](evo/)'s `evo_list` / `evo_head` / `evo_revision` / `evo_add`,
   all served from one process.
-- [`cas` CLI](cli/module.f.mjs) — direct filesystem access for content larger
+- [`cas` CLI](cli/module.f.js) — direct filesystem access for content larger
   than the MCP inline-content cap.
 - [fjs/cas/git](git/) — the same store in a Git branch: a commit's tree as
   the map, `add` as one commit on a local branch; `fjs cas git` from the

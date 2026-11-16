@@ -20,7 +20,7 @@ import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.j
 import { mapOk, okThen } from '../../types/result/module.f.js'
 import { next } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { add, empty, has } from '../../types/set/module.f.js'
+import { add, empty, fromValues, has, values as setValues } from '../../types/set/module.f.js'
 import { at, setReplace } from '../../types/ordered_map/module.f.js'
 import { freeBindings } from '../../js/ast/control/module.f.js'
 import { demandsInOrder } from '../demand/module.f.js'
@@ -49,7 +49,7 @@ const eagerOperands = node => {
 
 /** Stable, invocation-local reachability; a binding stops traversal. @type {(a: Analysis, children: (node: Node) => readonly Operand[], bound: readonly number[]) => (roots: readonly Operand[]) => readonly number[]} */
 const reachable = (a, children, bound) => roots => {
-    const stops = new Set(bound)
+    const stops = fromValues(bound)
     /** @type {PersistentSet<number>} */
     let seen = empty
     /** @type {List<number>} */
@@ -62,7 +62,7 @@ const reachable = (a, children, bound) => roots => {
         if (item === null) { return toArray(order).toReversed() }
         const value = item.first
         pending = item.tail
-        if (!(value instanceof Array) || stops.has(value[1]) || has(value[1])(seen)) { continue }
+        if (!(value instanceof Array) || has(value[1])(stops) || has(value[1])(seen)) { continue }
         seen = add(value[1])(seen)
         order = { first: value[1], tail: order }
         pending = { head: children(a.nodes[value[1]]), tail: pending }
@@ -260,8 +260,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             if (node[0] === '{}') { return node[1].every(entry => entry[0] === ':' && !(entry[1] instanceof Array) && stable(entry[2])) }
             return node.length === 1 || node[0] === '=>' && node[2].every(value => !(value instanceof Array) || bound.includes(value[1]) || established.includes(value[1]) || isRead(a.nodes[value[1]]))
         }
-        const candidates = [...new Set([...owners, ...named.filter(i => prefix.includes(i) || movable(i))])].filter(i => !bound.includes(i)).toSorted((x, y) => x - y)
-        let owned = [...new Set([...candidates, ...shared.filter(i => promoted.includes(i))])].toSorted((x, y) => x - y)
+        const candidates = setValues(fromValues([...owners, ...named.filter(i => prefix.includes(i) || movable(i))])).filter(i => !bound.includes(i)).toSorted((x, y) => x - y)
+        let owned = setValues(fromValues([...candidates, ...shared.filter(i => promoted.includes(i))])).toSorted((x, y) => x - y)
         /** @type {readonly number[]} */
         let required = []
         /** @type {readonly number[]} */

@@ -60,6 +60,7 @@ export type Rule =
 
 export type Thunk =
     | Const<DataRule>
+    | Reference<DataRule>
     | Set
     // The same as Repeat<number, number, Rule>
     // but we can't use it because of circular dependencies.
@@ -70,6 +71,17 @@ export type Info<T extends readonly[string, ...readonly unknown[]]> =
 
 export type Const<R extends DataRule> =
     Info<readonly['const', R]>
+
+/**
+ * A rule identity whose body is supplied separately with `define`.
+ * The phantom carries that body's type; `define(reference)(body)` checks it
+ * before erasing the pair into a definition list.
+ */
+export type Reference<R extends DataRule> =
+    Phantom<Info<readonly ['ref']>, R>
+
+/** One reference and its body, supplied together to grammar consumers. */
+export type Definition = readonly [reference: Reference<DataRule>, body: DataRule]
 
 /**
  * One symbol from a set of ranges.

@@ -65,6 +65,7 @@
  * @import { Author, Branch, CasReader, SnapshotOperation, WriteOperation } from './types.ts'
  */
 
+import { assert } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.js'
 import {
@@ -80,7 +81,7 @@ import { write as writeIdent } from '../../git/ident/module.f.js'
 import { write as writeLoose } from '../../git/loose/module.f.js'
 import { hexText, of, toHex } from '../../git/oid/module.f.js'
 import { isWholeName } from '../../git/refname/module.f.js'
-import { tryResolve } from '../../git/refstore/module.f.js'
+import { requiredName, tryResolve } from '../../git/refstore/module.f.js'
 import { tryWrite } from '../../git/refstore/write/module.f.js'
 import { objectsDir, objectsDirs, readIn } from '../../git/store/module.f.js'
 import { compare, tryRead as readTree, validate, write as writeTree } from '../../git/tree/module.f.js'
@@ -92,6 +93,7 @@ import { concat, flat, map, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toOption } from '../../types/nullable/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { error } from '../../types/result/module.f.js'
 import { prefix, toPath, unshard, wholeByteMachine } from '../module.f.js'
 
@@ -251,7 +253,7 @@ const casDir = [ascii(prefix)]
  *
  * @type {(rel: string) => (e: TreeEntry) => readonly Vec[]}
  */
-const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
+const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameText(requiredName(e)))))
 
 /**
  * What is wrong with a tree as a tree, in a few words, or nothing: what
@@ -295,7 +297,7 @@ const malformed = rel => es => {
     const wrong = illFormed(es)
     if (wrong.length !== 0) { return [`${dir} ${wrong[0]}`] }
     return es.flatMap(e => {
-        const name = nameText(e.name)
+        const name = nameText(requiredName(e))
         const path = `${prefix}${join(rel, name)}`
         if (isDirectory(e)) { return [] }
         if (!isRegularFile(e)) { return [`${path} has mode ${nameText(e.mode)}`] }
@@ -324,7 +326,7 @@ const treeRefusal = (rel, es) => {
  *
  * @type {(rel: string) => (e: TreeEntry) => readonly { readonly id: Oid, readonly rel: string }[]}
  */
-const subtreeOf = rel => e => isDirectory(e) ? [{ id: e.oid, rel: join(rel, nameText(e.name)) }] : []
+const subtreeOf = rel => e => isDirectory(e) ? [{ id: e.oid, rel: join(rel, nameText(requiredName(e))) }] : []
 
 /**
  * The entries of the tree an id names, read through `read`, or refused where
@@ -371,24 +373,30 @@ const lost = /** @type {{ readonly at: Nullable<Oid>, readonly rel: Nullable<str
  */
 const walkTo = entriesOf => {
     /** @type {(item: { readonly name: readonly number[], readonly last: boolean }) => (state: typeof lost) => Effect<O, typeof lost, IoChannel>} */
-    const component = ({ name, last }) => state => {
-        if (state.at === null) { return pureOk(lost) }
-        const { rel } = state
-        return step(entriesOf(state.at), es => {
-            const wrong = treeRefusal(rel, es)
-            if (wrong !== null) { return refuseEntry(wrong) }
-            const text = nameText(name)
-            const found = es.find(e => nameText(e.name) === text)
-            if (found === undefined) { return pureOk(lost) }
-            if (last) { return pureOk({ ...lost, found }) }
-            // Below `.cas`, `malformed` has refused every file the path could
-            // run into before this, since a file at a subtree's depth is
-            // filed where the layout files no key; at the root this is
-            // `.cas` itself, a file where the listing refuses it too.
-            const below = rel === null ? '' : join(rel, text)
-            if (!isDirectory(found)) { return refuseEntry(`${prefix}${below} has mode ${nameText(found.mode)}`) }
-            return pureOk({ at: found.oid, rel: below, found: null })
-        })
+    const component = item => {
+        const name = requiredName(item)
+        const { last } = item
+        return state => {
+            const at = entry(state, 'at')
+            assert(at !== undefined)
+            if (at === null) { return pureOk(lost) }
+            const { rel } = state
+            return step(entriesOf(at), es => {
+                const wrong = treeRefusal(rel, es)
+                if (wrong !== null) { return refuseEntry(wrong) }
+                const text = nameText(name)
+                const found = es.find(e => nameText(requiredName(e)) === text)
+                if (found === undefined) { return pureOk(lost) }
+                if (last) { return pureOk({ ...lost, found }) }
+                // Below `.cas`, `malformed` has refused every file the path could
+                // run into before this, since a file at a subtree's depth is
+                // filed where the layout files no key; at the root this is
+                // `.cas` itself, a file where the listing refuses it too.
+                const below = rel === null ? '' : join(rel, text)
+                if (!isDirectory(found)) { return refuseEntry(`${prefix}${below} has mode ${nameText(found.mode)}`) }
+                return pureOk({ at: found.oid, rel: below, found: null })
+            })
+        }
     }
     return (tree, path) => {
         const items = path.map((name, i) => ({ name, last: i === path.length - 1 }))
@@ -397,7 +405,7 @@ const walkTo = entriesOf => {
 }
 
 /** Whether an entry has `name`. @type {(name: Bytes) => (e: TreeEntry) => boolean} */
-const named = name => e => sameItems(e.name)(name)
+const named = name => e => sameItems(requiredName(e))(name)
 
 /**
  * The entry of `name` among a tree's entries, or `null`, beside the
@@ -412,7 +420,7 @@ const named = name => e => sameItems(e.name)(name)
 const onlyNamed = (name, rel) => es => {
     const wrong = treeRefusal(rel, es)
     if (wrong !== null) { return refuseEntry(wrong) }
-    const found = es.find(x => sameItems(x.name)(name))
+    const found = es.find(x => sameItems(requiredName(x))(name))
     return pureOk({ es, found: found === undefined ? null : found })
 }
 
@@ -619,7 +627,7 @@ export const snapshot = branch => {
  * @type {(entries: readonly TreeEntry[], e: TreeEntry) => readonly TreeEntry[]}
  */
 const withEntry = (entries, e) => {
-    const others = entries.filter(x => !named(e.name)(x))
+    const others = entries.filter(x => !named(requiredName(e))(x))
     const i = others.findIndex(x => compare(e, x) < 0)
     return i === -1 ? [...others, e] : [...others.slice(0, i), e, ...others.slice(i)]
 }
@@ -707,7 +715,7 @@ const gathered = (sha2, payload) => {
  */
 const commitOf = (author, tree, parents, message, ms) => {
     const who = writeIdent({
-        name: stringToU8List(author.name),
+        name: stringToU8List(requiredName(author)),
         email: stringToU8List(author.email),
         time: BigInt(Math.floor(ms / 1_000)),
         tz: '+0000',
@@ -749,8 +757,8 @@ const commitOf = (author, tree, parents, message, ms) => {
  * @returns {Effect<WriteOperation, Cas<WriteOperation>, IoChannel>}
  */
 export const branchCas = (sha2, branch, author) => {
-    if (noIdent(author.name) || noIdent(author.email)) {
-        return refuseAuthor(`the author's name or email is empty or holds "<", ">", a line break or a NUL: ${author.name} <${author.email}>`)
+    if (noIdent(requiredName(author)) || noIdent(author.email)) {
+        return refuseAuthor(`the author's name or email is empty or holds "<", ">", a line break or a NUL: ${requiredName(author)} <${author.email}>`)
     }
     const ref = branchRef(branch)
     const named = history(refName(ref))

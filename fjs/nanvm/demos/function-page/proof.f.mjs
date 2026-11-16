@@ -20,7 +20,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { codePoints } from '../../../text/ascii/module.f.js'
-import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'
+import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.js'
 import { agreement, callJs, edagView, functionDemo, init, load, microseconds, notLoaded, outcomeText, repeat, repetitions, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.mjs'
 import { spell } from '../spell/module.f.js'
 

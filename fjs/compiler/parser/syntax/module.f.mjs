@@ -39,7 +39,7 @@
  * @import { BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ReturnStatement, ValueStatement, While, DoWhile } from './types.ts'
  * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement, DoWhileStatement } from '../grammar/types.ts'
- * @import { namedImports, primitive } from '../grammar/module.f.mjs'
+ * @import { namedImports, primitive } from '../grammar/module.f.js'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
@@ -53,9 +53,9 @@ import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
+    arrayExpressionStatement, arrayStatementValue, statementContinuations, definitions, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
-} from '../grammar/module.f.mjs'
+} from '../grammar/module.f.js'
 
 /**
  * Splits the tokenizer's single final physical `eof` token off a token list.
@@ -872,7 +872,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * position, which is what lets the second `unmapped` below see a precise
  * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
  * one tuple deep for exactly this reason — see its own comment in
- * `./grammar/module.f.mjs` — so the same reads serve both rules.
+ * `../grammar/module.f.js` — so the same reads serve both rules.
  *
  * @type {(node: Exclude<Children<Unary, ModuleTokenWithMetadata, Out> | Children<UnaryOperand, ModuleTokenWithMetadata, Out> | Children<Value, ModuleTokenWithMetadata, Out> | Children<Body, ModuleTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
  */
@@ -1718,7 +1718,7 @@ export const mappings = [
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations)
+const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations, definitions)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's

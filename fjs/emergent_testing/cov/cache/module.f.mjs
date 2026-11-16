@@ -15,7 +15,7 @@
 
 import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
 import { contentKey, toPath, unshard } from '../../../cas/module.f.js'
-import { configuredAuthor } from '../../../cas/git/module.f.mjs'
+import { configuredAuthor } from '../../../cas/git/module.f.js'
 import { sha256 } from '../../../crypto/sha2/module.f.js'
 import { catchStep, history, historyStep, mapStep, pureError, pureOk, refuse, step } from '../../../effects/module.f.js'
 import { fromList } from '../../../effects/list/module.f.js'

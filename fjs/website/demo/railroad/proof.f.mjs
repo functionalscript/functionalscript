@@ -1,11 +1,12 @@
 /**
  * @import { Diagram } from './types.ts'
+ * @import { Reference, Rule } from '../../../ebnf/types.ts'
  */
 
 import { anchor, codePointGuide, grammarDemo, railroadDemo, railroadSection, railroadSvg } from './module.f.js'
 import { codePoints, tokens } from '../../../ebnf/railroad/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
-import { range, set } from '../../../ebnf/module.f.js'
+import { define, range, reference, set } from '../../../ebnf/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { runPure } from '../../../effects/module.f.js'
@@ -87,6 +88,18 @@ export const proof = {
         },
     },
     grammar: {
+        references: () => {
+            /** @type {Reference<{ readonly end: 'x', readonly nested: readonly ['(', Rule, ')'] }>} */
+            const recursive = reference()
+            const definitions = /** @type {const} */ ([define(recursive)({ end: 'x', nested: ['(', recursive, ')'] })])
+            const { init, view } = grammarDemo({
+                grammar: recursive, definitions, alphabet: codePoints, description: '', guide: '',
+                selections: [['recursive', recursive]],
+            })
+            assertStructurallySame(view(init), ['div', ['p', ' '],
+                railroadSection(['recursive', ['choice', [t('x'), ['sequence', [t('('), box('recursive'), t(')')]]]]]),
+            ])
+        },
         // The intro is the description, then the code-point guide; the
         // grammar, a source rule and a branch are drawn in the order
         // selected, their symbols labelled as code points.

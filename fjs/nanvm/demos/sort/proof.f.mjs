@@ -2,7 +2,7 @@
 
 import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { jsOutput } from '../page/module.f.mjs'
+import { jsOutput } from '../page/module.f.js'
 import program from './sample.f.js'
 import { demo } from './demo.f.mjs'
 
