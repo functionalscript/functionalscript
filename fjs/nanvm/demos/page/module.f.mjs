@@ -49,7 +49,7 @@ import { fromU8List } from '../../../text/utf8/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.js'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
-import { highlight, render } from '../../../website/demo/highlight/module.f.mjs'
+import { highlight, render } from '../../../website/demo/highlight/module.f.js'
 import { fromTagged, toText } from '../../../text/marked/module.f.js'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 

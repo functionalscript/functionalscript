@@ -82,8 +82,8 @@ export const _moduleTokenKinds = /** @type {const} */ ([
     'eof',
 ])
 
-/** @type {ReadonlySet<string>} */
-const moduleTokenKindSet = new Set(_moduleTokenKinds)
+/** @type {readonly string[]} */
+const moduleTokenKinds = _moduleTokenKinds
 
 /**
  * Whether a lexically valid JS template chunk uses FJS's spelling subset.
@@ -124,7 +124,7 @@ const templateSourceAccepted = source => {
  */
 const toModuleToken = input =>
     hasEntry(input, 'source') && !templateSourceAccepted(input.source) ? { kind: 'error', message: 'invalid token' }
-    : moduleTokenKindSet.has(input.kind) ? /** @type {ModuleToken} */ (input)
+    : moduleTokenKinds.includes(input.kind) ? /** @type {ModuleToken} */ (input)
     : isKeyword(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }
 

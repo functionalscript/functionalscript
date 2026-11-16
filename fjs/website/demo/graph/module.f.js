@@ -56,6 +56,8 @@
  * @import { _BackEdge, _BackLane, _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk, _ReturnSegment } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
+ * @import { PersistentMap } from '../../../types/map/types.ts'
+ * @import { PersistentSet } from '../../../types/set/types.ts'
  */
 
 import { stateScan } from '../../../types/list/module.f.js'
@@ -66,6 +68,8 @@ import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.js'
+import { empty as emptyMap, fromEntries, mapEntries, mapGet, mapHas } from '../../../types/map/module.f.js'
+import { fromValues, values as setValues, has as setHas, size as setSize } from '../../../types/set/module.f.js'
 
 /**
  * Every node's rank: the longest path from a source, so every edge points
@@ -518,11 +522,11 @@ const portsOf = ({ label, groups }) => all => {
  * What is wrong with one edge's ends, if anything: each end must name a
  * node of the graph.
  *
- * @type {(ids: ReadonlySet<number>) => (edge: Edge, index: number) => readonly string[]}
+ * @type {(ids: PersistentSet<number>) => (edge: Edge, index: number) => readonly string[]}
  */
 const missingEnds = ids => (edge, index) => [
-    ...(ids.has(edge.from) ? [] : [`edge ${index} ("${edge.label}") starts at node ${edge.from}, which is not in the graph`]),
-    ...(typeof edge.to !== 'number' || ids.has(edge.to) ? [] : [`edge ${index} ("${edge.label}") ends at node ${edge.to}, which is not in the graph`]),
+    ...(setHas(edge.from)(ids) ? [] : [`edge ${index} ("${edge.label}") starts at node ${edge.from}, which is not in the graph`]),
+    ...(typeof edge.to !== 'number' || setHas(edge.to)(ids) ? [] : [`edge ${index} ("${edge.label}") ends at node ${edge.to}, which is not in the graph`]),
 ]
 
 /**
@@ -553,17 +557,17 @@ const missingEnds = ids => (edge, index) => [
  * children are pushed down — from its children's, all one rank right;
  * then left to right, each band's top from its parent's.
  *
- * @type {(ranks: readonly (readonly number[])[]) => (edges: readonly Edge[]) => (rankOf: (id: number) => number) => (sizeOf: (id: number) => _Size) => (childrenOf: (id: number) => readonly number[]) => ReadonlyMap<number, number> | null}
+ * @type {(ranks: readonly (readonly number[])[]) => (edges: readonly Edge[]) => (rankOf: (id: number) => number) => (sizeOf: (id: number) => _Size) => (childrenOf: (id: number) => readonly number[]) => PersistentMap<number, number> | null}
  */
 const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
     const toNodes = edges.flatMap(({ from, to }) => typeof to === 'number' ? [{ from, to }] : [])
-    const targets = new Set(toNodes.map(({ to }) => to))
-    if (targets.size !== toNodes.length || toNodes.some(({ from, to }) => rankOf(to) !== rankOf(from) + 1)) { return null }
+    const targets = fromValues(toNodes.map(({ to }) => to))
+    if (setSize(targets) !== toNodes.length || toNodes.some(({ from, to }) => rankOf(to) !== rankOf(from) + 1)) { return null }
     /** @typedef {{ readonly band: number, readonly top: number, readonly shift: number }} Band */
-    /** @type {StateScan<readonly number[], ReadonlyMap<number, Band>, readonly (readonly [number, Band])[]>} */
+    /** @type {StateScan<readonly number[], PersistentMap<number, Band>, readonly (readonly [number, Band])[]>} */
     const bandsOf = (column, right) => {
         /** @type {(id: number) => Band} */
-        const at = id => /** @type {Band} */ (right.get(id))
+        const at = id => /** @type {Band} */ (mapGet(right, id))
         const bands = column.map(id => {
             const { height } = sizeOf(id)
             const children = childrenOf(id)
@@ -575,25 +579,25 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
             const band = max(above + at(last).band + shift, y + shift + height + nodeGap)
             return /** @type {const} */ ([id, { band, top: y + shift, shift }])
         })
-        return [bands, new Map(bands)]
+        return [bands, fromEntries(bands)]
     }
-    const bands = new Map(toArray(stateScan(bandsOf)(new Map())(ranks.toReversed())).flat())
-    const bandOf = /** @type {(id: number) => Band} */ (id => /** @type {Band} */ (bands.get(id)))
+    const bands = fromEntries(toArray(stateScan(bandsOf)(emptyMap)(ranks.toReversed())).flat())
+    const bandOf = /** @type {(id: number) => Band} */ (id => /** @type {Band} */ (mapGet(bands, id)))
     /** @type {StateScan<number, number, readonly [number, number]>} */
     const stackRoot = (id, next) => [[id, next], next + bandOf(id).band]
-    const roots = new Map(toArray(stateScan(stackRoot)(margin)(ranks.flat().filter(id => !targets.has(id)).toSorted((a, b) => a - b))))
-    /** @type {StateScan<readonly number[], ReadonlyMap<number, number>, readonly (readonly [number, number])[]>} */
+    const roots = fromEntries(toArray(stateScan(stackRoot)(margin)(ranks.flat().filter(id => !setHas(id)(targets)).toSorted((a, b) => a - b))))
+    /** @type {StateScan<readonly number[], PersistentMap<number, number>, readonly (readonly [number, number])[]>} */
     const topsOf = (column, from) => {
         /** @type {(id: number) => number} */
-        const bandTopOf = id => /** @type {number} */ (from.get(id) ?? roots.get(id))
+        const bandTopOf = id => /** @type {number} */ (mapGet(from, id) ?? mapGet(roots, id))
         /** @type {StateScan<number, number, readonly [number, number]>} */
         const stackChild = (child, next) => [[child, next], next + bandOf(child).band]
         return [
             column.map(id => /** @type {const} */ ([id, bandTopOf(id) + bandOf(id).top])),
-            new Map(column.flatMap(id => toArray(stateScan(stackChild)(bandTopOf(id) + assertNotNullish(entry(bandOf(id), 'shift')))(childrenOf(id))))),
+            fromEntries(column.flatMap(id => toArray(stateScan(stackChild)(bandTopOf(id) + assertNotNullish(entry(bandOf(id), 'shift')))(childrenOf(id))))),
         ]
     }
-    return new Map(toArray(stateScan(topsOf)(new Map())(ranks)).flat())
+    return fromEntries(toArray(stateScan(topsOf)(emptyMap)(ranks)).flat())
 }
 
 /**
@@ -608,7 +612,7 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  * taller or shorter than its port would bend the arrow into it or overlap
  * the child under it.
  *
- * @type {(ranks: readonly (readonly number[])[]) => (edges: readonly Edge[]) => (sizeOf: (id: number) => _Size) => ReadonlyMap<number, number>}
+ * @type {(ranks: readonly (readonly number[])[]) => (edges: readonly Edge[]) => (sizeOf: (id: number) => _Size) => PersistentMap<number, number>}
  */
 const tableTopsOf = ranks => edges => sizeOf => {
     const back = edges.findIndex(e => e.back === true)
@@ -616,22 +620,22 @@ const tableTopsOf = ranks => edges => sizeOf => {
     const toNodes = edges.flatMap((edge, index) => typeof edge.to === 'number' ? [{ from: edge.from, to: edge.to, index }] : [])
     const shared = toNodes.find(({ to }, i) => toNodes.findIndex(e => e.to === to) !== i)
     if (shared !== undefined) { throw `graph: node ${shared.to} is reached by two edges, so a table has no one row for it` }
-    const parents = new Map(toNodes.map(e => [e.to, e]))
+    const parents = fromEntries(toNodes.map(e => [e.to, e]))
     /** @type {StateScan<number, number, readonly [number, number]>} */
     const stackRoot = (id, next) => [[id, next], next + sizeOf(id).height + nodeGap]
-    const roots = toArray(stateScan(stackRoot)(margin)(ranks.flat().filter(id => !parents.has(id)).toSorted((a, b) => a - b)))
-    /** @type {StateScan<readonly number[], ReadonlyMap<number, number>, readonly (readonly [number, number])[]>} */
+    const roots = toArray(stateScan(stackRoot)(margin)(ranks.flat().filter(id => !mapHas(parents, id)).toSorted((a, b) => a - b)))
+    /** @type {StateScan<readonly number[], PersistentMap<number, number>, readonly (readonly [number, number])[]>} */
     const topsOf = (column, prior) => {
         const tops = column.flatMap(id => {
-            const parent = parents.get(id)
+            const parent = mapGet(parents, id)
             if (parent === undefined) { return [] }
             const port = assertNotNullish(sizeOf(parent.from).ports.find(p => p.index === parent.index))
             if (sizeOf(id).height !== port.height) { throw `graph: node ${id} is not as tall as the row of node ${parent.from} that leads to it` }
-            return [/** @type {const} */ ([id, /** @type {number} */ (prior.get(parent.from)) + port.y])]
+            return [/** @type {const} */ ([id, /** @type {number} */ (mapGet(prior, parent.from)) + port.y])]
         })
-        return [tops, new Map([...prior, ...tops])]
+        return [tops, fromEntries([...mapEntries(prior), ...tops])]
     }
-    return new Map(toArray(stateScan(topsOf)(new Map(roots))(ranks)).flat().concat(roots))
+    return fromEntries(toArray(stateScan(topsOf)(fromEntries(roots))(ranks)).flat().concat(roots))
 }
 
 /**
@@ -642,12 +646,13 @@ const tableTopsOf = ranks => edges => sizeOf => {
  */
 const reachable = (start, edges, reverse) => {
     let found = [start]
+    /** @type {readonly number[]} */
     let frontier = [start]
     while (frontier.length !== 0) {
-        const seen = new Set(found)
-        const active = new Set(frontier)
-        frontier = [...new Set(edges.flatMap(({ from, to }) => typeof to !== 'number' ? []
-            : active.has(reverse ? to : from) && !seen.has(reverse ? from : to) ? [reverse ? from : to] : []))]
+        const seen = fromValues(found)
+        const active = fromValues(frontier)
+        frontier = setValues(fromValues(edges.flatMap(({ from, to }) => typeof to !== 'number' ? []
+            : setHas(reverse ? to : from)(active) && !setHas(reverse ? from : to)(seen) ? [reverse ? from : to] : [])))
         found = [...found, ...frontier]
     }
     return found
@@ -665,8 +670,8 @@ const cycleGroupsOf = edges => edges.reduce(
     /** @type {(groups: readonly (readonly number[])[], edge: Edge) => readonly (readonly number[])[]} */
     ((groups, { to, back }) => {
         if (back !== true || typeof to !== 'number' || groups.some(group => group.includes(to))) { return groups }
-        const forward = new Set(reachable(to, edges, false))
-        const group = reachable(to, edges, true).filter(id => forward.has(id)).toSorted((a, b) => a - b)
+        const forward = fromValues(reachable(to, edges, false))
+        const group = reachable(to, edges, true).filter(id => setHas(id)(forward)).toSorted((a, b) => a - b)
         return [...groups, group]
     }), []).toSorted((a, b) => a[0] - b[0])
 
@@ -675,12 +680,12 @@ const cycleGroupsOf = edges => edges.reduce(
  * reserve one descent per destination, so branches in one column can join.
  * Different targets retain separate lanes even when they share a rank.
  *
- * @type {(edges: readonly _BackEdge[]) => ReadonlyMap<number, _BackLane>}
+ * @type {(edges: readonly _BackEdge[]) => PersistentMap<number, _BackLane>}
  */
 const backLanesOf = edges => {
-    const targets = [...new Set(edges.map(e => e.target))]
-    return new Map(edges.map(({ index, from, to, target }) => [index, {
-        out: [...new Set(edges.filter(e => e.from === from).map(e => e.target))].indexOf(target),
+    const targets = setValues(fromValues(edges.map(e => e.target)))
+    return fromEntries(edges.map(({ index, from, to, target }) => [index, {
+        out: setValues(fromValues(edges.filter(e => e.from === from).map(e => e.target))).indexOf(target),
         into: targets.filter(id => edges.some(e => e.target === id && e.to === to)).indexOf(target),
     }]))
 }
@@ -782,21 +787,21 @@ const layout = left => nodes => (edges, center, table) => {
     // missing would have nowhere to leave from and would simply vanish,
     // leaving a picture that looks complete — a plausible wrong answer
     // for input that is wrong.
-    const problems = edges.flatMap(missingEnds(new Set(nodes.map(n => n.id))))
+    const problems = edges.flatMap(missingEnds(fromValues(nodes.map(n => n.id))))
     if (problems.length !== 0) { throw `graph: ${problems[0]}` }
     // Keyed by id, not by position: a `Graph` does not promise its nodes
     // in id order, and reading an array built in one order by the other
     // would hang a node's ports on whichever node sat at that index.
     // Each edge travels with its index, which is what names it from here
     // on: the same object may be listed twice and is then two edges.
-    const labels = new Map(nodes.map(n => [n.id, n.label]))
-    const outgoing = new Map(nodes.map(n => [n.id,
+    const labels = fromEntries(nodes.map(n => [n.id, n.label]))
+    const outgoing = fromEntries(nodes.map(n => [n.id,
         edges.flatMap((edge, index) => edge.from === n.id
-            ? [{ edge, index, target: typeof edge.to === 'number' ? /** @type {string} */ (labels.get(edge.to)) : '' }]
+            ? [{ edge, index, target: typeof edge.to === 'number' ? /** @type {string} */ (mapGet(labels, edge.to)) : '' }]
             : [])]))
-    const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
-    const ranks = new Map(nodes.map(n => [n.id, n.rank]))
-    const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
+    const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (mapGet(outgoing, id)))
+    const ranks = fromEntries(nodes.map(n => [n.id, n.rank]))
+    const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (mapGet(ranks, id)))
     const spans = edges.map(({ from, to, back }) =>
         ({ from: rankOf(from), to: typeof to === 'number' && back !== true ? rankOf(to) : rankOf(from), key: from + 0.5 }))
     // A back edge's ranks, from and to, which its route needs a gap at.
@@ -805,12 +810,12 @@ const layout = left => nodes => (edges, center, table) => {
     // the back edges going down the gap left of `rank`'s column, or up it
     /** @type {(rank: number) => number} */
     const gapOf = rank => laneSize * (
-        new Set(backRanks.filter(({ from }) => from + 1 === rank).map(e => e.target)).size
-        + new Set(backRanks.filter(({ to }) => to === rank).map(e => e.target)).size)
+        setSize(fromValues(backRanks.filter(({ from }) => from + 1 === rank).map(e => e.target)))
+        + setSize(fromValues(backRanks.filter(({ to }) => to === rank).map(e => e.target))))
         + (backRanks.some(({ to }) => to === rank) ? backEntryPadding : 0)
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
-    const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
-    const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
+    const sizes = fromEntries(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
+    const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (mapGet(sizes, id)))
     /** @type {readonly (readonly _Slot[])[]} */
     const columns = generate(maxRank + 1, rank => [
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
@@ -827,7 +832,7 @@ const layout = left => nodes => (edges, center, table) => {
     const groups = generate(cycles.length + 1, group => {
         const height = maxOf(columns.map(column => max(0, column.filter(slot => slotGroup(slot) === group).reduce((sum, slot) =>
             sum + (slot.node === undefined ? laneSize : sizeOf(slot.node.id).height) + nodeGap, 0) - nodeGap)))
-        const targets = [...new Set(backRanks.filter(e => groupOf(e.target) === group).map(e => e.target))]
+        const targets = setValues(fromValues(backRanks.filter(e => groupOf(e.target) === group).map(e => e.target)))
         return { height, targets }
     })
     const groupTops = toArray(stateScan(
@@ -851,10 +856,10 @@ const layout = left => nodes => (edges, center, table) => {
         }
         const id = /** @type {Ranked} */ (slot.node).id
         /** @type {_Positioned} */
-        const node = { .../** @type {Ranked} */ (slot.node), x: left, y: treeTops === null ? top : /** @type {number} */ (treeTops.get(id)), ...size }
+        const node = { .../** @type {Ranked} */ (slot.node), x: left, y: treeTops === null ? top : /** @type {number} */ (mapGet(treeTops, id)), ...size }
         return { node }
     }
-    /** @typedef {{ readonly left: number, readonly heights: ReadonlyMap<number, number> }} ColumnState */
+    /** @typedef {{ readonly left: number, readonly heights: PersistentMap<number, number> }} ColumnState */
     /** @type {StateScan<readonly [number, readonly _Slot[]], ColumnState, _Column>} */
     const placeColumn = ([rank, column], prior) => {
         const left = prior.left + gapOf(rank)
@@ -863,8 +868,8 @@ const layout = left => nodes => (edges, center, table) => {
         const top = margin + (align ? (tallest - columnHeights[Number(rank)]) / 2 : 0)
         const offsets = toArray(stateScan(offsetOf)(0)(sized))
         const ordinaryTops = align ? fittedTops(sized.map(({ slot, size }, i) => {
-            const incoming = size === null ? [prior.heights.get(/** @type {number} */ (slot.lane))]
-                : edges.flatMap(({ to, back }, index) => to === /** @type {Ranked} */ (slot.node).id && back !== true ? [prior.heights.get(index)] : [])
+            const incoming = size === null ? [mapGet(prior.heights, /** @type {number} */ (slot.lane))]
+                : edges.flatMap(({ to, back }, index) => to === /** @type {Ranked} */ (slot.node).id && back !== true ? [mapGet(prior.heights, index)] : [])
             const heights = incoming.filter(h => h !== undefined)
             return heights.length === 0 ? top + offsets[Number(i)]
                 : heights.reduce((sum, y) => sum + y, 0) / heights.length - (size === null ? laneSize : size.height) / 2
@@ -879,9 +884,9 @@ const layout = left => nodes => (edges, center, table) => {
         const heights = align ? slots.flatMap(({ node, lane }) => node === undefined
             ? [/** @type {const} */ ([/** @type {_Lane} */ (lane).index, /** @type {_Lane} */ (lane).y])]
             : edgeHeightsOf(node)) : []
-        return [{ end: left + widest, slots }, { left: left + widest + rankGap, heights: new Map([...prior.heights, ...heights]) }]
+        return [{ end: left + widest, slots }, { left: left + widest + rankGap, heights: fromEntries([...mapEntries(prior.heights), ...heights]) }]
     }
-    const placedColumns = toArray(stateScan(placeColumn)({ left, heights: new Map() })(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
+    const placedColumns = toArray(stateScan(placeColumn)({ left, heights: emptyMap })(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
     const placed = placedColumns.flatMap(column => column.slots)
     const placedNodes = placed.flatMap(p => p.node === undefined ? [] : [p.node])
     return {
@@ -889,9 +894,9 @@ const layout = left => nodes => (edges, center, table) => {
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
         ends: placedColumns.map(column => column.end),
         backs: backLanesOf(backRanks),
-        bends: new Map(),
+        bends: emptyMap,
         table,
-        bottoms: new Map(backRanks.map(({ target }) => {
+        bottoms: fromEntries(backRanks.map(({ target }) => {
             const group = groupOf(target)
             return [target, groupTops[Number(group)] + groups[Number(group)].height + laneSize * (groups[Number(group)].targets.indexOf(target) + 1)]
         })),
@@ -930,9 +935,9 @@ const arrivalOf = table => p => table ? assertNotNullish(entry(p, 'anchor')) : p
  * @type {(placed: _Placed) => readonly _Route[]}
  */
 const routesOf = placed => {
-    const byId = new Map(placed.nodes.map(p => [p.id, p]))
-    const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
-    const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
+    const byId = fromEntries(placed.nodes.map(p => [p.id, p]))
+    const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (mapGet(byId, id)))
+    const lanes = fromEntries(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
     /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
     const leaving = from => [
         ...from.ports.map(port => /** @type {const} */ ([port, port.y + (placed.table && typeof port.edge.to === 'number' ? assertNotNullish(entry(at(port.edge.to), 'anchor')) : port.height / 2)])),
@@ -949,23 +954,23 @@ const routesOf = placed => {
         const around = ({ out, into }) => {
             const down = placed.ends[Number(from.rank)] + laneSize * (out + 1)
             const up = to.x - laneSize * (into + 1) - backEntryPadding
-            const below = assertNotNullish(placed.bottoms.get(target))
+            const below = assertNotNullish(mapGet(placed.bottoms, target))
             const entry = middle
             return [[right, y], [down, y], [down, below], [up, below], [up, entry], [to.x, entry]]
         }
-        const back = placed.backs.get(port.index)
+        const back = mapGet(placed.backs, port.index)
         /** @type {readonly _Point[]} */
         const points = back !== undefined ? around(back) : [
             [right, y],
             ...(right < placed.ends[Number(from.rank)] ? [/** @type {_Point} */ ([placed.ends[Number(from.rank)], y])] : []),
             ...generate(to.rank - from.rank - 1, i => {
-                const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
+                const lane = /** @type {_Lane} */ (mapGet(lanes, `${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
             [to.x, middle],
         ]
         const drawn = back !== undefined ? points : points.flatMap((point, i) => {
-            const bend = placed.bends.get(`${port.index}:${i}`)
+            const bend = mapGet(placed.bends, `${port.index}:${i}`)
             return bend === undefined ? [point] : [/** @type {_Point} */ ([bend, points[Number(i - 1)][1]]), /** @type {_Point} */ ([bend, point[1]]), point]
         })
         return [{ edge: port.edge, index: port.index, to: target, points: drawn }]
@@ -995,9 +1000,9 @@ const forwardBendsOf = placed => {
         || a.direction * (b.sourceY - a.sourceY || b.targetY - a.targetY) || a.index - b.index)
     if (steep.length === 0) { return placed }
     const extra = placed.ends.map((_, rank) => laneSize * steep.filter(b => b.rank <= rank).length)
-    const rankOf = new Map(placed.nodes.map(n => [n.id, n.rank]))
-    const bends = new Map(steep.map((bend, i) => {
-        const descents = new Set(routes.filter(r => r.edge.back === true && rankOf.get(r.edge.from) === bend.rank - 1).map(r => r.to)).size
+    const rankOf = fromEntries(placed.nodes.map(n => [n.id, n.rank]))
+    const bends = fromEntries(steep.map((bend, i) => {
+        const descents = setSize(fromValues(routes.filter(r => r.edge.back === true && mapGet(rankOf, r.edge.from) === bend.rank - 1).map(r => r.to)))
         const slot = steep.slice(0, i).filter(b => b.rank === bend.rank).length
         return [`${bend.index}:${bend.segment}`, bend.start + extra[Number(bend.rank - 1)] + laneSize * (descents + slot + 1)]
     }))
@@ -1027,11 +1032,11 @@ const returnSegmentsOf = routes => {
         const lo = min(a[Number(axis)], b[Number(axis)])
         const hi = max(a[Number(axis)], b[Number(axis)])
         const collinear = pieces.filter(p => p.route.to === route.to && p.axis === axis && p.a[Number(other)] === a[Number(other)])
-        const cuts = [...new Set([lo, hi, ...collinear.flatMap(p => [p.a[Number(axis)], p.b[Number(axis)]]).filter(v => lo < v && v < hi)])].toSorted((x, y) => x - y)
+        const cuts = setValues(fromValues([lo, hi, ...collinear.flatMap(p => [p.a[Number(axis)], p.b[Number(axis)]]).filter(v => lo < v && v < hi)])).toSorted((x, y) => x - y)
         return cuts.slice(1).map((end, i) => {
             const start = cuts[Number(i)]
-            const members = [...new Set(collinear.filter(p => min(p.a[Number(axis)], p.b[Number(axis)]) <= start && end <= max(p.a[Number(axis)], p.b[Number(axis)])).map(p => p.route.index))]
-            const kinds = [...new Set(collinear.filter(p => members.includes(p.route.index)).map(p => p.route.edge.kind))]
+            const members = setValues(fromValues(collinear.filter(p => min(p.a[Number(axis)], p.b[Number(axis)]) <= start && end <= max(p.a[Number(axis)], p.b[Number(axis)])).map(p => p.route.index)))
+            const kinds = setValues(fromValues(collinear.filter(p => members.includes(p.route.index)).map(p => p.route.edge.kind)))
             const point = /** @type {(v: number) => _Point} */ (v => axis === 0 ? [v, a[1]] : [a[0], v])
             const points = a[Number(axis)] < b[Number(axis)] ? [point(start), point(end)] : [point(end), point(start)]
             return { key: `${route.to}:${axis}:${a[Number(other)]}:${start}:${end}`, points, members,
@@ -1041,7 +1046,7 @@ const returnSegmentsOf = routes => {
             }
         })
     })
-    return [...new Map(split.map(segment => [segment.key, segment])).values()]
+    return mapEntries(fromEntries(split.map(segment => [segment.key, segment]))).map(([, segment]) => segment)
 }
 
 /**
@@ -1100,8 +1105,8 @@ const placedOf = g => {
     const { nodes, edges, centerColumns = false, table = false } = g
     const suppliedEntries = entry(g, 'entries')
     const entries = suppliedEntries === undefined ? [] : suppliedEntries
-    const ids = new Set(nodes.map(n => n.id))
-    const missing = entries.findIndex(({ to }) => !ids.has(to))
+    const ids = fromValues(nodes.map(n => n.id))
+    const missing = entries.findIndex(({ to }) => !setHas(to)(ids))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[Number(missing)].to}, which is not in the graph` }
     const repeated = entries.findIndex(({ to }, i) => entries.findIndex(e => e.to === to) !== i)
     if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[Number(repeated)].to}, which another entry already does` }
@@ -1112,8 +1117,8 @@ const placedOf = g => {
     // An edge leaving from a corner has no row to hold a label or a value.
     const cornered = edges.findIndex(({ corner, to, label }) => corner !== undefined && (typeof to !== 'number' || label !== ''))
     if (cornered !== -1) { throw `graph: edge ${cornered} leaves from a corner, so it must end at a node and have no label` }
-    const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
-    const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
+    const fromCorners = fromValues(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
+    const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && setHas(from)(fromCorners))
     if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[Number(mixed)].from}, whose other arrows leave from its corners` }
     const misgrouped = nodes.find(({ id, groups }) => groups !== undefined && (
         groups.some(([, rows]) => rows < 1)

@@ -5,7 +5,7 @@
  * All three are text and delimiter-framed, so they are grammars over the
  * byte alphabet like the objects, and all three are read here with no
  * effects — finding and opening the files is
- * [`fjs/git/refstore`](../refstore/module.f.mjs). What a writer puts in a loose
+ * [`fjs/git/refstore`](../refstore/module.f.js). What a writer puts in a loose
  * ref is spelled here too, by {@link writeLoose}, beside the grammar that reads
  * it back, so the round trip has one owner.
  *
@@ -295,7 +295,7 @@ const targetOf = ([, , word, trailing, terminated]) =>
  * is how a resolver must read them: Git reads each straight from the file
  * rather than through a ref backend, because each may hold more than one
  * record. That belongs to
- * [`fjs/git/refstore`](../refstore/module.f.mjs)'s `tryResolve`, which has the
+ * [`fjs/git/refstore`](../refstore/module.f.js)'s `tryResolve`, which has the
  * effects to look, and it checks exactly those two names.
  *
  * `ORIG_HEAD` shows the difference is not about existence alone: it resolves

@@ -29,12 +29,12 @@ fs.readFileSync(`${dir}/�`)         // ENOENT
 So a loose ref whose name is not UTF-8 is unreachable here. Two halves of this
 module meet it differently, and neither is right:
 
-- [`tryResolve`](../module.f.mjs) cannot build a path for such a name, so it
+- [`tryResolve`](../module.f.js) cannot build a path for such a name, so it
   cannot ask whether the loose file that would shadow a `packed-refs` line is
   there. Unknowable is not absent, so it refuses rather than answer the packed
   line — which would be a stale id in exactly the state the host cannot observe.
   A packed-only name is refused with it, which is the cost of not guessing.
-- [`tryRoots`](../module.f.mjs) *does* look, so it answers: the walk reads every
+- [`tryRoots`](../module.f.js) *does* look, so it answers: the walk reads every
   entry of `refs/`, and a loose file it cannot name is one it is handed as `�`,
   re-encodes as `0xEF 0xBF 0xBD`, and then fails to read — which this module
   reports on the channel, since a file a listing named and a read cannot find is

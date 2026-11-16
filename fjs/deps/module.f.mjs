@@ -14,7 +14,7 @@
 import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.js'
 import { join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
 import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
-import { tokenize } from '../compiler/tokenizer/module.f.mjs'
+import { tokenize } from '../compiler/tokenizer/module.f.js'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.mjs'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
 import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, writeUtf8File } from '../effects/node/module.f.js'

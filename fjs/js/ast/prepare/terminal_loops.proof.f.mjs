@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { prepare, prepareFunction } from './module.f.mjs'
+import { prepare, prepareFunction } from './module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

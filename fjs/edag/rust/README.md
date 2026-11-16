@@ -3,7 +3,7 @@
 The entry from an EDAG into the Rust writer. [`module.f.mjs`](./module.f.mjs)
 converts a graph to the Foundation AST once and prepares it; how each
 construct is spelled in Rust lives in
-[`fjs/rust/serializer`](../../rust/serializer/module.f.mjs).
+[`fjs/rust/serializer`](../../rust/serializer/module.f.js).
 
 `fjs compile input.f.js output.rs` reaches this module: the compiler lowers
 the source to an EDAG, this module admits it, and the serializer writes a Rust

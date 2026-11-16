@@ -18,7 +18,7 @@ import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } f
 import { main as clean } from '../clean/module.f.js'
 import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
-import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.mjs'
+import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.js'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
 import { main as demos, samples } from '../../nanvm/demos/module.f.mjs'
 import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'

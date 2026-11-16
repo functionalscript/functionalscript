@@ -3,6 +3,7 @@
 import type { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, FunctionTarget, Loop, LoopTarget, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
 import type { Block, Statement, Value } from './types.ts'
 import type { Task } from '../task/types.ts'
+import type { PersistentMap } from '../../../types/map/types.ts'
 
 /** Suspended immutable computations keep syntax depth off the host stack. */
 export type _Task<T> = Task<T>
@@ -27,7 +28,7 @@ export type _Facts = {
     readonly loops: readonly LoopTarget[]
 }
 export type _Visit = readonly ['enter', _Node] | readonly ['finish', _Node, _Facts]
-export type _Flows = ReadonlyMap<_Node[1], _Flow>
+export type _Flows = PersistentMap<_Node[1], _Flow>
 
 export type _Loop = {
     readonly target: LoopTarget

@@ -11,7 +11,7 @@ import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.js'
 import { tryParse } from '../parser/module.f.js'
 import { parseFromTokens } from '../../../compiler/parser/module.f.mjs'
-import { tokenize } from '../../../compiler/tokenizer/module.f.mjs'
+import { tokenize } from '../../../compiler/tokenizer/module.f.js'
 import { difference } from '../vectors/module.f.js'
 import { _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.js'
 

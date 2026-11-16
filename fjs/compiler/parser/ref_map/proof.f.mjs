@@ -7,7 +7,7 @@
  */
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
-import { tokenize } from '../../tokenizer/module.f.mjs'
+import { tokenize } from '../../tokenizer/module.f.js'
 import { nameOf, parseSyntax } from '../syntax/module.f.mjs'
 import { blocks, isRefMap, names, source } from './module.f.mjs'
 

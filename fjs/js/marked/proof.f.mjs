@@ -1,4 +1,4 @@
-import { disagreement, spansOf, tsSpansOf } from './module.f.mjs'
+import { disagreement, spansOf, tsSpansOf } from './module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

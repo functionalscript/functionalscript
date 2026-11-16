@@ -26,6 +26,7 @@ import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
 import { maxLength } from '../../../types/function/length/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { fromValues as setFromValues, size as setSize, values as setValues } from '../../../types/set/module.f.js'
 
 const keyword = tagged('keyword')
 
@@ -111,9 +112,9 @@ const blockBindings = block => scan([['block', block]]).bindings
 
 /** Allocate presentation-only capture aliases before rendering any scope. @type {(ids: readonly BindingId[], syntax: Syntax, runtime: boolean, external: boolean) => Context} */
 const contextFor = (ids, syntax, runtime, external) => {
-    const functions = [...new Set(assertNotNullish(entry(syntax, 'values')).flatMap(value => value instanceof Array && value[0] === 'function' ? [value[1]] : []))]
+    const functions = setValues(setFromValues(assertNotNullish(entry(syntax, 'values')).flatMap(value => value instanceof Array && value[0] === 'function' ? [value[1]] : [])))
     const captureAliases = functions.map(fn => /** @type {const} */ ([fn, fn.captures.map((_, index) => ({ index }))]))
-    return { ids: [...new Set([...ids, ...captureAliases.flatMap(([, bindings]) => bindings)])], ...syntax, captureAliases, runtime, aliases: [], binding: null, external }
+    return { ids: setValues(setFromValues([...ids, ...captureAliases.flatMap(([, bindings]) => bindings)])), ...syntax, captureAliases, runtime, aliases: [], binding: null, external }
 }
 
 /** @type {(context: Context, fn: PreparedFunction) => readonly BindingId[]} */
@@ -335,7 +336,7 @@ const blockExpression = (expression, renderBlock, context, input) => {
 /** @type {(expression: Expression, renderBlock: BlockText, context: Context, fn: PreparedFunction) => string} */
 const functionText = (expression, renderBlock, context, fn) => {
     const references = fn.captures.flatMap(capture => capture.value instanceof Array && capture.value[0] === 'ref' ? [capture.value[1]] : [])
-    const captured = !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
+    const captured = !context.external && (references.length !== fn.captures.length || setSize(setFromValues(references)) !== references.length)
     const aliases = captured || context.external ? context.aliases : [
         ...context.aliases,
         ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]]))

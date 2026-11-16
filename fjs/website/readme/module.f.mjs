@@ -27,8 +27,8 @@
  *
  * **A code fence in a language the site can read is coloured.** Its text
  * goes through the tokenizer the demos colour a typed example with
- * ([`js/marked`](../../js/marked/module.f.mjs), drawn by
- * [`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
+ * ([`js/marked`](../../js/marked/module.f.js), drawn by
+ * [`demo/highlight`](../demo/highlight/module.f.js)), and a TypeScript
  * fence through the same tokenizer with TypeScript's own keywords, so the
  * colours are the demos' and the text is the fence's, character for
  * character. A fence in any other language, or one the tokenizer refuses,
@@ -47,7 +47,7 @@ import { basename, concat as pathConcat, escapes, normalize, parent } from '../.
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
-import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
+import { highlight, tsHighlight } from '../demo/highlight/module.f.js'
 import { flowchartSvg } from '../mermaid/module.f.mjs'
 import { codeBlock } from '../demo/code/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'

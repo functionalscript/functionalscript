@@ -12,7 +12,7 @@
  * The join is lossless only for a name that *is* UTF-8, and Git requires no
  * such thing: `refs/heads/\x80` is a name `git check-ref-format` accepts and
  * `rev-parse` resolves, measured. {@link nameText} answers `null` for one, and
- * what each half of [`fjs/git/refstore`](../module.f.mjs) makes of that is
+ * what each half of [`fjs/git/refstore`](../module.f.js) makes of that is
  * argued in that module's header.
  *
  * Nothing here runs an effect. The store asks these of every name before it
@@ -99,7 +99,7 @@ export const refsPrefix = /** @type {const} */ ('refs/')
  * **A name past `maxLengthBytes` is `null` too**, and the check has to come
  * before the conversion: `Bytes` is unbounded and `u8ListToVecMsb` asserts, so one
  * byte over escaped both [`tryWrite`](../write/module.f.mjs) and
- * [`tryResolve`](../module.f.mjs) as a bare `'assertion failed'` rather than as
+ * [`tryResolve`](../module.f.js) as a bare `'assertion failed'` rather than as
  * an answer — measured, at 131,073 bytes. Found by review of
  * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
  *
@@ -133,7 +133,7 @@ export const isUnderRefs = name => nameText(byteArray(name))?.startsWith(refsPre
  * thing to a caller: no file of this repository is that ref's.
  *
  * Asked *before* anything is read, by both of the store's callers.
- * [`tryResolve`](../module.f.mjs) promises that a name which is no ref name is
+ * [`tryResolve`](../module.f.js) promises that a name which is no ref name is
  * `null` "before any file is opened", and that promise was not kept: the
  * `packed-refs` read came first, so a `packed-refs` the host refuses for any
  * reason other than absence made the answer for `../secret` a channel error

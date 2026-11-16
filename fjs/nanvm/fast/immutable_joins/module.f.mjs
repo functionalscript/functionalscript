@@ -12,9 +12,9 @@ import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proo
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
-import { prepare } from '../../../js/ast/prepare/module.f.mjs'
-import { functionStringify } from '../../../js/ast/serializer/module.f.mjs'
-import { scope, useLines } from '../../../rust/serializer/module.f.mjs'
+import { prepare } from '../../../js/ast/prepare/module.f.js'
+import { functionStringify } from '../../../js/ast/serializer/module.f.js'
+import { scope, useLines } from '../../../rust/serializer/module.f.js'
 import { indent } from '../../../media/rust/item/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 

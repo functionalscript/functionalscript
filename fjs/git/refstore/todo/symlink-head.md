@@ -25,7 +25,7 @@ So a link under `refs/` is a repository Git reads, and a link anywhere else is
 not a repository at all — the same rule `targetAllowed` enforces for the
 `ref: …` spelling, applied to a link.
 
-[`refstore`](../module.f.mjs) cannot tell the two apart. Every way it can ask
+[`refstore`](../module.f.js) cannot tell the two apart. Every way it can ask
 about a path follows the link: `readFile` reads what is at the other end, and
 `stat` answers for that file too. Only a directory listing carries the kind of
 the entry *itself*, and it says "neither a file nor a directory" for both
@@ -35,7 +35,7 @@ That is narrower than Git for the first spelling, and it is the right way round
 for the second: following the link is how a repository makes this module read a
 file outside it. `.git/HEAD` naming `/etc/passwd` would be answered as a
 detached `HEAD` if that file's first line read as an id, which is the boundary
-[`refstore`](../module.f.mjs)'s header claims — a path that leaves the
+[`refstore`](../module.f.js)'s header claims — a path that leaves the
 repository is not a ref — and which a link walks straight through.
 
 `tryResolve` refuses it now as well, and pays for the answer the only way it
@@ -80,7 +80,7 @@ listed, so the skip is per entry rather than the end of the walk. With a writer
 that sends an id and closes, `rev-parse` answers that id — so the lookup treats
 whatever comes out of the pipe as the ref's value.
 
-[`refstore`](../module.f.mjs)'s walk skips it, on the kind a `stat` answers,
+[`refstore`](../module.f.js)'s walk skips it, on the kind a `stat` answers,
 which is Git's listing exactly. `tryResolve` blocks, which is Git's lookup
 exactly. Both halves therefore match Git today, and the gap between them is
 Git's too — but it is a gap a caller can be caught by, and `lstat` closes it here
@@ -148,7 +148,7 @@ module reports rather than reads.
 
 ### Related
 
-- [`fjs/git/refstore`](../module.f.mjs) — `headIsFile`, where the `HEAD` refusal
+- [`fjs/git/refstore`](../module.f.js) — `headIsFile`, where the `HEAD` refusal
   is; `statted`, where the walk asks what an entry finally is; `linkedDirCode`,
   the one kind it refuses; and `targetAllowed`, which is the same rule as the
   first for the other spelling.

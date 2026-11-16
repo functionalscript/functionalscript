@@ -16,7 +16,7 @@ import { ok } from '../../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.mjs'
 import { parse } from '../../../compiler/source/module.f.mjs'
 import { untagged } from '../../../text/marked/module.f.js'
-import { functionStringify, render, renderModule, stringify } from './module.f.mjs'
+import { functionStringify, render, renderModule, stringify } from './module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

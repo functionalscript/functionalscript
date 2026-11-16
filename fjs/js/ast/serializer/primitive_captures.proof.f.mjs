@@ -17,7 +17,7 @@ import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.mjs'
 import { parse } from '../../../compiler/source/module.f.mjs'
-import { functionStringify, stringify } from './module.f.mjs'
+import { functionStringify, stringify } from './module.f.js'
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })
 const first = /** @type {const} */ ({ index: 0 })

@@ -35,4 +35,4 @@ keyboard and keep their state distinguishable without relying on colour.
 ### Related
 
 - [Schema demo renderer](../module.f.mjs)
-- [Shared graph renderer](../../../website/demo/graph/module.f.mjs)
+- [Shared graph renderer](../../../website/demo/graph/module.f.js)

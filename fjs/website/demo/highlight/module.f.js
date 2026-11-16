@@ -3,7 +3,7 @@
  * each run with a kind wrapped in a `span` marked `data-token`, every other
  * run left as plain text. {@link render} draws runs a producer supplied;
  * {@link highlight} and {@link tsHighlight} draw a text with no producer
- * behind it, by the runs [`js/marked`](../../../js/marked/module.f.mjs) finds
+ * behind it, by the runs [`js/marked`](../../../js/marked/module.f.js) finds
  * in it. {@link codeOutput} is the view a demo that prints code ends in: the
  * drawn runs in a copyable block, or the producer's refusal.
  *
@@ -25,7 +25,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { spansOf, tsSpansOf } from '../../../js/marked/module.f.mjs'
+import { spansOf, tsSpansOf } from '../../../js/marked/module.f.js'
 import { fromSpans, toText } from '../../../text/marked/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { codeBlock } from '../code/module.f.js'

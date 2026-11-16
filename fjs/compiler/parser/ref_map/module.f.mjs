@@ -17,7 +17,7 @@ import { assertOk } from '../../../asserts/module.f.js'
 import { structurallySame } from '../../../types/object/structurally_same/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
-import { tokenize } from '../../tokenizer/module.f.mjs'
+import { tokenize } from '../../tokenizer/module.f.js'
 import { nameOf, parseSyntax } from '../syntax/module.f.mjs'
 
 /**

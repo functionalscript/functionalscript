@@ -10,8 +10,8 @@
 import { assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
-import { prepare } from '../../../js/ast/prepare/module.f.mjs'
-import { stringify as serialize } from '../../../js/ast/serializer/module.f.mjs'
+import { prepare } from '../../../js/ast/prepare/module.f.js'
+import { stringify as serialize } from '../../../js/ast/serializer/module.f.js'
 
 /** A closed value as an executable JavaScript default-export module. @type {(value: EdagValue) => string} */
 export const stringify = value => serialize(prepare(fromAnalysis(assertOk(identityAnalysis(value)))), 'module', true)

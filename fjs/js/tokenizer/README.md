@@ -48,7 +48,7 @@ a token, so the tokenizer stops there rather than guessing.
 
 ## Who reads it
 
-[`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.mjs) folds this
+[`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.js) folds this
 stream once more into the compiler's tokens, and the website's demos read it
 to colour source code. It replaced a hand-written scanner and matched its
 stream token for token on everything that scanner accepted.

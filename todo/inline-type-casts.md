@@ -182,9 +182,9 @@ is the way to refresh this file, not a partial edit.
 | `fjs/cas/module.f.js` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/compiler/module.f.mjs` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/tokenizer/module.f.mjs` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/tokenizer/module.f.mjs` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/tokenizer/module.f.mjs` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.js` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.js` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.js` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/compiler/transpiler/module.f.mjs` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 34 | `<T>(value: T) => Effect<MemCreate, Key<T>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 39 | `<T>(key: Key<T>) => Effect<MemRead, T>` | cast overrides the inferred type — needs a type/API change, not a different cast |

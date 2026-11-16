@@ -7,7 +7,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../source/module.f.mjs'
-import { tokenize } from '../tokenizer/module.f.mjs'
+import { tokenize } from '../tokenizer/module.f.js'
 import { parseSyntax } from './syntax/module.f.mjs'
 
 const path = /** @type {const} */ ('/constructors.f.mjs')

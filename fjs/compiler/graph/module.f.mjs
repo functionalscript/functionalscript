@@ -1,6 +1,6 @@
 /**
  * The operators the EDAG, FAST and the source AST share, as
- * [`graphOf`](../../website/demo/graph/module.f.mjs) shapes: one drawing
+ * [`graphOf`](../../website/demo/graph/module.f.js) shapes: one drawing
  * of them for every graph of the compiler's trees. The three spell an
  * operator with the same tuple — `fjs/js/ast/types.ts`'s `Operator<V>` —
  * except for the array and object tags, which a caller names in
@@ -86,7 +86,7 @@
 import { helperIds, staticIds } from '../../edag/module.f.js'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.js'
 import { chunksText } from '../../text/marked/module.f.js'
-import { graphOf } from '../../website/demo/graph/module.f.mjs'
+import { graphOf } from '../../website/demo/graph/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { operatorOperands } from '../../js/ast/module.f.js'
@@ -97,15 +97,18 @@ import { operatorOperands } from '../../js/ast/module.f.js'
 // for a flat list of strings simple enough to check against the type file
 // by eye. The static functions are the one group a later row grows, so
 // they are the EDAG's own list.
-/** @type {ReadonlySet<string>} */
-const leaves = new Set([...helperIds, ...staticIds])
-const op1 = new Set(['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof'])
-const op2 = new Set([
+/** @type {readonly string[]} */
+const leaves = [...helperIds, ...staticIds]
+/** @type {readonly string[]} */
+const op1 = ['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof']
+/** @type {readonly string[]} */
+const op2 = [
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
-])
-const op12 = new Set(['+', '-'])
+]
+/** @type {readonly string[]} */
+const op12 = ['+', '-']
 
 /**
  * A key as a chain spells it: a name, a numbered index, or `[]` for a
@@ -267,9 +270,9 @@ export const operatorShape = ({ array, object }) => other => {
             // arms are lazy and neither is the operand that always runs.
             return { kind: 'op', label: '?:', children: [['cond', exp[1]], ['then', exp[2], 'lazy'], ['else', exp[3], 'lazy']] }
         }
-        if (typeof tag === 'string' && leaves.has(tag)) { return { inline: tag, kind: 'terminal' } }
-        if (typeof tag === 'string' && op1.has(tag)) { return { kind: 'op', label: tag, children: [['operand', exp[1]]] } }
-        if (typeof tag === 'string' && op2.has(tag)) {
+        if (typeof tag === 'string' && leaves.includes(tag)) { return { inline: tag, kind: 'terminal' } }
+        if (typeof tag === 'string' && op1.includes(tag)) { return { kind: 'op', label: tag, children: [['operand', exp[1]]] } }
+        if (typeof tag === 'string' && op2.includes(tag)) {
             return { kind: 'op', label: tag, children: [['left', exp[1]], ['right', exp[2]]] }
         }
         // an instance check: its one operand, and the constructor as part
@@ -278,7 +281,7 @@ export const operatorShape = ({ array, object }) => other => {
         // an entry check: its key as part of the label, a spelling the
         // node carries rather than a child, and its one operand
         if (tag === 'in') { return { kind: 'op', label: `${JSON.stringify(exp[1])} in`, children: [['operand', exp[2]]] } }
-        if (typeof tag === 'string' && op12.has(tag)) {
+        if (typeof tag === 'string' && op12.includes(tag)) {
             return exp.length === 2
                 ? { kind: 'op', label: tag, children: [['operand', exp[1]]] }
                 : { kind: 'op', label: tag, children: [['left', exp[1]], ['right', exp[2]]] }

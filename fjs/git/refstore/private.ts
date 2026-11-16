@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for the walk of `refs/` in `./module.f.mjs`.
+ * Implementation-private types for the walk of `refs/` in `./module.f.js`.
  *
  * @module
  */

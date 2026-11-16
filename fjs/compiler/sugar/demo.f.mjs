@@ -4,7 +4,7 @@
  * trees before the EDAG, side by side:
  * the source AST the parser resolves, and the Foundation AST `normalize`
  * expands it into, each drawn with [the shared graph
- * module](../../website/demo/graph/module.f.mjs) by
+ * module](../../website/demo/graph/module.f.js) by
  * [`fjs/compiler/graph`](../graph/module.f.mjs). Comparing the two
  * shows what `normalize` does: logical operators become conditionals,
  * `let` and `while` become a `loop` with parameters and results, and a
@@ -37,8 +37,8 @@
 import { codeMarker } from '../../website/style/module.f.js'
 import { tryMarked } from '../../media/datajs/module.f.js'
 import { refusal } from '../../website/demo/module.f.js'
-import { render } from '../../website/demo/highlight/module.f.mjs'
-import { graphSvg } from '../../website/demo/graph/module.f.mjs'
+import { render } from '../../website/demo/highlight/module.f.js'
+import { graphSvg } from '../../website/demo/graph/module.f.js'
 import { fastGraph, sourceGraph } from '../graph/module.f.mjs'
 import { tryNormalize } from '../../js/ast/sugar/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'

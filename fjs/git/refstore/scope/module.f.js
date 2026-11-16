@@ -2,7 +2,7 @@
  * Which of a repository's two directories owns a ref name: the shared one, or
  * the worktree's own — see {@link Dirs}.
  *
- * Nothing here runs an effect. [`fjs/git/refstore`](../module.f.mjs) asks
+ * Nothing here runs an effect. [`fjs/git/refstore`](../module.f.js) asks
  * {@link dirOf} which file a name is read from and divides its walks of `refs/`
  * between {@link sharedScope} and {@link worktreeScope};
  * [`../write`](../write/module.f.mjs) asks {@link dirOf} which file a name is

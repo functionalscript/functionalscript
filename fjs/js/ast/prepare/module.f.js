@@ -36,6 +36,8 @@ import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.js'
 import { _immutableJoin } from './joins/module.f.js'
 import { _recoverOnePassJoin } from './one_pass/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
+import { empty as emptyMap, fromEntries as mapFromEntries, mapEntries, mapGet } from '../../../types/map/module.f.js'
+import { fromValues as setFromValues, values as setValues } from '../../../types/set/module.f.js'
 
 /** @type {(node: _Node) => _Facts} */
 const facts = node => {
@@ -89,7 +91,7 @@ const sequential = children => {
     let breaks = []
     for (const child of children) {
         if (!normal) { break }
-        breaks = [...new Set([...breaks, ...child.breaks])]
+        breaks = setValues(setFromValues([...breaks, ...child.breaks]))
         normal = child.normal
     }
     return { normal, breaks }
@@ -108,36 +110,36 @@ const completion = (node, children) => {
         const body = children[Number(children.length - 1)]
         return {
             normal: body.breaks.includes(node[1].target),
-            breaks: [...new Set([...initial.breaks, ...body.breaks.filter(target => target !== node[1].target)])],
+            breaks: setValues(setFromValues([...initial.breaks, ...body.breaks.filter(target => target !== node[1].target)])),
         }
     }
     if (node[0] === 'value' || node[0] === 'statement' && node[1][0] === 'define') {
-        return { normal: true, breaks: node[0] === 'statement' && node[1][3] === 'lazy' ? [] : [...new Set(children.flatMap(child => child.breaks))] }
+        return { normal: true, breaks: node[0] === 'statement' && node[1][3] === 'lazy' ? [] : setValues(setFromValues(children.flatMap(child => child.breaks))) }
     }
     if (node[0] === 'statement' && node[1][0] === 'if') {
         const [condition, then, otherwise] = children
         return {
             normal: then.normal || otherwise.normal,
-            breaks: [...new Set([...condition.breaks, ...then.breaks, ...otherwise.breaks])],
+            breaks: setValues(setFromValues([...condition.breaks, ...then.breaks, ...otherwise.breaks])),
         }
     }
     const reached = sequential(children)
     if (node[0] !== 'exit' || node[1][0] === 'yield') { return reached }
     return {
         normal: false,
-        breaks: node[1][0] === 'break' ? [...new Set([...reached.breaks, node[1][1]])] : reached.breaks,
+        breaks: node[1][0] === 'break' ? setValues(setFromValues([...reached.breaks, node[1][1]])) : reached.breaks,
     }
 }
 
 /**
  * One postorder scan records outward transfers and the highest diagnostic
- * index. Constructor-built maps are immutable; repeated block queries do not
+ * index. Persistent maps are immutable; repeated block queries do not
  * rescan their descendants. Function bodies own returns, and loops own their
  * transfer targets, while construction captures and initial values stay out.
  *
  * @type {(root: _Node, known?: _Flows) => _Flows}
  */
-const flows = (root, known = new Map()) => {
+const flows = (root, known = emptyMap) => {
     /** @type {Stack<_Visit>} */
     let work = { top: ['enter', root], rest: null }
     /** @type {Stack<_Flow>} */
@@ -148,7 +150,7 @@ const flows = (root, known = new Map()) => {
         const visit = work.top
         work = work.rest
         if (visit[0] === 'enter') {
-            const previous = known.get(visit[1][1])
+            const previous = mapGet(known, visit[1][1])
             if (previous !== undefined) { results = { top: previous, rest: results }; continue }
             const own = facts(visit[1])
             work = pushAll(own.children.map(node => /** @type {_Visit} */ (['enter', node])), { top: ['finish', visit[1], own], rest: work })
@@ -169,14 +171,14 @@ const flows = (root, known = new Map()) => {
             // region owns the boundary; capture and initial expressions do not.
             if (node[0] !== 'function' || index !== 0) {
                 returns ||= child.top.returns
-                loops = [...new Set([...loops, ...node[0] === 'loop' && index === 0 ? child.top.loops.filter(target => target !== node[1].target) : child.top.loops])]
+                loops = setValues(setFromValues([...loops, ...node[0] === 'loop' && index === 0 ? child.top.loops.filter(target => target !== node[1].target) : child.top.loops]))
             }
         }
         const flow = /** @type {_Flow} */ ({ next, returns, loops, ...completion(node, toArray(children)) })
         results = { top: flow, rest: results }
         entries = { first: [node[1], flow], tail: entries }
     }
-    return new Map(toArray(entries))
+    return mapFromEntries(toArray(entries))
 }
 
 /** @type {(next: number, count: number) => readonly BindingId[]} */
@@ -214,7 +216,7 @@ const withSlots = block => ({
 
 /** @type {(node: _Node, context: _Context) => boolean} */
 const nonlocal = (node, context) => {
-    const flow = context.flows.get(node[1]) ?? assertNotNullish(flows(node, context.flows).get(node[1]))
+    const flow = mapGet(context.flows, node[1]) ?? assertNotNullish(mapGet(flows(node, context.flows), node[1]))
     return flow.returns || flow.loops.length !== 0
 }
 
@@ -332,9 +334,9 @@ const functionValue = (prepareBlock, prepareValue, input, context) => call(() =>
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
         && root !== undefined && root[0] === 'loop' ? root[1].target : null
-    const summary = normalized === input.body ? context.flows : new Map([...context.flows, ...flows(['block', normalized], context.flows)])
+    const summary = normalized === input.body ? context.flows : mapFromEntries([...mapEntries(context.flows), ...mapEntries(flows(['block', normalized], context.flows))])
     /** @type {_Context} */
-    const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
+    const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(mapGet(summary, normalized)).next) }
     return bind(values(prepareValue, value.captures.map(capture => capture.value), local), prepared => {
     const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[Number(index)] }))
     return bind(prepareBlock(normalized, { ...local, sourceBranchTarget, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body => {
@@ -342,7 +344,7 @@ const functionValue = (prepareBlock, prepareValue, input, context) => call(() =>
         // cannot complete. Retaining its result keeps invocation roots exact.
         const last = body.value.statements.at(-1)
         const result = /** @type {Value} */ (last !== undefined && last[0] === 'while' ? ['ref', last[1].result] : undefined)
-        const completed = context.sourceLoops && !assertNotNullish(summary.get(normalized)).normal
+        const completed = context.sourceLoops && !assertNotNullish(mapGet(summary, normalized)).normal
             && body.value.exit[0] === 'yield'
             ? { ...body.value, exit: /** @type {Exit} */ (['return', value.target, result]) } : body.value
         return done({ value: { ...value, captures, body: completed }, statements: prepared.statements, next: body.next })
@@ -485,7 +487,7 @@ const statementTask = (prepareBlock, prepareValue, statement, context) => call((
         }
         // Structured one-result source loops use the existing private state
         // and result slot. This lowers transfers, without reusing source locals.
-        const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
+        const normal = assertNotNullish(mapGet(context.flows, loop.body)).breaks.includes(loop.target)
         const packed = context.sourceLoops && loop.parameters.length > 1 && loop.results.length === 1
         const empty = context.sourceLoops && loop.parameters.length === 0 && loop.results.length === 1 && normal
         return bind(values(prepareValue, packed ? [['array', loop.initial]] : loop.initial, context), initial => {
@@ -548,7 +550,7 @@ const statementTask = (prepareBlock, prepareValue, statement, context) => call((
 /** Result-bearing regions retain the destination layout used by expression lifting. @type {(prepareBlock: _BlockTask, prepareValue: _ValueTask, statement: NormalStatement, context: _Context) => _Task<_Statement>} */
 const statementValue = (prepareBlock, prepareValue, statement, context) => bind(statementTask(prepareBlock, prepareValue, statement, context), result => done({
     ...result, normal: statement[0] === 'define' || statement[0] !== 'loop' && statement[1].length !== 0
-        || assertNotNullish(context.flows.get(statement)).normal,
+        || assertNotNullish(mapGet(context.flows, statement)).normal,
 }))
 
 /** Prepare values through their containing block without forward references. @type {(prepareBlock: _BlockTask) => _ValueTask} */
@@ -601,9 +603,9 @@ const prepareValueWith = prepareBlock => {
                         const [destination] = fresh(context.next, 1)
                         const lifted = liftValueReturns(operation, destination, context.owner, memberCall ? context.loops.map(loop => loop.target) : [])
                         if (lifted.statement !== null) {
-                            const summary = new Map([...context.flows, ...flows(['statement', lifted.statement], context.flows)])
+                            const summary = mapFromEntries([...mapEntries(context.flows), ...mapEntries(flows(['statement', lifted.statement], context.flows))])
                             return bind(statementValue(prepareBlock, prepareValue, lifted.statement, {
-                                ...context, flows: summary, next: Math.max(context.next + 1, assertNotNullish(summary.get(lifted.statement)).next),
+                                ...context, flows: summary, next: Math.max(context.next + 1, assertNotNullish(mapGet(summary, lifted.statement)).next),
                             }), prepared => done({ value: ['ref', destination], statements: prepared.value, next: prepared.next }))
                         }
                     }
@@ -673,7 +675,7 @@ const standaloneValue = prepareValueWith(prepareBlock)
  */
 export const prepare = (block, { sourceLoops = false } = {}) => {
     const summary = flows(['block', block])
-    return run(prepareBlock(block, { sourceLoops, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(prepareBlock(block, { sourceLoops, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(mapGet(summary, block)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }
 
 /**
@@ -684,5 +686,5 @@ export const prepare = (block, { sourceLoops = false } = {}) => {
  */
 export const prepareFunction = value => {
     const summary = flows(['function', value])
-    return run(functionValue(prepareBlock, standaloneValue, value, { sourceLoops: false, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(functionValue(prepareBlock, standaloneValue, value, { sourceLoops: false, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(mapGet(summary, value)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }

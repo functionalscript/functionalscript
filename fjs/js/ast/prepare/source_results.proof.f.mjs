@@ -15,8 +15,8 @@ import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
-import { stringify } from '../serializer/module.f.mjs'
-import { prepare } from './module.f.mjs'
+import { stringify } from '../serializer/module.f.js'
+import { prepare } from './module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

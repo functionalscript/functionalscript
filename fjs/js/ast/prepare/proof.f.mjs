@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { prepare, prepareFunction } from './module.f.mjs'
+import { prepare, prepareFunction } from './module.f.js'
 import { _tailFunction } from '../../../edag/to_fast/tail_calls/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */

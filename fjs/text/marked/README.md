@@ -221,7 +221,7 @@ text of the marked output, by construction.
 
 ## 6. Rendering
 
-[`fjs/website/demo/highlight`](../../website/demo/highlight/module.f.mjs)
+[`fjs/website/demo/highlight`](../../website/demo/highlight/module.f.js)
 renders marked text for the demo pages:
 
 - `render(marked)` draws a run with a kind as
@@ -254,7 +254,7 @@ is a summary rather than code. How a demo's code blocks look is
 Some text has no producer behind it: an example a reader typed, or a
 JavaScript or JSON code fence in a `README.md` the site renders
 ([`website/readme`](../../website/readme/module.f.mjs)). For that,
-[`fjs/js/marked`](../../js/marked/module.f.mjs) finds the runs by tokenizing,
+[`fjs/js/marked`](../../js/marked/module.f.js) finds the runs by tokenizing,
 with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)),
 and the website's `highlight(text)` draws them:
 
@@ -276,7 +276,7 @@ and the website's `highlight(text)` draws them:
   tokens are the case it is shaped for — so a bad span is bad input, not a
   defect of the program. A caller whose spans are its own, as `highlight`'s
   are, `unwrap`s.
-- `highlight(text)`, in [`website/demo/highlight`](../../website/demo/highlight/module.f.mjs),
+- `highlight(text)`, in [`website/demo/highlight`](../../website/demo/highlight/module.f.js),
   is `render` of `fromSpans` of `spansOf`.
 - `tsSpansOf(text)` and `tsHighlight(text)`, beside them, read TypeScript: the same tokens,
   and TypeScript's own words (`type`, `readonly`, `as`, `keyof`, …) as
@@ -490,7 +490,7 @@ points, as the tokenizer's are).
   Rust. It never overrides a kind, so a refinement can come later. The colour
   is a new stylesheet variable, `--syntax-name`.
 - **The model lives in `fjs/text/marked`, the JavaScript fallback and oracle in
-  `fjs/js/marked`** ([module](../../js/marked/module.f.mjs)), and only the drawing,
+  `fjs/js/marked`** ([module](../../js/marked/module.f.js)), and only the drawing,
   `render` and `highlight`, under the website: the compiler's proofs hold its
   output to the oracle without depending on the website, and this module
   stays language-independent, with no tokenizer behind it.

@@ -63,7 +63,7 @@ language accepts, and keep the three constant spellings as they are:
   only the compiler's lowering and the serializer learn the non-constant
   key. The Rust output prints one already: a property whose key is no
   string is converted with `Any::to_string` before its value is evaluated in
-  [`rust/serializer`](../../rust/serializer/module.f.mjs), then passed to
+  [`rust/serializer`](../../rust/serializer/module.f.js), then passed to
   `property_item` with the value. The compiler's Rust output uses that printer.
 - The key's value is converted where the object is built, by the
   interpreter and the VM as they already do: `ToString` on every value,

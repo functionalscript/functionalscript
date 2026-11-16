@@ -20,7 +20,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { toHex } from '../oid/module.f.js'
 import { latin1 } from '../testlib.f.js'
-import { badNameCode, headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, zeroIdCode } from './module.f.mjs'
+import { badNameCode, headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, zeroIdCode } from './module.f.js'
 import { a, b, file, hexOf, kind, missing, one, ref, resolved, run, shadowed, t } from './testlib.f.mjs'
 
 /**
