@@ -1,7 +1,7 @@
 /**
  * Writes the generated Rust tests, and the runtime compiled for the VM.
  *
- * The printer in [`../rust/module.f.mjs`](../rust/module.f.mjs) is pure; this
+ * The printer in [`../rust/module.f.js`](../rust/module.f.js) is pure; this
  * module is the thin effectful shell around it, invoked from `gen` so
  * the CI drift check regenerates the files on every pull request and fails
  * when a committed copy is stale.
@@ -17,14 +17,14 @@
 import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { step } from '../../effects/module.f.js'
 import { data } from '../module.f.js'
-import { directory, generate } from '../rust/module.f.mjs'
+import { directory, generate } from '../rust/module.f.js'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.js'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
-import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.mjs'
+import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.js'
 import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.mjs'
-import { generate as generateIndependentTailRecipes, path as independentTailRecipesPath } from '../fast/independent_tail_recipes/module.f.mjs'
-import { generate as generateMixedSelfUses, path as mixedSelfUsesPath } from '../fast/mixed_self_uses/module.f.mjs'
+import { generate as generateIndependentTailRecipes, path as independentTailRecipesPath } from '../fast/independent_tail_recipes/module.f.js'
+import { generate as generateMixedSelfUses, path as mixedSelfUsesPath } from '../fast/mixed_self_uses/module.f.js'
 import { generate as generateRuntime } from '../runtime/module.f.mjs'
 
 /**

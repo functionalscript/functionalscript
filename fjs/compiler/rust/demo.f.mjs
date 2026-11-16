@@ -3,7 +3,7 @@
  * module, read the `nanvm-lib` calls that build its value.
  *
  * **It is the `.rs` output, not a lookalike.** The text is parsed and lowered
- * exactly as the compiler does, then printed by [`toRust`](./module.f.mjs); a
+ * exactly as the compiler does, then printed by [`toRust`](./module.f.js); a
  * refusal — parsing, AST-to-FAST conversion, or a shape Rust has no spelling for — is shown in
  * the compiler's own words rather than as an empty box, since what a stage
  * will not accept is half of what it is.
@@ -28,7 +28,7 @@
 import { tryUnresolved } from '../edag/module.f.mjs'
 import { codeOutput } from '../../website/demo/highlight/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
-import { toRustMarked } from './module.f.mjs'
+import { toRustMarked } from './module.f.js'
 
 /**
  * `text` as Rust, or why it is not: the parser's message, or the printer's

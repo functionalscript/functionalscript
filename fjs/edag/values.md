@@ -174,7 +174,7 @@ It follows the JavaScript/memo profile and may emit JavaScript beyond the
 current FJS parser. The separate source writer's `tryStringify` preserves a
 structural source round trip and can refuse those captures.
 
-The existing [Rust emitter](../compiler/rust/module.f.mjs) accepts `EdagValue`
+The existing [Rust emitter](../compiler/rust/module.f.js) accepts `EdagValue`
 directly as an EDAG subset and emits native value construction and function
 bodies. Both backends preserve their supported result-graph profile:
 primitives, containers, nested captures, distinct closures, shared identity,

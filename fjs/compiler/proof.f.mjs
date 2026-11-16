@@ -1177,7 +1177,7 @@ export const proof = {
         },
     },
     // The `.rs` output: the linked EDAG printed as a generated Rust module
-    // against the `nanvm-lib` API, by `fjs/compiler/rust/module.f.mjs`'s shared
+    // against the `nanvm-lib` API, by `fjs/compiler/rust/module.f.js`'s shared
     // printer — see `fjs/edag/rust/module.f.js`.
     rustOutput: {
         // Property access on an object literal, the same source the EDAG

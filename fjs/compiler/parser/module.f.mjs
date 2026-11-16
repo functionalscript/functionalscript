@@ -33,7 +33,7 @@ import { nameOf, parseSyntax, textOf } from './syntax/module.f.js'
 import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.js'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.js'
 
 // -- resolving the names ------------------------------------------------------
@@ -329,6 +329,23 @@ const keyNamed = t => {
 }
 
 /**
+ * A key's name, or its refusal: a name of the prototype chain where the
+ * key is read, and a member function a module may not call where it is
+ * called, `method`, as `fjs/js/prototype`'s `prohibitedAccess` answers.
+ *
+ * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
+ */
+const checkedKey = (key, method) => {
+    const named = keyNamed(key)
+    if (typeof named === 'string') {
+        const why = prohibitedAccess(method)(named)
+        if (why === 'member function') { return error(prohibitedCall(key)) }
+        if (why === 'property name') { return error(prohibitedKey(key)) }
+    }
+    return ok(named)
+}
+
+/**
  * An access closed over its base and its constant key: the AST's
  * `['.', base, key]`, or the refusal of its key — a name of the prototype
  * chain where the access is read, and a member function a module may not
@@ -379,22 +396,8 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
     ? [node[0] === '+' ? { top: { unary: 'Number' }, rest: { top: frame, rest: stack } } : { top: frame, rest: stack }, scope, ['enter', node]]
     : [stack, scope, error(computedKey(first))]
 
-/**
- * A key's name, or its refusal: a name of the prototype chain where the
- * key is read, and a member function a module may not call where it is
- * called, `method`, as `fjs/js/prototype`'s `prohibitedAccess` answers.
- *
- * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
- */
-const checkedKey = (key, method) => {
-    const named = keyNamed(key)
-    if (typeof named === 'string') {
-        const why = prohibitedAccess(method)(named)
-        if (why === 'member function') { return error(prohibitedCall(key)) }
-        if (why === 'property name') { return error(prohibitedKey(key)) }
-    }
-    return ok(named)
-}
+/** The steps a chain goes on with after `step`, where it has any. @type {(step: Step) => Step | undefined} */
+const stepAfter = ([, , next]) => next
 
 /**
  * Whether steps end in a call: the last of them a call, `(…)`, a guarded
@@ -414,8 +417,8 @@ const endsInCall = step => {
     return last[0] !== '|.'
 }
 
-/** The steps a chain goes on with after `step`, where it has any. @type {(step: Step) => Step | undefined} */
-const stepAfter = ([, , next]) => next
+/** Whether a word names a conversion, decided without a scope binding. @type {(name: string) => name is 'Boolean' | 'Number' | 'String' | 'BigInt'} */
+const isConversionWord = name => name === 'Boolean' || name === 'Number' || name === 'String' || name === 'BigInt'
 
 /**
  * Whether a call statement's value is a call: of any value but the word of
@@ -437,6 +440,55 @@ const isCall = node => {
 }
 
 /**
+ * The static member the key `named` names in the namespace `namespaceName`, as
+ * the AST holds it, `['Number.isInteger']`, or `null` where the language
+ * admits none: the functions of `Object`, the predicates of `Number`,
+ * and `Number.MAX_SAFE_INTEGER` and `Number.MAX_VALUE`
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
+ * each a tag of the EDAG's `staticIds`, where a later name is a row of
+ * its own decision.
+ *
+ * Numeric constants lower directly to their host-defined value, without
+ * introducing an EDAG operation or copying the constant's digits here.
+ *
+ * @type {(namespaceName: string, named: string | number) => ValueStatic | number | null}
+ */
+const staticMember = (namespaceName, named) => {
+    if (namespaceName === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
+    if (namespaceName === 'Number' && named === 'MAX_VALUE') { return Number.MAX_VALUE }
+    const id = staticIds.find(id => id === `${namespaceName}.${named}`)
+    if (id === undefined) { return null }
+    /** @type {ValueStatic} */
+    const member = [id]
+    return member
+}
+
+/** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
+const namespaceMember = (namespace, key) => {
+    const member = staticMember(nameOf(namespace), keyNamed(key))
+    if (member !== null) { return ok(member) }
+    const [tag, named] = checkedKey(key, false)
+    return tag === 'error' ? error(named) : error(reservedWord(namespace))
+}
+
+/** The source admission owner supplies each refused spelling's diagnostic. */
+const patternRefusals = /** @type {const} */ ({ invalid: invalidTarget, namespaceRest, restComma, computed: computedPatternKey, duplicate: duplicateId })
+
+/**
+ * Source declaration and key policy for the sugar-owned structural pattern
+ * planner. Callbacks run during its single source-order walk, preserving the
+ * first diagnostic without assigning normalization decisions to the parser.
+ *
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ */
+const planned = check => planPattern({
+    bindingName: check,
+    key: key => checkedKey(key, false),
+    namespaceMember,
+    refused: (reason, token) => assertNotNullish(entry(patternRefusals, reason))(token),
+})
+
+/**
  * A `const`'s plan, {@link planned}: where it is a call statement, the
  * `const` that binds nothing, `['discard', name]`, its value has to be a
  * call, {@link isCall}, and any other is refused at the name — an
@@ -455,39 +507,17 @@ const constPlan = check => (target, value, namespace) => {
     return planned(check)(target, namespace)
 }
 
-/**
- * Source declaration and key policy for the sugar-owned structural pattern
- * planner. Callbacks run during its single source-order walk, preserving the
- * first diagnostic without assigning normalization decisions to the parser.
- *
- * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
- */
-const planned = check => planPattern({
-    bindingName: check,
-    key: key => checkedKey(key, false),
-    namespaceMember,
-    refused: (reason, token) => patternRefusals[reason](token),
-})
-
-/** The source admission owner supplies each refused spelling's diagnostic. */
-const patternRefusals = /** @type {const} */ ({ invalid: invalidTarget, namespaceRest, restComma, computed: computedPatternKey, duplicate: duplicateId })
-
-/** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
-const namespaceMember = (namespace, key) => {
-    const member = staticMember(nameOf(namespace), keyNamed(key))
-    if (member !== null) { return ok(member) }
-    const [tag, named] = checkedKey(key, false)
-    return tag === 'error' ? error(named) : error(reservedWord(namespace))
-}
-
 /** A plan with no defaults needs no source-value resolution. @type {(plan: _Plan) => ExpansionPlan} */
 const expansion = ({ reads, ids }) => ({ reads: reads.map(({ source, spread }) => ({ source, spread })), ids })
 
 /** @type {(plan: _Plan) => boolean} */
 const hasPatternDefault = plan => plan.reads.some(read => read.default !== undefined)
 
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
+const extended = env => (word, ref) => setReplace(word)(ref)(env)
+
 /** @type {(scope: _Scope, plan: _Plan, assignable: boolean) => _Scope} */
-const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: plan.names.reduce((names, [token, i]) => extended(names)(nameOf(token), { id: plan.ids[i], kind: 'own', assignable }), scope.names) }, plan)
+const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: plan.names.reduce((names, [token, i]) => extended(names)(nameOf(token), { id: plan.ids[Number(i)], kind: 'own', assignable }), scope.names) }, plan)
 
 /**
  * A counting frame past its operand: the next one's position, and what
@@ -1259,9 +1289,6 @@ const conversion = (stack, scope, [, callee, args]) => {
     return [{ top: { unary: name }, rest: stack }, scope, ['enter', operand]]
 }
 
-/** Whether a word names a conversion, decided without a scope binding. @type {(name: string) => name is 'Boolean' | 'Number' | 'String' | 'BigInt'} */
-const isConversionWord = name => name === 'Boolean' || name === 'Number' || name === 'String' || name === 'BigInt'
-
 /**
  * Whether an access's key is the constant `name`, in either spelling: a
  * computed key, `[Number(i)]`, names no constant.
@@ -1269,30 +1296,6 @@ const isConversionWord = name => name === 'Boolean' || name === 'Number' || name
  * @type {(key: Key, name: string) => boolean}
  */
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
-
-/**
- * The static member the key `named` names in the namespace `namespaceName`, as
- * the AST holds it, `['Number.isInteger']`, or `null` where the language
- * admits none: the functions of `Object`, the predicates of `Number`,
- * and `Number.MAX_SAFE_INTEGER` and `Number.MAX_VALUE`
- * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
- * each a tag of the EDAG's `staticIds`, where a later name is a row of
- * its own decision.
- *
- * Numeric constants lower directly to their host-defined value, without
- * introducing an EDAG operation or copying the constant's digits here.
- *
- * @type {(namespaceName: string, named: string | number) => ValueStatic | number | null}
- */
-const staticMember = (namespaceName, named) => {
-    if (namespaceName === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
-    if (namespaceName === 'Number' && named === 'MAX_VALUE') { return Number.MAX_VALUE }
-    const id = staticIds.find(id => id === `${namespaceName}.${named}`)
-    if (id === undefined) { return null }
-    /** @type {ValueStatic} */
-    const member = [id]
-    return member
-}
 
 /**
  * The static member an access reads, where its base is the bare word
@@ -2043,9 +2046,6 @@ const bodyBindable = scope => name => {
     if (refs.some(ref => ref.kind === 'own')) { return error(duplicateId(name)) }
     return refs.length === 0 ? ok(word) : error(captureShadowed(name))
 }
-
-/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
-const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, SourceValue]) => ValueMember} */
 const exportMember = ([name, value]) => [':', name, value]

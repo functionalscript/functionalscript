@@ -6,12 +6,12 @@
  */
 
 import { _mixedSelfUses } from '../../../edag/to_fast/tail/fixtures.f.js'
-import { generate as generateRust } from '../../../compiler/rust/module.f.mjs'
+import { generate as generateRust } from '../../../compiler/rust/module.f.js'
 
 export const path = /** @type {const} */ ('nanvm/harness/gen.fast/mixed_self_uses.rs')
 
 /** Preserve one public self and the shared ordinary call through the backend. @type {() => string} */
 export const generate = () => [
-    '// Fixture source: `fjs/nanvm/fast/mixed_self_uses/module.f.mjs`; regenerate with `npm run gen`.',
+    '// Fixture source: `fjs/nanvm/fast/mixed_self_uses/module.f.js`; regenerate with `npm run gen`.',
     generateRust(_mixedSelfUses()),
 ].join('\n').split('\n').map(line => line.trimEnd()).join('\n')

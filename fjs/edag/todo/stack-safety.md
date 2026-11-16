@@ -110,7 +110,7 @@ This issue is the same fix, one layer further down, in code shared by
 every EDAG consumer rather than one compiler stage — a bigger, more
 central rewrite, out of Stage A's own scope.
 
-Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.mjs`'s
+Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.js`'s
 `bodyLines`, added by Stage A): at the time it called `analysis(root)` to
 find every operator node *before* it could report the clean refusal Stage
 A's PR description promised, so a chain of a few thousand terms crashed

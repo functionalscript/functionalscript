@@ -66,8 +66,8 @@ binary, property-continuation and final-region trees, including regions with
 required definitions. This depth guarantee covers admitted prepared IR;
 separate raw graph admission retains its own domain.
 
-Function item wrappers belong to the [compiler](../../compiler/rust/module.f.mjs)
-and [corpus generator](../../nanvm/rust/module.f.mjs). Their precise
+Function item wrappers belong to the [compiler](../../compiler/rust/module.f.js)
+and [corpus generator](../../nanvm/rust/module.f.js). Their precise
 `clippy::if_same_then_else` allowance preserves condition evaluation when
 source arms happen to agree. Item formatting attributes also belong there;
 the serializer performs no branch simplification or temporary placement.

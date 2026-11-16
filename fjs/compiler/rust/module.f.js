@@ -9,7 +9,7 @@
  * the shared EDAG-to-FAST conversion and preparation passes establish its
  * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.js)
  * spells that prepared program, through the same pipeline used by
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) for the operator corpus.
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.js) for the operator corpus.
  * What is specific to this module:
  * laying a module's scope out as the body of the
  * `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>` a
@@ -125,7 +125,7 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
  * refused through the same diagnostic channel.
  *
  * `pub fn module` carries `#[rustfmt::skip]` — the policy
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs)'s output gets once, on
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.js)'s output gets once, on
  * its `mod` declaration, which a compiled module has no hand-written
  * owner to carry: the layout is
  * the serializer's own — prepared declarations and expression regions,
@@ -173,7 +173,19 @@ export const generate = root => unwrap(generateResult(root))
  *
  * @type {(reason: readonly unknown[]) => string}
  */
-const reasonText = reason => reason.map(String).join(': ')
+const reasonText = reason => reason.map(value => String(value)).join(': ')
+
+/**
+ * The Rust module with token kinds still tagged in the text, or its refusal.
+ *
+ * @type {(root: Exp) => Result<string, string>}
+ */
+const toRustTagged = root => {
+    const result = generateTagged(root)
+    return result[0] === 'ok'
+        ? result
+        : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
+}
 
 /**
  * The EDAG as Rust, or the refusal: a node shape this printer has no
@@ -197,15 +209,3 @@ export const toRust = root => mapOk(untagged)(toRustTagged(root))
  * @type {(root: Exp) => Result<Marked, string>}
  */
 export const toRustMarked = root => mapOk(text => withNames(unwrap(fromTagged(text))))(toRustTagged(root))
-
-/**
- * The same, with its kinds still tagged in the text, and the refusal.
- *
- * @type {(root: Exp) => Result<string, string>}
- */
-const toRustTagged = root => {
-    const result = generateTagged(root)
-    return result[0] === 'ok'
-        ? result
-        : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
-}

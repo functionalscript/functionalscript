@@ -4,7 +4,7 @@
  * finds it").
  *
  * The module's `runtime` export is printed by the ordinary backend as any
- * module is ([`../module.f.mjs`](../module.f.mjs)'s `itemTagged`), a scope
+ * module is ([`../module.f.js`](../module.f.js)'s `itemTagged`), a scope
  * that evaluates, into `pub fn runtime<A: IStaticFunction>() ->
  * Result<Any<A>, Any<A>>`: the object of four functions, `static`,
  * `dot`, `in` and `Boolean`, which whoever runs compiled modules builds once and hands
@@ -51,7 +51,7 @@ import { generatedHeader } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.js'
 import { isNative } from '../../../js/static/module.f.js'
 import { isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f.js'
-import { itemTagged } from '../module.f.mjs'
+import { itemTagged } from '../module.f.js'
 
 /** Inspect a sequence's value without forgetting the required work before it. @type {(root: Exp) => _Sequenced} */
 const sequenced = root => {
@@ -211,7 +211,7 @@ export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ secti
 
 /**
  * {@link generateRuntimeTagged} as plain text, with a refusal as text:
- * `[reason, detail]` pairs joined as `../module.f.mjs` joins its own.
+ * `[reason, detail]` pairs joined as `../module.f.js` joins its own.
  *
  * @type {(root: Exp) => Result<string, string>}
  */

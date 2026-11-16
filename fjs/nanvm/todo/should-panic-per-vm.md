@@ -23,7 +23,7 @@ cannot be fooled by an operation that swallows the `Err` on its way back,
 say a future operator that catches; the panic proof cannot.
 
 The corpus cannot generate that set today. A `#[should_panic]` test is a
-concrete `#[test]` function, and [`rust/module.f.mjs`](../rust/module.f.mjs)
+concrete `#[test]` function, and [`rust/module.f.mjs`](../rust/module.f.js)
 prints every group as one function generic over `IVm`, `fn
 logical_and<A: IVm>()`, called once per VM from the hand-written `test`
 in `nanvm/lib/tests/test/main.rs` — a shape that has no place for a

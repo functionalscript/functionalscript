@@ -37,7 +37,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { corpus, fixturesDirectory as corpusFixturesDirectory } from '../corpus/module.f.js'
-import { expectation } from '../expected/module.f.mjs'
+import { expectation } from '../expected/module.f.js'
 import { load as loadRuntime } from '../runtime/module.f.mjs'
 
 export const fixturesDirectory = corpusFixturesDirectory

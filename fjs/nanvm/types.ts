@@ -3,7 +3,7 @@
  *
  * The data described here is the single source of truth for operator
  * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
- * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
+ * JavaScript engine, and [`rust/module.f.js`](./rust/module.f.js) prints it
  * as the Rust tests in `nanvm/lib/tests/test/gen.corpus/`.
  *
  * Canonical operation identity and operand contract come

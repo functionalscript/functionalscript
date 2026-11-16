@@ -39,7 +39,7 @@
  * @example
  *
  * ```js
- * import { generate } from './module.f.mjs'
+ * import { generate } from './module.f.js'
  * import { data } from '../module.f.js'
  *
  * generate(data) // the files of `nanvm/lib/tests/test/gen.corpus/`
@@ -60,7 +60,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { bindingLine, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.js'
 import { braced } from '../../rust/serializer/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The name a group's `run` binds the runtime value to, {@link groupFile}. */
 const runtimeName = 'rt'
@@ -153,7 +153,7 @@ export const rustName = {
  * @type {(id: string) => string}
  */
 const operatorFnName = id => {
-    const v = rustName[id]
+    const v = entry(rustName, id)
     if (v === undefined) { throw ['no Rust for', id] }
     return v
 }
