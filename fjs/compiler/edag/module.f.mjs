@@ -18,7 +18,7 @@
 
 import { tryNormalize } from '../../js/ast/sugar/module.f.js'
 import { fromFast } from '../../edag/from_fast/module.f.js'
-import { _fileError, _jsonModule, _program } from '../source/module.f.mjs'
+import { _fileError, _jsonModule, _program } from '../source/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.js'
 

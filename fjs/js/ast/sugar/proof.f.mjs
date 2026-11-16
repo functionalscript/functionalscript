@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { parse } from '../../../compiler/source/module.f.mjs'
+import { parse } from '../../../compiler/source/module.f.js'
 import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { freeLoopBindings } from '../../../edag/from_fast/control/module.f.js'

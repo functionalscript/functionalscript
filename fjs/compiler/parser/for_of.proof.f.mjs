@@ -6,7 +6,7 @@ import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
-import { parse } from '../source/module.f.mjs'
+import { parse } from '../source/module.f.js'
 import { tokenize } from '../tokenizer/module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
 

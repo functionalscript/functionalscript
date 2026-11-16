@@ -18,7 +18,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
-import { parse } from '../source/module.f.mjs'
+import { parse } from '../source/module.f.js'
 import { tryModuleStringify } from './module.f.mjs'
 
 /** @type {(source: string) => Exp} */

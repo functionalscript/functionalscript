@@ -31,7 +31,7 @@ The MCP tool remains unimplemented: the
 [server registry](../module.f.js) still contains only CAS and Evo tools.
 `interpret(load)(path)` is an effectful file/dependency loader, not a pure
 source-text API. The compiler already exposes pure
-[`source.parse(path)(text)`](../../compiler/source/module.f.mjs) and
+[`source.parse(path)(text)`](../../compiler/source/module.f.js) and
 [`edag.unresolved(module)`](../../compiler/edag/module.f.mjs); the reusable
 text-evaluation entry and its MCP response/error contract are remaining work.
 

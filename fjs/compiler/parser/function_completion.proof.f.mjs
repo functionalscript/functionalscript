@@ -1,7 +1,7 @@
 /** Syntax retains written bodies; FAST owns completion, terminality and dead work. */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse } from '../source/module.f.mjs'
+import { parse } from '../source/module.f.js'
 import { _evaluate, tokenizeString } from './proof.f.mjs'
 import { parseSyntax } from './syntax/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'

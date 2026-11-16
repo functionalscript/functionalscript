@@ -13,7 +13,7 @@
 
 import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.js'
 import { join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
-import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
+import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.js'
 import { tokenize } from '../compiler/tokenizer/module.f.js'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.js'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.js'

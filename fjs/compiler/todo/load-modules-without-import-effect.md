@@ -33,7 +33,7 @@ Source-level `import` remains part of the language. This workflow needs neither
 a host `import` effect nor an effect that converts EDAG into a native function.
 It accepts the compiler-supported FJS subset, not arbitrary JavaScript or host
 modules. Reuse the existing resolution rules, readers and the one module walk,
-`_walk` in [`source`](../source/module.f.mjs).
+`_walk` in [`source`](../source/module.f.js).
 Do not introduce a second resolution walk.
 
 For the native executable, compile this FJS pipeline, including its interpreter,

@@ -194,7 +194,7 @@ file, while initialization failures name their source file. The CLI reports
 `module initialization failed`; API callers retain its represented payload.
 FunctionalScript output continues to rewrite the linked EDAG without evaluation.
 
-The shared readers now live in [`source`](../source/module.f.mjs), avoiding an
+The shared readers now live in [`source`](../source/module.f.js), avoiding an
 import cycle between lowering and the transpiler, and so does the one module
 walk both paths load through, `_walk`.
 

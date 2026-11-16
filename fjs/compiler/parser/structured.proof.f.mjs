@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertOk } from '../../asserts/module.f.js'
-import { parse } from '../source/module.f.mjs'
+import { parse } from '../source/module.f.js'
 
 /** @type {(source: string) => { readonly fn: SourceFunction; readonly module: import('./types.ts').ResolvedModule }} */
 const sourceFunction = source => {

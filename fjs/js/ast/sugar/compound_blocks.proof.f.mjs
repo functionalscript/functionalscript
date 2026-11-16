@@ -1,7 +1,7 @@
 /** Compound assignment and expression-block writes share ordered source state. */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { parse } from '../../../compiler/source/module.f.mjs'
+import { parse } from '../../../compiler/source/module.f.js'
 import { unresolved } from '../../../compiler/edag/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'

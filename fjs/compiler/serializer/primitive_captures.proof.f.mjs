@@ -15,7 +15,7 @@ import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
-import { parse } from '../source/module.f.mjs'
+import { parse } from '../source/module.f.js'
 import { tryFunctionText, tryStringify } from './module.f.mjs'
 
 /** Shared immutable fixtures also cross the native callable boundary.

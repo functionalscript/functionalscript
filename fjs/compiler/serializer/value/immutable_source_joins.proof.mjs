@@ -15,7 +15,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
-import { parse } from '../../source/module.f.mjs'
+import { parse } from '../../source/module.f.js'
 import { tryStringify } from '../module.f.mjs'
 import { tokenize } from '../../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'

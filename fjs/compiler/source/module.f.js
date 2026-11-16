@@ -15,7 +15,8 @@
  */
 
 import { error } from '../../types/result/module.f.js'
-import { todo } from '../../asserts/module.f.js'
+import { assert, todo } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { fromValue } from '../../edag/module.f.js'
 import { tokenize } from '../tokenizer/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
@@ -112,9 +113,19 @@ const sourceAt = (name, parent, json, path) => {
 /** Root names are filesystem paths, never import specifiers. @type {(path: string) => Effect<ResolveFileModule, _Source, ParseError>} */
 export const _rootSource = path => sourceAt(path, null, path.endsWith('.json'), path)
 
+/** Import selections are required data fields; `null` selects the whole module. @type {(source: AstImport | _ImportSource) => string | null} */
+const importName = source => {
+    const name = entry(source, 'name')
+    assert(name !== undefined)
+    return name
+}
+
 /** @type {(source: _Source) => (imported: AstImport) => (sources: readonly _ImportSource[]) => Effect<ResolveFileModule, readonly _ImportSource[], ParseError>} */
-const importSource = ({ id, path }) => ({ specifier, json, name }) => sources =>
-    mapStep(sourceAt(specifier, id, json, path), source => [...sources, { ...source, name }])
+const importSource = ({ id, path }) => imported => sources => {
+    const { specifier, json } = imported
+    const name = importName(imported)
+    return mapStep(sourceAt(specifier, id, json, path), source => [...sources, { ...source, name }])
+}
 
 /**
  * Admit original source spellings before host resolution or dependency loading.
@@ -157,7 +168,7 @@ export const _attributeError = ({ path, json }) => {
 }
 
 /** A missing selected export, shared by the value and EDAG linkers. @type {(source: _ImportSource) => ParseError} */
-export const _missingExport = ({ path, name }) => _fileError(path)(`module has no ${name} export`)
+export const _missingExport = source => _fileError(source.path)(`module has no ${importName(source)} export`)
 
 
 /**
@@ -214,13 +225,6 @@ const completed = (id, context) => module => [{
  */
 export const _walk = load => {
     /** @typedef {{ readonly context: _Context<T>, readonly imports: readonly S[] }} Imports the walk so far, and the bindings of the imports loaded so far, in their order */
-    /** @type {(source: _ImportSource) => (state: Imports) => Effect<ReadWhole | ResolveFileModule, Imports, ParseError | E>} */
-    const walkImport = source => ({ context, imports }) => step(walk(source)(context), ([next, module]) => {
-        const selected = load.select(module, source.name)
-        return selected === undefined
-            ? pureError(_missingExport(source))
-            : pureOk({ context: next, imports: [...imports, selected] })
-    })
     /** @type {(source: _Source) => (context: _Context<T>) => Effect<ReadWhole | ResolveFileModule, readonly [_Context<T>, T], ParseError | E>} */
     const walk = source => context => {
         const { id, path, json } = source
@@ -231,6 +235,13 @@ export const _walk = load => {
         if (done !== null) { return pureOk([context, done]) }
         const entered = { ...context, stack: { first: id, tail: context.stack } }
         if (json) { return mapStep(_parseJson(path), value => completed(id, entered)(load.json(value))) }
+        /** @type {(source: _ImportSource) => (state: Imports) => Effect<ReadWhole | ResolveFileModule, Imports, ParseError | E>} */
+        const walkImport = source => ({ context, imports }) => step(walk(source)(context), ([next, module]) => {
+            const selected = load.select(module, importName(source))
+            return selected === undefined
+                ? pureError(_missingExport(source))
+                : pureOk({ context: next, imports: [...imports, selected] })
+        })
         const parsed = history(_parseModule(path))
         const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module.imports), { context: entered, imports: [] }, walkImport))
         const initialized = historyStep(loaded, ({ imports }, module) => pure(load.module(source, imports, module)))

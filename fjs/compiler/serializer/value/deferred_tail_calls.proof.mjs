@@ -24,7 +24,7 @@ import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { toText } from '../../../text/marked/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
-import { parse } from '../../source/module.f.mjs'
+import { parse } from '../../source/module.f.js'
 import { tryMarked, tryStringify } from '../module.f.mjs'
 
 /** @type {(fn: FastFunction) => Exp} */

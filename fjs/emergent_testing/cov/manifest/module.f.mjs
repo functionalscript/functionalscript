@@ -15,7 +15,7 @@
 
 import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
-import { _attributeError, _rootSource } from '../../../compiler/source/module.f.mjs'
+import { _attributeError, _rootSource } from '../../../compiler/source/module.f.js'
 import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { dependencyImports, resolveDependencies } from '../../../deps/module.f.mjs'
 import { isAuthored } from '../../../dev/module.f.js'

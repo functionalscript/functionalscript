@@ -14,7 +14,7 @@ import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
 import { prepare } from '../../../js/ast/prepare/module.f.js'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
-import { parse } from '../../source/module.f.mjs'
+import { parse } from '../../source/module.f.js'
 import { tryStringify } from '../module.f.mjs'
 
 /** Both writers consume the source graph without interpreting its calls.

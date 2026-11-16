@@ -21,7 +21,7 @@ import { prepare } from '../../../js/ast/prepare/module.f.js'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.js'
 import { toText } from '../../../text/marked/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
-import { parse } from '../../source/module.f.mjs'
+import { parse } from '../../source/module.f.js'
 import { tryMarked, tryModuleStringify, tryStringify } from '../module.f.mjs'
 
 /** @type {(source: string) => Exp} */
