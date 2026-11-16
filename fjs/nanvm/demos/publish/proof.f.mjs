@@ -15,7 +15,7 @@ import { utf8 } from '../../../text/module.f.js'
 import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { toText, untagged } from '../../../text/marked/module.f.js'
-import { demangleNames, main, publish, sampleWats, usage } from './module.f.mjs'
+import { demangleNames, main, publish, sampleWats, usage } from './module.f.js'
 
 /** `nanvm_demos::samples::hello::module` in v0 mangling. */
 const sample = '_RNvNtNtCs1234_11nanvm_demos7samples5hello6module'

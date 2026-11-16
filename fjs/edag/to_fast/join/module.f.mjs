@@ -14,7 +14,7 @@ import { operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
 import { exitValues, freeBindings } from '../../../js/ast/control/module.f.js'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
-import { anchored, lowerValue } from '../../from_fast/module.f.mjs'
+import { anchored, lowerValue } from '../../from_fast/module.f.js'
 import { demandsInOrder } from '../../demand/module.f.js'
 
 /** Exact binding reads name an established test, independently of syntax identity. @type {(a: Value, b: Value) => boolean} */

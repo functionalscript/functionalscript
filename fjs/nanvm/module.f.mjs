@@ -57,7 +57,7 @@ import {
     returns as constructorsReturns, throws as constructorsThrows, unreached as constructorsUnreached,
 } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.js'
-import { logicalExp } from '../edag/from_fast/source/module.f.mjs'
+import { logicalExp } from '../edag/from_fast/source/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
 export const callback = constructorsCallback

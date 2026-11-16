@@ -51,10 +51,13 @@ import { randomInt } from '../../../effects/common/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { digitsValue, one } from '../../../text/ascii/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 import { fromValues, values as setValues } from '../../../types/set/module.f.js'
+import { stringify } from '../../../media/json/module.f.js'
+import { identity } from '../../../types/function/module.f.js'
 
 const readBinary = digitsValue(2n)
+const stringifyJson = stringify(identity)
 
 /**
  * Keys as a reader types them unless a demo says otherwise: any safe
@@ -127,11 +130,11 @@ export const sameShape = ({ root, shape }) => versions => {
         if (a === null || b === null) { return false }
         const [ra, rb] = [rows(a), rows(b)]
         return title(a) === title(b) && ra.length === rb.length && ra.every((x, i) => {
-            const y = rb[i]
+            const y = rb[Number(i)]
             return hasEntry(x, 'to')
                 ? hasEntry(y, 'to') && x.corner === y.corner && same(x.to)(y.to)
                 : !hasEntry(y, 'to') && x.label === y.label && x.inline === y.inline
-                    && JSON.stringify(x.parts) === JSON.stringify(y.parts)
+                    && stringifyJson(x.parts ?? null) === stringifyJson(y.parts ?? null)
         })
     }
     return same(root(versions.before))(root(versions.after))
@@ -169,11 +172,12 @@ export const graphOf = structure => versions => {
     const top = newRoot === null ? 0 : heightOf(newRoot)
     /** @type {Record<Layout, (node: N) => number>} */
     const rankOf = { leaves: node => top - heightOf(node), depth: depthOf, table: depthOf }
+    const rank = assertNotNullish(entry(rankOf, layout))
     const table = layout === 'table'
     /** @type {(node: N) => number} */
     const spanOf = node => rows(node).reduce((sum, row) => sum + (hasEntry(row, 'to') ? spanOf(row.to) : 1), 0)
     return {
-        nodes: all.map((node, id) => ({ id, kind: kindOf(node), label: title(node), rank: rankOf[layout](node) })),
+        nodes: all.map((node, id) => ({ id, kind: kindOf(node), label: title(node), rank: rank(node) })),
         entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => hasEntry(row, 'to')
             ? { from, to: all.indexOf(row.to), label: '', corner: row.corner, ...(table ? { span: spanOf(row.to) } : {}) }
@@ -213,7 +217,7 @@ const unchanged = noun => ({
  * @type {(noun: string) => (show: Keys['show']) => (step: Step) => (c: Census) => string}
  */
 export const stepLine = noun => show => ({ op, key }) => ({ built, shared, replaced }) => built === 0 && replaced === 0
-    ? `Last step, ${op} ${show(key)}: nothing changed, ${unchanged(noun)[op]}.`
+    ? `Last step, ${op} ${show(key)}: nothing changed, ${entry(unchanged(noun), op)}.`
     : `Last step, ${op} ${show(key)}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} only in the ${noun} before.`
 
 /**
@@ -225,7 +229,7 @@ export const stepLine = noun => show => ({ op, key }) => ({ built, shared, repla
  */
 export const shuffled = keys => keys.length === 0 ? pureOk([]) : step(randomInt(), r => {
     const i = r % keys.length
-    return mapStep(shuffled([...keys.slice(0, i), ...keys.slice(i + 1)]), rest => [keys[i], ...rest])
+    return mapStep(shuffled([...keys.slice(0, i), ...keys.slice(i + 1)]), rest => [keys[Number(i)], ...rest])
 })
 
 /**
@@ -233,7 +237,11 @@ export const shuffled = keys => keys.length === 0 ? pureOk([]) : step(randomInt(
  *
  * @type {<V, N>(options: Options<V, N>) => VersionsDemo<V>}
  */
-export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, presets, random }) => {
+export const versionsDemo = options => {
+    const { structure, noun, intro, presets, random } = options
+    const name = assertNotNullish(entry(options, 'name'))
+    const givenKeys = entry(options, 'keys')
+    const keys = givenKeys === undefined ? decimal : givenKeys
     const { parse, show, label, accepts } = keys
     const picker = examplePicker(presets.map(([n, , , , id]) => [n, n, id]))
     const graph = graphOf(structure)
@@ -255,20 +263,24 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         return { ...state, versions: { before: version, after: version }, status: { random: order }, error: null }
     }
     /** @type {(r: Random) => (state: State<V>) => Effect<RandomInt, State<V>, never>} */
-    const generate = ({ max: most, keys: keysOf }) => state => {
-        const n = decimal.parse(state.count.trim())
-        if (n === null || n < 1 || n > most) {
-            return pureOk({ ...state, error: `"${state.count}" is not a number of keys: type a whole number from 1 to ${most}.` })
+    const generate = settings => {
+        const { max: most } = settings
+        const keysOf = assertNotNullish(entry(settings, 'keys'))
+        return state => {
+            const n = decimal.parse(state.count.trim())
+            if (n === null || n < 1 || n > most) {
+                return pureOk({ ...state, error: `"${state.count}" is not a number of keys: type a whole number from 1 to ${most}.` })
+            }
+            return resultStep(shuffled(keysOf(n)), r => pureOk(r[0] === 'ok' ? built(r[1])(state)
+                : { ...state, error: `No random tree: ${errorMessage(r[1])}.` }))
         }
-        return resultStep(shuffled(keysOf(n)), r => pureOk(r[0] === 'ok' ? built(r[1])(state)
-            : { ...state, error: `No random tree: ${errorMessage(r[1])}.` }))
     }
     /** @type {(op: 'insert' | 'remove') => (state: State<V>) => State<V>} */
     const press = op => state => {
         const key = parse(state.key.trim())
         if (key === null) { return { ...state, error: `"${state.key}" is not a key: type ${accepts}.` } }
         const { after } = state.versions
-        return { ...state, versions: { before: after, after: structure[op](key)(after) }, status: { step: { op, key } }, error: null }
+        return { ...state, versions: { before: after, after: assertNotNullish(entry(structure, op))(key)(after) }, status: { step: { op, key } }, error: null }
     }
     /** @type {(key: number) => (state: State<V>) => State<V>} */
     const move = key => state => {
@@ -320,15 +332,19 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         demo: {
             sharing,
             init: initial,
-            update: state => event => random !== undefined && event.kind === 'click' && event.name === 'generate'
-                ? generate(random)(state)
-                : pureOk(
-                    event.kind === 'input' && event.name === 'key' ? { ...state, key: event.value }
-                    : event.kind === 'input' && event.name === 'count' ? { ...state, count: event.value }
-                    : event.kind === 'input' && event.name === exampleName ? { ...load(event.value), count: state.count }
-                    : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? press(event.name)(state)
-                    : event.kind === 'click' ? clicked(movedKey(event.name))(state)
-                    : state),
+            update: state => event => {
+                if (event.kind === 'start') { return pureOk(state) }
+                const eventName = assertNotNullish(entry(event, 'name'))
+                return random !== undefined && event.kind === 'click' && eventName === 'generate'
+                    ? generate(random)(state)
+                    : pureOk(
+                        event.kind === 'input' && eventName === 'key' ? { ...state, key: event.value }
+                        : event.kind === 'input' && eventName === 'count' ? { ...state, count: event.value }
+                        : event.kind === 'input' && eventName === exampleName ? { ...load(event.value), count: state.count }
+                        : event.kind === 'click' && (eventName === 'insert' || eventName === 'remove') ? press(eventName)(state)
+                        : event.kind === 'click' ? clicked(movedKey(eventName))(state)
+                        : state)
+            },
             view: ({ key, count: keyCount, versions, status, error }) => ['div',
                 ['p', intro],
                 picker.view(hasEntry(status, 'preset') ? status.preset : ''),

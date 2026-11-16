@@ -7,7 +7,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { _tailCalls } from './module.f.js'
 import { proof as semantic, _tailFunction } from '../tail_calls/proof.f.mjs'
 import { toFast } from '../module.f.mjs'
-import { fromFast } from '../../from_fast/module.f.mjs'
+import { fromFast } from '../../from_fast/module.f.js'
 import { evaluate, failure } from '../../from_fast/member_returns/proof.f.mjs'
 
 /** @type {(index?: number) => BindingId} */

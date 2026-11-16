@@ -287,8 +287,8 @@ export const symbolOf = t => {
  */
 export const symbolsOf = tokens => tokens.map((token, index) => {
     const encoded = symbolOf(token)
-    const next = tokens[index + 1]?.token.kind
-    return encoded.symbol === sym('return') && (next === ';' || next === '}' || next === '[' && tokens[index + 1]?.newline === true)
+    const next = tokens[Number(index + 1)]?.token.kind
+    return encoded.symbol === sym('return') && (next === ';' || next === '}' || next === '[' && tokens[Number(index + 1)]?.newline === true)
         ? { ...encoded, symbol: sym('bare-return') } : encoded
 })
 

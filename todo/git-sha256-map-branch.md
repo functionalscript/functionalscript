@@ -91,7 +91,7 @@ concern comes first, then the fix.
 - **Two local runs can race.** The second moves the ref over the first's
   commit. Move `refs/heads/disot` only if it still holds what step 1
   read, a compare-and-swap
-  [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.mjs)'s
+  [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.js)'s
   `tryWrite` does not do yet.
 - **A checked-out `disot`.** Moving its ref under a worktree disturbs that
   worktree, and a `HEAD` that is `disot` names nothing to map. Refuse, as

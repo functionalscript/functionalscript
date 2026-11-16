@@ -56,7 +56,7 @@ import { startsWith } from '../../bytes/module.f.js'
 import { isOidOf } from '../../oid/module.f.js'
 import { tryPackedWithout, tryRef, writeLoose } from '../../ref/module.f.js'
 import { isWholeName, lockSuffix } from '../../refname/module.f.js'
-import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.js'
+import { badNameCode, badNameMessage, isDirectoryAt, packedRefs, requiredName, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.js'
 import { nameForMessage, nameText, refsPrefix } from '../name/module.f.js'
 import { dirOf } from '../scope/module.f.js'
 
@@ -228,7 +228,7 @@ const zeroIdWriteMessage = name => `${nameForMessage(name)} would hold the zero 
  * @type {(a: readonly number[], b: readonly number[]) => boolean}
  */
 const isNamePrefix = (a, b) =>
-    b.length > a.length && b[a.length] === slash && startsWith(a)(b)
+    b.length > a.length && b[Number(a.length)] === slash && startsWith(a)(b)
 
 /**
  * The packed name that collides with `name` as a directory prefix, either way
@@ -240,10 +240,13 @@ const isNamePrefix = (a, b) =>
  *
  * @type {(packed: readonly PackedRef[], name: readonly number[]) => Nullable<Bytes>}
  */
-const prefixCollision = (packed, name) => packed.find(e => {
-    const n = toArray(e.name)
-    return isNamePrefix(n, name) || isNamePrefix(name, n)
-})?.name ?? null
+const prefixCollision = (packed, name) => {
+    const found = packed.find(e => {
+        const n = toArray(requiredName(e))
+        return isNamePrefix(n, name) || isNamePrefix(name, n)
+    })
+    return found === undefined ? null : requiredName(found)
+}
 
 /**
  * The code a write is refused with when a ref would sit under this name, or this
@@ -569,7 +572,7 @@ const holding = (lock, e) => step(createExclusive(lock), () => finallyStep(e, ()
  */
 const emptiable = text => {
     const below = ancestors(text).slice(2)
-    return below.map((_, i) => below[below.length - 1 - i])
+    return below.map((_, i) => below[Number(below.length - 1 - i)])
 }
 
 /**

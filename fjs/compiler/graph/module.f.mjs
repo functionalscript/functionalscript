@@ -85,9 +85,10 @@
 
 import { helperIds, staticIds } from '../../edag/module.f.js'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.js'
+import { stringSerialize } from '../../media/json/serializer/module.f.js'
 import { chunksText } from '../../text/marked/module.f.js'
 import { graphOf } from '../../website/demo/graph/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { operatorOperands } from '../../js/ast/module.f.js'
 
@@ -280,7 +281,7 @@ export const operatorShape = ({ array, object }) => other => {
         if (tag === 'instanceof') { return { kind: 'op', label: `instanceof ${exp[2]}`, children: [['operand', exp[1]]] } }
         // an entry check: its key as part of the label, a spelling the
         // node carries rather than a child, and its one operand
-        if (tag === 'in') { return { kind: 'op', label: `${JSON.stringify(exp[1])} in`, children: [['operand', exp[2]]] } }
+        if (tag === 'in') { return { kind: 'op', label: `${chunksText(stringSerialize(/** @type {string} */ (exp[1])))} in`, children: [['operand', exp[2]]] } }
         if (typeof tag === 'string' && op12.includes(tag)) {
             return exp.length === 2
                 ? { kind: 'op', label: tag, children: [['operand', exp[1]]] }
@@ -461,7 +462,7 @@ export const fastGraph = module => {
         }
         if (hasEntry(r, 'kind')) { return targetShape(v) }
         const position = defined.findIndex(([id]) => id === v)
-        return { kind: 'binding', label: `$${position}`, children: assertNotNullish(defined[position])[1] }
+        return { kind: 'binding', label: `$${position}`, children: assertNotNullish(defined[Number(position)])[1] }
     }
     const operators = operatorShape({ array: 'array', object: 'object' })(exp => {
         switch (exp[0]) {
@@ -523,7 +524,7 @@ const readLabel = ({ source, spread }) => {
 }
 
 /** A pattern's reads as rows, each an edge to the binding it reads into. @type {(plan: ExpansionPlan) => readonly _Child[]} */
-const planRows = ({ reads, ids }) => reads.map((read, i) => [readLabel(read), ids[i]])
+const planRows = ({ reads, ids }) => reads.map((read, i) => [readLabel(read), ids[Number(i)]])
 
 /**
  * A pattern that binds one name to the whole value, with no default: the
@@ -598,7 +599,7 @@ export const sourceGraph = module => {
         }
         if (hasEntry(r, 'kind')) { return targetShape(v) }
         const position = origins.findIndex(o => o.id === v)
-        const { name } = assertNotNullish(origins[position])
+        const name = entry(assertNotNullish(origins[Number(position)]), 'name')
         return { kind: 'binding', label: name ?? `$${position}`, children: [] }
     }
     const operators = operatorShape({ array: 'array', object: 'object' })(exp => {

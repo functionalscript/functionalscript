@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
-import { fromFast } from '../../../edag/from_fast/module.f.mjs'
+import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { prepareFunction } from '../prepare/module.f.js'
 import { functionStringify } from '../serializer/module.f.js'

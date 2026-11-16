@@ -9,7 +9,7 @@
  */
 
 import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
-import { fromFast } from '../../../edag/from_fast/module.f.mjs'
+import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare } from '../../../js/ast/prepare/module.f.js'

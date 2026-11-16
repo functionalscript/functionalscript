@@ -7,7 +7,7 @@
  */
 
 import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.js'
-import { fromFast } from '../../../edag/from_fast/module.f.mjs'
+import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { generate as generateRust } from '../../../compiler/rust/module.f.mjs'
 
 export const path = /** @type {const} */ ('nanvm/harness/gen.fast/deferred_owning_tail_calls.rs')

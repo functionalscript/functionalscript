@@ -8,7 +8,7 @@
  *
  * **And the script that builds the module the pages load**,
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
- * [`publish`](./publish/module.f.mjs) copying it into `nanvm/demos/wasm/`
+ * [`publish`](./publish/module.f.js) copying it into `nanvm/demos/wasm/`
  * with each sample's WAT beside it, then [`marked`](./marked/module.f.mjs)
  * writing each sample's Rust there with each word's kind in a tag, which the
  * sample's page reads to draw the Rust coloured. The website deploy builds
@@ -146,7 +146,7 @@ export const wasmTarget = 'wasm32-unknown-unknown'
 export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
 
 /** The program that publishes the module and its disassembly. */
-export const publishPath = 'fjs/nanvm/demos/publish/module.f.mjs'
+export const publishPath = 'fjs/nanvm/demos/publish/module.f.js'
 
 /** The program that writes each sample's marked Rust beside them. */
 export const markedPath = 'fjs/nanvm/demos/marked/module.f.mjs'

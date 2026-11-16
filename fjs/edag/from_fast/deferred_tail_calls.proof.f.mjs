@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { fromFast } from './module.f.mjs'
+import { fromFast } from './module.f.js'
 import { _fixtures } from './deferred_tail_calls/fixtures.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.mjs'

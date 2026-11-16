@@ -38,7 +38,7 @@ import { graphSvg, ranked } from '../demo/graph/module.f.js'
 const cycleEdges = (count, edges) => {
     /** @typedef {{ readonly seen: readonly number[], readonly back: readonly number[] }} Search */
     /** @type {(path: readonly number[], search: Search) => Search} */
-    const visit = (path, search) => edges.reduce((s, { from, to }, i) => from !== path[path.length - 1] ? s
+    const visit = (path, search) => edges.reduce((s, { from, to }, i) => from !== path[Number(path.length - 1)] ? s
         : path.includes(to) ? { ...s, back: [...s.back, i] }
         : s.seen.includes(to) ? s
         : visit([...path, to], { ...s, seen: [...s.seen, to] }), search)
@@ -60,7 +60,7 @@ export const flowchartGraph = ({ nodes, edges }) => {
         ? [{ from, to, label }, { from: to, to: from, label }]
         : [{ from, to, label }])
     const broken = arrows.find(({ label }) => label.includes('\n'))
-    if (broken !== undefined) { return error(`an arrow label of several lines, which a row does not draw: ${nodes[broken.from].id}`) }
+    if (broken !== undefined) { return error(`an arrow label of several lines, which a row does not draw: ${nodes[Number(broken.from)].id}`) }
     const back = cycleEdges(nodes.length, arrows)
     const marked = arrows.map((e, i) => back.includes(i) ? { ...e, back: true } : e)
     return ok({

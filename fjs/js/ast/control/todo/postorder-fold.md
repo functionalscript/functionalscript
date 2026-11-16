@@ -13,7 +13,7 @@ results as the node has children before calling the node's own `finish`.
 
 - `flows` in [`fjs/js/ast/prepare`](../../prepare/module.f.js), over its
   `facts` table;
-- `summaries` in [`fjs/edag/from_fast`](../../../../edag/from_fast/module.f.mjs),
+- `summaries` in [`fjs/edag/from_fast`](../../../../edag/from_fast/module.f.js),
   over its `children`;
 - `walk` in [`fjs/edag/from_fast/loop/completions`](../../../../edag/from_fast/loop/completions/module.f.js),
   over `childrenOf`, driving `encodedBody` and `completeBlock`;

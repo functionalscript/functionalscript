@@ -309,7 +309,7 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  *
  * `createExclusive` remains for a name claimed now and written later, which is
  * the lock-free upload's staging file. This one is what a file must be when its
- * contents are published by renaming it: [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)'s
+ * contents are published by renaming it: [`fjs/git/refstore/write`](../../git/refstore/write/module.f.js)'s
  * `tryWrite` fills a ref's lock with it, and `tryDelete` the rewritten
  * `packed-refs`, which is what needs more than one chunk.
  *

@@ -20,7 +20,7 @@ does not list object writing as an intended gap.
 
 The publish step inside it — write exclusively to a staged name, rename into
 place, remove the staged file where the rename fails — is what
-[`fjs/git/refstore/write`](../../refstore/write/module.f.mjs) keeps private as
+[`fjs/git/refstore/write`](../../refstore/write/module.f.js) keeps private as
 `unlocked` and uses twice, in `tryWrite` and `packedRewritten`. `writeObject`
 is its third spelling, longhand.
 

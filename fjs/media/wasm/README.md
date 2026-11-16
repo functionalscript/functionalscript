@@ -2,7 +2,7 @@
 
 `application/wasm`, read and written in FunctionalScript: an AST of a
 module's sections, a binary parser, a binary writer and a WAT writer. The
-WASM demo pages' [publisher](../../nanvm/demos/publish/module.f.mjs) is
+WASM demo pages' [publisher](../../nanvm/demos/publish/module.f.js) is
 their first user, and none of them depends on it.
 
 | Module | What it does |

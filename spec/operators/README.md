@@ -125,7 +125,7 @@ operand reaches only lazily is not deleted for it —
 `const d = null.x; const c = a && d; export default b && c;` keeps both `d`
 and `c`, since evaluating `a && d` as a root establishes `d` no more than
 `b && c` established `c`. Required FAST definitions are preserved by
-[`fjs/edag/from_fast`](../../fjs/edag/from_fast/module.f.mjs) under this rule.
+[`fjs/edag/from_fast`](../../fjs/edag/from_fast/module.f.js) under this rule.
 
 Unparenthesized, a function is no operand of these operators, the
 conditional's condition included: `(...a) => body` reads everything to its

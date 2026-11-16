@@ -241,9 +241,9 @@ const firstDemands = (dependencies, opaque, roots) => {
 const orderedStep = (scope, pending, value) => {
     const first = firstDemands(scope.reads, scope.opaque, value.prefix)
     const beforeDivergence = firstDemands(scope.demands, scope.deferred, value.demand)
-    let { fails, diverges } = value
-    fails = fails || first.work
-    diverges = diverges || beforeDivergence.work
+    const { fails: mayFail, diverges: mayDiverge } = value
+    const fails = mayFail || first.work
+    const diverges = mayDiverge || beforeDivergence.work
     const consumed = pending.filter(owner => owner.bindings.some(binding => (owner.diverges ? first.references : beforeDivergence.references).includes(binding)))
     const forced = pending.filter(owner => !consumed.includes(owner) && (diverges || owner.diverges && fails))
     return {
