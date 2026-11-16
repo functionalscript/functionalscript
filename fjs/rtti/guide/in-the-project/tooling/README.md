@@ -14,7 +14,7 @@ from GitHub, are schemas too:
 - the GitHub responses the website reads: the sign-in exchange in
   [`website/github`](../../../../website/github/module.f.js), and the open
   pull requests with their checks in
-  [`website/prs`](../../../../website/prs/module.f.mjs). `open` at every
+  [`website/prs`](../../../../website/prs/module.f.js). `open` at every
   object, because GitHub adds fields.
 
 ## Examples

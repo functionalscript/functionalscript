@@ -12,7 +12,7 @@ wrong for the grammars that read something else:
 
 - [`token_symbol/`](../../token_symbol/README.md) symbols start at `0x110000`,
   past the last code point. The FunctionalScript parser's grammar,
-  [`compiler/parser/grammar`](../../../compiler/parser/grammar/module.f.mjs), is written
+  [`compiler/parser/grammar`](../../../compiler/parser/grammar/module.f.js), is written
   over them, so its terminals are tokens — `id`, `=>`, `import` — that a
   code-point label would show as `U+110005`.
 - [`byte/`](../../byte/README.md) symbols are bytes: `0xE9` is half of a UTF-8

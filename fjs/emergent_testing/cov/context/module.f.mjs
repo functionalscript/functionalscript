@@ -12,7 +12,7 @@ import { catchStep, foldStep, history, historyStep, mapStep, pureOk, refuse, ste
 import { error, errorMessage, execFile } from '../../../effects/node/module.f.js'
 import { parse } from '../../../media/json/module.f.js'
 import { join } from '../../../path/module.f.js'
-import { open } from '../cache/module.f.mjs'
+import { open } from '../cache/module.f.js'
 import { buildGraph, graphManifest, validateGraph } from '../manifest/module.f.mjs'
 import { openSync } from '../sync/module.f.js'
 

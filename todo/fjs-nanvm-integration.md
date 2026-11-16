@@ -686,7 +686,7 @@ The four samples are new since the `e9df9df` table below: the programs of
 the NaNVM demo pages ([`todo/wasm-demos.md`](./wasm-demos.md)), each a
 module that imports nothing. The compiler accepts each as written, so only
 its name changes. The demos generator finds a sample by
-[`samplePath`](../fjs/nanvm/demos/page/module.f.mjs), which names
+[`samplePath`](../fjs/nanvm/demos/page/module.f.js), which names
 `sample.f.js` now, and the Rust it compiles each into, in
 `nanvm/demos/gen.samples`, is unchanged. Their references follow, 13 files
 with the proofs, which stay `proof.f.mjs`.

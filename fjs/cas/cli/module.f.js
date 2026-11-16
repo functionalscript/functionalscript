@@ -17,7 +17,7 @@ import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/mo
 import { forEachStep, step as ioStep } from '../../effects/module.f.js'
 import { casAddFile, fileCas } from '../module.f.js'
 import { exactArgs } from '../../cli/module.f.js'
-import { commands as gitCommands } from '../git/cli/module.f.mjs'
+import { commands as gitCommands } from '../git/cli/module.f.js'
 
 /** @type {DocumentedCommands<FileCasOperation | WriteOperation | WriteFile | Write | All | MemOp | Read>} */
 export const commands = [
@@ -27,7 +27,7 @@ export const commands = [
         usage: 'fjs cas add <path>',
         examples: ['fjs cas add ./README.md'],
         note: 'Store an existing file and print its hash; this example uses a repository checkout.',
-        docs: 'fjs/cas/cli/module.f.mjs',
+        docs: 'fjs/cas/cli/module.f.js',
         handler: exactArgs('cas add', 1)(({ home, args: [path] }) => {
             const c = fileCas(sha256)(home)
             const added = casAddFile(c)(path)
@@ -41,7 +41,7 @@ export const commands = [
         usage: 'fjs cas get <hash> <path>',
         examples: ['hash=$(fjs cas add ./README.md)\nfjs cas get "$hash" ./restored-README.md'],
         note: 'Restore a stored hash to a file. This POSIX shell example requires a repository checkout and writes restored-README.md.',
-        docs: 'fjs/cas/cli/module.f.mjs',
+        docs: 'fjs/cas/cli/module.f.js',
         handler: exactArgs('cas get', 2)(({ home, args: [hashCBase32, path] }) => {
             const hash = cBase32ToVec(hashCBase32)
             if (hash === null) {
@@ -58,7 +58,7 @@ export const commands = [
         usage: 'fjs cas list',
         examples: ['fjs cas list'],
         note: 'Print all hashes in the local store.',
-        docs: 'fjs/cas/cli/module.f.mjs',
+        docs: 'fjs/cas/cli/module.f.js',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
             // The fold's `items` is deliberately a raw effect, so a fallible

@@ -243,7 +243,7 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
 - [x] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
       Each operator arrives as cases in
-      [`fjs/nanvm/module.f.mjs`](../../../fjs/nanvm/module.f.mjs), which is what
+      [`fjs/nanvm/module.f.js`](../../../fjs/nanvm/module.f.js), which is what
       tests it on both sides.
       Current status: [operator tables in `nanvm/lib/README.md`](../README.md).
       Spec: [operators](../../../spec/operators/README.md).

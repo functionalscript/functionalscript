@@ -159,6 +159,11 @@
  *   follows, so a trailing comma is a comma nothing follows; the classical
  *   grammar rested it on a failed repetition round rewinding.
  *
+ * Mutually recursive rules use stable references. Their bodies are bound in
+ * {@link definitions}, after the shared rules exist, so the syntax reader's
+ * identity mappings and the diagrams use the same rule at every occurrence.
+ * Pass those definitions when lowering or parsing any exported rule.
+ *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
  * trivia having none, since it is not in the stream,
  * and the framing keywords with names of their own, since the
@@ -170,15 +175,15 @@
  * @module
  *
  * @import { Meta } from '../../../ebnf/ast/types.ts'
- * @import { Rule, Variant } from '../../../ebnf/types.ts'
+ * @import { Definition, Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ArrayStatementValue, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
+ * @import { AssignmentOperator, CallArguments, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ArrayStatementValue, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement, DoWhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { eof, option, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.js'
+import { define, eof, option, reference as ruleReference, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.js'
@@ -395,8 +400,8 @@ export const items = item => {
 }
 
 /**
- * A value: {@link valueBranches}, and an object. A `const` thunk whose
- * payload names the thunk, which is what lets a type alias name itself.
+ * A value: {@link valueBranches}, and an object. A stable reference whose
+ * payload is bound in {@link definitions} after all shared rules exist.
  *
  * Any value takes accesses, as any expression does in JavaScript:
  * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
@@ -416,15 +421,12 @@ export const items = item => {
  * is the fold's to check, as the name after `.` is. The rule itself, and
  * no thunk over it: a second rule over the same branches would be a second
  * copy of the whole value grammar in every parser that reaches an index.
- * A thunk, it names {@link valueBranches} and {@link tail}, declared
- * after it, only when a parser forces it.
+ * The reference exists before its uses; its definition later supplies
+ * {@link valueBranches} and {@link tail} without a forward capture.
  *
  * @type {Value}
  */
-export const value = () => ['const', {
-    ...valueBranches(),
-    object: [[object, accesses], powTail, ...tail],
-}]
+export const value = ruleReference()
 
 /**
  * An untagged template is a primary value. Each substitution reads the full
@@ -440,18 +442,17 @@ export const template = () => ['const', {
 }]
 
 /**
- * A call's arguments: {@link values}, reached through a thunk.
+ * A call's arguments: {@link values}, reached through a stable reference.
  *
- * This is where the grammar's cycle is broken a second time — a value takes
- * steps, a step may be a call, and a call holds values, so `access` would
- * have to name `values` before it is declared. A rule of its own rather than
- * a thunk over the value rule, because what a list embeds has to be the
+ * A value takes steps, a step may be a call, and a call holds values, so
+ * this reference precedes `access` and its body is bound after `values`.
+ * A rule of its own rather than a wrapper over the value rule, because what a list embeds has to be the
  * `value` rule itself: the rewrite set is keyed by rule, so a wrapper in the
  * item's place would leave each argument unmapped.
  *
- * @type {() => ReturnType<Items<Item>>}
+ * @type {CallArguments}
  */
-export const callArguments = () => values()
+export const callArguments = ruleReference()
 
 /**
  * What follows `?.`: the three steps a value takes, each spelled as it is
@@ -500,11 +501,7 @@ export const memberAccess = {
  *
  * @type {ConstructorCallee}
  */
-export const constructorCallee = () => ['const', {
-    name: [identifier, repeatFrom0(memberAccess)],
-    group: [sym('('), value, commaOperands, sym(')'), repeatFrom0(memberAccess)],
-    construct: [newExpression, repeatFrom0(memberAccess)],
-}]
+export const constructorCallee = ruleReference()
 
 /**
  * The generic syntax subset requires an explicit argument list. Nested `new`
@@ -590,10 +587,7 @@ export const parameters = option([sym('...'), identifierName])
  *
  * @type {ParameterNames}
  */
-export const parameterNames = () => ['const', {
-    rest: [sym('...'), identifierName],
-    fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
-}]
+export const parameterNames = ruleReference()
 
 /**
  * What follows `(` value `,`: the parameters after a named list's first,
@@ -625,17 +619,6 @@ export const parenItems = () => ['const', {
  * @type {CommaOperands}
  */
 const commaOperands = repeatFrom0([sym(','), value])
-
-/**
- * The prefix alternatives of a rule, one per operator of `prefixLayer`, each
- * the operator, its {@link unaryOperand} and then `rest`: what {@link unary},
- * {@link unaryOperand} and the value rules read after a prefix's operand.
- * Called only when a rule is forced, so {@link unaryOperand} exists by then.
- *
- * @type {<R extends readonly Rule[]>(rest: R) => PrefixBranches<R>}
- */
-const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromEntries(
-    definedEntries(prefixLayer).map(([name, tag]) => [name, /** @type {const} */ ([sym(tag), unaryOperand, ...rest])])))
 
 /**
  * What a prefix takes: every value but a function. JavaScript's
@@ -675,16 +658,7 @@ const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromE
  *
  * @type {Unary}
  */
-export const unary = () => ['const', {
-    ...prefixBranches([]),
-    primitive: [primitiveValue, powTail],
-    template: [templateValue, powTail],
-    ref: [reference, powTail],
-    array: [[array, accesses], powTail],
-    object: [[object, accesses], powTail],
-    construct: [[newExpression, accesses], powTail],
-    group: parenGroup,
-}]
+export const unary = ruleReference()
 
 /**
  * `**`'s right operand, when a primary, a group, or a prefix's own operand
@@ -727,16 +701,18 @@ const powTail = option([sym('**'), unary])
  *
  * @type {UnaryOperand}
  */
-export const unaryOperand = () => ['const', {
-    ...prefixBranches([]),
-    primitive: [primitiveValue],
-    template: [templateValue],
-    ref: [reference],
-    array: [[array, accesses]],
-    object: [[object, accesses]],
-    construct: [[newExpression, accesses]],
-    group: parenGroupOperand,
-}]
+export const unaryOperand = ruleReference()
+
+/**
+ * The prefix alternatives of a rule, one per operator of `prefixLayer`, each
+ * the operator, its {@link unaryOperand} and then `rest`: what {@link unary},
+ * {@link unaryOperand} and the value rules read after a prefix's operand.
+ * Its shared operand is already a reference when these branches are built.
+ *
+ * @type {<R extends readonly Rule[]>(rest: R) => PrefixBranches<R>}
+ */
+const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromEntries(
+    definedEntries(prefixLayer).map(([name, tag]) => [name, /** @type {const} */ ([sym(tag), unaryOperand, ...rest])])))
 
 /**
  * The eager binary-operator suffix, one layer per record of `eagerLayers`
@@ -829,33 +805,6 @@ export const circuitTail = option({
 })
 
 /**
- * The branches {@link value} and {@link body} both start with: a
- * prefix (`-`, `~`, `!` or `typeof`), a primitive token, a name, an array,
- * or `(` — the choice
- * between a function and a group, {@link parenthesized} — each ending
- * with its own {@link tail}, the binary-operator suffix, except a
- * function: nothing may follow one unparenthesized, `=>` reading
- * everything to its right as the body, so {@link func} stands bare where
- * the others carry {@link tail}, and a name is a reference or the one
- * parameter of `a => …`, which {@link arrowOrRest} tells apart after it.
- *
- * A thunk, as the rules are: the branches name {@link tail}, which is
- * declared after them, so they are built only when a rule is forced,
- * after every binding in this module exists.
- *
- * @type {() => ValueBranches}
- */
-const valueBranches = () => ({
-    ...prefixBranches(tail),
-    primitive: [primitiveValue, powTail, ...tail],
-    template: [templateValue, powTail, ...tail],
-    name: [identifier, arrowOrRest],
-    array: [[array, accesses], powTail, ...tail],
-    construct: [[newExpression, accesses], powTail, ...tail],
-    paren,
-})
-
-/**
  * A function's body: {@link valueBranches} without the object — after
  * `=>` JavaScript reads `{` as a block, never as an object, so the
  * spelling is refused rather than read another way — and that block,
@@ -871,7 +820,7 @@ const valueBranches = () => ({
  *
  * @type {Body}
  */
-export const body = () => ['const', { ...valueBranches(), block: loopBlock }]
+export const body = ruleReference()
 
 /**
  * The conditional, above {@link circuitTail} and the top of {@link tail}:
@@ -891,10 +840,8 @@ export const body = () => ['const', { ...valueBranches(), block: loopBlock }]
  * else arm, as JavaScript reads it, the body ending where `:` cannot
  * continue it.
  *
- * Declared after {@link value} and {@link body}, which name it through
- * {@link tail}: an arm names the `value` binding directly, so the binding
- * has to exist here, where the two rules reach `tail` only when called,
- * after every rule in this module is bound.
+ * Declared after the {@link value} and {@link body} references. Their
+ * definitions include this rule through {@link tail}, after the tail exists.
  *
  * @type {ConditionalTail}
  */
@@ -1172,7 +1119,7 @@ const bindingPattern = /** @type {const} */ ({ array, object })
  * to record and the fold's to refuse, as a parameter list's head is.
  *
  * Declared here, below the literals it holds, and reached from
- * {@link parameterNames} above through that rule's thunk.
+ * {@link parameterNames} above through that rule's definition.
  *
  * @type {BindingTarget}
  */
@@ -1187,7 +1134,7 @@ export const bindingTarget = { name: identifierName, ...bindingPattern }
  *
  * Declared here, above {@link block}, rather than with the other module
  * statements below: `block` holds it directly, where the recursion back
- * into `value` goes through a thunk.
+ * into `value` goes through its reference.
  *
  * @type {ConstStatement}
  */
@@ -1207,7 +1154,7 @@ export const newExpressionStatement = [newExpression, accesses, end]
  * what follows the case, {@link afterCase}. `case` and `{` decide the
  * two in one symbol. A case without braces, and `break`, are follow-ups.
  *
- * A thunk, and a variant: the block holds the terminator, which holds the
+ * A reference to a variant: the block holds the terminator, which holds the
  * case, which holds this, and a rule names itself across a block through
  * a variant, as {@link statement} does — `fjs/ebnf/ast` expands a
  * variant's branch when it is read and a tuple's element as it builds the
@@ -1215,10 +1162,7 @@ export const newExpressionStatement = [newExpression, accesses, end]
  *
  * @type {CaseTail}
  */
-export const caseTail = () => ['const', {
-    case: [sym('case'), value, sym(':'), caseTail],
-    block: [block, afterCase],
-}]
+export const caseTail = ruleReference()
 
 /**
  * What follows a case's block: the next case, `case`, its first label,
@@ -1228,16 +1172,12 @@ export const caseTail = () => ['const', {
  * and the terminator of the block the switch stands in, which are what
  * runs when no label matched, as the statements after a guard run when
  * its condition is falsy. `case`, `default` and `}` decide the three in
- * one symbol, and `default` last is the one place it stands. A thunk and
+ * one symbol, and `default` last is the one place it stands. A reference to
  * a variant, as {@link caseTail} is.
  *
  * @type {AfterCase}
  */
-export const afterCase = () => ['const', {
-    case: [sym('case'), value, sym(':'), caseTail],
-    default: [sym('default'), sym(':'), block, sym('}')],
-    rest: [sym('}'), blockContents],
-}]
+export const afterCase = ruleReference()
 
 /**
  * The statement a block ends with, {@link terminator}: `return value`, a
@@ -1320,6 +1260,32 @@ export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries
 /** The assignment or call shared by ordinary statements and `for` clauses. @type {NameExpression} */
 export const nameExpression = [assignable, { assign: [assignmentOperator, value], ...arrowOrRest }]
 
+/**
+ * The branches {@link value} and {@link body} both start with: a
+ * prefix (`-`, `~`, `!` or `typeof`), a primitive token, a name, an array,
+ * or `(` — the choice
+ * between a function and a group, {@link parenthesized} — each ending
+ * with its own {@link tail}, the binary-operator suffix, except a
+ * function: nothing may follow one unparenthesized, `=>` reading
+ * everything to its right as the body, so {@link func} stands bare where
+ * the others carry {@link tail}, and a name is a reference or the one
+ * parameter of `a => …`, which {@link arrowOrRest} tells apart after it.
+ *
+ * The shared rules already exist here. Each caller gets its own branches,
+ * retaining the same nested rule identities for parsing and rewriting.
+ *
+ * @type {() => ValueBranches}
+ */
+const valueBranches = () => ({
+    ...prefixBranches(tail),
+    primitive: [primitiveValue, powTail, ...tail],
+    template: [templateValue, powTail, ...tail],
+    name: [identifier, arrowOrRest],
+    array: [[array, accesses], powTail, ...tail],
+    construct: [[newExpression, accesses], powTail, ...tail],
+    paren,
+})
+
 /** Array-led value syntax uses the same precedence and trailing access branches as a value. @type {ArrayStatementValue} */
 export const arrayStatementValue = () => ['const', { array: valueBranches().array }]
 
@@ -1344,24 +1310,7 @@ export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
  *
  * @type {LoopStatement}
  */
-export const loopStatement = () => ['const', {
-    block: loopBlock,
-    break: [sym('break'), end],
-    const: constStatement,
-    construct: newExpressionStatement,
-    array: arrayExpressionStatement,
-    continue: [sym('continue'), end],
-    if: loopIfStatement,
-    let: letStatement,
-    name: bodyNameStatement,
-    return: terminator.return,
-    bareReturn: terminator.bareReturn,
-    switch: loopSwitch,
-    throw: terminator.throw,
-    while: whileStatement,
-    do: doWhileStatement,
-    for: forStatement,
-}]
+export const loopStatement = ruleReference()
 
 /**
  * A loop's block, `{ const x = …; r = …; }`: any number of
@@ -1389,7 +1338,7 @@ export const loopCase = [repeatFrom1([sym('case'), value, sym(':')]), loopBlock]
 export const loopSwitch = [sym('switch'), sym('('), value, sym(')'), sym('{'), repeatFrom1(loopCase), option([sym('default'), sym(':'), loopBlock]), sym('}')]
 
 /** An alternate block or conditional. Braces make its two starts unambiguous. @type {LoopElse} */
-export const loopElse = () => ['const', { block: loopBlock, if: loopIfStatement }]
+export const loopElse = ruleReference()
 
 /** A normal conditional shared by a loop statement and an `else if` tail. @type {LoopIfStatement} */
 export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock, option([sym('else'), loopElse])]
@@ -1552,3 +1501,76 @@ export const module = /** @type {const} */ ([
     lastStatement,
     eof,
 ])
+
+/**
+ * Bodies of the recursive rules, bound after every shared rule exists.
+ * References keep stable identities for parser mappings and diagram links;
+ * definitions supply their payloads without forward JavaScript captures.
+ *
+ * @type {readonly Definition[]}
+ */
+export const definitions = [
+    define(value)({
+        ...valueBranches(),
+        object: [[object, accesses], powTail, ...tail],
+    }),
+    define(callArguments)(values()[1]),
+    define(constructorCallee)({
+        name: [identifier, repeatFrom0(memberAccess)],
+        group: [sym('('), value, commaOperands, sym(')'), repeatFrom0(memberAccess)],
+        construct: [newExpression, repeatFrom0(memberAccess)],
+    }),
+    define(parameterNames)({
+        rest: [sym('...'), identifierName],
+        fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
+    }),
+    define(unary)({
+        ...prefixBranches([]),
+        primitive: [primitiveValue, powTail],
+        template: [templateValue, powTail],
+        ref: [reference, powTail],
+        array: [[array, accesses], powTail],
+        object: [[object, accesses], powTail],
+        construct: [[newExpression, accesses], powTail],
+        group: parenGroup,
+    }),
+    define(unaryOperand)({
+        ...prefixBranches([]),
+        primitive: [primitiveValue],
+        template: [templateValue],
+        ref: [reference],
+        array: [[array, accesses]],
+        object: [[object, accesses]],
+        construct: [[newExpression, accesses]],
+        group: parenGroupOperand,
+    }),
+    define(body)({ ...valueBranches(), block: loopBlock }),
+    define(caseTail)({
+        case: [sym('case'), value, sym(':'), caseTail],
+        block: [block, afterCase],
+    }),
+    define(afterCase)({
+        case: [sym('case'), value, sym(':'), caseTail],
+        default: [sym('default'), sym(':'), block, sym('}')],
+        rest: [sym('}'), blockContents],
+    }),
+    define(loopStatement)({
+        block: loopBlock,
+        break: [sym('break'), end],
+        const: constStatement,
+        construct: newExpressionStatement,
+        array: arrayExpressionStatement,
+        continue: [sym('continue'), end],
+        if: loopIfStatement,
+        let: letStatement,
+        name: bodyNameStatement,
+        return: terminator.return,
+        bareReturn: terminator.bareReturn,
+        switch: loopSwitch,
+        throw: terminator.throw,
+        while: whileStatement,
+        do: doWhileStatement,
+        for: forStatement,
+    }),
+    define(loopElse)({ block: loopBlock, if: loopIfStatement }),
+]

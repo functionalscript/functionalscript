@@ -58,7 +58,7 @@ const split2 = splitAt(2)
 /**
  * The directory every shard sits under, relative to the store's root: the
  * `.cas` of `~/.cas/`, and of a Git branch's tree in
- * [`fjs/cas/git`](./git/module.f.mjs), whose listing starts at it.
+ * [`fjs/cas/git`](./git/module.f.js), whose listing starts at it.
  */
 export const prefix = '.cas'
 
@@ -81,7 +81,7 @@ const shard = key => {
  * wrong length decodes to a key no hash produced.
  *
  * Exported for the listing of a store that is no directory — a Git tree's,
- * in [`fjs/cas/git`](./git/module.f.mjs) — which walks the same layout.
+ * in [`fjs/cas/git`](./git/module.f.js) — which walks the same layout.
  *
  * @type {(relPath: string) => Vec | null}
  */

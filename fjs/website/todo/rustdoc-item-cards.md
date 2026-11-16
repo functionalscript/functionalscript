@@ -8,7 +8,7 @@
 
 A link to a page of the Rust API reference shows the root page's card: the
 site's README, which says nothing of the item the page documents. The image is
-in `rustdocHead` ([`../cargo-doc/module.f.mjs`](../cargo-doc/module.f.mjs)),
+in `rustdocHead` ([`../cargo-doc/module.f.js`](../cargo-doc/module.f.js)),
 the fragment `cargo doc` pastes into every page's `<head>`, so it is the same
 on every page.
 

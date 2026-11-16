@@ -5,7 +5,7 @@
  * group, one statement per case, calling the hand-written helpers in
  * `nanvm/lib/tests/test/harness.rs`, and a `mod.rs` that runs them all. Only
  * the helpers are written by hand — a new operator case is added to
- * [`../module.f.mjs`](../module.f.mjs) and appears on both the JavaScript and
+ * [`../module.f.js`](../module.f.js) and appears on both the JavaScript and
  * the Rust side at once.
  *
  * Each statement is printed from the EDAG expression the case denotes, the
@@ -40,7 +40,7 @@
  *
  * ```js
  * import { generate } from './module.f.mjs'
- * import { data } from '../module.f.mjs'
+ * import { data } from '../module.f.js'
  *
  * generate(data) // the files of `nanvm/lib/tests/test/gen.corpus/`
  * ```
@@ -54,7 +54,7 @@ import {
     orders,
     sharedExp,
     valueExp,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
@@ -229,7 +229,7 @@ const usedShared = shared => g => {
 
 /** The first lines of every file this printer writes. */
 const header = [
-    generatedHeader('`npm run gen` from `fjs/nanvm/module.f.mjs`', 'change the shared test data and regenerate'),
+    generatedHeader('`npm run gen` from `fjs/nanvm/module.f.js`', 'change the shared test data and regenerate'),
     '',
 ]
 

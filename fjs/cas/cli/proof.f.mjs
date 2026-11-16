@@ -1,5 +1,5 @@
 import { exitCode } from '../../effects/node/module.f.js'
-import { commands } from './module.f.mjs'
+import { commands } from './module.f.js'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
 import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.js'
 import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../../effects/node/virtual/module.f.js'

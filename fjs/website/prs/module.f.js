@@ -14,7 +14,7 @@
  */
 
 import { array, boolean, number, open, or, string } from '../../rtti/module.f.js'
-import { pageHref, pageTitle, prsDir, repository, shell, siteDescription } from '../page/module.f.mjs'
+import { pageHref, pageTitle, prsDir, repository, shell, siteDescription } from '../page/module.f.js'
 
 /**
  * Only the fields the page reads, open at every object boundary so additional

@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Rule } from '../../../ebnf/types.ts'
+import type { Definition, Rule } from '../../../ebnf/types.ts'
 import type { Alphabet } from '../../../ebnf/railroad/types.ts'
 
 /**
@@ -65,6 +65,7 @@ export type Selection = readonly [string, Rule, ...readonly (string | number)[]]
  * What `grammarDemo` needs to draw a grammar's page:
  *
  * - `grammar` — the rule the page draws, lowered once;
+ * - `definitions` — bodies for any separately declared rule references;
  * - `alphabet` — what its symbols are: their labels, and which join into
  *   one literal;
  * - `description` — the intro's first clause, saying what the grammar is;
@@ -75,6 +76,7 @@ export type Selection = readonly [string, Rule, ...readonly (string | number)[]]
  */
 export type GrammarPage = {
     readonly grammar: Rule
+    readonly definitions?: readonly Definition[]
     readonly alphabet: Alphabet
     readonly description: string
     readonly guide: string

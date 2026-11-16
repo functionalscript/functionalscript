@@ -16,7 +16,7 @@
 
 import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { step } from '../../effects/module.f.js'
-import { data } from '../module.f.mjs'
+import { data } from '../module.f.js'
 import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.js'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'

@@ -43,7 +43,7 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
-import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
+import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.js'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -76,16 +76,29 @@ const textLiteral = text => {
 /**
  * One listed call as a statement of its sample's test, laid out as `rustfmt`
  * lays it out: on one line where the arguments fit in 60 characters and the
- * line in 100, and one argument a line otherwise.
+ * line in 100, and one argument a line otherwise. An `Ok` or `Err` that
+ * exceeds 100 columns puts its string on a nested line.
  *
  * @type {(call: ListedCall) => readonly string[]}
  */
 export const callStatement = ([input, [kind, text]]) => {
-    const args = ['&entry', f64Literal(input), `${kind === 'returned' ? 'Ok' : 'Err'}(${textLiteral(text)})`]
+    const variant = kind === 'returned' ? 'Ok' : 'Err'
+    const literal = textLiteral(text)
+    const args = ['&entry', f64Literal(input), `${variant}(${literal})`]
     const line = `        crate::assert_call(${args.join(', ')});`
+    const resultLine = `            ${args[2]},`
     return args.join(', ').length <= 60 && line.length <= 100
         ? [line]
-        : ['        crate::assert_call(', ...args.map(arg => `            ${arg},`), '        );']
+        : [
+            '        crate::assert_call(',
+            ...args.slice(0, 2).map(arg => `            ${arg},`),
+            ...resultLine.length <= 100 ? [resultLine] : [
+                `            ${variant}(`,
+                `                ${literal},`,
+                '            ),',
+            ],
+            '        );',
+        ]
 }
 
 /**

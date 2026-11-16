@@ -39,7 +39,7 @@
  * @import { BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ReturnStatement, ValueStatement, While, DoWhile } from './types.ts'
  * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement, DoWhileStatement } from '../grammar/types.ts'
- * @import { namedImports, primitive } from '../grammar/module.f.mjs'
+ * @import { namedImports, primitive } from '../grammar/module.f.js'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
@@ -51,11 +51,12 @@ import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry as ownEntry, hasEntry } from '../../../types/object/entry/module.f.js'
+import { fromValues, has as setHas } from '../../../types/set/module.f.js'
 import {
-    arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
+    arrayExpressionStatement, arrayStatementValue, statementContinuations, definitions, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
-} from '../grammar/module.f.mjs'
+} from '../grammar/module.f.js'
 
 /**
  * Splits the tokenizer's single final physical `eof` token off a token list.
@@ -82,7 +83,7 @@ import {
 const splitEof = tokens => {
     const eofIdx = tokens.findIndex(({ token }) => token.kind === 'eof')
     if (eofIdx === -1) {
-        const lastToken = tokens[tokens.length - 1]
+        const lastToken = tokens[Number(tokens.length - 1)]
         return lastToken !== undefined && lastToken.token.kind === 'error'
             // the token's own span survives into the parse error: it is the one
             // failure here that knows how far the offending source runs
@@ -95,9 +96,9 @@ const splitEof = tokens => {
     }
     const last = tokens.length - 1
     if (eofIdx !== last) {
-        return error({ message: 'end-of-input token is not final', metadata: tokens[eofIdx].metadata })
+        return error({ message: 'end-of-input token is not final', metadata: tokens[Number(eofIdx)].metadata })
     }
-    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[last].metadata })
+    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[Number(last)].metadata })
 }
 
 // -- reading the tree ---------------------------------------------------------
@@ -144,10 +145,29 @@ const nodeAt = node => {
     return out.node
 }
 
+/**
+ * The token a value begins with, `first` of what its mapping returned,
+ * whether or not a `(` opened it: what a `return` asks for its line.
+ *
+ * @type {(node: _Leaf) => ModuleTokenWithMetadata}
+ */
+const firstAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'value' || out.id === 'paren')
+    return out.first
+}
+
+/** The fixed parameters every tail owns, including `null` for no fixed parameter. @type {(parameters: _ParameterTail) => List<Parameter>} */
+const fixedOf = parameters => {
+    const fixed = ownEntry(parameters, 'fixed')
+    assert(fixed !== undefined)
+    return fixed
+}
+
 /** @type {(node: _Leaf) => _ParameterTail} */
 const parametersAt = node => {
-    const { fixed, rest } = outOf('parameters', node)
-    return { fixed, rest }
+    const parameters = outOf('parameters', node)
+    return { fixed: fixedOf(parameters), rest: parameters.rest }
 }
 
 /** @type {(node: _Leaf) => Item} */
@@ -238,10 +258,8 @@ const moduleAt = node => outOf('module', node).module
  * ECMAScript `IdentifierName`, which admits every reserved word — and
  * the fold then refuses them where a *binding* is wanted, as it refuses
  * every other keyword.
- *
- * @type {ReadonlySet<string>}
  */
-const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
+const literalWordSet = fromValues(literalWords)
 
 /**
  * The word a name token spells. A framing keyword is an identifier too,
@@ -254,7 +272,7 @@ const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
  */
 export const nameOf = ({ token }) => {
     if (token.kind === 'id') { return token.value }
-    assert(literalWordSet.has(token.kind), token.kind)
+    assert(setHas(token.kind)(literalWordSet), token.kind)
     return token.kind
 }
 
@@ -302,6 +320,9 @@ const chunkOf = node => {
     assert(token.kind === 'noSubstitutionTemplate' || token.kind === 'templateHead' || token.kind === 'templateMiddle' || token.kind === 'templateTail')
     return token.value
 }
+
+/** @type {(out: Out) => Meta<Out>} */
+const symbol = out => ({ symbol: 0, meta: out })
 
 /**
  * A template lowered to concatenations and explicit string conversions in
@@ -505,9 +526,6 @@ const grouped = (v, more) => comma([nodeAt(v), ...unmapped(more).map(round => no
 /** The entries of a list of entries, its tail already mapped. */
 const entriesOf = listOf(entryAt, entriesAt)
 
-/** @type {(out: Out) => Meta<Out>} */
-const symbol = out => ({ symbol: 0, meta: out })
-
 /**
  * The token a property names its key by: `.name`'s identifier, at the
  * second position of the branch, under the identifier's own alternative.
@@ -570,7 +588,7 @@ const parameterOf = node => {
 const namedList = (open, head, init, more) => {
     const out = outAt(head)
     if (out.id !== 'value' || out.target[0] === 'invalid') { return { invalid: open } }
-    return { fixed: [init(out.target), ...toArray(more.fixed)], rest: more.rest }
+    return { fixed: [init(out.target), ...toArray(fixedOf(more))], rest: more.rest }
 }
 
 /** A head with no default: the target itself. @type {(target: PlainBindingTarget) => Parameter} */
@@ -694,6 +712,16 @@ const accessed = closed => (base, round) => {
  */
 const steps = (base, accesses, closed) => accesses.reduce((node, round, i) => accessed(closed && i === 0)(node, round), base)
 
+/**
+ * Whether a statement's end, `[ ';' ]`, holds its `;`. Where it does
+ * not, JavaScript inserts one at the newline before the next token, at `}`
+ * or at the end of input, and refuses a next token on the same line; the
+ * fold asks that of the next statement's first token, {@link unterminated}.
+ *
+ * @type {(node: _EndNode) => boolean}
+ */
+const ended = node => unmapped(node).length !== 0
+
 /** A callee's member steps stop before the construction's argument list. @type {(node: Children<ConstructorCallee, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toConstructorCallee = ([tag, branch]) => {
     if (tag === 'group') {
@@ -744,6 +772,23 @@ const withPow = (base, powTail) => {
 }
 
 /**
+ * One tail list applied to the accumulator so far. The layer reader is
+ * supplied so a layer can reuse this step for its own trailing lists.
+ *
+ * `unmapped` infers its return type from `_Leaf`'s own array member here,
+ * `readonly unknown[]`, rather than from `foldLayer`'s expected one: a
+ * generic call's type argument is inferred from its own argument before
+ * the position it is handed to is considered. The round shape this reads
+ * is `_TailRound`'s, unmapped one level further in by {@link foldLayer}
+ * itself, so the cast states what {@link _TailRound} already documents,
+ * rather than a new claim. {@link applyCircuit}'s round is read through
+ * the same type for the same reason.
+ *
+ * @type {(fold: (base: Node, rounds: readonly _TailRound[]) => Node) => (acc: Node, rounds: _Leaf) => Node}
+ */
+const tailStep = fold => (acc, rounds) => fold(acc, /** @type {readonly _TailRound[]} */ (unmapped(rounds)))
+
+/**
  * One binary layer's rounds folded onto `base`, left-associative: each
  * round is `op unary tail*`, its own trailing tail lists — one per layer
  * below this one — read the same way {@link applyLayers} reads a value's
@@ -759,10 +804,10 @@ const withPow = (base, powTail) => {
 const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, v, ...lowerTails] = unmapped(round)
     const [opTag, op] = unmapped(opChoice)
-    const right = applyLayers(nodeAt(v), lowerTails)
+    const right = lowerTails.reduce(tailStep(foldLayer), nodeAt(v))
     // every round's operator is a rule the grammar made from the same
     // records, so a name the map lacks is the grammar's bug, not the input's
-    const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
+    const tag = assertNotNullish(ownEntry(binaryOpTag, opTag), ['binary operator without a tag', opTag])
     // `instanceof` keeps its operator token: the fold refuses a right
     // operand that is no reference to `Array` there, where every spelling
     // of the right side has a token; `in` keeps it for its left operand,
@@ -779,7 +824,7 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
  *
  * @type {(base: Node, tailLists: readonly _Leaf[]) => Node}
  */
-const applyLayers = (base, tailLists) => tailLists.reduce(tailStep, base)
+const applyLayers = (base, tailLists) => tailLists.reduce(tailStep(foldLayer), base)
 
 /**
  * The short-circuit level folded onto `base`: nothing, or the chain the
@@ -840,22 +885,6 @@ const applyTail = (base, tail) => {
 }
 
 /**
- * One tail list applied to the accumulator so far.
- *
- * `unmapped` infers its return type from `_Leaf`'s own array member here,
- * `readonly unknown[]`, rather than from `foldLayer`'s expected one: a
- * generic call's type argument is inferred from its own argument before
- * the position it is handed to is considered. The round shape this reads
- * is `_TailRound`'s, unmapped one level further in by {@link foldLayer}
- * itself, so the cast states what {@link _TailRound} already documents,
- * rather than a new claim. {@link applyCircuit}'s round is read through
- * the same type for the same reason.
- *
- * @type {(acc: Node, rounds: _Leaf) => Node}
- */
-const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[]} */ (unmapped(rounds)))
-
-/**
  * The node a value's own part makes, before the accesses, the power and the
  * binary layers above it: a primitive converted from its token, a reference
  * by its token, and a container of the items its list returned — `[ open
@@ -872,7 +901,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * position, which is what lets the second `unmapped` below see a precise
  * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
  * one tuple deep for exactly this reason — see its own comment in
- * `./grammar/module.f.mjs` — so the same reads serve both rules.
+ * `../grammar/module.f.js` — so the same reads serve both rules.
  *
  * @type {(node: Exclude<Children<Unary, ModuleTokenWithMetadata, Out> | Children<UnaryOperand, ModuleTokenWithMetadata, Out> | Children<Value, ModuleTokenWithMetadata, Out> | Children<Body, ModuleTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
  */
@@ -907,25 +936,13 @@ export const _baseOf = ([tag, branch]) => {
 }
 
 /**
- * The token a value begins with, `first` of what its mapping returned,
- * whether or not a `(` opened it: what a `return` asks for its line.
- *
- * @type {(node: _Leaf) => ModuleTokenWithMetadata}
- */
-const firstAt = node => {
-    const out = outAt(node)
-    assert(out.id === 'value' || out.id === 'paren')
-    return out.first
-}
-
-/**
  * The token a value's own part begins with: a primitive's or a name's own
  * token, under the alternative it matched, or a container's opening
  * bracket, the first symbol of `[ open [ items ] close ]`.
  *
  * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object' | 'construct', base: _Leaf) => ModuleTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[Number(tag === 'array' || tag === 'object' ? 0 : 1)]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -997,7 +1014,7 @@ const parenNode = (open, [tag, branch]) => {
         const [, items, close, next] = unmapped(rest)
         const more = parenItemsOf(items)
         const refusal = more.refusal ?? (more.trailing ? tokenAt(close) : null)
-        const list = namedList(open, v, bare, { fixed: more.fixed, rest: more.rest })
+        const list = namedList(open, v, bare, { fixed: fixedOf(more), rest: more.rest })
         return continued(list, comma([nodeAt(v), ...toArray(more.operands)], refusal), true, next)
     }
     if (kind === 'default') {
@@ -1031,6 +1048,14 @@ const groupNode = node => {
  */
 const isPrefix = /** @type {<N extends readonly [string, unknown]>(node: N) => node is Extract<N, readonly [keyof typeof prefixLayer, unknown]>} */ (
     node => hasEntry(prefixLayer, node[0]))
+
+/**
+ * A loop's block from its children, `{`, the statements and `}`: its
+ * statements in order, `const`s and assignments.
+ *
+ * @type {(node: Children<LoopBlockRule, ModuleTokenWithMetadata, Out>) => LoopBlock}
+ */
+const loopBlockOf = ([, statements]) => ['block', unmapped(statements).map(loopStatementAt)]
 
 /**
  * A value is the node its branch made, with each access after it, the
@@ -1075,7 +1100,7 @@ const toNode = node => {
     if (isPrefix(node)) {
         const [op, v, ...tailLists] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: applyTail([prefixLayer[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
+        return symbol({ id: 'value', node: applyTail([assertNotNullish(ownEntry(prefixLayer, node[0])), nodeAt(v)], tailLists), first, target: invalid(first) })
     }
     if (node[0] === 'block') {
         const children = unmapped(node[1])
@@ -1113,7 +1138,7 @@ const operandToNode = node => {
     if (isPrefix(node)) {
         const [op, v] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: [prefixLayer[node[0]], nodeAt(v)], first, target: invalid(first) })
+        return symbol({ id: 'value', node: [assertNotNullish(ownEntry(prefixLayer, node[0])), nodeAt(v)], first, target: invalid(first) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
@@ -1127,14 +1152,6 @@ const operandToNode = node => {
     // a prefix's operand stands in no binding position, so it is no target
     return symbol({ id: 'value', node: steps(_baseOf(node), unmapped(accesses), false), first, target: invalid(first) })
 }
-
-/**
- * A loop's block from its children, `{`, the statements and `}`: its
- * statements in order, `const`s and assignments.
- *
- * @type {(node: Children<LoopBlockRule, ModuleTokenWithMetadata, Out>) => LoopBlock}
- */
-const loopBlockOf = ([, statements]) => ['block', unmapped(statements).map(loopStatementAt)]
 
 /** A loop switch keeps every label, braced arm and optional last default. @type {(node: Ast<LoopSwitchRule, ModuleTokenWithMetadata, Out>) => LoopSwitch} */
 const loopSwitchAt = node => {
@@ -1162,6 +1179,21 @@ const doWhileAt = node => {
 }
 
 /**
+ * What a `const` or a fixed parameter after the first binds, from
+ * `bindingTarget`'s branch: a name's token, under the alternative its word
+ * matched, or the pattern an array or an object literal is,
+ * `[ open [ items ] close ]`, read from its list's mapping as a value's
+ * is, {@link containerTarget}.
+ *
+ * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => PlainBindingTarget}
+ */
+const targetOf = ([tag, branch]) => {
+    if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
+    const [open, list] = unmapped(branch)
+    return containerTarget(tag, tokenAt(open), list)
+}
+
+/**
  * Share the classic/iteration header read after preserving the target's spelling.
  * @type {(node: Children<Pick<ForHeader, 'const' | 'let'>, ModuleTokenWithMetadata, Out>) => readonly [ModuleTokenWithMetadata, PlainBindingTarget, Ast<ForNamedLetTail, ModuleTokenWithMetadata, Out>]}
  */
@@ -1179,6 +1211,33 @@ const forDeclarationOf = node => {
     }
     const [target, continuation] = unmapped(selected)
     return [tokenAt(keyword), targetOf(unmapped(target)), continuation]
+}
+
+/**
+ * A call statement, `name rest end`: the record of a `const` that binds
+ * nothing, `['discard', name]`, its value the value the name begins, read
+ * as a value's name branch reads it, {@link continued}, and its beginning
+ * the name. Which values it may be — a call alone — is the fold's.
+ *
+ * @type {(name: ModuleTokenWithMetadata, rest: Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>, semicolon: boolean) => Const}
+ */
+const discarded = (name, rest, semicolon) =>
+    ({ start: name, semicolon, target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
+
+/** Shared clause and statement reader; header separators already terminate their clauses. @type {(node: Children<NameExpression, ModuleTokenWithMetadata, Out>, semicolon: boolean) => NamedStatement} */
+const namedExpressionOf = ([name, rest], semicolon) => {
+    const token = tokenAt(unmapped(name)[1])
+    const [tag, assigned] = unmapped(rest)
+    if (tag !== 'assign') {
+        return ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), semicolon)]
+    }
+    const [op, v] = unmapped(assigned)
+    const [kind, operatorToken] = unmapped(op)
+    const operator = assertNotNullish(ownEntry(assignmentOperators, kind))[1]
+    return ['assign', {
+        start: token, semicolon, name: token, value: nodeAt(v),
+        operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
+    }]
 }
 
 /** Keep `for...of` distinct while classic clauses retain their existing AST. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => readonly ['for', For] | readonly ['for-of', ForOf]} */
@@ -1236,17 +1295,6 @@ const toLoopElse = ([kind, branch]) => {
     return symbol({ id: 'loopElse', block })
 }
 
-/**
- * A call statement, `name rest end`: the record of a `const` that binds
- * nothing, `['discard', name]`, its value the value the name begins, read
- * as a value's name branch reads it, {@link continued}, and its beginning
- * the name. Which values it may be — a call alone — is the fold's.
- *
- * @type {(name: ModuleTokenWithMetadata, rest: Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>, semicolon: boolean) => Const}
- */
-const discarded = (name, rest, semicolon) =>
-    ({ start: name, semicolon, target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
-
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
     if (kind === 'block') { return symbol({ id: 'moduleStatement', statement: ['block', { start: tokenAt(unmapped(branch)[0]), block: loopBlockOf(unmapped(branch)) }] }) }
@@ -1272,22 +1320,6 @@ const toModuleStatement = ([kind, branch]) => {
  */
 const toBodyNameStatement = ([name, rest, end]) => {
     return symbol({ id: 'named', statement: namedExpressionOf([name, rest], ended(end)) })
-}
-
-/** Shared clause and statement reader; header separators already terminate their clauses. @type {(node: Children<NameExpression, ModuleTokenWithMetadata, Out>, semicolon: boolean) => NamedStatement} */
-const namedExpressionOf = ([name, rest], semicolon) => {
-    const token = tokenAt(unmapped(name)[1])
-    const [tag, assigned] = unmapped(rest)
-    if (tag !== 'assign') {
-        return ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), semicolon)]
-    }
-    const [op, v] = unmapped(assigned)
-    const [kind, operatorToken] = unmapped(op)
-    const operator = assignmentOperators[kind][1]
-    return ['assign', {
-        start: token, semicolon, name: token, value: nodeAt(v),
-        operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
-    }]
 }
 
 /**
@@ -1438,16 +1470,6 @@ const toImportBindings = node => symbol({ id: 'importBindings', items: importBin
 /** @type {(node: Children<typeof namedImports, ModuleTokenWithMetadata, Out>) => readonly ImportBinding[]} */
 const namedBindings = ([, bindings]) => toArray(importItems(bindings))
 
-/**
- * Whether a statement's end, `[ ';' ]`, holds its `;`. Where it does
- * not, JavaScript inserts one at the newline before the next token, at `}`
- * or at the end of input, and refuses a next token on the same line; the
- * fold asks that of the next statement's first token, {@link unterminated}.
- *
- * @type {(node: _EndNode) => boolean}
- */
-const ended = node => unmapped(node).length !== 0
-
 /** @type {(node: Children<typeof importStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toImport = ([first, clause, , module, attribute, end]) => {
     const [kind, branch] = unmapped(clause)
@@ -1472,21 +1494,6 @@ const toImport = ([first, clause, , module, attribute, end]) => {
             attribute: attributeOf(attribute),
         },
     })
-}
-
-/**
- * What a `const` or a fixed parameter after the first binds, from
- * `bindingTarget`'s branch: a name's token, under the alternative its word
- * matched, or the pattern an array or an object literal is,
- * `[ open [ items ] close ]`, read from its list's mapping as a value's
- * is, {@link containerTarget}.
- *
- * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => PlainBindingTarget}
- */
-const targetOf = ([tag, branch]) => {
-    if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
-    const [open, list] = unmapped(branch)
-    return containerTarget(tag, tokenAt(open), list)
 }
 
 /** @type {(node: Children<ConstStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
@@ -1632,7 +1639,7 @@ const toParameterNames = ([tag, branch]) => {
     }
     const [target, init, more] = unmapped(branch)
     const tail = parametersAfter(more)
-    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
+    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: fixedOf(tail) }, rest: tail.rest })
 }
 
 /**
@@ -1656,7 +1663,7 @@ const toParenItems = ([tag, branch]) => {
     const rounds = unmapped(init)
     return symbol({
         id: 'parenItems',
-        fixed: { first: targetWith(valueTargetAt(v), init), tail: tail.fixed },
+        fixed: { first: targetWith(valueTargetAt(v), init), tail: fixedOf(tail) },
         rest: tail.rest,
         operands: { first: nodeAt(v), tail: tail.operands },
         refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),
@@ -1718,7 +1725,7 @@ export const mappings = [
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations)
+const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations, definitions)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's
@@ -1743,7 +1750,7 @@ export const parseSyntax = tokenList => {
         const atEnd = result >= tokens.length
         return error({
             message: atEnd ? 'unexpected end' : 'unexpected token',
-            metadata: atEnd ? eofMetadata : tokens[result].metadata,
+            metadata: atEnd ? eofMetadata : tokens[Number(result)].metadata,
         })
     }
     const [tree] = result

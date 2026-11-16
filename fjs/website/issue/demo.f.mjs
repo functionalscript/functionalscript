@@ -3,7 +3,7 @@
  * page lists it: the priority as a badge, then the status as the icon.
  *
  * **The output is the page's own entry**, `issueItem` in
- * [`../page`](../page/module.f.mjs), drawn by the site's stylesheet, so what
+ * [`../page`](../page/module.f.js), drawn by the site's stylesheet, so what
  * the demo shows is what a page shows rather than a picture of it.
  *
  * **Every status and every priority is drawn below the field**, in the order a
@@ -27,7 +27,7 @@
 
 import { header, priorities, statuses } from './module.f.js'
 import { caption, refusal, textDemo } from '../demo/module.f.js'
-import { issueItem, issueOrder } from '../page/module.f.mjs'
+import { issueItem, issueOrder } from '../page/module.f.js'
 
 /**
  * Issues as a page lists them: in its order, each its own entry. The links go

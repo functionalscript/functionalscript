@@ -9,15 +9,15 @@
  */
 
 import {
-    apostrophe, asterisk, exclamationMark, fullStop, hyphenMinus, isDigit,
-    isLatinCapitalLetter, isLatinSmallLetter, leftParenthesis, lowLine,
-    rightParenthesis, solidus, tilde,
+    fullStop, hyphenMinus, isDigit, isLatinCapitalLetter, isLatinSmallLetter,
+    lowLine, solidus, tilde,
 } from '../ascii/module.f.js'
 import { fromU8List, stringToU8List } from '../utf8/module.f.js'
 import { codeUnitToString } from '../utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { decode, encodeScalar } from '../../basen/base16/module.f.js'
+import { encodeUriComponent as encodeUriComponentBody } from './encode_uri_component/module.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const utf8Bytes = s => toArray(stringToU8List(s))
@@ -67,14 +67,6 @@ const unreservedMarks = [hyphenMinus, fullStop, lowLine, tilde]
  */
 const pathMarks = [...unreservedMarks, solidus]
 
-/** JavaScript's URI component marks, which also leave `!'()*` unescaped.
- *
- * @type {readonly number[]}
- */
-const uriComponentMarks = [
-    ...unreservedMarks, exclamationMark, apostrophe, leftParenthesis, rightParenthesis, asterisk,
-]
-
 /** A byte as two hexadecimal digits. */
 const hexByte = encodeScalar(2)
 
@@ -101,9 +93,6 @@ const encodeComponentWith = encodeByte => s => {
     const bytes = utf8Bytes(s)
     return fromU8List(bytes) === null ? null : bytes.map(encodeByte).join('')
 }
-
-/** JavaScript's URI component encoding before coercion and failure handling. */
-const uriComponent = encodeComponentWith(encodeByteWith(uriComponentMarks))
 
 /** Every UTF-8 byte of `s` as it reads in a URL path. @type {(s: string) => string} */
 const encodeLiteral = s => utf8Bytes(s).map(pathByte).join('')
@@ -150,9 +139,8 @@ export const percentEncodeComponent = encodeComponentWith(encodeByteWith(unreser
  * `null`. The failure payload is not JavaScript's `URIError` object: FJS
  * observes only that execution fails.
  *
- * This is an ordinary library function, not an admitted FJS global.
- *
- * @param {unknown} [value]
- * @returns {string}
+ * The library and the admitted global share this one implementation. The
+ * library export uses this spelling because `encodeURIComponent` is now
+ * a reserved global name.
  */
-export const encodeURIComponent = value => unwrap(uriComponent(String(value)))
+export const encodeUriComponent = encodeUriComponentBody

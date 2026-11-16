@@ -32,7 +32,9 @@ words reserved ([number conversion](../conversions/number/README.md),
 right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
-([built-in static functions](../built-ins/static-functions/README.md)). Other global uses need
+([built-in static functions](../built-ins/static-functions/README.md)), and
+`encodeURIComponent`, as a first-class function with a common-runtime body.
+Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
@@ -54,9 +56,70 @@ name not yet decided, or, where it says so, never admitted.
 - [x] `parseFloat()`
 - [x] `parseInt()`
 - [ ] `encodeURI()`
-- [ ] `encodeURIComponent()`
+- [x] `encodeURIComponent()` — implemented by the shared FJS body below
 - [ ] `decodeURI()`
 - [ ] `decodeURIComponent()`
+
+##### encodeURIComponent proposal and approval
+
+**Problem.** Website URL paths still call the JavaScript global, which the
+compiler refuses. The library encoder in `fjs/text/percent` already supplies
+the required behavior, but its member calls cannot bootstrap the common runtime.
+
+**Proposal.** Admit `encodeURIComponent` as a first-class global function,
+including detached and callback use, with one shared FunctionalScript body.
+Convert its optional argument to a string, preserve ASCII letters, digits and
+`-_.!~*'()`, emit uppercase UTF-8 percent escapes for the other characters, and
+fail on unpaired UTF-16 surrogates. Additional arguments are evaluated and
+ignored; the function has length 1. Failure payloads follow FJS's existing
+failure equivalence. Reuse the encoder through a bootstrap-safe core rather
+than adding a native encoder. Reserve the global name and migrate existing
+local bindings to `encodeUriComponent`.
+
+**Benefits.** Ordinary JavaScript URL-component encoding compiles unchanged,
+including the website's callback. All executors share one FJS implementation.
+
+**Drawbacks.** Admission adds a reserved global and a static-function tag.
+The existing helper needs restructuring to avoid runtime-dependent member
+calls, and immutable string construction can be slower than a native encoder.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+"Let's implement `encodeURIComponent`, replace `roots.entries()` with
+`Object.entries()` or `roots.map`, admit `Number.MAX_VALUE` and resolve forward
+references in the same PR" in the
+[working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033).
+This authorizes implementation in PR #3923.
+
+**Implemented.** The runtime and percent library share
+[`encodeUriComponent`](../../fjs/text/percent/encode_uri_component/module.f.js).
+The percent library's export and its imports use that spelling; global calls
+need no import. Parser, runtime, corpus and browser proofs cover admission and
+execution across backends.
+
+##### Number.MAX_VALUE proposal and approval
+
+**Problem.** The NaNVM corpus uses JavaScript's largest finite binary64 value,
+which the compiler currently refuses as a namespace member.
+
+**Proposal.** Admit `Number.MAX_VALUE` as a numeric constant using the same
+lowering as `Number.MAX_SAFE_INTEGER`: dot access, a literal bracket key and
+namespace destructuring all lower to the host-defined number. Namespace guards
+and dynamic keys remain refused. No new runtime or EDAG operation is needed.
+
+**Benefits.** Preserve a familiar, exact JavaScript constant without copying
+its decimal digits into callers or adding native functionality.
+
+**Drawbacks.** One more explicitly admitted namespace property and its proof
+surface; other `Number` constants remain separate admissions.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+"admit `Number.MAX_VALUE`" in the same
+[working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033)
+quoted above, before implementation.
+
+**Implemented.** Numeric-constant lowering and accepted/refused syntax proofs
+follow `MAX_SAFE_INTEGER`; native corpus and browser samples exercise the
+[documented constant](../built-ins/static-functions/README.md#numeric-constants).
 
 #### Fundamental Objects
 
@@ -343,8 +406,9 @@ This records the designer's direct request for the feature under DESIGN §12.
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
       ([built-in static functions](../built-ins/static-functions/README.md),
-      the record below), plus the numeric constant `Number.MAX_SAFE_INTEGER`,
-      desugared to its value ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
+      the record below), plus the numeric constants `Number.MAX_SAFE_INTEGER`
+      and `Number.MAX_VALUE`, desugared to their values
+      ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
       the namespace's other members stay unticked, each
       an admission of its own. A module reading one of the four, through
       `const { isFinite } = Number` as well, needs no rewrite to compile;

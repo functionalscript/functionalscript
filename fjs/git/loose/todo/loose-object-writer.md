@@ -8,7 +8,7 @@
 [`module.f.mjs`](../module.f.js) exports only `tryRead`. The writer of a
 loose object — envelope, zlib-stored stream, `tmp_obj_*` below `objects/`,
 rename into `objects/ab/<rest>` — is `writeObject` in
-[`fjs/cas/git`](../../../cas/git/module.f.mjs). Nothing in it is CAS-specific:
+[`fjs/cas/git`](../../../cas/git/module.f.js). Nothing in it is CAS-specific:
 it imports `readLoose` from here, `objectPath` and `objectsDir` from
 `git/store`, `of` from `git/oid`, `writeEnvelope` from `git/object` and
 `stored` from `zlib/stored`. Its one CAS dependency is `random256`, whose doc

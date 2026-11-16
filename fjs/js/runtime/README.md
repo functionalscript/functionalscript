@@ -13,10 +13,10 @@ its receiver's type itself, and an executor asks it in two steps, the
 first before any argument exists. The `statics` table holds the static
 functions by id, the path [`../static`](../static/module.f.js) admits
 joined by `.` as the EDAG spells the node — `Object.is` — each a function
-of the arguments alone, written here and exported nowhere else: a module
-calls the built-in, `Object.is` or `Number.isInteger`, never the body, so
-the body is a VM's and the helper a built-in replaced moves in here when
-the built-in is admitted. An id every executor binds natively,
+of the arguments alone. A module calls the built-in, `Object.is` or
+`Number.isInteger`, and every executor resolves that name through this
+table. A body shared with an ordinary library is imported from its one
+implementation, as the URI-component encoder is. An id every executor binds natively,
 `Object.entries`, holds the built-in itself, so every admitted id has a
 value and the table is complete. `runtime.static` answers the entry of
 `statics` for an id, or `undefined`; `runtime.dot` answers the callee of a
@@ -82,6 +82,29 @@ body's own first step, `typeof self === 'string'`, not a key of the
 table: one function per name, for every receiver. The keys are not the
 admitted set and need not be: a table keying every admitted name with a
 marker in place of a body would only duplicate the parser's list.
+
+## URI component encoding
+
+`encodeURIComponent` has one FJS body in
+[`text/percent/encode_uri_component`](../../text/percent/encode_uri_component/module.f.js),
+shared with the percent library. The global converts its first argument once
+with `String`, leaves ASCII letters, digits and `-_.!~*'()` unchanged, and
+writes every other UTF-8 byte as an uppercase percent escape. UTF-16 surrogate
+pairs form one scalar; an unpaired surrogate fails, including a high surrogate
+at the end of a string. FJS observes the failure rather than JavaScript's
+catchable `URIError` object.
+
+The library exports this body as `encodeUriComponent`; its former
+`encodeURIComponent` binding is renamed because the admitted global reserves
+that identifier.
+
+The body reads UTF-16 through the existing `charCodeAt` intrinsic and uses
+primitive string indexing and integer arithmetic. It calls no member function
+or runtime-defined static, so loading the runtime requires no encoder binding.
+Represented execution and generated Rust, including Rust compiled to WASM, run
+this same body; no native URI encoder or dependency is added. The
+[admission record](../../../spec/todo/2360-built-in.md#encodeuricomponent-proposal-and-approval)
+records this common-runtime choice.
 
 ## Math functions
 

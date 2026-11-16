@@ -35,7 +35,7 @@ import { foldStep, ioError, pureError, pureOk, step } from '../../../effects/mod
 import { exitStep, writeFiles } from '../../../effects/node/module.f.js'
 import { toTagged } from '../../../text/marked/module.f.js'
 import { samples } from '../samples/module.f.js'
-import { buildDirectory, rustMarkedExtension, rustMarkedPath, rustPath, samplePath } from '../page/module.f.mjs'
+import { buildDirectory, rustMarkedExtension, rustMarkedPath, rustPath, samplePath } from '../page/module.f.js'
 import { removeStale } from '../publish/module.f.js'
 
 /**

@@ -120,7 +120,7 @@ arguments remain permitted.
    ordered list of fixed bindings and an optional rest binding. Preserve
    source locations, blocks and explicit returns. Names are erased only after
    binding and syntax validation.
-2. Extend the [parameter and parenthesis grammar](../../fjs/compiler/parser/grammar/module.f.mjs).
+2. Extend the [parameter and parenthesis grammar](../../fjs/compiler/parser/grammar/module.f.js).
    Named parameters overlap the identifier/grouped-expression prefix: factor
    that shared prefix and distinguish a parameter list from a group using
    the arrow continuation. Do not add an independent token-pattern parser or

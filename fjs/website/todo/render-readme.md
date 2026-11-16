@@ -128,7 +128,7 @@ Every README has a heading, so today's reader renders none of them.
   directory's page on the site. A link to a file — a `.md` without a
   rendered view of its own, a `module.f.mjs`, any other file — goes where
   the same file's link in a directory's catalogue goes: `fileHref` in
-  [`page/module.f.mjs`](../page/module.f.mjs), GitHub at the build's commit,
+  [`page/module.f.mjs`](../page/module.f.js), GitHub at the build's commit,
   or the raw file in a local build. One rule for both, so a file never opens
   in two places depending on which page linked it; when
   [source-and-doc-view](source-and-doc-view.md) moves `fileHref` to the

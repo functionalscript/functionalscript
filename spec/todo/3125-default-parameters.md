@@ -210,7 +210,7 @@ and the EDAG function stays well under it either way.
    for errors, in
    [`parser/syntax/types.ts`](../../fjs/compiler/parser/syntax/types.ts).
    The first parameter is read as a value, which
-   [`parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs)'s
+   [`parser/grammar`](../../fjs/compiler/parser/grammar/module.f.js)'s
    `afterValue` explains, so the reader records `name = value` beside the
    node as it records a target, and the fold refuses it in a value, where
    it is an assignment, and reads it in a parameter list or a pattern.

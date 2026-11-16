@@ -37,7 +37,7 @@ import { permalink } from '../permalink/module.f.js'
 import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.js'
 import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.js'
-import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
+import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.js'
 import { htmlDocument, mapElement, parseElement, textContent } from '../../media/html/module.f.js'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.js'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
@@ -45,6 +45,8 @@ import { intersperse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { priorities, statuses } from '../issue/module.f.js'
 import { origin } from '../origin/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -57,7 +59,7 @@ export const repository = 'https://github.com/functionalscript/functionalscript'
 /**
  * The name of a directory's card image, written beside its page: the
  * directory's README as its page shows it, at the size a large card shows
- * uncropped ([`../card`](../card/module.f.mjs)).
+ * uncropped ([`../card`](../card/module.f.js)).
  *
  * **Generated, so `_`-prefixed,** as `_main.css` is: git ignores it and the
  * site serves it.
@@ -130,7 +132,7 @@ const firstSentence = runs => {
         // Code units, as `text` is indexed: every character looked for is one.
         return code ? [] : t.split('').flatMap((c, j) => {
             const end = start + j + 1
-            return '.!?'.includes(c) && (end === text.length || text[end] === ' ') ? [end] : []
+            return '.!?'.includes(c) && (end === text.length || text[Number(end)] === ' ') ? [end] : []
         })
     })
     return text.slice(0, ends[0] ?? text.length)
@@ -173,6 +175,19 @@ const limit = text => {
 }
 
 /**
+ * What a rendered README holds, or `null` where the README is not rendered:
+ * a page without one, or one whose README the reader refused, which is a
+ * note in its place.
+ *
+ * @type {(readme: readonly Element[]) => readonly Node[] | null}
+ */
+export const readmeArticle = readme => readme
+    .flatMap(e => {
+        const [tag, { 'data-readme': article }, children] = parseElement(e)
+        return tag === 'article' && article !== undefined ? [children] : []
+    })[0] ?? null
+
+/**
  * A directory's description: the first sentence of the first paragraph of
  * prose in its README, or `undefined` for a directory whose README has none,
  * or is not rendered.
@@ -197,19 +212,6 @@ export const readmeDescription = readme => (readmeArticle(readme) ?? [])
         return tag === 'p' && !isField(children) ? [limit(firstSentence(runs(children)).trim())] : []
     })
     .find(text => text !== '')
-
-/**
- * What a rendered README holds, or `null` where the README is not rendered:
- * a page without one, or one whose README the reader refused, which is a
- * note in its place.
- *
- * @type {(readme: readonly Element[]) => readonly Node[] | null}
- */
-export const readmeArticle = readme => readme
-    .flatMap(e => {
-        const [tag, { 'data-readme': article }, children] = parseElement(e)
-        return tag === 'article' && article !== undefined ? [children] : []
-    })[0] ?? null
 
 /**
  * A page's `<title>`: what the page is, then the site it belongs to.
@@ -272,9 +274,12 @@ const report = ['div', { 'data-test-results': '' }]
  */
 export const subtree = dir => all => {
     const prefix = dir === '.' ? '' : `${dir}/`
-    return all.flatMap(proof => proof.name.startsWith(prefix)
-        ? [{ name: `./${proof.name.slice(prefix.length)}`, blockers: proof.blockers }]
-        : [])
+    return all.flatMap(proof => {
+        const name = assertNotNullish(entry(proof, 'name'))
+        return name.startsWith(prefix)
+            ? [{ name: `./${name.slice(prefix.length)}`, blockers: proof.blockers }]
+            : []
+    })
 }
 
 /**
@@ -325,8 +330,8 @@ document.querySelector('[data-test-run]').addEventListener(
  * @type {(proof: Proof) => Element}
  */
 const proofItem = proof => proof.blockers.length === 0
-    ? ['li', { 'data-source': proof.name }, proof.name]
-    : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
+    ? ['li', { 'data-source': assertNotNullish(entry(proof, 'name')) }, assertNotNullish(entry(proof, 'name'))]
+    : ['li', { 'data-blocked': '' }, `${entry(proof, 'name')} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
  * A section's title: the `summary` a reader folds the section by, holding
@@ -471,7 +476,7 @@ export const testSection = dir => intro => {
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
-        runner(linkable.map(proof => proof.name)),
+        runner(linkable.map(proof => assertNotNullish(entry(proof, 'name')))),
     ])
 }
 
@@ -592,10 +597,14 @@ const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, t
  *
  * @type {(href: string) => (issue: Issue) => Element}
  */
-export const issueItem = href => ({ name, status, priority }) => ['li',
-    ['span', { 'data-priority': priority }, priority],
-    ' ',
-    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+export const issueItem = href => issue => {
+    const name = assertNotNullish(entry(issue, 'name'))
+    const { status, priority } = issue
+    return ['li',
+        ['span', { 'data-priority': priority }, priority],
+        ' ',
+        ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+}
 
 /**
  * The order a directory lists its issues in: by priority, most urgent first,
@@ -611,7 +620,7 @@ export const issueOrder = (a, b) => {
     if (priority !== 0) { return priority }
     const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
     if (status !== 0) { return status }
-    return a.name < b.name ? -1 : 1
+    return assertNotNullish(entry(a, 'name')) < assertNotNullish(entry(b, 'name')) ? -1 : 1
 }
 
 /**
@@ -679,7 +688,7 @@ export const sections = commit => dir => [
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
     ...section('Issues')(dir.todo.toSorted(issueOrder).map(issue =>
-        issueItem(fileHref(commit)(dir.path)(`todo/${issue.name}`))(issue))),
+        issueItem(fileHref(commit)(dir.path)(`todo/${entry(issue, 'name')}`))(issue))),
 ]
 
 /**
@@ -841,6 +850,46 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 ]]
 
 /**
+ * The large card's tags: `card`'s image at `origin`.
+ *
+ * @type {(origin: string) => (card: Card) => readonly Element[]}
+ */
+const largeCard = origin => ({ href, alt }) => [
+    ['meta', { property: 'og:image', content: `${origin}${href}` }],
+    ['meta', { property: 'og:image:alt', content: alt }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+]
+
+/**
+ * The card tags, showing `card`'s image where the build has an origin.
+ *
+ * @type {(origin: string | null) => (card: Card) => readonly Element[]}
+ */
+const cardMeta = origin => card => [
+    ['meta', { property: 'og:site_name', content: siteName }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ...(origin === null
+        ? [/** @type {Element} */ (['meta', { name: 'twitter:card', content: 'summary' }])]
+        : largeCard(origin)(card)),
+]
+
+/**
+ * A directory's card image, as a root-relative URL.
+ *
+ * @type {(path: string) => string}
+ */
+export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName))}`
+
+/**
+ * The root page's card, which every page without a card of its own shows:
+ * its alt text is the site's name, since it is the site's card wherever it
+ * is shown.
+ *
+ * @type {Card}
+ */
+const rootCard = { href: cardImageHref('.'), alt: siteName }
+
+/**
  * The card tags that are the same on every page: the site, the kind of
  * page and, when the build has an origin, the root page's card image.
  *
@@ -865,50 +914,10 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 export const siteMeta = origin => cardMeta(origin)(rootCard)
 
 /**
- * The card tags, showing `card`'s image where the build has an origin.
- *
- * @type {(origin: string | null) => (card: Card) => readonly Element[]}
- */
-const cardMeta = origin => card => [
-    ['meta', { property: 'og:site_name', content: siteName }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ...(origin === null
-        ? [/** @type {Element} */ (['meta', { name: 'twitter:card', content: 'summary' }])]
-        : largeCard(origin)(card)),
-]
-
-/**
- * The large card's tags: `card`'s image at `origin`.
- *
- * @type {(origin: string) => (card: Card) => readonly Element[]}
- */
-const largeCard = origin => ({ href, alt }) => [
-    ['meta', { property: 'og:image', content: `${origin}${href}` }],
-    ['meta', { property: 'og:image:alt', content: alt }],
-    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-]
-
-/**
- * A directory's card image, as a root-relative URL.
- *
- * @type {(path: string) => string}
- */
-export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName))}`
-
-/**
- * The root page's card, which every page without a card of its own shows:
- * its alt text is the site's name, since it is the site's card wherever it
- * is shown.
- *
- * @type {Card}
- */
-const rootCard = { href: cardImageHref('.'), alt: siteName }
-
-/**
  * A page's `og:url`: its root-relative `href` under the build's origin, and
  * nothing where the build has none, since Open Graph takes only an absolute
  * URL. One tag, shared with rustdoc's pages
- * ([`../cargo-doc`](../cargo-doc/module.f.mjs)), which get it as they are
+ * ([`../cargo-doc`](../cargo-doc/module.f.js)), which get it as they are
  * copied.
  *
  * @type {(origin: string | null) => (href: string) => readonly Element[]}

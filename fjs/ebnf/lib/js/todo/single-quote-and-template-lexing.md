@@ -141,7 +141,7 @@ of their own — among them:
 | --- | --- |
 | [`compiler/parser/proof.f.mjs`](../../../../compiler/parser/proof.f.mjs), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
 | [`js/tokenizer/proof.f.mjs`](../../../../js/tokenizer/proof.f.mjs) | nested in a `map` |
-| [`website/page/module.f.mjs`](../../../../website/page/module.f.mjs) | nested in a `map` |
+| [`website/page/module.f.js`](../../../../website/page/module.f.js) | nested in a `map` |
 | [`media/datajs/parser/proof.f.mjs`](../../../../media/datajs/parser/proof.f.mjs) | nested in a conditional |
 | [`ci/deno/proof.f.mjs`](../../../../ci/deno/proof.f.mjs) | nested two deep |
 | [`ci/rust/proof.f.mjs`](../../../../ci/rust/proof.f.mjs) | nested in a `map` |

@@ -100,7 +100,7 @@ See [architecture.md §Human-readable paths](./architecture.md).
 
 **Current state:**
 - `fjs/ebnf/` — grammar front end and LL(1) backend; the FunctionalScript grammar
-  is written, in [`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs),
+  is written, in [`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.js),
   and read by `fjs/ebnf/ll1`
 - `fjs/compiler/` — tokenizer → parser → AST → EDAG for `const`, `import`, objects,
   arrays, operators and functions, capturing ones included

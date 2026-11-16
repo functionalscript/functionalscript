@@ -8,7 +8,7 @@
 
 `fileCas(sha2)(path).read` (`fjs/cas/module.f.js`, the `read` method on the `FileCas`
 returned by `fileCas`) streams the bytes stored at an address, chunk by chunk, without
-recomputing their hash, and the `cas get` command (`fjs/cas/cli/module.f.mjs`) pipes that
+recomputing their hash, and the `cas get` command (`fjs/cas/cli/module.f.js`) pipes that
 stream straight to the output file via `writeFromStream`. If a blob was corrupted, truncated,
 or misnamed — for example by disk corruption or by a copy-files synchronization that has not
 yet been verified — a reader between the copy and a later scrub can consume invalid content

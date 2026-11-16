@@ -93,7 +93,7 @@ export const proof = {
     // The four `Number` predicates are read as `Object.is` is, in either
     // key spelling and through destructuring, beside the conversion `Number(x)`,
     // which the namespace leaves as it was; a member it does not admit, a
-    // value property other than MAX_SAFE_INTEGER included, is refused at the word, and so is a
+    // value property other than the two admitted constants included, is refused at the word, and so is a
     // predicate under the other namespace.
     number: () => {
         for (const name of ['isInteger', 'isSafeInteger', 'isNaN', 'isFinite']) {
@@ -106,7 +106,7 @@ export const proof = {
         expectModule('const { isInteger, isFinite: f } = Number; export default [isInteger, f];',
             "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"Number.isInteger\"],[\"Number.isFinite\"]]]]]]")
         for (const source of [
-            'export default Number.MAX_VALUE;',
+            'export default Number.MIN_VALUE;',
             'export default Number.parseFloat("1");',
             'export default Number.is;',
             'export default Number?.(1);',
@@ -132,6 +132,45 @@ export const proof = {
             expectRefused(`export default ${source};`, 'reserved word', 16)
         }
         expectRefused('const key = "MAX_SAFE_INTEGER"; export default Number[key];', 'reserved word', 48)
+    },
+    maxValue: () => {
+        const expected = (2 - 2 ** -52) * 2 ** 1023
+        assertEq(Number.MAX_VALUE, expected)
+        for (const source of ['Number.MAX_VALUE', 'Number["MAX_VALUE"]', '(Number.MAX_VALUE)']) {
+            expectModule(`export default ${source};`, exported(String(expected)))
+        }
+        expectModule('const { MAX_VALUE: max } = Number; export default max;', exported(String(expected)))
+        expectModule('export default () => { const { MAX_VALUE } = Number; return MAX_VALUE; };',
+            exported(`["=>",0,[],${expected}]`))
+        expectModule('export default Number.MAX_VALUE / 2;', exported(`["/",${expected},2]`))
+        expectModule('export default Number.MAX_VALUE?.();', exported(`["?.()",${expected},[]]`))
+        for (const source of ['Number?.MAX_VALUE', 'Number?.["MAX_VALUE"]', 'Object.MAX_VALUE', 'Number[Number(0)]']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+        const source = 'const key = "MAX_VALUE"; export default Number[key];'
+        expectRefused(source, 'reserved word', source.indexOf('Number') + 1)
+    },
+    uriComponent: () => {
+        for (const source of ['encodeURIComponent', '(encodeURIComponent)']) {
+            expectModule(`export default ${source};`, exported('["encodeURIComponent"]'))
+        }
+        expectModule('export default encodeURIComponent("a b");', exported('["()",["encodeURIComponent"],["a b"]]'))
+        expectModule('export default encodeURIComponent?.();', exported('["?.()",["encodeURIComponent"],[]]'))
+        expectModule('const encode = encodeURIComponent; export default encode;', exported('["encodeURIComponent"]'))
+        expectModule('const { length } = encodeURIComponent; export default length;', exported('[".",["encodeURIComponent"],"length"]'))
+        expectModule('export default ["a b"].map(encodeURIComponent);',
+            exported('[".",["[]",["a b"]],"map",["|()",[["encodeURIComponent"]]]]'))
+        expectModule('export default x => encodeURIComponent(x);',
+            exported('["=>",1,[],["()",["encodeURIComponent"],[["arg",0]]]]'))
+        expectModule('export default { encodeURIComponent: 1 }.encodeURIComponent;',
+            exported('[".",["{}",[[":","encodeURIComponent",1]]],"encodeURIComponent"]'))
+        for (const source of [
+            'const encodeURIComponent = 1; export default 1;',
+            'export default (encodeURIComponent) => 1;',
+            'import encodeURIComponent from "m"; export default 1;',
+            'import { x as encodeURIComponent } from "m"; export default 1;',
+        ]) { expectRefused(source, 'reserved word', source.indexOf('encodeURIComponent') + 1) }
+        expectRefused('export default Number.encodeURIComponent;', 'reserved word', 16)
     },
     // `Object.entries` is read as `Object.is` is, in either key spelling
     // and through destructuring, though `entries` is a prototype name: the

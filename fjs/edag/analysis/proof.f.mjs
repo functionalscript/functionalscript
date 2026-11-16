@@ -208,6 +208,13 @@ export const proof = {
         assertStructurallySame(operandsOf(keys), [])
         assertOk(checked(an(['()', keys, [['{}', []]]])))
     },
+    uriComponent: () => {
+        const encode = /** @type {const} */ (['encodeURIComponent'])
+        const repeated = an(['[]', [encode, ['encodeURIComponent']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'encodeURIComponent').length, 1)
+        assertStructurallySame(operandsOf(encode), [])
+        assertOk(checked(an(['()', encode, ['雪']])))
+    },
     objectValues: () => {
         const values = /** @type {const} */ (['Object.values'])
         const repeated = an(['[]', [values, ['Object.values']]])

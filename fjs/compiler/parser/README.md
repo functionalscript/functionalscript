@@ -121,7 +121,7 @@ concern and adds no synthetic source reads.
 
 ## The grammar is written down
 
-[`./grammar`](./grammar/module.f.mjs) holds it:
+[`./grammar`](./grammar/module.f.js) holds it:
 
 ```
 module ::= import* moduleStatement* last eof

@@ -279,6 +279,9 @@ const outputView = output => output[0] === 'ok'
     ? [caption('Standard output:'), ['div', { [codeMarker]: '' }, ['pre', output[1] === '' ? '(empty)' : output[1]]]]
     : [refusal(output[1])]
 
+/** Whether both runs wrote the same output, and so did the same work. @type {(js: JsRun, wasm: WasmRun) => boolean} */
+const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] === 'ok' && js.output[1] === wasm.run.output[1]
+
 /**
  * How many times as long the WebAssembly run took as the JavaScript one, or
  * "Not available" unless both runs wrote the same output, or where the
@@ -292,9 +295,6 @@ export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
     && sameOutput(js[1], wasm[1]) && js[1].time > 0
     ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
     : 'Not available'
-
-/** Whether both runs wrote the same output, and so did the same work. @type {(js: JsRun, wasm: WasmRun) => boolean} */
-const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] === 'ok' && js.output[1] === wasm.run.output[1]
 
 /**
  * How many times as much memory the WebAssembly run added as the JavaScript
@@ -357,6 +357,11 @@ const runsDetail = ({ js, wasm }) => [
         : [refusal(wasm[1])]),
 ]
 
+/** @type {(ratio: string | null) => readonly Node[]} */
+const memoryView = ratio => ratio === null
+    ? []
+    : [stat('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium)', ratio)]
+
 /** @type {(runs: Runs) => readonly Node[]} */
 const runsView = runs => [
     ...runsDetail(runs),
@@ -364,11 +369,6 @@ const runsView = runs => [
     stat('WebAssembly running time, as a multiple of the JavaScript one', ratio(runs)),
     ...memoryView(memoryRatio(runs)),
 ]
-
-/** @type {(ratio: string | null) => readonly Node[]} */
-const memoryView = ratio => ratio === null
-    ? []
-    : [stat('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium)', ratio)]
 
 /**
  * How long the module took to arrive and start, once it has.

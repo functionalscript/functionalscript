@@ -7,7 +7,7 @@
 
 `fileCas(sha2)(path).read` (`fjs/cas/module.f.js`) already streams the stored blob in
 `<=128 KiB` chunks (`readBytes` in a loop, capped by `chunkBytes`/`maxLengthBytes` per
-chunk, not per file), and `cas get` (`fjs/cas/cli/module.f.mjs`) pipes that stream to the
+chunk, not per file), and `cas get` (`fjs/cas/cli/module.f.js`) pipes that stream to the
 destination file via `writeFromStream`, so it no longer holds the whole file in memory and
 is not limited to 128 KiB files. `FileCas` also already exposes a `url` method
 (`fjs/cas/module.f.js`, and see `fjs/cas/types.ts`) that returns the path to a hash's

@@ -10,7 +10,7 @@ import { exitCode, readUtf8File } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { buildScript, buildScriptPath, builtWasmPath, callStatement, f64Literal, generate, main, modules, modulesPath, rustPath, samplePath, samples, wasmTarget } from './module.f.mjs'
-import { rustMarkedPath } from './page/module.f.mjs'
+import { rustMarkedPath } from './page/module.f.js'
 import { rust } from '../../ci/config/module.f.js'
 
 /** @type {(samples: Dir) => Dir} */
@@ -82,6 +82,39 @@ export const proof = {
         ].join('\n'))
         // A lone surrogate has no `&str`.
         assert(callStatement([1, ['returned', '\ud800']])[0].includes('"(not UTF-8)"'))
+    },
+    // Rust 2024 formatting wraps the result constructor after column 100,
+    // even when the string itself cannot fit. Escapes count in that width.
+    longCallResults: () => {
+        assertEq(callStatement([1, ['returned', 'x'.repeat(81)]]).length, 5)
+        assertEq(callStatement([1, ['threw', 'x'.repeat(80)]]).length, 5)
+        assertEq(callStatement([1, ['returned', 'x'.repeat(82)]]).join('\n'), [
+            '        crate::assert_call(',
+            '            &entry,',
+            '            1.0,',
+            '            Ok(',
+            `                "${'x'.repeat(82)}",`,
+            '            ),',
+            '        );',
+        ].join('\n'))
+        assertEq(callStatement([1, ['threw', 'x'.repeat(81)]]).join('\n'), [
+            '        crate::assert_call(',
+            '            &entry,',
+            '            1.0,',
+            '            Err(',
+            `                "${'x'.repeat(81)}",`,
+            '            ),',
+            '        );',
+        ].join('\n'))
+        assertEq(callStatement([1, ['returned', '"'.repeat(41)]]).join('\n'), [
+            '        crate::assert_call(',
+            '            &entry,',
+            '            1.0,',
+            '            Ok(',
+            `                "${'\\"'.repeat(41)}",`,
+            '            ),',
+            '        );',
+        ].join('\n'))
     },
     // The listed samples only, then `mod.rs` naming them.
     generate: () => {

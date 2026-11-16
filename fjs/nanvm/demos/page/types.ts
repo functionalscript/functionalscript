@@ -1,5 +1,5 @@
 /**
- * The state of a WASM demo page ([`./module.f.mjs`](./module.f.mjs)).
+ * The state of a WASM demo page ([`./module.f.js`](./module.f.js)).
  *
  * @module
  */

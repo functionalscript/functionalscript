@@ -10,7 +10,7 @@ writes to one through the `Cas<O>` surface every other consumer of
 builds in a `build-cache` branch of the repository it builds, while the
 source checkout stays on its own branch.
 
-[`module.f.mjs`](module.f.mjs) is the whole of it; [`cli/`](cli/module.f.mjs)
+[`module.f.js`](module.f.js) is the whole of it; [`cli/`](cli/module.f.js)
 is `fjs cas git`, each command one call into it.
 
 ## Three commands, one local branch

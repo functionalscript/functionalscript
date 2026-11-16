@@ -19,7 +19,7 @@ subdirectory to stay ordinary submodules, and a subdirectory's entry point is
 
 ## Changing what is tested
 
-An operator case belongs in [`fjs/nanvm/module.f.mjs`](../../../fjs/nanvm/module.f.mjs);
+An operator case belongs in [`fjs/nanvm/module.f.js`](../../../fjs/nanvm/module.f.js);
 `npm run gen` regenerates `test/gen.corpus/` from it, and CI fails if the
 committed copy is stale.
 

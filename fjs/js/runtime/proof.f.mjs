@@ -6,6 +6,7 @@ import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
 import { isStatic as isStaticNode } from '../../edag/module.f.js'
 import { member, runtime, statics } from './module.f.js'
+import { encodeUriComponent } from '../../text/percent/encode_uri_component/module.f.js'
 import edag from './gen.edag.js'
 
 const { entries, values } = Object
@@ -28,7 +29,7 @@ const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unkn
  * on some of the generic samples.
  * @type {readonly string[]}
  */
-const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2', 'Math.fround']
+const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2', 'Math.fround', 'encodeURIComponent']
 
 /**
  * Correctly rounded log2 and the output's ULP, computed from the exact
@@ -322,6 +323,36 @@ export const proof = /** @type {const} */ ({
             assertEq(trunc(4.9, { valueOf: () => { throw 'unused' } }), 4)
         },
     },
+    encodeUriComponent: {
+        sharedBody: () => {
+            const body = statics.encodeURIComponent
+            assertEq(body, encodeUriComponent)
+            assert(body !== encodeURIComponent)
+            assertEq(body.length, encodeURIComponent.length)
+            assertEq(runtime.static('encodeURIComponent'), body)
+        },
+        host: () => {
+            const body = statics.encodeURIComponent
+            const detached = encodeURIComponent
+            const values = /** @type {const} */ ([
+                undefined, null, true, false, 0, -0, 1.5, NaN, Infinity,
+                -Infinity, 1n, -2n, [], [undefined, null], [1, 'a b', ['雪']], {},
+                '', "aZ09-_.!~*'()", '\u0000\u007f\u0080\u07ff\u0800\ud7ff\ue000\uffff',
+                '\ud800\udc00\udbff\udfff', 'П/雪 😀',
+            ])
+            assertEq(body(), 'undefined')
+            for (const value of values) {
+                assertEq(body(value), detached(String(value)))
+            }
+        },
+        unusedArgument: () => assertEq(table.encodeURIComponent('a b', {}), 'a%20b'),
+        throw: {
+            highSurrogate: () => statics.encodeURIComponent('\ud800'),
+            lowSurrogate: () => statics.encodeURIComponent('\udfff'),
+            separatedPair: () => statics.encodeURIComponent('\ud800a\udc00'),
+            failedCoercion: () => statics.encodeURIComponent({ toString: 0, valueOf: 0 }),
+        },
+    },
     fround: {
         specialCases: () => {
             const body = statics['Math.fround']
@@ -511,6 +542,7 @@ export const proof = /** @type {const} */ ({
     // here on every engine the suite runs on.
     host: () => {
         for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !separatelyProved.includes(path.join('.')))) {
+            assert(name !== undefined)
             const body = table[`${namespaceName}.${name}`]
             const namespace = host[namespaceName]
             const detached = namespace[name]
@@ -531,6 +563,7 @@ export const proof = /** @type {const} */ ({
     // The natives read no `this`; compare their successful coercion inputs.
     natives: () => {
         for (const [namespaceName, name] of staticPaths.filter(isNative)) {
+            assert(name !== undefined)
             assertEq(table[`${namespaceName}.${name}`], host[namespaceName][name], [namespaceName, name])
             const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[namespaceName])
             const detached = namespace[name]
