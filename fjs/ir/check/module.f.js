@@ -787,17 +787,29 @@ const checkConstant = (functions, imports, constants) => ([name, { type, value: 
 /** The names of `a`, then those of `b` that `a` does not have. @type {(a: readonly string[], b: readonly string[]) => readonly string[]} */
 const union = (a, b) => [...a, ...b.filter(x => !a.includes(x))]
 
-/** The module's constants that a typed term reads itself, and the module's functions that it calls, each once. @type {(x: Typed) => readonly [readonly string[], readonly string[]]} */
+/**
+ * The module's constants that a typed term reads itself, and the module's
+ * functions that it calls, each once. A `call_ref` of a known `code(f)`
+ * counts as a call of `f`; `code(f)` alone does not.
+ *
+ * @type {(x: Typed) => readonly [readonly string[], readonly string[]]}
+ */
 const uses = ([, t]) => {
+    const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
     /** @type {readonly [readonly string[], readonly string[]]} */
     const own = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
         : t[0] === 'call' && t[1] === 'self' ? [[], [t[2]]]
+        : known !== null ? [[], [known]]
         : [[], []]
     return inside(t).reduce(([cs, fs], x) => {
         const [c, f] = uses(x)
         return [union(cs, c), union(fs, f)]
     }, own)
 }
+
+/** Whether a typed term has a `call_ref` whose callee is not a known `code(f)`. @type {(x: Typed) => boolean} */
+const unresolvedCallRef = ([, t]) =>
+    (t[0] === 'call_ref' && t[1][1][0] !== 'code') || inside(t).some(unresolvedCallRef)
 
 /**
  * The module's constants that each function reads, itself or through the
@@ -827,9 +839,12 @@ const readings = direct => {
 const unordered = (constants, functions) => {
     const reading = readings(functions.map(([f, { body }]) => /** @type {const} */ ([f, uses(body)])))
     const names = constants.map(([k]) => k)
+    const all = functions.map(([f]) => f)
     return constants.map(([k, { value: e }], j) => {
         const [cs, fs] = uses(e)
-        const late = fs.reduce((r, f) => union(r, assertNotNullish(at(f)(reading))), cs).find(c => names.indexOf(c) >= j)
+        // An unresolved code value may run any function; take every function's readings.
+        const called = unresolvedCallRef(e) ? all : fs
+        const late = called.reduce((r, f) => union(r, assertNotNullish(at(f)(reading))), cs).find(c => names.indexOf(c) >= j)
         return late === undefined ? null : `${k}: ${late} is read before init evaluates it`
     }).find(x => x !== null) ?? null
 }

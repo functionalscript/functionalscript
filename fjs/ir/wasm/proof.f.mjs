@@ -2212,6 +2212,20 @@ export const proof = {
             ],
             exports: [],
         }), 'i32.const 1, call 2, local.set 0, call 3, f64.const 4611686018427387904, local.get 0, call_indirect 1 0')
+        // A `call_ref` with no `code(f)` still emits table 0, empty.
+        {
+            const applyOnly = emitted({
+                imports: [],
+                functions: [
+                    ['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))],
+                ],
+                exports: ['apply'],
+            })
+            assertEq(applyOnly.tables.length, 1)
+            assertEq(applyOnly.tables[0].limits.min, 0)
+            assertEq(applyOnly.tables[0].limits.max, 0)
+            assertEq(applyOnly.elements.length, 0)
+        }
     },
     sole: () => {
         const label = sealed('Label', 'label')

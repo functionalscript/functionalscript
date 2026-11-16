@@ -626,6 +626,9 @@ const literalsOf = ([type, t]) => t[0] === 'lit' && type[0] === 'sealed' && type
 /** The names of the module's functions that a typed term takes as `code` values. @type {(x: Typed) => readonly string[]} */
 const codesOf = ([, t]) => t[0] === 'code' ? [t[1]] : inside(t).flatMap(codesOf)
 
+/** Whether a typed term has a `call_ref`. @type {(x: Typed) => boolean} */
+const hasCallRef = ([, t]) => t[0] === 'call_ref' || inside(t).some(hasCallRef)
+
 /** The WASM types of the `call_ref`s in a typed term. @type {(interfaces: OrderedMap<Interface>, x: Typed) => readonly FuncType[]} */
 const callRefTypes = (interfaces, [, t]) => t[0] === 'call_ref' && t[1][0][0] === 'code'
     ? [codeType(interfaces, t[1][0]), ...inside(t).flatMap(x => callRefTypes(interfaces, x))]
@@ -691,6 +694,10 @@ export const emit = m => {
     const referenced = m.functions.map(([name]) => name).filter(name =>
         m.functions.some(([, f]) => codesOf(f.body).includes(name))
         || constants.some(([, c]) => codesOf(c.value).includes(name)))
+    // `call_indirect` needs table 0 even when no `code(f)` fills it.
+    const needsTable = referenced.length > 0
+        || m.functions.some(([, f]) => hasCallRef(f.body))
+        || constants.some(([, c]) => hasCallRef(c.value))
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
         ...makers.map(({ type }) => type),
@@ -782,7 +789,7 @@ export const emit = m => {
             ...(init.length === 0 ? [] : [{ type: typeOf(initIndex), locals: runs(initCode.locals.map(([, t]) => t)), body: initCode.code }]),
             ...(start.length === 0 ? [] : [{ type: typeOf(startIndex), locals: [], body: startCode }]),
         ],
-        tables: referenced.length === 0 ? [] : [{ element: 'funcref', limits: { min: referenced.length, max: referenced.length } }],
+        tables: needsTable ? [{ element: 'funcref', limits: { min: referenced.length, max: referenced.length } }] : [],
         memories: [],
         globals: [
             ...literals.map(([t]) => definition(interfaces, t).carrier),

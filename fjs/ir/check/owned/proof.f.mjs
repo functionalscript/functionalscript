@@ -170,12 +170,39 @@ export const proof = {
             ],
             exports: ['f'],
         }),
+        // A never `call_ref` ends the path even while an owned local is still alive.
+        callRefNeverAlive: () => fine({
+            imports: l0,
+            functions: [
+                ['die', fn([], never, trap('die'))],
+                ['f', fn([own('v', any)], never, call_ref(codeOf('die'), []))],
+            ],
+            exports: ['f'],
+        }),
+        // A stuck argument of a `call_ref` ends the path before the call.
+        callRefStuck: () => fine({
+            imports: l0,
+            functions: [
+                ['id', fn([['a', f64]], f64, a => a)],
+                ['f', fn([], f64, call_ref(codeOf('id'), [stuck(f64)]))],
+            ],
+            exports: ['f'],
+        }),
         // An owned result of a `call_ref` is taken over as the function's result.
         callRefOwned: () => fine({
             imports: l0,
             functions: [
                 ['box', fn([['a', f64]], any, call('Any', 'from_f64', [get('a')]))],
                 ['f', fn([['a', f64]], any, call_ref(codeOf('box'), [get('a')]))],
+            ],
+            exports: ['f'],
+        }),
+        // A `call_ref` of a code type with an `own` parameter consumes that argument.
+        callRefTake: () => fine({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn([own('v', any)], unit, call_ref(codeOf('take'), [get('v')]))],
             ],
             exports: ['f'],
         }),
@@ -248,6 +275,46 @@ export const proof = {
             why(overL0([['c', u(16)]], unit, let_('s', fromUnit(c), s => let_('d', drop(s), () => drop(s))))),
             'f: s is used after it was consumed',
         ),
+        callRefAfterTake: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn([own('v', any)], unit, let_('d', call_ref(codeOf('take'), [get('v')]), () => drop(get('v'))))],
+            ],
+            exports: ['f'],
+        }), 'f: v is used after it was consumed'),
+        callRefBorrowedOwn: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn([['a', string]], unit, call_ref(codeOf('take'), [a]))],
+            ],
+            exports: ['f'],
+        }), "f: call_ref's own: a is borrowed"),
+        callRefBorrowedOwnExpr: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['take', fn([own('v', any)], unit, drop(get('v')))],
+                ['f', fn(ab, unit, call_ref(codeOf('take'), [if_(b, a, a)]))],
+            ],
+            exports: ['f'],
+        }), "f: call_ref's own is own, and its argument is borrowed"),
+        callRefStranded: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['pair', fn([own('x', any), own('y', any)], unit, let_('d', drop(get('x')), () => drop(get('y'))))],
+                ['f', fn([['c', u(16)]], unit, call_ref(codeOf('pair'), [fromUnit(c), away]))],
+            ],
+            exports: ['f'],
+        }), 'f: call_ref: the argument of parameter 1 may leave before the call takes that of parameter 0 over: bind it first'),
+        callRefLentAndConsumed: () => assertEq(why({
+            imports: l0,
+            functions: [
+                ['g', fn([['x', any], own('y', any)], unit, drop(get('y')))],
+                ['f', fn([own('v', any)], unit, call_ref(codeOf('g'), [get('v'), get('v')]))],
+            ],
+            exports: ['f'],
+        }), 'f: call_ref borrows v, which an argument of the call consumes'),
         borrowAfter: () => assertEq(
             why(overL0([['a', string]], u(31), let_('t', concat(a, a), t => match(t, [
                 [['string'], 't.s', let_('d', drop(t), () => length(get('t.s')))],
