@@ -1535,6 +1535,8 @@ export const proof = {
             lessThanOrEqual: ([a, b]) => lessThanOrEqual(held(a), held(b)),
             greaterThanOrEqual: ([a, b]) => greaterThanOrEqual(held(a), held(b)),
         }
+        // `divide` may abandon what it holds when `Native.bigintDivide` throws
+        // for a zero divisor: that throw is a callee's, not `Functions.throw`.
         return run(fromL1Arith(), twins, {
             functionText: [[{ any: 'x' }]],
             toPrimitive: [[{ any: 1 }, false], [{ any: 'a' }, true]],
@@ -1562,6 +1564,7 @@ export const proof = {
                 [{ any: 8 }, { any: 2 }],
                 [{ any: 8n }, { any: 2n }],
                 [{ any: 1 }, { any: 0 }],
+                [{ any: 1n }, { any: 0n }],
             ],
             negate: [
                 [{ any: 3 }],
@@ -1589,6 +1592,6 @@ export const proof = {
                 [{ any: 2 }, { any: 1 }],
                 [{ any: 1n }, { any: 1n }],
             ],
-        })
+        }, ['divide'])
     },
 }

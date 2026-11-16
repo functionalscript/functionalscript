@@ -44,7 +44,7 @@ adds Any's `from_f64` and `from_bool`, so a number or boolean meets
 |[`l0/host`](./l0/host/module.f.js)        |the `fjs:l0` imports as the L0 view's functions, over handles          |
 |[`l0/host/count`](./l0/host/count/module.mjs)|a host of the `fjs:l0` imports that counts every value, for host proofs|
 |[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
-|[`native/host`](./native/host/module.f.js)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
+|[`native/host`](./native/host/module.mjs)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
 ```js
 import { unwrap } from '../types/result/module.f.js'
@@ -121,7 +121,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   of the ABI `fjs:l1-native`, whose functions are typed by what their
   bodies check: `bigintEquals` takes two values of `any.only(bigint)`, and
   `numberRemainder`, the row of `%`, two floats. Its
-  [host](./native/host/module.f.js) calls
+  [host](./native/host/module.mjs) calls
   [L1's own rows](../wasm/runtime/l1/native/module.f.js), which gain
   `numberRemainder`.
 - **`Any.same`**: whether two arrays, objects or functions are the same

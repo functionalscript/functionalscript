@@ -47,14 +47,15 @@
  *   `throw` takes over a cell, as `push` does, keeps its value and
  *   returns, so that the `unreachable` after its call traps. The host then
  *   asks `has_thrown`, and `thrown` makes a cell of the value, which the
- *   caller owns. `recover` frees what the frames that the trap abandoned
- *   held: each cell that is not kept, each kept one counted more than it
- *   was kept at, back to that count, and each builder that is not sealed,
- *   and it forgets a value that no one asked for. It answers the cells
- *   that it freed, each with the counts it took away, so a proof tells a
- *   throw that left nothing behind. It cannot give back a count that a
- *   module took away from a cell that it borrowed, so `live` still shows
- *   one.
+ *   caller owns. `fail` keeps a value the same way without a cell, for a
+ *   FunctionalScript throw that a native import rethrows after recording
+ *   it. `recover` frees what the frames that the trap abandoned held: each
+ *   cell that is not kept, each kept one counted more than it was kept at,
+ *   back to that count, and each builder that is not sealed, and it forgets
+ *   a value that no one asked for. It answers the cells that it freed,
+ *   each with the counts it took away, so a proof tells a throw that left
+ *   nothing behind. It cannot give back a count that a module took away
+ *   from a cell that it borrowed, so `live` still shows one.
  * - **The host makes the memory**, as a loader does
  *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
  *   the region of a module's data segments starts at `data_base`, past
@@ -273,6 +274,10 @@ export const counting = (values, data = 0) => {
         },
         read,
         own: make,
+        fail: value => {
+            if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
+            held = { value }
+        },
         keep: () => {
             for (const [h, { count }] of cells) { kept.set(h, count) }
         },

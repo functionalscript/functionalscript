@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { handles } from '../../l0/host/module.f.js'
-import { host } from './module.f.js'
+import { host } from './module.mjs'
 
 /** Bigints, one past a word, zero, and a value of another kind. */
 const values = [1n, 1n, -1n, 1n << 64n, 0n, 1 << 30, 'a']
@@ -11,7 +11,7 @@ const h = host(handles(values), value => {
     const i = BigInt(values.length + owned.length)
     owned.push(value)
     return i
-})
+}, () => {})
 
 export const proof = {
     // A handle names a value of the table, and each import is its row on the values or the floats.
@@ -59,7 +59,7 @@ export const proof = {
         assertEq(h.bigintLess(0n, 3n), 1)
         assertEq(h.bigintLess(3n, 0n), 0)
     },
-    // Where the row throws, so does the import: a value of another kind, or a handle of none.
+    // Kind mismatch traps; division by zero is a FunctionalScript throw (fail records it when wired).
     throw: {
         notBigint: () => { h.bigintEquals(0n, 5n) },
         notHandle: () => { h.bigintEquals(0n, 7n) },

@@ -10,7 +10,7 @@
  * value of an unsigned range comes back by its bits, and a `bool` as `0` or
  * `1`. A value of `any` is a handle that the [counting
  * host](../l0/host/count/module.mjs) of the `fjs:l0` imports reads, and so
- * does the [host](../native/host/module.f.js) of the `fjs:l1-native`
+ * does the [host](../native/host/module.mjs) of the `fjs:l1-native`
  * imports: each call has hosts of its own, whose first cells hold the
  * call's values of `any` in the order of the parameters. A parameter that
  * owns its argument gets a `dup` of it, so that the caller keeps its own,
@@ -41,7 +41,7 @@ import { write } from '../../media/wasm/binary/write/module.f.js'
 import { check } from '../check/module.f.js'
 import { counting } from '../l0/host/count/module.mjs'
 import { fits, isOwn } from '../module.f.js'
-import { host as nativeHost } from '../native/host/module.f.js'
+import { host as nativeHost } from '../native/host/module.mjs'
 import { emit } from './module.f.js'
 
 /** @type {(v: _Value) => v is _Any} */
@@ -310,7 +310,7 @@ export const run = (m, twins, inputs, abandons = []) => {
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
             const h = counting(values, data)
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own) })
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own, h.fail) })
             const { init } = exports
             if (typeof init === 'function') { init() }
             h.keep()

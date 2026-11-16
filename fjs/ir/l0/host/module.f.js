@@ -18,7 +18,7 @@
  *   host's: `dup`, `drop` and the cells are state, which a host boundary
  *   holds and FunctionalScript does not.
  *
- * The [host of L1's native rows](../../native/host/module.f.js) reads
+ * The [host of L1's native rows](../../native/host/module.mjs) reads
  * values the same way.
  *
  * @module

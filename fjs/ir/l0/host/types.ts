@@ -107,6 +107,12 @@ export type Counting = {
     readonly read: (h: bigint) => unknown
     /** A cell of `value`, counted once, which the caller owns. */
     readonly own: (value: unknown) => bigint
+    /**
+     * Keep a FunctionalScript throw the way `Functions.call` does when a
+     * JavaScript function throws: the host then answers `1` from
+     * `has_thrown` after the import traps.
+     */
+    readonly fail: (value: unknown) => void
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
     readonly builders: () => readonly number[]
