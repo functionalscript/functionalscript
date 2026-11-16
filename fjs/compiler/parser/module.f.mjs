@@ -30,11 +30,11 @@ import { maxLength } from '../../types/function/length/module.f.js'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedAccess } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.js'
-import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.mjs'
+import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.js'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
-import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
+import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.js'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -1473,7 +1473,7 @@ const entryFunction = ([, list, body]) => {
 /**
  * Recognize the empty reference map
  * ([reference map](../../../spec/built-ins/reference-map/README.md)): the canonical body of
- * [`./ref_map`](./ref_map/module.f.mjs) under any names, as the whole
+ * [`./ref_map`](./ref_map/module.f.js) under any names, as the whole
  * initializer of a `const`, whose name the body reads as itself.
  * `WeakMap` is the global only where no scope binds the word. `null` for
  * ordinary source resolution where the shape or the names differ; `new`

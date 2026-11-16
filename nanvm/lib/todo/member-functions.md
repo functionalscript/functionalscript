@@ -263,7 +263,7 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 - [`fjs/edag/README.md`](../../../fjs/edag/README.md), Chains — the two bits
   and the four steps the lambda types transcribe; the printer's
   per-position laziness is in
-  [`fjs/edag/rust/module.f.mjs`](../../../fjs/edag/rust/module.f.mjs).
+  [`fjs/edag/rust/module.f.js`](../../../fjs/edag/rust/module.f.js).
 - [`callable-function-objects.md`](./callable-function-objects.md) — Stage
   4, the method call: the mechanism a built-in here is reached through,
   landed. Which built-ins it reaches is this file's own checklist, not

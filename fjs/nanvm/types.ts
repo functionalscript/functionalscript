@@ -142,7 +142,7 @@ export type Throws = Special<readonly ['throw']>
  * throws, which is only ever an `expected: throws` case written the long
  * way. Its use is the lazy positions — `&&`/`||`/`??`'s right operand and
  * either arm of `?:` — where the Rust printer prints it inside the thunk
- * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.mjs`,
+ * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.js`,
  * `lazy`). Not in {@link Data}'s `shared`, at any depth: a shared value is
  * established before any case on both sides, so `sharedExp` refuses one
  * holding this — the type admits it there only because {@link Struct} is

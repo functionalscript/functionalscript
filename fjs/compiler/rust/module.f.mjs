@@ -5,7 +5,7 @@
  * [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
- * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits the graph, then
+ * [`fjs/edag/rust`](../../edag/rust/module.f.js) admits the graph, then
  * the shared EDAG-to-FAST conversion and preparation passes establish its
  * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.js)
  * spells that prepared program, through the same pipeline used by
@@ -39,7 +39,7 @@
 
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.js'
-import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.js'
 import { useLinesTagged } from '../../rust/serializer/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.js'
@@ -166,7 +166,7 @@ export const generate = root => unwrap(generateResult(root))
 
 /**
  * The reason {@link generateResult} refused, as text. Every refusal
- * `scopeTagged` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
+ * `scopeTagged` reports (`fjs/edag/rust/module.f.js`) is a `[reason, detail]`
  * pair — `lookup`'s convention, kept by every refusal added since — never a
  * bare value, so joining the pair's own `String` forms is exact rather than
  * approximate.

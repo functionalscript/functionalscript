@@ -13,9 +13,9 @@
  * @import { BindingTarget, Node, ParameterList } from '../syntax/types.ts'
  */
 
-import { assertOk } from '../../../asserts/module.f.js'
+import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { structurallySame } from '../../../types/object/structurally_same/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
 import { nameOf, parseSyntax } from '../syntax/module.f.js'
@@ -121,10 +121,10 @@ const shape = (scope, depth) => tree => {
             case 'ref': case 'name': { return [tree[0], named(scope, tree[1])] }
             // a call statement binds nothing, and its target only marks where it starts
             case 'discard': { return ['discard'] }
-            case 'assign': { return ['assign', shape(scope, inside)({ ...tree[1], name: null }), named(scope, tree[1].name)] }
+            case 'assign': { return ['assign', shape(scope, inside)({ ...tree[1], name: null }), named(scope, entry(tree[1], 'name'))] }
             case '=>': {
                 const list = /** @type {ParameterList} */ (tree[1])
-                const inner = hasEntry(list, 'fixed') ? [...scope, ...list.fixed.flatMap(bound)] : scope
+                const inner = hasEntry(list, 'fixed') ? [...scope, ...assertNotNullish(entry(list, 'fixed')).flatMap(bound)] : scope
                 return tree.map(shape(inner, inside))
             }
             case 'block': { return ['block', tree[1].map(shape([...scope, ...declared(tree[1])], inside))] }

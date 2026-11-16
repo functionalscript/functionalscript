@@ -80,7 +80,7 @@ establishes a lazy operand only when the operator selects it, and the Rust
 printer prints one as the thunk `nanvm-lib`'s four methods take — an `impl
 FnOnce() -> Result<Any<A>, Any<A>>` they call at most once, here `||
 bigint_any(1) / bigint_any(0)`, the operation's own `Result`
-([`fjs/edag/rust`](../edag/rust/module.f.mjs), `lazy`).
+([`fjs/edag/rust`](../edag/rust/module.f.js), `lazy`).
 
 A **method group** is the one kind that is not an operator: `{ method: 'at',
 cases }` holds the cases of a built-in member function, and each case's `args`

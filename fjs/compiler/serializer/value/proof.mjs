@@ -22,7 +22,7 @@ import { vm } from '../../../edag/amnesia/module.f.mjs'
 import { read } from '../../../edag/value/property/module.f.js'
 import runtimeEdag from '../../../js/runtime/gen.edag.js'
 import { pureOk } from '../../../effects/module.f.js'
-import { source as referenceMap } from '../../parser/ref_map/module.f.mjs'
+import { source as referenceMap } from '../../parser/ref_map/module.f.js'
 
 /** Load actual module syntax. @type {(source: string) => Promise<any>} */
 const load = async source => {

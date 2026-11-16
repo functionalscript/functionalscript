@@ -504,7 +504,7 @@ the fold's:
 - the empty reference map, matched whole as well
   ([reference map](../../../spec/built-ins/reference-map/README.md)), by another means, since
   its body is some thirty lines where a helper's is two statements:
-  [`./ref_map`](./ref_map/module.f.mjs) holds the canonical body as source,
+  [`./ref_map`](./ref_map/module.f.js) holds the canonical body as source,
   parses it with this grammar, and a function is the map where its syntax
   tree is the canonical one once names and layout are taken out of both —
   each name read as the depth of what binds it, so any renaming of the

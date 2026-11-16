@@ -35,7 +35,7 @@ conditional receivers; static string keys retain their typed literal spelling.
 `bindingTagged` spells a declaration under a caller-supplied name through the
 same declaration path as ordinary prepared bindings. The corpus supplies its
 named values through [common graph conversion](../../edag/to_fast/README.md),
-including values reached once. The [EDAG adapter](../../edag/rust/module.f.mjs)
+including values reached once. The [EDAG adapter](../../edag/rust/module.f.js)
 preserves their identities and dependencies. `External` entries associate
 already established binding identities with Rust expressions and optional
 import uses; the target does not rediscover those bindings.

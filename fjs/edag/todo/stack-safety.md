@@ -133,7 +133,7 @@ parser resolves a body tens of thousands of functions deep — a capture
 through every one of them included — but the lowering recurses once per
 function ([deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md)),
 as does the Rust printer (`closure` → `statements` in
-[`../rust/module.f.mjs`](../rust/module.f.mjs)), so at `36c8d4a`
+[`../rust/module.f.js`](../rust/module.f.js)), so at `36c8d4a`
 `export default ${'() => '.repeat(20000)}1;` still overflows, with a
 capture or without one.
 

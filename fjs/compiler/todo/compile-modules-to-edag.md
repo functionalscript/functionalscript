@@ -772,7 +772,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/compiler/ast/module.f.js`](../../compiler/ast/module.f.js) — lowering and reachability helpers; the value evaluator is retired.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
-- [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — the
+- [`fjs/edag/rust/module.f.js`](../../edag/rust/module.f.js) — the
   Rust output of the `=>`/`()` shapes Stage 2 here lowers: a closure bound
   through `IStaticFunction`, and `Any::call`.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter

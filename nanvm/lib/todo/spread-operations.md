@@ -11,7 +11,7 @@ array's items or an object's properties
 [`fjs/edag/types.ts`](../../../fjs/edag/types.ts)). The JS evaluator in
 [`fjs/edag/operations`](../../../fjs/edag/operations/module.f.mjs) runs both
 entries with JavaScript's semantics. The Rust writer,
-[`fjs/edag/rust`](../../../fjs/edag/rust/module.f.mjs), refused both: `Any` had
+[`fjs/edag/rust`](../../../fjs/edag/rust/module.f.js), refused both: `Any` had
 no operation for either. It now prints an array's spread, and a call's,
 through `get_iterator` and the `vm::unstable` helpers `spread_array` and
 `spread_call`, and an object's through `object_spread` and `spread_object`.
@@ -134,7 +134,7 @@ What `get_iterator` returns, and what `object_spread` returns beside it:
   between `get_iterator` and the container being built, so nothing can
   observe its state or advance it twice.
 - **A concrete, named type**, not `impl Iterator`. Generated Rust from
-  [`fjs/edag/rust`](../../../fjs/edag/rust/module.f.mjs) names it, and a named
+  [`fjs/edag/rust`](../../../fjs/edag/rust/module.f.js) names it, and a named
   type keeps the API stable. It is `IteratorRecord<A>`, after the spec's
   Iterator Record that `GetIterator` returns, which also keeps it apart from
   Rust's `Iterator` trait. The spec's record also holds a `next` method and
@@ -194,7 +194,7 @@ produces part of a string, not for this one alone.
   - a surrogate pair and a lone surrogate;
   - an object with a duplicate key and with array-index keys out of order;
   - the four examples in the problem statement.
-- [x] Spell `['...', exp]` in [`fjs/edag/rust`](../../../fjs/edag/rust/module.f.mjs)
+- [x] Spell `['...', exp]` in [`fjs/edag/rust`](../../../fjs/edag/rust/module.f.js)
       as an array item and a call's argument, through `get_iterator` and
       `spread_array`/`spread_call` in
       [`vm::unstable`](../src/vm/unstable/mod.rs).
