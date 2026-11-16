@@ -19,7 +19,7 @@ import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
 import { tryStringify } from '../../compiler/serializer/module.f.mjs'
 import { parse } from '../../compiler/transpiler/module.f.mjs'
-import { _defaultExport, unresolved } from '../../compiler/edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../../compiler/edag/module.f.js'
 
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => Function(`"use strict";return (${stringify(prepare(assertOk(toFast(graph))), 'expression', true)});`)()

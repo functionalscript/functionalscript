@@ -9,7 +9,7 @@
  * @import { Document } from './types.ts'
  */
 
-import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
+import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.js'
 import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.js'
 import { checked, identityAnalysis } from '../../edag/analysis/module.f.js'
 import { isFunctionNode, isHelper } from '../../edag/module.f.js'

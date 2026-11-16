@@ -32,7 +32,7 @@
 
 import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.mjs'
 import { errorLocation } from './parser/module.f.js'
-import { resolve } from './edag/module.f.mjs'
+import { resolve } from './edag/module.f.js'
 import { toRustMarked } from './rust/module.f.js'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.js'
 import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.mjs'

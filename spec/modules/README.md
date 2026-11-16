@@ -136,7 +136,7 @@ selects its export from that slot, `['.', ['.', ['args'], i], name]`, where
 binds no name, is the bare slot. Linking replaces each import with the export
 it selects from the module that import resolves to — applying the module to
 its imports — so the linked program has no parameter left
-([`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs)). Two imports of one module
+([`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.js)). Two imports of one module
 identity are one application, shared, as
 [importing](imports.md) requires.
 

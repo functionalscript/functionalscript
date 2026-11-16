@@ -23,7 +23,7 @@ import { findProperty, read } from '../../edag/value/property/module.f.js'
 import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.js'
 import { identityAnalysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { tryUnresolved } from '../edag/module.f.mjs'
+import { tryUnresolved } from '../edag/module.f.js'
 import { _fileError, _jsonModule, _program, parse as sourceParse } from '../source/module.f.js'
 import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.js'
 

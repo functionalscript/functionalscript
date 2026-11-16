@@ -23,7 +23,7 @@ import { tokenize } from '../../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { toText } from '../../../text/marked/module.f.js'
-import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
 import { tryMarked, tryStringify } from '../module.f.mjs'
 

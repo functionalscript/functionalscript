@@ -99,7 +99,7 @@ reaches it far more easily to write than the pre-existing ones
 
 Two narrower versions of the same shape were already fixed for
 **operator chains** in `fjs/compiler/ast/module.f.js` (`refsOf`'s
-operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.mjs`
+operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.js`
 (`lower`'s own), each with an explicit heap-allocated stack in place of
 recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.js`
 already resolves a value's own operators. Those two fixes do not reach
@@ -204,7 +204,7 @@ discovered one `RangeError` at a time.
   this issue is about its recursion depth, not its design.
 - [`../../compiler/ast/module.f.js`](../../compiler/ast/module.f.js) — `refsOf`'s
   own explicit-stack fix, the narrower precedent.
-- [`../../compiler/edag/module.f.mjs`](../../compiler/edag/module.f.mjs) — `lower`'s,
+- [`../../compiler/edag/module.f.js`](../../compiler/edag/module.f.js) — `lower`'s,
   the other one.
 - [deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md) — the
   compiler's own container and function recursion, before this walk.

@@ -9,7 +9,7 @@ import { throws } from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
 import { _primitiveCaptureCases, _primitiveCaptureGraphs, _widePrimitiveCaptureGraph } from '../primitive_captures.proof.f.mjs'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'

@@ -17,7 +17,7 @@ import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
-import { unresolved, resolve, _defaultExport } from '../edag/module.f.mjs'
+import { unresolved, resolve, _defaultExport } from '../edag/module.f.js'
 import { tryStringify, tryModuleStringify } from '../serializer/module.f.mjs'
 
 /** @type {(source: string) => Exp} */

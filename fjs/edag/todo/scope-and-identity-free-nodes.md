@@ -26,7 +26,7 @@ module-level constant and returned it for every occurrence, so
 `export default [undefined, (...a) => undefined];` — source the parser
 accepts and the writer spells — linked to a graph whose analysis threw. The
 linker now builds a node per occurrence
-([`fjs/compiler/edag/module.f.mjs`](../../compiler/edag/module.f.mjs)), which is the
+([`fjs/compiler/edag/module.f.js`](../../compiler/edag/module.f.js)), which is the
 smaller fix and the one that keeps the analysis's contract as written and
 proved. It is not obviously the *right* fix.
 

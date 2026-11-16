@@ -14,7 +14,7 @@
 
 import { readFileSync } from 'node:fs'
 import { parse } from '../../../fjs/compiler/transpiler/module.f.mjs'
-import { tryUnresolved } from '../../../fjs/compiler/edag/module.f.mjs'
+import { tryUnresolved } from '../../../fjs/compiler/edag/module.f.js'
 import { checked, identityAnalysis } from '../../../fjs/edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../fjs/edag/to_fast/module.f.js'
 

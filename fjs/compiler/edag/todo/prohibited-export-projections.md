@@ -14,7 +14,7 @@ An accepted module can fail when written back as FunctionalScript:
 The output is refused with `a prohibited property name`. The same limitation
 affects the [compiler grammar](../../parser/grammar/module.f.js).
 
-The linker's `resolved` helper in [the module](../module.f.mjs) represents
+The linker's `resolved` helper in [the module](../module.f.js) represents
 a named import as `['.', importedModule, exportName]`. Export names such as
 `map` and `entries` are valid, but the
 [source writer's admission check](../../../edag/to_fast/source/module.f.js)

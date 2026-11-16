@@ -21,11 +21,17 @@ import { fromFast } from '../../edag/from_fast/module.f.js'
 import { _fileError, _jsonModule, _program } from '../source/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.js'
+import { assert } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
-const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', args, i], name]
+const parameter = (imported, i) => {
+    const name = entry(imported, 'name')
+    assert(name !== undefined)
+    return name === null ? ['.', args, i] : ['.', ['.', args, i], name]
+}
 
 /**
  * Source expansion supplies explicit immutable bindings and required roots;
@@ -35,11 +41,14 @@ const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', 
  */
 const lowered = imports => module => {
     const fast = tryNormalize(module, imports)
-    return fast[0] === 'error' ? fast : ok(fromFast(fast[1].body, fast[1].parameters.map((id, i) => [id, imports[i]])))
+    return fast[0] === 'error' ? fast : ok(fromFast(fast[1].body, fast[1].parameters.map((id, i) => [id, imports[Number(i)]])))
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */
 const over = imports => edag => ({ imports, edag })
+
+/** Convert a resolved source AST, reporting unsupported AST-to-FAST constructs. @type {(module: ResolvedModule) => Result<Unresolved, string>} */
+export const tryUnresolved = module => mapOk(over(module.imports.map(({ binding, ...record }) => record)))(lowered(module.imports.map(parameter))(module))
 
 /**
  * The module as an EDAG over its imports, before any of them is read: each
@@ -50,9 +59,6 @@ const over = imports => edag => ({ imports, edag })
  */
 export const unresolved = module => unwrap(tryUnresolved(module))
 
-/** Convert a resolved source AST, reporting unsupported AST-to-FAST constructs. @type {(module: ResolvedModule) => Result<Unresolved, string>} */
-export const tryUnresolved = module => mapOk(over(module.imports.map(({ binding, ...record }) => record)))(lowered(module.imports.map(parameter))(module))
-
 /**
  * Whether a module's computation ends in a `throw`, past its evaluation
  * sequence: a module whose body ends in the statement in place of its
@@ -62,7 +68,7 @@ export const tryUnresolved = module => mapOk(over(module.imports.map(({ binding,
  * @type {(module: Exp) => boolean}
  */
 export const _moduleThrows = module => module instanceof Array
-    && (module[0] === 'throw' || (module[0] === ',' && _moduleThrows(module[1][module[1].length - 1])))
+    && (module[0] === 'throw' || (module[0] === ',' && _moduleThrows(module[1][Number(module[1].length - 1)])))
 
 /**
  * The statically known exports at a module boundary, past its evaluation
@@ -74,7 +80,7 @@ export const _moduleThrows = module => module instanceof Array
  */
 export const _moduleExports = module => {
     if (module instanceof Array) {
-        if (module[0] === ',') { return _moduleExports(module[1][module[1].length - 1]) }
+        if (module[0] === ',') { return _moduleExports(module[1][Number(module[1].length - 1)]) }
         if (module[0] === 'throw') { return [] }
         if (module[0] === '{}' && module[1].every(p => p[0] === ':' && typeof p[1] === 'string')) {
             return /** @type {readonly (readonly [':', string, Exp])[]} */ (module[1])
@@ -99,7 +105,7 @@ export const _defaultExport = module => {
     if (members.length !== 1 || members[0][1] !== 'default') { return ['.', module, 'default'] }
     if (module instanceof Array && module[0] === ',') {
         const operands = module[1]
-        return [',', [...operands.slice(0, -1), _defaultExport(operands[operands.length - 1])]]
+        return [',', [...operands.slice(0, -1), _defaultExport(operands[Number(operands.length - 1)])]]
     }
     return members[0][2]
 }

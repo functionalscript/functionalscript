@@ -7,7 +7,7 @@
 
 A scope evaluates an unread `const` through its comma, `[',', [t, value]]`,
 so that a failure in it is the program's (`anchoring` in
-[`../module.f.mjs`](../module.f.mjs)). The lowering also anchors nodes the
+[`../module.f.js`](../module.f.js)). The lowering also anchors nodes the
 scope evaluates anyway: a `const` read only through a call inlined in the
 same scope, and an unread import that another import's module reaches.
 

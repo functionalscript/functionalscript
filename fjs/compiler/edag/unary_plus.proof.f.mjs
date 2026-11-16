@@ -4,7 +4,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { parse } from '../source/module.f.js'
-import { resolve, tryUnresolved, unresolved } from './module.f.mjs'
+import { resolve, tryUnresolved, unresolved } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     reportsDeferredLoweringBeforeGraphConstruction: () => {

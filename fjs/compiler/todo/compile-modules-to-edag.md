@@ -72,7 +72,7 @@ rollout below records existing work; it does not authorize retaining that defect
 **Where it stands.** The EDAG side is there — `['.', object, property]` is in
 [`fjs/edag`](../../edag/module.f.js)'s schema, `dot`, with the index
 restriction below — and so are the unresolved module and its resolution:
-[`fjs/compiler/edag`](../edag/module.f.mjs) compiles a parsed module to
+[`fjs/compiler/edag`](../edag/module.f.js) compiles a parsed module to
 `Unresolved { imports, edag }`, anchoring required computations the export does
 not reach. `resolve` asks the shared host resolver for the entry and imported
 module identities, and memoizes by identity within the link. The Node file
@@ -339,7 +339,7 @@ const fixedAndRest = ['=>', 2, [], ['[]', [['arg', 0], ['arg', 1], ['rest']]]] /
 The slots are an array operand of `=>`. The compiler constructs captured
 values in the enclosing scope and the body reads them through `['frame', i]`; it does
 not share an enclosing operation node directly into the body's scope. Capture
-lowering and its proofs are in [`../edag`](../edag/module.f.mjs) and
+lowering and its proofs are in [`../edag`](../edag/module.f.js) and
 [`../edag/proof.f.mjs`](../edag/proof.f.mjs) (`captures`), with fixed/rest captures in
 [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs). Frame semantics remain owned by
 [`3111-function-frame.md`](../../../spec/design/3111-function-frame.md).
@@ -588,7 +588,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `membersAsWritten` in `fjs/compiler/parser/proof.f.mjs`.
 - [x] Convert a parsed source module to `Unresolved { imports, edag }` without reading
       or resolving any imported module. Done: `unresolved` in
-      [`fjs/compiler/edag`](../edag/module.f.mjs), a function of the AST alone.
+      [`fjs/compiler/edag`](../edag/module.f.js), a function of the AST alone.
 - [x] Do not silently drop required body evaluation: a `const` the export does not
       reach is anchored by the `','` operation, whatever it holds. Done as a
       reachability rule, `anchors` in [`fjs/compiler/ast`](../ast/module.f.js): the roots
@@ -603,7 +603,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Resolve imported `Unresolved` values recursively and bind each resolved result
       to the corresponding **module-scope** import parameter position; when Stage 2
       functions exist, do not descend into nested `=>` bodies while substituting imports.
-      Done: `resolve` in [`fjs/compiler/edag`](../edag/module.f.mjs) binds where a
+      Done: `resolve` in [`fjs/compiler/edag`](../edag/module.f.js) binds where a
       reference is lowered, so no substitution descends into anything; a
       function body, when there is one, is lowered by the same rule.
 - [x] Apply the same function-scope boundary to module-import reachability checks so
@@ -650,7 +650,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       method call; reject prohibited or runtime-computed string properties in that
       node rather than bypassing the property-access safety rule. Done: the grammar
       takes a call as a step after a value, the callee picks the form in
-      [`../edag/module.f.mjs`](../edag/module.f.mjs)'s `call`, and a method call's
+      [`../edag/module.f.js`](../edag/module.f.js)'s `call`, and a method call's
       property is the access's, judged by the call rule rather than the read rule:
       a name on `fjs/js/prototype`'s `prohibitedCalls` is refused, `a.push(1)` as
       `prohibited member function`, and every other prototype name is a member

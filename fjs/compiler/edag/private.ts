@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for `fjs/compiler/edag/module.f.mjs`.
+ * Implementation-private types for `fjs/compiler/edag/module.f.js`.
  *
  * @module
  */

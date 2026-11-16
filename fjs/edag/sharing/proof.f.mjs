@@ -82,7 +82,7 @@ export const proof = {
         /**
          * Two references to the same node, by identity, is exactly what a
          * `const` referenced twice looks like once lowered to an EDAG — see
-         * `fjs/compiler/edag/module.f.mjs`'s `lower`.
+         * `fjs/compiler/edag/module.f.js`'s `lower`.
          */
         shared: () => {
             /** @type {Exp} */

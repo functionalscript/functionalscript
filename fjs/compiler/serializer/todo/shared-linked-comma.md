@@ -59,5 +59,5 @@ as. Whichever, the round trip states which.
 
 - [`../module.f.mjs`](../module.f.mjs) — the public `_tryModuleSerialize`
   boundary, now consuming common conversion and preparation.
-- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — `_defaultExport`,
+- [`../../edag/module.f.js`](../../edag/module.f.js) — `_defaultExport`,
   the linked comma.

@@ -12,7 +12,7 @@
  *
  * **Each pane runs the real stage.** The page parses the text with the
  * compiler's own front end and normalizes the result as
- * [the EDAG lowering](../edag/module.f.mjs) does. Each imported name is a
+ * [the EDAG lowering](../edag/module.f.js) does. Each imported name is a
  * value of its own, as it is there before linking: the parser's import
  * records, one per name, are the values `normalize` tells apart, so
  * `import { x, y }` is two FAST parameters, not one module's.

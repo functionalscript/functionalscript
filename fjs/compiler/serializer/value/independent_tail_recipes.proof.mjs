@@ -21,7 +21,7 @@ import { toArray } from '../../../types/list/alt/module.f.js'
 import { tryFunctionText, tryMarked, tryStringify } from '../module.f.mjs'
 import { toText } from '../../../text/marked/module.f.js'
 import { stringify as valueStringify } from './module.f.js'
-import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
 
 /** @type {(source: string) => Promise<any>} */

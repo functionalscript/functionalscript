@@ -176,7 +176,7 @@ See [examples/input.f.js](./examples/input.f.js).
 ## EDAG
 
 A parsed module also compiles to an [EDAG](../edag/README.md) —
-[edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
+[edag/module.f.js](./edag/module.f.js), Stage 1 of
 [compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
 compiles it over its imports, before any import is read: import `i` is the
 parameter selection `['.', ['.', ['args'], i], 'default']`, a `const` is one node however many references

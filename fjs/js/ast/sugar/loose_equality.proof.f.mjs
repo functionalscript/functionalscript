@@ -2,7 +2,7 @@
 
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { parse } from '../../../compiler/source/module.f.js'
-import { tryUnresolved } from '../../../compiler/edag/module.f.mjs'
+import { tryUnresolved } from '../../../compiler/edag/module.f.js'
 import { tryNormalize } from './module.f.js'
 
 export const proof = /** @type {const} */ ({

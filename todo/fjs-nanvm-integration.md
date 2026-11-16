@@ -1536,7 +1536,7 @@ the repository root inside `./dev.sh node --input-type=module`:
 
 ```js
 import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { resolve } from './fjs/compiler/edag/module.f.js';
 import { runNodeEffect } from './fjs/effects/node/module.mjs';
 
 const leaves = [

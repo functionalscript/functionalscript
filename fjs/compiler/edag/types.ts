@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/compiler/edag/module.f.mjs`: a module compiled before
+ * Type-level API for `fjs/compiler/edag/module.f.js`: a module compiled before
  * its imports are read.
  *
  * @module

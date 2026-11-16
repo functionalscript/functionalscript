@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { parse } from '../../../compiler/source/module.f.js'
-import { tryUnresolved } from '../../../compiler/edag/module.f.mjs'
+import { tryUnresolved } from '../../../compiler/edag/module.f.js'
 import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
 import { toRust } from '../../../compiler/rust/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.js'

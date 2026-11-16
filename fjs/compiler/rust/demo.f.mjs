@@ -25,7 +25,7 @@
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { tryUnresolved } from '../edag/module.f.mjs'
+import { tryUnresolved } from '../edag/module.f.js'
 import { codeOutput } from '../../website/demo/highlight/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { toRustMarked } from './module.f.js'

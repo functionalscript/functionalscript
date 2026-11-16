@@ -12,7 +12,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
-import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.js'
 import { _mixedSelfUses } from '../../../edag/to_fast/tail/fixtures.f.js'

@@ -653,7 +653,7 @@ export const proof = {
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
      * anchored, unreached roots. Every operand is established, in the order
-     * `fjs/compiler/edag/module.f.mjs`'s `resolve` puts them in (imports, then
+     * `fjs/compiler/edag/module.f.js`'s `resolve` puts them in (imports, then
      * unreached `const`s, then the export), and the last one's value is the
      * whole node's.
      */

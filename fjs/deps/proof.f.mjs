@@ -12,7 +12,7 @@ import { utf8 } from '../text/module.f.js'
 import { vec8 } from '../types/bit_vec/module.f.js'
 import { error } from '../types/result/module.f.js'
 import { readSource } from '../compiler/source/module.f.js'
-import { dependencies, dependenciesFromSource, dependencyImports, resolveDependencies, main, _relativeGraph } from './module.f.mjs'
+import { dependencies, dependenciesFromSource, dependencyImports, resolveDependencies, main, _relativeGraph } from './module.f.js'
 
 /**
  * @param {Dir} root

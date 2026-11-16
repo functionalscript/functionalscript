@@ -5,7 +5,7 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { parse } from '../../../compiler/source/module.f.js'
-import { unresolved } from '../../../compiler/edag/module.f.mjs'
+import { unresolved } from '../../../compiler/edag/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.js'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.js'
