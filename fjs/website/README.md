@@ -88,7 +88,7 @@ and excludes both from source discovery on repeated builds. `/fjs/cli/` and
 `cli/index.html`; a leftover reserved directory from a branch switch is never
 catalogued as source.
 
-`cli/module.f.mjs` imports the real `commands` export from `fjs/module.f.js`.
+`cli/module.f.js` imports the real `commands` export from `fjs/module.f.js`.
 It walks nested command tables and appends the dispatcher's shared `helpMeta`
 at each table level. Imports construct data and effect descriptions without
 calling handlers or interpreting effects. Names, alias order, descriptions and
