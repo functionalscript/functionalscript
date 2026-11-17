@@ -6,7 +6,7 @@ import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.js'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { demo, parseNBits, parseNonce } from './demo.f.mjs'
+import { demo, parseNBits, parseNonce } from './demo.f.js'
 import { refusal } from '../../website/demo/module.f.js'
 import { concat as stringConcat } from '../../types/string/module.f.js'
 import { element, htmlToString } from '../../media/html/module.f.js'
@@ -52,12 +52,12 @@ export const proof = {
             /** @type {typeof demo.init} */
             const boundary = { ...demo.init, text: 'a'.repeat(Number(maxLengthBytes) - 2), nonce: '99', nBits: '0x01010000' }
             const running = click(boundary, 'auto-run')
-            assertEq(running.search?.running, true)
-            assertEq(running.search?.hash, 0xee4b_7eb7_eeab_4091_5dae_2c57_298e_b9d4_f939_0cf2_ba06_f065_5281_f448_cb3a_1f6bn)
+            assertEq(running.run?.running, true)
+            assertEq(running.run?.hash, 0xee4b_7eb7_eeab_4091_5dae_2c57_298e_b9d4_f939_0cf2_ba06_f065_5281_f448_cb3a_1f6bn)
             assert(htmlToString(demo.view(running)).includes('Copy hash'))
             const stopped = click(running, 'auto-next')
             assertEq(stopped.nonce, '100')
-            assertEq(stopped.search, null)
+            assertEq(stopped.run, null)
             assertEq(schedule(stopped), null)
             assertEq(click(stopped, 'auto-next'), stopped)
             // Starting after an already successful nonce takes the same refusal path.
@@ -65,7 +65,7 @@ export const proof = {
             const found = { ...boundary, text: 'b'.repeat(Number(maxLengthBytes) - 2), nBits: '0x207fffff' }
             const advanced = click(found, 'auto-run')
             assertEq(advanced.nonce, '100')
-            assertEq(advanced.search, null)
+            assertEq(advanced.run, null)
             assertEq(schedule(advanced), null)
             /** @type {typeof demo.init} */
             const oversized = { ...demo.init, text: 'é'.repeat(Number(maxLengthBytes) / 2 - 1) + 'a' }
@@ -153,11 +153,11 @@ export const proof = {
             const schedule = assertNotNullish(demo.nextEvent)
             assertEq(schedule(demo.init), null)
             let state = click(demo.init, 'auto-run')
-            assertEq(state.search?.running, true)
-            assertEq(state.search?.attempts, 1n)
-            assertEq(state.search?.start, 42n)
-            assertEq(state.search?.target, targetFromNBits(0x200f_ffffn))
-            assertEq(state.search?.hash, 0x6b87_4641_ffc6_e42b_bb63_ca73_50bd_a222_18d5_3a2a_f93c_4dd0_3361_f624_c160_d691n)
+            assertEq(state.run?.running, true)
+            assertEq(state.run?.attempts, 1n)
+            assertEq(state.run?.start, 42n)
+            assertEq(state.run?.target, targetFromNBits(0x200f_ffffn))
+            assertEq(state.run?.hash, 0x6b87_4641_ffc6_e42b_bb63_ca73_50bd_a222_18d5_3a2a_f93c_4dd0_3361_f624_c160_d691n)
             assertEq(assertNotNullish(schedule(state)).kind, 'click')
             const active = htmlToString(demo.view(state))
             assert(active.includes('>Stop</button>'), active)
@@ -167,9 +167,9 @@ export const proof = {
                 state = unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
                 assertEq(state.nonce, String(nonce))
             }
-            assertEq(state.search?.running, false)
-            assertEq(state.search?.attempts, 12n)
-            assertEq(state.search?.hash, 0x0a3d_56c9_c89d_4aad_40f0_f93a_1d8b_1997_1497_5201_d74f_f72e_64ba_0cc1_f99f_d07dn)
+            assertEq(state.run?.running, false)
+            assertEq(state.run?.attempts, 12n)
+            assertEq(state.run?.hash, 0x0a3d_56c9_c89d_4aad_40f0_f93a_1d8b_1997_1497_5201_d74f_f72e_64ba_0cc1_f99f_d07dn)
             assertEq(schedule(state), null)
             const found = htmlToString(demo.view(state))
             assert(found.includes('Found nonce 53 after 12 attempts.<br>Failed nonces: 42–52.'), found)
@@ -178,39 +178,39 @@ export const proof = {
             // Independent SHA-256 checks find the next successes at 65 and 68.
             let next = click({ ...demo.init, nonce: '53' }, 'auto-run')
             assertEq(next.nonce, '54')
-            assertEq(next.search?.start, 54n)
-            assertEq(next.search?.attempts, 1n)
-            assertEq(next.search?.running, true)
+            assertEq(next.run?.start, 54n)
+            assertEq(next.run?.attempts, 1n)
+            assertEq(next.run?.running, true)
             for (let nonce = 55n; nonce <= 65n; nonce += 1n) {
                 next = click(next, 'auto-next')
                 assertEq(next.nonce, String(nonce))
             }
-            assertEq(next.search?.running, false)
-            assertEq(next.search?.attempts, 12n)
+            assertEq(next.run?.running, false)
+            assertEq(next.run?.attempts, 12n)
             const resumed = htmlToString(demo.view(next))
             assert(resumed.includes('Found nonce 65 after 12 attempts.<br>Failed nonces: 54–64.'), resumed)
             next = click(next, 'auto-run')
             assertEq(next.nonce, '66')
             next = click(click(next, 'auto-next'), 'auto-next')
             assertEq(next.nonce, '68')
-            assertEq(next.search?.running, false)
-            assertEq(next.search?.attempts, 3n)
-            assertEq(next.search?.start, 66n)
+            assertEq(next.run?.running, false)
+            assertEq(next.run?.attempts, 3n)
+            assertEq(next.run?.start, 66n)
             // Both 5 and 6 meet this easier target; skip 5 and count only 6.
             const immediate = click({ ...demo.init, nonce: '5', nBits: '0x207fffff' }, 'auto-run')
             assertEq(immediate.nonce, '6')
-            assertEq(immediate.search?.running, false)
-            assertEq(immediate.search?.attempts, 1n)
-            assertEq(immediate.search?.start, 6n)
+            assertEq(immediate.run?.running, false)
+            assertEq(immediate.run?.attempts, 1n)
+            assertEq(immediate.run?.start, 6n)
             assert(htmlToString(demo.view(immediate)).includes('No failed nonces.'))
             const stopped = click(click(demo.init, 'auto-run'), 'auto-run')
-            assertEq(stopped.search?.running, false)
+            assertEq(stopped.run?.running, false)
             const stoppedView = htmlToString(demo.view(stopped))
             assert(stoppedView.includes('Stopped after 1 attempt.'), stoppedView)
             const running = click(demo.init, 'auto-run')
             const edited = unwrap(assertNotNullish(runPure(demo.update(running)({ kind: 'input', name: 'text', value: 'new' }))[0]))
-            assertEq(edited.search, null)
-            assertEq(click(running, 'next-nonce').search, null)
+            assertEq(edited.run, null)
+            assertEq(click(running, 'next-nonce').run, null)
             for (const invalid of [{ ...demo.init, nonce: '-' }, { ...demo.init, nBits: 'bad' }, { ...demo.init, nBits: '0x0' }]) {
                 assertEq(click(invalid, 'auto-run'), invalid)
             }

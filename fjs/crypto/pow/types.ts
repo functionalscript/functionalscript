@@ -35,5 +35,5 @@ export type DemoState = {
     readonly text: string
     readonly nonce: string
     readonly nBits: string
-    readonly search: DemoSearch | null
+    readonly run: DemoSearch | null
 }
