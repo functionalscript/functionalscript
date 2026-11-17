@@ -9,7 +9,6 @@
 import { graphOfText, _shapeOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { _crossings, graphOf } from '../../website/demo/graph/module.f.js'
-import { parse } from '../transpiler/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
