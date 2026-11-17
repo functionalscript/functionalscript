@@ -32,7 +32,7 @@ export const typescript = /** @type {const} */({
 
 export const rust = '1.100.0'
 
-export const jobTimeout = /** @type {const} */ (60)
+export const jobTimeout = /** @type {const} */ (30)
 
 export const wasmtime = '50.0.1'
 
