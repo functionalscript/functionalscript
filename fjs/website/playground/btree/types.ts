@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/website/playground/btree/module.f.mjs`: the state of
+ * Type-level API for `fjs/website/playground/btree/module.f.js`: the state of
  * the B-tree compaction game.
  *
  * @module

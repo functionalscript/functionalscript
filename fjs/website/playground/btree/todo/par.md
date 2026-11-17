@@ -5,7 +5,7 @@
 
 ### Problem
 
-The [game](../module.f.mjs) shows a par — the fewest moves from the start to
+The [game](../module.f.js) shows a par — the fewest moves from the start to
 a perfect tree — at depths 2 and 3, and none at depth 4.
 
 Its par is a breadth-first search over the move, which lists every tree

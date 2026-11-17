@@ -55,13 +55,17 @@
  * @import { Graph } from '../../demo/graph/types.ts'
  */
 
-import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
+import { structure, tensUpTo } from '../../../types/btree/structure/module.f.js'
 import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.js'
 import { graphSvg } from '../../demo/graph/module.f.js'
 import { button, option, selectField, refusal } from '../../demo/module.f.js'
 import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.js'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { stringify } from '../../../media/json/module.f.js'
+import { identity } from '../../../types/function/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /** The levels, by depth. */
 export const depths = [2, 3, 4]
@@ -115,7 +119,7 @@ export const turnBudget = 50
 const moveTree = key => tree => structure.insert(key)(structure.remove(key)(tree))
 
 /** A tree's spelling, by which the search knows a tree it has met. @type {(tree: Tree<number>) => string} */
-const spelling = tree => JSON.stringify(tree)
+const spelling = tree => stringify(identity)(tree)
 
 /**
  * The start of a search for the par of `tree`, a tree of `keys`: zero if
@@ -339,7 +343,7 @@ const levelOf = value => depths.find(d => String(d) === value)
  */
 export const ordered = mode => g => {
     if (mode === 'still') { return g }
-    const ranks = [...new Set(g.nodes.flatMap(n => n.kind === 'new' ? [n.rank] : []))].toSorted((a, b) => mode === 'enter' ? a - b : b - a)
+    const ranks = g.nodes.flatMap(n => n.kind === 'new' ? [n.rank] : []).filter((rank, i, all) => all.indexOf(rank) === i).toSorted((a, b) => mode === 'enter' ? a - b : b - a)
     /** @type {(id: number) => string} */
     const keyOf = id => g.edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : []).join(',')
     return {
@@ -426,7 +430,7 @@ const initial = { depth: depths[0], animate: true, versions: null, mode: 'still'
 
 /** @type {import('../../demo/sharing/types.ts').Sharing<Game>} */
 const sharing = {
-    fields: { level: { default: String(initial.depth), choices: depths.map(String) }, animate: { default: initial.animate } },
+    fields: { level: { default: String(initial.depth), choices: depths.map(d => String(d)) }, animate: { default: initial.animate } },
     examples: [],
     read: game => ({ level: String(game.depth), animate: game.animate }),
     restore: inputs => ({ ...initial, depth: Number(inputs.level), animate: inputs.animate === true }),
@@ -441,14 +445,17 @@ export const demo = {
         : { kind: 'click', name: 'par' },
     nextDelay: game => game.pending.length > 0 ? frameTime(game) : 0,
     update: game => event => {
-        if (event.kind === 'start' || (event.kind === 'click' && event.name === 'new')) { return start(game.depth)(game) }
-        if (event.kind === 'click' && event.name === 'step') { return pureOk(step(game)) }
-        if (event.kind === 'click' && event.name === 'par') { return pureOk(searchTurn(game)) }
-        if (event.kind === 'click' && event.name === 'undo') { return pureOk(undo(game)) }
-        if (event.kind === 'input' && event.name === 'animate') { return pureOk(animating(event.value !== '')(game)) }
-        const level = event.kind === 'input' && event.name === 'level' ? levelOf(event.value) : undefined
+        if (event.kind === 'start') { return start(game.depth)(game) }
+        // `name` is a property a function has too, so it is read with `entry`
+        const name = assertNotNullish(entry(event, 'name'))
+        if (event.kind === 'click' && name === 'new') { return start(game.depth)(game) }
+        if (event.kind === 'click' && name === 'step') { return pureOk(step(game)) }
+        if (event.kind === 'click' && name === 'par') { return pureOk(searchTurn(game)) }
+        if (event.kind === 'click' && name === 'undo') { return pureOk(undo(game)) }
+        if (event.kind === 'input' && name === 'animate') { return pureOk(animating(event.value !== '')(game)) }
+        const level = event.kind === 'input' && name === 'level' ? levelOf(event.value) : undefined
         if (level !== undefined) { return start(level)(game) }
-        const key = event.kind === 'click' ? movedKey(event.name) : null
+        const key = event.kind === 'click' ? movedKey(name) : null
         return pureOk(key === null ? game : move(key)(game))
     },
     view: game => ['div',

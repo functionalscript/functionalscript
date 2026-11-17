@@ -19,78 +19,21 @@
  *
  * **Generate builds a random tree**: the keys 10, 20, … up to the count,
  * inserted in an order the browser picks — how a level of the
- * [compaction game](../../website/playground/btree/module.f.mjs) starts.
+ * [compaction game](../../website/playground/btree/module.f.js) starts.
  *
  * **A click on a key removes it and inserts it again.** The keys stay the
  * same, but the shape may not: a remove that empties a leaf merges or
  * borrows, and the insert that follows can split somewhere else. It is the
- * one move of the [compaction game](../../website/playground/btree/module.f.mjs),
- * which draws its tree with this {@link structure}.
+ * one move of the [compaction game](../../website/playground/btree/module.f.js),
+ * which draws its tree with the same [structure](./structure/module.f.js).
  *
  * @module
  *
- * @import { TNode, Tree } from './types/types.ts'
- * @import { Preset, Row, Structure } from '../../website/demo/versions/types.ts'
+ * @import { Preset } from '../../website/demo/versions/types.ts'
  */
 
-import { set } from './set/module.f.js'
-import { remove } from './remove/module.f.js'
-import { cmp, sum } from '../number/module.f.js'
 import { versionsDemo } from '../../website/demo/versions/module.f.js'
-import { hasEntry } from '../object/entry/module.f.js'
-
-/** @type {(key: number) => Row<TNode<number>>} */
-const keyRow = key => ({ label: '', inline: String(key), key })
-
-/**
- * A node's rows, in key order: its subtrees and its keys, each key alone
- * in a row. Drawn as a table, a subtree's row is as tall as the subtree,
- * so every key of the tree has a row of its own and every arrow runs
- * straight across. A node has no title: its keys and its arrows say which
- * of the four kinds it is.
- *
- * @type {(node: TNode<number>) => readonly Row<TNode<number>>[]}
- */
-const rowsOf = node => {
-    switch (node.length) {
-        case 1: { return [keyRow(node[0])] }
-        case 2: {
-            const [v0, v1] = node
-            return [keyRow(v0), keyRow(v1)]
-        }
-        case 3: {
-            const [l, v, r] = node
-            return [{ to: l }, keyRow(v), { to: r }]
-        }
-        default: {
-            const [l, v0, m, v1, r] = node
-            return [{ to: l }, keyRow(v0), { to: m }, keyRow(v1), { to: r }]
-        }
-    }
-}
-
-/** @type {(node: TNode<number>) => number} */
-const average = node => {
-    const keys = rowsOf(node).flatMap(row => hasEntry(row, 'inline') ? [Number(row.inline)] : [])
-    return sum(keys) / keys.length
-}
-
-/** @type {Structure<Tree<number>, TNode<number>>} */
-export const structure = {
-    empty: null,
-    insert: key => set(cmp(key))(() => key),
-    remove: key => remove(cmp(key)),
-    root: tree => tree,
-    shape: () => ({ rows: rowsOf, title: () => '', order: average, layout: 'table' }),
-}
-
-/**
- * 10, 20, … up to `n` tens: keys with room between them, so a reader can
- * insert one anywhere.
- *
- * @type {(n: number) => readonly number[]}
- */
-export const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
+import { structure, tensUpTo } from './structure/module.f.js'
 
 /**
  * The presets the drop-down offers, each one press from what its name
