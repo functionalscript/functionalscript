@@ -30,7 +30,7 @@
  * @import { Marked } from '../../../text/marked/types.ts'
  */
 
-import { _compileMarked, noRuntime } from '../../../compiler/module.f.mjs'
+import { _compileMarked, noRuntime } from '../../../compiler/module.f.js'
 import { foldStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.js'
 import { exitStep, writeFiles } from '../../../effects/node/module.f.js'
 import { toTagged } from '../../../text/marked/module.f.js'

@@ -35,6 +35,7 @@
 
 import { error, ok } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { escapes, normalize, root } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.js'
 import { parse as parseJson, stringifySorted } from '../../media/json/module.f.js'
@@ -144,7 +145,7 @@ export const walk = previous => files => {
     /** @type {readonly string[]} */
     let order = [main]
     for (let i = 0; i < order.length; i += 1) {
-        const id = order[i]
+        const id = order[Number(i)]
         const imports = importsOf(id)(textOf(fileOf(id)))
         const read = imports[0] === 'ok' ? imports[1] : previous(id)
         table = [...table, [id, read]]
@@ -199,7 +200,7 @@ export const cycleOf = files => {
      * @type {(path: readonly string[], done: readonly string[]) => readonly [readonly string[] | null, readonly string[]]}
      */
     const from = (path, done) => {
-        const last = path[path.length - 1]
+        const last = path[Number(path.length - 1)]
         let known = done
         for (const next of importsAt(last)) {
             if (path.includes(next)) { return [[...path.slice(path.indexOf(next)), next], known] }
@@ -226,7 +227,7 @@ export const dirOf = files => files.reduce(
     (dir, [name, text]) => {
         /** @type {(d: Dir, path: readonly string[]) => Dir} */
         const put = (d, [first, ...rest]) => {
-            const sub = d[first]
+            const sub = entry(d, first)
             return { ...d, [first]: rest.length === 0 ? [utf8(text)] : put(typeof sub === 'object' && !(sub instanceof Array) ? sub : {}, rest) }
         }
         return put(dir, name.split('/'))

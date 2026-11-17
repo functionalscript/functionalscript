@@ -49,7 +49,7 @@ the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`
 The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
 diagnostic formatting
-([`demo.f.mjs`](../demo.f.mjs), [`module.f.mjs`](../module.f.mjs)). A file
+([`demo.f.mjs`](../demo.f.mjs), [`module.f.mjs`](../module.f.js)). A file
 system carries text, so the page takes the output as marked text
 (`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
 panes render the producer's markings.

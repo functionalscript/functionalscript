@@ -194,9 +194,6 @@ const unknownOutput = 'no output language for this extension: expected .json, .r
 
 // ── the proofs' dump ──────────────────────────────────────────────────────────
 
-/** @type {(member: readonly [string, Unknown]) => List<Chunk>} */
-const treeMember = ([key, value]) => flat([stringSerialize(key), colon, treeValue(value)])
-
 /** @type {(value: Unknown) => List<Chunk>} */
 const treeValue = value => {
     switch (typeof value) {
@@ -207,6 +204,8 @@ const treeValue = value => {
         case 'undefined': { return ['undefined'] }
         default: {
             if (value === null) { return nullSerialize }
+            /** @type {(member: readonly [string, Unknown]) => List<Chunk>} */
+            const treeMember = ([key, member]) => flat([stringSerialize(key), colon, treeValue(member)])
             return value instanceof Array
                 ? arrayWrap(map(treeValue)(value))
                 : objectWrap(map(treeMember)(sort(entries(value))))

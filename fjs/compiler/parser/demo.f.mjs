@@ -30,7 +30,7 @@ import { codeMarker } from '../../website/style/module.f.js'
 import { tryMarked } from '../../media/datajs/module.f.js'
 import { refusal, caption } from '../../website/demo/module.f.js'
 import { render } from '../../website/demo/highlight/module.f.js'
-import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.js'
 
 /**
  * `text` as its AST, in DataJS, or the parser's message.

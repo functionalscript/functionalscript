@@ -7,7 +7,7 @@
 
 `fjs compile` creates its output's directory before writing, so it can write
 into a `gen.*` directory that does not exist yet. `compileFile` in
-[`../module.f.mjs`](../module.f.mjs) writes its output through
+[`../module.f.js`](../module.f.js) writes its output through
 [`fjs/effects/node`](../../effects/node/module.f.js)'s `writeFiles`, which
 finds that directory with [`fjs/path`](../../path/module.f.js)'s `parent`.
 `parent` normalizes the output path, and normalizing folds `..` away. The

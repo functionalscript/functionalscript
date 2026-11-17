@@ -766,7 +766,7 @@ Where the original implementation placed a feature, and its intended owner:
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
 | Module resolution, identity, cycles, the attribute's and the selected export's checks | `_walk` in `compiler/source`, `resolve` in `compiler/edag` | Linking |
-| Dispatch by file type and output name, the authored `.f.js` check | `fjs/compiler/module.f.mjs`, `fjs/cli` | Orchestration |
+| Dispatch by file type and output name, the authored `.f.js` check | `fjs/compiler/module.f.js`, `fjs/cli` | Orchestration |
 | Resolution and JavaScript's early errors | The fold | Binding, before desugaring erases the relevant source evidence |
 | Writes and captures | The fold | Shared binding analysis after pattern expansion; admission applies the source policy before normalization |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |

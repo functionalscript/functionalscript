@@ -7,7 +7,7 @@
  * @import { DocumentedCommands } from './cli/types.ts'
  */
 
-import { compile } from './compiler/module.f.mjs'
+import { compile } from './compiler/module.f.js'
 import { main as testMain } from './emergent_testing/module.f.js'
 import { main as coverageMain } from './emergent_testing/cov/module.f.js'
 import { main as depsMain } from './deps/module.f.js'

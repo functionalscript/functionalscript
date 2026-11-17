@@ -42,7 +42,7 @@ import { graphSvg } from '../../website/demo/graph/module.f.js'
 import { fastGraph, sourceGraph } from '../graph/module.f.js'
 import { tryNormalize } from '../../js/ast/sugar/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.js'
 
 /**
  * `text`'s two trees, each a pane with its heading, its graph and the

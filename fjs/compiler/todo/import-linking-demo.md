@@ -131,9 +131,9 @@ its other files are linked on the side-by-side page.
 ### Tasks
 
 - [x] List the files a module imports from its parse result
-      ([`demo_files`](../demo_files/module.f.mjs)'s `importsOf` and `reached`).
+      ([`demo_files`](../demo_files/module.f.js)'s `importsOf` and `reached`).
 - [x] Carry the files other than the main module in a shared link's `files`
-      field ([`demo_files`](../demo_files/module.f.mjs)'s `encode` and
+      field ([`demo_files`](../demo_files/module.f.js)'s `encode` and
       `decode`), refusing one that is not a list of `[name, text]` pairs,
       names a file twice, or names one a program cannot hold.
 - [x] Draw a box per file the import tree reaches, and each file it does not

@@ -28,7 +28,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
+import { compileFile, noRuntime } from '../../compiler/module.f.js'
 import { interpret } from '../../compiler/transpiler/module.f.js'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effects/node/module.f.js'

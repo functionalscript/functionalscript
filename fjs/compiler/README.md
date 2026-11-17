@@ -18,7 +18,7 @@ the language its output name declares: a `.data.js` document through
 [`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.js) in
 normalized form, a `.js` module through [`serializer`](./serializer/module.f.js)
 from the linked graph, and a `.json` output that refuses what JSON cannot
-spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
+spell rather than approximating it — see [`module.f.js`](./module.f.js).
 
 File-module resolution uses the host's module identity and loading path. In the
 Node profile, resolved files are read and diagnosed by their absolute canonical

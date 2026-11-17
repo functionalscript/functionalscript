@@ -824,7 +824,7 @@ level.
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
 3. **Generated-module linking (resolved).** The
-   [compiler](../../../fjs/compiler/module.f.mjs) resolves the complete source graph
+   [compiler](../../../fjs/compiler/module.f.js) resolves the complete source graph
    before `toRust` emits one Rust file. Stage 1 therefore needs no per-dependency
    Rust `use` paths or file layout; source imports are already linked within
    that output. The embedding crate chooses where to include the generated

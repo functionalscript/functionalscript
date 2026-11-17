@@ -27,7 +27,7 @@
 
 import { codeOutput } from '../../website/demo/highlight/module.f.js'
 import { tryUnresolved } from '../edag/module.f.js'
-import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.js'
 import { tryModuleMarked } from './module.f.js'
 
 /**

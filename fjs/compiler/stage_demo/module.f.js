@@ -5,7 +5,7 @@
  * from a copy of another page.
  *
  * - {@link stageDemo} is the page around the stage: a `Source` field,
- *   highlighted, over [the compiler's shared examples](../examples/module.f.mjs),
+ *   highlighted, over [the compiler's shared examples](../examples/module.f.js),
  *   opening on the first.
  * - {@link parsed} is the step every stage after the tokenizer begins with:
  *   the front end over the text, its refusal as the parser's message.
@@ -23,6 +23,8 @@
  */
 
 import { error } from '../../types/result/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { textDemo } from '../../website/demo/module.f.js'
 import { highlight } from '../../website/demo/highlight/module.f.js'
 import { examples } from '../examples/module.f.js'
@@ -35,9 +37,9 @@ import { parse } from '../transpiler/module.f.js'
  *
  * @type {(o: Pick<TextDemoOptions, 'intro' | 'name'>) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
  */
-export const stageDemo = ({ intro, name }) => textDemo({
-    intro,
-    name,
+export const stageDemo = options => textDemo({
+    intro: options.intro,
+    name: assertNotNullish(entry(options, 'name')),
     label: 'Source',
     init: examples[0][1],
     examples,

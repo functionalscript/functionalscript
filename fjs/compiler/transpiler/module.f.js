@@ -68,7 +68,7 @@ export const noRuntime = pureOk(undefined)
  * the bodies of [`fjs/js/runtime`](../../js/runtime/module.f.js) answer
  * the member functions the interpreter has no native implementation of
  * ([`edag/memo/types.ts`](../../edag/memo/types.ts)). A caller passes the
- * package's runtime, `packageRuntime` in [`compiler`](../module.f.mjs), a
+ * package's runtime, `packageRuntime` in [`compiler`](../module.f.js), a
  * runtime it holds as `pureOk(runtime)`, or {@link noRuntime}. A module
  * yields its complete export object; a `.json` root is a document and yields
  * its value, and never loads the runtime (`_program` in `../source`).

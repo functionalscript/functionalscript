@@ -6,7 +6,7 @@
  */
 
 import { expectModule, expectRefused } from './proof.f.mjs'
-import { _stringifyTree } from '../module.f.mjs'
+import { _stringifyTree } from '../module.f.js'
 
 export const proof = /** @type {const} */ ({
     booleanConversion: {

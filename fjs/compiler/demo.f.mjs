@@ -22,7 +22,7 @@
  * out, and what an output will not spell is half of what it is.
  *
  * **A program is every file its imports reach, each in a box of its own**
- * ([`demo_files`](./demo_files/module.f.mjs)). An import of a file the
+ * ([`demo_files`](./demo_files/module.f.js)). An import of a file the
  * compiler can read, by a relative or rooted path, opens a box for it under
  * the main one, empty until the reader writes it, and that file's imports
  * open theirs. Every file is written into the in-memory file system,
@@ -30,7 +30,7 @@
  * import reaches keeps its box, marked *not imported*, with a button that
  * removes it; the compiler does not read it. A module that does not parse
  * keeps the boxes its imports opened when it last did
- * ([`lastImports`](./demo_files/module.f.mjs)). The program's directory is
+ * ([`lastImports`](./demo_files/module.f.js)). The program's directory is
  * the in-memory file system's root, so `/` names it and nothing is above it;
  * the page names each import that reads another file on the command line,
  * where `/` is the root of the disk and `../` may leave it. The main box is labelled with
@@ -72,10 +72,10 @@ import { utf8ToString } from '../text/utf8/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.js'
 import { highlight, render } from '../website/demo/highlight/module.f.js'
-import { cycleOf, decode, dirOf, encode, fileOf, lastImports, main, outsideImports, reached, twiceLoaded } from './demo_files/module.f.mjs'
+import { cycleOf, decode, dirOf, encode, fileOf, lastImports, main, outsideImports, reached, twiceLoaded } from './demo_files/module.f.js'
 import { dependenciesOf, examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
-import { _outputMarked, compileFile } from './module.f.mjs'
+import { _outputMarked, compileFile } from './module.f.js'
 import { vm } from '../edag/amnesia/module.f.js'
 import { read } from '../edag/value/property/module.f.js'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.js'

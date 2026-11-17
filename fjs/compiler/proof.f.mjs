@@ -11,7 +11,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.js'
-import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
+import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.js'
 import { transpile } from './transpiler/module.f.js'
 import { parse } from './source/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
@@ -40,7 +40,7 @@ import { encodeQuery } from '../website/demo/sharing/module.f.js'
 import { maxLengthBytes, u8ListToVecMsb } from '../types/bit_vec/module.f.js'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
-import { dirOf, encode } from './demo_files/module.f.mjs'
+import { dirOf, encode } from './demo_files/module.f.js'
 import { dependenciesOf } from './examples/module.f.js'
 
 /** An example's program: its main module, then the files it imports. @type {(source: string, id: string) => import('./demo_files/types.ts').Files} */

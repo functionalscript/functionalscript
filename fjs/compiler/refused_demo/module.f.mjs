@@ -56,7 +56,7 @@ import { codeBlock } from '../../website/demo/code/module.f.js'
 import { codeOutput, highlight } from '../../website/demo/highlight/module.f.js'
 import { codeMarker, listingMarker, refusedMarker, resultMarker } from '../../website/style/module.f.js'
 import { loadedView } from '../../nanvm/demos/page/module.f.js'
-import { _outputMarked, noRuntime } from '../module.f.mjs'
+import { _outputMarked, noRuntime } from '../module.f.js'
 
 /** The sample's file name, in its page's directory. */
 export const sampleName = 'sample.mjs'

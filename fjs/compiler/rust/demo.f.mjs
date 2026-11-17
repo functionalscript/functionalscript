@@ -27,7 +27,7 @@
 
 import { tryUnresolved } from '../edag/module.f.js'
 import { codeOutput } from '../../website/demo/highlight/module.f.js'
-import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
+import { parsed, stageDemo } from '../stage_demo/module.f.js'
 import { toRustMarked } from './module.f.js'
 
 /**
