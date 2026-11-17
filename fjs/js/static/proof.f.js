@@ -13,6 +13,7 @@ export const proof = {
         assertEq(isStatic(['encodeURIComponent', '']), false)
         assertEq(isStatic(['encodeURIComponent', 'length']), false)
         assertEq(isStatic(['Number', 'MAX_VALUE']), false)
+        assertEq(isStatic(['Number', 'MIN_VALUE']), false)
         for (const path of [['String', 'fromCharCode'], ['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['Object', 'values'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2'], ['Math', 'trunc'], ['Math', 'floor'], ['Math', 'abs'], ['Math', 'sqrt'], ['Math', 'ceil'], ['Math', 'imul'], ['Math', 'max'], ['Math', 'min'], ['Math', 'fround'], ['Math', 'clz32'], ['Math', 'round']]) {
             assertEq(isStatic(path), true)
         }
