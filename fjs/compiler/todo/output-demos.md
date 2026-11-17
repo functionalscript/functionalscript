@@ -19,7 +19,7 @@ both are implemented now.
 
 **One demo per directory, because a page has one demo section.** The website
 refuses a second module exporting `demo` in the same directory and skips both
-([`website/module.f.mjs`](../../website/module.f.mjs), `resolveDemos`). So
+([`website/module.f.js`](../../website/module.f.js), `resolveDemos`). So
 several presets cannot be several demo files in one folder, and the layout
 follows the compiler's own stages instead: each stage folder has one
 `demo.f.mjs` showing *that stage's* output, and its page is where a reader of
@@ -49,7 +49,7 @@ the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`
 The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
 diagnostic formatting
-([`demo.f.mjs`](../demo.f.mjs), [`module.f.mjs`](../module.f.mjs)). A file
+([`demo.f.js`](../demo.f.js), [`module.f.mjs`](../module.f.js)). A file
 system carries text, so the page takes the output as marked text
 (`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
 panes render the producer's markings.
@@ -85,7 +85,7 @@ and a failure at run time. Its front-end refusal examples are a hex escape and
 an unfinished module; its imports parse and lower, but need dependency files
 that the output demos do not supply. The EDAG demo's own presets were folded
 into it:
-[`../edag/demo.f.mjs`](../edag/demo.f.mjs) documents what each draws as.
+[`../edag/demo.f.js`](../edag/demo.f.js) documents what each draws as.
 
 **A name says what the program is, and each proof says what its stage
 refuses.** The parser takes an import the Rust output cannot link, so "refused"
@@ -149,5 +149,5 @@ which outputs accept which example.
 
 - [compiler output boundary](../README.md#ast) —
   the refusal wording the panes show.
-- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, and what
+- [`../edag/demo.f.js`](../edag/demo.f.js) — the EDAG's own demo, and what
   each shared program draws as.

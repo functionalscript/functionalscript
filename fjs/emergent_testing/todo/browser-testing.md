@@ -69,7 +69,7 @@ The standing rule lives in [the README](../README.md#scope); this section is
 what it means for the browser suite specifically.
 
 **The browser suite runs authored FunctionalScript, `.f.mjs` and `.f.js`, and
-nothing else.** `website/module.f.mjs` selects with `isAuthored`
+nothing else.** `website/module.f.js` selects with `isAuthored`
 (`../../dev/module.f.js`), on those two extensions; a page's proof list holds
 those and the one browser-realm proof the website ships, nothing else. That is the design, not a first iteration to
 be widened later.

@@ -3,7 +3,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { examples } from '../examples/module.f.js'
-import { parsed, stageDemo } from './module.f.mjs'
+import { parsed, stageDemo } from './module.f.js'
 
 export const proof = {
     stageDemo: () => {

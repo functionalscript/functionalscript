@@ -7,7 +7,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { fromFast } from './module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
-import { memo } from '../memo/module.f.mjs'
+import { memo } from '../memo/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })

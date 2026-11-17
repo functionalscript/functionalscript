@@ -7,7 +7,7 @@
  * API, which is the case that rule names outright.
  */
 
-import { graphOfText } from './demo.f.mjs'
+import { graphOfText } from './graph/module.f.js'
 import { _crossings, graphSvg } from '../../website/demo/graph/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'

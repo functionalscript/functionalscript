@@ -26,7 +26,7 @@ codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
   base-62 and a base-36 digit, which `digitsValue` stops short of on
   purpose; a digit value over the alphanumeric alphabet in `text/ascii`
   would own both.
-- [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
+- [`fjs/website`](../../website/module.f.js) — `commitOf` turns the
   environment's string into code units and screens out anything above `0x7f`
   by hand, because `fjs/git/oid`'s reader takes bytes; the codec's `decode`
   takes the string and refuses a wide unit itself, but the width check is

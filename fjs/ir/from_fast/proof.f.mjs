@@ -12,7 +12,7 @@ import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { errorTable, lower } from './module.f.js'
 import { inner, letter, only as onlyItem, pick } from './reads.f.js'
-import { l1Runtime, runtime, sourceOf } from './testlib.f.mjs'
+import { l1Runtime, runtime, sourceOf } from './testlib.f.js'
 import { bigints, rethrow, sign, textLength } from './throws.f.js'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */

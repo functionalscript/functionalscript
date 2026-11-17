@@ -14,6 +14,6 @@ mark on each game, so adding a game is adding a directory.
 
 ## Games
 
-- [`btree`](./btree/module.f.mjs) — the B-tree compaction game: make a
+- [`btree`](./btree/module.f.js) — the B-tree compaction game: make a
   random B-tree perfect, every node full, by removing keys and inserting
   them again, in as few moves as its par.

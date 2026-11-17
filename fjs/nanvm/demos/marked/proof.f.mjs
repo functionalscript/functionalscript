@@ -11,9 +11,9 @@ import { exitCode, readdir, readUtf8File } from '../../../effects/node/module.f.
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../../effects/node/virtual/module.f.js'
 import { untagged } from '../../../text/marked/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
-import { generate, rustPath } from '../module.f.mjs'
+import { generate, rustPath } from '../module.f.js'
 import { rustMarkedPath } from '../page/module.f.js'
-import { main, writeMarked } from './module.f.mjs'
+import { main, writeMarked } from './module.f.js'
 
 /** Two samples, and a build directory a removed sample left its files in. @type {Dir} */
 const root = {

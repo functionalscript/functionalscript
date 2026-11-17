@@ -14,7 +14,7 @@ import { ioError } from '../../effects/module.f.js'
 import { run } from '../../effects/mock/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { compileAs, excerpt, init, refusedDemo, report, reportText, suggestedText } from './module.f.mjs'
+import { compileAs, excerpt, init, refusedDemo, report, reportText, suggestedText } from './module.f.js'
 
 /** @type {Suggestion} */
 const suggestion = { message: 'no in', width: 2, label: 'here', help: 'use h:', fix: 'h(o, "a")', note: 'see in' }

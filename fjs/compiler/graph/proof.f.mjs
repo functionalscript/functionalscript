@@ -12,7 +12,7 @@
 
 import { fastGraph, operatorShape, sourceGraph, unsupported } from './module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { parse } from '../transpiler/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 

@@ -1,6 +1,6 @@
 /**
  * The sample of a refused construct's page
- * ([`./module.f.mjs`](./module.f.mjs)).
+ * ([`./module.f.js`](./module.f.js)).
  *
  * @module
  */

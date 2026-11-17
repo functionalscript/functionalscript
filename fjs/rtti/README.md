@@ -43,7 +43,7 @@ The [outputs area](./guide/outputs/README.md) of the guide has a page for each
 row but the readers. The module page has a demo: pick a lesson or one of the
 project's own schemas, see it drawn as a graph with its TypeScript type, JSON
 Schema and canonical form, compare it with any other schema, and type a value
-to see what `parse` and `validate` make of it ([`demo.f.mjs`](./demo.f.mjs)).
+to see what `parse` and `validate` make of it ([`demo.f.js`](./demo.f.js)).
 
 ## Who uses it
 

@@ -1,5 +1,5 @@
 import { assert, assertStructurallySame } from '../../../fjs/asserts/module.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 import sample from './sample.f.js'
 
 export const proof = {

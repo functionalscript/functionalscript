@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { error } from '../../../types/result/module.f.js'
-import { invoke } from '../../memo/module.f.mjs'
+import { invoke } from '../../memo/module.f.js'
 import { toData } from '../to_unknown/module.f.js'
 import { arrayMethod } from './module.f.js'
 

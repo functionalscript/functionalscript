@@ -8,7 +8,7 @@
  * through the shape it passes for them.
  *
  * **It serves the compiler's stage pages**, as
- * [`stage_demo`](../stage_demo/module.f.mjs) does, and lives beside it: it
+ * [`stage_demo`](../stage_demo/module.f.js) does, and lives beside it: it
  * draws with the website's renderer and reads the parser's
  * `ResolvedModule`, which `fjs/js/ast` and `fjs/edag`, below the compiler
  * and the website, may not import.
@@ -68,7 +68,7 @@
  * the parser's resolved source**, each through this shape with its own
  * forms beside it: blocks, bindings, patterns, functions, conditionals,
  * loops and the exits that leave them.
- * [`fjs/compiler/sugar`](../sugar/demo.f.mjs) draws the two side
+ * [`fjs/compiler/sugar`](../sugar/demo.f.js) draws the two side
  * by side.
  *
  * @module

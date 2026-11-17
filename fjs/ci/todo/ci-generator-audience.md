@@ -21,7 +21,7 @@ Most of that job is a documented contract and works as intended.
 must provide — `cov` and `gen` — shows the typical definitions, and
 explains that a project chains its own generators into `gen` so the drift
 check covers them for free. This repository's own `gen` runs the checked-in
-entry point and `fjs/dev/gen/module.f.mjs`, including `ci/self/module.f.mjs`,
+entry point and `fjs/dev/gen/module.f.js`, including `ci/self/module.f.js`,
 to avoid depending on the package bin
 before the package is installed, which that README says outright. So
 `npm run gen` and its drift check are an extension point, not a private

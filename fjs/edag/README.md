@@ -139,7 +139,7 @@ any subsequent argument work. The query itself invokes no argument-stage body.
 objects, arrays and functions, using the shared function-text renderer in both
 interpreters; a static function, the built-in and not its body, answers the
 NativeFunction text of its name.
-[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
+[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.js) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
 representation. [Runtime compilation](values.md#runtime-compilation) converts
@@ -291,7 +291,7 @@ function's captures followed by its body. The serializer uses the same helper,
 keeping only captures when walking a function in its enclosing scope.
 `itemOperand(item)` unwraps a spread or returns a plain operand unchanged;
 analysis and the serializer share it for array items and call arguments.
-[memo](memo/module.f.mjs) is that
+[memo](memo/module.f.js) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
 bodies and evaluated captures; invocation does not construct host callables.
@@ -656,7 +656,7 @@ chain, so `undefined` is called. V8 does throw; JavaScriptCore (hence
 oracle can establish it on every supported runner. The EDAG follows the
 specification — `['?.', u, 'b', ['|!()', d]]` denotes the throwing
 reading, and an executor must produce it whatever its host does — as
-[amnesia](amnesia/module.f.mjs) does, where
+[amnesia](amnesia/module.f.js) does, where
 `optionRegion.throw.closeStepOnUndefined` in
 [amnesia/proof.f.mjs](amnesia/proof.f.mjs) evaluates the node and pins the
 throw on every runner. `(u?.b).c`, the property counterpart, throws everywhere
@@ -673,7 +673,7 @@ has no mutation for a skipped operand to record itself with, and a `throw`
 case is pass/fail rather than payload-inspecting (`fjs/AGENTS.md` §1.5). What
 `amnesia/proof.f.mjs` pins is that each side throws where it should. The order
 itself is carried by the shape of `callProperty` in
-[amnesia/module.f.mjs](amnesia/module.f.mjs) — it takes the argument *node*
+[amnesia/module.f.js](amnesia/module.f.js) — it takes the argument *node*
 and evaluates it inside the call expression, so JavaScript's own order applies
 — and by that function's JSDoc, which says so. Take an evaluated array there
 instead and every test still passes.

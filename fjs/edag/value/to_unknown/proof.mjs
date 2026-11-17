@@ -10,7 +10,7 @@
 import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
-import { interpret, noRuntime } from '../../../compiler/transpiler/module.f.mjs'
+import { interpret, noRuntime } from '../../../compiler/transpiler/module.f.js'
 import { asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
 import { unreadableThrownValue } from '../../../effects/module.f.js'
 import { virtualAt } from '../../../effects/node/virtual/module.f.js'

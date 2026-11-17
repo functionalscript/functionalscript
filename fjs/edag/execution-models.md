@@ -81,7 +81,7 @@ work. The traversal is [`analysis`](./analysis/module.f.js): one table per
 program — by node identity, `identityAnalysis`, where the compiler
 evaluates a module and wherever a body is invoked — the shared entries by
 index, each cached within its scope; the
-executor over it is [`memo`](./memo/module.f.mjs), returning represented
+executor over it is [`memo`](./memo/module.f.js), returning represented
 `EdagValue` results. Its immutable invocation cache gains a shared entry on
 first demand. Calls interpret retained function bodies with fresh cache state.
 

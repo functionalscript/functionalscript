@@ -147,7 +147,7 @@ The design, the alternatives and the measurements are in
 ## Examples
 
 The example is [`sample.f.js`](./sample.f.js), with the function written
-out, since a demo is one module; [`demo.f.mjs`](./demo.f.mjs) shows its
+out, since a demo is one module; [`demo.f.js`](./demo.f.js) shows its
 outputs and calls it with `0`, `1` and `2`: the object, the array, and an
 object the map never held.
 

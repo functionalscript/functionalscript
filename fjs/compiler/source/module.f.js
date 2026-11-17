@@ -274,8 +274,37 @@ export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
  */
 export const _jsonModule = value => ['{}', [[':', 'default', jsonValue(value)]]]
 
-/** The walk's state before any module is entered: nothing complete, no chain. */
-const emptyContext = { complete: null, stack: null }
+/**
+ * {@link _program} over the modules earlier programs completed, `complete`,
+ * answering the program together with those modules and the ones it
+ * completed itself: a module met in `complete` is reused as it was, as one
+ * met twice within a program is, so a caller that walks many programs of one
+ * tree reads, parses and loads each module once. `null` is no modules. A
+ * JSON root completes none.
+ *
+ * Exported for the EDAG linker in `../edag`; the `_` says linkage.
+ *
+ * @template {Operation} O
+ * @template T, S, E, LE, R
+ * @param {Effect<O, _Load<T, S, E>, LE>} loader
+ * @param {(module: T) => R} finish
+ * @returns {(path: string, complete: _Context<T>['complete']) => Effect<O | ReadWhole | ResolveFileModule, readonly [_Context<T>['complete'], EdagValue | R], ParseError | E | LE>}
+ */
+export const _programOver = (loader, finish) => {
+    /** @type {(source: _Source, complete: _Context<T>['complete']) => Effect<O | ReadWhole | ResolveFileModule, readonly [_Context<T>['complete'], R], ParseError | E | LE>} */
+    const walked = (source, complete) => {
+        const walk = step(loader, load => _walk(load)(source)({ complete, stack: null }))
+        return mapStep(walk, ([context, module]) => [context.complete, finish(module)])
+    }
+    /** @type {(complete: _Context<T>['complete']) => (source: _Source) => Effect<O | ReadWhole | ResolveFileModule, readonly [_Context<T>['complete'], EdagValue | R], ParseError | E | LE>} */
+    const route = complete => source => source.json
+        // The CLI extension selects JSON input even when realpath follows an
+        // alias to a differently named file. Import attributes still use the
+        // target path.
+        ? mapStep(_parseJson(source.path), value => [complete, jsonValue(value)])
+        : walked(source, complete)
+    return (path, complete) => step(_rootSource(path), route(complete))
+}
 
 /**
  * The program at the root `path`: the route both compiler paths take. A
@@ -294,17 +323,6 @@ const emptyContext = { complete: null, stack: null }
  * @returns {(path: string) => Effect<O | ReadWhole | ResolveFileModule, EdagValue | R, ParseError | E | LE>}
  */
 export const _program = (loader, finish) => {
-    /** @type {(source: _Source) => Effect<O | ReadWhole | ResolveFileModule, R, ParseError | E | LE>} */
-    const walked = source => {
-        const walk = step(loader, load => _walk(load)(source)(emptyContext))
-        return mapStep(walk, ([, module]) => finish(module))
-    }
-    /** @type {(source: _Source) => Effect<O | ReadWhole | ResolveFileModule, EdagValue | R, ParseError | E | LE>} */
-    const route = source => source.json
-        // The CLI extension selects JSON input even when realpath follows an
-        // alias to a differently named file. Import attributes still use the
-        // target path.
-        ? mapStep(_parseJson(source.path), jsonValue)
-        : walked(source)
-    return path => step(_rootSource(path), route)
+    const over = _programOver(loader, finish)
+    return path => mapStep(over(path, null), ([, program]) => program)
 }

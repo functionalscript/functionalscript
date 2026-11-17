@@ -862,7 +862,7 @@ gain, so the dependencies are stated instead:
   left unreachable from the root — and the compiler already anchors such a
   binding with `','` rather than rejecting it (`anchors` in
   [`fjs/edag/from_fast`](../fjs/edag/from_fast/module.f.js), shown in the
-  [compiler's EDAG demo](../fjs/compiler/edag/demo.f.mjs)), so 12's legality
+  [compiler's EDAG demo](../fjs/compiler/edag/demo.f.js)), so 12's legality
   half has landed and does not block stage 4. What 12 still owns is the totality
   exemption, which decides whether such a binding is evaluated or dropped;
   whether stage 4 waits on it for cost is open.

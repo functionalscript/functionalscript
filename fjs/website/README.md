@@ -1,6 +1,6 @@
 # The website
 
-`module.f.mjs` is a `NodeProgram` that generates the site from the repository
+`module.f.js` is a `NodeProgram` that generates the site from the repository
 it sits in: one page per directory, each carrying that directory's contents and
 the proofs of its subtree, plus the one stylesheet they all link. It is run by
 `npm run website`, and its whole output is gitignored.
@@ -88,7 +88,7 @@ and excludes both from source discovery on repeated builds. `/fjs/cli/` and
 `cli/index.html`; a leftover reserved directory from a branch switch is never
 catalogued as source.
 
-`cli/module.f.mjs` imports the real `commands` export from `fjs/module.f.mjs`.
+`cli/module.f.js` imports the real `commands` export from `fjs/module.f.js`.
 It walks nested command tables and appends the dispatcher's shared `helpMeta`
 at each table level. Imports construct data and effect descriptions without
 calling handlers or interpreting effects. Names, alias order, descriptions and
@@ -191,7 +191,7 @@ npm run website
 ```
 
 `rustdoc-bars` is a program of its own
-([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+([`rustdoc-bars/`](./rustdoc-bars/module.f.js)) so the site is generated
 once: it reads the build the pages are built from — a preview's branch and
 commit, the funding channels — and walks nothing.
 
@@ -313,7 +313,7 @@ Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
 from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
 constant the shared shell and the platform matrix also take. The script is
 generated from that constant by
-[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), so the version is written in the script in full, a bump of the pin is a
+[`cloudflare/module.f.js`](./cloudflare/module.f.js), so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
 its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
@@ -390,7 +390,7 @@ alone. Its emphasis falls with the priority rather than changing hue: P1 is
 filled in the failure colour, the conventional one for blocking; P2 in the
 value colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue per
 level would say nothing about order, and would compete with the status icons.
-[`issue`'s demo](./issue/demo.f.mjs) draws every status and every priority,
+[`issue`'s demo](./issue/demo.f.js) draws every status and every priority,
 the one page that shows the whole set.
 
 ## A page runs the proofs under it
@@ -709,7 +709,7 @@ first render, so a demo needing an operation before it can show anything has
 somewhere to ask without `init` becoming an effect.
 
 **A demo's output should be checkable from outside.** The first one,
-[`crypto/sha2`](../crypto/sha2/demo.f.mjs), lets readers select SHA-224, SHA-256,
+[`crypto/sha2`](../crypto/sha2/demo.f.js), lets readers select SHA-224, SHA-256,
 SHA-384, SHA-512, SHA-512/224, or SHA-512/256 and shows the digest in hex. The
 matching OpenSSL command includes the current input, so readers can check the
 result themselves. Encoding it with this repository's own cBase32 was the first
@@ -721,7 +721,7 @@ leading zeros, but those zeros still belong in the output. One in sixteen
 digests begins with a zero hex digit; someone typing `1234` into the original
 SHA-256 demo found that case.
 
-[`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
+[`crypto/sha1`](../crypto/sha1/demo.f.js) follows the same pattern with a
 40-character SHA-1 digest and a warning that its collision resistance is broken.
 Both demos preserve multiline text with the shared textarea helpers and use
 [`website/demo/hash`](./demo/hash/module.f.js) for padded digests and
@@ -730,7 +730,7 @@ code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces
 the command; this is a permanent shell limitation.
 
-[`crypto/hmac`](../crypto/hmac/demo.f.mjs) adds a UTF-8 key and message to this
+[`crypto/hmac`](../crypto/hmac/demo.f.js) adds a UTF-8 key and message to this
 pattern, with SHA-1 and all six SHA-2 variants. Its OpenSSL command quotes both
 inputs and uses the selected hash with `-hmac`. Its message uses the shared
 multiline field; the key remains single-line and fills the available width.
@@ -1178,7 +1178,7 @@ directory of fixtures in, a site out, no filesystem touched. What used to check
 this was running the command and reading a `git diff`.
 
 The cost is measured and recorded rather than assumed — see the `@module` block
-in [`module.f.mjs`](./module.f.mjs) and
+in [`module.f.js`](./module.f.js) and
 [`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md).
 
 ## Open questions

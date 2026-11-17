@@ -8,7 +8,7 @@
 `parse` in [`../parser/module.f.js`](../parser/module.f.js) reports a
 refusal as the index of the code unit it stopped at, inside the message
 (`unexpected symbol at N`), and no position. `_parseJson` in
-[`fjs/compiler/transpiler`](../../../compiler/transpiler/module.f.mjs) therefore builds a
+[`fjs/compiler/transpiler`](../../../compiler/transpiler/module.f.js) therefore builds a
 `ParseError` with `metadata: null` and the file's `path`, and `fjs compile`
 prints the file and the offset where a module error gets `path:line:column`:
 

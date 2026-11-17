@@ -8,7 +8,7 @@ any other value.
 ## Scope
 
 **In a browser, this framework runs authored FunctionalScript — `.f.mjs` and
-`.f.js` — and nothing else.** `website/module.f.mjs` selects on the extension,
+`.f.js` — and nothing else.** `website/module.f.js` selects on the extension,
 so the proof list it writes into a page contains only those modules. That is the design, not a first
 iteration: an impure `.mjs` proof means whatever its host gives it — `node:fs`,
 `node:vm`, `process`, `node:test`, a filesystem, a subprocess — and a page has
@@ -146,7 +146,7 @@ deno test -A ../../emergent_testing/one.mjs
 
 For coverage, run `fjs cov node` or `npm start cov node` from the directory
 whose modules you want to check. The runner discovers `module.f.js`,
-`module.f.js` and `demo.f.mjs` beneath that directory, then runs each module
+`module.f.js`, `demo.f.mjs` and `demo.f.js` beneath that directory, then runs each module
 directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.

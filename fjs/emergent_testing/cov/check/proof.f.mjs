@@ -14,10 +14,10 @@ const _full = path => ({
 
 export const proof = /** @type {const} */ ({
     targets: () => {
-        for (const path of /** @type {const} */ (['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs', 'C:\\a\\module.f.js'])) {
+        for (const path of /** @type {const} */ (['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs', './c/demo.f.js', 'C:\\a\\module.f.js'])) {
             assert(isCoverageTarget(path))
         }
-        for (const path of /** @type {const} */ (['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js', 'module.f.mjs.map'])) {
+        for (const path of /** @type {const} */ (['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.mjs', 'module.f.mjs.map'])) {
             assert(!isCoverageTarget(path))
         }
     },

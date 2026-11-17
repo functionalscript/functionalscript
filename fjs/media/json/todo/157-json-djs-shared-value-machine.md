@@ -29,7 +29,7 @@ was retired:
 - [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.js)
   — the format's own walk, over FunctionalScript values, with the ref seam
   and the `__proto__` key seam that walk alone needs now.
-- [`fjs/compiler/module.f.mjs`](../../../compiler/module.f.mjs) — `_stringifyTree`, the
+- [`fjs/compiler/module.f.js`](../../../compiler/module.f.js) — `_stringifyTree`, the
   dump the compiler's proofs pin token streams and syntax trees with: JSON's
   shape, keys sorted, over the compiler's leaves, a member holding `undefined`
   kept. It is what the old serializer's `serializeWithoutConst` was, without
@@ -115,7 +115,7 @@ walker to validate accessors, prototypes or cycles.
   materialization for exponent overflow, oversized bare integers, and standard
   compatibility.
 - `tryJsonStringify` in [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.js) —
-  once a fourth, fallible JSON walker in `fjs/compiler/module.f.mjs`, now the
+  once a fourth, fallible JSON walker in `fjs/compiler/module.f.js`, now the
   DataJS writer's read under JSON's leaf rule.
 - `i003` (retired; shipped as `fjs/compiler/ast`) — the original DJS design: parse a
   module into a flat list of constants addressed by index. It landed verbatim —

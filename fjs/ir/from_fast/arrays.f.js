@@ -8,7 +8,7 @@
  * [lifetime pass](../lifetime/module.f.js) their owned stage, and the
  * [host proof](./proof.mjs) runs them as WASM against the functions
  * themselves, with no value and no builder left over. Their signatures are
- * in [`testlib.f.mjs`](./testlib.f.mjs).
+ * in [`testlib.f.js`](./testlib.f.js).
  *
  * @module
  */

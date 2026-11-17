@@ -60,7 +60,7 @@ output:
   `gen.*`, which `npm run gen` rebuilds, as NaNVM's other generated Rust is.
 - **The `.wasm` and its WAT are built during website deployment**, in
   ignored `nanvm/demos/wasm/`. `nanvm/demos/gen.build.sh`, generated with
-  the samples' Rust by [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs),
+  the samples' Rust by [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.js),
   builds them with the pinned Rust during the Cloudflare build.
   Local website builds run this script in the shared shell first.
 - **The page fetches** the `.wasm` and the WAT by the paths the build script

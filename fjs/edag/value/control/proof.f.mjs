@@ -11,7 +11,7 @@ import { ok, error } from '../../../types/result/module.f.js'
 import { throwValue, conditional, sequence } from './module.f.js'
 import { conditional as sourceConditional } from '../../testlib.f.js'
 import { analysis } from '../../analysis/module.f.js'
-import { memo } from '../../memo/module.f.mjs'
+import { memo } from '../../memo/module.f.js'
 
 /** Canonical graph fixtures, with source logical lowering kept outside this module. @type {(graph: Exp) => ReturnType<ReturnType<typeof memo>>} */
 const evaluated = graph => memo(assertOk(analysis(graph)))({ args: [] })

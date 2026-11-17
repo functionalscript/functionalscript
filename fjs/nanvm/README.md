@@ -32,9 +32,9 @@ module.f.js ──> an EDAG exp ─┤     (amnesia)
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.js`](rust/module.f.js) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
 | [`methods/module.f.js`](methods/module.f.js) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
-| [`runtime/module.f.mjs`](runtime/module.f.mjs) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
+| [`runtime/module.f.js`](runtime/module.f.js) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
 | [`corpus/module.f.js`](corpus/module.f.js) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
-| [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
+| [`update/module.f.js`](update/module.f.js) | Writes both printers' output. Run by `npm run gen`. |
 | [`demos/`](demos/README.md) | The [WASM demo pages](demos/README.md): FunctionalScript run as JavaScript and compiled to WebAssembly, side by side. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
@@ -160,7 +160,7 @@ request and fails if the committed copy differs (see
 
 ## Interpreted values
 
-[`values/module.f.mjs`](values/module.f.mjs) builds a capture graph, interprets
+[`values/module.f.js`](values/module.f.js) builds a capture graph, interprets
 it with memo, and passes the resulting `EdagValue` to the existing Rust
 compiler. This checks value emission separately from compiling source modules.
 Its pure proofs check primitive, repeated and unused capture slots. The native

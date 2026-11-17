@@ -9,7 +9,7 @@ import { parseFromTokens } from '../../compiler/parser/module.f.js'
 import { tokenize } from '../../compiler/tokenizer/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { edagPath, generate, load, rustPath, source } from './module.f.mjs'
+import { edagPath, generate, load, rustPath, source } from './module.f.js'
 
 /** A root holding `text` at the runtime's path. @type {(text: string) => Dir} */
 const withRuntime = text => ({ 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8(text)] } } } })

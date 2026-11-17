@@ -8,7 +8,7 @@ import {
     add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
-import { constants, corners, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { constants, corners, loops, records, samples, unknown } from '../testlib.f.js'
 import { print, quote, show } from './module.f.js'
 
 /** @type {Type} */

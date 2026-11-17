@@ -6,7 +6,7 @@ loop statements, targeted loop/function exits and loops with an optional
 resolved `for` step. These constructs contain no generated functions, capture
 frames or immutable assignment versions. The parser retains source legality
 and diagnostics; representing a construct here does not admit new source syntax.
-[`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) shows this pass's
+[`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.js) shows this pass's
 input and output side by side, as graphs.
 
 [`pattern`](./pattern/module.f.js) plans checked patterns before the complete

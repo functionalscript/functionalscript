@@ -12,13 +12,12 @@
  * @import { ParseError, ResolvedModule } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
- * @import { Unresolved } from './types.ts'
- * @import { _Resolved } from './private.ts'
+ * @import { _Linked, _Resolved, Unresolved } from './types.ts'
  */
 
 import { tryNormalize } from '../../js/ast/sugar/module.f.js'
 import { fromFast } from '../../edag/from_fast/module.f.js'
-import { _fileError, _jsonModule, _program } from '../source/module.f.js'
+import { _fileError, _jsonModule, _program, _programOver } from '../source/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.js'
 import { assert } from '../../asserts/module.f.js'
@@ -153,3 +152,18 @@ const linking = {
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Exp, ParseError>}
  */
 export const resolve = _program(pureOk(linking), ({ exports }) => exports)
+
+/**
+ * {@link resolve} over the modules earlier links completed, answering the
+ * program with those modules and its own: a module another program already
+ * reached is not read again, as a diamond of imports within one program
+ * joins at one module. For a caller that links many programs of one tree,
+ * `fjs compile`'s check of every `.f.js`; `null` is no modules yet. A link
+ * that fails answers no modules, and its caller keeps the ones it had.
+ *
+ * Sharing assumes what one run can: a file read once is the file every later
+ * program means.
+ *
+ * @type {(path: string, linked: _Linked) => Effect<ReadWhole | ResolveFileModule, readonly [_Linked, Exp], ParseError>}
+ */
+export const resolveOver = _programOver(pureOk(linking), ({ exports }) => exports)

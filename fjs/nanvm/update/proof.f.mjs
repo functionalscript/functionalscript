@@ -20,14 +20,14 @@ import { data } from '../module.f.js'
 import { directory, generate } from '../rust/module.f.js'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.js'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.js'
-import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
+import { generate as generateValues, path as valuesPath } from '../values/module.f.js'
 import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.js'
-import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.mjs'
+import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.js'
 import { generate as generateIndependentTailRecipes, path as independentTailRecipesPath } from '../fast/independent_tail_recipes/module.f.js'
 import { generate as generateMixedSelfUses, path as mixedSelfUsesPath } from '../fast/mixed_self_uses/module.f.js'
-import { edagPath, rustPath } from '../runtime/module.f.mjs'
+import { edagPath, rustPath } from '../runtime/module.f.js'
 import { utf8 } from '../../text/module.f.js'
-import { generateRustTests, main } from './module.f.mjs'
+import { generateRustTests, main } from './module.f.js'
 
 /** A stand-in for `fjs/js/runtime` at its path, for the compiles the writer ends with. @type {Dir} */
 const root = { 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } } } }

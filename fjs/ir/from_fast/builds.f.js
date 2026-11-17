@@ -6,7 +6,7 @@
  * record; and two whose callbacks call functions that throw, which shows
  * the view's order: an item before the next state. The
  * [host proof](./proof.mjs) runs them as WASM against the functions
- * themselves. Their signatures are in [`testlib.f.mjs`](./testlib.f.mjs).
+ * themselves. Their signatures are in [`testlib.f.js`](./testlib.f.js).
  *
  * @module
  */

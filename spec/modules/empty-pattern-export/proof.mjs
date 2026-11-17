@@ -9,6 +9,6 @@
 
 import { hostProof } from '../../../fjs/compiler/refused_demo/host.mjs'
 import * as sample from './sample.mjs'
-import { answer, sample as sampleText, suggestion } from './demo.f.mjs'
+import { answer, sample as sampleText, suggestion } from './demo.f.js'
 
 export const proof = hostProof(import.meta.url, /** @type {{ readonly default?: unknown }} */ (sample).default, { answer, sample: sampleText, suggestion })

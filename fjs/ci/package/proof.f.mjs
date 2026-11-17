@@ -4,7 +4,7 @@
 
 import { consumerDirectory, packageCheckSteps } from './module.f.js'
 import { typescript } from '../config/module.f.js'
-import { packageConsumer } from '../self/module.f.mjs'
+import { packageConsumer } from '../self/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { isDigits } from '../../text/ascii/module.f.js'
 

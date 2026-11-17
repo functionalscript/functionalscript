@@ -11,7 +11,7 @@ import { basename, normalize } from '../../../path/module.f.js'
  * @type {(path: string) => boolean}
  */
 export const isCoverageTarget = path =>
-    ['module.f.mjs', 'module.f.js', 'demo.f.mjs'].includes(basename(path))
+    ['module.f.mjs', 'module.f.js', 'demo.f.mjs', 'demo.f.js'].includes(basename(path))
 
 /** A missing, invalid or rounded-away uncovered count cannot pass.
  * @type {(covered: number, total: number) => boolean}

@@ -627,7 +627,7 @@ interpreter's answer equals Node's, aliasing included. So the interpreter's
 value *is* Node's value as long as that proof passes, and it is the
 cheaper thing to print: it is already a represented graph
 ([`EdagValue`](../../../fjs/edag/values.md)) that keeps sharing by node identity,
-and [`fjs/nanvm/values`](../../../fjs/nanvm/values/module.f.mjs) already prints
+and [`fjs/nanvm/values`](../../../fjs/nanvm/values/module.f.js) already prints
 such a graph as a Rust module through the compiler's backend
 (`generateRust`), the way `gen.values/captures.rs` is made. Printing Node's
 own value instead would need a converter from a host value graph (aliasing
@@ -696,7 +696,7 @@ The program under test reaches Rust by compiling its source
 (`gen.fixtures/<name>.rs`); neither layer runs the program's logic in Rust.
 
 *2a, the generated expectation.* The generator in
-[`fjs/nanvm/harness`](../../../fjs/nanvm/harness/module.f.mjs), which already
+[`fjs/nanvm/harness`](../../../fjs/nanvm/harness/module.f.js), which already
 walks the corpus fixtures, also loads each through the interpreter's loader
 (`interpret`, as `_transpileDefault` does), takes the `default` of the
 represented export object, and writes `nanvm/harness/gen.expected/<name>.rs`:
@@ -824,7 +824,7 @@ level.
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
 3. **Generated-module linking (resolved).** The
-   [compiler](../../../fjs/compiler/module.f.mjs) resolves the complete source graph
+   [compiler](../../../fjs/compiler/module.f.js) resolves the complete source graph
    before `toRust` emits one Rust file. Stage 1 therefore needs no per-dependency
    Rust `use` paths or file layout; source imports are already linked within
    that output. The embedding crate chooses where to include the generated

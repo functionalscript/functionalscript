@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
-import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.mjs'
+import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.js'
 import alternative from './alternative.f.js'
-import { demo, sample, suggestion } from './demo.f.mjs'
+import { demo, sample, suggestion } from './demo.f.js'
 
 export const proof = {
     // `op.guarded-conversion` (spec/todo/refused-constructs.md): the message and the position.

@@ -3,7 +3,7 @@ import { rust } from '../../ci/config/module.f.js'
 import { step as ioStep } from '../../effects/module.f.js'
 import { readUtf8File } from '../../effects/node/module.f.js'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.js'
-import { buildPath, buildText, cloudflare, generatedDirectory, main, uploadArgs, wranglerVersion } from './module.f.mjs'
+import { buildPath, buildText, cloudflare, generatedDirectory, main, uploadArgs, wranglerVersion } from './module.f.js'
 
 export const proof = {
     production: () => {

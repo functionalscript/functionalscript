@@ -10,7 +10,7 @@ import {
     u, unit, variant,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { constants, corners, loops, records, samples, throws, unknown } from '../testlib.f.mjs'
+import { constants, corners, loops, records, samples, throws, unknown } from '../testlib.f.js'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */

@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.js'
-import { examples, lessons, projectSchemas } from './demo.f.mjs'
+import { examples, lessons, projectSchemas } from './demo.f.js'
 import { _readersOf } from './schema-demo/module.f.js'
 import { parse } from './parse/module.f.js'
 import { validate } from './validate/module.f.js'

@@ -8,7 +8,7 @@
  */
 
 import { hostProof } from '../../../fjs/compiler/refused_demo/host.mjs'
-import { answer, sample as sampleText, suggestion } from './demo.f.mjs'
+import { answer, sample as sampleText, suggestion } from './demo.f.js'
 
 /** What importing the sample answers: its default export, or what it threw. */
 const value = await import('./sample.mjs').then(

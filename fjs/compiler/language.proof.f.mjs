@@ -9,8 +9,8 @@
  */
 
 import { exitCode } from '../effects/node/module.f.js'
-import { compile } from './module.f.mjs'
-import { noRuntime, transpile } from './transpiler/module.f.mjs'
+import { compile } from './module.f.js'
+import { noRuntime, transpile } from './transpiler/module.f.js'
 import { virtualAt, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.js'
 /** @import { Dir } from '../effects/node/virtual/types.ts' */
 

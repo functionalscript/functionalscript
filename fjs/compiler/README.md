@@ -8,7 +8,7 @@ and transfer owners to the existing representations and conformance proofs.
 The front end: a grammar-based tokenizer over
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js), the
 [parser](./parser/README.md), shared [FAST](../js/ast/README.md), and the
-[transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
+[transpiler](./transpiler/module.f.js) behind `fjs compile`. It moved here
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
 and `fjs/djs` emptied. Module interpretation uses
@@ -18,7 +18,7 @@ the language its output name declares: a `.data.js` document through
 [`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.js) in
 normalized form, a `.js` module through [`serializer`](./serializer/module.f.js)
 from the linked graph, and a `.json` output that refuses what JSON cannot
-spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
+spell rather than approximating it — see [`module.f.js`](./module.f.js).
 
 File-module resolution uses the host's module identity and loading path. In the
 Node profile, resolved files are read and diagnosed by their absolute canonical
@@ -106,7 +106,7 @@ same loaded module receive that module's same export object. Empty import lists
 still require module initialization. The graph-construction convenience API
 composes normalization with [`edag/from_fast`](../edag/from_fast/README.md).
 
-`interpret(load)(path)` in [`transpiler`](./transpiler/module.f.mjs) loads
+`interpret(load)(path)` in [`transpiler`](./transpiler/module.f.js) loads
 imports, then evaluates each module's unresolved EDAG with their complete
 represented export objects as arguments. `load` is the runtime the
 initializations run under, a `RuntimeLoad` run once the root is known to be

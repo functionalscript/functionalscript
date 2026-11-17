@@ -15,7 +15,7 @@ reason a walk asks `isDirectory` before descending rather than `!isFile`.
 The consequence is narrow and worth naming: **no fixture can produce the entry
 the two flags exist to distinguish**, so a walk's guard against it cannot be
 proven here. It was found by reading rather than by a failure — the guard in
-`website/module.f.mjs` is pinned by a *directory* fixture, which is the case
+`website/module.f.js` is pinned by a *directory* fixture, which is the case
 that already worked.
 
 `stat` in the same file already models three states: a `JsModule` answers

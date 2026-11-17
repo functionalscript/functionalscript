@@ -20,7 +20,7 @@ about half a second.
 Use a runner that discovers modules and executes their coverage commands
 directly. The unit of proof ownership is one directory: its own proofs must
 cover each measured file immediately inside it. Keep the existing measured
-set: `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Helpers, examples and
+set: `module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. Helpers, examples and
 fixtures under other filenames do not acquire a new coverage obligation.
 
 #### Single-directory entry

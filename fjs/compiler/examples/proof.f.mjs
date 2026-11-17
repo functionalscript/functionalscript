@@ -1,7 +1,7 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { examplePicker } from '../../website/demo/examples/module.f.js'
 import { dependenciesOf, examples } from './module.f.js'
-import { isFileName } from '../demo_files/module.f.mjs'
+import { isFileName } from '../demo_files/module.f.js'
 
 export const proof = /** @type {const} */ ({
     /**

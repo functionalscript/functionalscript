@@ -1814,7 +1814,7 @@ done
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/compiler/module.f.mjs`](../fjs/compiler/module.f.mjs)). Rust
+(`.json` vs. DJS — see [`fjs/compiler/module.f.js`](../fjs/compiler/module.f.js)). Rust
 code generation is a third branch, selected by the `.rs` extension:
 
 - `fjs compile <module> <output>.rs` — parse + compile into a generated Rust
@@ -1861,7 +1861,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       through it. The selection is exposed as the harness API only; a CLI
       waits for a use ([`main.rs`](../nanvm/harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
-      `rustText` in the [compiler](../fjs/compiler/module.f.mjs) resolves the complete
+      `rustText` in the [compiler](../fjs/compiler/module.f.js) resolves the complete
       graph before calling `toRust`; source imports do not become separate
       Rust modules. The harness includes each generated fixture via `#[path]`
       as its own embedding choice.

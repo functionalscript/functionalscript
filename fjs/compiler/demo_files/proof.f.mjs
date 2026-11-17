@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { cycleOf, decode, dirOf, encode, fileOf, identityOf, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf, twiceLoaded } from './module.f.mjs'
+import { cycleOf, decode, dirOf, encode, fileOf, identityOf, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf, twiceLoaded } from './module.f.js'
 import { utf8 } from '../../text/module.f.js'
 
 /** @type {(value: unknown) => string} */

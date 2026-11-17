@@ -31,7 +31,7 @@ export type Encode<S> = Omit<Transducer<bigint, EncodeState<S>, never, Id>, 'ini
 }
 
 /**
- * The demo's state (`./demo.f.mjs`): which input is shown, `text` or `bits`,
+ * The demo's state (`./demo.f.js`): which input is shown, `text` or `bits`,
  * and both inputs, so switching between them keeps what was typed in each.
  */
 export type _DemoState = {

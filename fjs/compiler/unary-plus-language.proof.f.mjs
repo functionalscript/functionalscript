@@ -4,7 +4,7 @@ import { assertEq, assertError } from '../asserts/module.f.js'
 import { utf8 } from '../text/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.js'
 import { resolve } from './edag/module.f.js'
-import { interpret, noRuntime } from './transpiler/module.f.mjs'
+import { interpret, noRuntime } from './transpiler/module.f.js'
 import { moduleRefused } from './proof.f.mjs'
 
 export const proof = /** @type {const} */ ({

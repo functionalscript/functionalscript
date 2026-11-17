@@ -1,7 +1,7 @@
 /**
  * The WASM demo pages' samples, each by its name and the directory that
  * holds its `sample.f.js`: the one list the generator compiles
- * ([`../module.f.mjs`](../module.f.mjs)), its build script publishes
+ * ([`../module.f.js`](../module.f.js)), its build script publishes
  * (`nanvm/demos/gen.build.sh`), and each page finds its own place in.
  *
  * A function sample, a spec page's example, also lists its calls: each

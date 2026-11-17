@@ -3,7 +3,7 @@
  */
 
 import { marked, parse, serialize, setProperty, stringify, stringifyIndented, stringifySorted } from './module.f.js'
-import { _roundTripMarked, demo, roundTrip } from './demo.f.mjs'
+import { _roundTripMarked, demo, roundTrip } from './demo.f.js'
 import { sort } from '../../types/object/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { assert, assertEq, assertNotNullish, assertError, assertStructurallySame } from '../../asserts/module.f.js'

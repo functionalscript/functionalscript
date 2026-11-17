@@ -19,7 +19,7 @@ import { toHex, tryFromHex } from '../../oid/module.f.js'
 import { latin1 } from '../../testlib.f.js'
 import { badNameCode, tryResolve, zeroIdCode } from '../module.f.js'
 import { badPackedCode, brokenRefCode, idWidthCode, outsideRefsCode, refPrefixCode, tryDelete, tryWrite, unsortedPackedCode, unspellableNameCode } from './module.f.js'
-import { a, b, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed, t } from '../testlib.f.mjs'
+import { a, b, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed, t } from '../testlib.f.js'
 
 /**
  * Sixty-four hex digits, which is an id in a SHA-256 repository and no id at all

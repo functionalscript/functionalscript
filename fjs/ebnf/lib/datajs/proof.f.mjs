@@ -9,7 +9,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { diagramPage, force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.js'
 import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.js'
-import { demo, diagrams } from './demo.f.mjs'
+import { demo, diagrams } from './demo.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 
 const { keys } = Object

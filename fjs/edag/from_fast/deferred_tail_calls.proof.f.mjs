@@ -7,7 +7,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { fromFast } from './module.f.js'
 import { _fixtures } from './deferred_tail_calls/fixtures.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
-import { memo } from '../memo/module.f.mjs'
+import { memo } from '../memo/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 
 /** @type {(block: Block) => ValueResult} */

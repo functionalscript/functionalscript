@@ -11,7 +11,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
 import { railroadLabelMarker } from '../../../website/style/module.f.js'
-import { demo, diagrams } from './demo.f.mjs'
+import { demo, diagrams } from './demo.f.js'
 import { parser as predictiveParser } from '../../../ebnf/ll1/module.f.js'
 import { repeatFrom0 } from '../../../ebnf/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'

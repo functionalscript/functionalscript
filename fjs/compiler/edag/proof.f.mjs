@@ -9,16 +9,16 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
-import { invoke, memo } from '../../edag/memo/module.f.mjs'
-import { vm } from '../../edag/amnesia/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.js'
+import { vm } from '../../edag/amnesia/module.f.js'
 import { call } from '../../edag/value/call/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { tryModuleStringify } from '../serializer/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { _defaultExport, _moduleExports, _moduleThrows, resolve, unresolved } from './module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { _defaultExport, _moduleExports, _moduleThrows, resolve, resolveOver, unresolved } from './module.f.js'
+import { parse } from '../transpiler/module.f.js'
 import { exp } from '../../edag/module.f.js'
 import { validate } from '../../rtti/validate/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
@@ -1102,6 +1102,25 @@ export const proof = {
     },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.
+    // Linked over the modules an earlier link completed, a program binds
+    // the module the two share as the same EDAG node, and does not read
+    // its file again: here it is empty the second time.
+    resolveOver: () => {
+        const [linkedModules, a] = assertOk(virtualAt({
+            'a.f.js': file('import s from "./s.f.js"; export default [s];'),
+            's.f.js': file('export default [42];'),
+        })(resolveOver('a.f.js', null))[1])
+        const [, b] = assertOk(virtualAt({
+            'b.f.js': file('import s from "./s.f.js"; export default { s: s };'),
+            's.f.js': file(''),
+        })(resolveOver('b.f.js', linkedModules))[1])
+        const [first, second] = [_defaultExport(a), _defaultExport(b)]
+        expectEdag(second, ['{}', [[':', 's', ['[]', [42]]]]])
+        assert(first instanceof Array && first[0] === '[]' && second instanceof Array && second[0] === '{}')
+        assertEq(second[1][0][2], first[1][0])
+        // a link that fails is reported as `resolve` reports it
+        assertEq(virtualAt({ 'c.f.js': file('export default ;') })(resolveOver('c.f.js', linkedModules))[1][0], 'error')
+    },
     resolve: {
         alone: () => {
             expectEdag(program({ 'a.f.js': file('export default [1, { b: 2n }];') })('a.f.js'), ['[]', [1, ['{}', [[':', 'b', 2n]]]]])

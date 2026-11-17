@@ -11,7 +11,7 @@ import { utf8 } from '../../text/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { rustdocHead } from '../cargo-doc/module.f.js'
 import { rustdocStylesheet } from '../style/module.f.js'
-import { main } from './module.f.mjs'
+import { main } from './module.f.js'
 
 /** @type {(root: Dir, name: string) => string} */
 const textOf = (root, name) => {

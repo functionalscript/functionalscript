@@ -85,7 +85,7 @@ need a memo keyed by node identity to keep sharing; a cache that stores
 would need that rewrite. `fjs compile` writes the linked graph as a DataJS
 document when the output name ends with `.edag.data.js` or `.edag.data.mjs`,
 and left the other outputs alone. Their names have moved since, and the route
-is [`../module.f.mjs`](../module.f.mjs)'s to state: the value outputs are
+is [`../module.f.js`](../module.f.js)'s to state: the value outputs are
 `.data.js` and `.json`, and every other JavaScript name is the FunctionalScript
 writer's. The parser reads `a.b` and `a[key]`
 on any value, a numeric literal included, the key a string or a number, `__proto__` and `constructor`
@@ -753,7 +753,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   and to values. Its API sketches are superseded by the pipeline above.
 - [Module-resolution compatibility](./module-resolution-compatibility.md) —
   P1 owner of shared host resolution, module identity, loading and regressions.
-- [`fjs/compiler/transpiler/module.f.mjs`](../../compiler/transpiler/module.f.mjs) — loads imports
+- [`fjs/compiler/transpiler/module.f.js`](../../compiler/transpiler/module.f.js) — loads imports
   recursively and interprets module EDAGs with represented import values. Runtime
   conversion occurs at the requested output boundary.
 - [`fjs/compiler/parser/module.f.js`](../../compiler/parser/module.f.js) — DJS parser that must support the

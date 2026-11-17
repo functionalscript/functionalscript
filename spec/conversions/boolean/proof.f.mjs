@@ -1,6 +1,6 @@
 import { assertEq, assertStructurallySame } from '../../../fjs/asserts/module.f.js'
 import entry from './sample.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 
 export const proof = /** @type {const} */ ({
     input: () => {

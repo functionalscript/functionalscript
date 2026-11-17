@@ -483,7 +483,7 @@ type _UnwrapStepPinsItsChannel = Assert<Equal<
     false>>
 
 /**
- * The effects demo's one operation ([`demo.f.mjs`](./demo.f.mjs)): ask about a
+ * The effects demo's one operation ([`demo.f.js`](./demo.f.js)): ask about a
  * word, and be answered a string or refused with one.
  */
 export type DemoAsk = readonly ['ask', (word: string) => Result<string, string>]

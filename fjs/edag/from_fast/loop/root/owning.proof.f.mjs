@@ -8,7 +8,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { identityAnalysis } from '../../../analysis/module.f.js'
 import { fromFast } from '../../module.f.js'
 import { completeTransfers } from '../completions/module.f.js'
-import { memo } from '../../../memo/module.f.mjs'
+import { memo } from '../../../memo/module.f.js'
 import { toData } from '../../../value/to_unknown/module.f.js'
 import { _invocationTransition } from '../../../../js/ast/invocation/module.f.js'
 import { _directOwningInvocationRoot, invocationRootOf } from './module.f.js'

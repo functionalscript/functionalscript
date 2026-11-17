@@ -10,12 +10,12 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { fromFast } from '../module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
-import { vm } from '../../amnesia/module.f.mjs'
-import { memo } from '../../memo/module.f.mjs'
+import { vm } from '../../amnesia/module.f.js'
+import { memo } from '../../memo/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body } from '../proof.f.mjs'
 import { requiredFunction, failed, evaluate, flat, throwingRuntime } from '../member_returns/proof.f.mjs'
 import { tryStringify } from '../../../compiler/serializer/module.f.js'
-import { parse } from '../../../compiler/transpiler/module.f.mjs'
+import { parse } from '../../../compiler/transpiler/module.f.js'
 import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.js'
 
 /** A value block retains required work even when its result ignores it. @type {(value: Value, work: Value) => Value} */

@@ -41,7 +41,7 @@
 
 import { validate } from '../rtti/validate/module.f.js'
 import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
-import { demo, run as runDemo } from './demo.f.mjs'
+import { demo, run as runDemo } from './demo.f.js'
 import { htmlToString } from '../media/html/module.f.js'
 import { runPure } from '../effects/module.f.js'
 import {
@@ -980,7 +980,7 @@ export const proof = {
         // pinned here, nor by the node either: both readings throw, and a
         // `throw` case is pass/fail rather than payload-inspecting. What
         // carries that order is the shape of `callProperty` in
-        // `./amnesia/module.f.mjs`; "Where the host engines disagree" in
+        // `./amnesia/module.f.js`; "Where the host engines disagree" in
         // `./README.md` states the gap. Nor can `(u?.at)(0)` be pinned: both are
         // `|!()` terms, JavaScriptCore (so `bun test`) carries the
         // short-circuit through the parentheses and answers `undefined` where

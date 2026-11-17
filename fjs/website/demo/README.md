@@ -222,12 +222,12 @@ explicit Run actions. See [navigation and startup edits](./sharing/README.md#nav
   A result a reader will paste somewhere else — a digest, a command to run —
   is marked `data-code-block` too and carries a copy button, as both of the
   SHA-2 demo's blocks do (`codeBlock` in
-  [`crypto/sha2/demo.f.mjs`](../../crypto/sha2/demo.f.mjs)).
+  [`crypto/sha2/demo.f.js`](../../crypto/sha2/demo.f.js)).
 - **A tint is a verdict, and only a verdict.** Where the demo's point is
   whether a reader *accepts* the input, the box is marked
   `data-result="ok"` (green) or `data-result="error"` (red) instead, as the
   rtti demo's parse and validate answers are (`answerView` in
-  [`rtti/demo.f.mjs`](../../rtti/demo.f.mjs)). A result that is simply what
+  [`rtti/demo.f.js`](../../rtti/demo.f.js)). A result that is simply what
   the module computed — a digest, an AST, a generated module — stays
   neutral: green there would claim a check nobody made. **A verdict box that
   holds code** is marked `data-code` as well: it keeps the tint and border,

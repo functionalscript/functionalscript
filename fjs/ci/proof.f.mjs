@@ -2,7 +2,7 @@
  * @import { GitHubAction, MetaStep, Os, Architecture } from './common/types.ts'
  */
 import { ci, main } from './module.f.js'
-import { main as ownMain, packageConsumer } from './self/module.f.mjs'
+import { main as ownMain, packageConsumer } from './self/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.js'
 import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.js'

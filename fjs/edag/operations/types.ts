@@ -42,9 +42,13 @@ export type Tail<S> = readonly [S, Outcome]
  * where a call is left for the executor rather than made.
  * `expression` retains a function's body as EDAG without evaluating it;
  * `invoke` keeps the VM's execution model through calls and coercions.
+ * `moduleArgs` is the array `['args']` reads: one per invocation, made by
+ * the executor, so that every read of it is the same array however often
+ * the executor builds an evaluator.
  */
 export type Evaluator<E, S> = {
     readonly context: Context
+    readonly moduleArgs: Array
     readonly operand: (e: E, state: S) => Evaluation<S>
     readonly tail: (e: E, state: S) => Tail<S>
     readonly expression: (e: E) => Exp

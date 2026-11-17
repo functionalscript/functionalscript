@@ -9,7 +9,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.js'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */

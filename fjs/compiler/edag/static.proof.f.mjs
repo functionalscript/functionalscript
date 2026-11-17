@@ -15,7 +15,7 @@
  * @import { Runtime } from '../../edag/value/types.ts'
  */
 
-import { memo } from '../../edag/memo/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'

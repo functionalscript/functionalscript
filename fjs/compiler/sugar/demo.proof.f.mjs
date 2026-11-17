@@ -6,7 +6,7 @@
  * @import { Unknown } from '../../media/datajs/types.ts'
  */
 
-import { _listing, _panes, demo } from './demo.f.mjs'
+import { _listing, _panes, demo } from './demo.f.js'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'

@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { invoke, invokeWith, vm } from '../../amnesia/module.f.mjs'
+import { invoke, invokeWith, vm } from '../../amnesia/module.f.js'
 import runtimeEdag from '../../../js/runtime/gen.edag.js'
 import { read } from '../property/module.f.js'
 import { toData } from '../to_unknown/module.f.js'

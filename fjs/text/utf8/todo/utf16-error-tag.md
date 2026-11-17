@@ -28,7 +28,7 @@ cannot tell them apart. That is the silent wrong value
 [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids.
 
-The [demo](../demo.f.mjs) found it, and works around it by checking
+The [demo](../demo.f.js) found it, and works around it by checking
 `isValidCodePoint` before encoding.
 
 ### Proposal

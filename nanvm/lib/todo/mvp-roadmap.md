@@ -339,7 +339,7 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 #### Where self-hosting stands
 
 Measured on `442ea8f`. The loader is `interpret` in
-[`compiler/transpiler`](../../../fjs/compiler/transpiler/module.f.mjs); with its
+[`compiler/transpiler`](../../../fjs/compiler/transpiler/module.f.js); with its
 runtime dependencies it is 120 modules, the imports Node resolves when it loads
 the transpiler. 22 are `.f.js`, which the compiler accepts. The other 98 are
 `.f.mjs`, and the compiler refuses every one. Their first refusals, counted as
