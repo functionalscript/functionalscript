@@ -840,7 +840,7 @@ export const proof = {
     relativeSourcesAreRebasedOnTheDocument: async () => {
         const p = page(true, new URL('../../../', import.meta.url).href)
         const report = await startBrowserTestSources(p.root,
-            ['./fjs/types/nullable/proof.f.mjs'])
+            ['./fjs/types/nullable/proof.f.js'])
         assertEq(report.status, 'passed')
         assert(report.totals.tests > 0, report.totals)
     },
