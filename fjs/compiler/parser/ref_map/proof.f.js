@@ -98,12 +98,14 @@ export const proof = {
     // statement it is: such a body is not the map, and `blocks` answers
     // statement lists alone, the inner block's among them.
     standaloneBlock: () => {
+        /** @type {string} */
         const text = 'const f = (a, b) => {\n    {\n        const c = a\n        f(c)\n    }\n    return b\n}\nexport default f\n'
         assert(!is(text))
         const [node] = declared(text)
         assertStructurallySame(blocks(node).map(block => block.map(([tag]) => tag)), [['block', 'return'], ['const', 'const']])
         assertStructurallySame(names(node).map(nameOf), ['a', 'b', 'c'])
         // nested, and holding nothing
+        /** @type {string} */
         const nested = 'const f = (a, b) => { { { } } return a }\nexport default f\n'
         assert(!is(nested))
         assertStructurallySame(blocks(declared(nested)[0]).map(block => block.map(([tag]) => tag)), [['block', 'return'], ['block'], []])
