@@ -49,16 +49,7 @@ import { sandbox } from '../../effects/common/module.f.js'
 import { _formatDuration, _validDuration } from './performance/module.f.js'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
-import { assertNotNullish } from '../../asserts/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n

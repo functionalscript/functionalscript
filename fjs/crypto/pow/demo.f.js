@@ -23,16 +23,7 @@ import { codeBlock } from '../../website/demo/code/module.f.js'
 import { hexOf } from '../../website/demo/hash/module.f.js'
 import { sha256 } from '../sha2/module.f.js'
 import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
-import { assertNotNullish } from '../../asserts/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../../types/object/name/module.f.js'
 
 const formatHex = hexOf(sha256)
 const hashBits = vec(sha256.hashLength)
