@@ -23,7 +23,7 @@ export const proof = {
          *  | typeof literalGlobals[number]
          * >>} _KeywordsPinned
          */
-        assertEq(keywords.every((w, i) => i === 0 || keywords[i - 1] < w), true)
+        assertEq(keywords.every((w, i) => i === 0 || keywords[Number(i - 1)] < w), true)
         assertEq(keywords.slice(0, 3).join(), 'Infinity,NaN,arguments')
     },
     // `literalWords` is the three literals the reserved words hold and the

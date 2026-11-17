@@ -15,6 +15,7 @@ import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module
 import { assertIoMessage } from './testlib.f.js'
 import { demo, runWords } from './demo.f.js'
 import { htmlToString } from '../media/html/module.f.js'
+import { generate } from '../types/array/module.f.js'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.
@@ -536,7 +537,7 @@ export const proof = {
         // continuation survive to be walked — see the pure sibling below for
         // why an all-`pure` fold cannot show this.
         aLongCommandFoldCompletes: () => {
-            const items = Array.from({ length: 20_000 }, (_, i) => i)
+            const items = generate(20_000, i => i)
             const e = foldStep(pureOk(items), 0, x => s => mapStep(neg(x), n => s - n))
             assertEq(assertOk(run(e)), 199_990_000)
         },
@@ -551,7 +552,7 @@ export const proof = {
         // interpreter, and a fold of values recurses once per item and this is
         // the leaf that fails.
         aLongPureFoldCompletes: () => {
-            const items = Array.from({ length: 20_000 }, (_, i) => i)
+            const items = generate(20_000, i => i)
             assertEq(assertOk(pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x)))),
                 199_990_000)
         },

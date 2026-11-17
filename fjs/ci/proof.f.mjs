@@ -16,15 +16,16 @@ import { rustPlatformCommands, wasmTargets } from './rust/module.f.js'
 import { empty } from '../types/bit_vec/module.f.js'
 import { definedEntries } from '../types/object/module.f.js'
 import { coverageSyncFlag, packageJobId } from './node/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 /** @type {(root: Dir, names: readonly string[]) => Dir} */
 const directory = (root, names) => names.reduce((dir, name) => {
-    const value = dir[name]
+    const value = entry(dir, name)
     assert(typeof value === 'object' && !(value instanceof Array))
     return value
 }, root)
 /** @type {(state: State, name: string) => GitHubAction} */
 const workflow = (state, name) => {
-    const value = directory(state.root, ['.github', 'workflows'])[name]
+    const value = entry(directory(state.root, ['.github', 'workflows']), name)
     assert(Array.isArray(value) && value[0] !== undefined)
     return unwrap(parseGitHubAction(unwrap(jsonParse(utf8ToString(value[0])))))
 }

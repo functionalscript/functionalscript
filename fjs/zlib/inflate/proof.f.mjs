@@ -2,6 +2,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.js'
 import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.js'
 import { inflate } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /**
  * What a stream read in `pieces` gave: the output as bytes, and the bytes after
@@ -23,7 +24,7 @@ const read = (...pieces) => {
 }
 
 /** Seventy thousand bytes that differ from their neighbours. */
-const data = Array.from({ length: 70_000 }, (_, i) => (i * 31 + 7) & 0xff)
+const data = generate(70_000, i => (i * 31 + 7) & 0xff)
 
 // The stored vectors are `zlib.deflateSync(…, { level: 0 })` of Node, which makes
 // the stored blocks; its zlib starts a second block after 65 531 bytes, and the
@@ -43,7 +44,7 @@ const emptyFixed = hex('789c030000000001')
 const split = (bytes, at) => [bytes.slice(0, at), bytes.slice(at)]
 
 /** Bytes as the pieces of `size`, the last the rest. @type {(bytes: readonly number[], size: number) => readonly (readonly number[])[]} */
-const pieces = (bytes, size) => Array.from({ length: Math.ceil(bytes.length / size) }, (_, i) => bytes.slice(i * size, (i + 1) * size))
+const pieces = (bytes, size) => generate(Math.ceil(bytes.length / size), i => bytes.slice(i * size, (i + 1) * size))
 
 // Node's streams, and the bytes each one holds.
 const text3000 = text(3000)
@@ -56,7 +57,7 @@ const expected = /** @type {const} */ ({
     rle: Array(3000).fill(7),
     noise: noise(1500),
     zeros: Array(300_000).fill(0),
-    repeat: Array.from({ length: 14 }, () => text3000).flat(),
+    repeat: generate(14, () => text3000).flat(),
 })
 
 // Blocks of fixed codes, written by hand: a literal is its code, a copy a length
@@ -191,7 +192,7 @@ export const proof = {
     // What follows is counted, however much: more than a `Vec` holds is no
     // reason to fail.
     restPastAVec: () => {
-        const piece = Array.from({ length: 0xffff }, () => 7)
+        const piece = generate(0xffff, () => 7)
         assertStructurallySame(read(abc, piece, piece, piece, [7]), { output: [0x61, 0x62, 0x63], rest: 0x2_fffe })
     },
     // A stream that has not closed has no rest, wherever it is cut: it is not
@@ -231,7 +232,7 @@ export const proof = {
     // A copy can reach the start of the window: 32 768 back, over a stored block
     // before it and another copy after it that overlaps itself.
     farthest: () => {
-        const before = Array.from({ length: 40_000 }, (_, i) => i * 37 + 11 & 0xff)
+        const before = generate(40_000, i => i * 37 + 11 & 0xff)
         const copied = before.slice(40_000 - 32_768, 40_000 - 32_768 + 258)
         const output = [...before, ...copied, 0x41, ...Array(10).fill(0x41), ...before.slice(-300, -300 + 3)]
         const storedPart = [0, before.length & 0xff, before.length >> 8, ~before.length & 0xff, ~before.length >> 8 & 0xff, ...before]

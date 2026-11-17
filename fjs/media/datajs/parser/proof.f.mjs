@@ -17,6 +17,7 @@ import { units } from '../../../ebnf/utf16/module.f.js'
 import { value } from '../../../ebnf/lib/datajs/module.f.js'
 import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 
@@ -315,12 +316,12 @@ export const proof = {
         const bottom = parsed(`const $0=[];export default ${'['.repeat(n)}$0${']'.repeat(n)};`)
         assertEq(depthOf(0, bottom), n)
         const s = /** @type {const} */ (6_000)
-        const chain = parsed(Array.from({ length: s }, (_, i) => `const $${i}=[${i === 0 ? '' : `$${i - 1}`}];`).join('') + `export default $${s - 1};`)
+        const chain = parsed(generate(s, i => `const $${i}=[${i === 0 ? '' : `$${i - 1}`}];`).join('') + `export default $${s - 1};`)
         assertEq(depthOf(0, chain), s - 1)
         assertEq(asArray(exported(`[${Array(s).fill('{}').join(',')}]`)).length, s)
-        assertEq(keys(asObject(exported(`{${Array.from({ length: s }, (_, i) => `"k${i}":[]`).join(',')}}`))).length, s)
+        assertEq(keys(asObject(exported(`{${generate(s, i => `"k${i}":[]`).join(',')}}`))).length, s)
         const m = /** @type {const} */ (12_000)
-        const wide = asArray(exported(`[${Array.from({ length: m }, (_, i) => i).join(',')}]`))
+        const wide = asArray(exported(`[${generate(m, i => i).join(',')}]`))
         assertEq(wide.length, m)
         assertEq(wide[m - 1], m - 1)
     },

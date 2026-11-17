@@ -63,7 +63,7 @@ The [named-imports fixture](../nanvm/harness/fixtures/named-imports.mjs)
 compiles this pattern to Rust. Its cargo test has the harness's `run` select
 `main` and call it with no arguments, and checks `42`, matching native
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
-[`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
+[`fjs/compiler/edag/proof.f.js`](../fjs/compiler/edag/proof.f.js), on its own copy of
 the sources). The harness has no CLI; its
 [`main`](../nanvm/harness/src/main.rs) says why. The structural FJS serializer
 already writes ordinary/method calls and arithmetic; `calls`, `neg`, `operators`

@@ -41,7 +41,7 @@ invocation owns its cache; captured values keep their existing identities.
 - [x] Design and implement immutable invocation/cache state without captured
       binding mutation, keeping evaluation lazy and reusing analyzed indices.
 - [x] Preserve the existing `shared`, `merged`, `lazy`, `body` and `throw` proofs
-      in [`../proof.f.mjs`](../proof.f.mjs). Cover a shared constructor reached
+      in [`../proof.f.js`](../proof.f.js). Cover a shared constructor reached
       through multiple taken branches, a throwing node behind untaken branches,
       fresh body values across calls and retained captured-frame identity.
 - [ ] Once the required syntax and dependency closure compile, run the same

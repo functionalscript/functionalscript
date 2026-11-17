@@ -12,6 +12,7 @@ import { empty as emptyMap, fromEntries, mapEntries, mapGet, mapHas, size as map
 import { empty as emptySet, has as setHas, size as setSize, values as setValues } from '../../../../types/set/module.f.js'
 import { freeBindings } from '../../control/module.f.js'
 import { _hasReturn, memoCells, recipeCells } from './module.f.js'
+import { generate } from '../../../../types/array/module.f.js'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 0 })
@@ -552,7 +553,7 @@ export const proof = /** @type {const} */ ({
     },
     nestedCallerCells: () => {
         for (const depth of [2, 3]) {
-            const targets = Array.from({ length: depth }, () => /** @type {const} */ ({ kind: 'loop', index: 0 }))
+            const targets = generate(depth, () => /** @type {const} */ ({ kind: 'loop', index: 0 }))
             let sourceLoop = reading(b, targets[depth - 1])
             for (let index = depth - 2; index >= 0; index -= 1) {
                 sourceLoop = loopOf(body([['loop', sourceLoop]], ['break', targets[index], [0]]), targets[index])

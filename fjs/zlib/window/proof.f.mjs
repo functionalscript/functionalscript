@@ -2,9 +2,10 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { copy, empty, last, push, pushAll } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** @type {(bytes: number) => readonly number[]} */
-const varied = bytes => Array.from({ length: bytes }, (_, i) => i * 37 + 11 & 0xff)
+const varied = bytes => generate(bytes, i => i * 37 + 11 & 0xff)
 
 /**
  * The window agrees with the plain array it stands for, the obvious thing it is
@@ -53,7 +54,7 @@ export const proof = {
     nearCopy: () => {
         const bytes = varied(300)
         for (const [distance, length] of [[1, 5], [2, 7], [3, 258], [255, 258], [10, 4]]) {
-            const model = [...bytes, ...Array.from({ length }, (_, i) => bytes[bytes.length - distance + i % distance])]
+            const model = [...bytes, ...generate(length, i => bytes[Number(bytes.length - distance + i % distance)])]
             agree(copy(pushAll(empty, bytes), distance, length), model)
         }
     },

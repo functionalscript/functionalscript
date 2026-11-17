@@ -6,6 +6,7 @@ import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.j
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /**
  * Every drawn edge's `d`, in document order. Each piece of the SVG before
@@ -387,7 +388,7 @@ export const proof = /** @type {const} */ ({
                 edges: [
                     { from: 0, to: 1, label: 'cycle' }, { from: 0, to: 3, label: 'other' },
                     { from: 1, to: 2, label: '' }, { from: 2, to: 1, label: 'self', back: true },
-                    ...Array.from({ length: 15 }, (_, i) => ({ from: 3, to: { inline: `${i}` }, label: `${i}` })),
+                    ...generate(15, i => ({ from: 3, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
             const html = htmlToString(graphSvg(g))
@@ -466,7 +467,7 @@ export const proof = /** @type {const} */ ({
                     { from: 0, to: 1, label: 'first' },
                     { from: 0, to: 2, label: 'second' }, { from: 0, to: 2, label: 'third' },
                     { from: 1, to: 3, label: 'target' }, { from: 2, to: 3, label: 'target' },
-                    ...Array.from({ length: 20 }, (_, i) => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
+                    ...generate(20, i => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
             const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
@@ -504,13 +505,13 @@ export const proof = /** @type {const} */ ({
         upwardFanOut: () => {
             /** @type {Graph} */
             const g = {
-                nodes: Array.from({ length: 8 }, (_, id) => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : id < 5 ? 1 : 2 })),
+                nodes: generate(8, id => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : id < 5 ? 1 : 2 })),
                 edges: [
                     { from: 0, to: 1, label: 'spacer' }, { from: 0, to: 2, label: 'first' },
                     { from: 0, to: 3, label: 'second' }, { from: 0, to: 4, label: 'third' },
                     { from: 0, to: 5, label: 'shared' },
                     { from: 2, to: 5, label: 'next' }, { from: 3, to: 6, label: 'next' }, { from: 4, to: 7, label: 'next' },
-                    ...Array.from({ length: 20 }, (_, i) => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
+                    ...generate(20, i => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
             const paths = routes(htmlToString(graphSvg(g))).slice(5).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
@@ -529,7 +530,7 @@ export const proof = /** @type {const} */ ({
                     { from: 0, to: 1, label: '', corner: 'bottom' },
                     { from: 0, to: 1, label: '', corner: 'bottom' },
                     { from: 0, to: 2, label: '', corner: 'bottom' },
-                    ...Array.from({ length: 10 }, (_, i) => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
+                    ...generate(10, i => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
             const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
@@ -544,7 +545,7 @@ export const proof = /** @type {const} */ ({
                 const g = {
                     nodes: [{ id: 0, kind: 'n', label: 'source', rank: 0 }, { id: 1, kind: 'n', label: 'target', rank: 1 }],
                     edges: [
-                        ...Array.from({ length: rows }, (_, i) => ({ from: 0, to: { inline: `${i}` }, label: `${i}` })),
+                        ...generate(rows, i => ({ from: 0, to: { inline: `${i}` }, label: `${i}` })),
                         { from: 0, to: 1, label: 'next' }, { from: 1, to: 0, label: 'self', back: true },
                     ],
                 }
@@ -1212,8 +1213,8 @@ export const proof = /** @type {const} */ ({
         deepTree: () => {
             const n = 5_000
             const html = htmlToString(graphSvg({
-                nodes: Array.from({ length: n }, (_, id) => ({ id, kind: 'a', label: 'x', rank: id })),
-                edges: Array.from({ length: n - 1 }, (_, from) => ({ from, to: from + 1, label: '', corner: /** @type {const} */ ('top') })),
+                nodes: generate(n, id => ({ id, kind: 'a', label: 'x', rank: id })),
+                edges: generate(n - 1, from => ({ from, to: from + 1, label: '', corner: /** @type {const} */ ('top') })),
             }))
             assertEq(occurrences('y="10" width="50" height="26" rx="4" data-graph-node=""')(html), n)
         },

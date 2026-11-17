@@ -66,7 +66,7 @@ const execute = (options = {}) => {
             const call = state.calls.filter(call => call.startsWith('validate ')).length + 1
             return [next, options.validationErrors?.includes(call)
                 ? error(ioError({ message: 'validation unavailable' }))
-                : ok((options.valid?.[call - 1] ?? true) ? [{ name: 'valid', parentPath: '', isDirectory: false, isFile: true }] : [])]
+                : ok((options.valid?.[Number(call - 1)] ?? true) ? [{ name: 'valid', parentPath: '', isDirectory: false, isFile: true }] : [])]
         },
         write: (stream, bytes) => state => [{ ...state, output: [...state.output, [stream, utf8ToString(bytes)]] }, ok(undefined)],
     }

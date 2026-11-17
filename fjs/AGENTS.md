@@ -143,7 +143,7 @@ So a proof entry that *ends* with its typedefs checks nothing from there on.
 other were green whatever they claimed. Both entries are gone, and their
 claims sit at module scope in `fjs/edag/types.ts` and `fjs/effects/types.ts`.
 Where a typedef is followed by an `assert` call, as in
-`fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
+`fjs/ebnf/ll1/proof.f.js`'s `constParameter`, it is checked and does its job.
 
 **Prefer module scope in a `.ts` file**, where a type alias is resolved
 whether or not anything follows or references it, so the claim cannot be

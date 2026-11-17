@@ -1144,7 +1144,7 @@ buffering half is what this stage answered.
       itself was already gone. — `respond` opens once and asks the descriptor;
       `fileResponse` declares the `fstat` size and bounds `readChunks` by it, and
       every frame built after a successful `open` carries `releaseHandle` as its
-      `release`. Every case in [`../../../web/proof.f.mjs`](../../../web/proof.f.mjs)
+      `release`. Every case in [`../../../web/proof.f.js`](../../../web/proof.f.js)
       that a virtual file system can answer goes through `listen` and asserts it
       has nothing open afterwards, and `respond.fstatFailure`, which states a
       failure no such runner produces, runs the frame's `release` and asserts the

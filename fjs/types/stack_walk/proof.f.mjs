@@ -16,7 +16,7 @@ const sums = () => {
 
     /** @type {(frame: Frame) => Step<unknown, Frame, number, string>} */
     const round = frame => frame.index < frame.node.length
-        ? ['push', frame, frame.node[frame.index]]
+        ? ['push', frame, frame.node[Number(frame.index)]]
         : ok(frame.sum)
 
     /** @type {(frame: Frame, value: number) => Step<unknown, Frame, number, string>} */

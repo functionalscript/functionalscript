@@ -161,7 +161,7 @@ served **root** that has itself been replaced by a file is `500`, because `404`
 there would report the operator's mistake as the client's.
 
 `throughFile` and `rootNotDirectory` in
-[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pin both against
+[`../../../../web/proof.f.js`](../../../../web/proof.f.js) pin both against
 this runner rather than a host, for two *different* reasons. Only
 `rootNotDirectory`'s status differs by platform — `500` where a host says
 `ENOTDIR`, `404` where Windows says `ENOENT`. `throughFile`'s does not: it is

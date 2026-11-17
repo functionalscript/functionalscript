@@ -8,6 +8,7 @@ import { cycle, take } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { commitPayload, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload, undefinedByte } from '../testlib.f.js'
 import { digestOf, hexText, isOidOf, of, ofWidth, oidAt, toHex, tryFromHex, tryFromHexOf } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -130,7 +131,7 @@ export const proof = {
         // given as a lazy list that is never an array: the hash sees every
         // byte whatever the pieces.
         long: () => {
-            const payload = take(200_000)(cycle(Array.from({ length: 256 }, (_, i) => i)))
+            const payload = take(200_000)(cycle(generate(256, i => i)))
             assertEq(hex(of20('blob', payload)), 'aa0916be0c6aa2ad2eb4173843f154cb9ac1ab5a')
         },
     },

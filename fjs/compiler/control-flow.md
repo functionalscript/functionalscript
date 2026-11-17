@@ -236,7 +236,7 @@ Existing [source-loop proofs](../edag/to_fast/source/loops/proof.f.mjs),
 `sourceLoopTransfersKeepStateAndFirstParseFixedPoints` and
 `sourceFunctionExitsKeepTheirOwnersAndFirstParseFixedPoints`, cover transfers,
 owning returns, nested loops and wide state signatures. The shared
-[sugar proofs](../js/ast/sugar/proof.f.mjs) separately cover state selection,
+[sugar proofs](../js/ast/sugar/proof.f.js) separately cover state selection,
 conditional joins inside loop bodies, fresh snapshots and required failures.
 
 ## Switch dispatch, execution and transfer owners
@@ -417,7 +417,7 @@ provide the semantic backstop. Their
 `suppliedNestedJoinKeepsNativeReturnOwnership` and
 `suppliedParameterizedContinuationsKeepNativeInputs`, cover both normal inputs,
 the bypassing return, shared allocations, fresh invocations and repeated public
-source writes. [Direct preparation proofs](../js/ast/prepare/joins/proof.f.mjs)
+source writes. [Direct preparation proofs](../js/ast/prepare/joins/proof.f.js)
 and [native JavaScript checks](../js/ast/prepare/immutable_joins.proof.mjs)
 exercise the new boundary, including unsupported-profile identity, early
 returns, selected failures, required prefixes, rest/capture metadata, allocation

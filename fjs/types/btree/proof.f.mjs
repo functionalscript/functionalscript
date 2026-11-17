@@ -24,6 +24,7 @@ import { stringifySorted } from '../../media/json/module.f.js'
 import { set, squares } from './testlib.f.js'
 import { max } from '../number/max/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
+import { generate } from '../array/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const stringify = sequence => stringifySorted(toArray(sequence))
@@ -141,7 +142,7 @@ const demoProof = {
         assert(r[0] === 'ok', '')
         const { versions, status } = r[1]
         assertEq(versions.before, versions.after)
-        assertEq(JSON.stringify(toArray(values(versions.after))), JSON.stringify(Array.from({ length: 26 }, (_, i) => (i + 1) * 10)))
+        assertEq(JSON.stringify(toArray(values(versions.after))), JSON.stringify(generate(26, i => (i + 1) * 10)))
         assert(hasEntry(status, 'random') && status.random.length === 26, '')
         assert(html(r[1]).includes('26 keys inserted in random order: 10, 30, 50, 70, '), '')
     },

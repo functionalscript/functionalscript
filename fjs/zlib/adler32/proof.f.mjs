@@ -3,6 +3,7 @@ import { u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.js'
 import { run } from '../../types/list/module.f.js'
 import { codePoints } from '../../text/ascii/module.f.js'
 import { adler32, appendBytes } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /**
  * The checksum of `bytes` given in `pieces`, as the number it spells.
@@ -32,7 +33,7 @@ export const proof = {
     // The checksum of a message in pieces is the message's, wherever the
     // pieces meet: only bytes that differ tell the order apart.
     seam: () => {
-        const bytes = Array.from({ length: 3000 }, (_, i) => (i * 37 + 11) & 0xff)
+        const bytes = generate(3000, i => (i * 37 + 11) & 0xff)
         const whole = 0x0b45_d508n
         assertEq(adler(bytes), whole)
         for (const at of [0, 1, 1500, 2999, 3000]) {
@@ -46,7 +47,7 @@ export const proof = {
     },
     // The same over bytes, which is what `update` is over a `Vec`, and in pieces.
     bytes: () => {
-        const bytes = Array.from({ length: 3000 }, (_, i) => (i * 37 + 11) & 0xff)
+        const bytes = generate(3000, i => (i * 37 + 11) & 0xff)
         assertEq(appendBytes(bytes)(1), 0x0b45_d508)
         assertEq(appendBytes(bytes.slice(1000))(appendBytes(bytes.slice(0, 1000))(1)), 0x0b45_d508)
         assertEq(appendBytes([])(1), 1)

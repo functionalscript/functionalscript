@@ -16,6 +16,17 @@ import { unwrap } from '../../types/result/module.f.js'
  * @param {string} s
  * @param {Vec} v
  */
+const check = (s, v) => {
+    const sr = vecToCBase32(v)
+    assertEq(sr, s, [sr, s])
+    const vr = cBase32ToVec(s)
+    assertEq(vr, v, [vr, v])
+}
+
+/**
+ * @param {string} s
+ * @param {Vec} v
+ */
 const check5x = (s, v) => {
     const sr = vec5xToCBase32(v)
     assertEq(sr, s, [sr, s])
@@ -23,17 +34,6 @@ const check5x = (s, v) => {
     assertEq(vr, v, [vr, v])
     //
     check(`${s}g`, v)
-}
-
-/**
- * @param {string} s
- * @param {Vec} v
- */
-const check = (s, v) => {
-    const sr = vecToCBase32(v)
-    assertEq(sr, s, [sr, s])
-    const vr = cBase32ToVec(s)
-    assertEq(vr, v, [vr, v])
 }
 
 export const proof = {

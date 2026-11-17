@@ -388,7 +388,7 @@ The parser's `loops.generalStateAdmission` proof in
 [`parser/proof.f.mjs`](../../../fjs/compiler/parser/proof.f.mjs) covers zero and
 multiple state bindings, sequential and selected loops, snapshots and 18 state
 bindings. Shared sugar proofs in
-[`sugar/proof.f.mjs`](../../../fjs/js/ast/sugar/proof.f.mjs) cover binding order,
+[`sugar/proof.f.js`](../../../fjs/js/ast/sugar/proof.f.js) cover binding order,
 fresh locals, nested return ownership, explicit transfer targets, required
 failures and state beyond the function-arity limit.
 
@@ -404,7 +404,7 @@ header scope and shadowing, optional clauses, update timing, nested transfers,
 switch continues, owning function exits, required failures and unreachable
 source checks through parsing, normalization and EDAG execution.
 
-The [for-of proofs](../../../fjs/compiler/parser/for_of.proof.f.mjs) cover
+The [for-of proofs](../../../fjs/compiler/parser/for_of.proof.f.js) cover
 array/string input, Unicode and lone surrogates, patterns and defaults, fresh
 captures, source writes, zero and many state values, nested transfers and
 required failures. Sugar proofs cover the internal cursor, required spread

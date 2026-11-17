@@ -112,7 +112,7 @@ export const proof = {
             assertEq(actual[2], actual[5])
         }
         for (let i = 0; i < first.length; i += 1) {
-            assertEq(Object.is(first[i], second[i]), false)
+            assertEq(Object.is(first[Number(i)], second[Number(i)]), false)
         }
     },
     callables: () => {

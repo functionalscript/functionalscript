@@ -2,6 +2,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { more } from '../bits/module.f.js'
 import { assign, bytes, field, written } from '../testlib.f.js'
 import { code, decode, dynamic, fixed, fixedDistances, fixedLiterals } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** The extra bits of the repeats 16, 17 and 18. */
 const widths = { 16: 2, 17: 3, 18: 7 }
@@ -15,20 +16,20 @@ const widths = { 16: 2, 17: 3, 18: 7 }
  */
 const description = (hlit, hdist, lengths, body) => {
     const order = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]
-    const count = Math.max(4, order.reduce((most, symbol, i) => lengths[symbol] !== 0 ? i + 1 : most, 0))
+    const count = Math.max(4, order.reduce((most, symbol, i) => lengths[Number(symbol)] !== 0 ? i + 1 : most, 0))
     const codes = assign(lengths)
     return [
         ...field(hlit, 5), ...field(hdist, 5), ...field(count - 4, 4),
-        ...order.slice(0, count).flatMap(symbol => field(lengths[symbol], 3)),
+        ...order.slice(0, count).flatMap(symbol => field(lengths[Number(symbol)], 3)),
         ...body.flatMap(([symbol, extra]) => [
-            ...written(codes[symbol]),
+            ...written(codes[Number(symbol)]),
             ...(extra === undefined ? [] : field(extra, widths[/** @type {16 | 17 | 18} */ (symbol)])),
         ]),
     ]
 }
 
 /** The lengths of a code-lengths code by symbol, from the few that have one. @type {(of: Readonly<Record<number, number>>) => readonly number[]} */
-const lengthsOf = of => Array.from({ length: 19 }, (_, symbol) => of[symbol] ?? 0)
+const lengthsOf = of => generate(19, symbol => of[symbol] ?? 0)
 
 // A code-lengths code of the zero run 18 (one bit), a length 0 and a length 1
 // (two bits each).
@@ -140,7 +141,7 @@ export const proof = {
     // no code, a repeat of a length there is none of or past the end, no
     // end-of-block, and a code over-subscribed.
     refused: () => {
-        const full = lengthsOf(Object.fromEntries(Array.from({ length: 19 }, (_, symbol) => [symbol, 1])))
+        const full = lengthsOf(Object.fromEntries(generate(19, symbol => [symbol, 1])))
         const repeatFirst = lengthsOf({ 16: 1, 0: 1 })
         for (const bits of [
             description(30, 0, runs, []),

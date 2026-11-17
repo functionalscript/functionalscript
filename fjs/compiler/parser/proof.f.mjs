@@ -27,6 +27,7 @@ import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { isObject } from '../../types/object/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -60,7 +61,7 @@ const repeated = element => count => `${`${element},`.repeat(count - 1)}${elemen
  * @type {(count: number) => string}
  */
 const numberedMembers = count =>
-    Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
+    generate(count, i => `k${i}:${i}`).join(',')
 
 /**
  * A module read to the tree the proofs pin, a refusal thrown. Exported,
@@ -291,9 +292,9 @@ export const proof = {
         // item before what its tail returned, on the machine's heap stack,
         // and the fold closes the chain over a stack of its own
         stackSafety: () => {
-            const cases = Array.from({ length: 3000 }, (_, i) => `case ${i}: { return ${i}; }`).join(' ')
+            const cases = generate(3000, i => `case ${i}: { return ${i}; }`).join(' ')
             assertEq(parseFromTokens(tokenizeString(`export default (a) => { switch (a) { ${cases} } return 0; };`))[0], 'ok')
-            const labels = Array.from({ length: 3000 }, (_, i) => `case ${i}:`).join(' ')
+            const labels = generate(3000, i => `case ${i}:`).join(' ')
             assertEq(parseFromTokens(tokenizeString(`export default (a) => { switch (a) { ${labels} { return 1; } } return 0; };`))[0], 'ok')
         },
         // the statements after a switch are the body's one block with the
@@ -510,8 +511,8 @@ export const proof = {
             ])) {
                 assertOk(parseFromTokens(tokenizeString(source)))
             }
-            const declarations = Array.from({ length: 18 }, (_, index) => `let s${index}=0;`).join('')
-            const updates = Array.from({ length: 18 }, (_, index) => `s${index}=s${index}+1;`).join('')
+            const declarations = generate(18, index => `let s${index}=0;`).join('')
+            const updates = generate(18, index => `s${index}=s${index}+1;`).join('')
             assertOk(parseFromTokens(tokenizeString(`export default n=>{${declarations}while(s0<n){${updates}}return s17;};`)))
         },
         refused: () => {
@@ -1917,7 +1918,7 @@ export const proof = {
         () => {
             // primitives never touched the stack — the baseline that always passed
             const [tag] = parseFromTokens(tokenizeString(
-                `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}];`))
+                `export default [${generate(20000, i => i).join(',')}];`))
             assert(tag === 'ok', tag)
         },
     ],

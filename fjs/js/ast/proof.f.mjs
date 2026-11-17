@@ -6,6 +6,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 export const proof = {
     bigintOperands: () => {
@@ -26,7 +27,7 @@ export const proof = {
             assertStructurallySame(analyzeBindings({ target: { kind: 'function', index: 0 }, bindings: [], events: [['read', { index: 0 }]] }), [])
         },
         wideCaptures: () => {
-            const ids = Array.from({ length: 20_000 }, (_, index) => ({ index }))
+            const ids = generate(20_000, index => ({ index }))
             const outer = /** @type {const} */ ({ kind: 'function', index: 0 })
             const first = /** @type {const} */ ({ kind: 'function', index: 1 })
             const second = /** @type {const} */ ({ kind: 'function', index: 1 })
@@ -155,7 +156,7 @@ export const proof = {
         const width = 20_000
         const shared = { index: 0 }
         /** @type {readonly Entry<typeof shared>[]} */
-        const entries = Array.from({ length: width }, (_, index) => index % 2 === 0 ? [':', shared, shared] : ['...', shared])
+        const entries = generate(width, index => index % 2 === 0 ? [':', shared, shared] : ['...', shared])
         const mapped = mapOperator((value, index) => /** @type {const} */ ([value, index]))(['object', entries])
         assert(mapped[0] === 'object')
         assertEq(mapped[1].length, width)

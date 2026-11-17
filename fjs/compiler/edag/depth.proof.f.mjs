@@ -8,7 +8,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
-import { compile, expectEdag, lowered } from './proof.f.mjs'
+import { compile, expectEdag, lowered } from './proof.f.js'
 
 /**
  * Confirms `exp` is a left-associative `+` chain `depth` terms deep, bottoming

@@ -13,6 +13,7 @@ import { _readersOf } from './schema-demo/module.f.js'
 import { parse } from './parse/module.f.js'
 import { validate } from './validate/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
+import { nameOf } from '../types/object/name/module.f.js'
 
 /** @type {StringMap<readonly unknown[]>} */
 const tests = {
@@ -75,7 +76,7 @@ const demoProof = /** @type {const} */ ({
     projectValuesAccepted: () => {
         for (const e of projectSchemas) {
             const r = _readersOf(e.schemas[0].schema)(e.value)
-            assert(!hasEntry(r, 'error') && r.parse.ok && r.validate.ok, `${e.name}: ${JSON.stringify(r)}`)
+            assert(!hasEntry(r, 'error') && r.parse.ok && r.validate.ok, `${nameOf(e)}: ${JSON.stringify(r)}`)
         }
     },
 })

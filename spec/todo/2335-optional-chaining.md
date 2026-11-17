@@ -10,7 +10,7 @@ name/key checks, EDAG lowering and FunctionalScript writer were merged in
 That change also added the current rules to the
 [language specification](../property-access/optional-chaining/README.md), with proofs in
 [`parser`](../../fjs/compiler/parser/proof.f.mjs) (`optional`),
-[`edag`](../../fjs/compiler/edag/proof.f.mjs) (`chains`) and
+[`edag`](../../fjs/compiler/edag/proof.f.js) (`chains`) and
 [`serializer`](../../fjs/compiler/serializer/proof.f.mjs) (`chains`).
 This record remains open because the required approval evidence is missing.
 Compiler support does not establish language-design approval; the proposal

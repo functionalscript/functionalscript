@@ -18,6 +18,7 @@ import { ok } from '../../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.js'
 import { parse } from '../../../compiler/source/module.f.js'
 import { functionStringify, stringify } from './module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })
 const first = /** @type {const} */ ({ index: 0 })
@@ -93,12 +94,12 @@ export const proof = /** @type {const} */ ({
     },
     wideCaptureFactoriesKeepValuesSelfAndPublicArity: () => {
         for (const width of [17, 32]) {
-            const bindings = Array.from({ length: width }, (_, index) => ({ index }))
-            const values = Array.from({ length: width }, (_, index) => index)
+            const bindings = generate(width, index => ({ index }))
+            const values = generate(width, index => index)
             for (const keepSelf of [false, true]) {
                 const self = /** @type {const} */ ({ index: 0 })
                 /** @type {PreparedFunction} */
-                const captured = { ...fn(bindings.map((binding, index) => ({ binding, value: values[index] })),
+                const captured = { ...fn(bindings.map((binding, index) => ({ binding, value: values[Number(index)] })),
                     ['array', [...bindings.map(ref), ...keepSelf ? [ref(self)] : []]]), parameters: [parameter], self: keepSelf ? self : null }
                 const program = moduleOf(captured)
                 const closure = evaluate(program)

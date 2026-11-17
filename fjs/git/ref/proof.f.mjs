@@ -8,6 +8,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { toHex } from '../oid/module.f.js'
 import { latin1 } from '../testlib.f.js'
 import { tryLoose, tryPacked, tryPackedWithout, tryRef, writeLoose } from './module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 const loose = tryLoose(20)
 
@@ -35,7 +36,7 @@ const hexOfLoose = s => {
 
 /** @type {(e: PackedRef) => readonly [string, string, string]} */
 const seen = e => [
-    codePointListToString(e.name),
+    codePointListToString(nameOf(e)),
     codePointListToString(toHex(e.id)),
     e.peeled === null ? '' : codePointListToString(toHex(e.peeled)),
 ]

@@ -42,7 +42,7 @@ export const proof = {
         assertEq(sig[15], '-----END PGP SIGNATURE-----')
         assertEq(sig[16], '')
         // The message is everything after the first empty line.
-        const blank = commitPayload.findIndex((b, i) => b === 0x0A && commitPayload[i + 1] === 0x0A)
+        const blank = commitPayload.findIndex((b, i) => b === 0x0A && commitPayload[Number(i + 1)] === 0x0A)
         assertStructurallySame(toArray(p.message), commitPayload.slice(blank + 2))
         assertStructurallySame(toArray(p.message).slice(0, 20), latin1('Add design document '))
         roundTrip(commitPayload)

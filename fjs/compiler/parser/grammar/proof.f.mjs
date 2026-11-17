@@ -39,7 +39,7 @@ const parseModule = parser(/** @type {Rule} */ (module))
  */
 const symbols = s => {
     const all = toArray(tokenize(stringToList(s))('a.js'))
-    const last = all[all.length - 1]
+    const last = all[Number(all.length - 1)]
     // a lexical failure is the stream's one token, an error and no `eof`
     return symbolsOf(last !== undefined && last.token.kind === 'eof' ? all.slice(0, -1) : all)
 }
@@ -55,7 +55,7 @@ const read = s => {
     const input = symbols(s)
     const result = parseModule(input)
     if (result[0] === 'ok') { return ['ok'] }
-    const at = input[result[1]]
+    const at = input[Number(result[1])]
     if (at === undefined) { return ['error', 'end'] }
     const { token } = at.meta
     return ['error', token.kind === 'id' ? token.value : token.kind]

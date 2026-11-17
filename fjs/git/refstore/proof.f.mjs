@@ -22,6 +22,8 @@ import { toHex } from '../oid/module.f.js'
 import { latin1 } from '../testlib.f.js'
 import { badNameCode, headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, zeroIdCode } from './module.f.js'
 import { a, b, file, hexOf, kind, missing, one, ref, resolved, run, shadowed, t } from './testlib.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /**
  * A root as a name and a hex id, for comparing against a table.
@@ -34,8 +36,8 @@ import { a, b, file, hexOf, kind, missing, one, ref, resolved, run, shadowed, t 
  * @type {(r: Root) => readonly [string, string]}
  */
 const seen = r => {
-    const n = fromVec(u8ListToVecMsb(r.name))
-    assert(n !== null, r.name)
+    const n = fromVec(u8ListToVecMsb(nameOf(r)))
+    assert(n !== null, nameOf(r))
     return [n, codePointListToString(toHex(r.id))]
 }
 
@@ -1069,7 +1071,7 @@ export const proof = {
     // the joining and not only the reading — the last name in the file is in the
     // third chunk.
     bigPackedRefs: () => {
-        const lines = Array.from({ length: 4_000 }, (_, i) => `${a} refs/heads/topic/feature-${i}\n`)
+        const lines = generate(4_000, i => `${a} refs/heads/topic/feature-${i}\n`)
         const text = latin1(`# pack-refs with: peeled fully-peeled sorted \n${lines.join('')}`)
         const chunk = Number(maxLengthBytes)
         assert(text.length > chunk * 2, text.length)

@@ -16,6 +16,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { doneStep } from '../../types/function/operator/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */
 const stateOf = ([tag, , value]) => (assert(tag === 'next'), value)
@@ -39,7 +40,7 @@ const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b
  *
  * @type {(bytes: number) => readonly number[]}
  */
-const varied = bytes => Array.from({ length: bytes * 3 }, (_, i) => (i * 37 + 11) & 0xFF)
+const varied = bytes => generate(bytes * 3, i => (i * 37 + 11) & 0xFF)
 
 /**
  * The digest of a message split in two is the digest of the message,

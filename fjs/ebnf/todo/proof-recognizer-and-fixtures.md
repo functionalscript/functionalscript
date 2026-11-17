@@ -19,7 +19,7 @@ grammar ending in `eof`; `fjs/ebnf/proof.f.js` proves the adapter's branches.
 
 ### Remaining
 
-- [`../ll1/proof.f.mjs`](../ll1/proof.f.mjs) still spells "consumed all"
+- [`../ll1/proof.f.js`](../ll1/proof.f.js) still spells "consumed all"
   itself — the `dataJs` and large-document cases compare a match's end with
   the text's length, and the integer lexer resumes a one-token parser in its
   own loop. It was left alone while another change was editing that proof;

@@ -57,7 +57,7 @@ const wrapped = (source = fixture().fn, aliases = false) => {
     const first = inputs.map(id), second = inputs.map(id), output = id()
     /** @type {readonly Statement[]} */
     const prefix = aliases ? inputs.flatMap((binding, index) => [
-        ['define', first[index], ref(binding), 'lazy'], ['define', second[index], ref(first[index]), 'required'],
+        ['define', first[Number(index)], ref(binding), 'lazy'], ['define', second[Number(index)], ref(first[Number(index)]), 'required'],
     ]) : []
     const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
     /** @type {Loop} */

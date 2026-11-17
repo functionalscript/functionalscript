@@ -15,6 +15,7 @@ import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 // The smallest persistent structure that shares: a sorted list whose
 // insert and remove copy the cells before the change and share the rest. A
@@ -99,7 +100,7 @@ const random = versionsDemo({
     noun: 'list',
     intro: '',
     presets: [['One', [1], 2, '', 'one']],
-    random: { max: 5, count: 3, keys: n => Array.from({ length: n }, (_, i) => i + 1) },
+    random: { max: 5, count: 3, keys: n => generate(n, i => i + 1) },
 })
 
 /**

@@ -23,6 +23,7 @@ import { codePoints } from '../../../text/ascii/module.f.js'
 import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.js'
 import { agreement, callJs, edagView, functionDemo, init, load, microseconds, notLoaded, outcomeText, repeat, repetitions, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.js'
 import { spell } from '../spell/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** What a thunk answers to stand for a throw, which a proof cannot write. */
 const throws = 'negative'
@@ -42,7 +43,7 @@ const instance = (answer = '3', threw = false, loads = 0) => ({
     exports: {
         plus2: () => loads,
         call_sample: () => threw ? -1 - answer.length : answer.length,
-        output_byte: (/** @type {number} */ i) => codePoints(answer)[i],
+        output_byte: (/** @type {number} */ i) => codePoints(answer)[Number(i)],
     },
     startup: 2,
 })
@@ -55,7 +56,7 @@ const instance = (answer = '3', threw = false, loads = 0) => ({
  */
 const page = (files, wasm, sandbox = 'ok') => ({
     fetchText: path => s => {
-        const text = files[path]
+        const text = entry(files, path)
         return [s, text === undefined ? error(ioError({ message: `${path}: HTTP 404` })) : ok(text)]
     },
     instantiate: path => s => [s, wasm === null ? error(ioError({ message: `${path}: HTTP 404` })) : ok(wasm)],

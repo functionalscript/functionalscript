@@ -8,6 +8,7 @@
 
 import { assertEq } from '../../../asserts/module.f.js'
 import { children, exitValues, foldNodes, freeBindings, freeLoopBindings, hasLoopTransfer, someBlock } from './module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })
@@ -127,7 +128,7 @@ export const proof = {
         identities(freeBindings(yielding(['array', [['ref', a], ['ref', sameIndex]]])), [a, sameIndex])
     },
     deepOperators: () => {
-        const value = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['ref', a]))
+        const value = generate(20_000, () => undefined).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['ref', a]))
         identities(freeBindings(yielding(value)), [a])
     },
     lexicalResults: () => {
@@ -211,7 +212,7 @@ export const proof = {
         assertEq(someBlock(block => block === inner)(fn([], inner)), false)
         assertEq(someBlock(() => false)(outer), false)
         assertEq(someBlock(() => true)(1), false)
-        const deep = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['block', inner]))
+        const deep = generate(20_000, () => undefined).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['block', inner]))
         assertEq(someBlock(block => block === inner)(deep), true)
     },
     // Every node, the root first, in preorder: a block's statement values
@@ -225,7 +226,7 @@ export const proof = {
         })
         identities(reads(block), [a, b, c, a])
         assertEq(count(1), 1)
-        const deep = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['ref', a]))
+        const deep = generate(20_000, () => undefined).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['ref', a]))
         assertEq(count(deep), 20_001)
     },
 }

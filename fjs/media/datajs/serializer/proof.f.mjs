@@ -14,6 +14,7 @@ import { parseFromTokens } from '../../../compiler/parser/module.f.js'
 import { tokenize } from '../../../compiler/tokenizer/module.f.js'
 import { difference } from '../vectors/module.f.js'
 import { _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /** The document a value is written as. @type {(value: unknown) => string} */
 const text = value => unwrap(tryStringify(value))
@@ -68,7 +69,7 @@ const doubled = (leaf, levels) => {
 }
 
 /** An array chain of `depth` containers over one value. @type {(depth: number, bottom: unknown) => unknown} */
-const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)
+const nested = (depth, bottom) => generate(depth, () => undefined).reduce(v => [v], bottom)
 
 export const proof = {
     // Every leaf of the model, and `undefined` as a leaf rather than as an

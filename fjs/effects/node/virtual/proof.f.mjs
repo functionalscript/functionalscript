@@ -26,6 +26,30 @@ import { catchStep } from '../../module.f.js'
 import { ioError } from '../../module.f.js'
 import { ok, unwrap } from '../../../types/result/module.f.js'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
+
+/**
+ * The chunks given, as a body already in hand: every cell is pure, so the whole
+ * chain is built before the runner pulls any of it.
+ *
+ * That is the ordinary listener and not the shape of the type — a *lazy* body
+ * produces its cells inside a command's continuation, which is what `readChunks`
+ * over a {@link handleSource} does and what the `fjs/web` proofs drive.
+ *
+ * @type {(chunks: readonly Vec[]) => EffectList<never, Vec, IoChannel>}
+ */
+const ofChunks = chunks => chunks.reduceRight(
+    (tail, chunk) => nonEmpty(chunk, tail),
+    /** @type {EffectList<never, Vec, IoChannel>} */(endOfBody()))
+
+/** A listener holding nothing writes the pure end.
+ *
+ * Its op set is `never`, so it fits a listener of any: the end is pure, and
+ * nothing in it is a command a runner has to dispatch.
+ *
+ * @type {Effect<never, null, never>}
+ */
+const holdsNothing = pureOk(null)
 
 /**
  * A listener that reads its whole request body and answers with it.
@@ -88,29 +112,6 @@ const answered = (listener, body) => {
  * @type {(r: RecordedResponse) => string}
  */
 const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concatVec(v)(chunk), empty))
-
-/**
- * The chunks given, as a body already in hand: every cell is pure, so the whole
- * chain is built before the runner pulls any of it.
- *
- * That is the ordinary listener and not the shape of the type — a *lazy* body
- * produces its cells inside a command's continuation, which is what `readChunks`
- * over a {@link handleSource} does and what the `fjs/web` proofs drive.
- *
- * @type {(chunks: readonly Vec[]) => EffectList<never, Vec, IoChannel>}
- */
-const ofChunks = chunks => chunks.reduceRight(
-    (tail, chunk) => nonEmpty(chunk, tail),
-    /** @type {EffectList<never, Vec, IoChannel>} */(endOfBody()))
-
-/** A listener holding nothing writes the pure end.
- *
- * Its op set is `never`, so it fits a listener of any: the end is pure, and
- * nothing in it is a command a runner has to dispatch.
- *
- * @type {Effect<never, null, never>}
- */
-const holdsNothing = pureOk(null)
 
 /**
  * A `200` with no body and nothing held: a listener for a proof about the
@@ -1848,7 +1849,7 @@ export const proof = {
         // or joined the cells the other way round, answers the same *length* as
         // one that works, so the bytes are checked and so is the count.
         readsEveryChunkInOrder: () => {
-            const chunks = Array.from({ length: 300 }, (_, i) => vec8(BigInt(i % 251)))
+            const chunks = generate(300, i => vec8(BigInt(i % 251)))
             const [s, r] = answered(echoBody, chunks)
             assertEq(r.status, 200)
             assertEq(`${r.headers['x-chunks']}`, '300')
@@ -2455,7 +2456,7 @@ export const proof = {
                 () => pureOk({
                     status: 200,
                     headers: { 'content-length': `${cells}` },
-                    body: ofChunks(Array.from({ length: cells }, () => vec8(0x41n))),
+                    body: ofChunks(generate(cells, () => vec8(0x41n))),
                     release: recordRelease,
                 }),
                 requested('GET'))

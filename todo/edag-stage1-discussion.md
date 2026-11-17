@@ -273,8 +273,8 @@ separate contracts: the schema admitted several forms before the compiler
 emitted them. The current compiler and represented interpreters implement
 optional chains and their steps, `Number`, `String`, `typeof`, `throw`, comma
 anchors, fixed/rest functions, captures and `self`. The
-[compiler EDAG proofs](../fjs/compiler/edag/proof.f.mjs),
-[Memo proofs](../fjs/edag/memo/proof.f.mjs) and
+[compiler EDAG proofs](../fjs/compiler/edag/proof.f.js),
+[Memo proofs](../fjs/edag/memo/proof.f.js) and
 [Amnesia proofs](../fjs/edag/amnesia/proof.f.js) cover these paths. The current
 [node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
 limits still apply, including no unary `+`; an authored comma is admitted in
@@ -1418,7 +1418,7 @@ Nothing references a name the function did not compute itself:
 in first-use order, while known primitive constants can be embedded in the body.
 Memo and Amnesia evaluate those slots when creating the closure and read them
 as `["frame", i]`; `["self"]` handles direct self-reference. See `captures` in
-the [lowering proofs](../fjs/compiler/edag/proof.f.mjs) and
+the [lowering proofs](../fjs/compiler/edag/proof.f.js) and
 [source-serializer proofs](../fjs/compiler/serializer/proof.f.mjs).
 Default function text names slots without expanding their captured values.
 

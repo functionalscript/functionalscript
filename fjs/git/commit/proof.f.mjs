@@ -11,6 +11,7 @@ import { toHex } from '../oid/module.f.js'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.js'
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.js'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** An id's 40 hex digits, as a `parent` header spells it. */
 const idHex = encodeScalar(40)
@@ -248,7 +249,7 @@ export const proof = {
     // Git puts no bound on the parents: a merge of eight thousand is read,
     // vouched for, and walked without a stack to run out of.
     octopus: () => {
-        const ps = Array.from({ length: 8_000 }, (_, i) => `parent ${idHex(i)}`)
+        const ps = generate(8_000, i => `parent ${idHex(i)}`)
         const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
         assertEq(parents(c).length, 8_000)
         assertEq(hex(parents(c)[7_999]), '1f3f'.padStart(40, '0'))
