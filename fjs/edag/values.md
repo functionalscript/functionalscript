@@ -57,7 +57,7 @@ The proposed public interpreter admission API
 is tracked [separately](../compiler/todo/interpret-edag.md).
 
 Both interpreters use the same value forms and represented
-[operation dispatcher](operations/module.f.mjs), with their own
+[operation dispatcher](operations/module.f.js), with their own
 [execution models](execution-models.md). Memo reuses a shared computation
 within one invocation and starts fresh on the next. Amnesia recomputes each
 edge except caller-established nodes. Neither interns equal-looking values.

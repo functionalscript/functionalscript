@@ -14,9 +14,9 @@ import { vm } from '../../amnesia/module.f.mjs'
 import { memo } from '../../memo/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body } from '../proof.f.mjs'
 import { requiredFunction, failed, evaluate, flat, throwingRuntime } from '../member_returns/proof.f.mjs'
-import { tryStringify } from '../../../compiler/serializer/module.f.mjs'
+import { tryStringify } from '../../../compiler/serializer/module.f.js'
 import { parse } from '../../../compiler/transpiler/module.f.mjs'
-import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.js'
 
 /** A value block retains required work even when its result ignores it. @type {(value: Value, work: Value) => Value} */
 export const _anchored = (value, work) => ['block', result(value, [['define', id(0), work, 'required']])]

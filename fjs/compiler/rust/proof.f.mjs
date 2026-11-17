@@ -12,7 +12,7 @@ import { generate, itemTagged, toRust } from './module.f.js'
 import { toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { unresolved } from '../edag/module.f.mjs'
+import { unresolved } from '../edag/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
@@ -114,7 +114,7 @@ export const proof = {
     },
     /**
      * A module with an unreached `const` — `const unused = [1]; export
-     * default 42;` — links to a `,` root (`fjs/compiler/edag/module.f.mjs`'s
+     * default 42;` — links to a `,` root (`fjs/compiler/edag/module.f.js`'s
      * `resolve` anchors what the export does not reach rather than dropping
      * it): the unused `const` is still established in a required prepared
      * binding, and the export's value is the module's.

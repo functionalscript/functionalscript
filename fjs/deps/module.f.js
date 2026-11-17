@@ -13,7 +13,7 @@
 
 import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.js'
 import { join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
-import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
+import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.js'
 import { tokenize } from '../compiler/tokenizer/module.f.js'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.js'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.js'
@@ -22,6 +22,7 @@ import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resul
 import { definedEntries } from '../types/object/module.f.js'
 import { stringToList } from '../text/utf16/module.f.js'
 import { error, mapOk, ok, okList } from '../types/result/module.f.js'
+import { stringifyIndented } from '../media/json/module.f.js'
 
 /**
  * Unresolved syntax imports from UTF-8 text already read by the caller.
@@ -91,13 +92,15 @@ export const _relativeGraph = (base, graph) => {
         if (pathRoot(path) !== baseRoot) { return normalize(path) }
         const parts = pathParts(path)
         let common = 0
-        while (common < baseParts.length && common < parts.length && baseParts[common] === parts[common]) {
+        while (common < baseParts.length && common < parts.length && baseParts[Number(common)] === parts[Number(common)]) {
             common += 1
         }
         return [...baseParts.slice(common).map(() => '..'), ...parts.slice(common)].join('/') || '.'
     }
     return Object.fromEntries(definedEntries(graph).map(([path, dependencies]) => [relative(path), dependencies.map(relative)]))
 }
+
+const stringifyGraph = stringifyIndented('  ')(entries => entries)
 
 /** Scan entry points and write a complete JSON graph only after a successful scan. @type {NodeProgram} */
 export const main = ({ args, env }) => {
@@ -112,7 +115,7 @@ export const main = ({ args, env }) => {
         const [, { refused, graph }] = value
         if (refused !== 0) { return pureError(1) }
         const written = step(resolveFileModule(root, null), ({ path }) =>
-            writeUtf8File(join(root, '_deps.json'), `${JSON.stringify(_relativeGraph(path, graph), null, 2)}\n`))
+            writeUtf8File(join(root, '_deps.json'), `${stringifyGraph(_relativeGraph(path, graph))}\n`))
         return resultStep(written,
             ([tag, value]) => tag === 'error' ? errorExit(errorMessage(value)) : pureOk(0))
     })

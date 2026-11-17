@@ -4,7 +4,7 @@
  * @import { _Load } from './types.ts'
  */
 
-import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, _walk, jsonValue, parse, readSource } from './module.f.mjs'
+import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, _walk, jsonValue, parse, readSource } from './module.f.js'
 import { pureError, pureOk } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.js'
@@ -90,6 +90,13 @@ export const proof = {
         const run = virtual(emptyState)
         assertStructurallySame(run(_importSources(source)([]))[1], ['ok', []])
         assertStructurallySame(run(_importSources(source)([imported]))[1], ['ok', [{ id: 'dep.f.js', path: 'dep.f.js', json: false, name: 'default' }]])
+        assertStructurallySame(run(_importSources(source)([
+            { ...imported, name: null },
+            { ...imported, name: 'answer' },
+        ]))[1], ['ok', [
+            { id: 'dep.f.js', path: 'dep.f.js', json: false, name: null },
+            { id: 'dep.f.js', path: 'dep.f.js', json: false, name: 'answer' },
+        ]])
         assertStructurallySame(run(_importSources(source)([{ ...imported, specifier: 'package' }]))[1], ['error', {
             message: 'unsupported import specifier "package": expected ./, ../, or /', metadata: null, path: 'main.f.js',
         }])
@@ -111,6 +118,19 @@ export const proof = {
         const [same, reused] = assertOk(run(_walk(load)(source)(complete))[1])
         assertEq(same, complete)
         assertEq(reused, module)
+        // A diamond completes the shared module once, retaining import order
+        // and admitting an empty import with its null selection.
+        const [, diamond] = virtualAt({
+            'main.f.js': [utf8('import left from "./left.f.js"; import right from "./right.f.js"; export default [left, right];')],
+            'left.f.js': [utf8('import {} from "./dep.f.js"; export default 0;')],
+            'right.f.js': [utf8('import shared from "./dep.f.js"; export default shared;')],
+            'dep.f.js': [utf8('export default 1;')],
+        })(_walk(load)(source)(empty))
+        const [, diamondModule] = assertOk(diamond)
+        assertStructurallySame(diamondModule, ['main.f.js', ['left.f.js', ['dep.f.js']], ['right.f.js', ['dep.f.js']]])
+        const [, left, right] = diamondModule
+        assert(left instanceof Array && right instanceof Array)
+        assertEq(left[1], right[1])
         // An import attribute is checked even when the module was already loaded.
         assertStructurallySame(run(_walk(load)({ ...source, json: true })(complete))[1], ['error', {
             message: 'only a JSON module is imported with { type: "json" }', metadata: null, path: 'main.f.js',

@@ -188,7 +188,7 @@ export const operandsOf = node => isChain(node[0])
  * The distinct nodes an EDAG reaches from more than one place, in dependency
  * order — the generalization of a corpus's explicit, named `data.shared` to
  * a linked EDAG, where sharing is implicit: two references to one `const`
- * are the same `Exp` object by identity (see `fjs/compiler/edag/module.f.mjs`'s
+ * are the same `Exp` object by identity (see `fjs/compiler/edag/module.f.js`'s
  * `lower`), never restated as data. Two nodes spelled alike are two nodes,
  * each reached from its own place.
  *

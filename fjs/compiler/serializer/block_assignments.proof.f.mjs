@@ -17,9 +17,9 @@ import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { unresolved } from '../edag/module.f.mjs'
-import { parse } from '../source/module.f.mjs'
-import { tryModuleStringify } from './module.f.mjs'
+import { unresolved } from '../edag/module.f.js'
+import { parse } from '../source/module.f.js'
+import { tryModuleStringify } from './module.f.js'
 
 /** @type {(source: string) => Exp} */
 const graph = source => unresolved(assertOk(parse('/block-assignments.f.js')(source))).edag

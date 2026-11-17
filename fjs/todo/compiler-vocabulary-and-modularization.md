@@ -796,7 +796,7 @@ default form introduces an EDAG operation.
 module is one function over its imports. The fold writes it as `AstModule`,
 `[imports, body]`, the body reading import `i` as `['aref', i]` with the
 import list beside it; `unresolved` in
-[`compiler/edag`](../compiler/edag/module.f.mjs) then spells the read as
+[`compiler/edag`](../compiler/edag/module.f.js) then spells the read as
 `['.', ['.', ['args'], i], name]` and wraps the graph as `Unresolved`,
 `{ imports, edag }`, the specifiers riding beside it for `resolve` to link.
 Under the vocabulary, desugaring makes the module an ordinary FAST function

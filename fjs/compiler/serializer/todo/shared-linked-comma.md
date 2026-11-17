@@ -9,7 +9,7 @@ Linking gives a module that anchors a `const` one comma node — the anchors,
 then the export — and gives every import of it that one node
 (`fjs/compiler/edag`'s `_defaultExport`). A module that reads such an import
 twice shares the comma, and the multi-export writer (`moduleOperand` in
-[`../module.f.mjs`](../module.f.mjs)) writes the comma's anchors as the
+[`../module.f.js`](../module.f.js)) writes the comma's anchors as the
 module's own statements and the comma as an alias of its last operand. At
 `7de6ddd5`, over
 
@@ -57,7 +57,7 @@ as. Whichever, the round trip states which.
 
 ### Related
 
-- [`../module.f.mjs`](../module.f.mjs) — the public `_tryModuleSerialize`
+- [`../module.f.js`](../module.f.js) — the public `_tryModuleSerialize`
   boundary, now consuming common conversion and preparation.
-- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — `_defaultExport`,
+- [`../../edag/module.f.js`](../../edag/module.f.js) — `_defaultExport`,
   the linked comma.

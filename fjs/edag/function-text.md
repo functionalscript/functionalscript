@@ -1,13 +1,13 @@
 # A function's text in the EDAG interpreters
 
 Amnesia and memo retain function bodies and evaluated captures as `EdagValue`s.
-Their shared [conversion](./value/convert/module.f.mjs) uses canonical code
+Their shared [conversion](./value/convert/module.f.js) uses canonical code
 rendered from the EDAG for explicit `String(f)` and indirect conversion through
 arrays, object coercion, keys and built-in methods. Neither interpreter creates
 host callables or overrides a host function's `toString`.
 
 The trusted `functionText(analysis, index): string` entry in the
-[serializer](../compiler/serializer/module.f.mjs) renders every admitted body
+[serializer](../compiler/serializer/module.f.js) renders every admitted body
 through EDAG → normalized FAST → common preparation → JavaScript syntax.
 Source serialization, runtime-value output and Rust output share that
 conversion and preparation; they select their own output form. `tryFunctionText`

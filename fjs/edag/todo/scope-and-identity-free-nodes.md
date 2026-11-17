@@ -26,7 +26,7 @@ module-level constant and returned it for every occurrence, so
 `export default [undefined, (...a) => undefined];` — source the parser
 accepts and the writer spells — linked to a graph whose analysis threw. The
 linker now builds a node per occurrence
-([`fjs/compiler/edag/module.f.mjs`](../../compiler/edag/module.f.mjs)), which is the
+([`fjs/compiler/edag/module.f.js`](../../compiler/edag/module.f.js)), which is the
 smaller fix and the one that keeps the analysis's contract as written and
 proved. It is not obviously the *right* fix.
 
@@ -73,5 +73,5 @@ answer.
 - [`analysis.md`](./analysis.md) — the table the rule lives in.
 - [`../execution-models.md`](../execution-models.md) — where a scope is
   defined, and where the answer belongs.
-- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.js) — the writer
   whose round trip met the crash.

@@ -4,7 +4,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
-import { unresolved } from '../edag/module.f.mjs'
+import { unresolved } from '../edag/module.f.js'
 import { parseFromTokens } from './module.f.js'
 import { _evaluate, tokenizeString } from './proof.f.mjs'
 

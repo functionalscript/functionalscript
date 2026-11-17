@@ -8,7 +8,7 @@
 
 import { errorLocation, parseFromTokens } from './module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
-import { unresolved } from '../edag/module.f.mjs'
+import { unresolved } from '../edag/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.js'

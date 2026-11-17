@@ -13,8 +13,8 @@
  */
 
 import { _transpileDefault, interpret, noRuntime, parse, transpile, runtimeAt } from './module.f.mjs'
-import { _importSources } from '../source/module.f.mjs'
-import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
+import { _importSources } from '../source/module.f.js'
+import { _defaultExport, resolve, unresolved } from '../edag/module.f.js'
 import { invoke } from '../../edag/memo/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.js'

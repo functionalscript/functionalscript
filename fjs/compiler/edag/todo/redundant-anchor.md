@@ -7,7 +7,7 @@
 
 A scope evaluates an unread `const` through its comma, `[',', [t, value]]`,
 so that a failure in it is the program's (`anchoring` in
-[`../module.f.mjs`](../module.f.mjs)). The lowering also anchors nodes the
+[`../module.f.js`](../module.f.js)). The lowering also anchors nodes the
 scope evaluates anyway: a `const` read only through a call inlined in the
 same scope, and an unread import that another import's module reaches.
 
@@ -80,7 +80,7 @@ and agrees with the writers on what is eager.
 
 ### Related
 
-- [`../../serializer/module.f.mjs`](../../serializer/module.f.mjs) —
+- [`../../serializer/module.f.js`](../../serializer/module.f.js) —
   `statement`, which writes such an anchor as its node's `const`.
 - [`../../../edag/todo/operand-classification-owner.md`](../../../edag/todo/operand-classification-owner.md)
   — what is eager in a method call.

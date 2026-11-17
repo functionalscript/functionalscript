@@ -1,7 +1,7 @@
 /**
  * A FunctionalScript expression as the graph its compiler builds: type
  * `export default <expr>;`, see the EDAG — Expression DAG — [`unresolved`
- * lowers](./module.f.mjs) it to, drawn with [the shared graph
+ * lowers](./module.f.js) it to, drawn with [the shared graph
  * module](../../website/demo/graph/module.f.js).
  *
  * **A module with named exports draws as the object of its exports.** Only
@@ -12,7 +12,7 @@
  * **A `const` referenced twice is one node with two incoming edges, not
  * two nodes that happen to match.** Every reference to the same `const`
  * lowers to the same `Exp` object — [`unresolved`'s own
- * doc](./module.f.mjs) says so — so `1+2` written once and used three times
+ * doc](./module.f.js) says so — so `1+2` written once and used three times
  * is one operator node this graph draws once. Two `1+2`s written out
  * separately are two nodes: nothing here performs common-subexpression
  * elimination, only `const` makes sharing.
@@ -71,7 +71,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { _defaultExport, _moduleExports, tryUnresolved } from './module.f.mjs'
+import { _defaultExport, _moduleExports, tryUnresolved } from './module.f.js'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.js'
 import { operatorShape, unsupported } from '../graph/module.f.js'
 import { refusal } from '../../website/demo/module.f.js'

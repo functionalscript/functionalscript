@@ -24,7 +24,7 @@ The empty specifier, which Node's ESM refuses, is the importer itself to the
 Node runner and native, and its directory to the virtual runner.
 The [module-resolution record](../fjs/compiler/todo/module-resolution-compatibility.md)
 says bare imports are refused, and only the compiler's admission —
-`_importSources` in [`compiler/source`](../fjs/compiler/source/module.f.mjs) —
+`_importSources` in [`compiler/source`](../fjs/compiler/source/module.f.js) —
 refuses them, before any host is asked. Any other caller of the effect gets a
 plausible wrong module ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 

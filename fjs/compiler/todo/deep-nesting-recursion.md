@@ -6,12 +6,12 @@
 ### Problem
 
 The explicit-stack fixes in [`../ast/module.f.js`](../ast/module.f.js)
-(`refsOf`) and [`../edag/module.f.mjs`](../edag/module.f.mjs) (`lower`)
+(`refsOf`) and [`../edag/module.f.js`](../edag/module.f.js) (`lower`)
 cover operator chains only. A container or a function body still recurses
 once per level, before the EDAG analysis that
 [stack-safety](../../edag/todo/stack-safety.md) tracks is ever reached:
 
-- `lowerLeaf` in [`../edag/module.f.mjs`](../edag/module.f.mjs) lowers an
+- `lowerLeaf` in [`../edag/module.f.js`](../edag/module.f.js) lowers an
   `'array'` or `'object'` by mapping `lower(nodes)` over its items, and a
   function through `fn` → `scope` → `lower`.
 
@@ -37,7 +37,7 @@ holds out longer and fails the same way at five thousand: the walks over a
 continuation — `after`, `continuedSteps` and `stateOf` in
 [`../parser/syntax/module.f.js`](../parser/syntax/module.f.js),
 `stepParts` and `stepClosed` in [`../parser/module.f.js`](../parser/module.f.js),
-`lowerStep` in [`../edag/module.f.mjs`](../edag/module.f.mjs), the former direct
+`lowerStep` in [`../edag/module.f.js`](../edag/module.f.js), the former direct
 source writer's retired `chainSteps` and `lastStep`, and `stepOperands` in
 [`../../edag/analysis/module.f.js`](../../edag/analysis/module.f.js)
 — each recursed once per step at that revision. No module in the repository
@@ -46,7 +46,7 @@ is a known limit rather than a silent one.
 
 A comma is a node of the same kind
 ([spec: comma](../../../spec/operators/comma/README.md)): `comma` in
-[`../edag/module.f.mjs`](../edag/module.f.mjs) lowers its operands by
+[`../edag/module.f.js`](../edag/module.f.js) lowers its operands by
 mapping `lower(nodes)` over them, so a comma nested in a comma recurses once
 per level, as a container does, where a group makes no node and nests
 freely. At `265b4a7`, on x64 Node 26.12 with the default stack and a fresh

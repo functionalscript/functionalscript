@@ -4,8 +4,8 @@ import { assertEq, assertError, assertOk, assertStructurallySame } from '../../a
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
-import { unresolved } from '../edag/module.f.mjs'
-import { parse } from '../source/module.f.mjs'
+import { unresolved } from '../edag/module.f.js'
+import { parse } from '../source/module.f.js'
 
 /** @param {string} source */
 const evaluated = source => memo(assertOk(analysis(unresolved(assertOk(parse('')(source))).edag)))({ args: [] })

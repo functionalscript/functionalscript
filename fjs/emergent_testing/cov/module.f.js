@@ -26,8 +26,11 @@ import { shellQuote } from '../../text/shell/module.f.js'
 import { fmtResult, formatDuration } from '../module.f.js'
 import { csiWrite } from '../../text/sgr/module.f.js'
 import { createPlan, runPlanned } from './plan/module.f.js'
-import { openCoverageCache } from './context/module.f.mjs'
+import { openCoverageCache } from './context/module.f.js'
 import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** Target selection shared with the lightweight native reporter. */
 export const isCoverageTarget = coverageTarget
@@ -36,10 +39,13 @@ export const _coverageFailures = coverageFailures
 
 /** Group discovered source files into deterministic directory jobs. @type {(files: readonly string[]) => readonly _Module[]} */
 export const _modules = files =>
-    [...new Set(files.map(parent))].toSorted((a, b) => cmp(a)(b)).map(directory => ({
-        directory,
-        files: files.filter(file => parent(file) === directory).map(basename).toSorted((a, b) => cmp(a)(b)),
-    }))
+    files.map(parent)
+        .toSorted((a, b) => cmp(a)(b))
+        .filter((directory, index, sorted) => index === 0 || directory !== sorted[Number(index - 1)])
+        .map(directory => ({
+            directory,
+            files: files.filter(file => parent(file) === directory).map(basename).toSorted((a, b) => cmp(a)(b)),
+        }))
 
 /** Native includes are relative to the child cwd; the host supplies the reporter's file URL. @type {(packageRoot: string, files: readonly string[], reporter: string) => readonly string[]} */
 export const _nodeArgs = (packageRoot, files, reporter) => [
@@ -113,11 +119,11 @@ const increments = { passed: { failed: 0, cached: 0 }, failed: { failed: 1, cach
 /** Match the shared terminal reporter's duration precision and units. */
 const durationText = formatDuration(4)
 
-/** Execute CPU-bounded batches and retain stable successes for one commit.
+/** Execute batches with positive concurrency and retain stable successes for one commit.
  * @type {(options: NodeProgramOptions, plan: readonly Planned[], root: string, cache: CoverageCache | null, concurrency: number) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly duration: number, readonly realTime: number, readonly entries: readonly Entry[] }, IoChannel>}
  */
 export const _runPlan = (options, plan, root, cache, concurrency) => {
-    const batches = Array.from({ length: Math.ceil(plan.length / concurrency) }, (_, index) =>
+    const batches = generate(Math.ceil(plan.length / concurrency), index =>
         plan.slice(index * concurrency, (index + 1) * concurrency))
     const completed = foldStep(pureOk(batches), /** @type {readonly RunResult[]} */ ([]), batch => previous => {
         const work = batch.map(item => runPlanned(item, () => runModule(options, item.command, root), cache))
@@ -125,11 +131,13 @@ export const _runPlan = (options, plan, root, cache, concurrency) => {
         return mapStep(concurrent, results => [...previous, ...results])
     })
     return mapStep(completed, results => {
-        const totals = results.reduce((totals, { outcome, duration, entries }) => {
-            const change = increments[outcome]
+        const totals = results.reduce((totals, result) => {
+            const { outcome, duration } = result
+            const entries = assertNotNullish(entry(result, 'entries'))
+            const change = assertNotNullish(entry(increments, outcome))
             return {
                 failed: totals.failed + change.failed, cached: totals.cached + change.cached,
-                total: totals.total + 1, duration: totals.duration + duration, entries: [...totals.entries, ...entries],
+                total: totals.total + 1, duration: totals.duration + duration, entries: [...assertNotNullish(entry(totals, 'entries')), ...entries],
             }
         }, { failed: 0, cached: 0, total: 0, duration: 0, entries: /** @type {readonly Entry[]} */ ([]) })
         const runs = results.flatMap(({ start, duration }) => start === null ? [] : [{ start, end: start + duration }])
@@ -160,7 +168,7 @@ export const main = options => {
     const planned = historyStep(context, (cache, commands) => createPlan(commands, cache))
     const capacity = historyStep(planned, () => availableParallelism())
     const executed = historyStep(capacity, (concurrency, plan, cache) => _runPlan(options, plan, cache?.root ?? packageRoot, cache, concurrency))
-    const committed = historyStep(executed, (results, _capacity, _plan, cache) => _saveBatch(cache, results.entries))
+    const committed = historyStep(executed, (results, _capacity, _plan, cache) => _saveBatch(cache, assertNotNullish(entry(results, 'entries'))))
     const results = mapStep(committed, ([, totals, concurrency]) => ({
         ...totals, concurrency: Math.min(concurrency, totals.total),
     }))

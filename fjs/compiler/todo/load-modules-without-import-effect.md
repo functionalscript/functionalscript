@@ -33,7 +33,7 @@ Source-level `import` remains part of the language. This workflow needs neither
 a host `import` effect nor an effect that converts EDAG into a native function.
 It accepts the compiler-supported FJS subset, not arbitrary JavaScript or host
 modules. Reuse the existing resolution rules, readers and the one module walk,
-`_walk` in [`source`](../source/module.f.mjs).
+`_walk` in [`source`](../source/module.f.js).
 Do not introduce a second resolution walk.
 
 For the native executable, compile this FJS pipeline, including its interpreter,
@@ -69,7 +69,7 @@ it self-hosting:
   open. Replace these uses with immutable containers expressed in admitted FJS,
   or obtain an approved `Map` design before implementing language support.
 - Tag dispatch also uses host-only property access:
-  [operations](../../edag/operations/module.f.mjs)'s `semanticUnary[node[0]]`,
+  [operations](../../edag/operations/module.f.js)'s `semanticUnary[node[0]]`,
   `numericUnary[node[0]]`, `semanticBinary[tag]`, `relational[tag]` and
   `numericBinary[tag]`, and
   [analysis](../../edag/analysis/module.f.js)'s `handlers[e[0]]` select functions

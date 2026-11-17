@@ -24,11 +24,13 @@ import { allowedCalls, prototypes } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.js'
 import { functionAt } from '../property/module.f.js'
 import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.js'
-import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
-import { arrayMethod } from '../array_method/module.f.mjs'
+import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.js'
+import { arrayMethod } from '../array_method/module.f.js'
 import { at } from '../at/module.f.js'
 import { slice } from '../slice/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /** A non-nullish receiver's type, by its global's name, as `fjs/js/runtime` keys it. @type {(receiver: EdagValue) => keyof typeof prototypes} */
 const typeName = receiver => typeof receiver === 'string' ? 'String'
@@ -78,7 +80,7 @@ export const _runtimeOnly = ['startsWith', 'codePointAt', 'map', 'concat']
  */
 export const admits = (receiver, key) => {
     if (isNullish(receiver)) { return false }
-    return prototypes[typeName(receiver)].some(name => name === key) && allowedCalls.some(name => name === key)
+    return assertNotNullish(entry(prototypes, typeName(receiver))).some(name => name === key) && allowedCalls.some(name => name === key)
 }
 
 /**

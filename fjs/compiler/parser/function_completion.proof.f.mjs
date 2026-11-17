@@ -1,7 +1,7 @@
 /** Syntax retains written bodies; FAST owns completion, terminality and dead work. */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse } from '../source/module.f.mjs'
+import { parse } from '../source/module.f.js'
 import { _evaluate, tokenizeString } from './proof.f.mjs'
 import { parseSyntax } from './syntax/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
@@ -9,7 +9,7 @@ import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { unresolved } from '../edag/module.f.mjs'
+import { unresolved } from '../edag/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 
 /** @type {(body: string, parameters?: string) => import('../../js/ast/types.ts').Function} */

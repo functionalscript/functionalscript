@@ -15,14 +15,14 @@ functions, `static`, `dot` and, since the `in` operator's body, `in`
 Every member function the compiler admits — the `allowedCalls` of
 [`js/prototype`](../prototype/module.f.js) — is implemented at least twice,
 in two languages. The represented interpreter answers it in
-[`edag/value/method`](../../edag/value/method/module.f.mjs)'s `stringMethod`
+[`edag/value/method`](../../edag/value/method/module.f.js)'s `stringMethod`
 and `numberMethod` and in
-[`edag/value/array_method`](../../edag/value/array_method/module.f.mjs), for
+[`edag/value/array_method`](../../edag/value/array_method/module.f.js), for
 the most part by handing the receiver to the host engine; NaNVM answers it
 again in Rust, in `nanvm/lib/src/vm/lambda`'s `string.rs`, `number.rs` and
 `method.rs`. Three more files exist only to keep the two in agreement: the
 admission list itself, the completeness table
-[`nanvm/methods`](../../nanvm/methods/module.f.mjs) generates for the VM,
+[`nanvm/methods`](../../nanvm/methods/module.f.js) generates for the VM,
 and the parity corpus [`nanvm/member`](../../nanvm/member/module.f.js).
 Admitting `toLowerCase` and `toUpperCase`
 ([#2864](https://github.com/functionalscript/functionalscript/pull/2864))
@@ -270,7 +270,7 @@ the example, the third, which gets its own `todo/` when its turn comes.
   static section, `Object.is` the first body.
 - [`nanvm/lib/todo/member-functions.md`](../../../nanvm/lib/todo/member-functions.md)
   — the native completeness table this design retires.
-- [`nanvm/methods`](../../nanvm/methods/module.f.mjs) and
+- [`nanvm/methods`](../../nanvm/methods/module.f.js) and
   [`nanvm/member`](../../nanvm/member/module.f.js) — the generator and the
   parity corpus.
 - [`compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md)

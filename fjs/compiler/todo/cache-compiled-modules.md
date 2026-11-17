@@ -12,7 +12,7 @@ This cache is an optimization around the temporary unresolved representation. It
 not change `Unresolved`, EDAG, or the final compilation result: after module
 resolution, the compiler still produces one final EDAG.
 
-One thing it adds: today's `resolve` in [`fjs/compiler/edag`](../edag/module.f.mjs)
+One thing it adds: today's `resolve` in [`fjs/compiler/edag`](../edag/module.f.js)
 binds an import where the importing module's reference is lowered, from the
 AST, so it never rewrites a finished `Unresolved`. A cached `Unresolved` has no
 AST, so linking from the cache needs a rewrite of its graph — the parameter
