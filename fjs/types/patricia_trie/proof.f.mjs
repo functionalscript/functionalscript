@@ -5,11 +5,12 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { patriciaTrie } from './module.f.js'
-import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
+import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
 import { nextStep } from '../function/operator/module.f.js'
 import { run } from '../list/module.f.js'
+import { at } from '../ordered_map/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -190,8 +191,8 @@ const demoProof = {
     // keys: a leaf's in binary, a branch's its children's names joined.
     names: () => {
         const { nodes } = _load('Insert a key').versions.after
-        assertEq(JSON.stringify(nodes.get('00000011')), '["leaf",3]')
-        assertEq(JSON.stringify(nodes.get('00000011 00010001')), '["branch","00000011","00010001"]')
+        assertEq(JSON.stringify(at('00000011')(nodes)), '["leaf",3]')
+        assertEq(JSON.stringify(at('00000011 00010001')(nodes)), '["branch","00000011","00010001"]')
     },
     // A node shows its prefix in binary, a leaf its whole key, each split
     // into the bits its parent fixed and the bits it adds; nothing else.

@@ -11,7 +11,7 @@ import { repeatFrom0 } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
 import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.js'
 import { demo, diagrams } from './demo.f.js'
-import { diagramPage } from '../../testlib.f.mjs'
+import { diagramPage } from '../../testlib.f.js'
 import { items, unmapped, variant } from '../../ast/module.f.js'
 
 const cp = /**@type {const}*/({ id: 'cp' })

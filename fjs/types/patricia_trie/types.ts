@@ -5,6 +5,7 @@
  */
 
 import type { NextStep, Transducer } from '../function/operator/types.ts'
+import type { OrderedMap } from '../ordered_map/types.ts'
 
 /**
  * Merges two child identities into a parent. Values first, storage last in both
@@ -41,7 +42,7 @@ export type PatriciaTrie<S, T> = Omit<Transducer<Candidate<T>, State<S, T>, neve
 }
 
 /**
- * A node of a trie the demo (`./demo.f.mjs`) builds: a leaf holding its key,
+ * A node of a trie the demo (`./demo.f.js`) builds: a leaf holding its key,
  * or a branch holding its two children's identities.
  */
 export type _DemoNode = readonly ['leaf', number] | readonly ['branch', string, string]
@@ -51,7 +52,7 @@ export type _DemoNode = readonly ['leaf', number] | readonly ['branch', string, 
  * its root's identity, `null` for no keys, and every node by identity.
  */
 export type _DemoTrie = {
-    readonly keys: readonly number[]
+    readonly sorted: readonly number[]
     readonly root: string | null
-    readonly nodes: ReadonlyMap<string, _DemoNode>
+    readonly nodes: OrderedMap<_DemoNode>
 }

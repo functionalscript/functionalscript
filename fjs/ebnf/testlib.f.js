@@ -43,10 +43,10 @@ export const force = r => {
  */
 export const diagramPage = ({ init, view }, titles) => () => {
     const html = htmlToString(view(init))
-    titles.forEach(([title]) => assert(html.includes(`<section id="${anchor(title)}"><h3>${title}</h3>`), title))
+    for (const [title] of titles) { assert(html.includes(`<section id="${anchor(title)}"><h3>${title}</h3>`), title) }
     const links = html.split('<a href="#').slice(1).map(after => after.slice(0, after.indexOf('"')))
     assert(links.length !== 0, html)
-    links.forEach(link => assert(html.includes(`<section id="${link}">`), link))
+    for (const link of links) { assert(html.includes(`<section id="${link}">`), link) }
 }
 
 /**
@@ -88,7 +88,9 @@ export const recognizer = (parse, decode) => input => {
  * @type {(recognize: (input: string) => { readonly accepted: boolean, readonly diagnostic: unknown }) =>
  *  (cases: readonly (readonly [input: string, accepted: boolean])[]) => void}
  */
-export const assertRecognizes = recognize => cases => cases.forEach(([input, expected]) => {
-    const { accepted, diagnostic } = recognize(input)
-    assert(accepted === expected, [input, diagnostic])
-})
+export const assertRecognizes = recognize => cases => {
+    for (const [input, expected] of cases) {
+        const { accepted, diagnostic } = recognize(input)
+        assert(accepted === expected, [input, diagnostic])
+    }
+}

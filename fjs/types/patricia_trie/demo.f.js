@@ -33,6 +33,7 @@
  * @module
  *
  * @import { _DemoNode, _DemoTrie } from './types.ts'
+ * @import { OrderedMap } from '../ordered_map/types.ts'
  * @import { Keys, Preset, Row, Structure } from '../../website/demo/versions/types.ts'
  */
 
@@ -40,7 +41,9 @@ import { patriciaTrie } from './module.f.js'
 import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'
-import { run } from '../list/module.f.js'
+import { flat, run } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
+import { at, entries, fromEntries, setReplace } from '../ordered_map/module.f.js'
 
 /** A key's bits: the trie branches on them, most significant first. */
 const bits = 8
@@ -54,13 +57,11 @@ const binary = keyBits.show
  * The trie's `create`: a branch's identity is its children's, joined, and
  * the storage gathers every node built, by identity.
  *
- * @type {(a: string, b: string, storage: ReadonlyMap<string, _DemoNode>) => readonly [string, ReadonlyMap<string, _DemoNode>]}
+ * @type {(a: string, b: string, storage: OrderedMap<_DemoNode>) => readonly [string, OrderedMap<_DemoNode>]}
  */
 const create = (a, b, storage) => {
     const id = `${a} ${b}`
-    /** @type {_DemoNode} */
-    const branch = ['branch', a, b]
-    return [id, new Map([...storage, [id, branch]])]
+    return [id, setReplace(id)(/** @type {_DemoNode} */ (['branch', a, b]))(storage)]
 }
 
 const trie = patriciaTrie(create)
@@ -71,10 +72,10 @@ const trie = patriciaTrie(create)
  * @type {(keys: readonly number[]) => _DemoTrie}
  */
 const build = keys => {
-    /** @type {ReadonlyMap<string, _DemoNode>} */
-    const leaves = new Map(keys.map(k => [binary(k), /** @type {_DemoNode} */ (['leaf', k])]))
+    /** @type {OrderedMap<_DemoNode>} */
+    const leaves = fromEntries(keys.map(k => /** @type {const} */ ([binary(k), ['leaf', k]])))
     const [root, nodes] = run(trie(leaves))(keys.map(k => /** @type {const} */ ([BigInt(k), binary(k)])))
-    return { keys, root: root ?? null, nodes }
+    return { sorted: keys, root: root ?? null, nodes }
 }
 
 /** @type {(a: number, b: number) => number} */
@@ -83,15 +84,15 @@ const ascending = (a, b) => a - b
 /** @type {Structure<_DemoTrie, string>} */
 const structure = {
     empty: build([]),
-    insert: key => trie => trie.keys.includes(key) ? trie : build([...trie.keys, key].toSorted(ascending)),
-    remove: key => trie => trie.keys.includes(key) ? build(trie.keys.filter(k => k !== key)) : trie,
+    insert: key => trie => trie.sorted.includes(key) ? trie : build([...trie.sorted, key].toSorted(ascending)),
+    remove: key => trie => trie.sorted.includes(key) ? build(trie.sorted.filter(k => k !== key)) : trie,
     root: trie => trie.root,
     // A node is looked up in either version: the same identity is the same
     // node in both, which is the whole point.
     shape: ({ before, after }) => {
-        const nodes = new Map([...before.nodes, ...after.nodes])
+        const nodes = fromEntries(flat([entries(before.nodes), entries(after.nodes)]))
         /** @type {(id: string) => _DemoNode} */
-        const node = id => assertNotNullish(nodes.get(id))
+        const node = id => assertNotNullish(at(id)(nodes))
         /** @type {(id: string) => number} */
         const firstKey = id => {
             const n = node(id)
@@ -117,7 +118,7 @@ const structure = {
         // not drawn, and a node it shares may sit under a longer prefix
         // there.
         /** @type {(id: string) => number} */
-        const inherited = id => [...after.nodes].reduce(
+        const inherited = id => toArray(entries(after.nodes)).reduce(
             (m, [p, n]) => n[0] === 'branch' && (n[1] === id || n[2] === id) ? max(m, prefixLength(p)) : m, 0)
         /** @type {(id: string) => Row<string>} */
         const prefixRow = id => {
