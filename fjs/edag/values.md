@@ -116,7 +116,7 @@ host's function-text exception have distinct contracts in
 
 An unresolved module contains imports and an initializer EDAG. Constructing it
 does not execute initialization. The compiler's
-[`interpret`](../compiler/transpiler/module.f.mjs) resolves dependencies to
+[`interpret`](../compiler/transpiler/module.f.js) resolves dependencies to
 represented export values and runs each module's initializer with memo:
 
 ```text
@@ -182,7 +182,7 @@ fresh invocation values, lazy branches and explicit throws. Rust retains its
 output refusals, including shared computations without an eager binding
 scope; the value representation does not expand backend capabilities.
 
-The [interpreted capture fixture](../nanvm/values/module.f.mjs) is checked by
+The [interpreted capture fixture](../nanvm/values/module.f.js) is checked by
 pure interpreter proofs, JavaScript runtime proofs, and
 [native Rust tests](../../nanvm/harness/tests/values.rs). Additional emitter,
 conversion and initializer proofs live beside their APIs.

@@ -38,7 +38,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { escapes, normalize, root } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.js'
 import { parse as parseJson, stringifySorted } from '../../media/json/module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { parse } from '../transpiler/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 
 /** The main module's file name: what `fjs compile` reads as its input. */

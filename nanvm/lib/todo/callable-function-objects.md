@@ -627,7 +627,7 @@ interpreter's answer equals Node's, aliasing included. So the interpreter's
 value *is* Node's value as long as that proof passes, and it is the
 cheaper thing to print: it is already a represented graph
 ([`EdagValue`](../../../fjs/edag/values.md)) that keeps sharing by node identity,
-and [`fjs/nanvm/values`](../../../fjs/nanvm/values/module.f.mjs) already prints
+and [`fjs/nanvm/values`](../../../fjs/nanvm/values/module.f.js) already prints
 such a graph as a Rust module through the compiler's backend
 (`generateRust`), the way `gen.values/captures.rs` is made. Printing Node's
 own value instead would need a converter from a host value graph (aliasing

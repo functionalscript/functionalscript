@@ -139,7 +139,7 @@ any subsequent argument work. The query itself invokes no argument-stage body.
 objects, arrays and functions, using the shared function-text renderer in both
 interpreters; a static function, the built-in and not its body, answers the
 NativeFunction text of its name.
-[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
+[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.js) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
 representation. [Runtime compilation](values.md#runtime-compilation) converts

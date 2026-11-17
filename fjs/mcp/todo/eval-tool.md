@@ -12,7 +12,7 @@ read the result back. That needs a shell, and the server exists so an agent
 does not need one.
 
 The compiler and interpreter are now connected.
-[`compiler/transpiler.interpret(load)(path)`](../../compiler/transpiler/module.f.mjs)
+[`compiler/transpiler.interpret(load)(path)`](../../compiler/transpiler/module.f.js)
 loads dependencies, lowers each module with `unresolved`, and initializes its
 complete represented export object through [Memo](../../edag/memo/module.f.js)
 under the runtime `load` answers — the package's

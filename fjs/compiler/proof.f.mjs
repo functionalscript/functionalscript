@@ -12,7 +12,7 @@
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.js'
 import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
-import { transpile } from './transpiler/module.f.mjs'
+import { transpile } from './transpiler/module.f.js'
 import { parse } from './source/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
 import { pureOk } from '../effects/module.f.js'

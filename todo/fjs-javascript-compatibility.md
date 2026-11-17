@@ -323,7 +323,7 @@ randomness and external mutation.
       FJS/native-ESM escaped-filename regression.
 - [x] **P1:** refuse a source that is not correct UTF-8 rather than decode
       it to a value Node does not give (`readSource` in
-      [`fjs/compiler/transpiler`](../fjs/compiler/transpiler/module.f.mjs)).
+      [`fjs/compiler/transpiler`](../fjs/compiler/transpiler/module.f.js)).
 - [x] **P1:** refuse a `toString` radix in `nanvm-lib` rather than answer in
       radix ten, until the radix is implemented
       ([member functions](../nanvm/lib/todo/member-functions.md)).

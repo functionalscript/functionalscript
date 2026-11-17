@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse } from '../../compiler/transpiler/module.f.mjs'
+import { parse } from '../../compiler/transpiler/module.f.js'
 import { _defaultExport, unresolved } from '../../compiler/edag/module.f.js'
 import { tryModuleStringify } from '../../compiler/serializer/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.js'

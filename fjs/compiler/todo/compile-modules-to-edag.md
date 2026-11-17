@@ -753,7 +753,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   and to values. Its API sketches are superseded by the pipeline above.
 - [Module-resolution compatibility](./module-resolution-compatibility.md) —
   P1 owner of shared host resolution, module identity, loading and regressions.
-- [`fjs/compiler/transpiler/module.f.mjs`](../../compiler/transpiler/module.f.mjs) — loads imports
+- [`fjs/compiler/transpiler/module.f.js`](../../compiler/transpiler/module.f.js) — loads imports
   recursively and interprets module EDAGs with represented import values. Runtime
   conversion occurs at the requested output boundary.
 - [`fjs/compiler/parser/module.f.js`](../../compiler/parser/module.f.js) — DJS parser that must support the

@@ -60,6 +60,6 @@ export const value = () => {
 
 /** Emit the interpreted value through the existing Rust backend. @type {() => string} */
 export const generate = () => [
-    '// Fixture source: `fjs/nanvm/values/module.f.mjs`; regenerate with `npm run gen`.',
+    '// Fixture source: `fjs/nanvm/values/module.f.js`; regenerate with `npm run gen`.',
     generateRust(value()),
 ].join('\n')

@@ -30,7 +30,7 @@
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
-import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.mjs'
+import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.js'
 import { errorLocation } from './parser/module.f.js'
 import { resolve } from './edag/module.f.js'
 import { toRustMarked } from './rust/module.f.js'

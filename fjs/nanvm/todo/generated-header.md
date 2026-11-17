@@ -15,7 +15,7 @@ fixture generators do not: `generate` in each of
 [`fast/independent_tail_recipes`](../fast/independent_tail_recipes/module.f.js),
 [`fast/mixed_self_uses`](../fast/mixed_self_uses/module.f.js),
 [`fast/immutable_joins`](../fast/immutable_joins/module.f.mjs) and
-[`values`](../values/module.f.mjs) writes a `// Fixture source: …;
+[`values`](../values/module.f.js) writes a `// Fixture source: …;
 regenerate with …` line of its own, and `header` in
 [`expected`](../expected/module.f.js) a third wording, so the generated
 Rust under `nanvm/harness/gen.fast` and `gen.values` is the only generated

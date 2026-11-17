@@ -16,7 +16,7 @@ import { maxLength } from '../../types/function/length/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { parse } from '../transpiler/module.f.js'
 import { unresolved, resolve, _defaultExport } from '../edag/module.f.js'
 import { tryStringify, tryModuleStringify } from '../serializer/module.f.js'
 

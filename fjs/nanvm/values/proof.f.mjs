@@ -6,7 +6,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invoke } from '../../edag/memo/module.f.js'
-import { generate, path, value } from './module.f.mjs'
+import { generate, path, value } from './module.f.js'
 
 export const proof = {
     captures: () => {
@@ -74,7 +74,7 @@ export const proof = {
     generate: () => {
         assertEq(path, 'nanvm/harness/gen.values/captures.rs')
         const rust = generate()
-        assert(rust.startsWith('// Fixture source: `fjs/nanvm/values/module.f.mjs`; regenerate with `npm run gen`.'))
+        assert(rust.startsWith('// Fixture source: `fjs/nanvm/values/module.f.js`; regenerate with `npm run gen`.'))
         assert(rust.includes('pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>>'))
     },
 }

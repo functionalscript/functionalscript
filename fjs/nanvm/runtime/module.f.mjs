@@ -23,7 +23,7 @@
 import { ioError, pureError, pureOk, resultStep } from '../../effects/module.f.js'
 import { writeFiles } from '../../effects/node/module.f.js'
 import { runtimeSource } from '../../compiler/module.f.mjs'
-import { runtimeAt } from '../../compiler/transpiler/module.f.mjs'
+import { runtimeAt } from '../../compiler/transpiler/module.f.js'
 import { resolve } from '../../compiler/edag/module.f.js'
 import { generateRuntime } from '../../compiler/rust/runtime/module.f.js'
 import { _tryUnknownStringify } from '../../media/datajs/serializer/module.f.js'

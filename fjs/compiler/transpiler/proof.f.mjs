@@ -12,7 +12,7 @@
  * @import { Exp } from '../../edag/types.ts'
  */
 
-import { _transpileDefault, interpret, noRuntime, parse, transpile, runtimeAt } from './module.f.mjs'
+import { _transpileDefault, interpret, noRuntime, parse, transpile, runtimeAt } from './module.f.js'
 import { _importSources } from '../source/module.f.js'
 import { _defaultExport, resolve, unresolved } from '../edag/module.f.js'
 import { invoke } from '../../edag/memo/module.f.js'

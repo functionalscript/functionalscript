@@ -13,7 +13,7 @@
 // without types, so it opts out of the tsconfig's check above.
 
 import { readFileSync } from 'node:fs'
-import { parse } from '../../../fjs/compiler/transpiler/module.f.mjs'
+import { parse } from '../../../fjs/compiler/transpiler/module.f.js'
 import { tryUnresolved } from '../../../fjs/compiler/edag/module.f.js'
 import { checked, identityAnalysis } from '../../../fjs/edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../fjs/edag/to_fast/module.f.js'

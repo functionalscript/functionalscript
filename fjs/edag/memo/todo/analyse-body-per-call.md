@@ -69,6 +69,6 @@ Investigate, then improve:
 
 - [`../../analysis/module.f.js`](../../analysis/module.f.js) —
   `identityAnalysis`, `analysis`.
-- [`../../../compiler/transpiler/module.f.mjs`](../../../compiler/transpiler/module.f.mjs)
+- [`../../../compiler/transpiler/module.f.js`](../../../compiler/transpiler/module.f.js)
   — evaluates a module by the identity table.
 - [`immutable-cache.md`](./immutable-cache.md) — the executor's cache.

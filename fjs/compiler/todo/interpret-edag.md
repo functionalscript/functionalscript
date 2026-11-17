@@ -157,7 +157,7 @@ all but `length` — since such a graph is not one the compiler emits.
 
 ### Value-producing API integration
 
-[`compiler/transpiler`](../transpiler/module.f.mjs) now exposes
+[`compiler/transpiler`](../transpiler/module.f.js) now exposes
 `interpret(load)(path)`: load each dependency once, compile each parsed module
 with `unresolved`, then run memo with the complete represented dependency
 exports as arguments, under the runtime `load` answers — a `RuntimeLoad`, run

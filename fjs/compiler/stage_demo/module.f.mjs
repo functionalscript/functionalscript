@@ -26,7 +26,7 @@ import { error } from '../../types/result/module.f.js'
 import { textDemo } from '../../website/demo/module.f.js'
 import { highlight } from '../../website/demo/highlight/module.f.js'
 import { examples } from '../examples/module.f.js'
-import { parse } from '../transpiler/module.f.mjs'
+import { parse } from '../transpiler/module.f.js'
 
 /**
  * A stage's page: `intro` above a `Source` field named `name`, which opens on

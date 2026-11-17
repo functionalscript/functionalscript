@@ -9,7 +9,7 @@ host boundary and specifier contract below
 ### Problem
 
 A JavaScript module specifier is not a filesystem path.
-The original [`transpiler`](../transpiler/module.f.mjs) and
+The original [`transpiler`](../transpiler/module.f.js) and
 [EDAG linker](../edag/module.f.js) joined and normalized filesystem paths. At
 `1b4d0218ab93f2abc812b5e79f7fe4cb8d91b3d7`, neither path decodes URL escapes
 before filesystem loading. Create three sibling files:

@@ -160,7 +160,7 @@ request and fails if the committed copy differs (see
 
 ## Interpreted values
 
-[`values/module.f.mjs`](values/module.f.mjs) builds a capture graph, interprets
+[`values/module.f.js`](values/module.f.js) builds a capture graph, interprets
 it with memo, and passes the resulting `EdagValue` to the existing Rust
 compiler. This checks value emission separately from compiling source modules.
 Its pure proofs check primitive, repeated and unused capture slots. The native

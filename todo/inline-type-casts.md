@@ -185,7 +185,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/compiler/tokenizer/module.f.js` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/compiler/tokenizer/module.f.js` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/compiler/tokenizer/module.f.js` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/transpiler/module.f.mjs` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/transpiler/module.f.js` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 34 | `<T>(value: T) => Effect<MemCreate, Key<T>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 39 | `<T>(key: Key<T>) => Effect<MemRead, T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/memory/module.mjs` | 60 | `ToAsyncOperationMap<MemOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |

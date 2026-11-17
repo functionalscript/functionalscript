@@ -16,7 +16,7 @@ still does:
 - [`fjs/mcp`](../mcp/module.f.js) — calls `casMcpServer('/')` "to cover its
   effect-building body". `casMcpServer` is exported, so nothing about the
   case needs the module's scope.
-- [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.mjs) —
+- [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.js) —
   `mapDjsUnresolvedImport`, a guard its comment calls "unreachable through
   `transpile`'s public API".
 - [`fjs/types/bigfloat`](../types/bigfloat/module.f.js) —
