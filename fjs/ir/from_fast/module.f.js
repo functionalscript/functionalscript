@@ -95,9 +95,11 @@
  *   is what it copies.
  * - **A read of an array at a number key is L1's `get` for that case**:
  *   the item where the key is an index of the array, an integer from `0`
- *   up to its length, and `undefined` where it is anything else. A
- *   receiver of another kind is refused, since `get` throws for it or reads
- *   it by a string.
+ *   up to its length, and `undefined` where it is anything else. A member
+ *   or index of sealed `any` of another kind is a call of the module's
+ *   `get` where the signature table names it: `undefined` and `null`
+ *   throw, and an object or a string reads by a string. Without `get` in
+ *   the table, that read is refused.
  * - **The checker types the terms** that the lowering makes, so that the
  *   operand's type picks the operator where JavaScript has one for two
  *   types: `-x` is `neg` of a float and `0n - x` of an integer, `===` of two
@@ -1108,14 +1110,18 @@ const arrayOf = (lowerValue, scope, items) => {
     })
 }
 
+/** Whether the module being lowered exports L1's `get`, which a member or index of sealed `any` calls. @type {(scope: _Scope) => boolean} */
+const exportsGet = scope => scope.ir.functions.some(([k]) => k === 'get')
+
 /**
  * A read of an array at a number key, `a[0]` or `a[Number(k)]`, by L1's `get` rules
  * for that case: the receiver, then the key, each lowered where it stands as
  * the arguments of a call are; then the item where the key is an index of
  * one, an integer from `0` up to the array's length, `-0` reading `0`, and
- * `undefined` where it is anything else. The receiver holds an array alone:
- * `get` of any other kind throws or reads by a string, which is not in this
- * slice.
+ * `undefined` where it is anything else. The receiver holds an array alone
+ * keeps that path. A sealed `any` of another kind is a call of the module's
+ * `get` where the signature table names it; without `get`, that read is
+ * refused.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, receiver: Value, key: Value) => Result<Term, string>}
  */
@@ -1128,11 +1134,12 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
-    // The receiver holds an array alone: a type that may be an object is refused,
-    // since `get` of an object at a number reads by the string key, which is not
-    // this slice's `item` of an array.
-    return !isAny(t) || held === null || held.length !== 1 || held[0] !== 'array' ? refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
-        : ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
+    if (isAny(t) && held !== null && held.length === 1 && held[0] === 'array') {
+        return ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
+    }
+    // An index key is a float (a literal or `Number(...)`); L1's `get` takes `any`.
+    return isAny(t) && exportsGet(s) ? ok(call('self', 'get', [a, call('Any', 'from_f64', [k])]))
+        : refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
 })
 
 /**
@@ -1344,7 +1351,9 @@ const value = (scope, v) => {
             return m !== null ? named(scope, m)
                 : from !== null && from[0] === 'errors' ? errorOf(scope, from[1], v.length === 3 ? key : null)
                 : v.length !== 3 ? no('a member read with a further step, such as a call of the member, is not in this slice')
-                : typeof key === 'string' ? unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key) : null)
+                : typeof key === 'string' ? unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key)
+                    : isAny(t) && exportsGet(scope) ? call('self', 'get', [x, lit(string, key)])
+                    : null)
                 : indexed(value, scope, v[1], key)
         }
         case '<': { return binary(value, scope, lt, v[1], v[2]) }

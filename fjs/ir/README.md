@@ -281,9 +281,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   NaN or an infinity; `-0` reads item `0`. Both answers are owned: the
   lifetime pass writes a `dup` of `undefined`. `exact` takes the term for
   a float that holds no integer, a trap unless it is given.
-- **Only an array's**: a receiver of any other kind is refused, since
-  `get` throws for `undefined` and `null` and reads an object or a string
-  by a string, which wait for L1's `get` itself, in slice 10. So is a
+- **Only an array's** (until 10a): a receiver of any other kind was refused,
+  since `get` throws for `undefined` and `null` and reads an object or a
+  string by a string. Slice 10a opens those through L1's `get`. So is a
   member read that goes on to a call.
 - **L1's `typeOf`**, lowered from its text: `typeNames` is a constant that
   `init` builds, and `typeOf` reads it at `kind(v)`. It runs against L1's
@@ -388,6 +388,16 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   and Functions' `text`, on the L0 interfaces and the counting host.
 - **Subjects**: L1's `toPrimitive`, `toNumber`, `toNumeric`, `toString` and
   `call`, lowered from L1's text over its error table.
+
+## What 10a adds
+
+- **L1's `get`**, lowered from its text over the runtime and its error
+  table, run against L1's own: its throw for `undefined` and `null`, and
+  its reads of an object or a string by a string.
+- **A member or index of sealed `any`** is a call of the module's `get`
+  where the signature table names it. 6f's array-at-number specialization
+  stays. Without `get` in the table, that read is still refused. A member
+  read that goes on to a call stays refused.
 
 ## What 8b adds
 

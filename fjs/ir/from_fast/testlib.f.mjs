@@ -113,6 +113,18 @@ export const l1Coerce = {
     call: signature([['f', any], ['args', any]], any),
 }
 
+/**
+ * The signatures of L1's `get`, which slice 10a lowers over `l1Runtime`.
+ * `stringEquals` and `stringIndex` are among them so `get` can call them.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Get = {
+    stringEquals: signature(any2, bool),
+    stringIndex: signature([['s', any]], f64),
+    get: signature([['a', any], ['k', any]], any),
+}
+
 const f2 = /** @type {const} */ ([['a', f64], ['b', f64]])
 const b2 = /** @type {const} */ ([['a', bool], ['b', bool]])
 

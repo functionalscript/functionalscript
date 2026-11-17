@@ -218,7 +218,7 @@ PRs as decided below.
 - [x] **9b2. L0 `Functions.call` / `make_function`** (#3928 / #3932). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
   `make_function` of an IR `code` waits for slice 11.
-- [ ] **9b3. Lowering and subjects** (#3929). `asFunction(f)(…)` as L0
+- [x] **9b3. Lowering and subjects** (#3929). `asFunction(f)(…)` as L0
   `call(f, args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
 
@@ -235,25 +235,32 @@ Owner chose option A on each of four choices.
 
 #### Next — the whole L1 module
 
-Slice 10, cut as decided below once the owner picks.
+Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/functionalscript/functionalscript/pull/3934).
 
-- [ ] **10. The whole L1 module** (this PR). Against the cases of its parity
-  proof. `get` is among it: its throw for `undefined` and `null`, and its
-  reads of an object or a string by a string, which 6f left out. Remaining
-  L1 exports that are not yet subjects (`add` / `subtract` / …,
-  `toPropertyKey`, …) land with the cut the owner picks below.
-  **Status:** wip
+- [ ] **10a. `get`** (this PR). L1's `get` lowered from its text over the
+  runtime and its error table, run against L1's own: its throw for
+  `undefined` and `null`, and its reads of an object or a string by a
+  string, which 6f left out. A member or index of sealed `any` is a call
+  of the module's `get` where the table names it; 6f's array-at-number
+  path stays. **Status:** wip
+- [ ] **10b. Arithmetic and relational subjects.** L1's `add` / `subtract` /
+  `multiply` / `divide` / `negate` and the relational bodies, lowered and
+  run against L1's own.
+- [ ] **10c. Remaining L1 exports and parity.** Every remaining export of
+  [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already
+  a subject (`toPropertyKey`, …), and the host twin runs extended so each
+  runs against L1's own. Builtins wait.
 
-### Decisions for slice 10 (open)
+### Decisions for slice 10 (2026-11-16)
 
-Owner to pick before 10 lands code. Proposed defaults in parentheses.
+Owner chose option A on each of four choices.
 
-| Choice | Options |
+| Choice | Decision |
 | --- | --- |
-| How 10 is cut | **(A)** three stacked PRs: (1) `get` and the keyed object/string reads 6f refused; (2) arithmetic and relational L1 bodies as subjects; (3) remaining L1 exports and parity against the whole module. **(B)** two PRs: `get` first, then the rest of L1. **(C)** one PR |
-| How `a[k]` / `.` of `any` lowers | **(A)** always L1 `get`, keeping 6f's array-at-number specialization. **(B)** more specialized IR paths before calling L1 |
-| What "the whole L1 module" covers | **(A)** every export of [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already a subject. **(B)** include [`l1/builtin`](../../wasm/runtime/l1/builtin/module.f.js) too |
-| Parity | **(A)** extend the existing host twin runs so every remaining export runs against L1's own. **(B)** a separate parity module |
+| How 10 is cut | Three stacked PRs: 10a `get` + keyed object/string reads; 10b arithmetic and relational subjects; 10c remaining exports + parity |
+| How `a[k]` / `.` of `any` lowers | Always L1 `get`, keeping 6f's array-at-number specialization |
+| What "the whole L1 module" covers | Every export of [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already a subject; builtins wait |
+| Parity | Extend the existing host twin runs so every remaining export runs against L1's own |
 
 #### Later
 

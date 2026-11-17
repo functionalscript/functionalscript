@@ -459,7 +459,7 @@ export const get = (a, k) => {
     const kk = kind(k)
     if (kk !== NUMBER && kk !== STRING) { return undefined }
     if (ka === OBJECT) {
-        const i = find(a, kk === NUMBER ? numberToString(k) : k)
+        const i = find(a, kk === NUMBER ? numberToString(asNumber(k)) : k)
         return i < 0 ? undefined : item(a, i)
     }
     const isLength = kk === STRING && stringEquals(k, 'length')
