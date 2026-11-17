@@ -1,6 +1,6 @@
 /**
  * The state of a function sample's WASM demo page
- * ([`./module.f.mjs`](./module.f.mjs)).
+ * ([`./module.f.js`](./module.f.js)).
  *
  * @module
  */

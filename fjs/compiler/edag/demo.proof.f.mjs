@@ -3,10 +3,10 @@
  *
  * @import { Exp } from '../../edag/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { NodeShape } from '../../website/demo/graph/types.ts'
  */
 
-import { graphOfText, _shapeOf, demo } from './demo.f.mjs'
+import { demo } from './demo.f.mjs'
+import { graphOfText, _shapeOf } from './graph/module.f.js'
 import { examples } from '../examples/module.f.js'
 import { _crossings, graphOf } from '../../website/demo/graph/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
@@ -14,24 +14,12 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { htmlToString } from '../../media/html/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 import { runPure } from '../../effects/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** SVG text tags, including their attributes and text but not the closing tag. @type {(html: string) => readonly string[]} */
 const svgTextTags = html => html.split('<text ').slice(1).map(tag => tag.slice(0, tag.indexOf('</text>')))
 
 /** Lazy source positions, counting base paths and inline cells once, without selection overlays. @type {(html: string) => number} */
 const lazyPositions = html => html.split('<').filter(tag => tag.includes('data-graph-edge-kind="lazy"') && !tag.includes('data-graph-trace=""')).length
-
-/**
- * `exp`'s shape, asserted to be a node rather than a value drawn inline.
- *
- * @type {(exp: unknown, msg: string) => NodeShape<unknown>}
- */
-const nodeShapeOf = (exp, msg) => {
-    const shape = _shapeOf(exp)
-    assert(hasEntry(shape, 'children'), msg)
-    return shape
-}
 
 export const proof = {
     deferredLoweringIsDisplayed: () => {
@@ -46,63 +34,6 @@ export const proof = {
         }
     },
     demo: {
-        /**
-         * `_shapeOf` against hand-built `Exp` values, not source text, for
-         * the EDAG's own forms: the operators it shares with FAST are
-         * proved where their shape is, `fjs/compiler/graph`. A tag no node
-         * has is refused, and that path is tested here too.
-         */
-        shapeOf: {
-            // Function length is metadata, not a third expression edge.
-            // Building a closure establishes its frame and never its body,
-            // which runs only on a call — so the body is marked.
-            fixed: () => {
-                assertStructurallySame(_shapeOf(['arg', 2]), { inline: 'arg 2', kind: 'terminal' })
-                assertStructurallySame(_shapeOf(['frame', 1]), { inline: 'frame 1', kind: 'terminal' })
-            },
-            lambda: () => {
-                const shape = nodeShapeOf(['=>', 0, [], ['rest']], 'expected a shape')
-                assertEq(shape.label, '=>')
-                assertStructurallySame(shape.children, [['length', 0], ['body', ['rest'], 'lazy']])
-                // one port per slot, named as the body reads it
-                const captures = nodeShapeOf(['=>', 0, [['[]', []], ['args']], ['frame', 1]], 'expected a shape')
-                assertStructurallySame(captures.children, [['length', 0], ['frame 0', ['[]', []]], ['frame 1', ['args']], ['body', ['frame', 1], 'lazy']])
-            },
-            // Every Op0 name the EDAG has of its own draws inline, and
-            // the three part by meaning where `Op0Id` groups them by
-            // operand count: `undefined` is a primitive and draws as the
-            // leaf it is, beside `null` and the numbers, where `args` and
-            // `rest` are two of the places a value enters a scope from
-            // outside it and draw as terminals of their own — as a frame
-            // slot does, above.
-            op0: () => {
-                for (const [tag, shape] of [
-                    ['undefined', { inline: 'undefined' }],
-                    ['args', { inline: 'args', kind: 'terminal' }],
-                    ['rest', { inline: 'rest', kind: 'terminal' }],
-                ]) {
-                    assertStructurallySame(_shapeOf([tag]), shape, tag)
-                }
-            },
-            // `throw` is an `op1` whose port names what the operand is to
-            // the failure: its value, not an operand it computes from.
-            thrown: () => {
-                const thrown = nodeShapeOf(['throw', ['a']], 'throw')
-                assertEq(thrown.label, 'throw')
-                assertStructurallySame(thrown.children, [['value', ['a']]])
-            },
-            // An operator the EDAG shares with FAST is drawn by the shared
-            // shape, under the EDAG's own array tag.
-            shared: () => {
-                const shape = nodeShapeOf(['.', ['a'], 'x', ['|()', [1]]], 'expected a shape')
-                assertStructurallySame(shape.children, [['obj', ['a']], ['key', 'x'], ['...', ['[]', [1]]]])
-            },
-            // A tag naming none of the recognized shapes — one no node has
-            // today — is drawn as itself.
-            unrecognizedTag: () => assertStructurallySame(
-                _shapeOf(['new', ['a']]),
-                { kind: 'unsupported', label: 'new (not yet drawn)', children: [] }),
-        },
         // A node `_shapeOf` cannot describe is not dropped: the walk still
         // draws it, labeled by its own tag, with no outgoing edges. No
         // source reaches it today, so the hand-built `Exp` the

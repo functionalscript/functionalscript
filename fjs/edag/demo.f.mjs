@@ -41,7 +41,7 @@
 
 import { codeMarker } from '../website/style/module.f.js'
 import { caption, refusal, textDemo } from '../website/demo/module.f.js'
-import { compiled } from '../compiler/demo.f.mjs'
+import { compiled } from '../compiler/compiled/module.f.js'
 import { parse } from '../compiler/transpiler/module.f.js'
 import { unresolved } from '../compiler/edag/module.f.js'
 import { toText } from '../text/marked/module.f.js'

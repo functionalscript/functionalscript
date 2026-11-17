@@ -54,13 +54,15 @@
 import { sandbox } from '../../../effects/common/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { compiled } from '../../../compiler/demo.f.mjs'
-import { graphOfText } from '../../../compiler/edag/demo.f.mjs'
+import { generate } from '../../../types/array/module.f.js'
+import { entry as objectEntry } from '../../../types/object/entry/module.f.js'
+import { compiled } from '../../../compiler/compiled/module.f.js'
+import { graphOfText } from '../../../compiler/edag/graph/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.js'
 import { graphSvg } from '../../../website/demo/graph/module.f.js'
 import { codeOutput } from '../../../website/demo/highlight/module.f.js'
 import { admittedMarker, codeMarker } from '../../../website/style/module.f.js'
-import { decode, filesView, load as loadFiles, startupView, stat } from '../page/module.f.js'
+import { decode, filesView, load as loadFiles, placeName, startupView, stat } from '../page/module.f.js'
 import { spell } from '../spell/module.f.js'
 
 /** @type {State} */
@@ -154,7 +156,7 @@ export const callJs = entry => input => resultStep(sandbox(() => repeat(repetiti
 export const wasmOutcome = outputByte => status => {
     if (status === notLoaded) { return error('no sample is loaded') }
     const length = status < 0 ? -1 - status : status
-    const text = decode(Array.from({ length }, (_, i) => outputByte(i)))
+    const text = decode(generate(length, outputByte))
     return text[0] === 'error' ? text : ok(status < 0 ? ['threw', text[1]] : ['returned', text[1]])
 }
 
@@ -168,7 +170,7 @@ export const wasmOutcome = outputByte => status => {
  * @type {(name: string) => (instance: WasmInstance) => Effect<Sandbox, Result<(input: number) => Effect<Sandbox, Result<Call, string>, never>, string>, never>}
  */
 export const wasmCaller = name => ({ exports }) => {
-    const loadSample = exports[name]
+    const loadSample = objectEntry(exports, name)
     const callSample = exports['call_sample']
     const outputByte = exports['output_byte']
     if (typeof loadSample !== 'function' || typeof callSample !== 'function' || typeof outputByte !== 'function') {
@@ -205,7 +207,7 @@ const each = (inputs, f) => inputs.length === 0
 export const runCalls = ({ place, entry }) => state => {
     const { wasm } = state
     const caller = wasm[0] === 'ok'
-        ? wasmCaller(place.name)(wasm[1])
+        ? wasmCaller(placeName(place))(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1]))
     return step(caller, c => mapStep(
         each(place.calls.map(([input]) => input), input => step(callJs(entry)(input), js => mapStep(
@@ -277,7 +279,7 @@ export const view = inputs => state => ['div', {},
 /** @type {(sample: FunctionSample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox, State, never>} */
 export const update = sample => state => event =>
     event.kind === 'start' ? load(sample.place)
-    : event.kind === 'click' && event.name === 'run' ? runCalls(sample)(state)
+    : event.kind === 'click' && objectEntry(event, 'name') === 'run' ? runCalls(sample)(state)
     : pureOk(state)
 
 /** @type {(sample: FunctionSample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox>} */

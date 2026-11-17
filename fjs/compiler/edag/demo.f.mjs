@@ -65,102 +65,13 @@
  *
  * @module
  *
- * @import { Exp } from '../../edag/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
- * @import { Result } from '../../types/result/types.ts'
  */
 
-import { _defaultExport, _moduleExports, tryUnresolved } from './module.f.js'
-import { graphOf, graphSvg } from '../../website/demo/graph/module.f.js'
-import { operatorShape, unsupported } from '../graph/module.f.js'
+import { graphSvg } from '../../website/demo/graph/module.f.js'
 import { refusal } from '../../website/demo/module.f.js'
-import { ok } from '../../types/result/module.f.js'
-import { parsed, stageDemo } from '../stage_demo/module.f.js'
-
-/**
- * How the walk reads one `Exp`: the operators the EDAG shares with FAST
- * and the source AST through [their shared shape](../graph/module.f.js),
- * and the EDAG's own forms here — functions, their inputs, `self` and
- * `throw`.
- *
- * **An input is inline, as a primitive is.** `undefined` — the EDAG holds
- * it as the zero-operand operator `['undefined']` — is a plain value, and a
- * terminal is marked as one. **A terminal's identity is its scope's**, so
- * drawing it inline loses nothing. `args`, `rest`, `arg n` and `frame n` are
- * the values a scope receives from outside it, and every reference to one
- * inside a body is that body's own: one scope never reaches another's
- * inputs except through a frame slot. A node with several arrows into it would
- * only restate what the reference's position already says. Operators, even
- * childless ones like an empty `[]`, stay nodes: two of those are two
- * values.
- *
- * Reads `exp` by its runtime shape rather than its static type, so a proof
- * can hand it a tag the parser does not produce yet.
- *
- * @type {(exp: unknown) => Shape<unknown>}
- */
-export const _shapeOf = operatorShape({ array: '[]', object: '{}' })(exp => {
-    const tag = exp[0]
-    // Length is a value port, while frame and lazy body are expression edges;
-    // a fixed parameter and a frame slot are inputs, their index metadata.
-    if (tag === 'arg') { return { inline: `arg ${exp[1]}`, kind: 'terminal' } }
-    if (tag === 'frame') { return { inline: `frame ${exp[1]}`, kind: 'terminal' } }
-    if (tag === '=>') {
-        // One port per slot, named as the body's read of it is, and the
-        // body after them: a function that captures nothing has no frame
-        // port at all.
-        return {
-            kind: 'op', label: '=>',
-            children: [
-                ['length', exp[1]],
-                .../** @type {readonly unknown[]} */ (exp[2]).map((slot, i) => /** @type {readonly [string, unknown]} */ ([`frame ${i}`, slot])),
-                ['body', exp[3], 'lazy'],
-            ],
-        }
-    }
-    if (tag === 'self') { return { owner: (v, port) => port === 'body' && v instanceof Array && v[0] === '=>' } }
-    // `Op0Id` groups by operand count, not by meaning — its own doc in
-    // `fjs/edag` says so. `undefined` is a primitive, where `args` and
-    // `rest` are places a value enters a scope from outside it. A drawing
-    // wants the meaning, so `undefined` draws as the leaf every other
-    // primitive is, beside `null`, and the inputs draw as terminals of
-    // their own.
-    if (tag === 'undefined') { return { inline: tag } }
-    if (tag === 'args' || tag === 'rest') { return { inline: tag, kind: 'terminal' } }
-    // `throw` is an `op1` in the schema, but its one operand is not an
-    // operand a value is computed from: it is the value the failure
-    // carries, so the port says so.
-    if (tag === 'throw') { return { kind: 'op', label: 'throw', children: [['value', exp[1]]] } }
-    return unsupported(exp)
-})
-
-/**
- * What a module's EDAG draws as: its default export's value when that is
- * all it exports, and otherwise the module itself — the object of its
- * exports, or the failure a module that throws is.
- *
- * @type {(module: Exp) => Exp}
- */
-const drawn = module => {
-    const members = _moduleExports(module)
-    return members.length === 1 && members[0][1] === 'default' ? _defaultExport(module) : module
-}
-
-/**
- * `text` as the EDAG its module lowers to, or the compiler's diagnostic if it
- * does not compile. An operand drawn beside a value names the node it
- * leads to, its key in the values' key column, so a node's operands line
- * up whether they are constants or nodes. A shared node is still drawn
- * once: its label in the rows of the edges into it reads as a reference to
- * the one box the edges reach.
- *
- * @type {(text: string) => Result<Graph, string>}
- */
-export const graphOfText = parsed(ast => {
-    const lowered = tryUnresolved(ast)
-    return lowered[0] === 'error' ? lowered : ok(graphOf(_shapeOf)(drawn(lowered[1].edag)))
-})
+import { stageDemo } from '../stage_demo/module.f.js'
+import { graphOfText } from './graph/module.f.js'
 
 /**
  * The drop-down is [the compiler's shared list](../examples/module.f.mjs), one
