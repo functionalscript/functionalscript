@@ -17,16 +17,7 @@ import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerificatio
 import { tryUtf8 } from '../../text/module.f.js'
 import { selectField, textField, inputField, fieldUpdate, caption, refusal } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
-import { assertNotNullish } from '../../asserts/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** Bind the hash and its formatter once for each HMAC choice.
  * @type {<S>(a: HashDemoAlgorithm<S>) => { readonly name: string, readonly openssl: string, readonly digest: (key: string, text: string) => string | null }}

@@ -143,7 +143,7 @@ export const proof = {
     },
 
     // The registry entry carries the schema's own tag; matching is exercised
-    // end to end through `detect` in `fjs/media/proof.f.mjs`.
+    // end to end through `detect` in `fjs/media/proof.f.js`.
     noteDialectTag: () => {
         assertEq(noteDialect.dialect, dialect)
     },

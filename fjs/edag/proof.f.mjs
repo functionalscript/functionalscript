@@ -598,7 +598,7 @@ export const proof = {
     // One entry per JS spelling whose grouping or hidden control flow the
     // grammar exists to distinguish — the shape only, since what each
     // denotes is the JSDoc on the nodes in `./module.f.js` and the executor
-    // proofs in `./amnesia/proof.f.mjs`, and lowering these spellings is
+    // proofs in `./amnesia/proof.f.js`, and lowering these spellings is
     // `../compiler/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.
     chains: {
@@ -987,7 +987,7 @@ export const proof = {
         // V8 throws, so asserting either answer would redden a runner. The
         // node is unaffected — `['?.', u, 'at', ['|!()', …]]` means the
         // throwing reading — and `optionRegion.throw.closeStepOnUndefined` in
-        // `./amnesia/proof.f.mjs` pins it by evaluating the node, which is
+        // `./amnesia/proof.f.js` pins it by evaluating the node, which is
         // the only oracle that works on every runner. See "Chains" in
         // `./README.md`. `throw.groupedOptional` below pins the same boundary
         // through a property access, where every engine agrees.

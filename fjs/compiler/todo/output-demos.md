@@ -49,7 +49,7 @@ the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`
 The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
 diagnostic formatting
-([`demo.f.js`](../demo.f.js), [`module.f.mjs`](../module.f.js)). A file
+([`demo.f.js`](../demo.f.js), [`module.f.js`](../module.f.js)). A file
 system carries text, so the page takes the output as marked text
 (`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
 panes render the producer's markings.
@@ -100,7 +100,7 @@ which outputs accept which example.
   outputs, as the [side-by-side proof table](../proof.f.mjs) records. A `\x41`
   string escape stops in the tokenizer as an `error` token with a span; the
   unfinished module reaches the parser and is refused as `unexpected end`
-  ([tokenizer proof](../tokenizer/proof.f.mjs),
+  ([tokenizer proof](../tokenizer/proof.f.js),
   [parser proof](../parser/proof.f.mjs)).
 - Operators and calls execute for `.json` and `.data.js`. A selected function
   is refused during output conversion; a reached failing initializer produces

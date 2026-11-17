@@ -149,7 +149,7 @@ also remains in common conversion to preserve its graph and output shape.
 Classic `for (init; condition; step)` syntax lowers to the existing loop
 operations with a lexical initializer region and updates before normal
 continuation or an owning continue. The
-[parser proofs](parser/for.proof.f.mjs) cover scope, transfers and reached
+[parser proofs](parser/for.proof.f.js) cover scope, transfers and reached
 evaluation. No new EDAG operation is introduced.
 
 Labels, iteration syntax such as [`for…of`](../../spec/todo/3270-for.md),

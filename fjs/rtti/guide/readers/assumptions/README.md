@@ -47,5 +47,5 @@ page states what the assumption means for members a prototype supplies.
 ## Where it is implemented
 
 Nowhere, by design: no reader checks for a getter, a `Proxy` or a replaced
-prototype. The proofs in [`parse`](../../../parse/proof.f.mjs) and
+prototype. The proofs in [`parse`](../../../parse/proof.f.js) and
 [`validate`](../../../validate/proof.f.mjs) use DataJS values only.

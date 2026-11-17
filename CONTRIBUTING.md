@@ -248,11 +248,12 @@ affects emitted declarations — follow
 
 New `.f.mjs` and `.f.js` modules need a co-located proof with 100% proof
 coverage — see [fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage).
-Authored FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is
-accompanied by a `proof.f.mjs`, and a separately useful type-level API may live
+Authored FunctionalScript is JavaScript with JSDoc: a module is
+accompanied by a proof, and a separately useful type-level API may live
 in a sibling `types.ts`. Compiler support is not required of a `.f.mjs`;
 a module the current compiler accepts whole is renamed `module.f.js` in the same
-pull request, which promises it and keeps a `proof.f.mjs` too.
+pull request, which promises it. A proof is named by the same rule, on its own:
+`proof.f.js` once the compiler accepts the proof, `proof.f.mjs` until then.
 
 `types.ts` and an optional sibling `private.ts` are the only authored
 TypeScript in the repository, and both are permanent rather than migration debt

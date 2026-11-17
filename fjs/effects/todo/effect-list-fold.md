@@ -164,7 +164,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 - [ ] Remove the now-unused `fjs/types/list` import from
       `fjs/effects/module.f.js`.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
-- [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
+- [ ] Create `fjs/effects/list/proof.f.js` with full coverage.
 - [ ] Convert the six stream folds — `detectStream`, `collectRead`,
       `contentKey`, `gathered`, `writeLoop`, `fileCas.write` — to `foldStep`,
       or record here why one does not fit.

@@ -8,7 +8,7 @@
  * [`./proof.f.mjs`](./proof.f.mjs) proves the readers and
  * [`./write/proof.f.mjs`](./write/proof.f.mjs) the writers, and a fixture copied
  * into both is two fixtures that drift. Its functions are proved in
- * [`./testlib.proof.f.mjs`](./testlib.proof.f.mjs).
+ * [`./testlib.proof.f.js`](./testlib.proof.f.js).
  *
  * @module
  *

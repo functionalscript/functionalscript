@@ -52,7 +52,7 @@ commented rather than merely fail, because a parse error takes the whole file
 down. Nothing about the specification is in doubt, and the EDAG is unaffected:
 `['?.', u, 'b', ['|!()', c]]` denotes the throwing reading, and
 `optionRegion.throw.closeStepOnUndefined` in
-[`fjs/edag/amnesia/proof.f.mjs`](../../fjs/edag/amnesia/proof.f.mjs) pins it by
+[`fjs/edag/amnesia/proof.f.js`](../../fjs/edag/amnesia/proof.f.js) pins it by
 evaluating the node, which is an oracle that works on every runner.
 
 ### Trigger

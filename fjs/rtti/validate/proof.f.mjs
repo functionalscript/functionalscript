@@ -218,7 +218,7 @@ export const proof = {
             assertStructurallySame(unwrap(validate(open([number]))(tuple)), [1, 'extra'])
         },
         // On success the result *is* the argument. This is the property the
-        // other two follow from, and the mirror of `../parse/proof.f.mjs`'s
+        // other two follow from, and the mirror of `../parse/proof.f.js`'s
         // `freshArray` / `freshRecord`.
         referenceIdentity: () => {
             /** @type {(t: Type, value: Unknown) => void} */

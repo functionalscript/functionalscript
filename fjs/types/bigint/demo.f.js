@@ -31,16 +31,7 @@ import { codeMarker } from '../../website/style/module.f.js'
 import { log2 } from './module.f.js'
 import { sandbox } from '../../effects/common/module.f.js'
 import { foldStep, pureOk, resultStep } from '../../effects/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
-import { assertNotNullish } from '../../asserts/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../object/name/module.f.js'
 
 /**
  * `benchmark.mjs`'s own `log2`, which is **not** the one that shipped.

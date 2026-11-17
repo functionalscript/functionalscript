@@ -56,7 +56,6 @@
  * @import { Funding } from './funding/types.ts'
  */
 
-import { assertNotNullish } from '../asserts/module.f.js'
 import { entry } from '../types/object/entry/module.f.js'
 import { identity } from '../types/function/module.f.js'
 import { stringify } from '../media/json/module.f.js'
@@ -87,14 +86,7 @@ import { isAuthored, isThirdParty } from '../dev/module.f.js'
 import { header, isIssue } from './issue/module.f.js'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.js'
 import { origin } from './origin/module.f.js'
-
-/**
- * The `name` of a directory entry, a proof or a demo. A function has a
- * `name` too, so the language reads the property with `entry`.
- *
- * @type {(named: { readonly name: string }) => string}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../types/object/name/module.f.js'
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;

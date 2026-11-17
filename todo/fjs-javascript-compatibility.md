@@ -184,7 +184,7 @@ functions through explicit and indirect conversion, rather than exposing host
 arrow-factory text. See the
 [function-text contract](../fjs/edag/function-text.md), `functionText` and `self`
 in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs), and
-[conversion proofs](../fjs/edag/value/convert/proof.f.mjs).
+[conversion proofs](../fjs/edag/value/convert/proof.f.js).
 
 The structural FJS source serializer remains partial. The implemented
 JavaScript runtime-value emitter materializes captures separately and can emit

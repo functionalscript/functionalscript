@@ -1,6 +1,6 @@
 /**
  * The proof of [`testlib.f.js`](./testlib.f.js)'s functions, beside it for the
- * reason [`../testlib.proof.f.mjs`](../testlib.proof.f.mjs) gives: the fixtures
+ * reason [`../testlib.proof.f.js`](../testlib.proof.f.js) gives: the fixtures
  * are one file rather than one more directory. Every one of them is also used by
  * the two proofs they were written for, which is where what they are is checked
  * against Git; this is what they are on their own.

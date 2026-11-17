@@ -81,14 +81,7 @@ import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effec
 import { catch_ } from '../effects/common/module.f.js'
 import { assert, assertNotNullish } from '../asserts/module.f.js'
 import { entry } from '../types/object/entry/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../types/object/name/module.f.js'
 
 /**
  * The outputs, each under the file name that selects its language: what a

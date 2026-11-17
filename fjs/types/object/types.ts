@@ -9,7 +9,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../ts/types.ts'
 
-// The four pins below were `./proof.f.mjs`'s `maps` entry, a body of nothing
+// The four pins below were `./proof.f.js`'s `maps` entry, a body of nothing
 // but typedefs — so none of them bound to a statement and all four were green
 // whatever they claimed (`../../AGENTS.md` §1.4). Each sits beside the type it
 // is about, where an alias is resolved on sight.

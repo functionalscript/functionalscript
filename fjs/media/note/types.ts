@@ -27,7 +27,7 @@ export type NoteError = ValidationError | string
  * so its pin is on the literal the kit itself derives. An error type left
  * uninferred would be `any` at this JavaScript call site and pass the
  * annotation; the `never` default that prevents it is pinned at a call in
- * `../proof.f.mjs` (`_NoRefinementError`).
+ * `../proof.f.js` (`_NoRefinementError`).
  */
 type _Kit = JsonDialect<typeof noteSchema extends Rest<infer S, Type> ? S : never>
 

@@ -171,7 +171,7 @@ where the host engine running the source directly does not.
 Memo and Amnesia render represented functions through the shared EDAG-derived
 renderer; the Rust compiler embeds that code-only text in compiled native
 functions. Captures appear as slot names, without their values. The
-[represented conversion proofs](../../edag/value/convert/proof.f.mjs) and
+[represented conversion proofs](../../edag/value/convert/proof.f.js) and
 [native function-text fixture](../../../nanvm/harness/fixtures/function-text.mjs)
 cover direct and indirect conversion. Ordinary JavaScript execution and
 callables produced by [runtime compilation](../../edag/values.md#runtime-compilation)

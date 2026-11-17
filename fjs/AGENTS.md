@@ -7,9 +7,8 @@ live in [DESIGN.md](../doc/DESIGN.md).
 
 Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
 the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
-both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
-difference, that a proof stays `proof.f.mjs`, is in
-[§1.2](#12-proof-coverage-is-mandatory). What to write instead of what the
+both). Every rule below stated for `.f.mjs` applies to `.f.js` alike, a proof's
+name included ([§1.2](#12-proof-coverage-is-mandatory)). What to write instead of what the
 compiler refuses, construct by construct, is
 [CONVERTING.md](../doc/CONVERTING.md).
 
@@ -52,7 +51,8 @@ the code so it isn't there rather than leaving it uncovered.
 
 An implementation is `module.f.mjs`, or `module.f.js` once the compiler
 accepts it (stage 2, [`fjs/compiler/README.md`](./compiler/README.md)), and its proof is
-`proof.f.mjs` either way. Stage 1 of the TypeScript-to-JavaScript migration is
+named the same way: `proof.f.mjs`, or `proof.f.js` once the compiler accepts the
+proof itself. Stage 1 of the TypeScript-to-JavaScript migration is
 complete: no authored implementation or proof `.f.ts` remains, so write both
 files as JavaScript with JSDoc. Authored `types.ts` companions may remain
 permanently and hold the type-level API.
@@ -63,14 +63,16 @@ FunctionalScript source, and both `npm start cov node` and `deno task cov` inclu
 `module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. Ordinary (non-FunctionalScript)
 `.mjs` files stay opt-in through the `proof.mjs` filename convention.
 
-A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
-imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
-`module.f.js` keeps a `proof.f.mjs` for now: a proof's assertion calls are
-call statements the language reads
-([spec: call statements](../spec/functions/call-statements/README.md)). Proof
-filenames retain the `.f.mjs` discovery convention, including proofs accepted
-by the compiler. Function fallthrough and `for` loops are now supported;
-remaining unsupported constructs are tracked by the dependency scan.
+A proof is authored FunctionalScript like any other, and is named by what the
+compiler accepts, as a module is: `proof.f.js`, or `name.proof.f.js`, once the
+compiler accepts the proof whole, and `.f.mjs` until then. Rename it in the
+pull request that makes it compile, with its importers. The two names are
+independent — a `module.f.js` may still have a `proof.f.mjs`, where the proof
+uses a construct the compiler refuses — and discovery loads both, since it
+matches authored FunctionalScript by its `.f.` infix. Its relative **runtime**
+imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A proof's
+assertion calls are call statements the language reads
+([spec: call statements](../spec/functions/call-statements/README.md)).
 `fjs/asserts` itself is an `.f.js`. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
@@ -202,7 +204,7 @@ loose. See
 Never use `try`/`catch` in `.f.mjs` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
 nest the test function under a `throw` property key instead of wrapping it in
-`try`/`catch` (see `fjs/asserts/proof.f.mjs`).
+`try`/`catch` (see `fjs/asserts/proof.f.js`).
 
 The test runner (`fjs/emergent_testing/module.f.js`) treats `throw` as a
 structural marker: any function reachable under a `throw` key gets
@@ -271,7 +273,7 @@ convention: camelCase — `lsbAligned`, `hashMergeShift`, not `lsb_aligned`.
 
 A key that names an export it exercises is spelled as the export is —
 `do_` in `fjs/effects/proof.f.mjs`, `prime_field` in
-`fjs/types/prime_field/proof.f.mjs` — and `throw` is the runner's structural
+`fjs/types/prime_field/proof.f.js` — and `throw` is the runner's structural
 marker ([§1.5](#15-never-use-trycatch-test-throwing-with-the-throw-key)), not
 a word to re-case.
 

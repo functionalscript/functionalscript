@@ -198,7 +198,7 @@ export type _MakeRest =
 /**
  * `open`'s signature. It is not `_MakeRest` partially applied: the `const`
  * modifier is what keeps `open([42])` a literal tuple rather than widening it
- * to `Type[]`, so the modifier has to be restated here. `../proof.f.mjs` pins
+ * to `Type[]`, so the modifier has to be restated here. `../proof.f.js` pins
  * that, as it does for every other `const`-taking constructor.
  */
 export type _MakeOpen =

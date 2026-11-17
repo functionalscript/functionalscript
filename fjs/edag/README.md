@@ -611,7 +611,7 @@ its item list: `f(a, b)` has `c = [a, b]`, and `f(...xs)` has
 
 The `chains` section of [proof.f.mjs](proof.f.mjs) pins the shape of every
 spelling above, `chainsJs` next to it runs them as JS on the host engine, and
-[amnesia/proof.f.mjs](amnesia/proof.f.mjs) evaluates them as nodes.
+[amnesia/proof.f.js](amnesia/proof.f.js) evaluates them as nodes.
 
 ### What cannot be written
 
@@ -658,7 +658,7 @@ specification — `['?.', u, 'b', ['|!()', d]]` denotes the throwing
 reading, and an executor must produce it whatever its host does — as
 [amnesia](amnesia/module.f.js) does, where
 `optionRegion.throw.closeStepOnUndefined` in
-[amnesia/proof.f.mjs](amnesia/proof.f.mjs) evaluates the node and pins the
+[amnesia/proof.f.js](amnesia/proof.f.js) evaluates the node and pins the
 throw on every runner. `(u?.b).c`, the property counterpart, throws everywhere
 and is what `chainsJs` pins for this boundary.
 
@@ -671,7 +671,7 @@ one step further in. JavaScript cannot pin them, because they are `|!()`
 terms; and neither can the node, because *both* readings throw, this language
 has no mutation for a skipped operand to record itself with, and a `throw`
 case is pass/fail rather than payload-inspecting (`fjs/AGENTS.md` §1.5). What
-`amnesia/proof.f.mjs` pins is that each side throws where it should. The order
+`amnesia/proof.f.js` pins is that each side throws where it should. The order
 itself is carried by the shape of `callProperty` in
 [amnesia/module.f.js](amnesia/module.f.js) — it takes the argument *node*
 and evaluates it inside the call expression, so JavaScript's own order applies

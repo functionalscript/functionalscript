@@ -168,9 +168,9 @@ Explicit `toString` and indirect array/coercion paths use that renderer, without
 host arrow factories. The contract is in
 [`edag/function-text.md`](../../edag/function-text.md), with direct/indirect
 conversion proofs in
-[`value/convert/proof.f.mjs`](../../edag/value/convert/proof.f.mjs), explicit
+[`value/convert/proof.f.js`](../../edag/value/convert/proof.f.js), explicit
 method proofs in
-[`value/method/proof.f.mjs`](../../edag/value/method/proof.f.mjs), and Memo's
+[`value/method/proof.f.js`](../../edag/value/method/proof.f.js), and Memo's
 shared corpus in [`nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs).
 The proposed evaluator keeps these conversions represented until it obtains
 the final data value. The three inputs above remain useful MCP integration

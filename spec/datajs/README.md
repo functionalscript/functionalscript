@@ -81,7 +81,7 @@ infinities included. The compiler also accepts the `;` omitted where
 JavaScript inserts one; this format does not, and its reader is the one that
 refuses it. Both surfaces of
 [§Encoding](#encoding) exist, on the codec's public
-[`module.f.mjs`](../../fjs/media/datajs/module.f.js): `tryParse` takes the
+[`module.f.js`](../../fjs/media/datajs/module.f.js): `tryParse` takes the
 document as code units, and `tryParseBytes` takes it as bytes — refusing what
 is not correct UTF-8 and a leading BOM before the reader sees a unit, then
 handing on the code units those bytes denote. The corpus's byte-form vectors
