@@ -31,6 +31,16 @@ import { codeMarker } from '../../website/style/module.f.js'
 import { log2 } from './module.f.js'
 import { sandbox } from '../../effects/common/module.f.js'
 import { foldStep, pureOk, resultStep } from '../../effects/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /**
  * `benchmark.mjs`'s own `log2`, which is **not** the one that shipped.
@@ -387,8 +397,10 @@ const measure = size => resultStep(
         })))))
 
 /** @type {(row: DemoRow) => string} */
-const rowText = ({ name, outcome }) =>
-    `${name.padEnd(14)} ${typeof outcome === 'number' ? `${outcome.toFixed(1)} ms` : outcome}`
+const rowText = row => {
+    const { outcome } = row
+    return `${nameOf(row).padEnd(14)} ${typeof outcome === 'number' ? `${outcome.toFixed(1)} ms` : outcome}`
+}
 
 /**
  * What a `Measure` produces: rows, or the reason there are none.
@@ -444,7 +456,7 @@ const definition = {
         // Typing changes what will be measured and nothing else: a keystroke is
         // not a request to measure, and the field is checked when `Measure` is
         // pressed rather than under the reader's fingers.
-        if (event.kind === 'input' && event.name === 'size') {
+        if (event.kind === 'input' && nameOf(event) === 'size') {
             // **And it clears what was measured.** A table left beside a field
             // the reader has just changed reads as that field's result: 20000's
             // timings under a box saying 40000 are a plausible wrong answer,
@@ -455,7 +467,7 @@ const definition = {
             // one more thing to render and to read.
             return pureOk({ kind: 'idle', size: event.value, rows: [], note: null })
         }
-        return event.kind === 'click' && event.name === 'run'
+        return event.kind === 'click' && nameOf(event) === 'run'
             ? onRun(state)
             : pureOk(state)
     },

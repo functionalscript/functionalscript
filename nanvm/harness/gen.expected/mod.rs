@@ -52,6 +52,11 @@ pub mod math_ceil_bigint_throws;
 pub mod math_ceil_coercion_throws;
 pub mod math_ceil_converted_bigint_throws;
 pub mod math_ceil_extra_argument_throws;
+pub mod math_clz32;
+pub mod math_clz32_bigint_throws;
+pub mod math_clz32_coercion_throws;
+pub mod math_clz32_converted_bigint_throws;
+pub mod math_clz32_extra_argument_throws;
 pub mod math_floor;
 pub mod math_floor_bigint_throws;
 pub mod math_floor_coercion_throws;
@@ -84,6 +89,10 @@ pub mod math_min_coercion_throws;
 pub mod math_min_converted_bigint_throws;
 pub mod math_min_infinity_coercion_throws;
 pub mod math_min_nan_coercion_throws;
+pub mod math_round;
+pub mod math_round_bigint_throws;
+pub mod math_round_coercion_throws;
+pub mod math_round_converted_bigint_throws;
 pub mod math_sqrt;
 pub mod math_sqrt_bigint_throws;
 pub mod math_sqrt_coercion_throws;
@@ -208,6 +217,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "math_ceil_coercion_throws", fixture: crate::fixtures::math_ceil_coercion_throws::module::<Naive>, expected: math_ceil_coercion_throws::module::<Naive>, json: math_ceil_coercion_throws::JSON, throws: math_ceil_coercion_throws::THROWS },
     crate::Case { name: "math_ceil_converted_bigint_throws", fixture: crate::fixtures::math_ceil_converted_bigint_throws::module::<Naive>, expected: math_ceil_converted_bigint_throws::module::<Naive>, json: math_ceil_converted_bigint_throws::JSON, throws: math_ceil_converted_bigint_throws::THROWS },
     crate::Case { name: "math_ceil_extra_argument_throws", fixture: crate::fixtures::math_ceil_extra_argument_throws::module::<Naive>, expected: math_ceil_extra_argument_throws::module::<Naive>, json: math_ceil_extra_argument_throws::JSON, throws: math_ceil_extra_argument_throws::THROWS },
+    crate::Case { name: "math_clz32", fixture: crate::fixtures::math_clz32::module::<Naive>, expected: math_clz32::module::<Naive>, json: math_clz32::JSON, throws: math_clz32::THROWS },
+    crate::Case { name: "math_clz32_bigint_throws", fixture: crate::fixtures::math_clz32_bigint_throws::module::<Naive>, expected: math_clz32_bigint_throws::module::<Naive>, json: math_clz32_bigint_throws::JSON, throws: math_clz32_bigint_throws::THROWS },
+    crate::Case { name: "math_clz32_coercion_throws", fixture: crate::fixtures::math_clz32_coercion_throws::module::<Naive>, expected: math_clz32_coercion_throws::module::<Naive>, json: math_clz32_coercion_throws::JSON, throws: math_clz32_coercion_throws::THROWS },
+    crate::Case { name: "math_clz32_converted_bigint_throws", fixture: crate::fixtures::math_clz32_converted_bigint_throws::module::<Naive>, expected: math_clz32_converted_bigint_throws::module::<Naive>, json: math_clz32_converted_bigint_throws::JSON, throws: math_clz32_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_clz32_extra_argument_throws", fixture: crate::fixtures::math_clz32_extra_argument_throws::module::<Naive>, expected: math_clz32_extra_argument_throws::module::<Naive>, json: math_clz32_extra_argument_throws::JSON, throws: math_clz32_extra_argument_throws::THROWS },
     crate::Case { name: "math_floor", fixture: crate::fixtures::math_floor::module::<Naive>, expected: math_floor::module::<Naive>, json: math_floor::JSON, throws: math_floor::THROWS },
     crate::Case { name: "math_floor_bigint_throws", fixture: crate::fixtures::math_floor_bigint_throws::module::<Naive>, expected: math_floor_bigint_throws::module::<Naive>, json: math_floor_bigint_throws::JSON, throws: math_floor_bigint_throws::THROWS },
     crate::Case { name: "math_floor_coercion_throws", fixture: crate::fixtures::math_floor_coercion_throws::module::<Naive>, expected: math_floor_coercion_throws::module::<Naive>, json: math_floor_coercion_throws::JSON, throws: math_floor_coercion_throws::THROWS },
@@ -240,6 +254,10 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "math_min_converted_bigint_throws", fixture: crate::fixtures::math_min_converted_bigint_throws::module::<Naive>, expected: math_min_converted_bigint_throws::module::<Naive>, json: math_min_converted_bigint_throws::JSON, throws: math_min_converted_bigint_throws::THROWS },
     crate::Case { name: "math_min_infinity_coercion_throws", fixture: crate::fixtures::math_min_infinity_coercion_throws::module::<Naive>, expected: math_min_infinity_coercion_throws::module::<Naive>, json: math_min_infinity_coercion_throws::JSON, throws: math_min_infinity_coercion_throws::THROWS },
     crate::Case { name: "math_min_nan_coercion_throws", fixture: crate::fixtures::math_min_nan_coercion_throws::module::<Naive>, expected: math_min_nan_coercion_throws::module::<Naive>, json: math_min_nan_coercion_throws::JSON, throws: math_min_nan_coercion_throws::THROWS },
+    crate::Case { name: "math_round", fixture: crate::fixtures::math_round::module::<Naive>, expected: math_round::module::<Naive>, json: math_round::JSON, throws: math_round::THROWS },
+    crate::Case { name: "math_round_bigint_throws", fixture: crate::fixtures::math_round_bigint_throws::module::<Naive>, expected: math_round_bigint_throws::module::<Naive>, json: math_round_bigint_throws::JSON, throws: math_round_bigint_throws::THROWS },
+    crate::Case { name: "math_round_coercion_throws", fixture: crate::fixtures::math_round_coercion_throws::module::<Naive>, expected: math_round_coercion_throws::module::<Naive>, json: math_round_coercion_throws::JSON, throws: math_round_coercion_throws::THROWS },
+    crate::Case { name: "math_round_converted_bigint_throws", fixture: crate::fixtures::math_round_converted_bigint_throws::module::<Naive>, expected: math_round_converted_bigint_throws::module::<Naive>, json: math_round_converted_bigint_throws::JSON, throws: math_round_converted_bigint_throws::THROWS },
     crate::Case { name: "math_sqrt", fixture: crate::fixtures::math_sqrt::module::<Naive>, expected: math_sqrt::module::<Naive>, json: math_sqrt::JSON, throws: math_sqrt::THROWS },
     crate::Case { name: "math_sqrt_bigint_throws", fixture: crate::fixtures::math_sqrt_bigint_throws::module::<Naive>, expected: math_sqrt_bigint_throws::module::<Naive>, json: math_sqrt_bigint_throws::JSON, throws: math_sqrt_bigint_throws::THROWS },
     crate::Case { name: "math_sqrt_coercion_throws", fixture: crate::fixtures::math_sqrt_coercion_throws::module::<Naive>, expected: math_sqrt_coercion_throws::module::<Naive>, json: math_sqrt_coercion_throws::JSON, throws: math_sqrt_coercion_throws::THROWS },

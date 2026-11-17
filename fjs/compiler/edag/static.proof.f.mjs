@@ -52,6 +52,30 @@ export const proof = {
         assertStructurallySame(execute(compile('const { MAX_VALUE: max } = Number; export default [max, Number["MAX_VALUE"], max / 2, max * 2, Number.MAX_SAFE_INTEGER];').edag),
             [expected, expected, expected / 2, Infinity, 0x1f_ffff_ffff_ffff])
     },
+    // `Math.clz32` is native: it needs no runtime. Zero and what `ToUint32`
+    // makes zero have thirty-two leading zeros.
+    mathClz32: () => {
+        expectEdag(compile('export default Math.clz32(1);').edag, ['()', ['Math.clz32'], [1]])
+        expectEdag(compile('const { clz32 } = Math; export default [clz32, Math["clz32"], clz32.length];').edag,
+            ['[]', [['Math.clz32'], ['Math.clz32'], ['.', ['Math.clz32'], 'length']]])
+        assertStructurallySame(execute(compile('const { clz32 } = Math; const read = () => Math.clz32; export default [clz32(1), Math["clz32"](0x8000_0000), Math.clz32?.(-1), clz32(0), clz32(-0), clz32(NaN), clz32(Infinity), clz32(), clz32(0.5), clz32(0x1_0000_0001), clz32("0x10"), clz32 === read(), clz32.length, typeof clz32, String(clz32)];').edag),
+            [31, 0, 0, 32, 32, 32, 32, 32, 32, 31, 27, true, 1, 'function', 'function clz32() { [native code] }'])
+        assertError(memo(assertOk(analysis(compile('export default Math.clz32(1n);').edag)))({ args: [] }))
+    },
+    // `Math.round` is the common runtime's body: with no runtime it is
+    // refused, never the host's. A tie goes toward positive infinity, and a
+    // value in `[-0.5, 0)` is negative zero.
+    mathRound: () => {
+        expectEdag(compile('export default Math.round(2.5);').edag, ['()', ['Math.round'], [2.5]])
+        expectEdag(compile('const { round } = Math; export default [round, Math["round"], round.length];').edag,
+            ['[]', [['Math.round'], ['Math.round'], ['.', ['Math.round'], 'length']]])
+        const run = memo(assertOk(analysis(compile('export default Math.round(2.5);').edag)))
+        assertEq(assertError(run({ args: [] })), 'no binding for the static Math.round')
+        assertStructurallySame(executeWithRuntime(compile('const { round } = Math; const read = () => Math.round; export default [round(2.5), Math["round"](-2.5), Math.round?.(1.4), round(-0.5), round(-0.2), round(-0), round(0.49999999999999994), round(0x10_0000_0000_0001), round(Infinity), round(-Infinity), round(NaN), round(), round("3.5"), round === read(), round.length, typeof round, String(round)];').edag),
+            [3, -2, 1, -0, -0, -0, 0, 0x10_0000_0000_0001, Infinity, -Infinity, NaN, NaN, 4, true, 1, 'function', 'function round() { [native code] }'])
+        const bigint = memo(assertOk(analysis(compile('export default Math.round(1n);').edag)))
+        assertError(bigint({ args: [], runtime: commonRuntime() }))
+    },
     mathFround: () => {
         expectEdag(compile('export default Math.fround(1.337);').edag, ['()', ['Math.fround'], [1.337]])
         expectEdag(compile('const { fround } = Math; export default [fround, Math["fround"], fround.length];').edag,

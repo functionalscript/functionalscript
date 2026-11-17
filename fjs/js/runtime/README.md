@@ -239,7 +239,9 @@ The VMs bind these natively:
   no body of this module makes a member call;
 - the **compatible native math operations** available in both Rust and core
   WASM, currently `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-  `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`, under the target rule above;
+  `Math.ceil`, `Math.imul`, `Math.max`, `Math.min` and `Math.clz32`, under the target
+  rule above; `Math.round` has no such operation — Rust rounds a tie away from zero and
+  core WASM to even — so it is a body here, over the native floor;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on

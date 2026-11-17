@@ -131,12 +131,13 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
         }
         return ok(text)
     }
-    if (fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil') {
+    if (fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil' || fn[0] === 'Math.clz32') {
         const converted = toNumber(values.length === 0 ? ['undefined'] : values[0], invoke)
         if (converted[0] === 'error') { return converted }
         if (fn[0] === 'Math.trunc') { return ok(Math.trunc(converted[1])) }
         if (fn[0] === 'Math.floor') { return ok(Math.floor(converted[1])) }
         if (fn[0] === 'Math.abs') { return ok(Math.abs(converted[1])) }
+        if (fn[0] === 'Math.clz32') { return ok(Math.clz32(converted[1])) }
         return ok(fn[0] === 'Math.sqrt' ? Math.sqrt(converted[1]) : Math.ceil(converted[1]))
     }
     if (fn[0] === 'Math.max' || fn[0] === 'Math.min') {
@@ -392,8 +393,8 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'encodeURIComponent': case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.values': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': case 'Math.sqrt': case 'Math.ceil': case 'Math.imul': case 'Math.max': case 'Math.min': case 'Math.fround': {
-                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs' || node[0] === 'Math.sqrt' || node[0] === 'Math.ceil' || node[0] === 'Math.imul' || node[0] === 'Math.max' || node[0] === 'Math.min') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
+            case 'encodeURIComponent': case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.values': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': case 'Math.trunc': case 'Math.floor': case 'Math.abs': case 'Math.sqrt': case 'Math.ceil': case 'Math.imul': case 'Math.max': case 'Math.min': case 'Math.fround': case 'Math.clz32': case 'Math.round': {
+                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode' || node[0] === 'Math.trunc' || node[0] === 'Math.floor' || node[0] === 'Math.abs' || node[0] === 'Math.sqrt' || node[0] === 'Math.ceil' || node[0] === 'Math.imul' || node[0] === 'Math.max' || node[0] === 'Math.min' || node[0] === 'Math.clz32') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
             }

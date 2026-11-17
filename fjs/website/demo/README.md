@@ -35,7 +35,7 @@ demo's `Evaluate` and `Verify` are. It uses no other heading level.
 control.** The page shows only the demo's view; the module's `@module` JSDoc
 is not on it. Without a lead, a reader meets a textarea and a block of output
 with nothing to say what either is for — which is how the bigint demo
-explains writing its own (`fjs/types/bigint/demo.f.mjs`).
+explains writing its own (`fjs/types/bigint/demo.f.js`).
 
 The lead says, in this order and as briefly as it can:
 

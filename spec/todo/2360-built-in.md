@@ -426,7 +426,8 @@ This records the designer's direct request for the feature under DESIGN §12.
       refused
 - [x] `Math` — a reserved namespace admitting the static functions
       `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-      `Math.ceil`, `Math.imul`, `Math.max`, `Math.min` and `Math.fround`; other members remain
+      `Math.ceil`, `Math.imul`, `Math.max`, `Math.min`, `Math.fround`, `Math.clz32` and
+      `Math.round`; other members remain
       separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
@@ -794,21 +795,17 @@ boundaries require explicit proofs.
 the next PR" after the shared body was distinguished from native bindings,
 in the [working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033).
 
-##### Math.clz32 and Math.round proposal
+##### Math.clz32 and Math.round proposal and approval
 
-**Status.** Proposed, not approved, and not implemented: both names are
-refused as `reserved word` today. This section is the proposal
-[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-asks for before a language feature is built.
-
-**Problem.** One authored `.f.mjs` file is left outside the proofs,
-[`fjs/types/bigint/demo.f.mjs`](../../fjs/types/bigint/demo.f.mjs), and the
-compiler refuses it for these two statics. It calls `Math.clz32` three times,
-in the `log2` strategies its benchmark compares — `clz32Log2` and the two
-that finish a hexadecimal or base-32 text length with it — and `Math.round`
-once, to print a duration in minutes. Standing in for `clz32` shows `round`
-as the next refusal; what the file holds behind `round` has not been
-measured.
+**Problem.** One authored `.f.mjs` file was left outside the proofs, the
+bigint demo, now [`fjs/types/bigint/demo.f.js`](../../fjs/types/bigint/demo.f.js),
+and the compiler refused it for these two statics. It calls `Math.clz32`
+three times, in the `log2` strategies its benchmark compares — `clz32Log2`
+and the two that finish a hexadecimal or base-32 text length with it — and
+`Math.round` four times, to print a duration in minutes, hours, days and
+years. With both admitted, what remained in the file was a `name` read, the
+property a function has too, now read with `entry`; it converted in the
+pull request that implemented this proposal.
 
 **Proposal.** Admit the static values `Math.clz32` and `Math.round`,
 represented by nodes of those names, `['Math.clz32']` and `['Math.round']`.
@@ -899,10 +896,11 @@ strategy could be dropped from the comparison. That converts the file with
 no admission, at the cost of removing from the benchmark the strategy it was
 written to measure.
 
-**Language-design approval.** Pending. **sergey-shandar** asked for this
-proposal — "Write the proposal for `Math.clz32` and `Math.round`" — in the
-[working session](https://claude.ai/code/session_01Q2nX9r9FHq2F5nkzDmoQBe);
-that is a request to write it, not an approval to implement it.
+**Language-design approval.** **sergey-shandar** asked for the proposal,
+"Write the proposal for `Math.clz32` and `Math.round`", and, with it written
+and the backend for each stated, requested "Implement TODOs from 3941 in a
+new stacked PR" in the
+[working session](https://claude.ai/code/session_01Q2nX9r9FHq2F5nkzDmoQBe).
 
 #### Text Processing
 
