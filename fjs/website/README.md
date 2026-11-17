@@ -737,7 +737,7 @@ multiline field; the key remains single-line and fills the available width.
 NUL in either field replaces the OpenSSL command with an explanation, just as
 in the hash demos.
 
-[`crypto/pow`](../crypto/pow/demo.f.mjs) compares the SHA-256 hash of a multiline
+[`crypto/pow`](../crypto/pow/demo.f.js) compares the SHA-256 hash of a multiline
 UTF-8 input plus a decimal nonce with a compact nBits target. Its button advances
 one nonce at a time, or runs automatically until success or Stop. Starting
 Auto-run from a valid nonce searches for the next valid one. Its copyable

@@ -32,7 +32,7 @@ import {
     unicodeMax,
     union,
 } from './module.f.js'
-import { assertRecognizes, force, recognizer } from './testlib.f.mjs'
+import { assertRecognizes, force, recognizer } from './testlib.f.js'
 
 /**
  * The boundaries a `SetInfo` carries. Every constructor returns a thunk, so

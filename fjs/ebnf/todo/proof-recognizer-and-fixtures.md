@@ -5,7 +5,7 @@
 
 ### Done
 
-[`../testlib.f.mjs`](../testlib.f.mjs) holds `recognizer(parse, decode)` — an
+[`../testlib.f.js`](../testlib.f.js) holds `recognizer(parse, decode)` — an
 adapter over an [`../ll1`](../ll1/README.md) parser that answers whether a text
 is accepted with every symbol consumed, resuming a match that ends short and
 carrying the last `MatchResult` as the diagnostic — and

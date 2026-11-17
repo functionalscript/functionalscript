@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { diagramPage } from '../../../ebnf/testlib.f.mjs'
+import { diagramPage } from '../../../ebnf/testlib.f.js'
 import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.js'
 import { parser as predictiveParser } from '../../../ebnf/ll1/module.f.js'

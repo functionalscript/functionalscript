@@ -23,6 +23,16 @@ import { codeBlock } from '../../website/demo/code/module.f.js'
 import { hexOf } from '../../website/demo/hash/module.f.js'
 import { sha256 } from '../sha2/module.f.js'
 import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 const formatHex = hexOf(sha256)
 const hashBits = vec(sha256.hashLength)
@@ -53,15 +63,15 @@ const targetOf = state => {
 /** @type {(state: DemoState, nonce: bigint, target: bigint, start: bigint, attempts: bigint) => DemoState} */
 const tried = (state, nonce, target, start, attempts) => {
     const bytes = tryUtf8(`${state.text}${nonce}`)
-    if (bytes === null) { return { ...state, nonce: String(nonce), search: null } }
+    if (bytes === null) { return { ...state, nonce: String(nonce), run: null } }
     const hash = sha256Pow.hashInt(bytes)
-    return { ...state, nonce: String(nonce), search: { nonce, target, hash, start, attempts, running: hash > target } }
+    return { ...state, nonce: String(nonce), run: { nonce, target, hash, start, attempts, running: hash > target } }
 }
 
 /** @type {(state: DemoState, nonce: bigint, succeeded: boolean) => readonly Element[]} */
 const searchSummary = (state, nonce, succeeded) => {
-    if (state.search === null) { return [] }
-    const { start, attempts, running } = state.search
+    if (state.run === null) { return [] }
+    const { start, attempts, running } = state.run
     const failedEnd = succeeded ? nonce - 1n : nonce
     return [['p', { 'data-pow-search-summary': '' },
         `${running ? 'Searching' : succeeded ? `Found nonce ${nonce}` : 'Stopped'} after ${attempts} ${attempts === 1n ? 'attempt' : 'attempts'}.`,
@@ -88,7 +98,7 @@ const output = state => {
     const text = `${state.text}${nonce}`
     const bytes = tryUtf8(text)
     if (bytes === null) { return [...targetView, refusal(`Input including nonce too long: more than ${maxLengthBytes} UTF-8 bytes.`)] }
-    const hash = state.search === null ? sha256Pow.hashInt(bytes) : state.search.hash
+    const hash = state.run === null ? sha256Pow.hashInt(bytes) : state.run.hash
     const succeeded = hash <= target
     return [
         caption('Hashed input (UTF-8):'),
@@ -109,33 +119,33 @@ const output = state => {
 
 /** @type {Demo<DemoState, DemoEvent>} */
 const definition = {
-    init: { text: 'Hello, FunctionalScript!', nonce: '42', nBits: '0x200fffff', search: null },
-    nextEvent: state => state.search?.running ? { kind: 'click', name: 'auto-next' } : null,
+    init: { text: 'Hello, FunctionalScript!', nonce: '42', nBits: '0x200fffff', run: null },
+    nextEvent: state => state.run?.running ? { kind: 'click', name: 'auto-next' } : null,
     update: state => event => {
         if (event.kind === 'input') {
-            const reset = { ...state, search: null }
-            return pureOk(event.name === 'text' ? { ...reset, text: event.value }
-                : event.name === 'nonce' ? { ...reset, nonce: event.value }
-                    : event.name === 'nBits' ? { ...reset, nBits: event.value }
+            const reset = { ...state, run: null }
+            return pureOk(nameOf(event) === 'text' ? { ...reset, text: event.value }
+                : nameOf(event) === 'nonce' ? { ...reset, nonce: event.value }
+                    : nameOf(event) === 'nBits' ? { ...reset, nBits: event.value }
                         : state)
         }
         if (event.kind !== 'click') { return pureOk(state) }
-        if (event.name === 'auto-run') {
-            if (state.search?.running) { return pureOk({ ...state, search: { ...state.search, running: false } }) }
+        if (nameOf(event) === 'auto-run') {
+            if (state.run?.running) { return pureOk({ ...state, run: { ...state.run, running: false } }) }
             const nonce = parseNonce(state.nonce)
             const target = targetOf(state)
             if (nonce === null || target === null || target === 0n) { return pureOk(state) }
             const current = tried(state, nonce, target, nonce, 1n)
-            return pureOk(current.search === null || current.search.running ? current : tried(state, nonce + 1n, target, nonce + 1n, 1n))
+            return pureOk(current.run === null || current.run.running ? current : tried(state, nonce + 1n, target, nonce + 1n, 1n))
         }
-        if (event.name === 'auto-next') {
-            const search = state.search
+        if (nameOf(event) === 'auto-next') {
+            const search = state.run
             return pureOk(search === null || !search.running ? state
                 : tried(state, search.nonce + 1n, search.target, search.start, search.attempts + 1n))
         }
         const nonce = parseNonce(state.nonce)
-        return pureOk(event.name === 'next-nonce' && nonce !== null
-            ? { ...state, nonce: String(nonce + 1n), search: null }
+        return pureOk(nameOf(event) === 'next-nonce' && nonce !== null
+            ? { ...state, nonce: String(nonce + 1n), run: null }
             : state)
     },
     view: state => ['div',
@@ -145,7 +155,7 @@ const definition = {
         ['p',
             ['button', { type: 'button', name: 'next-nonce' }, 'Try next nonce'],
             ' ',
-            ['button', { type: 'button', name: 'auto-run' }, state.search?.running ? 'Stop' : 'Auto-run nonce'],
+            ['button', { type: 'button', name: 'auto-run' }, state.run?.running ? 'Stop' : 'Auto-run nonce'],
         ],
         inputField({ name: 'nBits', label: 'nBits' }, state.nBits),
         ['details', { 'data-pow-effort': '' },
