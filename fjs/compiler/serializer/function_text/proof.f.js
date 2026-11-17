@@ -9,7 +9,6 @@ import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.js'
 import { staticIds } from '../../../edag/module.f.js'
 import { functionText } from '../module.f.js'
-import { entry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(e: FunctionExp) => string} */
 const render = e => {

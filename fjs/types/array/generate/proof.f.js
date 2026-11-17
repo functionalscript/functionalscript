@@ -18,9 +18,13 @@ export const proof = /** @type {const} */ ({
         assert(result[0] !== result[1])
     },
     fresh: () => assert(generate(0, todo) !== generate(0, todo)),
-    arrayFrom: () => {
+    // Checked without another generator: the length asked for, and every
+    // item the one its own index gives.
+    everyLength: () => {
         for (const n of [0, 1, 2, 13, 16, 0x100]) {
-            assertStructurallySame(generate(n, i => i + 1), generate(n, i => i + 1))
+            const result = generate(n, i => i + 1)
+            assertEq(result.length, n)
+            assert(result.every((value, i) => value === i + 1))
         }
     },
     throw: {
