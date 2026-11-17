@@ -39,6 +39,8 @@
  * objects, and L1's `objectSpread`, lowered from L1's text over the
  * runtime and the table: each builds what L1's own builds. So does L1's
  * `get`, on receivers and keys of every kind: each answers what L1's own
+ * answers, and throws what it throws. So do L1's arithmetic and relational
+ * operators, on numbers, bigints and strings: each answers what L1's own
  * answers, and throws what it throws.
  *
  * @import { StringMap } from '../../types/object/types.ts'
@@ -49,7 +51,8 @@
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
-    call as l1Call, functionText, get as l1GetFn, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, toBoolean,
+    add, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
+    multiply, negate, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
     toIterable, toNumber, toNumeric, toPrimitive, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
@@ -69,9 +72,9 @@ import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
-    l1, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures, objects as objectSignatures,
-    reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
-    throws as throwSignatures, throwsRuntime,
+    l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures,
+    objects as objectSignatures, reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures,
+    stringsRuntime, throws as throwSignatures, throwsRuntime,
 } from './testlib.f.js'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
@@ -130,6 +133,9 @@ const fromL1Coerce = () => assertOk(lifetime(fromText(new URL('../../wasm/runtim
 
 /** The owned stage of L1's `get`, over the runtime and the table. @type {() => Module} */
 const fromL1Get = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Get, l1Runtime(errors))))
+
+/** The owned stage of L1's arithmetic and relational operators, over the runtime and the table. @type {() => Module} */
+const fromL1Arith = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Arith, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -443,6 +449,12 @@ export const proof = {
         "    fn numberToString(n: f64) -> any.only(string)",
         "    fn stringToNumber(s: any.only(string)) -> f64",
         "    fn bigintToString(b: any.only(bigint)) -> any.only(string)",
+        "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintDivide(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintNegate(a: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintLess(a: any, b: any) -> f64",
         "",
         "const #c0: any.only(array) =",
         "    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(9), \"undefined\"), \"object\"), \"boolean\"), \"number\"), \"string\"), \"bigint\"), \"object\"), \"object\"), \"function\"))",
@@ -1500,5 +1512,92 @@ export const proof = {
                 [{ any: null }, { any: 'a' }],
             ],
         })
+    },
+    // L1's arithmetic and relations, lowered from L1's text: each answers what L1's own answers.
+    l1Arith: () => {
+        const text = print({ ...fromL1Arith(), imports: [] })
+        assert(text.includes('Native.bigintAdd'))
+        assert(text.includes('Native.bigintLess'))
+        assert(text.includes('Native.bigintDivide'))
+        assert(text.includes('Functions.throw'))
+        assert(text.includes('stringLess'))
+    },
+    l1ArithRun: () => {
+        /** @type {StringMap<_Twin>} */
+        const twins = {
+            functionText: ([t]) => ({ any: functionText(held(t)) }),
+            toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
+            toNumber: ([v]) => toNumber(held(v)),
+            toNumeric: ([v]) => ({ any: toNumeric(held(v)) }),
+            toString: /** @type {_Twin} */ (xs => ({ any: l1ToString(held(xs[0])) })),
+            stringLess: ([a, b]) => stringLess(held(a), held(b)),
+            add: ([a, b]) => ({ any: add(held(a), held(b)) }),
+            subtract: ([a, b]) => ({ any: subtract(held(a), held(b)) }),
+            multiply: ([a, b]) => ({ any: multiply(held(a), held(b)) }),
+            divide: ([a, b]) => ({ any: divide(held(a), held(b)) }),
+            negate: ([a]) => ({ any: negate(held(a)) }),
+            lessThan: ([a, b]) => lessThan(held(a), held(b)),
+            greaterThan: ([a, b]) => greaterThan(held(a), held(b)),
+            lessThanOrEqual: ([a, b]) => lessThanOrEqual(held(a), held(b)),
+            greaterThanOrEqual: ([a, b]) => greaterThanOrEqual(held(a), held(b)),
+        }
+        // `divide` may abandon what it holds when `Native.bigintDivide` throws
+        // for a zero divisor: that throw is a callee's, not `Functions.throw`.
+        return run(fromL1Arith(), twins, {
+            functionText: [[{ any: 'x' }]],
+            toPrimitive: [[{ any: 1 }, false], [{ any: 'a' }, true]],
+            toNumber: [[{ any: 1 }], [{ any: '2' }], [{ any: true }]],
+            toNumeric: [[{ any: 1 }], [{ any: 1n }], [{ any: '1' }]],
+            toString: [[{ any: 1 }], [{ any: 'a' }], [{ any: 1n }]],
+            stringLess: [[{ any: 'a' }, { any: 'b' }], [{ any: 'b' }, { any: 'a' }]],
+            add: [
+                [{ any: 2 }, { any: 3 }],
+                [{ any: 1n }, { any: 2n }],
+                [{ any: 'a' }, { any: 1 }],
+                [{ any: 1 }, { any: 'b' }],
+                [{ any: 1n }, { any: 1 }],
+            ],
+            subtract: [
+                [{ any: 5 }, { any: 2 }],
+                [{ any: 5n }, { any: 2n }],
+                [{ any: 1n }, { any: 1 }],
+            ],
+            multiply: [
+                [{ any: 3 }, { any: 4 }],
+                [{ any: 3n }, { any: 4n }],
+            ],
+            divide: [
+                [{ any: 8 }, { any: 2 }],
+                [{ any: 8n }, { any: 2n }],
+                [{ any: 1 }, { any: 0 }],
+                [{ any: 1n }, { any: 0n }],
+            ],
+            negate: [
+                [{ any: 3 }],
+                [{ any: 3n }],
+                [{ any: -0 }],
+            ],
+            lessThan: [
+                [{ any: 1 }, { any: 2 }],
+                [{ any: 2 }, { any: 1 }],
+                [{ any: 'a' }, { any: 'b' }],
+                [{ any: 1n }, { any: 2n }],
+                [{ any: 1n }, { any: 2 }],
+                [{ any: NaN }, { any: 1 }],
+            ],
+            greaterThan: [
+                [{ any: 2 }, { any: 1 }],
+                [{ any: 1n }, { any: 2n }],
+            ],
+            lessThanOrEqual: [
+                [{ any: 1 }, { any: 1 }],
+                [{ any: 1 }, { any: 2 }],
+                [{ any: NaN }, { any: 1 }],
+            ],
+            greaterThanOrEqual: [
+                [{ any: 2 }, { any: 1 }],
+                [{ any: 1n }, { any: 1n }],
+            ],
+        }, ['divide'])
     },
 }

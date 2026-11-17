@@ -13,6 +13,12 @@ export const proof = {
         'numberToString(n: f64) -> any.only(string)',
         'stringToNumber(s: any.only(string)) -> f64',
         'bigintToString(b: any.only(bigint)) -> any.only(string)',
+        'bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintDivide(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintNegate(a: any.only(bigint)) -> any.only(bigint)',
+        'bigintLess(a: any, b: any) -> f64',
     ].join('; ')),
     // A module may import it beside L0, which seals its values of `any`, and not without.
     checked: () => {

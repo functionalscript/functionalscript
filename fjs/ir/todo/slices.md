@@ -237,15 +237,16 @@ Owner chose option A on each of four choices.
 
 Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/functionalscript/functionalscript/pull/3934).
 
-- [ ] **10a. `get`** (this PR). L1's `get` lowered from its text over the
+- [ ] **10a. `get`** (#3935). L1's `get` lowered from its text over the
   runtime and its error table, run against L1's own: its throw for
   `undefined` and `null`, and its reads of an object or a string by a
   string, which 6f left out. A member or index of sealed `any` is a call
   of the module's `get` where the table names it; 6f's array-at-number
-  path stays. **Status:** wip
-- [ ] **10b. Arithmetic and relational subjects.** L1's `add` / `subtract` /
-  `multiply` / `divide` / `negate` and the relational bodies, lowered and
-  run against L1's own.
+  path stays.
+- [ ] **10b. Arithmetic and relational subjects** (this PR). L1's `add` /
+  `subtract` / `multiply` / `divide` / `negate` and the relational bodies,
+  lowered and run against L1's own; native bigint arithmetic and
+  `bigintLess`. **Status:** wip
 - [ ] **10c. Remaining L1 exports and parity.** Every remaining export of
   [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already
   a subject (`toPropertyKey`, …), and the host twin runs extended so each
