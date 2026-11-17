@@ -1,3 +1,13 @@
+/**
+ * Host proofs of the L1-native adapter: each import row on a handle table.
+ * The adapter is plain host JavaScript (`module.mjs`) because
+ * `bigintDivide` of zero records a FunctionalScript throw via `fail` before
+ * rethrowing — `try`/`catch` that FunctionalScript cannot express.
+ *
+ * Prefer `node --test` for this file
+ * ([fjs/AGENTS.md §1.6](../../../../AGENTS.md#16-use-host-proofs-only-for-documented-host-contracts)).
+ */
+
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { handles } from '../../l0/host/module.f.js'
 import { host } from './module.mjs'
