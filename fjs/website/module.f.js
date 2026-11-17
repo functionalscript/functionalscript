@@ -966,7 +966,7 @@ const fundingRead = readParsed(fundingPath, parseFunding)
  * fixture tree the generator's proofs build is one. Whether it is there is
  * asked of the file system, not of the walk, so a program that writes the
  * site's bars without walking the tree reads the same channels
- * ([`./rustdoc-bars`](./rustdoc-bars/module.f.mjs)).
+ * ([`./rustdoc-bars`](./rustdoc-bars/module.f.js)).
  *
  * @type {Effect<Access | ReadFile, readonly Funding[], IoChannel>}
  */
@@ -977,7 +977,7 @@ const readFunding = step(exists(fundingPath), found =>
  * What a build knows about itself: the commit and the branch the environment
  * names, and the funding channels.
  *
- * Exported for [`./rustdoc-bars`](./rustdoc-bars/module.f.mjs), which writes
+ * Exported for [`./rustdoc-bars`](./rustdoc-bars/module.f.js), which writes
  * the bars from the same build the pages get; `_` because that is linkage,
  * not API.
  *

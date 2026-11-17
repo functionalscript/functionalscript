@@ -191,7 +191,7 @@ npm run website
 ```
 
 `rustdoc-bars` is a program of its own
-([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+([`rustdoc-bars/`](./rustdoc-bars/module.f.js)) so the site is generated
 once: it reads the build the pages are built from — a preview's branch and
 commit, the funding channels — and walks nothing.
 
