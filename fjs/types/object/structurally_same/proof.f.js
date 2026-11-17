@@ -10,7 +10,7 @@ const differ = (a, b) => assert(!structurallySame(a, b), ['differ', a, b])
 export const proof = {
     primitives: [
         // `Object.is` decides, so `NaN` is its own equal...
-        () => same(Number.NaN, Number.NaN),
+        () => same(NaN, NaN),
         () => same(42, 42),
         () => same('a', 'a'),
         () => same(undefined, undefined),

@@ -51,6 +51,9 @@ export const proof = {
         expectEdag(compile('export default Number.MAX_VALUE;').edag, expected)
         assertStructurallySame(execute(compile('const { MAX_VALUE: max } = Number; export default [max, Number["MAX_VALUE"], max / 2, max * 2, Number.MAX_SAFE_INTEGER];').edag),
             [expected, expected, expected / 2, Infinity, 0x1f_ffff_ffff_ffff])
+        expectEdag(compile('export default Number.MIN_VALUE;').edag, 2 ** -1074)
+        assertStructurallySame(execute(compile('const { MIN_VALUE: min, MIN_SAFE_INTEGER: least } = Number; export default [min, Number["MIN_VALUE"], min / 2, min * 2, least, Number.MIN_SAFE_INTEGER === -Number.MAX_SAFE_INTEGER];').edag),
+            [2 ** -1074, 2 ** -1074, 0, 2 ** -1073, -0x1f_ffff_ffff_ffff, true])
     },
     // `Math.clz32` is native: it needs no runtime. Zero and what `ToUint32`
     // makes zero have thirty-two leading zeros.

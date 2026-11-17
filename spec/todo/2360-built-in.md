@@ -121,6 +121,36 @@ quoted above, before implementation.
 follow `MAX_SAFE_INTEGER`; native corpus and browser samples exercise the
 [documented constant](../built-ins/static-functions/README.md#numeric-constants).
 
+##### Number.MIN_SAFE_INTEGER and Number.MIN_VALUE proposal and approval
+
+**Problem.** Proofs that walk the edges of the number format name the
+smallest safe integer and the smallest positive number, and the compiler
+refuses both as namespace members, so those proofs cannot be `.f.js`.
+
+**Proposal.** Admit `Number.MIN_SAFE_INTEGER` and `Number.MIN_VALUE` as
+numeric constants with the lowering `Number.MAX_SAFE_INTEGER` and
+`Number.MAX_VALUE` have: dot access, a literal bracket key and namespace
+destructuring lower to the host-defined number. Namespace guards and dynamic
+keys remain refused. No new runtime or EDAG operation is needed.
+
+**Benefits.** The four limits of the number format are admitted as a set; a
+caller copies neither `-0x1f_ffff_ffff_ffff` nor the digits of a subnormal.
+
+**Drawbacks.** Two more explicitly admitted namespace properties and their
+proof surface. `Number.NaN` is left out: `NaN` is in the language already,
+and admitting a synonym would be a cost with no benefit. `Number.EPSILON`
+and the two infinities' `Number` spellings stay separate admissions.
+
+**Language-design approval.** **sergey-shandar** asked "Can we admit this
+value `Number.MIN_VALUE`, `MIN_SAFE_INTEGER`, `NaN`?" and, on the answer
+recommending the two limits without `Number.NaN`, requested "Implement it in a
+new stacked PR" in the
+[working session](https://claude.ai/code/session_01Q2nX9r9FHq2F5nkzDmoQBe),
+before implementation.
+
+**Implemented.** Numeric-constant lowering and accepted/refused syntax proofs
+follow `MAX_VALUE`; the `number-limits` native corpus fixture exercises both.
+
 #### Fundamental Objects
 
 - [x] `Object` — `Object.is` is implemented, the first static function: a
@@ -406,8 +436,9 @@ This records the designer's direct request for the feature under DESIGN §12.
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
       ([built-in static functions](../built-ins/static-functions/README.md),
-      the record below), plus the numeric constants `Number.MAX_SAFE_INTEGER`
-      and `Number.MAX_VALUE`, desugared to their values
+      the record below), plus the numeric constants `Number.MAX_SAFE_INTEGER`,
+      `Number.MIN_SAFE_INTEGER`, `Number.MAX_VALUE` and `Number.MIN_VALUE`,
+      desugared to their values
       ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
       the namespace's other members stay unticked, each
       an admission of its own. A module reading one of the four, through

@@ -106,7 +106,7 @@ export const proof = {
         expectModule('const { isInteger, isFinite: f } = Number; export default [isInteger, f];',
             "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"Number.isInteger\"],[\"Number.isFinite\"]]]]]]")
         for (const source of [
-            'export default Number.MIN_VALUE;',
+            'export default Number.EPSILON;',
             'export default Number.parseFloat("1");',
             'export default Number.is;',
             'export default Number?.(1);',
@@ -148,6 +148,41 @@ export const proof = {
             expectRefused(`export default ${source};`, 'reserved word', 16)
         }
         const source = 'const key = "MAX_VALUE"; export default Number[key];'
+        expectRefused(source, 'reserved word', source.indexOf('Number') + 1)
+    },
+    minSafeInteger: () => {
+        /** @type {number} */
+        const expected = -0x1f_ffff_ffff_ffff
+        assertEq(Number.MIN_SAFE_INTEGER, expected)
+        for (const source of ['Number.MIN_SAFE_INTEGER', 'Number["MIN_SAFE_INTEGER"]', '(Number.MIN_SAFE_INTEGER)']) {
+            expectModule(`export default ${source};`, exported(String(expected)))
+        }
+        expectModule('const { MIN_SAFE_INTEGER: min } = Number; export default min;', exported(String(expected)))
+        expectModule('export default () => { const { MIN_SAFE_INTEGER } = Number; return MIN_SAFE_INTEGER; };',
+            exported(`["=>",0,[],${expected}]`))
+        expectModule('export default Number.MIN_SAFE_INTEGER - 1;', exported(`["-",${expected},1]`))
+        for (const source of ['Number?.MIN_SAFE_INTEGER', 'Number?.["MIN_SAFE_INTEGER"]', 'Object.MIN_SAFE_INTEGER']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+        const source = 'const key = "MIN_SAFE_INTEGER"; export default Number[key];'
+        expectRefused(source, 'reserved word', source.indexOf('Number') + 1)
+    },
+    minValue: () => {
+        // The smallest positive number, a subnormal: half of it is zero.
+        const expected = 2 ** -1074
+        assertEq(Number.MIN_VALUE, expected)
+        assertEq(expected / 2, 0)
+        for (const source of ['Number.MIN_VALUE', 'Number["MIN_VALUE"]', '(Number.MIN_VALUE)']) {
+            expectModule(`export default ${source};`, exported(String(expected)))
+        }
+        expectModule('const { MIN_VALUE: min } = Number; export default min;', exported(String(expected)))
+        expectModule('export default () => { const { MIN_VALUE } = Number; return MIN_VALUE; };',
+            exported(`["=>",0,[],${expected}]`))
+        expectModule('export default Number.MIN_VALUE / 2;', exported(`["/",${expected},2]`))
+        for (const source of ['Number?.MIN_VALUE', 'Number?.["MIN_VALUE"]', 'Object.MIN_VALUE']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+        const source = 'const key = "MIN_VALUE"; export default Number[key];'
         expectRefused(source, 'reserved word', source.indexOf('Number') + 1)
     },
     uriComponent: () => {

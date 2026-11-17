@@ -163,7 +163,7 @@ const captureShadowed = foldError('capture shadowed')
  * anywhere but as the namespace of an admitted static member,
  * {@link staticRead}: never a module's to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
- * no value, so `Number.MIN_VALUE`, `Object.assign` and a bare `Number` are
+ * no value, so `Number.EPSILON`, `Object.assign` and a bare `Number` are
  * refused at the word as `typeof.x` would be.
  */
 const reservedWord = foldError('reserved word')
@@ -444,7 +444,8 @@ const isCall = node => {
  * The static member the key `named` names in the namespace `namespaceName`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: the functions of `Object`, the predicates of `Number`,
- * and `Number.MAX_SAFE_INTEGER` and `Number.MAX_VALUE`
+ * and the constants `Number.MAX_SAFE_INTEGER`, `Number.MIN_SAFE_INTEGER`,
+ * `Number.MAX_VALUE` and `Number.MIN_VALUE`
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
  * each a tag of the EDAG's `staticIds`, where a later name is a row of
  * its own decision.
@@ -456,7 +457,9 @@ const isCall = node => {
  */
 const staticMember = (namespaceName, named) => {
     if (namespaceName === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
+    if (namespaceName === 'Number' && named === 'MIN_SAFE_INTEGER') { return Number.MIN_SAFE_INTEGER }
     if (namespaceName === 'Number' && named === 'MAX_VALUE') { return Number.MAX_VALUE }
+    if (namespaceName === 'Number' && named === 'MIN_VALUE') { return Number.MIN_VALUE }
     const id = staticIds.find(id => id === `${namespaceName}.${named}`)
     if (id === undefined) { return null }
     /** @type {ValueStatic} */
@@ -1273,7 +1276,7 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * The static member an access reads, where its base is the bare word
  * of a namespace and its key a constant naming an admitted member, in
  * either spelling, {@link staticMember}; `null` for every other access,
- * which is resolved as any is — so `Object.assign` and `Number.MIN_VALUE`
+ * which is resolved as any is — so `Object.assign` and `Number.EPSILON`
  * enter the word and are refused at it. The word is a reserved global,
  * which no scope binds, so it alone decides.
  *

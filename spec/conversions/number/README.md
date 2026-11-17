@@ -42,7 +42,8 @@ import's local name ([shared values](../../bindings/constants/README.md)), and i
 no value: it stands as the callee of a call and as the namespace of the
 four predicates the language admits, `Number.isInteger`,
 `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, and the
-numeric constants `Number.MAX_SAFE_INTEGER` and `Number.MAX_VALUE`, read
+numeric constants `Number.MAX_SAFE_INTEGER`, `Number.MIN_SAFE_INTEGER`,
+`Number.MAX_VALUE` and `Number.MIN_VALUE`, read
 unguarded ([built-in static functions](../../built-ins/static-functions/README.md)), and is a
 compilation error (`reserved word`) anywhere else — bare,
 `const f = Number;`, or as the namespace of any other member,

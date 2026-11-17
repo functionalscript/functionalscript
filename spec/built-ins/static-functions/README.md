@@ -16,6 +16,12 @@ pins that value on every engine.
 in the same way, with no runtime operation. `Number["MAX_VALUE"]` and
 `const { MAX_VALUE: max } = Number` are admitted too.
 
+`Number.MIN_SAFE_INTEGER` is `-0x1f_ffff_ffff_ffff`, the smallest safe
+integer, and `Number.MIN_VALUE` is the smallest positive binary64 number, the
+subnormal `2 ** -1074`; half of it is zero. Both lower as the two above do, in
+the same three spellings, with no runtime operation. `Number.NaN` is not
+admitted: the language has `NaN`, and a second spelling of it adds nothing.
+
 `Number["MAX_SAFE_INTEGER"]` and namespace destructuring such as
 `const { MAX_SAFE_INTEGER: max } = Number` read the same value. A guard on
 the namespace, `Number?.MAX_SAFE_INTEGER`, a dynamic key, and other
@@ -25,7 +31,9 @@ operations on the resulting number, with their ordinary semantics.
 **Language-design approval:** **sergey-shandar** explicitly requested this
 constant lowering in [the working session](https://chatgpt.com/local/01a19f98-0942-73e9-86cb-c7b41536801e).
 The separate [MAX_VALUE approval](../../todo/2360-built-in.md#numbermax_value-proposal-and-approval)
-extends that lowering to the largest finite value.
+extends that lowering to the largest finite value, and the
+[MIN_SAFE_INTEGER and MIN_VALUE approval](../../todo/2360-built-in.md#numbermin_safe_integer-and-numbermin_value-proposal-and-approval)
+to the two lower limits.
 
 ## URI component encoding
 
