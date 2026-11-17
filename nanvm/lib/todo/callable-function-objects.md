@@ -696,7 +696,7 @@ The program under test reaches Rust by compiling its source
 (`gen.fixtures/<name>.rs`); neither layer runs the program's logic in Rust.
 
 *2a, the generated expectation.* The generator in
-[`fjs/nanvm/harness`](../../../fjs/nanvm/harness/module.f.mjs), which already
+[`fjs/nanvm/harness`](../../../fjs/nanvm/harness/module.f.js), which already
 walks the corpus fixtures, also loads each through the interpreter's loader
 (`interpret`, as `_transpileDefault` does), takes the `default` of the
 represented export object, and writes `nanvm/harness/gen.expected/<name>.rs`:

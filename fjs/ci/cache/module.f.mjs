@@ -33,7 +33,7 @@ import { stringToU8List } from '../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime } from '../config/module.f.js'
 import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.js'
-import { jobs } from '../self/module.f.mjs'
+import { jobs } from '../self/module.f.js'
 import { select } from './inputs/module.f.js'
 import { main as publish } from './publish/module.f.js'
 

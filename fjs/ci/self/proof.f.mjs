@@ -4,7 +4,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.mjs'
+import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.js'
 import { ciWorkflow, main as builtIn } from '../module.f.js'
 import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'

@@ -8,11 +8,12 @@
 Two small rules of this generator are written in more than one module and
 must agree.
 
-The serialisation of a workflow, JSON with two-space indent, is documented
-on `workflowText` in [`module.f.mjs`](../module.f.js) and spelled there
-in `writeWorkflows`; `main` in [`self`](../self/module.f.mjs) spells
-`JSON.stringify(workflow, null, '  ')` twice more for its own two
-workflows, and builds its two jobs by hand, restating `runs-on`,
+The serialisation of a workflow, JSON with two-space indent, was spelled in
+`writeWorkflows` in [`module.f.js`](../module.f.js) and twice more, as
+`JSON.stringify(workflow, null, '  ')`, in `main` of
+[`self`](../self/module.f.js). `writeWorkflows` is now exported and takes
+`[path, workflow]` pairs, and `self` writes its two through it. What remains
+there: `self` builds its two jobs by hand, restating `runs-on`,
 `timeout-minutes` and `{ run: miseDevelop(…), shell: 'bash' }` rather than
 going through `common`'s `job` and `mise`'s steps.
 
@@ -33,7 +34,7 @@ environment.
 
 ### Tasks
 
-- [ ] `writeWorkflows` exported; `self` over it.
+- [x] `writeWorkflows` exported; `self` over it.
 - [ ] `manifestDirectory` exported; `publish` over it.
 - [ ] `npm run gen`; the committed workflows must not change.
 

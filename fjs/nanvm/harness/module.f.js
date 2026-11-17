@@ -33,6 +33,8 @@ import { interpret } from '../../compiler/transpiler/module.f.js'
 import { forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.js'
 import { exitStep, mkdir, readdir, writeFiles, writeUtf8File } from '../../effects/node/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
@@ -71,8 +73,10 @@ export const rustName = file => file.slice(0, -extension.length).replaceAll('-',
 export const fixtures = () => mapStep(
     readdir(fixturesDirectory, {}),
     entries => entries
-        .filter(({ name, isFile }) => isFile && name.endsWith(extension))
-        .map(({ name }) => name)
+        .flatMap(dirent => {
+            const name = assertNotNullish(entry(dirent, 'name'))
+            return dirent.isFile && name.endsWith(extension) ? [name] : []
+        })
         .toSorted((a, b) => cmp(rustName(a))(rustName(b))))
 
 /**
@@ -82,7 +86,7 @@ export const fixtures = () => mapStep(
  * @type {(names: readonly string[]) => string}
  */
 export const modules = names => [
-    generatedHeader('`fjs run ./fjs/nanvm/harness/module.f.mjs`', 'add or remove a fixture instead'),
+    generatedHeader('`fjs run ./fjs/nanvm/harness/module.f.js`', 'add or remove a fixture instead'),
     '',
     ...names.map(name => `pub mod ${name};`),
     '',

@@ -3,7 +3,7 @@
  * [`fjs/js/runtime`](../../js/runtime/module.f.js) is authored, where
  * `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the corpus
  * proof — and the runtime loaded from its source, for the fixture
- * expectations [`../harness`](../harness/module.f.mjs) interprets under it.
+ * expectations [`../harness`](../harness/module.f.js) interprets under it.
  *
  * The source is resolved once by the compiler, then written as Rust and
  * an ordinary JavaScript module holding EDAG data. The latter exports an

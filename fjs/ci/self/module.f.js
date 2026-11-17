@@ -12,10 +12,10 @@
  * @import { Job, GitHubAction } from '../common/types.ts'
  */
 
-import { ciWorkflow, ciJobs, writeCi } from '../module.f.js'
+import { ciWorkflow, ciJobs, writeCi, writeWorkflows } from '../module.f.js'
 import { uses, _workflowsDirectory } from '../common/module.f.js'
 import { step } from '../../effects/module.f.js'
-import { exitStep, writeFiles } from '../../effects/node/module.f.js'
+import { exitStep } from '../../effects/node/module.f.js'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.js'
 import { installNode } from '../node/module.f.js'
@@ -104,20 +104,6 @@ export const packageConsumer = {
     refused: 'stone',
 }
 
-/**
- * The workflows and environment manifests this repository commits, with its own module as
- * the packed package's consumer. Test CI keeps its original PR and
- * merge-queue behavior; website uploads live in their own workflow.
- *
- * @type {() => Effect<NodeOp, 0, number>}
- */
-export const main = () => step(
-    writeCi(repositoryWorkflow),
-    () => exitStep(writeFiles([
-        [websitePath, JSON.stringify(websiteWorkflow, null, '  ')],
-        [personalNotesPath, JSON.stringify(personalNotesWorkflow, null, '  ')],
-    ])))
-
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
     nodeExtra: () => [],
@@ -194,3 +180,17 @@ export const personalNotesWorkflow = {
     permissions: { contents: 'read' },
     jobs: { approve: personalNotesJob },
 }
+
+/**
+ * The workflows and environment manifests this repository commits, with its own module as
+ * the packed package's consumer. Test CI keeps its original PR and
+ * merge-queue behavior; website uploads live in their own workflow.
+ *
+ * @type {() => Effect<NodeOp, 0, number>}
+ */
+export const main = () => step(
+    writeCi(repositoryWorkflow),
+    () => exitStep(writeWorkflows([
+        [websitePath, websiteWorkflow],
+        [personalNotesPath, personalNotesWorkflow],
+    ])))

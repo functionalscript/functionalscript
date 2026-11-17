@@ -313,7 +313,7 @@ Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
 from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
 constant the shared shell and the platform matrix also take. The script is
 generated from that constant by
-[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), so the version is written in the script in full, a bump of the pin is a
+[`cloudflare/module.f.js`](./cloudflare/module.f.js), so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
 its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes

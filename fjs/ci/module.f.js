@@ -225,19 +225,28 @@ export const ciWorkflow = setup => rust => {
 }
 
 /**
+ * Workflows written, each at its path as {@link workflowText} spells it: the
+ * one place a workflow becomes a file, for this generator's own two and for
+ * the ones a project adds beside them.
+ *
+ * @type {(workflows: readonly (readonly [path: string, workflow: GitHubAction])[]) => Effect<NodeOp, void, IoChannel>}
+ */
+export const writeWorkflows = workflows => writeFiles(workflows.map(([path, workflow]) => [path, workflowText(workflow)]))
+
+/**
  * The CI and publishing workflows, written.
  *
  * @type {(workflow: GitHubAction) => Effect<NodeOp, void, IoChannel>}
  */
-const writeWorkflows = workflow => writeFiles([
-    [ciPath, workflowText(workflow)],
-    [npmPublishPath, workflowText(npmPublishWorkflow)],
+const writeCiWorkflows = workflow => writeWorkflows([
+    [ciPath, workflow],
+    [npmPublishPath, npmPublishWorkflow],
 ])
 
 /** Write CI and publishing workflows through the shared generator.
  * @type {(workflow: GitHubAction) => Effect<NodeOp, 0, number>}
  */
-export const writeCi = workflow => exitStep(writeWorkflows(workflow))
+export const writeCi = workflow => exitStep(writeCiWorkflows(workflow))
 
 /**
  * Writes {@link ciWorkflow}, once `Cargo.toml` has said whether the project has
@@ -248,14 +257,14 @@ export const writeCi = workflow => exitStep(writeWorkflows(workflow))
  */
 export const ci = setup => exitStep(step(
     exists('Cargo.toml'),
-    hasRust => writeWorkflows(ciWorkflow(setup)(hasRust))))
+    hasRust => writeCiWorkflows(ciWorkflow(setup)(hasRust))))
 
 /**
  * The built-in `fjs ci`, the generator any project gets: no extra platform
  * steps and no packed-package consumer, since this command cannot know what
  * another package publishes, and the packed-package check without a consumer
  * is the declaration check every project had. A project with a module to offer
- * builds its workflow with one, as this repository does in `./self/module.f.mjs`,
+ * builds its workflow with one, as this repository does in `./self/module.f.js`,
  * which is what its `npm run gen` runs.
  *
  * @type {() => Effect<NodeOp, 0, number>}

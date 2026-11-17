@@ -2,7 +2,7 @@
 //! `nanvm/lib/todo/mvp-roadmap.md`): evaluate a compiled module, select one
 //! of its exports, read or call it, and print the result as JSON.
 //!
-//! `fjs run ./fjs/nanvm/harness/module.f.mjs` (`npm run gen`) compiles each of
+//! `fjs run ./fjs/nanvm/harness/module.f.js` (`npm run gen`) compiles each of
 //! `fixtures/*.mjs` into `gen.fixtures/*.rs` through the Rust code generator,
 //! named after its Rust module (`function-scope.mjs` becomes
 //! `function_scope.rs`), and writes `gen.fixtures/mod.rs` naming every one —
