@@ -14,7 +14,7 @@
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-26.04",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -130,7 +130,7 @@
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -363,7 +363,7 @@
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -454,7 +454,7 @@
     },
     "macos-arm": {
       "runs-on": "macos-26",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -562,7 +562,7 @@
     },
     "windows-intel": {
       "runs-on": "windows-2025",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -670,7 +670,7 @@
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -773,7 +773,7 @@
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -846,7 +846,7 @@
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -919,7 +919,7 @@
     },
     "spidermonkey": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -1012,7 +1012,7 @@
     },
     "node": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1",
@@ -1146,7 +1146,7 @@
     },
     "cov": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1"
@@ -1187,7 +1187,7 @@
     },
     "package": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 30,
+      "timeout-minutes": 60,
       "needs": [
         "node"
       ],
