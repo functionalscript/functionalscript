@@ -16,6 +16,8 @@
  * @import { File, Manifest, Rung, Tree } from './types.ts'
  */
 
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { collectRead, casAddFile } from '../../cas/module.f.js'
 import { branchCas, snapshot } from '../../cas/git/module.f.js'
@@ -53,7 +55,7 @@ const above = { fjs: ['fjs', 'js', 'ts'], js: ['js', 'ts'], ts: ['ts'], rust: ['
 
 /** A file added to its nested, repository-relative manifest tree. @type {(tree: Tree, path: readonly string[], id: string) => Tree} */
 const setFile = (tree, [first, ...rest], id) => {
-    const prior = tree[first]
+    const prior = entry(tree, first)
     return { ...tree, [first]: rest.length === 0 ? id : setFile(typeof prior === 'object' ? prior : {}, rest, id) }
 }
 
@@ -67,7 +69,7 @@ export const inputTrees = files => foldStep(pureOk(files), /** @type {RequiredMa
     const groups = select(path)
     return groups === null
         ? refuse('ERR_CI_INPUT')(`classify the tracked build input: ${path}`)
-        : pureOk(groups.flatMap(group => above[group]).reduce((t, group) => ({ ...t, [group]: setFile(t[group], path.split('/'), id) }), trees))
+        : pureOk(groups.flatMap(group => assertNotNullish(entry(above, group))).reduce((t, group) => ({ ...t, [group]: setFile(assertNotNullish(entry(t, group)), path.split('/'), id) }), trees))
 })
 
 /** The chained input manifests; a higher rung includes the one below by key. @type {(trees: RequiredMap<Rung, Tree>) => RequiredMap<Rung, string>} */
@@ -81,8 +83,8 @@ export const inputKeys = trees => {
 /** One check's identity over its rung, distinct even when two checks share inputs. @type {(check: Check, platform: Platform, inputs: RequiredMap<Rung, string>, trees: RequiredMap<Rung, Tree>) => Manifest} */
 export const checkManifest = (check, platform, inputs, trees) => ({
     contract: keyOf({ version: 1, check: check.id, commands: check.steps, platform, tools: pins }),
-    files: trees[check.rung],
-    below: inputs[check.rung],
+    files: assertNotNullish(entry(trees, check.rung)),
+    below: assertNotNullish(entry(inputs, check.rung)),
 })
 
 /** One NUL-delimited ls-tree record; the first tab separates metadata from the literal path. @type {(width: OidBytes, record: string) => Effect<never, File, IoChannel>} */
@@ -127,7 +129,7 @@ const repository = () => step(tryCommonDir('.'), dir => dir === null
 export const init = ({ env }) => {
     const checks = history(resultStep(access('Cargo.toml'), result => {
         const id = env.GITHUB_JOB ?? ''
-        const job = jobs(result[0] === 'ok')[id]
+        const job = entry(jobs(result[0] === 'ok'), id)
         return job === undefined
             ? refuse('ERR_CI_JOB')('GITHUB_JOB must name a configured CI job')
             : pureOk({ checks: jobChecks(id, job), platform: jobPlatform(job['runs-on']) })

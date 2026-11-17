@@ -29,7 +29,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { jobs } from '../self/module.f.js'
 import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.js'
-import { checkManifest, committedFiles, init, inputKeys, inputTrees, keyOf, report } from './module.f.mjs'
+import { checkManifest, committedFiles, init, inputKeys, inputTrees, keyOf, report } from './module.f.js'
 
 /** @type {Check} */
 const check = { id: 'suite', rung: 'js', steps: [{ run: 'node --test' }] }

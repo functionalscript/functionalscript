@@ -11,7 +11,7 @@ import { execFile } from '../../../effects/node/module.f.js'
 import { runNodeEffect } from '../../../effects/node/module.mjs'
 import { ascii } from '../../../ebnf/byte/module.f.js'
 import { tryFromHexOf } from '../../../git/oid/module.f.js'
-import { committedFiles, inputTrees } from '../module.f.mjs'
+import { committedFiles, inputTrees } from '../module.f.js'
 
 export const proof = /** @type {const} */ ({
     completeCheckout: async () => {
