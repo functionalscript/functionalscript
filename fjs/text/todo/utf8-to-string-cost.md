@@ -74,7 +74,7 @@ own measurement, not something to fold into a caller.
 - [ ] Make the decoder fast enough that `npm run website` is not dominated by
       it, keeping every existing `text/utf8` proof green.
 - [ ] Re-measure `npm run website` and record the number in
-      [`../../website/module.f.mjs`](../../website/module.f.mjs)'s header, which
+      [`../../website/module.f.js`](../../website/module.f.js)'s header, which
       names this issue today.
 
 ### Related

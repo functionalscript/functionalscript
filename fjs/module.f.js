@@ -108,7 +108,7 @@ export const commands = [
         names: ['run', 'r'],
         description: 'Run the `main` program or command table a FunctionalScript module exports',
         usage: 'fjs run <module> [args...]',
-        examples: ['fjs run ./fjs/website/module.f.mjs'],
+        examples: ['fjs run ./fjs/website/module.f.js'],
         note: 'The module must export main as a program or command table. This repository-checkout example generates the website locally.',
         docs: 'fjs/README.md',
         // Both ways this can fail are the command line, not a defect: the

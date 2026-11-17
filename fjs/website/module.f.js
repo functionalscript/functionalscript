@@ -56,6 +56,10 @@
  * @import { Funding } from './funding/types.ts'
  */
 
+import { assertNotNullish } from '../asserts/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { identity } from '../types/function/module.f.js'
+import { stringify } from '../media/json/module.f.js'
 import { codePoints } from '../text/ascii/module.f.js'
 import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.js'
 import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
@@ -85,6 +89,14 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
 import { origin } from './origin/module.f.js'
 
 /**
+ * The `name` of a directory entry, a proof or a demo. A function has a
+ * `name` too, so the language reads the property with `entry`.
+ *
+ * @type {(named: { readonly name: string }) => string}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
+
+/**
  * Every directory under `dir`, itself first, with everything each one holds;
  * a directory {@link isThirdParty} names is not entered.
  *
@@ -107,13 +119,14 @@ const walk = dir => step(readdir(dir, {}), entries => {
     // `isDirectory` and not `!isFile`: a symbolic link is neither, and
     // `readdir` on one fails with `ENOTDIR` — a build broken by a link
     // somebody left in the tree.
-    const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
+    const files = entries.filter(e => !e.isDirectory).map(nameOf).toSorted()
     const dirs = entries
         // The root PR route, the CLI reference and the Rust API reference
         // are generated output, not source directories. Excluding them
         // keeps consecutive builds' catalogues identical.
-        .filter(e => e.isDirectory && !isThirdParty(e.name) && !(dir === '.' && (e.name === prsDir || e.name === cliDir || e.name === cargoDocDir)))
-        .map(e => e.name)
+        .filter(e => e.isDirectory)
+        .map(nameOf)
+        .filter(name => !isThirdParty(name) && !(dir === '.' && (name === prsDir || name === cliDir || name === cargoDocDir)))
         .toSorted()
     return foldStep(
         pureOk(dirs),
@@ -350,7 +363,7 @@ const reportClassification = proofs => {
     const blocked = proofs.filter(proof => proof.blockers.length !== 0)
     return step(
         forEachStep(pureOk(blocked), proof =>
-            log(`skipped ${proof.name}: not linkable in a browser (${proof.blockers.join(', ')})`)),
+            log(`skipped ${nameOf(proof)}: not linkable in a browser (${proof.blockers.join(', ')})`)),
         () => log(`browser proof modules: ${proofs.length - blocked.length} of ${proofs.length}`))
 }
 
@@ -419,7 +432,7 @@ const resolveDemos = demos => {
     /** @type {OrderedMap<readonly Proof[]>} */
     const byDir = demos.reduce(
         (map, demo) => {
-            const dir = parent(demo.name)
+            const dir = parent(nameOf(demo))
             return setReplace(dir)(/** @type {readonly Proof[]} */ ([...(at(dir)(map) ?? []), demo]))(map)
         },
         /** @type {OrderedMap<readonly Proof[]>} */ (emptyMap))
@@ -428,14 +441,14 @@ const resolveDemos = demos => {
             if (candidates.length > 1) {
                 return /** @type {const} */ ([found, [...refused,
                     `skipped the demo in ${dir}: ${candidates.length} modules export one`
-                    + ` (${candidates.map(demo => demo.name).join(', ')})`]])
+                    + ` (${candidates.map(nameOf).join(', ')})`]])
             }
             const only = candidates[0]
             if (only.blockers.length !== 0) {
                 return /** @type {const} */ ([found, [...refused,
-                    `skipped ${only.name}: a demo must link in a browser (${only.blockers.join(', ')})`]])
+                    `skipped ${nameOf(only)}: a demo must link in a browser (${only.blockers.join(', ')})`]])
             }
-            return /** @type {const} */ ([setReplace(dir)(`/${only.name}`)(found), refused])
+            return /** @type {const} */ ([setReplace(dir)(`/${nameOf(only)}`)(found), refused])
         },
         /** @type {readonly [_DemoPaths, readonly string[]]} */ ([emptyMap, []]))
 }
@@ -738,6 +751,17 @@ const writeChangelog = build => tree => {
 }
 
 /**
+ * One file of rustdoc's output, read whole from directory `from` and written
+ * under the same name in `to`: byte for byte, but for a page's `og:url`
+ * ({@link withPageUrl}), which only a page, an `.html` file, is given.
+ *
+ * @type {(base: string | null) => (from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ */
+const copyRustdocFile = base => from => to => name => step(
+    readWhole(`${from}/${name}`),
+    chunks => writeChunks(`${to}/${name}`, name.endsWith('.html') ? withPageUrl(base)(`/${to}/${name}`)(chunks) : chunks))
+
+/**
  * One directory of rustdoc's output, copied to the same place under
  * {@link cargoDocDir}. Whole and in chunks, because a rustdoc page outgrows
  * one `Vec`.
@@ -749,17 +773,6 @@ const copyRustdocDir = base => dir => {
     const made = mkdir(to, { recursive: true })
     return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(base)(dir.path)(to)))
 }
-
-/**
- * One file of rustdoc's output, read whole from directory `from` and written
- * under the same name in `to`: byte for byte, but for a page's `og:url`
- * ({@link withPageUrl}), which only a page, an `.html` file, is given.
- *
- * @type {(base: string | null) => (from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
- */
-const copyRustdocFile = base => from => to => name => step(
-    readWhole(`${from}/${name}`),
-    chunks => writeChunks(`${to}/${name}`, name.endsWith('.html') ? withPageUrl(base)(`/${to}/${name}`)(chunks) : chunks))
 
 /**
  * The crates a walk of rustdoc's output documents: each top-level directory
@@ -807,15 +820,6 @@ const copyRustdoc = base => step(exists(rustdocDir), found =>
     found ? copyRustdocTree(base) : pureOk(null))
 
 /**
- * The Rust API reference, when there is one: rustdoc's output and the index
- * page over it. Answers the documented crates, none when there is none.
- *
- * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
- */
-const writeCargoDoc = build => step(copyRustdoc(origin(build.branch)), crates =>
-    crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
-
-/**
  * The index page over the documented crates, answering them.
  *
  * @type {(build: Build) => (crates: readonly string[]) => Effect<Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
@@ -825,6 +829,15 @@ const writeCargoDocIndex = build => crates => {
     const logged = step(written, () => log(`rust crates: ${crates.length}`))
     return mapStep(logged, () => crates)
 }
+
+/**
+ * The Rust API reference, when there is one: rustdoc's output and the index
+ * page over it. Answers the documented crates, none when there is none.
+ *
+ * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
+ */
+const writeCargoDoc = build => step(copyRustdoc(origin(build.branch)), crates =>
+    crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
 
 /**
  * A directory's `README.md` as the top of its page, or nothing where it has
@@ -881,7 +894,7 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     return step(
         foldStep(pureOk(dirs), /** @type {readonly string[]} */([]), writeDir),
         cards => step(
-            writeUtf8File(cardsPath, JSON.stringify(cards)),
+            writeUtf8File(cardsPath, stringify(identity)(cards)),
             () => log(`directory pages: ${dirs.length}, cards: ${cards.length}, issues: ${issues.length}`)))
 })
 

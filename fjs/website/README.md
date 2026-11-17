@@ -1,6 +1,6 @@
 # The website
 
-`module.f.mjs` is a `NodeProgram` that generates the site from the repository
+`module.f.js` is a `NodeProgram` that generates the site from the repository
 it sits in: one page per directory, each carrying that directory's contents and
 the proofs of its subtree, plus the one stylesheet they all link. It is run by
 `npm run website`, and its whole output is gitignored.
@@ -1178,7 +1178,7 @@ directory of fixtures in, a site out, no filesystem touched. What used to check
 this was running the command and reading a `git diff`.
 
 The cost is measured and recorded rather than assumed — see the `@module` block
-in [`module.f.mjs`](./module.f.mjs) and
+in [`module.f.js`](./module.f.js) and
 [`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md).
 
 ## Open questions

@@ -19,7 +19,7 @@ both are implemented now.
 
 **One demo per directory, because a page has one demo section.** The website
 refuses a second module exporting `demo` in the same directory and skips both
-([`website/module.f.mjs`](../../website/module.f.mjs), `resolveDemos`). So
+([`website/module.f.js`](../../website/module.f.js), `resolveDemos`). So
 several presets cannot be several demo files in one folder, and the layout
 follows the compiler's own stages instead: each stage folder has one
 `demo.f.mjs` showing *that stage's* output, and its page is where a reader of
