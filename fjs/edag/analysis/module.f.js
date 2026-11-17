@@ -271,6 +271,8 @@ const handlers = {
     'Math.max': o0,
     'Math.min': o0,
     'Math.fround': o0,
+    'Math.clz32': o0,
+    'Math.round': o0,
     encodeURIComponent: o0,
     arg: indexed,
     frame: indexed,

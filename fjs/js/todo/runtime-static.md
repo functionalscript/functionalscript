@@ -197,7 +197,7 @@ natively or by a body — and the native table in reverse.
 functions are definitions over the operators, bodies from the first day:
 `Object.is`, `Number.isInteger`, `Number.isNaN`, `isNaN`, `Math.sign`.
 `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`,
-`Math.max` and `Math.min` are admitted natively under the later target rule:
+`Math.max`, `Math.min` and `Math.clz32` are admitted natively under the later target rule:
 both Rust and core WASM provide compatible numerical operations, so every executor uses
 its native binding after the existing JavaScript conversions, without a
 common numerical body or third-party dependency

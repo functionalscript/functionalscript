@@ -41,9 +41,9 @@
  * `String.fromCharCode` for native UTF-16 construction,
  * the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
- * the common-runtime functions `encodeURIComponent`, `Math.log2` and `Math.fround`, and native
- * numeric functions `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`,
- * `Math.imul`, `Math.max` and `Math.min`.
+ * the common-runtime functions `encodeURIComponent`, `Math.log2`, `Math.fround` and
+ * `Math.round`, and native numeric functions `Math.trunc`, `Math.floor`, `Math.abs`,
+ * `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min` and `Math.clz32`.
  */
 export const statics = /** @type {const} */ ([
     ['encodeURIComponent'],
@@ -67,6 +67,8 @@ export const statics = /** @type {const} */ ([
     ['Math', 'max'],
     ['Math', 'min'],
     ['Math', 'fround'],
+    ['Math', 'clz32'],
+    ['Math', 'round'],
 ])
 
 /**
@@ -78,8 +80,9 @@ export const statics = /** @type {const} */ ([
  * `String.fromCharCode` is native too: it constructs UTF-16 strings from
  * code units without a large lookup table.
  * `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`,
- * `Math.max` and `Math.min` have compatible native numeric operations in Rust
- * and core WASM.
+ * `Math.max`, `Math.min` and `Math.clz32` have compatible native numeric operations
+ * in Rust and core WASM. `Math.round` has none — Rust rounds a tie away from zero and
+ * core WASM to even — so its body is the runtime's.
  * The maximum and minimum bindings correct Rust's NaN and signed-zero differences.
  * Every other path of {@link statics} has its body in the runtime.
  */
@@ -94,6 +97,7 @@ export const natives = /** @type {const} */ ([
     ['Math', 'imul'],
     ['Math', 'max'],
     ['Math', 'min'],
+    ['Math', 'clz32'],
 ])
 
 /** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */

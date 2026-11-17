@@ -2,6 +2,7 @@ mod abs;
 mod add;
 mod binary64;
 mod ceil;
+mod clz32;
 mod debug;
 mod div;
 mod floor;

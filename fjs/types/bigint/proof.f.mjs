@@ -5,7 +5,7 @@
  * @import { DemoState } from './types.ts'
  */
 
-import { demo, parseSize, work } from './demo.f.mjs'
+import { demo, parseSize, work } from './demo.f.js'
 import { partialRun, run } from '../../effects/mock/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { error, ok, unwrap } from '../result/module.f.js'

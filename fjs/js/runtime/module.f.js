@@ -299,6 +299,31 @@ const numberLog2 = n => {
 /** Math.log2: ToNumber once, then the shared numerical kernel. @type {(value?: unknown) => number} */
 const log2 = value => numberLog2(toNumber(value))
 
+/** The native floor, bound once for the table and for {@link round}'s body. */
+const nativeFloor = Math.floor
+
+/**
+ * Math.round: ToNumber once, then the nearest integer, a tie toward positive
+ * infinity. Neither Rust's `f64::round`, which rounds a tie away from zero,
+ * nor core WASM's `f64.nearest`, which rounds it to even, is this rule, so
+ * the body is one for every executor: the floor, which is native, and one
+ * comparison. `x - floor` is exact wherever `x` has a fraction, so it decides
+ * the tie as written and is not `floor(x + 0.5)`, which rounds before the
+ * floor is taken. `NaN` and the infinities fail the comparison and are the
+ * floor, the value itself. A value in `[-0.5, 0)` rounds to `-0`.
+ *
+ * The floor is bound once, {@link nativeFloor}, so the body and the table's
+ * `Math.floor` entry are one native binding.
+ *
+ * @type {(value?: unknown) => number}
+ */
+const round = value => {
+    const x = toNumber(value)
+    const floor = nativeFloor(x)
+    const rounded = x - floor >= 0.5 ? floor + 1 : floor
+    return rounded === 0 && x < 0 ? -0 : rounded
+}
+
 /**
  * An argument as `ToIntegerOrInfinity` reads one: `ToNumber`, then `NaN`
  * made `0`, an infinity kept, and a finite number truncated toward zero,
@@ -412,13 +437,15 @@ export const statics = {
     'Math.log2': log2,
     'Math.fround': fround,
     'Math.trunc': Math.trunc,
-    'Math.floor': Math.floor,
+    'Math.floor': nativeFloor,
     'Math.abs': Math.abs,
     'Math.sqrt': Math.sqrt,
     'Math.ceil': Math.ceil,
     'Math.imul': Math.imul,
     'Math.max': Math.max,
     'Math.min': Math.min,
+    'Math.clz32': Math.clz32,
+    'Math.round': round,
 }
 
 /** The runtime: table lookup, the `in` and `Boolean` operator bodies, and the reference map. */
