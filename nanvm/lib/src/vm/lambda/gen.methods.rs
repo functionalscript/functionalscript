@@ -759,4 +759,6 @@ pub const STATICS: &[&[&str]] = &[
     &["Math", "max"],
     &["Math", "min"],
     &["Math", "fround"],
+    &["Math", "clz32"],
+    &["Math", "round"],
 ];

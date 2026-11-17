@@ -46,7 +46,7 @@ const argSchema = /** @type {const} */ (['arg', number])
 
 const frameSchema = /** @type {const} */ (['frame', number])
 
-const staticNames = /** @type {const} */ (['encodeURIComponent', 'Object.is', 'Object.entries', 'Object.keys', 'Object.values', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min', 'Math.fround'])
+const staticNames = /** @type {const} */ (['encodeURIComponent', 'Object.is', 'Object.entries', 'Object.keys', 'Object.values', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min', 'Math.fround', 'Math.clz32', 'Math.round'])
 
 const staticIdSchema = or(...staticNames)
 

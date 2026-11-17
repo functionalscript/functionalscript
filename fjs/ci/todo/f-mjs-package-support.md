@@ -220,7 +220,7 @@ emission, `npm pack`, and a clean consumer.
 
 - [ ] Keep the authored `.mjs` that is not FunctionalScript type-checked with
       the rest of authored JavaScript. The benchmark this line used to name is
-      gone: it is `fjs/types/bigint/demo.f.mjs` now, and FunctionalScript.
+      gone: it is `fjs/types/bigint/demo.f.js` now, and FunctionalScript.
 - [x] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` implementation migration.
 - [x] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.

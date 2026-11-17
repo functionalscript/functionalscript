@@ -276,6 +276,24 @@ export const proof = {
             expectRefused(`export default ${source};`, 'reserved word', 16)
         }
     },
+    // The two read, call and destructure as every admitted static does;
+    // a namespace that does not hold the name still refuses it.
+    mathClz32AndRound: () => {
+        for (const name of ['clz32', 'round']) {
+            for (const source of [`Math.${name}`, `Math["${name}"]`, `(Math.${name})`]) {
+                expectModule(`export default ${source};`, exported(`["Math.${name}"]`))
+            }
+            expectModule(`export default Math.${name}(1.5);`, exported(`["()",["Math.${name}"],[1.5]]`))
+            expectModule(`export default Math["${name}"]?.();`, exported(`["?.()",["Math.${name}"],[]]`))
+            expectModule(`const { ${name}: f, "${name}": g, ${name}: { length } } = Math; export default [f, g, length];`,
+                exported(`["[]",[["Math.${name}"],["Math.${name}"],[".",["Math.${name}"],"length"]]]`))
+            expectModule(`const { ${name} } = Math; export default [${name} === Math.${name}, x => ${name}(x)];`,
+                exported(`["[]",[["===",["Math.${name}"],["Math.${name}"]],["=>",1,[["Math.${name}"]],["()",["frame",0],[["arg",0]]]]]]`))
+            for (const source of [`Math?.${name}`, `Math?.["${name}"](1)`, `Number.${name}`, `Object.${name}`]) {
+                expectRefused(`export default ${source};`, 'reserved word', 16)
+            }
+        }
+    },
     mathTrunc: () => {
         for (const source of ['Math.trunc', 'Math["trunc"]', '(Math.trunc)']) {
             expectModule(`export default ${source};`, exported('["Math.trunc"]'))

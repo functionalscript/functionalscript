@@ -137,7 +137,7 @@ export const proof = {
         assertEq(some('ab', '1'), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], ['Math.trunc'], ['Math.floor'], ['Math.abs'], ['Math.sqrt'], ['Math.ceil'], ['Math.imul'], ['Math.max'], ['Math.min'], ['Math.fround'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], ['Math.trunc'], ['Math.floor'], ['Math.abs'], ['Math.sqrt'], ['Math.ceil'], ['Math.imul'], ['Math.max'], ['Math.min'], ['Math.fround'], ['Math.clz32'], ['Math.round'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
@@ -165,6 +165,7 @@ export const proof = {
         expectValue(['Math.abs'], 'length', 1)
         expectValue(['Math.sqrt'], 'length', 1)
         expectValue(['Math.ceil'], 'length', 1)
+        expectValue(['Math.clz32'], 'length', 1)
         expectValue(['Math.imul'], 'length', 2)
         expectValue(['Math.max'], 'length', 2)
         expectValue(['Math.min'], 'length', 2)
@@ -178,6 +179,8 @@ export const proof = {
         missing(['Math.max'], 'name')
         missing(['Math.min'], 'name')
         missing(['Math.fround'], 'name')
+        missing(['Math.clz32'], 'name')
+        missing(['Math.round'], 'name')
         missing(['Object.entries'], 'name')
         /** @type {import('../types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]

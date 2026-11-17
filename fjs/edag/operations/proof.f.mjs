@@ -277,6 +277,44 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(under(throwing, ['()', ['Math.ceil'], [-1.9]]), ['ok', -1])
         },
     },
+    mathClz32: {
+        numbers: () => {
+            for (const [value, expected] of [
+                [1, 31], [2, 30], [3, 30], [0xff, 24], [0x100, 23], [0xffff, 16], [0x1_0000, 15],
+                [0x7fff_ffff, 1], [0x8000_0000, 0], [0xffff_ffff, 0],
+                // `ToUint32` first: negatives wrap, larger integers reduce, fractions truncate
+                [-1, 0], [-0x8000_0000, 0], [-0xffff_ffff, 31], [0x1_0000_0000, 32], [0x1_0000_0001, 31],
+                [1.9, 31], [-1.9, 0], [0.5, 32], [-0.5, 32],
+                // zero, and what converts to it
+                [0, 32], [-0, 32], [NaN, 32], [Infinity, 32], [-Infinity, 32],
+            ]) { eq(['()', ['Math.clz32'], [value]], expected) }
+            eq(['()', ['Math.clz32'], []], 32)
+        },
+        conversion: () => {
+            for (const [value, expected] of /** @type {readonly (readonly [Exp, number])[]} */ ([
+                ['', 32], [' 1 ', 31], [' 0x10 ', 27], ['Infinity', 32], ['bad', 32],
+                [true, 31], [false, 32], [null, 32], [['undefined'], 32],
+                [['[]', []], 32], [['[]', [8.9]], 28], [['[]', [8n]], 28], [['{}', []], 32],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], 2.9]], [':', 'toString', ['=>', 0, [], ['throw', 'unreached']]]]], 30],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], '-1']]]], 0],
+            ])) { eq(['()', ['Math.clz32'], [value]], expected) }
+            eq(['()', ['Math.clz32'], [4.9, throws]], 29)
+            failure(['()', ['Math.clz32'], [throws, ['throw', 'argument']]], 'argument')
+            failure(['()', ['Math.clz32'], [1n]])
+            failure(['()', ['Math.clz32'], [['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]]]])
+            failure(['()', ['Math.clz32'], [throws]], 'conversion')
+            failure(['()', ['Math.clz32'], [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.clz32'], ['Math.clz32'])
+            eq(['.', ['Math.clz32'], 'length'], 1)
+            eq(['String', ['Math.clz32']], 'function clz32() { [native code] }')
+            eq(['===', ['Math.clz32'], ['Math.clz32']], true)
+            eq(['===', ['Math.clz32'], ['Math.floor']], false)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.clz32'], [1]]), ['ok', 31])
+        },
+    },
     mathImul: {
         numbers: () => {
             for (const [left, right, expected] of [
@@ -708,7 +746,7 @@ export const proof = /** @type {const} */ ({
     // its argument binding and metadata. This synthetic body returns its
     // arguments so the dispatch contract is independent of numerical tests.
     commonStatics: () => {
-        for (const [id, name] of /** @type {const} */ ([['Math.log2', 'log2'], ['Math.fround', 'fround'], ['encodeURIComponent', 'encodeURIComponent']])) {
+        for (const [id, name] of /** @type {const} */ ([['Math.log2', 'log2'], ['Math.fround', 'fround'], ['Math.round', 'round'], ['encodeURIComponent', 'encodeURIComponent']])) {
             /** @type {Runtime} */
             const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', id, ['=>', 1, [], ['[]', [['arg', 0], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
             assertStructurallySame(under(runtime, [id]), ['ok', [id]])

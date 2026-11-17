@@ -29,7 +29,7 @@ const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unkn
  * on some of the generic samples.
  * @type {readonly string[]}
  */
-const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2', 'Math.fround', 'encodeURIComponent']
+const separatelyProved = ['Object.fromEntries', 'Object.keys', 'Object.values', 'Math.log2', 'Math.fround', 'Math.round', 'encodeURIComponent']
 
 /**
  * Correctly rounded log2 and the output's ULP, computed from the exact
@@ -410,6 +410,70 @@ export const proof = /** @type {const} */ ({
             assertEq(body({ valueOf: () => 0.1, toString: () => { throw 'unreached' } }), 0.10000000149011612)
             assertEq(body({ valueOf: () => ({}), toString: () => '-0.1' }), -0.10000000149011612)
             assertEq(table['Math.fround'](1, { valueOf: () => { throw 'unused' } }), 1)
+        },
+    },
+    // `Math.round`: one body for every executor, since neither Rust nor core
+    // WASM rounds a tie as JavaScript does; held to the host's own.
+    round: {
+        specialCases: () => {
+            const body = statics['Math.round']
+            assert(body !== Math.round)
+            assertEq(body.length, Math.round.length)
+            assertEq(runtime.static('Math.round'), body)
+            assert(Object.is(body(), NaN))
+            for (const value of [NaN, Infinity, -Infinity, 0, -0]) {
+                assert(Object.is(body(value), value), value)
+            }
+        },
+        // a tie goes toward positive infinity, in both directions
+        ties: () => {
+            const body = statics['Math.round']
+            for (const [value, expected] of /** @type {const} */ ([[0.5, 1], [1.5, 2], [2.5, 3], [-1.5, -1], [-2.5, -2], [-3.5, -3], [4_503_599_627_370_495.5, 4_503_599_627_370_496], [-4_503_599_627_370_495.5, -4_503_599_627_370_495]])) {
+                assert(Object.is(body(value), expected), value)
+                assert(Object.is(Math.round(value), expected), value)
+            }
+        },
+        // a value from `-0.5` up to zero is negative zero
+        negativeZero: () => {
+            const body = statics['Math.round']
+            for (const value of [-0.5, -0.49999999999999994, -0.2, -5e-324]) {
+                assert(Object.is(body(value), -0), value)
+                assert(Object.is(Math.round(value), -0), value)
+            }
+        },
+        // where `floor(x + 0.5)` is wrong: the addition rounds first
+        notFloorOfHalfMore: () => {
+            const body = statics['Math.round']
+            assert(Object.is(body(0.49999999999999994), 0))
+            assert(Object.is(body(-0.5000000000000001), -1))
+            for (const value of [0x10_0000_0000_0001, 0x1f_ffff_ffff_ffff, -0x10_0000_0000_0001, 2 ** 53, 2 ** 80, -(2 ** 80), Number.MAX_VALUE]) {
+                assert(Object.is(body(value), value), value)
+            }
+        },
+        // every sample, and each one's half-integer neighbours, as the host answers
+        host: () => {
+            const body = statics['Math.round']
+            const { round } = Math
+            for (const exponent of [-1074, -1022, -60, -30, -2, -1, 0, 1, 2, 10, 31, 32, 51, 52, 53, 60, 1023]) {
+                for (const significand of [1, 1.25, 1.5, 1.75, 1.9999999999999998]) {
+                    const magnitude = significand * 2 ** exponent
+                    for (const value of [magnitude, -magnitude, Math.floor(magnitude) + 0.5, -(Math.floor(magnitude) + 0.5)]) {
+                        assert(Object.is(body(value), round(value)), value)
+                    }
+                }
+            }
+        },
+        conversion: () => {
+            const body = statics['Math.round']
+            const { round } = Math
+            for (const value of ['', ' -0 ', ' 0.5 ', ' -2.5 ', ' 0xffff ', 'Infinity', 'bad', true, false, null, undefined, [], [0.5], [8n], [[-0.5]], {}, () => 1]) {
+                const expected = Math.round(/** @type {number} */ (value))
+                assert(Object.is(body(value), expected), value)
+                assert(Object.is(round(/** @type {number} */ (value)), expected), value)
+            }
+            assertEq(body({ valueOf: () => 2.5, toString: () => { throw 'unreached' } }), 3)
+            assertEq(body({ valueOf: () => ({}), toString: () => '-2.5' }), -2)
+            assertEq(table['Math.round'](1.5, { valueOf: () => { throw 'unused' } }), 2)
         },
     },
     log2: {
@@ -887,6 +951,10 @@ export const proof = /** @type {const} */ ({
         froundBigintPrimitive: () => { statics['Math.fround']({ valueOf: () => 1n }) },
         froundConversion: () => { statics['Math.fround']({ valueOf: () => { throw 'conversion' } }) },
         froundNoPrimitive: () => { statics['Math.fround']({ valueOf: () => ({}), toString: () => [] }) },
+        roundBigint: () => { statics['Math.round'](1n) },
+        roundBigintPrimitive: () => { statics['Math.round']({ valueOf: () => 1n }) },
+        roundConversion: () => { statics['Math.round']({ valueOf: () => { throw 'conversion' } }) },
+        roundNoPrimitive: () => { statics['Math.round']({ valueOf: () => ({}), toString: () => [] }) },
         log2Bigint: () => { statics['Math.log2'](1n) },
         log2BigintPrimitive: () => { statics['Math.log2']({ valueOf: () => 1n }) },
         log2Conversion: () => { statics['Math.log2']({ valueOf: () => { throw 'conversion' } }) },

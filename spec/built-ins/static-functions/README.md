@@ -60,6 +60,7 @@ export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.
 
 The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`,
 `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min`, `Math.fround`,
+`Math.clz32`, `Math.round`,
 `Object.is`, `Object.entries`, `Object.keys`, `Object.values`, `Object.fromEntries`,
 `String.fromCharCode` and the four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
@@ -201,6 +202,32 @@ supplies the conversion and numeric operation for every backend; no native
 fround binding is added
 ([admission](../../todo/2360-built-in.md#mathfround-proposal-and-approval)).
 
+`Math.clz32(x)` converts its first argument with `ToNumber`, then with
+`ToUint32`, and returns the number of leading zero bits of that 32-bit
+value, from `0` to `32`: `Math.clz32(1)` is `31`, `Math.clz32(0x8000_0000)`
+is `0`, and `Math.clz32(-1)` is `0`. A zero has thirty-two, and so has what
+the conversion makes zero: `-0`, `NaN`, both infinities, a fraction below
+one, and an omitted argument. A fraction is truncated toward zero and an
+integer reduced modulo `2 ** 32` first, so `Math.clz32(2 ** 32 + 1)` is `31`.
+Bigint inputs and failed conversions throw, and extra arguments are evaluated
+but not converted. Its `length` is 1 and its text is
+`function clz32() { [native code] }`. It is native: Rust's
+`u32::leading_zeros` and core WASM's `i32.clz` answer as JavaScript does.
+
+`Math.round(x)` converts its first argument with `ToNumber` and returns the
+nearest integer, a tie going toward positive infinity: `Math.round(2.5)` is
+`3` and `Math.round(-2.5)` is `-2`. Signed zero, NaN and infinities are
+preserved, and a value from `-0.5` up to zero rounds to `-0`. It is not the
+floor of `x + 0.5`, which rounds before the floor is taken:
+`Math.round(0.49999999999999994)` is `0`, and an odd integer from `2 ** 52`
+is itself. An omitted argument produces NaN, bigint inputs and failed
+conversions throw, and extra arguments are evaluated but not converted. Its
+`length` is 1 and its text is `function round() { [native code] }`. One FJS
+common-runtime body supplies it for every backend, over the native floor:
+neither Rust's `f64::round`, which rounds a tie away from zero, nor core
+WASM's `f64.nearest`, which rounds it to even, is JavaScript's rule
+([admission](../../todo/2360-built-in.md#mathclz32-and-mathround-proposal-and-approval)).
+
 Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
 read, so `Object.is === Object.is`. A value is a function, not an operator,
@@ -247,7 +274,7 @@ conversion already, is a namespace the same way, beside the call
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
 `Math` is reserved in the same way and admits `log2`, `trunc`, `floor`, `abs`,
-`sqrt`, `ceil`, `imul`, `max`, `min` and `fround`.
+`sqrt`, `ceil`, `imul`, `max`, `min`, `fround`, `clz32` and `round`.
 `Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
 function, with `length` 1 and text `function log2() { [native code] }`.
 The word alone, namespace guards, computed keys and other `Math` members
@@ -263,9 +290,9 @@ for exact semantic cases, with separate numerical accuracy cases for
 `Math.log2`;
 every executor answers the node from it, and an executor with no binding
 for it fails, naming it, rather than answer. `Object.entries`,
-`String.fromCharCode` and the admitted `Math` functions other than `log2` and `fround` are
-native primitives; the others, `Object.keys`, `Object.values`, `Object.fromEntries` and
-`Math.log2` and `Math.fround` among them, have bodies. The native
+`String.fromCharCode` and the admitted `Math` functions other than `log2`, `fround` and
+`round` are native primitives; the others, `Object.keys`, `Object.values`,
+`Object.fromEntries`, `Math.log2`, `Math.fround` and `Math.round` among them, have bodies. The native
 primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render

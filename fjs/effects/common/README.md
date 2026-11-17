@@ -25,4 +25,4 @@ handlers the hosts share.
 
 `sandbox` and `catch_` are the only way a FunctionalScript program meets code
 that may throw, such as a test body or a benchmark. A demo uses `sandbox` to
-time a function in the reader's browser ([`fjs/types/bigint`](../../types/bigint/demo.f.mjs)).
+time a function in the reader's browser ([`fjs/types/bigint`](../../types/bigint/demo.f.js)).
