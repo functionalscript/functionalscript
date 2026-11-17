@@ -17,15 +17,7 @@ import { option, selectField, button, inputField, caption, refusal, radios, drag
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.js'
 import { generate } from '../../types/array/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
 const select = (name, label, options, value) =>

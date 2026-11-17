@@ -46,14 +46,7 @@ import { secp256k1 } from '../secp/module.f.js'
 import { lockAndShuffle, mentalPoker, shuffle, unlockAll } from './module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { generate } from '../../types/array/module.f.js'
-
-/**
- * The `name` of a value that has one. A function has a `name` too, so the
- * language reads the property with `entry`.
- *
- * @type {<N extends string>(named: { readonly name: N }) => N}
- */
-const nameOf = named => assertNotNullish(entry(named, 'name'))
+import { nameOf } from '../../types/object/name/module.f.js'
 
 const { deck, key, open } = mentalPoker(secp256k1)
 
