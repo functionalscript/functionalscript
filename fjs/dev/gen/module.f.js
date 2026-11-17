@@ -8,7 +8,7 @@
 import { foldStep, pureOk } from '../../effects/module.f.js'
 import { main as clean } from '../clean/module.f.js'
 import { main as ci } from '../../ci/self/module.f.js'
-import { main as rustTests } from '../../nanvm/update/module.f.mjs'
+import { main as rustTests } from '../../nanvm/update/module.f.js'
 import { main as matrix } from '../../media/datajs/vectors/matrix/module.f.js'
 import { main as fixtures } from '../../nanvm/harness/module.f.js'
 import { main as demos } from '../../nanvm/demos/module.f.js'

@@ -17,7 +17,7 @@ import { errorExit, exitCode, exitStep, log, nodeCommands } from '../../effects/
 import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../effects/node/virtual/module.f.js'
 import { main as clean } from '../clean/module.f.js'
 import { main as ci } from '../../ci/self/module.f.js'
-import { main as rustTests } from '../../nanvm/update/module.f.mjs'
+import { main as rustTests } from '../../nanvm/update/module.f.js'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.js'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.js'
 import { main as demos, samples } from '../../nanvm/demos/module.f.js'
@@ -26,7 +26,7 @@ import { tryStringify } from '../../media/datajs/serializer/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
-import { generators, main, sequence } from './module.f.mjs'
+import { generators, main, sequence } from './module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** A child as `spawn` would brand one; nothing here looks inside it. @type {Child} */

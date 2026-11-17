@@ -348,7 +348,7 @@ fixed-point requirement. Explicit function returns remain required.
 
 ### First immutable join profile
 
-The existing [`_controlFlowFunctions.parameterizedJoin`](../edag/from_fast/control_flow.proof.f.mjs)
+The existing [`_controlFlowFunctions.parameterizedJoin`](../edag/from_fast/control_flow/module.f.js)
 is a concrete supplied normalized FAST input to `prepareFunction`:
 
 ```text
@@ -422,7 +422,7 @@ and [native JavaScript checks](../js/ast/prepare/immutable_joins.proof.mjs)
 exercise the new boundary, including unsupported-profile identity, early
 returns, selected failures, required prefixes, rest/capture metadata, allocation
 sharing, fresh invocations and retained self-tail lowering. The
-[Rust fixture generator](../nanvm/fast/immutable_joins/module.f.mjs) prepares
+[Rust fixture generator](../nanvm/fast/immutable_joins/module.f.js) prepares
 both the direct FAST inputs and their full `fromFast`/analysis/`fromAnalysis`
 route; its [native tests](../../nanvm/harness/tests/immutable_joins.rs) execute
 the continuation, owning return and shared captured allocations, plus a genuine
@@ -547,7 +547,7 @@ helpers.
 | Corpus | What it establishes |
 | --- | --- |
 | [Parser/source](parser/control_flow.proof.f.mjs) | Pins conditional admission, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. [Normal conditional proofs](parser/normal_if.proof.f.mjs) and [mixed-return proofs](parser/mixed_if.proof.f.mjs) cover immutable joins, exact owners and remaining admission limits. |
-| [Normalized FAST](../edag/from_fast/control_flow.proof.f.mjs) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
+| [Normalized FAST](../edag/from_fast/control_flow/module.f.js) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
 | [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
 | [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.mjs) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. JavaScript also checks `nestedRecipe` and `normalPayload` through two public source generations. |
 | [Source fallback](../edag/to_fast/source/loops/fallback.proof.f.mjs) | Retained loop plans precede the structural owning-backedge refusal. One-pass inversion preserves ordinary self calls and identity; the [native public route](serializer/value/control_flow.proof.mjs) separately preserves parser readback and deep `while` execution. |

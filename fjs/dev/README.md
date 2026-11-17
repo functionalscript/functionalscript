@@ -1,6 +1,6 @@
 # Development commands
 
-`npm run gen` regenerates source outputs through `gen/module.f.mjs`, stopping
+`npm run gen` regenerates source outputs through `gen/module.f.js`, stopping
 at the first failure. `npm run gen:clean` deletes all generated files before
 regeneration; no tool lock is exempt. Run both through `./dev.sh`.
 

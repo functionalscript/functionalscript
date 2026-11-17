@@ -6,7 +6,7 @@
  * fixtures, and a new one is one file. `src/lib.rs` reaches the whole set
  * through one `#[path]` to that `mod.rs`.
  *
- * The thin effectful shell beside [`../update`](../update/module.f.mjs),
+ * The thin effectful shell beside [`../update`](../update/module.f.js),
  * invoked from `gen` so the CI drift check regenerates the files on every
  * pull request and fails when a committed copy is stale. The name rule and
  * the `mod.rs` text are pure exports; the walk, the compiles and the writes

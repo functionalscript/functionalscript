@@ -193,7 +193,7 @@ Notes on the shape:
 - **`stdio: 'inherit'` on `SpawnOptions` hands the child the terminal.** A
   caller whose child's output is for the reader — `npm run gen` running the
   Nix lock script, in
-  [`fjs/dev/gen`](../../../dev/gen/module.f.mjs) — wants no pipe at
+  [`fjs/dev/gen`](../../../dev/gen/module.f.js) — wants no pipe at
   all: live output, and both streams in the order they were written, which
   no capture-and-replay can keep. On such a child `childRead`, `childReadAny`
   and `childWrite` have no stream to reach and answer `IoError`; `childWait`
@@ -290,5 +290,5 @@ Open for review before code:
   first caller.
 - [requestlistener-stateful](./requestlistener-stateful.md) — the other place a
   long-lived host object needs state threaded through effects.
-- [`fjs/dev/gen`](../../../dev/gen/module.f.mjs) — the first caller: the Nix
+- [`fjs/dev/gen`](../../../dev/gen/module.f.js) — the first caller: the Nix
   lock script on an inherited terminal, through `spawn` and `childWait` alone.

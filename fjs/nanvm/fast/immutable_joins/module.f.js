@@ -8,7 +8,7 @@
  * @import { Scope } from '../../../rust/serializer/types.ts'
  */
 
-import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
+import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
@@ -106,7 +106,7 @@ export const _joinBody = () => rendered(false).lines.join('\n')
 export const generate = () => {
     const { lines, uses } = rendered(true)
     return [
-        '// Fixture source: `fjs/nanvm/fast/immutable_joins/module.f.mjs`; regenerate with `npm run gen`.',
+        '// Fixture source: `fjs/nanvm/fast/immutable_joins/module.f.js`; regenerate with `npm run gen`.',
         '',
         ...useLines(uses, 'IStaticFunction'),
         '',

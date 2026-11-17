@@ -5,22 +5,13 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { fromFast } from './module.f.js'
+import { _controlFlowFunctions, block, func, functionTarget, id, ref } from './control_flow/module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 
-/** Equal presentation indices deliberately retain distinct identities. @type {() => BindingId} */
-const id = () => ({ index: 0 })
-/** @type {() => FunctionTarget} */
-const functionTarget = () => ({ kind: 'function', index: 0 })
 /** @type {() => LoopTarget} */
 const loopTarget = () => ({ kind: 'loop', index: 0 })
-/** @type {(binding: BindingId) => Value} */
-const ref = binding => ['ref', binding]
-/** @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
-const block = (exit, statements = []) => ({ statements, exit })
-/** @type {(target: FunctionTarget, parameters: readonly BindingId[], body: Block, captures?: readonly Capture[]) => Value} */
-const func = (target, parameters, body, captures = []) => ['function', { target, parameters, rest: null, self: null, captures, body }]
 /** @type {(fn: FastFunction, args?: readonly Value[]) => ValueResult} */
 const called = (fn, args = []) => memo(assertOk(identityAnalysis(fromFast(block(['yield', [['()', ['function', fn], args]]])))))({ args: [] })
 /** @type {(fn: FastFunction, args?: readonly Value[]) => unknown} */
@@ -77,62 +68,6 @@ const failing = () => {
     const target = functionTarget()
     return func(target, [], block(['throw', 'failure']))
 }
-
-/** The task owner's nested m example keeps its normal continuation outside the branch. @type {() => FastFunction} */
-const nestedMutable = () => {
-    const target = functionTarget()
-    const selected = id()
-    const incoming = id()
-    const factory = id()
-    const following = id()
-    const local = id()
-    const updated = id()
-    const joined = id()
-    return { target, parameters: [selected, incoming, factory, following], rest: null, self: null, captures: [],
-        body: block(['return', target, ['()', ref(following), [ref(joined)]]], [
-            ['if', [joined], ref(selected), block(['yield', [ref(updated)]], [
-                ['define', local, ['()', ref(factory), []], 'required'],
-                ['define', updated, ['.', ref(local), 'a'], 'required'],
-                ['if', [], ['.', ref(local), 'b'], block(['return', target, ['.', ref(local), 'c']]), block(['yield', []])],
-            ]), block(['yield', [ref(incoming)]])],
-        ]),
-    }
-}
-
-/** K(z) is reached with different immutable values; a helper is another valid encoding. @type {(helper: boolean) => FastFunction} */
-const parameterized = helper => {
-    const target = functionTarget()
-    const selected = id()
-    const stop = id()
-    const operation = id()
-    const joined = id()
-    const continuation = id()
-    const input = id()
-    const capture = id()
-    const continuationTarget = functionTarget()
-    const continuationValue = func(continuationTarget, [input], block(['return', continuationTarget, ['()', ref(capture), [['+', ref(input), 5]]]]), [
-        { binding: capture, value: ref(operation) },
-    ])
-    /** @type {Statement} */
-    const stopped = ['if', [], ref(stop), block(['return', target, 42]), block(['yield', []])]
-    return { target, parameters: [selected, stop, operation], rest: null, self: null, captures: [],
-        body: helper
-            ? block(['return', target, ['()', ref(continuation), [0]]], [
-                ['define', continuation, continuationValue, 'required'],
-                ['if', [], ref(selected), block(['return', target, ['()', ref(continuation), [3]]], [stopped]), block(['yield', []])],
-            ])
-            : block(['return', target, ['()', ref(operation), [['+', ref(joined), 5]]]], [
-                ['if', [joined], ref(selected), block(['yield', [3]], [stopped]), block(['yield', [0]])],
-            ]),
-    }
-}
-
-/** The host conformance proof emits these same immutable normalized FAST functions. */
-export const _controlFlowFunctions = /** @type {const} */ ({
-    nested: nestedMutable(),
-    parameterizedJoin: parameterized(false),
-    parameterizedHelper: parameterized(true),
-})
 
 /** Two normal results carry the values at break, including the preceding increment. @type {() => FastFunction} */
 const multiState = () => {
