@@ -4,7 +4,7 @@ import { assertEq, assertError, assertOk, assertStructurallySame } from '../../a
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.js'
 import { parse } from '../transpiler/module.f.js'
-import { apply, compile, execute, value } from './proof.f.mjs'
+import { apply, compile, execute, value } from './proof.f.js'
 
 /** @type {(source: string) => unknown} */
 const run = source => execute(compile(source).edag)

@@ -7,6 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
 import { intrinsicIds, staticIds } from '../../../edag/module.f.js'
 import { _expandObjectSpread, _expandSpread, _exposeOperands, _forwardReturns, liftReturns, liftValueReturns } from './module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -546,7 +547,7 @@ export const proof = /** @type {const} */ ({
             const normal = yielded(values, [prefix])
             for (const kind of /** @type {const} */ (['block', 'if'])) {
                 const statement = /** @type {Statement} */ (kind === 'block' ? ['block', bindings, normal]
-                    : ['if', bindings, ref(condition), normal, yielded(Array.from({ length }, () => 3))])
+                    : ['if', bindings, ref(condition), normal, yielded(generate(length, () => 3))])
                 const source = body(['return', owner, ['array', bindings.map(ref)]], [statement, suffix])
                 const result = liftReturns(source, owner)
                 const region = result.statements[0]

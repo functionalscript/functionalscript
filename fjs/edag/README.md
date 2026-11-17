@@ -62,7 +62,7 @@ the error payload. Failures from operands and invoked callbacks propagate
 unchanged, retaining container and callable identities. Module initialization
 preserves that payload alongside its source path; admission and loading
 diagnostics keep their separate channels. The [joint interpreter
-proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
+proofs](memo/proof.f.js) exercise actual throwing callbacks through array
 methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
 cover direct and imported module initialization.
 

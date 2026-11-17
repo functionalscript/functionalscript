@@ -32,7 +32,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { collectRead, toPath } from '../module.f.js'
-import { _driveCas } from '../proof.f.mjs'
+import { _driveCas } from '../proof.f.js'
 import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.js'
 
 /** The repository every case reads, and the branch the snapshot is of. */

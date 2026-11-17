@@ -27,6 +27,7 @@ import {
 import { array, number, option, or, record, rest, unknown } from '../module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */
 const item = (k, v) =>
@@ -63,7 +64,7 @@ const tupleItem = (value, k) => value[Number(k)]
 
 /** Reads a struct member. */
 /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
-const structItem = (value, k) => value[k]
+const structItem = (value, k) => entry(value, k)
 
 const arrayRead = containerRead(listing)(isArray, collected)
 

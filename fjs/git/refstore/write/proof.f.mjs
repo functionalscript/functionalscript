@@ -20,6 +20,7 @@ import { latin1 } from '../../testlib.f.js'
 import { badNameCode, tryResolve, zeroIdCode } from '../module.f.js'
 import { badPackedCode, brokenRefCode, idWidthCode, outsideRefsCode, refPrefixCode, tryDelete, tryWrite, unsortedPackedCode, unspellableNameCode } from './module.f.js'
 import { a, b, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed, t } from '../testlib.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /**
  * Sixty-four hex digits, which is an id in a SHA-256 repository and no id at all
@@ -304,7 +305,7 @@ export const proof = {
         /** @type {(extra: number) => readonly number[]} */
         const named = extra => [
             ...latin1('refs/heads/'),
-            ...Array.from({ length: Number(maxLengthBytes) - 11 + extra }, () => 0x61),
+            ...generate(Number(maxLengthBytes) - 11 + extra, () => 0x61),
         ]
         const [fs, r] = ran(before, tryWrite(one(''), 20)(named(1))(idOf(a)))
         assertEq(writeRefusal(r).code, unspellableNameCode)
@@ -721,7 +722,7 @@ export const proof = {
     deleteBigPacked: () => {
         /** @type {(i: number) => string} */
         const line = i => `${a} refs/heads/topic/feature-${String(i).padStart(4, '0')}\n`
-        const all = Array.from({ length: 2_000 }, (_, i) => line(i))
+        const all = generate(2_000, i => line(i))
         const before = latin1(`${header}${all.join('')}`)
         assert(before.length > Number(maxLengthBytes), before.length)
         const [fs, r] = deleted({ 'packed-refs': chunksOf(before), refs: { heads: {} } }, 'refs/heads/topic/feature-1000')

@@ -8,6 +8,7 @@ import {
 import { images, node, typescript } from '../config/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { definedValues } from '../../types/object/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 const steps = npmPublishJob.steps
 
@@ -27,7 +28,7 @@ export const proof = {
     // landed.
     onlyPushesToTheBranch: () => {
         assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
-        assertEq(npmPublishWorkflow.name, 'npm publish')
+        assertEq(nameOf(npmPublishWorkflow), 'npm publish')
         assertStructurallySame(npmPublishWorkflow.on.push?.branches, [publishBranch])
         assertEq(publishBranch, 'main')
         assertEq(npmPublishWorkflow.on.pull_request, undefined)

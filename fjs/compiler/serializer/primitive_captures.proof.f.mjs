@@ -17,6 +17,7 @@ import { ok } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.js'
 import { parse } from '../source/module.f.js'
 import { tryFunctionText, tryStringify } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** Shared immutable fixtures also cross the native callable boundary.
  * @type {readonly (readonly [Exp, Primitive])[]}
@@ -52,7 +53,7 @@ export const _primitiveCaptureGraphs = {
  * @type {(width: number, retainedSelf?: boolean) => Exp}
  */
 export const _widePrimitiveCaptureGraph = (width, retainedSelf = false) => ['=>', 0,
-    Array.from({ length: width }, (_, index) => index + 1),
+    generate(width, index => index + 1),
     ['[]', [...retainedSelf ? [/** @type {const} */ (['self'])] : [], ...Array.from({ length: width }, /** @returns {Exp} */ (_, index) => ['frame', index])]],
 ]
 

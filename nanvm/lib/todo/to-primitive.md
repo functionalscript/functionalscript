@@ -350,7 +350,7 @@ is still tracked below; its proposed spelling is already implemented.
    function text falls back to general JavaScript when source reconstruction
    is unavailable. The source-reconstructible cases retain the original
    module-text/read-back proofs; the
-   [function-text proofs](../../../fjs/compiler/serializer/function_text/proof.f.mjs)
+   [function-text proofs](../../../fjs/compiler/serializer/function_text/proof.f.js)
    cover the general rendering, which is not a FJS source round trip.
 4. **Rust, for an empty frame** (done). `static_function` takes the text,
    `Option<&'static str>`, and `IFunction::text` answers it. The printer

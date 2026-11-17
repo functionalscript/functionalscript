@@ -24,7 +24,7 @@ the compiler accepts a sample, when an open row has no sample, or when a
 sample's row is no longer open, since each means the page and the register no
 longer agree.
 
-The [proof](./proof.f.mjs) checks that every sample is refused, and where
+The [proof](./proof.f.js) checks that every sample is refused, and where
 and with which message, so each one pins its row's refusal as the register
 asks: a refusal that moves, or changes its message, fails it.
 

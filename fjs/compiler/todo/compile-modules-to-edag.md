@@ -340,7 +340,7 @@ The slots are an array operand of `=>`. The compiler constructs captured
 values in the enclosing scope and the body reads them through `['frame', i]`; it does
 not share an enclosing operation node directly into the body's scope. Capture
 lowering and its proofs are in [`../edag`](../edag/module.f.js) and
-[`../edag/proof.f.mjs`](../edag/proof.f.mjs) (`captures`), with fixed/rest captures in
+[`../edag/proof.f.js`](../edag/proof.f.js) (`captures`), with fixed/rest captures in
 [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs). Frame semantics remain owned by
 [`3111-function-frame.md`](../../../spec/design/3111-function-frame.md).
 
@@ -580,7 +580,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Keep `Unresolved.imports` as a source-ordered array of import records — the
       specifier and the `json` flag of `with { type: "json" }` — not a map, and make
       import parameter positions correspond to its indices. Done; pinned by
-      `parameters` in [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs).
+      `parameters` in [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js).
 - [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation. Done:
@@ -596,7 +596,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Do not silently discard eager imported-module evaluation just because the
       binding is unused: an import parameter the export does not reach is anchored the
       same way, and the link puts the imported module's EDAG there. Done; pinned by
-      `anchored` in [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs).
+      `anchored` in [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js).
 - [x] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
       with shared EDAG node identity. Done: one parameter node per import, one node
       per `const`, pinned by `example`, `chain` and `parameters` in the proof.
@@ -612,7 +612,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       Done by construction: reachability is read from the syntax (`unreached`), where
       an import is an `aref`, never from `['args']` nodes.
 - [x] Add per-link memoization for repeated/diamond imports, pinned by
-      `resolve.diamond` in [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs).
+      `resolve.diamond` in [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js).
       Memo keys and cycle tracking now use host-resolved identities; the Node
       file profile supplies canonical file URLs for roots and dependencies.
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
@@ -633,7 +633,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       [`fjs/edag/analysis`](../../edag/analysis/module.f.js).
 - [x] Lower both non-capturing functions (no slots) and captured values through
       enclosing-scope slots. The original null-only restriction is
-      superseded by `captures` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs).
+      superseded by `captures` in [`../edag/proof.f.js`](../edag/proof.f.js).
 - [x] Parse empty, rest-only, fixed-only and mixed fixed/rest arrows. The original
       rest-only rollout is superseded by #2237; syntax, missing values, captures and
       rest identity are pinned in [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
@@ -641,7 +641,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       must not be shared across a function boundary, while sharing within the body is
       preserved. Done by construction: a body names its own fixed/rest bindings and
       frame slots rather than enclosing operation nodes; pinned by `func` and
-      `captures` in [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs).
+      `captures` in [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js).
 - [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
@@ -666,7 +666,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       properties and rejection of prohibited/runtime-computed string properties. Done:
       `call` in [`../parser/grammar/proof.f.mjs`](../parser/grammar/proof.f.mjs),
       `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
-      `call` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs) and in
+      `call` in [`../edag/proof.f.js`](../edag/proof.f.js) and in
       [`../proof.f.mjs`](../proof.f.mjs).
 - [x] Whenever optional chaining enters the source subset, lower chain boundaries per
       "Chains" in [`../../edag/README.md`](../../edag/README.md), with proofs over the
@@ -677,12 +677,12 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       chain node and a group closes the region, `access.optional` in
       [`../parser/proof.f.mjs`](../parser/proof.f.mjs) pinning every spelling of the
       table; the lowering carries the nodes as they are, `chains` in
-      [`../edag/proof.f.mjs`](../edag/proof.f.mjs); a group stays transparent for the
+      [`../edag/proof.f.js`](../edag/proof.f.js); a group stays transparent for the
       non-optional spellings, `(a.b)(c)` one node with `a.b(c)` as before.
 - [x] Add a scope-aware linking proof such as
       `import y from './y.f.js'; export default [y, (...x) => x]`: resolving `y` must not
       rewrite the nested function body's `['rest']`. Done, in `func` of
-      [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs); `importsAndCaptures` in
+      [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js); `importsAndCaptures` in
       [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs) also executes linked
       fixed/rest closures under Amnesia and memo.
 - [x] Add a validation proof that reusing one operation node both outside and inside a
@@ -712,8 +712,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `edagOutput`).
 - [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
       Done: the linker reads through the transpiler's reader and reports the same
-      `ParseError`; pinned in `fjs/compiler/edag/proof.f.mjs` (`resolve.refused`).
-- [x] Stage 1 proofs, in [`fjs/compiler/edag/proof.f.mjs`](../edag/proof.f.mjs) unless
+      `ParseError`; pinned in `fjs/compiler/edag/proof.f.js` (`resolve.refused`).
+- [x] Stage 1 proofs, in [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js) unless
       named otherwise: `a.b`, `a['x']` and `a[0]` produce property-access EDAGs and
       prohibited names are refused (`access`; a key computed at run time is the
       conversion `Number(...)` or refused by the fold, not the grammar,

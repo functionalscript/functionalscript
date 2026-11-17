@@ -17,6 +17,7 @@ import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } f
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { open } from './module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /** @type {NodeProgramOptions} */
 const options = { ...defaultNodeProgramOptions, home: '/home' }
@@ -253,7 +254,7 @@ export const proof = /** @type {const} */ ({
         const a = entryOf(cache)
         assertError(run(cache.saveMany([a]), [ref(), reply(), reply(ident), denied, ref(), reply()])[1])
         assertError(run(cache.saveMany([a]), [ref(), reply(), reply(ident), denied, denied])[1])
-        const races = Array.from({ length: 9 }, (_, i) => [ref(String(i + 1).repeat(40)), reply(), denied]).flat()
+        const races = generate(9, i => [ref(String(i + 1).repeat(40)), reply(), denied]).flat()
         const [after, failed] = run(cache.saveMany([a]), [ref(), reply(), reply(ident), denied, ...races])
         assertError(failed)
         assertEq(calls(after).filter(call => call.args.includes('fast-import')).length, 10)

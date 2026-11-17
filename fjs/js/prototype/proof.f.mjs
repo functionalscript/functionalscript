@@ -8,7 +8,7 @@ import {
 const lists = [objectPrototype, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype]
 
 /** Sorted by code unit, each name once. @type {(names: readonly string[]) => boolean} */
-const ascending = names => names.every((name, i) => i === 0 || names[i - 1] < name)
+const ascending = names => names.every((name, i) => i === 0 || names[Number(i - 1)] < name)
 
 /** The read rule and the call rule. */
 const read = prohibitedAccess(false)

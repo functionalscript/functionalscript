@@ -25,15 +25,6 @@ const nodeExpr = expExpr([])
 /** Plain Rust for a graph scope: `scopeTagged`'s lines without their tags. @type {(root: Exp, runtime?: string | null) => Result<Scope, readonly unknown[]>} */
 const scope = (root, runtime = null) => mapOk(({ lines, uses }) => ({ lines: lines.map(untagged), uses }))(scopeTagged(root, undefined, runtime))
 
-/** A node as a value in a scope whose runtime value is `runtime`, a compiled module's. @type {(e: Exp) => string} */
-const printed = e => {
-    complete(unwrap(expExprTagged([], 'runtime')(e)))
-    return unwrap(expExpr([], 'runtime')(e))
-}
-
-/** A node as a value in a scope with no runtime, the runtime module's own. @type {(e: Exp) => Result<string, readonly unknown[]>} */
-const printedWithout = e => nodeExpr(e)
-
 /**
  * That the printer marked every word it marks: the tagged text has no plain
  * keyword, `true`, `false` or number left. A missing mark changes no text,
@@ -43,6 +34,15 @@ const printedWithout = e => nodeExpr(e)
  * @type {(tagged: string) => void}
  */
 const complete = tagged => assertEq(JSON.stringify(unmarkedWords(unwrap(fromTagged(tagged)))), '[]', tagged)
+
+/** A node as a value in a scope whose runtime value is `runtime`, a compiled module's. @type {(e: Exp) => string} */
+const printed = e => {
+    complete(unwrap(expExprTagged([], 'runtime')(e)))
+    return unwrap(expExpr([], 'runtime')(e))
+}
+
+/** A node as a value in a scope with no runtime, the runtime module's own. @type {(e: Exp) => Result<string, readonly unknown[]>} */
+const printedWithout = e => nodeExpr(e)
 
 /** The lines of a scope over `e`: what a compiled module's body holds. @type {(e: Exp) => readonly string[]} */
 const scoped = e => {

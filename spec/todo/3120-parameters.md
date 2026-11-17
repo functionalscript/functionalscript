@@ -400,7 +400,7 @@ source rest binding in that future case or silently admit initializers now.
       against the EDAG renderer, including captures, nested functions and
       `self`: see the
       [conversion proofs](../../fjs/edag/value/convert/proof.f.js),
-      [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.mjs)
+      [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.js)
       and [shared corpus](../../fjs/nanvm/proof.f.mjs).
 - [x] Preserve ordinary callable exports, nested returns, arity, callbacks
       and sharing at the reflection-erasing runtime boundary: see

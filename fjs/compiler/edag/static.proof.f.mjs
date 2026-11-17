@@ -4,7 +4,7 @@
  * own node by its name, and the static functions, `['Object.is']`, read
  * in either key spelling and run under a runtime whose `static` answers
  * them.
- * It reads the compiler as `./proof.f.mjs` does, through the helpers it
+ * It reads the compiler as `./proof.f.js` does, through the helpers it
  * exports; split from it as the parser's proofs are, since that file
  * reached the size the website's build reads a file up to.
  *
@@ -22,7 +22,7 @@ import { analysis } from '../../edag/analysis/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { apply, compile, execute, expectEdag, value } from './proof.f.mjs'
+import { apply, compile, execute, expectEdag, value } from './proof.f.js'
 
 /** The authored common runtime, evaluated without requiring a runtime. @type {() => Runtime} */
 const commonRuntime = () => {

@@ -25,6 +25,7 @@ import { maxDeltaBytes } from '../pack/module.f.js'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** The first 8 hex digits of a fixture id, its other 32 being zeros. */
 const idPrefixHex = encodeScalar(8)
@@ -84,7 +85,7 @@ const idxOf = named => {
     const ids = named.map(([h]) => u8ArrayMsb(id(h)))
     const bytes = [
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
-        ...Array.from({ length: 256 }, (_, k) => u32(ids.filter(v => v[0] <= k).length)).flat(),
+        ...generate(256, k => u32(ids.filter(v => v[0] <= k).length)).flat(),
         ...ids.flat(),
         ...named.map(() => u32(0)).flat(),
         ...named.map(([, at]) => u32(at)).flat(),
@@ -588,7 +589,7 @@ export const proof = {
     // in a delta stream takes: the delta at 525 stores ten bytes of 255 where Git
     // stored the ten that copy and insert.
     deltaRefused: () => {
-        const { pack, moved } = swapped([[527, 545, storedBytes(Array.from({ length: 10 }, () => 255))]])
+        const { pack, moved } = swapped([[527, 545, storedBytes(generate(10, () => 255))]])
         const [, r] = readBy(
             hostOf(listing, pair(movedIdx(moved), pack)),
             'bf53712eef030d4401e03fbcf0f5a190a8026d97')
@@ -819,7 +820,7 @@ export const proof = {
     chainRefusedMidway: () => {
         const { pack, moved } = swapped([
             [491, 508, storedBytes(hexBytes('ae0205909029001001'))],
-            [527, 545, storedBytes(Array.from({ length: 10 }, () => 255))],
+            [527, 545, storedBytes(generate(10, () => 255))],
         ])
         const twoDeep = idxOf(chainedIdx.map(([h, o]) => [h, moved(o)]))
         const [, r] = readBy(
@@ -920,7 +921,7 @@ export const proof = {
     // inflated to as many chunks, and answered as the list over them. The host's
     // `inflate` refused it, and so did the loose path, for the same reason.
     bigWhole: () => {
-        const blob = Array.from({ length: 300_000 }, (_, i) => i * 31 + 7 & 0xff)
+        const blob = generate(300_000, i => i * 31 + 7 & 0xff)
         const pack = packOfEntries([[...entryHeader(3, blob.length), ...storedBytes(blob)]])
         const [log, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), pack)), firstId)
         const e = envelope(r)
@@ -937,7 +938,7 @@ export const proof = {
     // bytes of base, a copy of all of them and an insert of three. The base is
     // read, inflated and held dense, and the delta applied to it.
     bigDelta: () => {
-        const base = Array.from({ length: 200_000 }, (_, i) => i * 17 + 3 & 0xff)
+        const base = generate(200_000, i => i * 17 + 3 & 0xff)
         const entry = [...entryHeader(3, base.length), ...storedBytes(base)]
         const delta = [
             ...groups(base.length), ...groups(base.length + 3),
@@ -982,7 +983,7 @@ export const proof = {
     // before it hold leaves no room, and the refusal says how much room there was.
     chainCeiling: () => {
         const base = [...entryHeader(3, maxDeltaBytes - 50), ...storedBytes([1])]
-        const delta = [...entryHeader(6, 100), ...backDistance(base.length), ...storedBytes(Array.from({ length: 100 }, () => 0))]
+        const delta = [...entryHeader(6, 100), ...backDistance(base.length), ...storedBytes(generate(100, () => 0))]
         const pack = packOfEntries([base, delta])
         const [, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12], [secondId, 12 + base.length]]), pack)), secondId)
         assertEq(refusal(r).code, packEntryCode)
@@ -1031,7 +1032,7 @@ export const proof = {
     // A header whose size varint runs past the first window is refused, and said
     // to be: the zero groups are legal to the parser, but no encoder writes them.
     headerPastTheWindow: () => {
-        const entry = [0xb0, ...Array.from({ length: 0x2_0000 }, () => 0x80), 0, ...storedBytes([1])]
+        const entry = [0xb0, ...generate(0x2_0000, () => 0x80), 0, ...storedBytes([1])]
         const [, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), packOfEntries([entry]))), firstId)
         assertEq(refusal(r).code, packEntryCode)
         assertEq(refusal(r).message, `${packPath}:12 has no entry header in its first ${0x2_0000} bytes`)

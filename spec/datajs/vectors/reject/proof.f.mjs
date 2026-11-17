@@ -5,6 +5,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import reject from './data.f.js'
+import { entry } from '../../../../fjs/types/object/entry/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly Reject[]} */ (reject)
@@ -16,7 +17,7 @@ const set = /** @type {readonly Reject[]} */ (reject)
  * @type {(vector: Reject, name: 'id' | 'class' | 'rule') => string}
  */
 const named = (vector, name) => {
-    const value = vector[name]
+    const value = entry(vector, name)
     assert(typeof value === 'string' && value !== '', `${JSON.stringify(vector.id)}: ${name} is not a non-empty string`)
     return value
 }

@@ -21,6 +21,9 @@ import { objectPath, objectsDir, readIn } from '../store/module.f.js'
 import { latin1, noFile } from '../testlib.f.js'
 import { mode, write as writeTree } from '../tree/module.f.js'
 import { peel, tryEntries, tryEntry } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { entry as valueAt } from '../../types/object/entry/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 const dir = /** @type {const} */ ('repo')
 
@@ -183,10 +186,10 @@ const lyingId = of20('tree', lying)
  *
  * @type {readonly { readonly id: Oid, readonly type: ObjectType, readonly payload: readonly number[] }[]}
  */
-const chain = Array.from({ length: 9 }).reduce(
+const chain = generate(9, () => undefined).reduce(
     /** @type {(acc: readonly { readonly id: Oid, readonly type: ObjectType, readonly payload: readonly number[] }[]) => readonly { readonly id: Oid, readonly type: ObjectType, readonly payload: readonly number[] }[]} */
     acc => {
-        const last = acc[acc.length - 1]
+        const last = acc[Number(acc.length - 1)]
         const p = tagOf(last.id, last.type, 'chain')
         return [...acc, { id: of20('tag', p), type: 'tag', payload: p }]
     },
@@ -252,7 +255,7 @@ const host = {
     stat: path => log => [log, error(noFile(path))],
     readBytes: path => log => [log, error(noFile(path))],
     readWhole: path => log => {
-        const f = files[path]
+        const f = valueAt(files, path)
         return [[...log, path], f === undefined ? error(noFile(path)) : ok([u8ListToVecMsb(storedBytes(f))])]
     },
 }
@@ -275,7 +278,7 @@ const entryOf = tryEntry(read, 20)
 const name = latin1
 
 /** @type {(e: TreeEntry) => readonly [number, string, string]} */
-const seen = e => [mode(e), codePointListToString(e.name), hexText(e.oid)]
+const seen = e => [mode(e), codePointListToString(nameOf(e)), hexText(e.oid)]
 
 /** The id a string of hex digits spells, at whatever width it is long. */
 const idAt = /** @type {(hex: string) => Oid} */ (hex => {
@@ -283,6 +286,9 @@ const idAt = /** @type {(hex: string) => Oid} */ (hex => {
     assert(v !== null)
     return v
 })
+
+/** The 40 hex digits a number spells, as an id is written. */
+const hexOf = encodeScalar(40)
 
 /** An id the hex digits of a number spell, at 20 bytes. */
 const idOf = /** @type {(k: number) => Oid} */ (k => idAt(hexOf(k)))
@@ -293,9 +299,6 @@ const idOf = /** @type {(k: number) => Oid} */ (k => idAt(hexOf(k)))
  * before any object is asked for.
  */
 const wideId = idAt('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')
-
-/** The 40 hex digits a number spells, as an id is written. */
-const hexOf = encodeScalar(40)
 
 /** A tag naming an id, declaring a type for it, as the format writes one. */
 const tagAt = /** @type {(target: string, type: ObjectType) => Bytes} */ ((target, type) =>
@@ -406,7 +409,7 @@ export const proof = {
         assert(peeled3000[0] === 'ok' && peeled3000[1] !== null)
         assertEq(hexText(peeled3000[1].id), hexText(idOf(0)))
         assertEq(peeled3000[1].envelope.type, 'commit')
-        const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, Array.from({ length: 10_000 }, () => name('d'))))
+        const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, generate(10_000, () => name('d'))))
         assert(deepPath[0] === 'ok' && deepPath[1] !== null)
         assertStructurallySame(seen(deepPath[1]), [0o40000, 'd', hexText(rootId)])
     },

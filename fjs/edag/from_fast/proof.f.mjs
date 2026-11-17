@@ -13,6 +13,7 @@ import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.js'
 import { toFast } from '../to_fast/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -83,7 +84,7 @@ const mixedJoinFunction = length => {
     const selected = id(0), stopA = id(0), stopB = id(0), operation = id(0), early = id(0)
     const made = id(0), allocation = id(0)
     const loop = returningLoop(ref(early), 77)
-    const repeated = Array.from({ length }, () => /** @type {Statement} */ (['if', [], ref(selected),
+    const repeated = generate(length, () => /** @type {Statement} */ (['if', [], ref(selected),
         body(['yield', []], [['if', [], ref(stopA), body(['return', target, 50]), body(['yield', []])]]),
         body(['yield', []], [['if', [], ref(stopB), body(['return', target, 60]), body(['yield', []])]]),
     ]))
@@ -99,11 +100,11 @@ const mixedJoinFunction = length => {
 
 /** @type {(length: number) => FastFunction} */
 const rootJoinFunction = length => {
-    const parameters = Array.from({ length: 7 }, () => id(0))
+    const parameters = generate(7, () => id(0))
     const count = id(0), selected = id(0), stopA = id(0), stopB = id(0), operation = id(0), left = id(0), right = id(0)
     const captured = id(0), self = id(0), output = id(0), made = id(0), allocation = id(0)
     const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-    const repeated = Array.from({ length }, () => /** @type {Statement} */ (['if', [], ref(selected),
+    const repeated = generate(length, () => /** @type {Statement} */ (['if', [], ref(selected),
         body(['yield', []], [['if', [], ref(stopA), body(['return', target, 50]), body(['yield', []])]]),
         body(['yield', []], [['if', [], ref(stopB), body(['return', target, 60]), body(['yield', []])]]),
     ]))
@@ -301,7 +302,7 @@ export const proof = {
     },
     manyUnusedInitializersRetainOrderedAnchors: () => {
         const count = 3_000
-        const bindings = Array.from({ length: count }, (_, index) => id(index))
+        const bindings = generate(count, index => id(index))
         const block = result(0, bindings.map(binding => ['define', binding, ['array', []], 'required']))
         const lowered = lowerBlock(block)
         const graph = anchored(lowered)
@@ -361,7 +362,7 @@ export const proof = {
         assertEq(assertError(memo(assertOk(identityAnalysis(fromFast(tested))))({ args: [] })), 17)
     },
     wideRequiredUpdatesNormalizeTogether: () => {
-        const parameters = Array.from({ length: 18 }, (_, index) => id(index))
+        const parameters = generate(18, index => id(index))
         const next = parameters.map((_, index) => id(index))
         const results = parameters.map((_, index) => id(index))
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -541,8 +542,8 @@ export const proof = {
     manySequentialBindings: () => {
         const count = 3_000
         // Every diagnostic index collides; each object is a distinct binding.
-        const bindings = Array.from({ length: count }, () => id(0))
-        const aliases = Array.from({ length: count }, () => id(0))
+        const bindings = generate(count, () => id(0))
+        const aliases = generate(count, () => id(0))
         const external = id(0)
         const supplied = /** @type {Exp} */ (['{}', []])
         const latest = bindings[count - 1]
@@ -730,7 +731,7 @@ export const proof = {
     generalLoopSignatures: () => {
         for (const length of [0, 1, 3]) {
             const parameter = id(0)
-            const results = Array.from({ length }, () => id(0))
+            const results = generate(length, () => id(0))
             const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const values = results.map((_, index) => /** @type {Value} */ (['+', ref(parameter), index]))
             const loop = /** @type {Loop} */ ({ target, parameters: [parameter], initial: [4], results, body: body(['break', target, values]) })
@@ -740,7 +741,7 @@ export const proof = {
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const loop = /** @type {Loop} */ ({ target, parameters: [], initial: [], results: [output], body: body(['break', target, [['array', ['normal', 4]]]]) })
         assertStructurallySame(evaluate(fromFast(afterLoop(loop, ref(output)))), ['normal', 4])
-        const parameters = Array.from({ length: 20 }, () => id(0))
+        const parameters = generate(20, () => id(0))
         const many = /** @type {Loop} */ ({
             target, parameters, initial: parameters.map((_, index) => index), results: [output],
             body: body(['break', target, [['array', parameters.map(ref)]]]),
@@ -1032,7 +1033,7 @@ export const proof = {
     loopReturnNormalSignatures: () => {
         const choice = id(0), followed = id(0)
         for (const length of [0, 1, 3]) {
-            const values = Array.from({ length }, (_, index) => index + 4)
+            const values = generate(length, index => index + 4)
             const loop = returningLoop(ref(choice), 7, values)
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [choice], rest: null, self: null, captures: [],
@@ -1259,7 +1260,7 @@ export const proof = {
         const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         for (const length of [0, 1, 3]) {
-            const outputs = Array.from({ length }, () => id(0))
+            const outputs = generate(length, () => id(0))
             const values = outputs.map((_, index) => /** @type {Value} */ (['array', [index === 0 ? 'continue' : 'break', index]]))
             const inner = /** @type {Loop} */ ({
                 target: innerTarget, parameters: [], initial: [], results: [],
@@ -1490,7 +1491,7 @@ export const proof = {
     sharedFunctionJoinNormalSignatures: () => {
         const selected = id(0), stop = id(0), followed = id(0)
         for (const length of [0, 1, 3]) {
-            const bindings = Array.from({ length }, () => id(0))
+            const bindings = generate(length, () => id(0))
             const left = bindings.map((_, index) => index + 4)
             const right = bindings.map((_, index) => index + 8)
             const fn = /** @type {FastFunction} */ ({
@@ -1725,7 +1726,7 @@ export const proof = {
     },
     sharedRootJoinGrowth: () => {
         const factoryTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
-        const args = Array.from({ length: 3 }, () => id(0))
+        const args = generate(3, () => id(0))
         const factory = /** @type {Value} */ (['function', {
             target: factoryTarget, parameters: args, rest: null, self: null, captures: [],
             body: body(['return', factoryTarget, ['array', args.map(ref)]]),
@@ -1800,7 +1801,7 @@ export const proof = {
         })
         assertError(memo(assertOk(identityAnalysis(calledFunction(captureFailure, [0, true, true, false, failed, 1, 2]))))({ args: [] }))
         const factoryTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
-        const args = Array.from({ length: 3 }, () => id(0))
+        const args = generate(3, () => id(0))
         const factory = /** @type {Value} */ (['function', {
             target: factoryTarget, parameters: args, rest: null, self: null, captures: [], body: body(['return', factoryTarget, ['array', args.map(ref)]]),
         }])
@@ -1819,7 +1820,7 @@ export const proof = {
         const argument = id(0), stop = id(0), selected = id(0), state = id(0), stopState = id(0), selectedState = id(0), output = id(0)
         const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         for (const length of [0, 1, 3]) {
-            const bindings = Array.from({ length }, () => id(0))
+            const bindings = generate(length, () => id(0))
             const left = bindings.map((_, index) => /** @type {Value} */ (['+', ref(state), index]))
             const right = bindings.map((_, index) => /** @type {Value} */ (['+', ref(state), index + 10]))
             const loop = /** @type {Loop} */ ({

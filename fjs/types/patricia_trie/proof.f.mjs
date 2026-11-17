@@ -32,24 +32,24 @@ const runExample = (inputs, expectedLeaves, expectedNodeCounts) => {
     /** @type {State<readonly [bigint, bigint, bigint][], bigint>} */
     let state = init[2]
     for (let i = 0; i < inputs.length; i += 1) {
-        const x = inputs[i]
+        const x = inputs[Number(i)]
         const prevCount = state[0].length
         state = update(state, [x, x])[2]
 
         const actual = leaves(state)
-        assertEq(actual.length, expectedLeaves[i].length)
+        assertEq(actual.length, expectedLeaves[Number(i)].length)
         for (let j = 0; j < actual.length; j += 1) {
-            assertEq(actual[j], expectedLeaves[i][j])
+            assertEq(actual[Number(j)], expectedLeaves[Number(i)][Number(j)])
         }
 
         const newNodes = state[0].slice(prevCount)
-        assertEq(newNodes.length, expectedNodeCounts[i])
+        assertEq(newNodes.length, expectedNodeCounts[Number(i)])
         for (const [l, r, h] of newNodes) { assertEq(h, combine(l, r)) }
     }
     const prevCount = state[0].length
     const [root, finalStorage] = end(state)[2]
     const finalNodes = finalStorage.slice(prevCount)
-    assertEq(finalNodes.length, expectedLeaves[expectedLeaves.length - 1].length - 1)
+    assertEq(finalNodes.length, expectedLeaves[Number(expectedLeaves.length - 1)].length - 1)
     assert(root !== undefined)
     for (const [l, r, h] of finalNodes) { assertEq(h, combine(l, r)) }
 }

@@ -28,6 +28,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
 import { run as mockRun } from '../mock/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -56,7 +57,7 @@ const existsWhen = answer => {
 
 /** `n` zero bytes as a `Vec`.
  * @type {(n: number) => Vec} */
-const bytes = n => u8ListToVecMsb(Array.from({ length: n }, () => 0))
+const bytes = n => u8ListToVecMsb(generate(n, () => 0))
 
 /** Runs an effect against the empty virtual file system.
  * @type {<T>(e: Effect<NodeOp, T, IoChannel>) => readonly [unknown, Result<T, IoChannel>]} */
@@ -566,7 +567,7 @@ export const proof = {
                 rm: () => ok(undefined),
             }
             const host = match(map)
-            const vs = Array.from({ length: 200_000 }, () => vec8(0x2An))
+            const vs = generate(200_000, () => vec8(0x2An))
             let r = host(writeFromStream('long', _vecList(vs, 0)))
             while (r[0] === 'cont') {
                 r = host(r[2](r[1]))
@@ -880,7 +881,7 @@ export const proof = {
         // A whole file is not bounded by a `Vec`, which is the reason the
         // operation answers chunks: `readFile` refuses the same fixture.
         pastTheVecCap: () => {
-            const big = Array.from({ length: 3 }, () => u8ListToVecMsb(Array.from(
+            const big = generate(3, () => u8ListToVecMsb(Array.from(
                 { length: Number(maxLengthBytes) },
                 (_, i) => i % 251)))
             const root = { file: big }

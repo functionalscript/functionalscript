@@ -1,5 +1,5 @@
 /**
- * The proof of the switch statement's lowering, split off `./proof.f.mjs`
+ * The proof of the switch statement's lowering, split off `./proof.f.js`
  * when that file outgrew what the website's build accepts in one file —
  * 128 KiB, which it passed at `258b0e3b` — along the seam its sections
  * draw, beside the guards' and the loops'. It reads the lowering as that
@@ -11,7 +11,7 @@
  * @import { Exp } from '../../edag/types.ts'
  */
 
-import { apply, compile, expectEdag, value } from './proof.f.mjs'
+import { apply, compile, expectEdag, value } from './proof.f.js'
 import { assert, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {

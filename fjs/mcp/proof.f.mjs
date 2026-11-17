@@ -63,7 +63,7 @@ const feed = handler => msgs => {
             // The channel stays `never`: a `Handle` has absorbed its own
             // failures into the response, so every message contributes one.
             : step(
-                handler(/** @type {Unknown} */ (msgs[i])),
+                handler(/** @type {Unknown} */ (msgs[Number(i)])),
                 r => go(i + 1, [...acc, r]))
     )
     return go(0, [])

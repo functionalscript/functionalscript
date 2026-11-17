@@ -19,11 +19,11 @@ import { parse as rttiParse } from '../../rtti/parse/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { parse as parseJson } from '../../media/json/module.f.js'
 import { fileCas } from '../../cas/module.f.js'
-import { _driveCas } from '../../cas/proof.f.mjs'
+import { _driveCas } from '../../cas/proof.f.js'
 import { sha256 } from '../../crypto/sha2/module.f.js'
 
 /**
- * Drives a `FileCasOperation | MemOp` effect with `fjs/cas/proof.f.mjs`'s
+ * Drives a `FileCasOperation | MemOp` effect with `fjs/cas/proof.f.js`'s
  * synthetic driver, adding `MemOp`'s always-succeeds answers since `cas_add`
  * also touches the Evo cache on its success path.
  *

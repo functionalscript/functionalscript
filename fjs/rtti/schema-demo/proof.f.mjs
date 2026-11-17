@@ -19,6 +19,7 @@ import { _crossings, graphSvg } from '../../website/demo/graph/module.f.js'
 import { toText } from '../../text/marked/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** The demo's state after `event`. @type {(event: DemoEvent) => (state: DemoState) => DemoState} */
 const step = event => state => unwrap(assertNotNullish(
@@ -26,7 +27,7 @@ const step = event => state => unwrap(assertNotNullish(
     'expected the demo to reach a state without asking for an operation'))
 
 /** The example named `name`. @type {(name: string) => import('../types.ts').DemoExample} */
-const exampleNamed = name => assertNotNullish(examples.find(e => e.name === name))
+const exampleNamed = name => assertNotNullish(examples.find(e => nameOf(e) === name))
 
 /**
  * The page for `example`, showing schema `shown`, compared with the schema
@@ -37,15 +38,15 @@ const exampleNamed = name => assertNotNullish(examples.find(e => e.name === name
 const page = (name, shown = 0, compare = '') =>
     htmlToString(demo.view({ example: name, shown, compare, text: exampleNamed(name).value }))
 
+/** A reader's answer as the text its block shows. @type {(a: _Answer) => string} */
+const answerText = a => a.ok ? toText(a.marked) : a.text
+
 /**
  * The two readers' lines, or the parser's error.
  *
  * @type {(r: ReturnType<ReturnType<typeof _readersOf>>) => unknown}
  */
 const texts = r => hasEntry(r, 'error') ? r : { parse: answerText(r.parse), validate: answerText(r.validate) }
-
-/** A reader's answer as the text its block shows. @type {(a: _Answer) => string} */
-const answerText = a => a.ok ? toText(a.marked) : a.text
 
 /** A highlighted run as the demo draws it. @type {(kind: string, text: string) => string} */
 const tok = (kind, text) => `<span data-token="${kind}">${text}</span>`

@@ -2,6 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { callable, factories, isIndex, maxLength } from './module.f.js'
+import { generate } from '../../array/module.f.js'
 
 /** @type {Body} */
 const pair = (fixed, rest) => [fixed, rest]
@@ -18,8 +19,8 @@ export const proof = {
             assertEq(f.length, length)
             assert(f !== factory(pair))
             for (const n of [0, 1, length, length + 2]) {
-                const args = Array.from({ length: n }, (_, i) => i === 0 ? -0 : i === n - 1 ? undefined : i)
-                const expected = [Array.from({ length }, (_, i) => args[i]), args.slice(length)]
+                const args = generate(n, i => i === 0 ? -0 : i === n - 1 ? undefined : i)
+                const expected = [generate(length, i => args[i]), args.slice(length)]
                 assertStructurallySame(f(...args), expected)
                 assertStructurallySame(callable(length, pair)(...args), expected)
             }

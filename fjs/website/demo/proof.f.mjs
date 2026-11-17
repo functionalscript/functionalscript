@@ -11,6 +11,7 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.js'
 import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
@@ -65,10 +66,10 @@ export const proof = {
         '<!DOCTYPE html><fieldset data-radios=""><legend>Side</legend><div><label for="side-L"><input type="radio" id="side-L" name="side" value="L">Left</label><label for="side-R"><input type="radio" id="side-R" name="side" value="R" checked="">Right</label></div></fieldset>'),
     dragAxis: () => {
         const attributes = dragAxis({ min: -1.5, max: 3.5, left: 40, right: 480 })
-        assertEq(attributes[dragAxisAttributes.min], '-1.5')
-        assertEq(attributes[dragAxisAttributes.max], '3.5')
-        assertEq(attributes[dragAxisAttributes.left], '40')
-        assertEq(attributes[dragAxisAttributes.right], '480')
+        assertEq(entry(attributes, dragAxisAttributes.min), '-1.5')
+        assertEq(entry(attributes, dragAxisAttributes.max), '3.5')
+        assertEq(entry(attributes, dragAxisAttributes.left), '40')
+        assertEq(entry(attributes, dragAxisAttributes.right), '480')
     },
     dragValue: {
         // The pointer's x mapped through the axis: the middle of `0..600`

@@ -11,6 +11,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords } from '../../edag/rust/unmarked/module.f.js'
 import { bindingTagged, braced, op1Rust, scope, scopeTagged, useLines, useLinesTagged, valueTagged } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** @type {Options} */
 const options = { runtime: 'runtime', text: fn => `function${fn.target.index}` }
@@ -404,7 +405,7 @@ export const proof = {
         const uses = { vm: ['ToAny', 'Array'], unstable: ['f64_any'] }
         assertStructurallySame(useLines(uses, 'IVm'), useLinesTagged(uses, 'IVm').map(untagged))
         assert(useLines({ vm: [], unstable: [] }, 'IVm').length > 0)
-        const long = Array.from({ length: 30 }, (_, i) => `LongName${i}`)
+        const long = generate(30, i => `LongName${i}`)
         assert(useLines({ vm: long, unstable: ['single'] }, 'IVm').length > 3)
     },
     useLines: () => {
@@ -440,7 +441,7 @@ export const proof = {
             '};',
             'use nanvm_lib::vm::{Any, IVm};',
         ])
-        assertStructurallySame(useLines({ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm'), [
+        assertStructurallySame(useLines({ vm: [], unstable: generate(11, i => `helper_number_${i}`) }, 'IVm'), [
             'use nanvm_lib::vm::unstable::{',
             '    helper_number_0, helper_number_1, helper_number_2, helper_number_3, helper_number_4,',
             '    helper_number_5, helper_number_6, helper_number_7, helper_number_8, helper_number_9,',
@@ -457,7 +458,7 @@ export const proof = {
             [{ vm: [], unstable: [] }, 'IVm', 1],
             [{ vm: [], unstable: ['f64_any'] }, 'IVm', 2],
             [{ vm: ['ToAny'], unstable: ['f64_any', 'strict_eq'] }, 'IStaticFunction', 2],
-            [{ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm', 2],
+            [{ vm: [], unstable: generate(11, i => `helper_number_${i}`) }, 'IVm', 2],
         ]
         for (const [uses, bound, statements] of cases) {
             const marked = unwrap(fromTagged(useLinesTagged(uses, bound).join('\n')))

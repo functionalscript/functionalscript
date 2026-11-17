@@ -233,7 +233,7 @@ hardening TODO after the baseline interpreter exists.
       constructors preserve reference identity.
 - [x] Start a fresh body-node memoization context for every function invocation; do
       not reuse memoized body results across different argument contexts.
-      Pinned by `body` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs).
+      Pinned by `body` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js).
 - [ ] Carry analysis's rejection of operation nodes shared across function boundaries
       into the public validation entry; keep body graphs disjoint while allowing
       sharing inside one body.
@@ -263,7 +263,7 @@ hardening TODO after the baseline interpreter exists.
 - [x] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
-      Done: `agrees` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs)
+      Done: `agrees` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js)
       runs `=>`, an ordinary `()` call and method calls through `|()` and `|?.()`
       beside amnesia.
 - [x] Execute optional nodes per
@@ -274,12 +274,12 @@ hardening TODO after the baseline interpreter exists.
       short-circuit of the rest of the continuation — and its one exception, `|!()`,
       which the parentheses put outside the region and which therefore runs on the
       `undefined` a short-circuit produced. Done: `chains` in
-      [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs) and the chain
+      [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js) and the chain
       proofs in [`../../edag/amnesia/proof.f.js`](../../edag/amnesia/proof.f.js).
 - [x] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.
-      Done: `body` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs).
+      Done: `body` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js).
 - [x] Add a validation proof that an operation node reused both outside and inside a
       function body is rejected. Done: `throw` in
       [`../../edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)

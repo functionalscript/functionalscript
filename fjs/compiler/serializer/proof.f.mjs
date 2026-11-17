@@ -37,6 +37,7 @@ import { staticIds } from '../../edag/module.f.js'
 import { operandsOf, visit } from '../../edag/sharing/module.f.js'
 import { disagreement } from '../../js/marked/module.f.js'
 import { textOfResult, toText } from '../../text/marked/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -67,6 +68,9 @@ const reads = e => {
     return text
 }
 
+/** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
+const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
+
 /**
  * Whether a comma in a graph anchors a node another of its operands
  * reaches, or the total, identity-free literal `undefined`: an anchor the
@@ -89,9 +93,6 @@ const redundantAnchor = e => {
         ))
     })
 }
-
-/** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
-const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /**
  * Newly admitted operand prefixes in the generated family. Its old scope
@@ -1794,7 +1795,7 @@ export const proof = {
     //
     // The graphs are split into parts, each its own test, so that no one
     // test runs near a runner's time limit.
-    law: Object.fromEntries(Array.from({ length: lawParts }, (_, k) => [
+    law: Object.fromEntries(generate(lawParts, k => [
         `part${k}`,
         () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)

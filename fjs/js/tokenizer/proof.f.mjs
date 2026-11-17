@@ -15,6 +15,7 @@ import { demo, tokensOf } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /**
  * The tokens of a text, positions left out — `error` where the text does not
@@ -1434,7 +1435,7 @@ export const proof = {
         () => {
             // many distinct short tokens, well past the ~1000-1500 token crash threshold
             // the old whole-file recursive match hit for this shape
-            const ids = Array.from({ length: 3_000 }, (_, i) => `a${i % 10}`)
+            const ids = generate(3_000, i => `a${i % 10}`)
             const src = ids.join(' ')
             // Compared whole rather than counted: at this size the count was
             // the only thing the old JSON round-trip could check, while the

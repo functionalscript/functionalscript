@@ -7,12 +7,12 @@
  * @module
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry } from '../entry/module.f.js'
 
 /**
- * The `name` field of `named`, as the type it was given.
+ * The `name` field of `named`, whatever its type, a `null` among them: what
+ * `named.name` reads of a value that declares the field.
  *
- * @type {<N extends string>(named: { readonly name: N }) => N}
+ * @type {<N>(named: { readonly name: N }) => N}
  */
-export const nameOf = named => assertNotNullish(entry(named, 'name'))
+export const nameOf = named => /** @type {typeof named.name} */ (entry(named, 'name'))

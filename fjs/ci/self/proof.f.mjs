@@ -13,6 +13,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { parse as jsonParse } from '../../media/json/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { parseGitHubAction } from '../common/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /**
  * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no
@@ -29,7 +30,7 @@ const workflowOf = (program, filename = 'gen.ci.yml') => {
     assert(typeof github === 'object' && !(github instanceof Array), github)
     const workflows = github['workflows']
     assert(typeof workflows === 'object' && !(workflows instanceof Array), workflows)
-    const file = workflows[filename]
+    const file = entry(workflows, filename)
     assert(file instanceof Array && file.length !== 0, file)
     return utf8ToString(file[0])
 }

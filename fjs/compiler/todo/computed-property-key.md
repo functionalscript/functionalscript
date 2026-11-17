@@ -70,7 +70,7 @@ language accepts, and keep the three constant spellings as they are:
   and the literal fails where that conversion does — an object whose
   `toString` throws or yields no primitive, `{ [{ toString: 0 }]: 1 }` —
   as the Rust key argument propagates its `to_string` error before the value and
-  [`edag/memo`](../../edag/memo/proof.f.mjs)'s `keyFailure` pins for the
+  [`edag/memo`](../../edag/memo/proof.f.js)'s `keyFailure` pins for the
   interpreter. The compiler refuses nothing of its own and passes the node
   through, so the constant spellings and the computed one meet the same
   contract.

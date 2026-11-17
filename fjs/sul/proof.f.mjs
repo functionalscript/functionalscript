@@ -14,6 +14,7 @@ import { runPure } from '../effects/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { nextStep } from '../types/function/operator/module.f.js'
 import { run as runMachine } from '../types/list/module.f.js'
+import { generate } from '../types/array/module.f.js'
 
 /** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const run = bits => {
@@ -56,7 +57,7 @@ const heightsOf = text => {
 }
 
 /** @type {(n: number) => readonly bigint[]} */
-const zeros = n => Array.from({ length: n }, () => 0n)
+const zeros = n => generate(n, () => 0n)
 
 export const proof = {
     lifecycle: () => {
@@ -176,7 +177,7 @@ export const proof = {
         covers: () => {
             const { padding, heights } = stripes(bitsOf('Hello').join(''))
             const top = Math.max(...heights)
-            for (const k of Array.from({ length: top }, (_, i) => i + 1)) {
+            for (const k of generate(top, i => i + 1)) {
                 assertEq(rowWords(heights, k).reduce((a, b) => a + b, 0), 40 + padding.length)
             }
             assertEq(JSON.stringify(rowWords(heights, top)), JSON.stringify([40 + padding.length]))

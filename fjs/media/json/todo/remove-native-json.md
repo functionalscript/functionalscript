@@ -144,7 +144,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   — `stringLiteral`, the escaping `stringSerialize` wraps and the
   source-text-quoting row's replacement.
 - [`fjs/types/object/structurally_same/README.md`](../../../types/object/structurally_same/README.md)
-  — done: `fjs/cas/evo/proof.f.mjs` stringified two values only to compare
+  — done: `fjs/cas/evo/proof.f.js` stringified two values only to compare
   them, and now uses `assertStructurallySame`, as do the `fjs/js/tokenizer`
   and `fjs/compiler/tokenizer` proofs, which compared a serialized token
   stream against a JSON *string literal*.

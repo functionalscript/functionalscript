@@ -29,7 +29,7 @@ Either of two answers, and the choice is the design decision here:
 - **Record immutably.** Thread what was recorded through a state instead of
   a closure: `fjs/effects/mock`'s `run` already threads a state through every
   handler, and the memory effects hold values across a run. `_driveCas` in
-  [`fjs/cas/proof.f.mjs`](../cas/proof.f.mjs), the synthetic CAS driver both
+  [`fjs/cas/proof.f.js`](../cas/proof.f.js), the synthetic CAS driver both
   CAS proofs share, is the worked case: its override queues and its command
   log are the state `run` threads. The callback-shaped ones (`cli`, `sul`) may
   need their API under test to return what it would have written.

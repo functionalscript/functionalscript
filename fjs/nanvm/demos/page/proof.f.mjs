@@ -20,6 +20,7 @@ import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -48,7 +49,7 @@ const instance = (bytes, loads = true) => ({
     exports: {
         hi: () => loads ? 0 : -1,
         run_sample: () => bytes === null ? -1 : bytes.length,
-        output_byte: (/** @type {number} */ i) => bytes === null ? 0 : bytes[i],
+        output_byte: (/** @type {number} */ i) => bytes === null ? 0 : bytes[Number(i)],
         memory: { buffer: { byteLength: 0x1_0000 } },
     },
     startup: 2,
@@ -70,7 +71,7 @@ const thrown = value => value === throws ? error('boom') : ok(value)
  */
 const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
     fetchText: path => s => {
-        const text = files[path]
+        const text = entry(files, path)
         return [s, text === undefined ? error(ioError({ message: `${path}: HTTP 404` })) : ok(text)]
     },
     instantiate: path => s => [s, wasm === null ? error(ioError({ message: `${path}: HTTP 404` })) : ok(wasm)],

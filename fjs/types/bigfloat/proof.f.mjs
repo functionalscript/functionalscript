@@ -1,6 +1,7 @@
 import { binary64, decToBin, tryDecToFormat } from './module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { abs, bitLength } from '../bigint/module.f.js'
+import { generate } from '../array/module.f.js'
 
 /**
  * Checks `decToBin`'s postcondition on a non-zero result: the mantissa holds
@@ -73,7 +74,7 @@ const assertSameAsNumber = ([dm, de]) => {
 }
 
 /** @type {(from: number) => (to: number) => readonly number[]} */
-const range = from => to => Array.from({ length: to - from + 1 }, (_, i) => from + i)
+const range = from => to => generate(to - from + 1, i => from + i)
 
 /**
  * A deterministic corpus of decimals: ten mantissas of both signs against

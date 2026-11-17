@@ -124,7 +124,7 @@ which outputs accept which example.
   entries in `.js`, the EDAG and Rust.
 - An import parses and draws in the EDAG demo as unresolved dependency reads.
   The source and Rust stage demos refuse those unbound reads
-  ([EDAG proof](../edag/proof.f.mjs),
+  ([EDAG proof](../edag/proof.f.js),
   [serializer proof](../serializer/proof.f.mjs),
   [Rust proof](../rust/proof.f.mjs)). On the side-by-side page every output
   refuses the missing dependency: its in-memory file system holds only the input.

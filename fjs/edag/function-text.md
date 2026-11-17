@@ -71,7 +71,7 @@ change across this deliberate migration under the
 Function arity, successful evaluation, required failures, captured allocation
 identity and lazy sharing retain their existing contracts. Representative exact
 spellings and host behavior are pinned by the
-[function-text proofs](../compiler/serializer/function_text/proof.f.mjs) and the
+[function-text proofs](../compiler/serializer/function_text/proof.f.js) and the
 [prepared JavaScript proofs](../js/ast/serializer/proof.mjs).
 
 ## Conditional representation of short-circuit expressions

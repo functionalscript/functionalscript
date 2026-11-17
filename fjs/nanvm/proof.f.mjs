@@ -452,7 +452,7 @@ const concatRuntime = () => {
  * An `unreached` lowers to an operation that throws when established, and
  * `amnesia` returns an error on it — which makes a lazy-position case
  * holding one a proof: the case answers a value only because the operand was
- * never established. The Rust side's counterpart is `rust/proof.f.mjs`'s
+ * never established. The Rust side's counterpart is `rust/proof.f.js`'s
  * printed thunk, and `nanvm-lib`'s own `bigTenDividedByZero`.
  */
 const unreachedOperand = {
@@ -494,7 +494,7 @@ const unreachedOperand = {
  * lowered nodes is what let both consumers discard the identity while this
  * passed: the lowering shared the node, and each consumer then built the
  * shared value from scratch. So the memo is checked too, and
- * `rust/proof.f.mjs` checks the printed `let` bindings.
+ * `rust/proof.f.js` checks the printed `let` bindings.
  */
 const nestedSharing = () => {
     const own = sharedExp({ base: [], wrapper: [ref('base')] })

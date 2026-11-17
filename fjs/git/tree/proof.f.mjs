@@ -10,6 +10,8 @@ import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/modul
 import { toArray } from '../../types/list/alt/module.f.js'
 import { latin1, modesTree, rootTree, sha256Tree, undefinedByte } from '../testlib.f.js'
 import { isSubtree, mode, tryRead, validate, write } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 const read20 = tryRead(20)
 
@@ -25,7 +27,7 @@ const read = payload => {
 /** @type {(e: TreeEntry) => readonly [string, string, string]} */
 const text = e => [
     codePointListToString(e.mode),
-    codePointListToString(e.name),
+    codePointListToString(nameOf(e)),
     encode(toArray(u8ListMsb(e.oid))),
 ]
 
@@ -97,7 +99,7 @@ export const proof = {
     },
     // A name is bytes, and an id is every byte value.
     binary: () => {
-        const payload = [...latin1('100644 '), 0xE9, 0xFF, 0x2F, 0, ...Array.from({ length: 20 }, (_, i) => i * 13 & 0xFF)]
+        const payload = [...latin1('100644 '), 0xE9, 0xFF, 0x2F, 0, ...generate(20, i => i * 13 & 0xFF)]
         const [e] = read(payload)
         assertStructurallySame(toArray(e.name), [0xE9, 0xFF, 0x2F])
         assertStructurallySame(toArray(write20([e])), payload)
@@ -138,16 +140,16 @@ export const proof = {
     },
     // The other id width: 32 bytes, and 20 is then cut short.
     sha256: () => {
-        const payload = [...latin1('100644 a\u0000'), ...Array.from({ length: 32 }, () => 0xAB)]
+        const payload = [...latin1('100644 a\u0000'), ...generate(32, () => 0xAB)]
         const [e] = tryRead(32)(payload) ?? []
         assert(e !== undefined)
-        assertStructurallySame(u8ArrayMsb(e.oid), Array.from({ length: 32 }, () => 0xAB))
+        assertStructurallySame(u8ArrayMsb(e.oid), generate(32, () => 0xAB))
         assertStructurallySame(toArray(write(32)([e])), payload)
         assertEq(read20(payload), null)
     },
     // Each refusal of the reader, one per condition.
     refused: () => {
-        const id = Array.from({ length: 20 }, () => 1)
+        const id = generate(20, () => 1)
         for (const payload of [
             [...latin1('100644 a\u0000'), ...id.slice(1)],       // id cut short
             [...latin1('100644 a\u0000'), ...id, 0x31],          // bytes after the last entry

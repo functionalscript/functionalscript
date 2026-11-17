@@ -16,6 +16,7 @@ import { units } from '../../../ebnf/utf16/module.f.js'
 import { escape, json, string } from '../../../ebnf/lib/json/module.f.js'
 import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, tagged, textAt } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 const { is } = Object
 
@@ -191,11 +192,11 @@ export const proof = {
         const objects = parsed(`[${Array(s).fill('{}').join(',')}]`)
         assert(objects instanceof Array)
         assertEq(objects.length, s)
-        const entries = parsed(`{${Array.from({ length: s }, (_, i) => `"k${i}":[]`).join(',')}}`)
+        const entries = parsed(`{${generate(s, i => `"k${i}":[]`).join(',')}}`)
         assert(isObject(entries))
         assertEq(Object.keys(entries).length, s)
         const m = 12_000
-        const wide = parsed(`[${Array.from({ length: m }, (_, i) => i).join(',')}]`)
+        const wide = parsed(`[${generate(m, i => i).join(',')}]`)
         assert(wide instanceof Array)
         assertEq(wide.length, m)
         assertEq(wide[m - 1], m - 1)
