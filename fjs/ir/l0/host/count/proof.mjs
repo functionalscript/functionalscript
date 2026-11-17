@@ -208,6 +208,17 @@ export const proof = {
         h.imports.drop(t)
         assertEq(cells(h), '')
     },
+    // `fail` keeps a value without a cell, as a native import does after a FunctionalScript throw.
+    fail: () => {
+        const h = counting([])
+        h.keep()
+        h.fail('RangeError: Division by zero')
+        assertEq(h.has_thrown(), 1)
+        const t = h.thrown()
+        assertEq(`${h.read(t)} ${h.has_thrown()} ${cells(h)}`, `RangeError: Division by zero 0 ${t}:1`)
+        h.imports.drop(t)
+        assertEq(cells(h), '')
+    },
     // `recover` frees what a trap abandoned, back to the counts at which cells were kept, ends open builders, forgets a value
     // that no one asked for, and answers what it freed. It cannot give back a count that a module took from a kept cell.
     recover: () => {
@@ -255,6 +266,11 @@ export const proof = {
             const h = counting(['x', 'y'])
             h.imports.throw(0n)
             h.imports.throw(1n)
+        },
+        failTwice: () => {
+            const h = counting([])
+            h.fail('a')
+            h.fail('b')
         },
         nothing: () => { counting([]).thrown() },
         callNotFunction: () => { counting(['x', []]).imports.call(0n, 1n) },

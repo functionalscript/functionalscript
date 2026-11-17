@@ -652,11 +652,27 @@ export const proof = {
         // The checker refuses an argument that holds none of the kinds.
         assertEq(assertError(check(assertOk(over(only([['a', subset(any, 'number')], ['b', any]], bool), `${natives}export const f = (a, b) => bigintEquals(a, b)`)))), "f: Native.bigintEquals's a is any.only(bigint), not any.only(number)")
         assertEq(assertError(check(assertOk(over(ab, `${natives}export const f = (a, b) => bigintEquals(a, 1n)`)))), "f: Native.bigintEquals's b is any.only(bigint), not int(1, 1)")
-        assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintAdd(a, b)`)), "f: bigintAdd of L1's native rows is not in this slice")
+        assertEq(irOver(only([['a', any], ['b', any]], any), `${natives}export const f = (a, b) => bigintAdd(a, b)`), [
+            'fn f(a: any, b: any) -> any =',
+            '    match a',
+            '      bigint as a.bigint =>',
+            '        match b',
+            '          bigint as b.bigint =>',
+            '            Native.bigintAdd(a.bigint, b.bigint)',
+            '          else =>',
+            "            trap('not bigint')",
+            '      else =>',
+            "        trap('not bigint')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals(a)`)), 'f: bigintEquals takes 2 arguments, not 1')
         assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals`)), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(ab, `${imports}export const f = (a, b) => same(a)`)), 'f: same takes 2 arguments, not 1')
         assertEq(assertError(over(ab, `${natives}export const f = (a, b) => bigintEquals(a, b)`, null)), 'f: an import of ./native/module.f.js is not in this slice')
+        // A name on the native specifier that is not a row of the interface is refused.
+        assertEq(assertError(over(ab, "import { bigintPow } from './native/module.f.js'\nexport const f = (a, b) => bigintPow(a, b)")), "f: bigintPow of L1's native rows is not in this slice")
     },
     loops: () => {
         // A loop's parameters are locals of their first values' types, a float widened to `f64`.

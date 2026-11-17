@@ -21,6 +21,11 @@
  * - **`stringToNumber` takes a string and answers a float**, the number its
  *   text spells. **`bigintToString` takes a bigint and answers an owned
  *   string**, its decimal spelling. Both join with L1's coercions.
+ * - **Bigint arithmetic** takes and answers bigints: `bigintAdd`,
+ *   `bigintSubtract`, `bigintMultiply`, `bigintDivide` (which may fail on
+ *   a zero divisor) and `bigintNegate`. **`bigintLess`** takes two values
+ *   of `any` (a bigint, number or string each) and answers a float,
+ *   `1` / `0` / `-1`, for L1's mixed bigint comparisons.
  *
  * These are the rows that the slices read so far. Each joins with its first
  * caller.
@@ -31,20 +36,28 @@
  */
 
 import { any, string } from '../l0/module.f.js'
-import { bool, f64, only, signature } from '../module.f.js'
+import { bool, f64, mayFail, only, signature } from '../module.f.js'
 
 /** A bigint. */
 const bigint = only(any, 'bigint')
+
+const big2 = /** @type {const} */ ([['a', bigint], ['b', bigint]])
 
 /** The interface of L1's native rows. @type {Interface} */
 export const native = {
     abi: 'fjs:l1-native',
     types: [],
     functions: [
-        ['bigintEquals', signature([['a', bigint], ['b', bigint]], bool)],
+        ['bigintEquals', signature(big2, bool)],
         ['numberRemainder', signature([['a', f64], ['b', f64]], f64)],
         ['numberToString', signature([['n', f64]], string)],
         ['stringToNumber', signature([['s', string]], f64)],
         ['bigintToString', signature([['b', bigint]], string)],
+        ['bigintAdd', signature(big2, bigint)],
+        ['bigintSubtract', signature(big2, bigint)],
+        ['bigintMultiply', signature(big2, bigint)],
+        ['bigintDivide', mayFail(signature(big2, bigint))],
+        ['bigintNegate', signature([['a', bigint]], bigint)],
+        ['bigintLess', signature([['a', any], ['b', any]], f64)],
     ],
 }

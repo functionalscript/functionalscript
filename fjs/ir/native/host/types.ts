@@ -16,4 +16,10 @@ export type Host = {
     readonly numberToString: (n: number) => bigint
     readonly stringToNumber: (s: bigint) => number
     readonly bigintToString: (b: bigint) => bigint
+    readonly bigintAdd: (a: bigint, b: bigint) => bigint
+    readonly bigintSubtract: (a: bigint, b: bigint) => bigint
+    readonly bigintMultiply: (a: bigint, b: bigint) => bigint
+    readonly bigintDivide: (a: bigint, b: bigint) => bigint
+    readonly bigintNegate: (a: bigint) => bigint
+    readonly bigintLess: (a: bigint, b: bigint) => number
 }
