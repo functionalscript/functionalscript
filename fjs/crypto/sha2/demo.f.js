@@ -21,8 +21,18 @@ import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { sha256 } from './module.f.js'
 import { selectField, textField, fieldUpdate } from '../../website/demo/module.f.js'
 import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
-const algorithms = sha2Algorithms.map(a => ({ name: a.name, output: hashOutput(a) }))
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
+
+const algorithms = sha2Algorithms.map(a => ({ name: nameOf(a), output: hashOutput(a) }))
 const selectedAlgorithm = algorithmOf(algorithms)
 
 /**
@@ -48,4 +58,4 @@ const definition = {
     },
 }
 
-export const demo = withInputs(definition, ['algorithm', 'text'], { algorithm: algorithms.map(a => a.name) })
+export const demo = withInputs(definition, ['algorithm', 'text'], { algorithm: algorithms.map(a => nameOf(a)) })

@@ -36,6 +36,16 @@ import { assertEq } from '../../asserts/module.f.js'
 import { foldStep, mapStep, pureOk, resultStep } from '../../effects/module.f.js'
 import { collectTests, defaultTest, testResult } from '../module.f.js'
 import { browserResult, countsView, moduleFailure, reportOf, reportView, unreported } from './module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /** @type {(xs: readonly number[]) => number} */
 const sum = xs => xs.reduce((a, b) => a + b, 0)
@@ -142,7 +152,7 @@ const sourcesView = state => {
 /** @type {Demo<ReportDemoState, DemoEvent, Sandbox | Catch>} */
 export const demo = {
     init: { kind: 'idle' },
-    update: state => event => event.kind === 'click' && event.name === 'run' ? runExample : pureOk(state),
+    update: state => event => event.kind === 'click' && nameOf(event) === 'run' ? runExample : pureOk(state),
     view: state => ['div',
         ['p', 'An example suite, run in this page: one module that passes, one with failures, '
             + 'and one with no tests. It is not one of this repository\'s proofs, so it never turns a real run red.'],

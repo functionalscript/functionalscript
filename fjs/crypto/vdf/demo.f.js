@@ -49,6 +49,16 @@ import { sandbox } from '../../effects/common/module.f.js'
 import { _formatDuration, _validDuration } from './performance/module.f.js'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n
@@ -209,18 +219,18 @@ const definition = {
     wait: waitNote,
     update: state => event => {
         if (event.kind === 'input') {
-            return pureOk(event.name === 'text' ? { ...state, text: event.value, run: null, verdict: null, verificationDuration: null, note: null }
-                : event.name === 'steps' ? { ...state, steps: event.value, run: null, verdict: null, verificationDuration: null, note: null }
-                    : event.name === 'claimed' ? { ...state, claimed: event.value, verdict: null, verificationDuration: null }
+            return pureOk(nameOf(event) === 'text' ? { ...state, text: event.value, run: null, verdict: null, verificationDuration: null, note: null }
+                : nameOf(event) === 'steps' ? { ...state, steps: event.value, run: null, verdict: null, verificationDuration: null, note: null }
+                    : nameOf(event) === 'claimed' ? { ...state, claimed: event.value, verdict: null, verificationDuration: null }
                         : state)
         }
         if (event.kind !== 'click') { return pureOk(state) }
-        if (event.name === 'evaluate') { return toggle(state) }
+        if (nameOf(event) === 'evaluate') { return toggle(state) }
         // Not while evaluating: incremental turns must stay small, and the
         // runtime shows no `wait` note for them.
-        if (event.name === 'verify') { return state.run?.running ? pureOk(state) : verify(state) }
+        if (nameOf(event) === 'verify') { return state.run?.running ? pureOk(state) : verify(state) }
         const { run } = state
-        return event.name === 'evaluate-next' && run !== null && run.running ? advance(state, run) : pureOk(state)
+        return nameOf(event) === 'evaluate-next' && run !== null && run.running ? advance(state, run) : pureOk(state)
     },
     view: state => ['div',
         ['p', 'A verifiable delay function takes many sequential steps to evaluate, while anyone can check the result quickly. Sloth evaluates by repeated modular square roots; verification squares the result back. Evaluate, copy y into the verifier, and press Verify; change a digit to see it rejected.'],

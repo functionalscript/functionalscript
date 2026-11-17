@@ -709,7 +709,7 @@ first render, so a demo needing an operation before it can show anything has
 somewhere to ask without `init` becoming an effect.
 
 **A demo's output should be checkable from outside.** The first one,
-[`crypto/sha2`](../crypto/sha2/demo.f.mjs), lets readers select SHA-224, SHA-256,
+[`crypto/sha2`](../crypto/sha2/demo.f.js), lets readers select SHA-224, SHA-256,
 SHA-384, SHA-512, SHA-512/224, or SHA-512/256 and shows the digest in hex. The
 matching OpenSSL command includes the current input, so readers can check the
 result themselves. Encoding it with this repository's own cBase32 was the first
@@ -730,7 +730,7 @@ code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces
 the command; this is a permanent shell limitation.
 
-[`crypto/hmac`](../crypto/hmac/demo.f.mjs) adds a UTF-8 key and message to this
+[`crypto/hmac`](../crypto/hmac/demo.f.js) adds a UTF-8 key and message to this
 pattern, with SHA-1 and all six SHA-2 variants. Its OpenSSL command quotes both
 inputs and uses the selected hash with `-hmac`. Its message uses the shared
 multiline field; the key remains single-line and fills the available width.

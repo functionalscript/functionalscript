@@ -39,6 +39,7 @@ import { isTodoDir } from '../../fjs/website/module.f.js'
 import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.js'
 import { codeMarker, registerRowMarker, resultMarker, undecidedMarker } from '../../fjs/website/style/module.f.js'
 import { samples } from './samples.f.js'
+import { entry } from '../../fjs/types/object/entry/module.f.js'
 
 /** The register, from the repository's root. */
 export const registerPath = 'spec/todo/refused-constructs.md'
@@ -76,7 +77,7 @@ export const related = cell => {
     if (!head.startsWith('(')) { return head === '' ? rest : [['text', head], ...rest] }
     /** @type {Entry} */
     const inner = [['text', head.slice(1)], ...rest]
-    const last = inner[inner.length - 1]
+    const last = inner[Number(inner.length - 1)]
     if (last[0] !== 'text' || !last[1].endsWith(')')) { return inner }
     /** @type {Inline} */
     const end = ['text', last[1].slice(0, -1)]
@@ -163,7 +164,7 @@ const cellLine = (label, cell) => cell.length === 0 ? [] : [
  * @type {(samples: StringMap<string>) => (row: OpenRow) => Element}
  */
 const rowView = samples => ({ id, construct, related: rel }) => {
-    const sample = samples[id]
+    const sample = entry(samples, id)
     return ['section', { id, [registerRowMarker]: '' },
         ['h3', {}, ['code', id]],
         ...cellLine('Construct', construct),
@@ -177,7 +178,7 @@ const rowView = samples => ({ id, construct, related: rel }) => {
 
 /** @type {(samples: StringMap<string>) => (rows: readonly OpenRow[]) => string} */
 const summary = samples => rows => {
-    const verdicts = rows.map(({ id }) => verdict(id, samples[id])[0])
+    const verdicts = rows.map(({ id }) => verdict(id, entry(samples, id))[0])
     /** @type {(kind: string) => number} */
     const count = kind => verdicts.filter(v => v === kind).length
     return `${rows.length} open rows: ${count('refused')} refused today, ${count('accepted')} accepted, ${count('missing')} without a sample.`

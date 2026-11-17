@@ -2,7 +2,7 @@ import { assert, assertOk } from '../../../../asserts/module.f.js'
 import { parse } from '../../../parse/module.f.js'
 import { validate } from '../../../validate/module.f.js'
 import { string } from '../../../module.f.js'
-import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
+import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.js'
 import { lessons } from './sample.f.js'
 import { demo } from './demo.f.js'
 

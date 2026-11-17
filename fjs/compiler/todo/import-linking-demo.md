@@ -7,7 +7,7 @@
 
 The [compiler's output demos](./output-demos.md) accept one module's source.
 A program that imports another module is refused on every output of the
-side-by-side page ([`../demo.f.mjs`](../demo.f.mjs)): its in-memory file system
+side-by-side page ([`../demo.f.js`](../demo.f.js)): its in-memory file system
 holds only the input, so the compiler reports the dependency it cannot read.
 The source and Rust stage demos refuse the same programs as unbound reads, and
 the EDAG demo draws them as unresolved dependency reads.

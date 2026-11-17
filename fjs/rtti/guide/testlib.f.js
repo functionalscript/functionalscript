@@ -16,6 +16,16 @@ import { parse } from '../parse/module.f.js'
 import { validate } from '../validate/module.f.js'
 import { toData, validate as dataValidate } from '../data/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /**
  * What both readers make of a lesson's value against each of its schemas:
@@ -26,15 +36,17 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
  * @type {(lessons: readonly DemoExample[]) => (name: string, expected: readonly boolean[], text?: string) => void}
  */
 export const verdicts = lessons => (name, expected, text) => {
-    const lesson = lessons.find(e => e.name === name)
+    const lesson = lessons.find(e => nameOf(e) === name)
     assert(lesson !== undefined, name)
     assertEq(lesson.schemas.length, expected.length)
-    lesson.schemas.forEach((s, i) => {
+    let i = 0
+    for (const s of lesson.schemas) {
         const r = _readersOf(s.schema)(text ?? lesson.value)
         assert(!hasEntry(r, 'error'), name)
-        assertEq(r.parse.ok, expected[i])
-        assertEq(r.validate.ok, expected[i])
-    })
+        assertEq(r.parse.ok, expected[Number(i)])
+        assertEq(r.validate.ok, expected[Number(i)])
+        i = i + 1
+    }
 }
 
 /**
@@ -43,7 +55,7 @@ export const verdicts = lessons => (name, expected, text) => {
  * @type {(lessons: readonly DemoExample[], demo: Demo<DemoState, DemoEvent>) => () => void}
  */
 export const drawsFirst = (lessons, demo) => () => {
-    assertEq(demo.init.example, lessons[0]?.name)
+    assertEq(demo.init.example, lessons[0] === undefined ? undefined : nameOf(lessons[0]))
     assert(htmlToString(demo.view(demo.init)).includes('<svg'))
 }
 

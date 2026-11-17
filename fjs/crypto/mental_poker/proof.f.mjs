@@ -7,7 +7,7 @@ import { runPure } from '../../effects/module.f.js'
 import { curve, eq, secp256k1 } from '../secp/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.js'
-import { cardName, demo, setup, transition } from './demo.f.mjs'
+import { cardName, demo, setup, transition } from './demo.f.js'
 
 const { deck, key, open } = mentalPoker(secp256k1)
 const n = secp256k1.nf.p

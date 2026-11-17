@@ -44,6 +44,16 @@ import { ok, error } from '../../types/result/module.f.js'
 import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.js'
 import { secp256k1 } from '../secp/module.f.js'
 import { lockAndShuffle, mentalPoker, shuffle, unlockAll } from './module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { generate } from '../../types/array/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 const { deck, key, open } = mentalPoker(secp256k1)
 
@@ -62,7 +72,7 @@ const pocketCards = 2
 /** A card's name: its rank, then its suit. Clubs come first, deuce to ace.
  * @type {(i: number) => string}
  */
-export const cardName = i => `${'23456789TJQKA'[i % 13]}${'♣♦♥♠'[(i - i % 13) / 13]}`
+export const cardName = i => `${'23456789TJQKA'[Number(i % 13)]}${'♣♦♥♠'[Number((i - i % 13) / 13)]}`
 
 const sha512Sync = computeSync(sha512)
 
@@ -87,8 +97,8 @@ export const setup = state => {
     /** @type {(i: number) => Result<readonly (readonly [Key, bigint])[], string>} */
     const parse = i => {
         if (i === players.length) { return ok([]) }
-        const passphrase = tryUtf8(state[fields[i]])
-        if (passphrase === null) { return error(`${players[i]}'s passphrase is too long: more than ${maxLengthBytes} UTF-8 bytes.`) }
+        const passphrase = tryUtf8(assertNotNullish(entry(state, fields[Number(i)])))
+        if (passphrase === null) { return error(`${players[Number(i)]}'s passphrase is too long: more than ${maxLengthBytes} UTF-8 bytes.`) }
         const rest = parse(i + 1)
         return rest[0] === 'error' ? rest : ok([[
             assertNotNullish(key(1n + derive('lock:')(passphrase) % (n - 1n))),
@@ -121,7 +131,7 @@ const nextStreet = board => streets.find((_, i) => streetsBefore(i) === board.le
 const dealPockets = (keys, plain, shuffled) => shuffled.slice(0, players.length * pocketCards).map((card, i) => {
     const owner = (i - i % pocketCards) / pocketCards
     const handed = unlockAll(keys.filter((_, p) => p !== owner))(card)
-    return { handed, card: assertNotNullish(open(plain)(keys[owner].unlock(handed))) }
+    return { handed, card: assertNotNullish(open(plain)(keys[Number(owner)].unlock(handed))) }
 })
 
 /** Open the next street: every player removes their lock.
@@ -139,7 +149,7 @@ const dealStreet = (keys, plain, shuffled, board) => {
  */
 const nextLabel = ({ decks, pockets, board, showdown }) =>
     decks.length === 0 ? 'Encode the deck'
-        : decks.length <= players.length ? `${players[decks.length - 1]} locks and shuffles`
+        : decks.length <= players.length ? `${players[Number(decks.length - 1)]} locks and shuffles`
             : pockets === null ? 'Deal pocket cards'
                 : nextStreet(board)?.[0] ?? (showdown ? null : 'Showdown')
 
@@ -152,18 +162,19 @@ const restart = state => ({ ...state, decks: [], pockets: null, board: [], showd
 export const transition = (state, event) => {
     if (event.kind === 'start') { return state }
     if (event.kind === 'input') {
-        const { name, value } = event
+        const name = nameOf(event)
+        const { value } = event
         if (name === 'view') { return { ...state, view: value } }
         return fields.some(f => f === name) ? restart({ ...state, [name]: value }) : state
     }
-    if (event.name === 'reset') { return restart(state) }
+    if (nameOf(event) === 'reset') { return restart(state) }
     const s = setup(state)
-    if (event.name !== 'next' || s[0] === 'error' || nextLabel(state) === null) { return state }
+    if (nameOf(event) !== 'next' || s[0] === 'error' || nextLabel(state) === null) { return state }
     const { decks, pockets, board } = state
     if (decks.length === 0) { return { ...state, decks: [assertNotNullish(deck(deckSize))] } }
-    const last = decks[decks.length - 1]
+    const last = decks[Number(decks.length - 1)]
     if (decks.length <= players.length) {
-        const [k, seed] = s[1][decks.length - 1]
+        const [k, seed] = s[1][Number(decks.length - 1)]
         return { ...state, decks: [...decks, lockAndShuffle(k)(seed)(last)] }
     }
     const keys = s[1].map(([k]) => k)
@@ -187,7 +198,7 @@ const shownCards = 8
  * turn's seed spells, as `shuffle` applies it to the deck.
  * @type {(seed: bigint) => readonly number[]}
  */
-const permutation = seed => shuffle(seed)(Array.from({ length: deckSize }, (_, i) => i))
+const permutation = seed => shuffle(seed)(generate(deckSize, i => i))
 
 /** The locks on a card, one section per player, filled in the player's
  * colour while their lock is on.
@@ -221,12 +232,12 @@ const cardWithLocks = (face, locks) => [' ', ['code', face], ' ', lockBox(locks)
 const deckRows = (view, seeds, stages) => {
     /** The plain card at each position after each stage. */
     const orders = seeds.slice(0, stages - 1).reduce(
-        (list, seed) => [...list, permutation(seed).map(k => list[list.length - 1][k])],
-        [Array.from({ length: deckSize }, (_, i) => i)])
+        (list, seed) => [...list, permutation(seed).map(k => list[Number(list.length - 1)][Number(k)])],
+        [generate(deckSize, i => i)])
     /** @type {(i: number) => boolean} */
-    const known = i => i === 0 || view === players[i - 1] && known(i - 1)
+    const known = i => i === 0 || view === players[Number(i - 1)] && known(i - 1)
     return orders.flatMap((order, i) => [
-        caption(i === 0 ? `Plain deck, top ${shownCards} of ${deckSize}:` : `After ${players[i - 1]} locked and shuffled:`),
+        caption(i === 0 ? `Plain deck, top ${shownCards} of ${deckSize}:` : `After ${players[Number(i - 1)]} locked and shuffled:`),
         ['p', ...order.slice(0, shownCards).flatMap(card => cardWithLocks(known(i) ? cardName(card) : '🂠', (1 << i) - 1))],
     ])
 }
@@ -248,7 +259,7 @@ const table = (view, pockets, board, showdown) => [
     }),
     caption('Table:'),
     ['p', ...board.flatMap(card => cardWithLocks(cardName(card), 0)),
-        ...Array.from({ length: streetsBefore(streets.length) - board.length }, () => cardWithLocks('🂠', 0b111)).flat()],
+        ...generate(Math.max(0, streetsBefore(streets.length) - board.length), () => cardWithLocks('🂠', 0b111)).flat()],
 ]
 
 /** Whose lock each section of a box is: each player's own box, only
@@ -290,7 +301,7 @@ const definition = {
         const s = setup(state)
         return ['div',
             ['p', 'Mental poker deals cards with no dealer: each player locks every card with a secret number and shuffles the deck, in turn, so no one knows where any card is. A pocket card is handed to its owner once the other players remove their locks; the owner removes the last one alone. Table cards are opened by everyone, street by street. Each card shows its locks: a section per player, in their colour while their lock is on.'],
-            ...players.map((name, p) => inputField({ name: fields[p], label: `${name}'s passphrase` }, state[fields[p]])),
+            ...players.map((name, p) => inputField({ name: fields[Number(p)], label: `${name}'s passphrase` }, assertNotNullish(entry(state, fields[Number(p)])))),
             ...(s[0] === 'error' ? [refusal(s[1])] : game(state, s[1].map(([, seed]) => seed))),
             ['p', 'Demo only: the passphrases are part of this page\'s link, and a short one can be guessed, so a real game draws each secret at random and shares none. Players here are trusted to shuffle and unlock honestly; proofs that they did are future work.'],
         ]

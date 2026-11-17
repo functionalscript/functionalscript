@@ -9,7 +9,7 @@
  *
  * **The verdict comes first, and it is the compiler's.** The page fetches
  * the sample's text and compiles it in the page, as the compiler demo does
- * ([`../demo.f.mjs`](../demo.f.mjs)), so the banner, the line the command
+ * ([`../demo.f.js`](../demo.f.js)), so the banner, the line the command
  * prints and the token it marks are what this build's compiler answers for
  * the file beside the page, not a copy of an answer that could go stale.
  *

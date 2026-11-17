@@ -80,6 +80,15 @@ import { compiled, compiledProgram, runtime } from './compiled/module.f.js'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.js'
 import { catch_ } from '../effects/common/module.f.js'
 import { assert, assertNotNullish } from '../asserts/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /**
  * The outputs, each under the file name that selects its language: what a
@@ -118,7 +127,7 @@ export const _writtenProgram = files => outputFileName => {
     const [state, result] = virtualAt(dirOf(files))(
         compileFile(runtime)(main, outputFileName))
     if (result[0] === 'error') { return error(errorMessage(result[1])) }
-    const file = state.root[outputFileName]
+    const file = entry(state.root, outputFileName)
     assert(file instanceof Array && file.length > 0, 'successful compilation wrote no output')
     return ok(utf8ToString(file[0]))
 }
@@ -157,23 +166,58 @@ const exampleOf = (mainText, files) => {
  */
 export const _edited = (mainText, files) => event => {
     if (event.kind === 'input') {
-        if (event.name === exampleName) {
+        if (nameOf(event) === exampleName) {
             const picked = picker.pick(event.value)
             return [picked, dependenciesOf(assertNotNullish(picker.idOf(picked)))]
         }
-        if (event.name === name) { return [event.value, files] }
-        if (!event.name.startsWith(filePrefix)) { return null }
-        const file = event.name.slice(filePrefix.length)
+        if (nameOf(event) === name) { return [event.value, files] }
+        if (!nameOf(event).startsWith(filePrefix)) { return null }
+        const file = nameOf(event).slice(filePrefix.length)
         return [mainText, files.some(([n]) => n === file)
             ? files.map(([n, t]) => /** @type {File} */ ([n, n === file ? event.value : t]))
             : [...files, [file, event.value]]]
     }
-    if (event.kind === 'click' && event.name.startsWith(removePrefix)) {
-        const file = event.name.slice(removePrefix.length)
+    if (event.kind === 'click' && nameOf(event).startsWith(removePrefix)) {
+        const file = nameOf(event).slice(removePrefix.length)
         return [mainText, files.filter(([n]) => n !== file)]
     }
     return null
 }
+
+/**
+ * The import cycle of `files`, every file it passes through, which the
+ * compiler's `circular dependency` does not name; nothing where there is none.
+ *
+ * @type {(files: Files) => readonly Element[]}
+ */
+const cycleView = files => {
+    const cycle = cycleOf(files)
+    return cycle === null ? [] : [['p', { role: 'status' }, `Import cycle: ${cycle.join(' → ')}`]]
+}
+
+/**
+ * What the page says of each import whose file differs on the command line:
+ * the page's program directory is its root, while `fjs compile` reads `/`
+ * from the root of the disk and lets `../` leave the main module's directory.
+ * Nothing where every import reads the same file both ways.
+ *
+ * @type {(files: Files) => readonly Element[]}
+ */
+const sandboxView = files => {
+    const outside = outsideImports(files)
+    return outside.length === 0 ? [] : [['p', { role: 'note' },
+        `This page keeps the program in its own folder, so / is the folder and nothing is above it. On the command line, / is the root of the disk and ../ may leave the main module's folder, so these imports read other files there: ${outside.map(([file, specifier]) => `${file} imports ${specifier}`).join('; ')}.`]]
+}
+
+/**
+ * What the page says of each file a program reaches both by a rooted path and
+ * by a relative one: one box, read as two modules, so not shared
+ * ([rooted-module-identity](../effects/node/virtual/todo/rooted-module-identity.md)).
+ *
+ * @type {(files: Files) => readonly Element[]}
+ */
+const twiceLoadedView = files => twiceLoaded(files).map(/** @returns {Element} */ file =>
+    ['p', { role: 'note' }, `${file} is imported both by a / path and by a relative one: the compiler loads it as two modules, so the two are not shared.`])
 
 /**
  * The boxes of a program: the main module, then each file its imports reach,
@@ -203,41 +247,6 @@ const boxes = ({ main: mainText, files, imports }) => {
     ]
 }
 
-/**
- * What the page says of each file a program reaches both by a rooted path and
- * by a relative one: one box, read as two modules, so not shared
- * ([rooted-module-identity](../effects/node/virtual/todo/rooted-module-identity.md)).
- *
- * @type {(files: Files) => readonly Element[]}
- */
-const twiceLoadedView = files => twiceLoaded(files).map(/** @returns {Element} */ file =>
-    ['p', { role: 'note' }, `${file} is imported both by a / path and by a relative one: the compiler loads it as two modules, so the two are not shared.`])
-
-/**
- * What the page says of each import whose file differs on the command line:
- * the page's program directory is its root, while `fjs compile` reads `/`
- * from the root of the disk and lets `../` leave the main module's directory.
- * Nothing where every import reads the same file both ways.
- *
- * @type {(files: Files) => readonly Element[]}
- */
-const sandboxView = files => {
-    const outside = outsideImports(files)
-    return outside.length === 0 ? [] : [['p', { role: 'note' },
-        `This page keeps the program in its own folder, so / is the folder and nothing is above it. On the command line, / is the root of the disk and ../ may leave the main module's folder, so these imports read other files there: ${outside.map(([file, specifier]) => `${file} imports ${specifier}`).join('; ')}.`]]
-}
-
-/**
- * The import cycle of `files`, every file it passes through, which the
- * compiler's `circular dependency` does not name; nothing where there is none.
- *
- * @type {(files: Files) => readonly Element[]}
- */
-const cycleView = files => {
-    const cycle = cycleOf(files)
-    return cycle === null ? [] : [['p', { role: 'status' }, `Import cycle: ${cycle.join(' → ')}`]]
-}
-
 /** Compile one pane, absorbing both host failures and an unavailable catch operation.
  * @type {(files: Files, file: string) => Effect<Catch, Result<Marked, string>, never>}
  */
@@ -255,11 +264,11 @@ const sharing = {
     fields: { [name]: { default: init }, [filesField]: { default: encode([]) } },
     examples: examples.map(([, source, id]) => ({ id, inputs: { [name]: source, [filesField]: encode(dependenciesOf(id)) } })),
     validate: inputs => {
-        const files = decode(String(inputs[filesField]))
+        const files = decode(String(entry(inputs, filesField)))
         return files[0] === 'error' ? files[1] : null
     },
     read: ({ main: mainText, files }) => ({ [name]: mainText, [filesField]: encode(files) }),
-    restore: inputs => ({ main: String(inputs[name]), files: unwrap(decode(String(inputs[filesField]))), panes: [], imports: [] }),
+    restore: inputs => ({ main: String(entry(inputs, name)), files: unwrap(decode(String(entry(inputs, filesField)))), panes: [], imports: [] }),
 }
 
 /** The imports a program's files have after an edit, from the ones they had before it. @type {(mainText: string, files: Files, imports: DemoState['imports']) => DemoState['imports']} */
@@ -287,7 +296,7 @@ export const demo = {
         picker.view(exampleOf(state.main, state.files) === null ? '' : state.main),
         ...boxes(state),
         ...state.panes.map(/** @returns {Element} */ ([kind, value], index) => {
-            const [label] = outputs[index]
+            const [label] = outputs[Number(index)]
             return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
         })],
 }

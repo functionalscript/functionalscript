@@ -3,7 +3,7 @@
  * included: type any JavaScript, read one line per token.
  *
  * **This is the shared stream, before the compiler folds it.** The
- * [compiler tokenizer's page](../../compiler/tokenizer/demo.f.mjs) shows the
+ * [compiler tokenizer's page](../../compiler/tokenizer/demo.f.js) shows the
  * tokens the parser reads, with whitespace and comments gone; this one shows
  * them as every reader of JavaScript text receives them, `ws`, `nl` and
  * comments included, so the two pages together show what the compiler's fold

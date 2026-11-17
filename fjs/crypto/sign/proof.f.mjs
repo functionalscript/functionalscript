@@ -15,7 +15,7 @@ import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '..
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.js'
 import { all, computeK, fromCurve, sign, verify } from './module.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { demo, nonceReuse, outgoing, parseHexField, received, signed } from './demo.f.mjs'
+import { demo, nonceReuse, outgoing, parseHexField, received, signed } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'

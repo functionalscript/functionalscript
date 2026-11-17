@@ -4,7 +4,7 @@
  *
  * **The graph is the compiler's own.** The listing is what
  * `fjs compile input.f.js output.edag.data.js` writes, taken from
- * [`compiler/demo`](../compiler/demo.f.mjs)'s `compiled`, so this page cannot
+ * [`compiler/demo`](../compiler/demo.f.js)'s `compiled`, so this page cannot
  * show a graph the command would not write. A node used more than once is
  * named once, as a `const`, and referenced by that name: in the initial
  * module `sq(3)` is one node read twice.

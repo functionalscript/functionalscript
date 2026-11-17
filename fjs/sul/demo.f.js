@@ -62,6 +62,17 @@ import { pureOk } from '../effects/module.f.js'
 import { asBase } from '../types/nominal/module.f.js'
 import { encodeScalar } from '../basen/base16/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
+import { generate } from '../types/array/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { assertNotNullish } from '../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /** A root, a 256-bit number, as its 64 hex digits. */
 const rootHex = encodeScalar(64)
@@ -127,7 +138,7 @@ const textUnits = text => {
 const bitUnits = bits =>
     ![...bits].every(c => c === '0' || c === '1') ? error('bits are 0 and 1 only')
     : bits.length > maxBits ? error(`too many bits: more than ${maxBits}`)
-    : ok(Array.from({ length: Math.ceil(bits.length / 8) }, (_, i) => ({ label: '', standIn: false, bits: bits.slice(i * 8, (i + 1) * 8) })))
+    : ok(generate(Math.ceil(bits.length / 8), i => ({ label: '', standIn: false, bits: bits.slice(i * 8, (i + 1) * 8) })))
 
 /**
  * The units the state's current input is drawn as, or why there are none.
@@ -149,7 +160,7 @@ const rowPixels = (words, k) => words.flatMap((length, j) => {
         'data-sul-px': j % 2 === 1 ? 'b' : 'a',
         ...(k > levels.length && isHashLength(length) ? { 'data-sul-hash': '' } : {}),
     }]
-    return Array.from({ length }, () => px)
+    return generate(length, () => px)
 })
 
 /**
@@ -182,7 +193,7 @@ const namesView = names => ['div', { 'data-sul-unit': '', 'data-sul-names': '' }
  *
  * @type {(padding: string) => readonly _DemoUnit[]}
  */
-const paddingUnits = padding => Array.from({ length: Math.ceil(padding.length / 8) }, (_, i) => ({
+const paddingUnits = padding => generate(Math.ceil(padding.length / 8), i => ({
     label: i === 0 ? 'end' : '',
     standIn: i === 0,
     bits: padding.slice(i * 8, (i + 1) * 8),
@@ -205,9 +216,9 @@ const rootKind = root => isHash(root) ? 'a hash' : isRaw(root) ? 'raw, its bits 
 const stripesView = units => {
     const n = bitCount(units)
     const { padding, heights, root } = stripes(units.map(({ bits }) => bits).join(''))
-    const ks = Array.from({ length: Math.max(...heights) }, (_, i) => i + 1)
+    const ks = generate(Math.max(0, ...heights), i => i + 1)
     const words = ks.map(k => rowWords(heights, k))
-    const rows = ks.map((k, i) => rowPixels(words[i], k))
+    const rows = ks.map((k, i) => rowPixels(words[Number(i)], k))
     const names = ks.map(rowName)
     const all = [...units, ...paddingUnits(padding)]
     const froms = all.map((_, i) => bitCount(all.slice(0, i)))
@@ -215,9 +226,9 @@ const stripesView = units => {
     return [
         caption('Words, level by level:'),
         ['div', { 'data-sul-scroll': '' },
-            ['div', { 'data-sul-units': '' }, namesView(names), ...all.map((u, i) => unit(u, froms[i]))],
+            ['div', { 'data-sul-units': '' }, namesView(names), ...all.map((u, i) => unit(u, froms[Number(i)]))],
         ],
-        ['p', `${n} input bits and ${padding.length} padding bits: ${names.map((name, i) => `${name} ${words[i].length}`).join(', ')} words.`],
+        ['p', `${n} input bits and ${padding.length} padding bits: ${names.map((name, i) => `${name} ${words[Number(i)].length}`).join(', ')} words.`],
         caption(`Root, ${rootKind(root)}:`),
         codeBlock(`0x${rootHex(asBase(root))}`, 'Copy the root'),
     ]
@@ -250,7 +261,7 @@ const picker = examplePicker(examples)
 const definition = {
     init: { input: 'text', text: picker.pick('Overview'), bits: '0100100001101001' },
     // A pick is a text: it fills the text field and shows it.
-    update: state => event => event.kind === 'input' && event.name === exampleName
+    update: state => event => event.kind === 'input' && nameOf(event) === exampleName
         ? pureOk({ ...state, input: 'text', text: picker.pick(event.value) })
         : fieldUpdate(state)(event),
     view: state => {

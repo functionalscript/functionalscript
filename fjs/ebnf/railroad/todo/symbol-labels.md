@@ -45,7 +45,7 @@ set: how a set of symbols is labelled, and which symbols join into one literal.
 - [x] `toDiagrams` takes an `Alphabet`; `codePoints` and `tokens`; the
   `category` piece in `website/demo/railroad`.
 - [x] A railroad demo of `compiler/parser/grammar`
-  ([`demo.f.mjs`](../../../compiler/parser/grammar/demo.f.mjs)): a diagram per
+  ([`demo.f.js`](../../../compiler/parser/grammar/demo.f.js)): a diagram per
   exported rule and per `eagerTail` layer, the layers titled by their
   operators' names in `eagerLayers`; `id`, `string`, `number` and `bigint` are
   its categories.

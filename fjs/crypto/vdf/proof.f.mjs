@@ -7,7 +7,7 @@
 
 import { sloth, p } from './module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
+import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.js'
 import { refusal } from '../../website/demo/module.f.js'
 import { concat as stringConcat, occurrences } from '../../types/string/module.f.js'
 import { element, htmlToString } from '../../media/html/module.f.js'

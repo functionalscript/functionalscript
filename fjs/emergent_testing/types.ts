@@ -226,7 +226,7 @@ export type BrowserTestReport = {
  * What the browser runner's demo page shows: nothing yet, or the report of the
  * example suite it ran.
  *
- * **Public because the demo's export is.** `browser/demo.f.mjs` exports `demo`,
+ * **Public because the demo's export is.** `browser/demo.f.js` exports `demo`,
  * and its type names this, so it is in the package's declaration closure
  * whether or not anyone outside imports it.
  */

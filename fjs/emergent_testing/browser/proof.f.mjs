@@ -22,7 +22,7 @@ import {
     countsView, failureOf, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, unreported,
 } from './module.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'

@@ -49,6 +49,17 @@ import { withInputs } from '../../website/demo/sharing/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import { move, runs } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 const { abs, floor, imul } = Math
 
@@ -69,7 +80,7 @@ const push = move(addition)(false)
 const collect = move(addition)(true)
 
 /** `0` to `n - 1`. @type {readonly number[]} */
-const indices = Array.from({ length: n }, (_, i) => i)
+const indices = generate(n, i => i)
 
 /**
  * A 32-bit hash that mixes every bit of `x` into every bit of the result
@@ -164,7 +175,7 @@ export const trace = input => {
             const before = row(walk)
             const after = row(moved)
             if (after.length < before.length) {
-                drawn = [...drawn, `${draw(before, before.findIndex((span, i) => span !== after[i]))}${mark}`]
+                drawn = [...drawn, `${draw(before, before.findIndex((span, i) => span !== after[Number(i)]))}${mark}`]
             }
             walk = moved
         }
@@ -199,8 +210,8 @@ const sequences = [
 const definition = {
     init: { sequence: 'random', seed: 0 },
     update: state => event => pureOk(
-        event.kind === 'input' && event.name === 'sequence' ? { ...state, sequence: event.value }
-        : event.kind === 'click' && event.name === 'shuffle' ? { ...state, seed: state.seed + 1 }
+        event.kind === 'input' && nameOf(event) === 'sequence' ? { ...state, sequence: event.value }
+        : event.kind === 'click' && nameOf(event) === 'shuffle' ? { ...state, seed: state.seed + 1 }
         : state),
     view: state => {
         const input = sequence(state.sequence, state.seed)

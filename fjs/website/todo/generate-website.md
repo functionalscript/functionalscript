@@ -30,7 +30,7 @@
       symptom is debugged (`fjs/website/module.f.js`'s `@module` block)
 - [x] Convention for a `demo` export — an optional pure demo, discovered like a
       proof, rendered on its page (`fjs/website/demo/`, `demo-runtime.mjs`;
-      the first is `fjs/crypto/sha2/demo.f.mjs`, and the reasoning is
+      the first is `fjs/crypto/sha2/demo.f.js`, and the reasoning is
       [`../README.md`](../README.md))
 - [x] An `index.html` per module directory, cataloguing its files,
       subdirectories, `todo/` issues and the proofs of its subtree

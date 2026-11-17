@@ -1,5 +1,5 @@
 /**
- * The undecided constructs' page ([`./demo.f.mjs`](./demo.f.mjs)).
+ * The undecided constructs' page ([`./demo.f.js`](./demo.f.js)).
  *
  * @module
  */

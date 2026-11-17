@@ -54,7 +54,7 @@ import { assertNotNullish } from '../../../asserts/module.f.js'
  *
  * @type {readonly Selection[]}
  */
-const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLayers[i])).join('_'), rule])
+const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLayers[Number(i)])).join('_'), rule])
 
 /**
  * Each diagram's title and the rule it draws, in the order the page

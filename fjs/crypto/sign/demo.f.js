@@ -50,6 +50,15 @@ import { error, ok } from '../../types/result/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 const { listToVec } = msb
 
@@ -184,25 +193,25 @@ const aliceInput = (state, name, value) =>
  */
 const update = state => event => {
     if (event.kind === 'input') {
-        if (event.name === 'reuse-key') { return pureOk({ ...state, reuse: { ...state.reuse, key: event.value } }) }
-        if (event.name === 'reuse-nonce') { return pureOk({ ...state, reuse: { ...state.reuse, nonce: event.value } }) }
-        if (event.name === 'reuse-message1') { return pureOk({ ...state, reuse: { ...state.reuse, message1: event.value } }) }
-        if (event.name === 'reuse-message2') { return pureOk({ ...state, reuse: { ...state.reuse, message2: event.value } }) }
+        if (nameOf(event) === 'reuse-key') { return pureOk({ ...state, reuse: { ...state.reuse, key: event.value } }) }
+        if (nameOf(event) === 'reuse-nonce') { return pureOk({ ...state, reuse: { ...state.reuse, nonce: event.value } }) }
+        if (nameOf(event) === 'reuse-message1') { return pureOk({ ...state, reuse: { ...state.reuse, message1: event.value } }) }
+        if (nameOf(event) === 'reuse-message2') { return pureOk({ ...state, reuse: { ...state.reuse, message2: event.value } }) }
         const eve = state.eve
         if (eve !== null) {
-            if (event.name === 'attack') {
-                const attack = attacks.find(a => a.name === event.value)
-                return pureOk(attack === undefined ? state : { ...state, eve: intercepted(eve.original, attack.name) })
+            if (nameOf(event) === 'attack') {
+                const attack = attacks.find(a => nameOf(a) === event.value)
+                return pureOk(attack === undefined ? state : { ...state, eve: intercepted(eve.original, nameOf(attack)) })
             }
-            if (event.name === 'eve-message') { return pureOk({ ...state, eve: { ...eve, message: event.value } }) }
-            if (event.name === 'eve-r') { return pureOk({ ...state, eve: { ...eve, r: event.value } }) }
-            if (event.name === 'eve-s') { return pureOk({ ...state, eve: { ...eve, s: event.value } }) }
-            if (event.name === 'eve-key') { return pureOk({ ...state, eve: { ...eve, key: event.value } }) }
+            if (nameOf(event) === 'eve-message') { return pureOk({ ...state, eve: { ...eve, message: event.value } }) }
+            if (nameOf(event) === 'eve-r') { return pureOk({ ...state, eve: { ...eve, r: event.value } }) }
+            if (nameOf(event) === 'eve-s') { return pureOk({ ...state, eve: { ...eve, s: event.value } }) }
+            if (nameOf(event) === 'eve-key') { return pureOk({ ...state, eve: { ...eve, key: event.value } }) }
         }
-        return pureOk(aliceInput(state, event.name, event.value))
+        return pureOk(aliceInput(state, nameOf(event), event.value))
     }
     if (event.kind !== 'click') { return pureOk(state) }
-    if (event.name === 'send') {
+    if (nameOf(event) === 'send') {
         const result = signed(state)
         if (result[0] === 'error') { return pureOk(state) }
         const { u, r, s } = result[1]
@@ -211,13 +220,13 @@ const update = state => event => {
     }
     const eve = state.eve
     if (eve === null) { return pureOk(state) }
-    if (event.name === 'reset-eve') { return pureOk({ ...state, eve: intercepted(eve.original, 'Modify message') }) }
-    if (event.name === 'example') {
+    if (nameOf(event) === 'reset-eve') { return pureOk({ ...state, eve: intercepted(eve.original, 'Modify message') }) }
+    if (nameOf(event) === 'example') {
         return pureOk({ ...state, eve: eve.attack === 'Modify signature'
             ? { ...eve, r: '0' }
             : { ...eve, message: `${eve.original.message}\nEve changed this message.` } })
     }
-    if (event.name === 'forward') {
+    if (nameOf(event) === 'forward') {
         const packet = outgoing(eve)
         return pureOk(packet[0] === 'error' ? state : { ...state, bob: received(packet[1], eve) })
     }
@@ -490,8 +499,8 @@ const initial = {
 /** @type {Sharing<DemoState>} */
 const sharing = {
     fields: {
-        curve: { default: initial.curve, choices: curves.map(c => c.name) },
-        hash: { default: initial.hash, choices: sha2Algorithms.map(a => a.name) },
+        curve: { default: initial.curve, choices: curves.map(c => nameOf(c)) },
+        hash: { default: initial.hash, choices: sha2Algorithms.map(a => nameOf(a)) },
         key: { default: initial.key }, message: { default: initial.message },
         'reuse-key': { default: initial.reuse.key }, 'reuse-nonce': { default: initial.reuse.nonce },
         'reuse-message1': { default: initial.reuse.message1 }, 'reuse-message2': { default: initial.reuse.message2 },

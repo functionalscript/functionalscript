@@ -8,6 +8,16 @@
 import { button, caption, option, selectField } from './module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { textSharing } from './sharing/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /** @type {Demo<string, DemoEvent>} */
 export const demo = {
@@ -17,8 +27,8 @@ export const demo = {
         fields: { greeting: { default: 'Hello', choices: ['Hello', 'Hi', 'Welcome'] } },
     },
     update: state => event => pureOk(
-        event.kind === 'input' && event.name === 'greeting' ? event.value
-        : event.kind === 'click' && event.name === 'reset' ? 'Hello'
+        event.kind === 'input' && nameOf(event) === 'greeting' ? event.value
+        : event.kind === 'click' && nameOf(event) === 'reset' ? 'Hello'
         : state),
     view: greeting => ['div',
         ['p', 'Choose a greeting to change the result. Reset restores Hello and is disabled while Hello is selected.'],

@@ -17,7 +17,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { _runBrowserProofsWith, renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
 import { fmtImport, testResult } from '../module.f.js'
 import { groupByModule, runnerSource } from './module.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 import { asyncRun } from '../../effects/module.mjs'
 import { unreadableThrownValue } from '../../effects/module.f.js'
 import { commonOperationMap } from '../../effects/common/module.mjs'

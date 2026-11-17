@@ -16,6 +16,16 @@ import { pureOk } from '../../effects/module.f.js'
 import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.js'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+
+/**
+ * The `name` of a value that has one. A function has a `name` too, so the
+ * language reads the property with `entry`.
+ *
+ * @type {<N extends string>(named: { readonly name: N }) => N}
+ */
+const nameOf = named => assertNotNullish(entry(named, 'name'))
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
 const select = (name, label, options, value) =>
@@ -39,14 +49,15 @@ const pointSelect = (name, label, value) =>
 const scalarRange = value => ['p',
     ['label', { for: 'secp-k' }, `Scalar k: ${value}`],
     ['input', { id: 'secp-k', name: 'k', type: 'range', min: '0', max: '29', step: '1', value, list: 'secp-k-ticks' }],
-    ['datalist', { id: 'secp-k-ticks' }, ...Array.from({ length: 30 }, /** @returns {Element} */ (_, k) => ['option', { value: String(k) }])],
+    ['datalist', { id: 'secp-k-ticks' }, ...generate(30, /** @returns {Element} */ k => ['option', { value: String(k) }])],
 ]
 
 /** @type {(state: State, event: DemoEvent) => State} */
 export const transition = (state, event) => {
     if (event.kind === 'start') { return state }
     if (event.kind === 'input') {
-        const { name, value } = event
+        const name = nameOf(event)
+        const { value } = event
         if (name === 'view') { return { ...state, view: value } }
         if (name === 'operation') {
             if (value === 'P + Q') { return { ...state, operation: value, p: '10,18', q: '13,12' } }
@@ -60,7 +71,7 @@ export const transition = (state, event) => {
         if (name === 'curve' || name === 'privateKey') { return { ...state, [name]: value, generated: null } }
         return state
     }
-    const { name } = event
+    const name = nameOf(event)
     if (name === 'generate') {
         const result = publicKey(state.curve, state.privateKey)
         return { ...state, generated: result[0] === 'ok' ? result[1] : null }
@@ -90,7 +101,7 @@ const finiteNegation = (from, result) => from === null || result === null ? [] :
  * @type {(line: readonly Point2D[]) => readonly Element[]}
  */
 const finiteLine = line => line.slice(1).flatMap(/** @returns {readonly Element[]} */ (to, i) => {
-    const from = line[i]
+    const from = line[Number(i)]
     const y1 = Number(from[1])
     const raw = Number(to[1] - from[1])
     const rise = raw > 11 ? raw - 23 : raw < -11 ? raw + 23 : raw
@@ -111,7 +122,7 @@ const finiteLine = line => line.slice(1).flatMap(/** @returns {readonly Element[
 const finiteGraph = (state, p, q, result, third, negationFrom, line) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', role: 'group', 'aria-label': 'Finite field grid: y² = x³ + x + 4 modulo 23' },
     ['title', 'Discrete points over F₂₃; no continuous curve or Euclidean secants'],
     ['defs', ['clipPath', { id: 'secp-finite-clip' }, ['rect', { x: '40', y: '40', width: '440', height: '440' }]]],
-    ...Array.from({ length: 23 }, /** @returns {Element} */ (_, i) => ['g',
+    ...generate(23, /** @returns {Element} */ i => ['g',
         ['path', { d: `M${40 + i * 20} 40V480M40 ${480 - i * 20}H480`, 'data-secp-grid': '', fill: 'none' }],
         ['text', { x: String(40 + i * 20), y: '502', 'text-anchor': 'middle' }, String(i)],
         ['text', { x: '25', y: String(484 - i * 20), 'text-anchor': 'end' }, String(i)],
@@ -141,7 +152,7 @@ const finiteView = state => {
     const multiplication = state.operation === 'kG'
     const calculation = state.operation === '−P' ? negative(p)
         : state.operation === '2P' ? addition(p, p)
-            : multiplication ? addition(frames[Math.max(0, frames.length - 2)] ?? null, frames.length > 1 ? toy.g : null)
+            : multiplication ? addition(frames[Number(Math.max(0, frames.length - 2))] ?? null, frames.length > 1 ? toy.g : null)
                 : addition(p, q)
     const shownP = multiplication ? toy.g : p
     const shownQ = state.operation === 'P + Q' ? q : null
@@ -199,7 +210,7 @@ const realMark = (p, label, role, drag) => {
 const visible = ([x, y]) => x >= -1.5 && x <= 3.5 && y >= -5 && y <= 5
 
 // The sampled interval is inside the real curve's domain.
-const realSamples = Array.from({ length: 481 }, (_, i) => assertNotNullish(realPoint(-1.324 + i * 4.824 / 480, 1)))
+const realSamples = generate(481, i => assertNotNullish(realPoint(-1.324 + i * 4.824 / 480, 1)))
 /** @type {(branch: number) => string} */
 const curvePath = branch => realSamples.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${realXY([x, branch * y]).join(' ')}`).join(' ')
 
@@ -208,7 +219,7 @@ const realGraph = (operation, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'dat
     ['title', 'Geometric analogy over the real numbers: y² = x³ − x + 1'],
     ['defs', ['clipPath', { id: 'secp-real-clip' }, ['rect', { x: '40', y: '40', width: '440', height: '440' }]]],
     ['g', { 'clip-path': 'url(#secp-real-clip)' },
-        ...Array.from({ length: 11 }, /** @returns {Element} */ (_, i) => ['path', { d: `M40 ${40 + i * 44}H480`, 'data-secp-grid': '' }]),
+        ...generate(11, /** @returns {Element} */ i => ['path', { d: `M40 ${40 + i * 44}H480`, 'data-secp-grid': '' }]),
         ['path', { d: 'M40 260H480M172 40V480', stroke: 'currentColor' }],
         ['path', { d: curvePath(1), 'data-secp-real-curve': '', fill: 'none' }],
         ['path', { d: curvePath(-1), 'data-secp-real-curve': '', fill: 'none' }],
@@ -257,13 +268,13 @@ const geometricView = state => {
 
 /** @type {(state: State) => Element} */
 const productionView = state => {
-    const selected = namedCurves.find(c => c.name === state.curve)
+    const selected = namedCurves.find(c => nameOf(c) === state.curve)
     const validation = selected === undefined ? scalar('', 0n) : scalar(state.privateKey, selected.curve.nf.p - 1n)
     const valid = validation[0] === 'ok' && validation[1] > 0n && selected !== undefined
     return ['div',
         ['p', 'Private key d → Scalar multiplication dG → Public key Q'],
         ['p', 'Demo-only keys. Do not enter real wallet keys or private secrets. Computation stays in your browser.'],
-        select('curve', 'Curve', namedCurves.map(c => c.name), state.curve),
+        select('curve', 'Curve', namedCurves.map(c => nameOf(c)), state.curve),
         inputField({ name: 'privateKey', label: 'Demo private scalar d (decimal)' }, state.privateKey),
         ...(selected === undefined ? [refusal('Select a supported curve.')] : [paragraph(`Valid range: 1 ≤ d < n, where n = ${selected.curve.nf.p}.`)]),
         ...(!valid ? [refusal(validation[0] === 'error' ? validation[1] : 'The private scalar must satisfy 1 ≤ d < n.')] : []),
@@ -289,8 +300,8 @@ const definition = {
 export const demo = withInputs(definition, ['view', 'operation', 'k', 'p', 'q', 'target', 'realP', 'realQ', 'branchP', 'branchQ', 'curve', 'privateKey'], {
     view: ['Geometric View', 'Finite Field View', 'Real Curves'],
     operation: ['kG', 'P + Q', '2P', '−P'],
-    k: Array.from({ length: 30 }, (_, i) => String(i)),
+    k: generate(30, i => String(i)),
     p: pointOptions, q: pointOptions, target: ['P', 'Q'],
     branchP: ['1', '-1'], branchQ: ['1', '-1'],
-    curve: namedCurves.map(c => c.name),
+    curve: namedCurves.map(c => nameOf(c)),
 })

@@ -49,7 +49,7 @@ export const parse = text => {
         const digits = item.startsWith('-') ? item.slice(1) : item
         return !isDigits(digits) || digits.length > 6
     })
-    return bad === undefined ? ok(items.map(Number)) : error(`a whole number of at most six digits, not: ${bad}`)
+    return bad === undefined ? ok(items.map(item => Number(item))) : error(`a whole number of at most six digits, not: ${bad}`)
 }
 
 /**

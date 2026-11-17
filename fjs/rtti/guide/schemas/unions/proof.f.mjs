@@ -1,7 +1,7 @@
 import { assert } from '../../../../asserts/module.f.js'
 import { equal, subset, toData } from '../../../data/module.f.js'
 import { boolean, never, number, or, string } from '../../../module.f.js'
-import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
+import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.js'
 import { lessons } from './sample.f.js'
 import { demo } from './demo.f.js'
 

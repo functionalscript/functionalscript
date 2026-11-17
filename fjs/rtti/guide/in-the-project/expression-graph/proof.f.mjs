@@ -1,4 +1,4 @@
-import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
+import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.js'
 import { lessons } from './sample.f.js'
 import { demo } from './demo.f.js'
 
