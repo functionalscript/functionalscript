@@ -84,6 +84,16 @@ const bound = target => {
     return target[0] === 'object' ? entries.flatMap(entry => entry.target instanceof Array && entry.target[0] === 'name' ? [nameOf(entry.target[1])] : []) : []
 }
 
+/**
+ * Whether a tree is a block, `['block', statements]`. The tag alone does not
+ * say so: a block written as a statement of its own, `{ … }` standing where
+ * a statement stands, is `['block', { start, block }]`, a statement that
+ * holds a block, and its second member is no list of statements.
+ *
+ * @type {(tree: readonly unknown[]) => boolean}
+ */
+const isBlock = tree => tree[0] === 'block' && tree[1] instanceof Array
+
 /** The names a block's own declarations bind. @type {(statements: readonly (readonly [string, { readonly target: BindingTarget }])[]) => readonly string[]} */
 const declared = statements => statements.flatMap(([tag, statement]) => tag === 'const' || tag === 'let' ? bound(statement.target) : [])
 
@@ -127,7 +137,10 @@ const shape = (scope, depth) => tree => {
                 const inner = hasEntry(list, 'fixed') ? [...scope, ...assertNotNullish(entry(list, 'fixed')).flatMap(bound)] : scope
                 return tree.map(shape(inner, inside))
             }
-            case 'block': { return ['block', tree[1].map(shape([...scope, ...declared(tree[1])], inside))] }
+            case 'block': {
+                // a standalone block is a statement like any other; the block it holds is read below it
+                return isBlock(tree) ? ['block', tree[1].map(shape([...scope, ...declared(tree[1])], inside))] : tree.map(shape(scope, inside))
+            }
             default: { return tree.map(shape(scope, inside)) }
         }
     }
@@ -177,6 +190,6 @@ export const names = tree => {
  * JavaScript's line rules. @type {(tree: unknown) => readonly (readonly (readonly [string, object])[])[]}
  */
 export const blocks = tree => {
-    if (tree instanceof Array) { return [...tree[0] === 'block' ? [tree[1]] : [], ...tree.flatMap(blocks)] }
+    if (tree instanceof Array) { return [...isBlock(tree) ? [tree[1]] : [], ...tree.flatMap(blocks)] }
     return tree === null || typeof tree !== 'object' || isToken(tree) ? [] : Object.values(tree).flatMap(blocks)
 }

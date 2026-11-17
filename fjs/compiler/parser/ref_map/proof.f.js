@@ -93,6 +93,23 @@ export const proof = {
         assert(!is(`const f = (a, b) => ${nested}\nexport default f\n`))
         assert(!is(canonical.replace('ids.get(key)', `ids.get(${'['.repeat(100)}key${']'.repeat(100)})`)))
     },
+    // A block written as a statement of its own is tagged `block` too, and
+    // holds a block where a block holds its statements. It is read as the
+    // statement it is: such a body is not the map, and `blocks` answers
+    // statement lists alone, the inner block's among them.
+    standaloneBlock: () => {
+        /** @type {string} */
+        const text = 'const f = (a, b) => {\n    {\n        const c = a\n        f(c)\n    }\n    return b\n}\nexport default f\n'
+        assert(!is(text))
+        const [node] = declared(text)
+        assertStructurallySame(blocks(node).map(block => block.map(([tag]) => tag)), [['block', 'return'], ['const', 'const']])
+        assertStructurallySame(names(node).map(nameOf), ['a', 'b', 'c'])
+        // nested, and holding nothing
+        /** @type {string} */
+        const nested = 'const f = (a, b) => { { { } } return a }\nexport default f\n'
+        assert(!is(nested))
+        assertStructurallySame(blocks(declared(nested)[0]).map(block => block.map(([tag]) => tag)), [['block', 'return'], ['block'], []])
+    },
     // What the reader checks of a body that is the map: every name it
     // binds, and every block's statements.
     read: () => {
