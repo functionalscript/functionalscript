@@ -6,7 +6,7 @@
  * reads a `const`. The
  * [host proof](./proof.mjs) lowers this text over the runtime and runs it
  * as WASM against the functions themselves. Their signatures are in
- * [`testlib.f.mjs`](./testlib.f.mjs).
+ * [`testlib.f.js`](./testlib.f.js).
  *
  * @module
  */

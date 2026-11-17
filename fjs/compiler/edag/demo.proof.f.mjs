@@ -5,7 +5,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 import { graphOfText, _shapeOf } from './graph/module.f.js'
 import { examples } from '../examples/module.f.js'
 import { _crossings, graphOf } from '../../website/demo/graph/module.f.js'

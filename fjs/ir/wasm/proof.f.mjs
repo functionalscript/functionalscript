@@ -13,7 +13,7 @@ import { assert } from '../../asserts/module.f.js'
 import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, i, if_, int, let_, lit, n, never, only, own, sealed, signature, throw_, trap, true_, u } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0, string } from '../l0/module.f.js'
-import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { emit } from './module.f.js'
 
 /** @type {(m: Module) => ReturnType<typeof emit>} */

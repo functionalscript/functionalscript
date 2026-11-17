@@ -72,7 +72,7 @@ import {
     l1, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures, objects as objectSignatures,
     reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures, stringsRuntime,
     throws as throwSignatures, throwsRuntime,
-} from './testlib.f.mjs'
+} from './testlib.f.js'
 
 /** The module that the lowering makes of a module's text, read from `url`, for the functions that `table` names, over the runtime `r`. @type {(url: URL, table: Parameters<typeof lower>[0], r?: Parameters<typeof lower>[1]) => Module} */
 const fromText = (url, table, r = null) => {

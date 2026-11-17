@@ -390,7 +390,7 @@ alone. Its emphasis falls with the priority rather than changing hue: P1 is
 filled in the failure colour, the conventional one for blocking; P2 in the
 value colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue per
 level would say nothing about order, and would compete with the status icons.
-[`issue`'s demo](./issue/demo.f.mjs) draws every status and every priority,
+[`issue`'s demo](./issue/demo.f.js) draws every status and every priority,
 the one page that shows the whole set.
 
 ## A page runs the proofs under it
@@ -721,7 +721,7 @@ leading zeros, but those zeros still belong in the output. One in sixteen
 digests begins with a zero hex digit; someone typing `1234` into the original
 SHA-256 demo found that case.
 
-[`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
+[`crypto/sha1`](../crypto/sha1/demo.f.js) follows the same pattern with a
 40-character SHA-1 digest and a warning that its collision resistance is broken.
 Both demos preserve multiline text with the shared textarea helpers and use
 [`website/demo/hash`](./demo/hash/module.f.js) for padded digests and

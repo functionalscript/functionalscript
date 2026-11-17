@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
 import sample from './sample.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 
 export const proof = {
     // the page's example, as the Run button calls it

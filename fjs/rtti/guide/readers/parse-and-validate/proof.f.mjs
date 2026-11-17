@@ -4,7 +4,7 @@ import { validate } from '../../../validate/module.f.js'
 import { number, open, option, or, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 import { hasEntry } from '../../../../types/object/entry/module.f.js'
 
 const verdicts = verdictsOf(lessons)

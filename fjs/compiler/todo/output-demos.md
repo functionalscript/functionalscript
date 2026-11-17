@@ -85,7 +85,7 @@ and a failure at run time. Its front-end refusal examples are a hex escape and
 an unfinished module; its imports parse and lower, but need dependency files
 that the output demos do not supply. The EDAG demo's own presets were folded
 into it:
-[`../edag/demo.f.mjs`](../edag/demo.f.mjs) documents what each draws as.
+[`../edag/demo.f.js`](../edag/demo.f.js) documents what each draws as.
 
 **A name says what the program is, and each proof says what its stage
 refuses.** The parser takes an import the Rust output cannot link, so "refused"
@@ -149,5 +149,5 @@ which outputs accept which example.
 
 - [compiler output boundary](../README.md#ast) —
   the refusal wording the panes show.
-- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, and what
+- [`../edag/demo.f.js`](../edag/demo.f.js) — the EDAG's own demo, and what
   each shared program draws as.

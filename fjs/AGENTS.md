@@ -60,7 +60,7 @@ permanently and hold the type-level API.
 Proof discovery and coverage follow the same extension: `shouldLoad` in
 [`fjs/dev/module.f.js`](./dev/module.f.js) matches authored
 FunctionalScript source, and both `npm start cov node` and `deno task cov` include
-`module.f.mjs`, `module.f.js` and `demo.f.mjs`. Ordinary (non-FunctionalScript)
+`module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. Ordinary (non-FunctionalScript)
 `.mjs` files stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**

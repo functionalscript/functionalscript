@@ -50,6 +50,6 @@ vector is `utf8` in [`text/module.f.js`](../module.f.js).
 
 ## See also
 
-- [`demo.f.mjs`](./demo.f.mjs): type text and see each code point's bytes.
+- [`demo.f.js`](./demo.f.js): type text and see each code point's bytes.
 - [`todo/`](./todo/): known gaps, such as how a lone UTF-16 surrogate is
   encoded.

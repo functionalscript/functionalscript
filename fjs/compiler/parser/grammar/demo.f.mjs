@@ -7,7 +7,7 @@
  * `./module.f.js` exports, `fjs/ebnf/railroad` reads the lowered set back
  * as diagrams, and `fjs/website/demo/railroad` lays them out — so a change to
  * the grammar is a change to the picture, as it is for the JSON grammar's
- * (`fjs/ebnf/lib/json/demo.f.mjs`).
+ * (`fjs/ebnf/lib/json/demo.f.js`).
  *
  * **A terminal is a token, not a character.** The grammar reads the
  * tokenizer's output, each token encoded as a symbol by

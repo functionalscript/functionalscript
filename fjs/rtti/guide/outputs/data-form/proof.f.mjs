@@ -3,7 +3,7 @@ import { cmp, equal, subset, toData } from '../../../data/module.f.js'
 import { boolean, number, or, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 
 const verdicts = verdictsOf(lessons)
 

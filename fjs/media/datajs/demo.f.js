@@ -3,7 +3,7 @@
  * edges — sharing included. Two keys pointing at the same array are one
  * node with two incoming edges, not two nodes that happen to look alike.
  *
- * **The one thing plain JSON cannot show.** [The JSON demo](../json/demo.f.mjs)
+ * **The one thing plain JSON cannot show.** [The JSON demo](../json/demo.f.js)
  * shows a round trip; JSON has no way to write two references to the same
  * value, so there is nothing there to draw as a graph. A DataJS `const` is
  * the one part of this format whose entire job is spelling sharing, and

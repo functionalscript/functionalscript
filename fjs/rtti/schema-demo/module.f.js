@@ -5,7 +5,7 @@
  * reader types it with what `parse` and `validate` make of it.
  *
  * **One demo, many pages.** The module page's demo
- * ([`../demo.f.mjs`](../demo.f.mjs)) offers every lesson and the project's own
+ * ([`../demo.f.js`](../demo.f.js)) offers every lesson and the project's own
  * schemas; a guide page's demo
  * ([`../guide/README.md`](../guide/README.md)) offers that page's lessons
  * alone. Both are this function of their groups, so a page shows its schema

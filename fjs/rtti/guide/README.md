@@ -23,7 +23,7 @@ runs them through [`schemaDemo`](../schema-demo/module.f.js), and a
 `proof.f.mjs` that checks the page's examples and the values its text invites
 the reader to type. Each area's `module.f.js` (or `module.f.mjs` until it
 compiles) lists its pages' lessons, and
-the [module page's demo](../demo.f.mjs) offers them in a group per area.
+the [module page's demo](../demo.f.js) offers them in a group per area.
 
 ## Contents
 

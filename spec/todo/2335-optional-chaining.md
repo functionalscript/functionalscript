@@ -110,7 +110,7 @@ therefore supplies approval. Its source link still needs to be recorded.
       `nanvm/harness/fixtures/optional.mjs`.
 - [x] The compiler pages' shared examples offer an optional chain,
       `fjs/compiler/examples/module.f.js`, and the EDAG page draws a chain
-      as the one node it is, its region on the edges, `fjs/compiler/edag/demo.f.mjs`.
+      as the one node it is, its region on the edges, `fjs/compiler/edag/demo.f.js`.
 - [x] The specification describes the feature
       ([optional chaining](../property-access/optional-chaining/README.md)); the roadmap's
       entry and the survey's rows are reread.

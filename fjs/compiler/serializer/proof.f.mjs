@@ -19,7 +19,7 @@
 
 import { conditional } from '../../edag/testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { _sourceOf, demo } from './demo.f.mjs'
+import { _sourceOf, demo } from './demo.f.js'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { invoke, memo } from '../../edag/memo/module.f.js'

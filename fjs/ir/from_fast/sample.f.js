@@ -3,7 +3,7 @@
  * booleans and `bigint`s, which the [host proof](./proof.mjs) lowers from
  * this text and runs as WASM against the functions themselves. Their
  * signatures, with each `bigint`'s range, are in
- * [`testlib.f.mjs`](./testlib.f.mjs).
+ * [`testlib.f.js`](./testlib.f.js).
  *
  * @module
  */

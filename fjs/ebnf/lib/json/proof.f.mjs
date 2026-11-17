@@ -36,7 +36,7 @@ import {
     wsSymbol,
 } from './module.f.js'
 import { diagramPage, force } from '../../testlib.f.mjs'
-import { demo, diagrams } from './demo.f.mjs'
+import { demo, diagrams } from './demo.f.js'
 
 const { keys } = Object
 

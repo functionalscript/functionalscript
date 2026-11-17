@@ -1,6 +1,6 @@
 /**
  * What a B-tree of numbers is to a drawing of it: how to build one, and the
- * rows each node draws as. The [B-tree demo](../demo.f.mjs) and the
+ * rows each node draws as. The [B-tree demo](../demo.f.js) and the
  * [compaction game](../../../website/playground/btree/module.f.js) both draw
  * their trees with this {@link structure}, and start from {@link tensUpTo}.
  *

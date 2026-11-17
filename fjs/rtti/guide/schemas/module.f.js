@@ -1,7 +1,7 @@
 /**
  * The lessons of the schemas pages, in the order the module page's demo lists
  * them. A page owns its lessons: each sits in the page's `sample.f.js`, and
- * [`../../demo.f.mjs`](../../demo.f.mjs) takes them from here instead of
+ * [`../../demo.f.js`](../../demo.f.js) takes them from here instead of
  * spelling them a second time.
  *
  * The pairs come first, because the first thing a reader of the module page

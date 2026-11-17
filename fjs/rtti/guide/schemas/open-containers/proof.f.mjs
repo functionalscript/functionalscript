@@ -3,7 +3,7 @@ import { equal, toData } from '../../../data/module.f.js'
 import { array, never, number, open, or, rest, string, unknown } from '../../../module.f.js'
 import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 
 const verdicts = verdictsOf(lessons)
 

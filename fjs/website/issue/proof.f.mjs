@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { header, isIssue, priorities, statuses } from './module.f.js'
-import { demo, everyPriority, everyStatus, shown } from './demo.f.mjs'
+import { demo, everyPriority, everyStatus, shown } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'

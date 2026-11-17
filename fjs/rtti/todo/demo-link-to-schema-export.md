@@ -28,7 +28,7 @@ of the module.
   the export. The spelling is that issue's to decide — a bare `#noteSchema`
   could collide with an id the page already uses, so a prefixed one such as
   `#export-noteSchema` is the likelier choice.
-- The demo's `codeView` in [`../demo.f.mjs`](../demo.f.mjs) appends that
+- The demo's `codeView` in [`../demo.f.js`](../demo.f.js) appends that
   anchor to the `pageHref` it already builds, from the export name the
   example already carries as its `source`. Nothing else in the demo changes.
 - The anchor is built in one place and imported by the demo, so the page and
@@ -38,6 +38,6 @@ of the module.
 
 ### Related
 
-- [`../demo.f.mjs`](../demo.f.mjs) — `codeView`, the link this changes.
+- [`../demo.f.js`](../demo.f.js) — `codeView`, the link this changes.
 - [Source and documentation view on a module page](../../website/todo/source-and-doc-view.md)
   — the view the anchor points into, and where its spelling is decided.

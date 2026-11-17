@@ -4,7 +4,7 @@
  * [`proof.f.mjs`](./proof.f.mjs) holds the WAT that the emitter writes.
  * Whether that is a module an engine accepts, and whether it computes what
  * the IR means, needs an engine, and FunctionalScript runs no WebAssembly.
- * So each module of [`testlib.f.mjs`](../testlib.f.mjs) is compiled here by
+ * So each module of [`testlib.f.js`](../testlib.f.js) is compiled here by
  * the host's engine, and every function it exports is called on the edges of
  * its parameters' types and compared with a JavaScript twin, which computes
  * the same in exact integers and IEEE doubles, as
@@ -26,7 +26,7 @@ import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../w
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, func, l0 } from '../l0/module.f.js'
 import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
-import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.mjs'
+import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays

@@ -1,6 +1,6 @@
 /**
  * The rtti demo's machinery, exercised through the module page's demo
- * ([`../demo.f.mjs`](../demo.f.mjs)), whose examples cover every path a
+ * ([`../demo.f.js`](../demo.f.js)), whose examples cover every path a
  * schema, a value and an event can take, and through demos of its own for the
  * paths that one cannot reach.
  *
@@ -10,7 +10,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { array, number, open, or, record, rest, string } from '../module.f.js'
-import { demo, examples } from '../demo.f.mjs'
+import { demo, examples } from '../demo.f.js'
 import { _compare, _graphOf, _marked, _outputsOf, _readersOf, schemaDemo } from './module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'

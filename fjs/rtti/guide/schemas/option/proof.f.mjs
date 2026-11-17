@@ -3,7 +3,7 @@ import { parse } from '../../../parse/module.f.js'
 import { number, option, or } from '../../../module.f.js'
 import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.js'
-import { demo } from './demo.f.mjs'
+import { demo } from './demo.f.js'
 
 const verdicts = verdictsOf(lessons)
 

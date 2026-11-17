@@ -502,7 +502,7 @@ documentation has the rest.
 ## Proofs
 
 Each module's `proof.f.mjs` holds its golden texts and every refusal, over
-the hand-written modules of [`testlib.f.mjs`](./testlib.f.mjs).
+the hand-written modules of [`testlib.f.js`](./testlib.f.js).
 [`wasm/proof.mjs`](./wasm/proof.mjs) runs those modules on the host's
 WebAssembly engine and compares every exported function with a JavaScript
 twin on the same inputs, the edges of each type included. A function of

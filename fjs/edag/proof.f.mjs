@@ -41,7 +41,7 @@
 
 import { validate } from '../rtti/validate/module.f.js'
 import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
-import { demo, run as runDemo } from './demo.f.mjs'
+import { demo, run as runDemo } from './demo.f.js'
 import { htmlToString } from '../media/html/module.f.js'
 import { runPure } from '../effects/module.f.js'
 import {

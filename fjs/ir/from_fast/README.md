@@ -22,7 +22,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { check } from '../check/module.f.js'
 import { f64, signature } from '../module.f.js'
 import { lower } from './module.f.js'
-import { sourceOf } from './testlib.f.mjs'
+import { sourceOf } from './testlib.f.js'
 
 const { fast, imports } = unwrap(sourceOf('export const max = (a, b) => a < b ? b : a'))
 const ir = unwrap(lower({ max: signature([['a', f64], ['b', f64]], f64) })(fast, imports))
@@ -399,7 +399,7 @@ that leaves its function.
 - [`proof.mjs`](./proof.mjs) is a host proof. It reads
   [`sample.f.js`](./sample.f.js), 26 FunctionalScript functions of floats,
   booleans and `bigint`s, lowers them from their own text with the
-  signatures of [`testlib.f.mjs`](./testlib.f.mjs), and runs them as WASM
+  signatures of [`testlib.f.js`](./testlib.f.js), and runs them as WASM
   against the functions themselves, on the edges of their parameters'
   types, and so does [`helpers.f.js`](./helpers.f.js), lowered over the
   runtime: functions that call functions it does not export, records, a

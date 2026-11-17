@@ -1,5 +1,5 @@
 /**
- * The proof of [`testlib.f.mjs`](./testlib.f.mjs)'s functions, beside it for the
+ * The proof of [`testlib.f.js`](./testlib.f.js)'s functions, beside it for the
  * reason [`../testlib.proof.f.mjs`](../testlib.proof.f.mjs) gives: the fixtures
  * are one file rather than one more directory. Every one of them is also used by
  * the two proofs they were written for, which is where what they are is checked
@@ -13,7 +13,7 @@ import { mkdir } from '../../effects/node/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { latin1 } from '../testlib.f.js'
-import { a, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed } from './testlib.f.mjs'
+import { a, file, hexOf, kind, missing, one, ran, ref, resolved, run, shadowed } from './testlib.f.js'
 
 export const proof = {
     // A main worktree names one directory twice.

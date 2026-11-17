@@ -29,7 +29,7 @@ import { lifetime } from '../../lifetime/module.f.js'
 import { bool, f64, i, only, signature, u } from '../../module.f.js'
 import { edges, held, run } from '../../wasm/testlib.mjs'
 import { lower } from '../module.f.js'
-import { l1Runtime, runtime, sourceOf } from '../testlib.f.mjs'
+import { l1Runtime, runtime, sourceOf } from '../testlib.f.js'
 
 /**
  * A Mulberry32 generator from `seed`. Each call answers a float in `[0, 1)`.
