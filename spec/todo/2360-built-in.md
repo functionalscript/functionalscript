@@ -414,10 +414,16 @@ This records the designer's direct request for the feature under DESIGN §12.
       `const { isFinite } = Number` as well, needs no rewrite to compile;
       a module reading another member is rewritten when that member is
       admitted or equivalent code can use existing syntax
-- [ ] `BigInt` — not decided. `BigInt(n)` on an integral number is the
-      importable function
-      [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
-      meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
+- [x] `BigInt` — the call `BigInt(exp)`, the conversion
+      ([bigint conversion](../conversions/bigint/README.md)), an operator the
+      EDAG keeps as `['BigInt', exp]`; JavaScript output writes it back and
+      Rust output calls NaNVM's `Any::bigint`.
+      The namespace's members, `asIntN` and `asUintN`
+      ([below](#bigint)), stay unticked, each an admission of its own. The
+      importable
+      [`bigint`](../../fjs/types/bigint/from_number/module.f.js) remains for
+      a caller that wants an integral number converted and anything else
+      refused
 - [x] `Math` — a reserved namespace admitting the static functions
       `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
       `Math.ceil`, `Math.imul`, `Math.max`, `Math.min` and `Math.fround`; other members remain
@@ -787,6 +793,116 @@ boundaries require explicit proofs.
 "the same FJS implementation for all languages", then requested "Do it in
 the next PR" after the shared body was distinguished from native bindings,
 in the [working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033).
+
+##### Math.clz32 and Math.round proposal
+
+**Status.** Proposed, not approved, and not implemented: both names are
+refused as `reserved word` today. This section is the proposal
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+asks for before a language feature is built.
+
+**Problem.** One authored `.f.mjs` file is left outside the proofs,
+[`fjs/types/bigint/demo.f.mjs`](../../fjs/types/bigint/demo.f.mjs), and the
+compiler refuses it for these two statics. It calls `Math.clz32` three times,
+in the `log2` strategies its benchmark compares — `clz32Log2` and the two
+that finish a hexadecimal or base-32 text length with it — and `Math.round`
+once, to print a duration in minutes. Standing in for `clz32` shows `round`
+as the next refusal; what the file holds behind `round` has not been
+measured.
+
+**Proposal.** Admit the static values `Math.clz32` and `Math.round`,
+represented by nodes of those names, `['Math.clz32']` and `['Math.round']`.
+Preserve ordinary, quoted and destructured reads, detached and optional
+calls, stable identity and native function text, as for the admitted `Math`
+functions. Both have `length` one. Other `Math` members remain separate
+admissions.
+
+`clz32` converts its first argument once with `ToNumber`, then with
+`ToUint32`, and returns the number of leading zero bits of that 32-bit
+value, a number from `0` to `32`. `Math.clz32(1)` is `31`,
+`Math.clz32(0x8000_0000)` is `0`, and `Math.clz32(-1)` is `0`. A zero has
+thirty-two: `Math.clz32(0)` is `32`, and so is the answer for `-0`, `NaN`
+and both infinities, which `ToUint32` converts to zero, and for an omitted
+argument, which converts through `undefined`. A fraction is truncated toward
+zero and an integer reduced modulo `2^32` by the conversion, so
+`Math.clz32(0.5)` is `32` and `Math.clz32(2 ** 32 + 1)` is `31`.
+
+`round` converts its first argument once with `ToNumber` and returns the
+integer nearest to it, a tie going toward positive infinity:
+`Math.round(2.5)` is `3` and `Math.round(-2.5)` is `-2`. Preserve both
+zeros, both infinities and `NaN`. A value from `-0.5` up to, and not
+including, zero rounds to `-0`: `Math.round(-0.5)` and `Math.round(-0.2)`
+are `-0`. The addition `x + 0.5` is not the rule, since it rounds before the
+floor is taken: `Math.round(0.49999999999999994)` is `0`, and an odd integer
+at or above `2 ** 52` is itself. An omitted argument produces `NaN`.
+
+For both, a primitive or converted bigint and a failed primitive conversion
+throw. All argument expressions are evaluated before invocation; extra
+arguments are not numerically converted.
+
+**Backend choice.** The two differ, by the rule the admitted `Math`
+functions follow: a native binding where both targets provide a compatible
+numerical operation, and one FJS body in the common runtime where they do
+not.
+
+`clz32` is native. Both targets count the leading zeros of a 32-bit integer
+and answer thirty-two for zero, as JavaScript does:
+[Rust `u32::leading_zeros`](https://doc.rust-lang.org/stable/std/primitive.u32.html#method.leading_zeros)
+and
+[core WASM `i32.clz`](https://webassembly.github.io/spec/core/exec/numerics.html#op-iclz).
+The runtime table holds JavaScript's built-in; represented execution and
+Rust use their existing `ToUint32` conversion before the native operation,
+the conversion `Math.imul` already applies. A body is possible — five
+shift-and-compare steps over the converted value — and is not proposed: the
+function exists to be one instruction, and the benchmark that needs it
+measures exactly that.
+
+`round` is a common-runtime body. Neither target has JavaScript's tie rule:
+[Rust `f64::round`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.round)
+rounds a tie away from zero, so `-2.5` becomes `-3`, and
+[core WASM `f64.nearest`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fnearest)
+rounds a tie to even, so `2.5` becomes `2`. A native binding would need a
+correction on each target and could disagree between them, where one
+authored body cannot. The body is the floor, which is admitted and native,
+and one comparison:
+
+```js
+const round = (...args) => {
+    const x = toNumber(args[0])
+    const floor = Math.floor(x)
+    const rounded = x - floor >= 0.5 ? floor + 1 : floor
+    return rounded === 0 && x < 0 ? -0 : rounded
+}
+```
+
+`x - floor` is exact wherever `x` has a fraction, so the comparison decides
+the tie as written; `NaN` and the infinities fail it and return the floor,
+which is the value itself; and the last line gives the negative zero a value
+in `[-0.5, 0)` rounds to. No third-party dependency and no new native
+binding is needed.
+
+**Benefits.** Familiar JavaScript names for two operations authored code
+already uses, and the last `.f.mjs` demo becomes convertible. `clz32` costs
+one instruction on both targets. `round` has one implementation, so its tie
+rule and its negative zero cannot differ between executors.
+
+**Drawbacks.** One more native binding and its conversion contract in each
+executor, for `clz32`. For `round`, static metadata and generated runtime
+code, a body slower than a native rounding instruction, and boundaries that
+need explicit proofs: the tie in both directions, the range that rounds to
+`-0`, `0.49999999999999994`, and the integers at and above `2 ** 52`. Two
+more members of a namespace admitted one function at a time.
+
+**Alternatives.** Rewrite the demo instead: `Math.round(s / 60)` is
+`Math.floor(s / 60 + 0.5)` for the durations it prints, and each `clz32`
+strategy could be dropped from the comparison. That converts the file with
+no admission, at the cost of removing from the benchmark the strategy it was
+written to measure.
+
+**Language-design approval.** Pending. **sergey-shandar** asked for this
+proposal — "Write the proposal for `Math.clz32` and `Math.round`" — in the
+[working session](https://claude.ai/code/session_01Q2nX9r9FHq2F5nkzDmoQBe);
+that is a request to write it, not an approval to implement it.
 
 #### Text Processing
 
