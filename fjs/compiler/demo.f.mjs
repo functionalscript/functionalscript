@@ -76,7 +76,7 @@ import { cycleOf, decode, dirOf, encode, fileOf, lastImports, main, outsideImpor
 import { dependenciesOf, examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { _outputMarked, compileFile } from './module.f.mjs'
-import { vm } from '../edag/amnesia/module.f.mjs'
+import { vm } from '../edag/amnesia/module.f.js'
 import { read } from '../edag/value/property/module.f.js'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.js'
 import { catch_ } from '../effects/common/module.f.js'

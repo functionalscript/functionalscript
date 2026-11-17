@@ -58,7 +58,7 @@ and static calls. Neither migration approves new language semantics.
 
 ### Proposal
 
-The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
+The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.js), using
 represented [`value`](../../edag/value/types.ts) operations and the
 [`analysis`](../../edag/analysis/module.f.js) table. The requirements below govern
 its remaining entry-point and integration work, not a second interpreter for an
@@ -204,7 +204,7 @@ hardening TODO after the baseline interpreter exists.
 
 ### Tasks
 
-- [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.js).
 - [x] Replace the captured mutable cache with immutable evaluation state,
       preserving sharing, lazy demand, fresh calls and capture identity.
 - [x] Render every admitted function body through the shared function-text

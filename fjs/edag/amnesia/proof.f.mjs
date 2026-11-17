@@ -10,7 +10,7 @@
 
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.js'
-import { vm, invoke } from './module.f.mjs'
+import { vm, invoke } from './module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 import { call } from '../value/call/module.f.js'
 import { typeOf } from '../value/semantics/module.f.js'

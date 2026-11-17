@@ -9,7 +9,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { analysis } from '../../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../../edag/from_fast/module.f.js'
-import { memo } from '../../../../edag/memo/module.f.mjs'
+import { memo } from '../../../../edag/memo/module.f.js'
 import { toData } from '../../../../edag/value/to_unknown/module.f.js'
 import { parse } from '../../../../compiler/source/module.f.js'
 import { normalize } from '../module.f.js'

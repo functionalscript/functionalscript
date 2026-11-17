@@ -13,7 +13,7 @@
  * `String(f)`, is the one every other executor writes.
  *
  * @module
- * @import { Over } from '../types.ts'
+ * @import { Exp, Over } from '../types.ts'
  * @import { Analysis, Operand } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke, Outcome } from '../value/call/types.ts'
@@ -53,32 +53,36 @@ const evaluate = (a, context, root, invoke) => {
     const retained = (index, cache, outcome) =>
         [outcome[0] === 'ok' && shared.includes(index) ? [...cache, [index, outcome[1]]] : cache, outcome]
 
-    // `operand` and `tail` each call `run` themselves rather than through
-    // one helper taking the settling as a parameter: that helper would be
-    // one more host frame per level of a nested graph, the margin
-    // `../todo/stack-safety.md` counts.
+    /** A function's body as the table's expression. @type {(e: Operand) => Exp} */
+    const expression = e => isArray(e) ? exps[Number(e[1])] : e
 
-    /** @type {(operand: Operand, cache: _Cache) => Evaluation<_Cache>} */
-    const operand = (operand, cache) => {
-        if (!isArray(operand)) { return [cache, ok(operand)] }
-        const [, index] = operand
-        const found = established(index, cache)
-        if (found !== undefined) { return found }
-        const [next, outcome] = run(nodes[Number(index)], cache)
-        return retained(index, next, settled(outcome))
-    }
+    // `tail` holds `operand` and each builds its own `run`, so that the only
+    // name either reads before it is established is a function's own: a
+    // later `const` is not readable
+    // (`../../../spec/todo/3140-forward-references.md`). The two settle
+    // differently and share no helper taking the settling as a parameter:
+    // that helper would be one more host frame per level of a nested graph,
+    // the margin `../todo/stack-safety.md` counts.
 
     /** @type {(operand: Operand, cache: _Cache) => Tail<_Cache>} */
-    const tail = (operand, cache) => {
-        if (!isArray(operand)) { return [cache, ok(operand)] }
-        const [, index] = operand
+    const tail = (root, cache) => {
+        /** @type {(e: Operand, cache: _Cache) => Evaluation<_Cache>} */
+        const operand = (e, cache) => {
+            if (!isArray(e)) { return [cache, ok(e)] }
+            const [, index] = e
+            const found = established(index, cache)
+            if (found !== undefined) { return found }
+            const [next, outcome] = operation({ context, operand, tail, expression, invoke })(nodes[Number(index)], cache)
+            return retained(index, next, settled(outcome))
+        }
+        if (!isArray(root)) { return [cache, ok(root)] }
+        const [, index] = root
         const found = established(index, cache)
         if (found !== undefined) { return found }
-        const [next, outcome] = run(nodes[Number(index)], cache)
+        const [next, outcome] = operation({ context, operand, tail, expression, invoke })(nodes[Number(index)], cache)
         return retained(index, next, outcome)
     }
 
-    const run = operation({ context, operand, tail, expression: e => isArray(e) ? exps[Number(e[1])] : e, invoke })
     return tail(root, [])[1]
 }
 

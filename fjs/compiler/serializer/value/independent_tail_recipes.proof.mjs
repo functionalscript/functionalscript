@@ -10,7 +10,7 @@ import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
-import { memo } from '../../../edag/memo/module.f.mjs'
+import { memo } from '../../../edag/memo/module.f.js'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
 import { _independentTailRecipes } from '../../../edag/to_fast/tail/fixtures.f.js'
 import { prepare } from '../../../js/ast/prepare/module.f.js'

@@ -10,7 +10,7 @@ import { anchored, fromFast, lowerBlock, lowerValue } from './module.f.js'
 import { completeTransfers } from './loop/completions/module.f.js'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
-import { memo } from '../memo/module.f.mjs'
+import { memo } from '../memo/module.f.js'
 import { toFast } from '../to_fast/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 

@@ -44,7 +44,7 @@
  * stands, so that the text keeps the sharing the graph has and adds none
  * (but for a pure node no one block holds, which it writes in each block);
  * and the one the compiler evaluates a module and every invoked body by
- * ([`../memo`](../memo/module.f.mjs)), so that a function value holds its
+ * ([`../memo`](../memo/module.f.js)), so that a function value holds its
  * body as the graph has it, and its text is the writer's.
  *
  * **Sharing decides how many times, never when.** An edge from a lazy

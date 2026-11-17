@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 import { apply, compile, execute, value } from './proof.f.mjs'
 

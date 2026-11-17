@@ -10,7 +10,7 @@
  * module `sq(3)` is one node read twice.
  *
  * **The two interpreters differ only in what they remember**, and the
- * initial module is chosen to show it. [`memo`](./memo/module.f.mjs)
+ * initial module is chosen to show it. [`memo`](./memo/module.f.js)
  * evaluates each shared node once per call and reuses the value;
  * [`amnesia`](./amnesia/README.md) evaluates a node again at every edge that
  * reaches it. For a number that changes nothing, so both answer `9` for
@@ -46,8 +46,8 @@ import { parse } from '../compiler/transpiler/module.f.mjs'
 import { unresolved } from '../compiler/edag/module.f.js'
 import { toText } from '../text/marked/module.f.js'
 import { identityAnalysis } from './analysis/module.f.js'
-import { memo } from './memo/module.f.mjs'
-import { vm } from './amnesia/module.f.mjs'
+import { memo } from './memo/module.f.js'
+import { vm } from './amnesia/module.f.js'
 import { read } from './value/property/module.f.js'
 import { assertOk } from '../asserts/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'

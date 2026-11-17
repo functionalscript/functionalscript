@@ -1,7 +1,7 @@
 /** Const statement lists retain syntax grouping and lower to sequential bindings. */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { unresolved } from '../edag/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'

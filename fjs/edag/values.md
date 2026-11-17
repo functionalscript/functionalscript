@@ -1,8 +1,8 @@
 # EDAG values
 
 `EdagValue` is the evaluated subset of [EDAG](README.md), and the sole language
-value representation of the FJS interpreters. [Memo](memo/module.f.mjs),
-[Amnesia](amnesia/module.f.mjs), and compiler module initialization use
+value representation of the FJS interpreters. [Memo](memo/module.f.js),
+[Amnesia](amnesia/module.f.js), and compiler module initialization use
 `Result<EdagValue, EdagValue>`. The old AST value evaluator is retired.
 Rust NaNVM keeps its native `Any` representation.
 

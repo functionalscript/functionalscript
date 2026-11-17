@@ -9,8 +9,8 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
-import { invoke, memo } from '../../edag/memo/module.f.mjs'
-import { vm } from '../../edag/amnesia/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.js'
+import { vm } from '../../edag/amnesia/module.f.js'
 import { call } from '../../edag/value/call/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'

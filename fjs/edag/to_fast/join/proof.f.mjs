@@ -9,7 +9,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { _joinResults } from './module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
 import { fromFast } from '../../from_fast/module.f.js'
-import { memo } from '../../memo/module.f.mjs'
+import { memo } from '../../memo/module.f.js'
 import { toData } from '../../value/to_unknown/module.f.js'
 import { parse } from '../../../compiler/transpiler/module.f.mjs'
 import { unresolved, _defaultExport } from '../../../compiler/edag/module.f.js'

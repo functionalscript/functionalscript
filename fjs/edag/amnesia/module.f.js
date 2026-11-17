@@ -21,18 +21,19 @@ import { settle } from '../value/call/module.f.js'
 const outcome = (context, invoke) => {
     const { memo } = context
     const settled = settle(invoke)
-    const run = operation({
-        context,
-        operand: (e, state) => [state, settled(last(e))],
-        tail: (e, state) => [state, last(e)],
-        expression: e => e,
-        invoke,
-    })
     /** @type {(e: Exp) => Outcome} */
     const last = e => {
         if (!isArray(e)) { return ok(e) }
         const established = memo?.find(([node]) => node === e)
-        return established === undefined ? run(e, null)[1] : ok(established[1])
+        if (established !== undefined) { return ok(established[1]) }
+        const run = operation({
+            context,
+            operand: (e, state) => [state, settled(last(e))],
+            tail: (e, state) => [state, last(e)],
+            expression: e => e,
+            invoke,
+        })
+        return run(e, null)[1]
     }
     return last
 }

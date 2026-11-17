@@ -5,7 +5,7 @@
 
 ### Problem
 
-The previous `slot` in [`../module.f.mjs`](../module.f.mjs) captured `let filled`
+The previous `slot` in [`../module.f.js`](../module.f.js) captured `let filled`
 and reassigned it when the returned closure was called. The EDAG-value
 migration replaces it with immutable cache state threaded through demanded
 operands. Shared nodes retain their values within an invocation; calls start

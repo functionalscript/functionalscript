@@ -9,7 +9,7 @@ import { Buffer } from 'node:buffer'
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
-import { memo } from '../../../edag/memo/module.f.mjs'
+import { memo } from '../../../edag/memo/module.f.js'
 import { stringify } from './module.f.js'
 
 /** @type {(length: number) => Promise<any>} */

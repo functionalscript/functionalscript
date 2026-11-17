@@ -14,7 +14,7 @@ does not need one.
 The compiler and interpreter are now connected.
 [`compiler/transpiler.interpret(load)(path)`](../../compiler/transpiler/module.f.mjs)
 loads dependencies, lowers each module with `unresolved`, and initializes its
-complete represented export object through [Memo](../../edag/memo/module.f.mjs)
+complete represented export object through [Memo](../../edag/memo/module.f.js)
 under the runtime `load` answers — the package's
 [`fjs/js/runtime`](../../js/runtime/README.md), whose bodies answer the
 member functions the interpreter has no native implementation of, or

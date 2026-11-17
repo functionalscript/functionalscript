@@ -980,7 +980,7 @@ export const proof = {
         // pinned here, nor by the node either: both readings throw, and a
         // `throw` case is pass/fail rather than payload-inspecting. What
         // carries that order is the shape of `callProperty` in
-        // `./amnesia/module.f.mjs`; "Where the host engines disagree" in
+        // `./amnesia/module.f.js`; "Where the host engines disagree" in
         // `./README.md` states the gap. Nor can `(u?.at)(0)` be pinned: both are
         // `|!()` terms, JavaScriptCore (so `bun test`) carries the
         // short-circuit through the parentheses and answers `undefined` where

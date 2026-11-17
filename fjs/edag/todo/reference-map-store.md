@@ -17,7 +17,7 @@ expression ([`../value/types.ts`](../value/types.ts), `_Subset`), which the
 serializer, the function-text renderer and the memo interpreter's call all
 rely on. The table would have to be kept beside the map, and an interpreter
 has nowhere to keep it: each invocation starts with fresh state and answers a
-value alone ([`../memo/module.f.mjs`](../memo/module.f.mjs), `invokeWith`), so
+value alone ([`../memo/module.f.js`](../memo/module.f.js), `invokeWith`), so
 a table kept there is lost whenever a map is passed to a function or returned
 from one.
 

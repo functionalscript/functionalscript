@@ -17,7 +17,7 @@ import { read } from '../value/property/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { noRefMap, noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
-import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
+import { invoke, invokeWith, vm } from '../amnesia/module.f.js'
 import { settle } from '../value/call/module.f.js'
 
 /** @type {Context} */

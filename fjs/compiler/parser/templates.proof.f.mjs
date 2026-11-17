@@ -10,7 +10,7 @@ import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 

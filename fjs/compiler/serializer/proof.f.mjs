@@ -22,7 +22,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
-import { invoke, memo } from '../../edag/memo/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.js'
 import { call } from '../../edag/value/call/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'

@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { invoke } from '../../edag/memo/module.f.mjs'
+import { invoke } from '../../edag/memo/module.f.js'
 import { generate, path, value } from './module.f.mjs'
 
 export const proof = {

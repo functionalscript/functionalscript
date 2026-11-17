@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
-import { memo } from '../../../edag/memo/module.f.mjs'
+import { memo } from '../../../edag/memo/module.f.js'
 import { prepareFunction } from '../prepare/module.f.js'
 import { functionStringify } from '../serializer/module.f.js'
 import { _freshSelf, normalizeLazyReturns, normalizeMemo } from './module.f.js'

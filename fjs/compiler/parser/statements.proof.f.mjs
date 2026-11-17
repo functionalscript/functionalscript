@@ -18,7 +18,7 @@ import { parseFromTokens } from './module.f.js'
 import { expectModule, expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /** A module's AST, which the source must be accepted to have. @type {(source: string) => import('./types.ts').ResolvedModule} */

@@ -67,7 +67,7 @@ expressions may later travel through `Any`/CBOR serialization, but that is
 not a prerequisite.
 
 On JavaScript hosts, run the corpus through
-[`fjs/edag/memo`](../../edag/memo/module.f.mjs) as well. Its observable results,
+[`fjs/edag/memo`](../../edag/memo/module.f.js) as well. Its observable results,
 including sharing and throws, must agree with direct Rust and with the same
 FJS interpreter compiled to Rust. `amnesia` stays
 the oracle ([`../../edag/amnesia/README.md`](../../edag/amnesia/README.md)),
