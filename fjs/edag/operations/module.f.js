@@ -193,16 +193,25 @@ export const invokerWith = run => runtime => {
     return invoke
 }
 
+/**
+ * The array `['args']` reads under `context`. An executor makes it once per
+ * invocation and hands it to every evaluator it builds
+ * ({@link Evaluator}), since a represented array is the same array only by
+ * identity.
+ *
+ * @type {(context: Context) => ValueArray}
+ */
+export const moduleArgs = ({ args }) => ['[]', args]
+
 /** A node in tail position: its value, or the call it leaves for the executor.
  * @template E, S
  * @param {Evaluator<E, S>} evaluator
  * @returns {(node: Over<ExpOp, E>, state: S) => Tail<S>}
  */
 export const operation = evaluator => {
-    const { context, operand, tail, expression, invoke } = evaluator
-    const { args, frame, rest, self, runtime } = context
+    const { context, moduleArgs, operand, tail, expression, invoke } = evaluator
+    const { frame, rest, self, runtime } = context
     const fixed = objectEntry(context, 'fixed')
-    const moduleArgs = /** @type {ValueArray} */ (['[]', args])
     const made = settle(invoke)
 
     /** Make the call a tail evaluation left, where its value is needed now. @type {(evaluation: Tail<S>) => Evaluation<S>} */

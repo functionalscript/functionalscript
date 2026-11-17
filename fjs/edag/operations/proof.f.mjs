@@ -12,7 +12,7 @@
 
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { invokerWith, noBoolean, noIn, operation, staticCall } from './module.f.js'
+import { invokerWith, moduleArgs, noBoolean, noIn, operation, staticCall } from './module.f.js'
 import { read } from '../value/property/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { noRefMap, noStatic, staticIds, staticPath } from '../module.f.js'
@@ -25,6 +25,7 @@ const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
 /** @type {Evaluator<Exp, readonly Exp[]>} */
 const evaluator = {
     context,
+    moduleArgs: moduleArgs(context),
     operand: (e, state) => [[...state, e], vm(context)(e)],
     tail: (e, state) => [[...state, e], vm(context)(e)],
     expression: e => e,

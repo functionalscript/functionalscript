@@ -10,7 +10,7 @@
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm } from '../amnesia/module.f.js'
-import { analysis } from '../analysis/module.f.js'
+import { analysis, identityAnalysis } from '../analysis/module.f.js'
 import { memo, invoke } from './module.f.js'
 import { noBoolean, noIn } from '../operations/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
@@ -248,6 +248,9 @@ export const proof = {
         eq(conditional("??", null, 4), 4)
         eq(conditional("||", 0, 5), 5)
         assertEq(run(['===', ['args'], ['args']]), true)
+        // the same where the table keeps the two reads two nodes: one
+        // array per invocation, not one per node read
+        assertEq(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(['===', ['args'], ['args']])))(context)))), true)
         // Lists beginning with '#' are ordinary data, never table references.
         assertStructurallySame(assertOk(toData(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
     },

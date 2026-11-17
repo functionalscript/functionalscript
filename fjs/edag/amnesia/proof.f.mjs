@@ -200,6 +200,8 @@ export const proof = {
         eq(undef, undefined)
         assertEq(value(['frame', 0]), captured)
         same(['args'], context.args)
+        // one array per invocation, whichever node reads it
+        eq(['===', ['args'], ['args']], true)
         // ... and `context` is threaded, not defaulted: another one is seen.
         /** @type {Context} */
         const other = { frame: ['f'], args: [] }

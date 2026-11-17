@@ -14,13 +14,14 @@
 
 import { isArray } from '../../types/array/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { invokerWith, operation } from '../operations/module.f.js'
+import { invokerWith, moduleArgs, operation } from '../operations/module.f.js'
 import { settle } from '../value/call/module.f.js'
 
 /** An expression in tail position: its value, or the call it leaves. @type {(context: Context, invoke: Invoke) => (e: Exp) => Outcome} */
 const outcome = (context, invoke) => {
     const { memo } = context
     const settled = settle(invoke)
+    const args = moduleArgs(context)
     /** @type {(e: Exp) => Outcome} */
     const last = e => {
         if (!isArray(e)) { return ok(e) }
@@ -28,6 +29,7 @@ const outcome = (context, invoke) => {
         if (established !== undefined) { return ok(established[1]) }
         const run = operation({
             context,
+            moduleArgs: args,
             operand: (e, state) => [state, settled(last(e))],
             tail: (e, state) => [state, last(e)],
             expression: e => e,

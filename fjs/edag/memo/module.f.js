@@ -27,13 +27,14 @@ import { assertOk } from '../../asserts/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { checked, identityAnalysis } from '../analysis/module.f.js'
-import { invokerWith, operation } from '../operations/module.f.js'
+import { invokerWith, moduleArgs, operation } from '../operations/module.f.js'
 import { settle } from '../value/call/module.f.js'
 
 /** The root in tail position: its value, or the call it leaves. @type {(a: Analysis, context: Context, root: Operand, invoke: Invoke) => Outcome} */
 const evaluate = (a, context, root, invoke) => {
     const { nodes, shared, exps } = a
     const settled = settle(invoke)
+    const args = moduleArgs(context)
 
     /** A shared node's established value, where it has one. @type {(index: number, cache: _Cache) => Evaluation<_Cache> | undefined} */
     const established = (index, cache) => {
@@ -72,14 +73,14 @@ const evaluate = (a, context, root, invoke) => {
             const [, index] = e
             const found = established(index, cache)
             if (found !== undefined) { return found }
-            const [next, outcome] = operation({ context, operand, tail, expression, invoke })(nodes[Number(index)], cache)
+            const [next, outcome] = operation({ context, moduleArgs: args, operand, tail, expression, invoke })(nodes[Number(index)], cache)
             return retained(index, next, settled(outcome))
         }
         if (!isArray(root)) { return [cache, ok(root)] }
         const [, index] = root
         const found = established(index, cache)
         if (found !== undefined) { return found }
-        const [next, outcome] = operation({ context, operand, tail, expression, invoke })(nodes[Number(index)], cache)
+        const [next, outcome] = operation({ context, moduleArgs: args, operand, tail, expression, invoke })(nodes[Number(index)], cache)
         return retained(index, next, outcome)
     }
 
