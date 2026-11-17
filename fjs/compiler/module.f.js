@@ -32,7 +32,7 @@
 
 import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.js'
 import { errorLocation } from './parser/module.f.js'
-import { resolve } from './edag/module.f.js'
+import { resolve, resolveOver } from './edag/module.f.js'
 import { toRustMarked } from './rust/module.f.js'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.js'
 import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.js'
@@ -253,22 +253,24 @@ const diagnostic = inputFileName => parseError =>
 const isAuthored = path => path.endsWith('.f.js')
 
 /** Nothing checked yet. @type {_Checked} */
-const noneChecked = { checked: 0, refused: 0 }
+const noneChecked = { checked: 0, refused: 0, linked: null }
 
 /**
  * Checks one `.f.js`: linked by `./edag` into its graph, as every output
- * begins, and nothing written. A refusal is reported on `stderr` where the
+ * begins, and nothing written. It is linked over the modules the files
+ * before it linked, so a module many files import is read, parsed and
+ * lowered once in a run, not once per importer. A refusal is reported on `stderr` where the
  * command would report it, and counted rather than returned, so the check
  * goes on to the next file and a run names every file that fails, not the
  * first.
  *
  * @type {(path: string) => (count: _Checked) => Effect<ReadWhole | ResolveFileModule | Write, _Checked, IoChannel>}
  */
-const checkOne = path => ({ checked, refused }) => resultStep(
-    resolve(path),
+const checkOne = path => ({ checked, refused, linked }) => resultStep(
+    resolveOver(path, linked),
     result => result[0] === 'ok'
-        ? pureOk({ checked: checked + 1, refused })
-        : mapStep(errorLine(diagnostic(path)(result[1])), () => ({ checked: checked + 1, refused: refused + 1 })))
+        ? pureOk({ checked: checked + 1, refused, linked: result[1][0] })
+        : mapStep(errorLine(diagnostic(path)(result[1])), () => ({ checked: checked + 1, refused: refused + 1, linked })))
 
 /**
  * `fjs compile` with no arguments: every `.f.js` under the source root —

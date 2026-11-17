@@ -4,7 +4,7 @@
  * @import { _Load } from './types.ts'
  */
 
-import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, _walk, jsonValue, parse, readSource } from './module.f.js'
+import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _programOver, _rootSource, _walk, jsonValue, parse, readSource } from './module.f.js'
 import { pureError, pureOk } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.js'
@@ -85,6 +85,42 @@ export const proof = {
         // The loader runs for a module root alone.
         assertStructurallySame(run(_program(pureError('no loader'), finish)('data.json'))[1], ['ok', jsonValue({ x: [1] })])
         assertStructurallySame(run(_program(pureError('no loader'), finish)('main.f.js'))[1], ['error', 'no loader'])
+    },
+    // A program walked over the modules an earlier one completed reuses them
+    // as they were: the module is the same object, and its file is not read
+    // again, which a second file system that does not hold it shows.
+    programOver: () => {
+        /** @type {_Load<readonly unknown[], readonly unknown[], never>} */
+        const load = {
+            json: value => ['json', value],
+            select: module => module,
+            module: ({ path }, imports) => ok(['module', path, imports]),
+        }
+        /** @type {(module: readonly unknown[]) => readonly unknown[]} */
+        const finish = module => module
+        const over = _programOver(pureOk(load), finish)
+        const shared = 'export default 1;'
+        const first = assertOk(virtualAt({
+            'a.f.js': [utf8('import s from "./s.f.js"; export default s;')],
+            's.f.js': [utf8(shared)],
+        })(over('a.f.js', null))[1])
+        const [complete, a] = first
+        assertStructurallySame(a, ['module', 'a.f.js', [['module', 's.f.js', []]]])
+        // `s.f.js` is held, but empty: read again, it would export nothing
+        const second = assertOk(virtualAt({
+            'b.f.js': [utf8('import s from "./s.f.js"; export default [s];')],
+            's.f.js': [utf8('')],
+        })(over('b.f.js', complete))[1])
+        const [after, b] = second
+        /** The first import a walked module was completed over. @type {(module: unknown) => unknown} */
+        const firstImport = module => /** @type {readonly (readonly unknown[])[]} */ (module)[2][0]
+        assertEq(firstImport(b), firstImport(a))
+        // a root already complete is answered as it was
+        assertEq(assertOk(virtualAt({ 'a.f.js': [utf8('')] })(over('a.f.js', after))[1])[1], a)
+        // a JSON root completes no module
+        const json = assertOk(virtualAt({ 'd.json': [utf8('[1]')] })(over('d.json', after))[1])
+        assertEq(json[0], after)
+        assertStructurallySame(json[1], jsonValue([1]))
     },
     imports: () => {
         const run = virtual(emptyState)
