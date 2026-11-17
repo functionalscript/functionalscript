@@ -9,7 +9,7 @@
  * @module
  */
 
-import { main } from './module.f.mjs'
+import { main } from './module.f.js'
 import { run } from './effects/spidermonkey/module.mjs'
 
 await run(main)

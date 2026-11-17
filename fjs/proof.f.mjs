@@ -8,7 +8,7 @@ import { exitCode } from './effects/node/module.f.js'
 import { assert, assertEq } from './asserts/module.f.js'
 import { pureError, pureOk } from './effects/module.f.js'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.js'
-import { main } from './module.f.mjs'
+import { main } from './module.f.js'
 import { vec8 } from './types/bit_vec/module.f.js'
 import { utf8 } from './text/module.f.js'
 

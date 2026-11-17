@@ -23,7 +23,7 @@ Stays out:
 - `basen/` — `base64`, `cbase32`, `base128` are transfer encodings, not media
   types.
 
-There is no `media/fjs/` entry: `fjs/module.f.mjs` is only the CLI
+There is no `media/fjs/` entry: `fjs/module.f.js` is only the CLI
 dispatcher, so a `media/fjs/` module appears only if a library-form
 FunctionalScript format module comes to exist.
 

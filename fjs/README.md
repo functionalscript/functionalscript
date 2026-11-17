@@ -167,7 +167,7 @@ This mirrors:
 
 - `export const proof` — the convention for proof/test modules.
 - `main` entry-point naming from C, C++, and Rust.
-- `fjs/module.f.mjs` itself, which uses `export const main`.
+- `fjs/module.f.js` itself, which uses `export const main`.
 
 ### Passing arguments
 
@@ -190,6 +190,6 @@ fjs run ./my-tool.f.mjs hello foo bar   # hello's options.args === ['foo', 'bar'
 
 ```
 fjs/module.mjs         — Node.js entry point (runs main via the node runner)
-fjs/module.f.mjs       — FunctionalScript command dispatcher (Commands list + dispatch)
+fjs/module.f.js       — FunctionalScript command dispatcher (Commands list + dispatch)
 fjs/cli/module.f.js   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
 ```

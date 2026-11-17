@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { helpReference } from '../../cli/module.f.js'
-import { commands } from '../../module.f.mjs'
+import { commands } from '../../module.f.js'
 import { pureOk } from '../../effects/module.f.js'
 import { element } from '../../media/html/module.f.js'
 import { concat } from '../../types/string/module.f.js'

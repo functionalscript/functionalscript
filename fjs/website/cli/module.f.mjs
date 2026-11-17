@@ -12,7 +12,7 @@
  * @import { Entry } from './types.ts'
  */
 
-import { commands } from '../../module.f.mjs'
+import { commands } from '../../module.f.js'
 import { helpMeta, helpReference } from '../../cli/module.f.js'
 import { cliDir, fileHref, pageHref, pageTitle, shell, siteDescription } from '../page/module.f.js'
 import { codeBlock } from '../demo/code/module.f.js'

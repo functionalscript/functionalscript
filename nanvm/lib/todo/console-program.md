@@ -52,7 +52,7 @@ capturing computation results and throws, are tracked in
 
 **Open question:** the earlier default-export/autocall proposal conflicts with
 the shipped `fjs run`, which runs a module's exported `main` as a `NodeProgram`
-([`fjs/module.f.mjs`](../../../fjs/module.f.mjs)) and refuses a module without
+([`fjs/module.f.js`](../../../fjs/module.f.js)) and refuses a module without
 one, and with the harness's [`run`](../../harness/src/lib.rs), under
 which no export name is mandatory and exported functions are never invoked
 just because the module was loaded. Whether the native CLI mirrors
