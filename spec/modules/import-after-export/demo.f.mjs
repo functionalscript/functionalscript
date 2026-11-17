@@ -9,7 +9,7 @@
  */
 
 import alternative from './alternative.f.js'
-import { refusedDemo } from '../../../fjs/compiler/refused_demo/module.f.mjs'
+import { refusedDemo } from '../../../fjs/compiler/refused_demo/module.f.js'
 
 /**
  * The message the page proposes for the refusal: the reason, at the

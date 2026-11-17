@@ -18,7 +18,7 @@
  * @import { Mkdir, NodeProgram, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
  */
 
-import { buildScriptPath, wasmTarget } from '../../nanvm/demos/module.f.mjs'
+import { buildScriptPath, wasmTarget } from '../../nanvm/demos/module.f.js'
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.js'
 import { exitStep, writeFiles } from '../../effects/node/module.f.js'

@@ -19,7 +19,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -100,6 +100,7 @@ export const proof = {
     paths: () => {
         assertEq(samplePath('spec/operators/comma'), 'spec/operators/comma/sample.f.js')
         assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
+        assertEq(placeName({ name: 'hello', directory: 'spec/hello' }), 'hello')
         assertEq(rustMarkedPath('hello'), 'nanvm/demos/wasm/hello.rs.marked')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat.marked`)

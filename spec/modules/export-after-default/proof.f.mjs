@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
-import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.mjs'
+import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.js'
 import alternative from './alternative.f.js'
 import { demo, sample, suggestion } from './demo.f.mjs'
 

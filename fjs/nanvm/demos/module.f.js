@@ -9,7 +9,7 @@
  * **And the script that builds the module the pages load**,
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
  * [`publish`](./publish/module.f.js) copying it into `nanvm/demos/wasm/`
- * with each sample's WAT beside it, then [`marked`](./marked/module.f.mjs)
+ * with each sample's WAT beside it, then [`marked`](./marked/module.f.js)
  * writing each sample's Rust there with each word's kind in a tag, which the
  * sample's page reads to draw the Rust coloured. The website deploy builds
  * these ignored assets before generating pages. The script
@@ -43,7 +43,7 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
-import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.js'
+import { buildDirectory, placeName, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.js'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -117,35 +117,39 @@ export const callStatement = ([input, [kind, text]]) => {
  * @type {(places: readonly (Place | FunctionPlace)[]) => string}
  */
 export const modules = places => {
-    const sorted = places.toSorted((a, b) => cmp(a.name)(b.name))
+    const sorted = places.toSorted((a, b) => cmp(placeName(a))(placeName(b)))
     /** @type {readonly FunctionPlace[]} */
     const functions = sorted.flatMap(place => hasEntry(place, 'calls') ? [place] : [])
     return [
-        generatedHeader('`fjs run ./fjs/nanvm/demos/module.f.mjs`', 'add or remove a sample instead'),
+        generatedHeader('`fjs run ./fjs/nanvm/demos/module.f.js`', 'add or remove a sample instead'),
         '',
-        ...sorted.map(({ name }) => `pub mod ${name};`),
-        ...sorted.flatMap(({ name }) => [
+        ...sorted.map(place => `pub mod ${placeName(place)};`),
+        ...sorted.flatMap(place => {
+            const name = placeName(place)
+            return [
             '',
             `/// Loads the \`${name}\` sample.`,
             '#[unsafe(no_mangle)]',
             `pub extern "C" fn ${name}() -> i32 {`,
             `    crate::export(${name}::module::<nanvm_lib::naive::Naive>)`,
             '}',
-        ]),
+        ]}),
         ...(functions.length === 0 ? [] : [
             '',
             '/// The calls each function sample lists, each answered as JavaScript answers it.',
             '#[cfg(test)]',
             'mod tests {',
             '    use nanvm_lib::naive::Naive;',
-            ...functions.flatMap(({ name, calls }) => [
+            ...functions.flatMap(place => {
+                const name = placeName(place)
+                return [
                 '',
                 '    #[test]',
                 `    fn ${name}() {`,
                 `        let entry = crate::load(super::${name}::module::<Naive>).unwrap();`,
-                ...calls.flatMap(callStatement),
+                ...place.calls.flatMap(callStatement),
                 '    }',
-            ]),
+            ]}),
             '}',
         ]),
         '',
@@ -162,7 +166,7 @@ export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
 export const publishPath = 'fjs/nanvm/demos/publish/module.f.js'
 
 /** The program that writes each sample's marked Rust beside them. */
-export const markedPath = 'fjs/nanvm/demos/marked/module.f.mjs'
+export const markedPath = 'fjs/nanvm/demos/marked/module.f.js'
 
 /**
  * The script that builds the module and its disassembly: a `gen.` name, run
@@ -187,7 +191,7 @@ case "$(rustc --version)" in
 *) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run ./dev.sh sh ./${buildScriptPath}" >&2; exit 1 ;;
 esac
 cargo build -p nanvm-demos --release --target ${wasmTarget}
-node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
+node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(placeName).join(' ')}
 node ./fjs/module.mjs run ./${markedPath}
 `
 
@@ -197,7 +201,7 @@ node ./fjs/module.mjs run ./${markedPath}
  *
  * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, void, IoChannel>}
  */
-const compileSample = ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))
+const compileSample = place => compileFile(noRuntime)(samplePath(place.directory), rustPath(placeName(place)))
 
 /**
  * Compiles every sample into its `.rs`, in order, stopping at the first the

@@ -19,7 +19,7 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.js'
 import { installNode } from '../node/module.f.js'
-import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
+import { buildScriptPath } from '../../nanvm/demos/module.f.js'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.js'
 
 /** Branch and commit metadata shared by the Rustdoc bars and website pages. */

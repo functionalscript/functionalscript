@@ -105,7 +105,7 @@ export const report = compileAs(sampleName)
 export const excerpt = (text, line, column, width) => {
     const number = String(line)
     const gutter = ' '.repeat(number.length)
-    return `${number} | ${text.split('\n')[line - 1] ?? ''}\n${gutter} | ${' '.repeat(column - 1)}${'^'.repeat(width)}`
+    return `${number} | ${text.split('\n')[Number(line - 1)] ?? ''}\n${gutter} | ${' '.repeat(column - 1)}${'^'.repeat(width)}`
 }
 
 /**

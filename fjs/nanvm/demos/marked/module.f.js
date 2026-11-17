@@ -11,7 +11,7 @@
  * `nanvm/demos/gen.build.sh`, runs this after `publish`.
  *
  * Each sample is compiled by the route `fjs compile` takes to the committed
- * `.rs` ([`generate`](../module.f.mjs)), up to the text it writes, so a
+ * `.rs` ([`generate`](../module.f.js)), up to the text it writes, so a
  * marked file's text is its `.rs`, byte for byte.
  *
  * Nothing is written until every sample has its marked Rust: a sample the
@@ -19,7 +19,7 @@
  * does. Then each `.rs.marked` in the directory that names no listed sample
  * is removed, as `publish` removes a stale WAT; any other file there is kept.
  *
- * `fjs run ./fjs/nanvm/demos/marked/module.f.mjs`
+ * `fjs run ./fjs/nanvm/demos/marked/module.f.js`
  *
  * @module
  *
@@ -35,7 +35,7 @@ import { foldStep, ioError, pureError, pureOk, step } from '../../../effects/mod
 import { exitStep, writeFiles } from '../../../effects/node/module.f.js'
 import { toTagged } from '../../../text/marked/module.f.js'
 import { samples } from '../samples/module.f.js'
-import { buildDirectory, rustMarkedExtension, rustMarkedPath, rustPath, samplePath } from '../page/module.f.js'
+import { buildDirectory, placeName, rustMarkedExtension, rustMarkedPath, rustPath, samplePath } from '../page/module.f.js'
 import { removeStale } from '../publish/module.f.js'
 
 /**
@@ -47,9 +47,9 @@ import { removeStale } from '../publish/module.f.js'
 const compiled = places => foldStep(
     pureOk(places),
     /** @type {readonly (readonly [string, Marked])[]} */ ([]),
-    ({ name, directory }) => done => step(
-        _compileMarked(noRuntime)(samplePath(directory), rustPath(name)),
-        ([tag, value]) => tag === 'error' ? pureError(ioError({ message: value })) : pureOk([...done, [name, value]])))
+    place => done => step(
+        _compileMarked(noRuntime)(samplePath(place.directory), rustPath(placeName(place))),
+        ([tag, value]) => tag === 'error' ? pureError(ioError({ message: value })) : pureOk([...done, [placeName(place), value]])))
 
 /**
  * Compiles every one of `places`, then writes each one's marked Rust, then
@@ -61,7 +61,7 @@ export const writeMarked = places => step(
     compiled(places),
     rusts => step(
         writeFiles(rusts.map(([name, marked]) => [rustMarkedPath(name), toTagged(marked)])),
-        () => removeStale(rustMarkedExtension)(buildDirectory, places.map(({ name }) => name))))
+        () => removeStale(rustMarkedExtension)(buildDirectory, places.map(placeName))))
 
 /** @type {NodeProgram} */
 export const main = _options => exitStep(writeMarked(samples))

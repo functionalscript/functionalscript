@@ -25,7 +25,7 @@ import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } 
 import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.mjs'
 import { generate as generateIndependentTailRecipes, path as independentTailRecipesPath } from '../fast/independent_tail_recipes/module.f.js'
 import { generate as generateMixedSelfUses, path as mixedSelfUsesPath } from '../fast/mixed_self_uses/module.f.js'
-import { generate as generateRuntime } from '../runtime/module.f.mjs'
+import { generate as generateRuntime } from '../runtime/module.f.js'
 
 /**
  * The Rust files {@link generateRustTests} writes before the runtime, in
@@ -53,7 +53,7 @@ const rustFiles = () => [
  * directly prepared join, independent terminal-recipe and mixed-self fixtures under
  * `nanvm/harness/gen.fast/`, the command set
  * `nanvm/effects-node/src/gen.commands.rs`, and the runtime compiled for
- * `nanvm-lib` and as EDAG ([`../runtime`](../runtime/module.f.mjs)).
+ * `nanvm-lib` and as EDAG ([`../runtime`](../runtime/module.f.js)).
  *
  * @type {() => Effect<_CompileOp, void, IoChannel>}
  */
