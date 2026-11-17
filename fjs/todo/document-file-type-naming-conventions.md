@@ -38,9 +38,9 @@ only with `import type` or JSDoc `@import`.
 
 Tests other modules. Usually exports only `proof` (the proof tree). See [`fjs/emergent_testing/README.md`](../emergent_testing/README.md).
 
-- `proof.f.mjs` — authored FunctionalScript proof. Like implementation modules,
-  proofs move to `.f.js` only in parser-compatible, dependency-closed groups
-  once authored-`.f.js` package support exists.
+- `proof.f.mjs` or `proof.f.js` — authored FunctionalScript proof. Like an
+  implementation module, a proof is `.f.js` once the compiler accepts it whole,
+  and it imports no `.f.mjs` then.
 - `proof.mjs` — vanilla JavaScript proof, used when the proof needs host
   capabilities that FunctionalScript excludes.
 

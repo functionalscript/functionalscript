@@ -399,7 +399,7 @@ source rest binding in that future case or silently admit initializers now.
 - [x] Prove represented direct/indirect and built-in-method conversion
       against the EDAG renderer, including captures, nested functions and
       `self`: see the
-      [conversion proofs](../../fjs/edag/value/convert/proof.f.mjs),
+      [conversion proofs](../../fjs/edag/value/convert/proof.f.js),
       [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.mjs)
       and [shared corpus](../../fjs/nanvm/proof.f.mjs).
 - [x] Preserve ordinary callable exports, nested returns, arity, callbacks

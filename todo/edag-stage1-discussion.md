@@ -275,7 +275,7 @@ optional chains and their steps, `Number`, `String`, `typeof`, `throw`, comma
 anchors, fixed/rest functions, captures and `self`. The
 [compiler EDAG proofs](../fjs/compiler/edag/proof.f.mjs),
 [Memo proofs](../fjs/edag/memo/proof.f.mjs) and
-[Amnesia proofs](../fjs/edag/amnesia/proof.f.mjs) cover these paths. The current
+[Amnesia proofs](../fjs/edag/amnesia/proof.f.js) cover these paths. The current
 [node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
 limits still apply, including no unary `+`; an authored comma is admitted in
 parentheses ([comma](../spec/operators/comma/README.md)).
@@ -1602,7 +1602,7 @@ profile, including captured sharing and `self` where supported. Structural FJS
 source output is checked by parsing and lowering it again. Runtime-value output
 is checked at its target JavaScript compile/load boundary; it promises behavior,
 not a structural FJS source round trip. See the
-[value-emitter proofs](../fjs/compiler/serializer/value/proof.f.mjs) and
+[value-emitter proofs](../fjs/compiler/serializer/value/proof.f.js) and
 [runtime-conversion proofs](../fjs/edag/value/to_unknown/proof.mjs).
 Internal or unsupported operations remain explicit refusals in a partial profile.
 

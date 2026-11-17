@@ -320,7 +320,7 @@ For example, the admitted source
 `n => { const r = (() => { n = n + 1; return 10; })(); return [n, r]; }`
 returns `[3, 10]` at input `2`: the inner return finishes the immediate call,
 while the outer return reads the updated version of `n`. The
-[parser ownership proof](parser/control_flow.proof.f.mjs),
+[parser ownership proof](parser/control_flow.proof.f.js),
 `immediateReturnKeepsItsOwnOwnerWhileWritesEscape`, pins that distinction.
 [Binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
 and `expressionBlockAssignmentBoundaries`, cover admitted writes and retained
@@ -546,10 +546,10 @@ helpers.
 
 | Corpus | What it establishes |
 | --- | --- |
-| [Parser/source](parser/control_flow.proof.f.mjs) | Pins conditional admission, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. [Normal conditional proofs](parser/normal_if.proof.f.mjs) and [mixed-return proofs](parser/mixed_if.proof.f.mjs) cover immutable joins, exact owners and remaining admission limits. |
+| [Parser/source](parser/control_flow.proof.f.js) | Pins conditional admission, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. [Normal conditional proofs](parser/normal_if.proof.f.js) and [mixed-return proofs](parser/mixed_if.proof.f.js) cover immutable joins, exact owners and remaining admission limits. |
 | [Normalized FAST](../edag/from_fast/control_flow/module.f.js) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
 | [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
-| [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.mjs) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. JavaScript also checks `nestedRecipe` and `normalPayload` through two public source generations. |
+| [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.js) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. JavaScript also checks `nestedRecipe` and `normalPayload` through two public source generations. |
 | [Source fallback](../edag/to_fast/source/loops/fallback.proof.f.mjs) | Retained loop plans precede the structural owning-backedge refusal. One-pass inversion preserves ordinary self calls and identity; the [native public route](serializer/value/control_flow.proof.mjs) separately preserves parser readback and deep `while` execution. |
 
 Result equality does not establish graph identity. Source parsing, graph/source

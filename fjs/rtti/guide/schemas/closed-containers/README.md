@@ -78,7 +78,7 @@ type (the cast stays sound), and the rendered type additionally admits values
 the schema rejects. A static type cannot certify acceptance; that direction is
 the harmless one.
 
-[`parse/proof.f.mjs`](../../../parse/proof.f.mjs) and
+[`parse/proof.f.js`](../../../parse/proof.f.js) and
 [`validate/proof.f.mjs`](../../../validate/proof.f.mjs) pin closedness on both
 kinds.
 

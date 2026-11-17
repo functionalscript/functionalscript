@@ -143,8 +143,8 @@ of their own — among them:
 | [`js/tokenizer/proof.f.mjs`](../../../../js/tokenizer/proof.f.mjs) | nested in a `map` |
 | [`website/page/module.f.js`](../../../../website/page/module.f.js) | nested in a `map` |
 | [`media/datajs/parser/proof.f.mjs`](../../../../media/datajs/parser/proof.f.mjs) | nested in a conditional |
-| [`ci/deno/proof.f.mjs`](../../../../ci/deno/proof.f.mjs) | nested two deep |
-| [`ci/rust/proof.f.mjs`](../../../../ci/rust/proof.f.mjs) | nested in a `map` |
+| [`ci/deno/proof.f.js`](../../../../ci/deno/proof.f.js) | nested two deep |
+| [`ci/rust/proof.f.js`](../../../../ci/rust/proof.f.js) | nested in a `map` |
 
 An LL(1) token grammar cannot hold that nesting, and it should not try: this
 is the rule the grammar already follows — what one LL(1) layer cannot decide
@@ -368,7 +368,7 @@ the source view rests on.
       [`git/testlib.f.js`](../../../../git/testlib.f.js)'s `mergePayload`
       (`'Merge tag \'vt\''`), its `rootTree` (`\0` and `\xNN` in ordinary
       data),
-      [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s
+      [`media/datajs/vectors/matrix/proof.f.js`](../../../../media/datajs/vectors/matrix/proof.f.js)'s
       `unrenderable` (escaped backticks in a template), and
       [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s
       `indentedPart`, which is `` `\${${reference}}` `` — an escaped substitution opener and a

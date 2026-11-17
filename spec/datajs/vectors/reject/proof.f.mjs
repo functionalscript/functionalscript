@@ -25,7 +25,7 @@ const named = (vector, name) => {
 const hosts = ['accepts', 'syntaxError', 'runtimeError']
 
 // The shape of the set, which the reader's proof in
-// `fjs/media/datajs/vectors/proof.f.mjs` relies on when it runs every
+// `fjs/media/datajs/vectors/proof.f.js` relies on when it runs every
 // document through the reader.
 export const proof = {
     // Every vector names itself, its class and the one rule it breaks with a

@@ -1,7 +1,7 @@
 /**
  * Keep source syntax/admission separate from the control-flow model. These
  * characterizations deliberately name the current unsupported forms; supplied
- * FAST conformance lives in edag/from_fast/control_flow.proof.f.mjs.
+ * FAST conformance lives in edag/from_fast/control_flow.proof.f.js.
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'

@@ -366,7 +366,7 @@ The construction proofs retain the delivered integration cases:
   shared normal joins, scoped completion dispatch and bounded join growth.
 - [Root matching](./loop/root/proof.f.mjs) pins positive and negative invocation
   forms, retained entry values, simultaneous transitions, rest recipes and arity.
-- [Owning-tail normalization](./loop/owning/proof.f.mjs),
+- [Owning-tail normalization](./loop/owning/proof.f.js),
   [native JavaScript execution](../../compiler/serializer/value/owning_tail_calls.proof.mjs)
   and the [Rust fixture](../../../nanvm/harness/fixtures/owning-self-tail-calls.mjs)
   cover invocation ownership across terminal and ordinary loops, including

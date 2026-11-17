@@ -275,7 +275,7 @@ hardening TODO after the baseline interpreter exists.
       which the parentheses put outside the region and which therefore runs on the
       `undefined` a short-circuit produced. Done: `chains` in
       [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs) and the chain
-      proofs in [`../../edag/amnesia/proof.f.mjs`](../../edag/amnesia/proof.f.mjs).
+      proofs in [`../../edag/amnesia/proof.f.js`](../../edag/amnesia/proof.f.js).
 - [x] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.

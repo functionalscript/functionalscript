@@ -64,7 +64,7 @@ not yet mean that every discovered file forms a generic AST. On the
 source files and reports 697 parsed, 499 failed, 1,196 total visits (including a
 JSON dependency). It exits with code 1 and does not publish a partial graph.
 
-For example, [the assertion proofs](../asserts/proof.f.mjs) have function bodies
+For example, [the assertion proofs](../asserts/proof.f.js) have function bodies
 that end after assertion calls without an explicit return; the current block
 syntax still requires a terminal form. Many first diagnostics occur at closing
 blocks, while other files expose additional syntax gaps. Each diagnostic names

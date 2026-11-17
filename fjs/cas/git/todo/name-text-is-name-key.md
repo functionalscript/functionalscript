@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.js) reads a tree entry's name and mode as
+[`module.f.js`](../module.f.js) reads a tree entry's name and mode as
 text through a private `nameText = name => codePointListToString(toArray(name))`.
 [`fjs/git/refstore/name`](../../../git/refstore/name/module.f.js) exports
 the same function, to the character, as `nameKey`: one code unit per byte,

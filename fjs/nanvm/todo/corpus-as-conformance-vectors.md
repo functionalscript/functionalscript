@@ -6,10 +6,10 @@
 ### Problem
 
 Every case in [`fjs/nanvm/`](../README.md) now denotes an EDAG expression:
-`caseExp` in [`module.f.mjs`](../module.f.js) derives it, the proof
+`caseExp` in [`module.f.js`](../module.f.js) derives it, the proof
 validates it against the [`fjs/edag`](../../edag/README.md) schema and runs it
 through `amnesia` with the corpus's shared nodes supplied as memoized values.
-[`rust/module.f.mjs`](../rust/module.f.js) prints direct operator calls.
+[`rust/module.f.js`](../rust/module.f.js) prints direct operator calls.
 Authoring is shared, but the corpus still needs to exercise `fjs/edag/memo`
 and compare direct Rust execution with interpretation of the same EDAG as data.
 

@@ -41,7 +41,7 @@ shape — every vector named and classed with a non-empty string, the ids one of
 kind, the document and the graph present. Running a set against an
 implementation is a second thing, and where it lives depends on the role: the
 three writer-side sets are run from those same files, and the reader's two from
-the reader's side, in `fjs/media/datajs/vectors/proof.f.mjs`. Below the matrix
+the reader's side, in `fjs/media/datajs/vectors/proof.f.js`. Below the matrix
 says which run is where. A third-party implementation is closed by its own
 harness, reading the same sets.
 
@@ -56,7 +56,7 @@ harness, reading the same sets.
 The writer has landed, so those three name an implementation that exists rather
 than one to come, and every set is now run against it. The runs are in two
 places, by which role they are about. **The reader's** are with the reader, in
-[`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs):
+[`fjs/media/datajs/vectors/proof.f.js`](../../../fjs/media/datajs/vectors/proof.f.js):
 every accept document read to the graph its vector asserts, and every reject
 document refused — each by the surface its form calls for, a string of code units
 to `tryParse` and a byte record to `tryParseBytes`, so a byte record tests the
@@ -420,7 +420,7 @@ or read a passing corpus as more than it is.
 
   A harness that can see *where* a refusal happened concludes more, and one
   exists: the reader proof in
-  [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs)
+  [`fjs/media/datajs/vectors/proof.f.js`](../../../fjs/media/datajs/vectors/proof.f.js)
   hands a byte record to the reader's byte path and, for the two rules only
   bytes can break, requires that rule's own words rather than any refusal. Under
   that check the vector does discriminate: a decoder that substitutes U+FFFD

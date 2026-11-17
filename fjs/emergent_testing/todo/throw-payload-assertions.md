@@ -10,12 +10,12 @@ hand-rolled `try`/`catch` throw-test with the structural [`throw`](../README.md#
 marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f.mjs` files
 (FunctionalScript itself has no `try`/`catch` and isn't planning one soon). Codex flagged the
 regression this causes on that PR
-([`fjs/asserts/proof.f.mjs:22`](../../asserts/proof.f.mjs#L22)): `defaultTest` in
-[`module.f.mjs`](../module.f.js) treats *any* caught exception under `throw` as a pass — it
+([`fjs/asserts/proof.f.js:22`](../../asserts/proof.f.js#L22)): `defaultTest` in
+[`module.f.js`](../module.f.js) treats *any* caught exception under `throw` as a pass — it
 never inspects *what* was thrown. The `try`/`catch` versions it replaced did:
 
 ```ts
-// before (fjs/asserts/proof.f.mjs, pre-#1295)
+// before (fjs/asserts/proof.f.js, pre-#1295)
 assertThrowsCustomMsg: () => { throws(() => assert(false, 'oops'), 'oops') },
 assertEqThrowsOnUnequal: () => {
     try { assertEq(1, 2) } catch (e) {
@@ -27,9 +27,9 @@ assertEqThrowsOnUnequal: () => {
 
 Under the plain `throw` key, `assert(false, 'oops')` throwing `'anything'` instead of `'oops'`,
 `assertEq(1, 2)` throwing the wrong tuple, or `todo()` throwing the wrong sentinel would all
-still pass. The same gap exists in `fjs/types/result/proof.f.mjs`'s `unwrapError` (dropped the
+still pass. The same gap exists in `fjs/types/result/proof.f.js`'s `unwrapError` (dropped the
 check that `unwrap(error('oops'))` throws exactly `'oops'`, not some wrapped value) and
-`fjs/cas/cli/proof.f.mjs`'s `mainListCorruptStore` (only checks *that* the storage error
+`fjs/cas/cli/proof.f.js`'s `mainListCorruptStore` (only checks *that* the storage error
 surfaces, which was already all it checked).
 
 **Why this is low-severity, not a correctness gap.** In FunctionalScript, `throw` is closer to
@@ -72,7 +72,7 @@ is a live example (it isn't the shape we need here, since it captures a rejected
 already works and is already discovered by `fjs t` — `shouldLoad` in
 [`fjs/dev/module.f.js`](../../dev/module.f.js#L44) matches any `*proof.ts` filename alongside
 `*.f.ts` / `*.f.mjs`). AGENTS.md's `.f.mjs` rule needs no change: it never applied to `proof.ts` in the first
-place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.mjs` is simply to move
+place. The fix for `fjs/asserts/proof.f.js` and `fjs/types/result/proof.f.js` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,
 `assertEqThrowsOnUnequal3`, `todoThrows`, `unwrapError`) into a sibling `proof.ts` in the same
 directory, using ordinary `try`/`catch`, while the rest of each module's coverage stays in
@@ -172,4 +172,4 @@ Playwright bridge.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
 - [browser-testing](./browser-testing.md) — shared browser-side execution and reporting.
-- `fjs/asserts/proof.f.mjs`, `fjs/types/result/proof.f.mjs` — the sites that lost payload checks.
+- `fjs/asserts/proof.f.js`, `fjs/types/result/proof.f.js` — the sites that lost payload checks.

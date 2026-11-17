@@ -52,7 +52,7 @@ Three semantic differences to respect while migrating, none of them blocking:
 - **`undefined` and `bigint`.** Native drops `undefined` object fields, turns
   them into `null` inside arrays, and throws on `bigint`. `serialize` takes
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
-  dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs`'s omission test keeps
+  dropping — so `fjs/protocol/mcp/stdio/proof.f.js`'s omission test keeps
   its meaning. `bigint` values (token payloads, for one) need `fjs/compiler`'s
   `_stringifyTree`, which already handles them.
 - **Types.** `serialize` demands `Unknown`; the proof sites pass domain types

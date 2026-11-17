@@ -399,7 +399,7 @@ failing conditions, continue re-tests, multiple exits and following code.
 They compare execution and the graph/text fixed point from the first source
 parse, including the 18-state transfer and owning-return cases.
 
-The [classic-for proofs](../../../fjs/compiler/parser/for.proof.f.mjs) cover
+The [classic-for proofs](../../../fjs/compiler/parser/for.proof.f.js) cover
 header scope and shadowing, optional clauses, update timing, nested transfers,
 switch continues, owning function exits, required failures and unreachable
 source checks through parsing, normalization and EDAG execution.

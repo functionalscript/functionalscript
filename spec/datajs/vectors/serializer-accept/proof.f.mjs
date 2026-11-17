@@ -79,7 +79,7 @@ export const proof = {
     // The output is read back through this repository's reader, so a reader
     // and a writer wrong in compensating ways would agree. What keeps that
     // from being circular is that the reader is pinned elsewhere and not by
-    // this: `fjs/media/datajs/vectors/proof.f.mjs` runs the whole accept set
+    // this: `fjs/media/datajs/vectors/proof.f.js` runs the whole accept set
     // against it, document by document, with graphs the writer has no part
     // in.
     shipped: () => {

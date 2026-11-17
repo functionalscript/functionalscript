@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.js) owns the value-level operand table once, as
+[`module.f.js`](../module.f.js) owns the value-level operand table once, as
 `operatorOperands`, but the block and statement half of "what are this node's
 children" is re-spelled by every pass that walks FAST. The same two
 expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and

@@ -227,7 +227,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/protocol/mcp/module.f.js` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/protocol/mcp/module.f.js` | 174 | `Ts<T>` | "instantiation excessively deep" |
 | `fjs/protocol/mcp/proof.f.mjs` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/protocol/mcp/stdio/proof.f.mjs` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/protocol/mcp/stdio/proof.f.js` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/sul/id/module.f.mjs` | 45 | `V8` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/text/code_point/module.f.js` | 49 | `List<List<Unit\|null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/btree/find/module.f.mjs` | 17 | `TNode<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
@@ -259,10 +259,10 @@ is the way to refresh this file, not a partial edit.
 | `fjs/rtti/parse/module.f.js` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/parse/module.f.js` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/parse/module.f.js` | 185 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/proof.f.mjs` | 30 | `T` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/parse/proof.f.mjs` | 37 | `ValidationError` | reads an `unknown` the surrounding code has already established |
-| `fjs/rtti/parse/proof.f.mjs` | 316 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/parse/proof.f.mjs` | 316 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/rtti/parse/proof.f.js` | 30 | `T` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/parse/proof.f.js` | 37 | `ValidationError` | reads an `unknown` the surrounding code has already established |
+| `fjs/rtti/parse/proof.f.js` | 316 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/parse/proof.f.js` | 316 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/rtti/validate/module.f.js` | 88 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/validate/module.f.js` | 114 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/validate/module.f.js` | 120 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |

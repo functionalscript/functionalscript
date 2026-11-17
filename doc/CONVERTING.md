@@ -47,7 +47,8 @@ Three things hold for every rule:
   only once it accepts the whole module, and `fjs compile` with no arguments
   (`npm start compile`) then holds every authored `.f.js` to the compiler of
   its revision. A rename also renames every runtime import, type reference
-  and proof import of the module; the proof stays `proof.f.mjs`
+  and proof import of the module. Its proof is renamed by the same rule, on
+  its own: `proof.f.js` once the compiler accepts the proof whole
   ([`fjs/AGENTS.md`](../fjs/AGENTS.md#12-proof-coverage-is-mandatory)).
 
 A construct with no rule here has no admitted rewrite yet: the module keeps
