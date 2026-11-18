@@ -89,7 +89,7 @@ mutable array type. `createServer`'s replacement is barely callable. Three are
 now annotated declarations; `createServer` must stay an inline cast, because
 `Func<O>` has nowhere to put a type parameter.
 
-**Six deleted the assertion itself.** `types/nominal/proof.f.mjs` demonstrates,
+**Six deleted the assertion itself.** `types/nominal/proof.f.js` demonstrates,
 per branding strategy, whether `<` compiles between two branded values. The
 casts *are* the demonstration — they give the values the brand — and a brand is
 unconstructible by design, so the declaration form rejects what the inline cast
@@ -237,14 +237,14 @@ is the way to refresh this file, not a partial edit.
 | `fjs/types/function/compare/module.f.js` | 29 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/types/nominal/module.f.js` | 12 | `<N extends string, R extends string, B>(b: B) => Nominal<N…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/nominal/module.f.js` | 16 | `<T extends string, R extends string, B>(n: Nominal<T, R, B…` | nominal branding of `identity` — no runtime representation |
-| `fjs/types/nominal/proof.f.mjs` | 26 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 27 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 41 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 42 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 49 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 49 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 50 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 50 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 26 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 27 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 41 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 42 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 49 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 49 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 50 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 50 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
 | `fjs/types/patricia_trie/module.f.mjs` | 49 | `readonly [typeof lastHash, typeof storage]` | arrived on `main` after the audit — not measured here |
 | `fjs/types/range_map/module.f.mjs` | 114 | `RangeMapArray<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/rtti/common/module.f.js` | 61 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |

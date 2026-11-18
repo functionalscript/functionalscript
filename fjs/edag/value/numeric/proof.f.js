@@ -7,11 +7,12 @@
  * @import { Primitive } from '../types.ts'
  */
 
-import { assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assertEq, assertOk, assertError, assertStructurallySame, assertNotNullish } from '../../../asserts/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { objectToPrimitive } from '../coercion/module.f.js'
 import { func } from '../function/module.f.js'
 import { binary, unary } from './module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 
@@ -30,7 +31,7 @@ export const proof = {
         ]
         for (const operator of /** @type {const} */ (['+', 'Number'])) {
             for (const [value, expected] of cases) {
-                assertEq(Object.is(assertOk(unary[operator](value)), expected), true)
+                assertEq(Object.is(assertOk(assertNotNullish(entry(unary, operator))(value)), expected), true)
             }
         }
     },
@@ -121,7 +122,7 @@ export const proof = {
             ['%', 2, Infinity, 2], ['%', undefinedValue, 1, NaN],
         ]
         for (const [operator, left, right, expected] of cases) {
-            assertEq(Object.is(assertOk(binary[operator](left, right)), expected), true)
+            assertEq(Object.is(assertOk(assertNotNullish(entry(binary, operator))(left, right)), expected), true)
         }
     },
     bigintArithmetic: () => {
@@ -136,7 +137,7 @@ export const proof = {
             ['%', 7n, -2n, 1n], ['%', -7n, -2n, -1n], ['%', -4n, 2n, 0n],
         ]
         for (const [operator, left, right, expected] of cases) {
-            assertEq(assertOk(binary[operator](left, right)), expected)
+            assertEq(assertOk(assertNotNullish(entry(binary, operator))(left, right)), expected)
         }
     },
     numberBitwise: () => {
@@ -256,20 +257,20 @@ export const proof = {
     mixedNumericTypes: () => {
         for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>'])) {
             for (const value of [0, 1, null, true, false, undefinedValue]) {
-                assertStructurallySame(assertError(binary[operator](1n, value)), ['undefined'])
-                assertStructurallySame(assertError(binary[operator](value, 1n)), ['undefined'])
+                assertStructurallySame(assertError(assertNotNullish(entry(binary, operator))(1n, value)), ['undefined'])
+                assertStructurallySame(assertError(assertNotNullish(entry(binary, operator))(value, 1n)), ['undefined'])
             }
         }
         // Numeric strings still become numbers; only addition concatenates.
         for (const operator of /** @type {const} */ (['-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>'])) {
-            assertStructurallySame(assertError(binary[operator](1n, '2')), ['undefined'])
-            assertStructurallySame(assertError(binary[operator]('2', 1n)), ['undefined'])
+            assertStructurallySame(assertError(assertNotNullish(entry(binary, operator))(1n, '2')), ['undefined'])
+            assertStructurallySame(assertError(assertNotNullish(entry(binary, operator))('2', 1n)), ['undefined'])
         }
     },
     bigintZeroDivisors: () => {
         for (const operator of /** @type {const} */ (['/', '%'])) {
             for (const dividend of [-1n, 0n, 1n]) {
-                assertStructurallySame(assertError(binary[operator](dividend, 0n)), ['undefined'])
+                assertStructurallySame(assertError(assertNotNullish(entry(binary, operator))(dividend, 0n)), ['undefined'])
             }
         }
     },

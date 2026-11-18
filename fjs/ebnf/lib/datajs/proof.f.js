@@ -53,6 +53,16 @@ const alternatives = /**@type {const}*/([
  */
 const statementData = prefix => [...prefix, 'value', wsData, ';', wsData]
 
+// `dataJs` is `[ws, const statements, export statement]`; every statement
+// ends in the one `value` thunk, reached here through the export statement.
+const [, constStatements, lastStatement] = dataJs
+
+const valueRule = lastStatement[4]
+
+assert(typeof valueRule === 'function')
+
+const value = valueRule
+
 /**
  * A statement with its value thunk replaced by the name `'value'`, so the
  * self-naming rule can be compared without expanding it.
@@ -63,16 +73,6 @@ const statementOf = s => {
     assert(s instanceof Array)
     return s.map(r => r === value ? 'value' : force(r))
 }
-
-// `dataJs` is `[ws, const statements, export statement]`; every statement
-// ends in the one `value` thunk, reached here through the export statement.
-const [, constStatements, lastStatement] = dataJs
-
-const valueRule = lastStatement[4]
-
-assert(typeof valueRule === 'function')
-
-const value = valueRule
 
 const idData = /**@type {const}*/(['$', ['repeat', 0, Infinity, {
     letter: { lo: ['set', 0x61, 0x7b], up: ['set', 0x41, 0x5b], _: '_', $: '$' },

@@ -16,6 +16,7 @@ import { factoryStringify } from '../../../compiler/serializer/value/module.f.js
 import { compileCommands, toData, toUnknown } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(value: unknown) => readonly unknown[]} */
 const elements = value => {
@@ -148,7 +149,7 @@ export const proof = {
         const [requests, result] = run(operations)([])(toUnknown(value))
         assertStructurallySame(requests, [factoryStringify(value)])
         assertEq(assertOk(result), runtime)
-        assertEq(runtime.call(3), 5)
+        assertEq(assertNotNullish(entry(runtime, 'call'))(3), 5)
     },
     unavailableRuntime: () => {
         const [, result] = partialRun(compileCommands)({})(null)(toUnknown(['=>', 0, [], 1]))
