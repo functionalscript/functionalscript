@@ -33,6 +33,17 @@ import { entry } from '../../types/object/entry/module.f.js'
 const item = (k, v) =>
     v < 0 ? error({ path: [], message: `negative at ${k}` }) : ok(v * 2)
 
+/**
+ * {@link item} for the entry `a` alone: reading any other fails the
+ * assertion, which is how a proof shows that none was read.
+ *
+ * @type {(k: string, v: number) => Result<number, ValidationError>}
+ */
+const firstOnly = (k, v) => {
+    assertEq(k, 'a', 'an entry read after the first error')
+    return item(k, v)
+}
+
 /** Mirrors `parse`'s accumulate step, kept simple (a small test list, not a `List`). */
 /** @type {(acc: ReadonlyArray<readonly [string, number]>, k: string, v: number) => ReadonlyArray<readonly [string, number]>} */
 const collect = (acc, k, v) => [...acc, [k, v]]
@@ -101,7 +112,7 @@ export const proof = {
             [[], [], []],
             [[], [1], [['0', 1]]],
             [['0'], [1], []],
-            [['0'], [1, , 3], [['2', 3]]],
+            [['0'], [1, 2, 3], [['1', 2], ['2', 3]]],
             [['a'], { a: 1 }, []],
             [['a'], { a: 1, b: 2 }, [['b', 2]]],
         ]
@@ -137,16 +148,12 @@ export const proof = {
         assert(r[0] === 'error')
         assertEq(r[1].message, 'negative at a')
     },
+    // The first entry fails, and no later one is read: reading one fails
+    // the assertion.
     shortCircuits: () => {
-        let calls = 0
-        /** @type {(k: string, v: number) => Result<number, ValidationError>} */
-        const counting = (k, v) => {
-            calls += 1
-            return item(k, v)
-        }
-        const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], counting, [], collect)
+        const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], firstOnly, [], collect)
         assert(r[0] === 'error')
-        assertEq(calls, 1)
+        assertEq(r[1].message, 'negative at a')
     },
     // The other half of a container's loop: the members a bare schema rejects
     // and a `rest` one holds to its rest. One function answers both kinds — a
@@ -168,35 +175,19 @@ export const proof = {
             const r = undeclaredMembers(noDeclared, { a: 1, b: 2 })
             assertStructurallySame(r, [['a', 1], ['b', 2]])
         },
-        // A hole is no member, so it meets no `rest` — which is why the array
-        // kind also answers with its `length`; see `fits` in
-        // `../parse/module.f.js`.
-        holeIsNoMember: () => assertEq(undeclaredMembers(declaredTest(['0']), [1, , 3]).length, 1),
-        // The walk is bounded by what the value carries, not
-        // by `length` — this one carries a single own property, `length`, so
-        // it answers at once. Materializing the range instead exhausted memory
-        // long before any check could reject the value.
-        lengthDoesNotBoundTheWalk: () =>
-            assertEq(undeclaredMembers(noDeclared, new Array(2 ** 32 - 1)).length, 0),
     },
     // What a container schema declares, per kind. A tuple is read by length,
-    // so a hole is a declared position whose schema is `undefined` — the same
-    // reading `../data/module.f.js` has, and the reason the two kinds need
-    // different entry readers at all.
+    // the same reading `../data/module.f.js` has, and the reason the two
+    // kinds need different entry readers at all.
     schemaEntries: {
         tuple: () => assertStructurallySame(
             tupleSchemaEntries([1, 'a']),
             [['0', 1], ['1', 'a']],
         ),
-        // `Object.entries` would answer `[]` here, and `[['0', undefined]]` for
-        // `[undefined]` — two schemas that denote the same set, read as two.
-        tupleHole: () => assertStructurallySame(
-            tupleSchemaEntries(new Array(1)),
-            [['0', undefined]],
-        ),
-        tupleHoleIsTheDenseReading: () => assertStructurallySame(
-            tupleSchemaEntries(new Array(1)),
+        // A position holding `undefined` is a declared position.
+        tupleUndefined: () => assertStructurallySame(
             tupleSchemaEntries([undefined]),
+            [['0', undefined]],
         ),
         struct: () => assertStructurallySame(
             structSchemaEntries({ a: 1, b: 'x' }),

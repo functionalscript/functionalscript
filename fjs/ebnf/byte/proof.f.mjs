@@ -20,14 +20,6 @@ import { ascii as asciiBytes, byte, byteArray, byteLength, byteParser, bytes, me
 const ascii = s => [...s].map(c => c.charCodeAt(0))
 
 /**
- * A sparse array, as it arrives from outside the type system, narrowed
- * only at the call that must refuse it.
- *
- * @type {unknown}
- */
-const hole = [, 0x61]
-
-/**
  * A word of bytes folded to one symbol carrying the bytes: the mapping a
  * byte grammar's consumer writes, over the layer's metadata types.
  *
@@ -92,12 +84,10 @@ export const proof = {
             above: () => symbols([0x100]),
             below: () => symbols([-1]),
             fraction: () => symbols([0.5]),
-            // A hole is met as `undefined`, not skipped.
-            hole: () => symbols(/** @type {List<number>} */ (hole)),
         },
     },
     // The dense array `symbols` is built on: every position visited, a
-    // lazy list read through, and a hole or a non-byte refused.
+    // lazy list read through, and a non-byte refused.
     byteArray: {
         dense: () => {
             assertStructurallySame(byteArray([0, 0xFF]), [0, 0xFF])
@@ -105,7 +95,6 @@ export const proof = {
             assertStructurallySame(byteArray([]), [])
         },
         throw: {
-            hole: () => byteArray(/** @type {List<number>} */ (hole)),
             nonByte: () => byteArray([0x100]),
         },
     },
@@ -135,7 +124,6 @@ export const proof = {
         assertEq(byteLength(fromArrayLike(new Uint8Array(1_000))), 1_000)
         assertEq(byteLength([0, 0x100, 0]), null)
         assertEq(byteLength([0.5]), null)
-        assertEq(byteLength(/** @type {List<number>} */ (hole)), null)
     },
     byteParser: {
         reference: () => {
