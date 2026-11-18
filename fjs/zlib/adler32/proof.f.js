@@ -27,8 +27,8 @@ export const proof = {
     // Bytes of 0xff are the worst case for `a` and `b`, which reduce
     // modulo 65 521 well before 5 552 of them, the most zlib sums at once.
     reduces: () => {
-        assertEq(adler(Array(5552).fill(0xff)), 0xf18f_9b8cn)
-        assertEq(adler(Array(100_000).fill(0xff)), 0x149a_302cn)
+        assertEq(adler(generate(5552, () => 0xff)), 0xf18f_9b8cn)
+        assertEq(adler(generate(100_000, () => 0xff)), 0x149a_302cn)
     },
     // The checksum of a message in pieces is the message's, wherever the
     // pieces meet: only bytes that differ tell the order apart.

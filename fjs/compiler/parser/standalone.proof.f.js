@@ -10,6 +10,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** @type {(source: string) => SourceFunction} */
 export const _function = source => {
@@ -54,7 +55,7 @@ export const proof = {
     },
     flatFastAndFreshNames: () => {
         const resolved = assertOk(parse('')('const x=[1];{const x=[2];}{const x=[3];}export default x;'))
-        const origins = resolved.origins.filter(origin => origin.name === 'x')
+        const origins = resolved.origins.filter(origin => nameOf(origin) === 'x')
         assertEq(origins.length, 3)
         assert(origins[0].id !== origins[1].id && origins[1].id !== origins[2].id && origins[0].id !== origins[2].id)
         const fast = normalize(resolved, [])

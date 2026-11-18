@@ -322,7 +322,7 @@ returns `[3, 10]` at input `2`: the inner return finishes the immediate call,
 while the outer return reads the updated version of `n`. The
 [parser ownership proof](parser/control_flow.proof.f.js),
 `immediateReturnKeepsItsOwnOwnerWhileWritesEscape`, pins that distinction.
-[Binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
+[Binding proofs](parser/bindings.proof.f.js), `expressionBlockAssignments`
 and `expressionBlockAssignmentBoundaries`, cover admitted writes and retained
 invocation boundaries. [Native output proofs](serializer/value/control_flow.proof.mjs),
 `immediateWriteKeepsOneSharedAllocation` and `expressionJoinKeepsSelectedWrite`,

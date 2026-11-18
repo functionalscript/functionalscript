@@ -1,7 +1,7 @@
 /**
  * The proof of the parser's default parameters, `= value` after a fixed
  * parameter ([default parameters](../../../spec/todo/3125-default-parameters.md)),
- * split off `./proof.f.js` as `./destructuring.proof.f.mjs` was, that file
+ * split off `./proof.f.js` as `./destructuring.proof.f.js` was, that file
  * being at what the website's build accepts in one file. It reads the
  * parser as that proof does, through the helpers it exports; what each
  * output writes, and what a call answers, is the language proof's,

@@ -189,7 +189,7 @@ exactly the path `cas_get` uses.
       recognizer takes.
 - [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8 that
       is valid JSON **with an object/array top level** (§4 decision).
-- [ ] Add `fjs/media/type/proof.f.mjs` cases: `{"a":1}` and `[1,2,3]` (incl. split
+- [ ] Add `fjs/media/type/proof.f.js` cases: `{"a":1}` and `[1,2,3]` (incl. split
       across chunks) → `application/json`/`text`; trailing garbage after valid
       JSON and truncated JSON → `text/plain`; non-JSON prose → `text/plain`;
       a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not

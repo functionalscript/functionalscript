@@ -25,7 +25,7 @@ const tests = (/** @type {bigint} */ n) => {
         c: (/** @type {bigint} */ i, /** @type {bigint} */ s) => {
             const result = sum(i)
             if (result !== s) {
-                throw new Error(`Assertion failed for n=${n}, i=${i}, s=${symbolToString(s)}, got ${symbolToString(result)}`);
+                throw `Assertion failed for n=${n}, i=${i}, s=${symbolToString(s)}, got ${symbolToString(result)}`
             }
         },
         n: (/** @type {readonly bigint[]} */ word, /** @type {bigint} */ expected) => {

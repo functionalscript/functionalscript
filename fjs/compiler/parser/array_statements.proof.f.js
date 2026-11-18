@@ -16,7 +16,7 @@ const written = source => assertOk(parseSyntax(tokenizeString(source)))
 
 /** @type {(module: Module, index: number) => Const} */
 const declaration = (module, index) => {
-    const statement = module.statements[index]
+    const statement = module.statements[Number(index)]
     assert(statement[0] === 'const')
     return statement[1].declaration
 }

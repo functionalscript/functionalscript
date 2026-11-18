@@ -5,12 +5,13 @@ import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { parseFromTokens } from '../module.f.js'
 import { _evaluate, tokenizeString } from '../proof.f.js'
 import { parseSyntax } from './module.f.js'
+import { nameOf } from '../../../types/object/name/module.f.js'
 
 export const proof = /** @type {const} */ ({
     importsKeepBindingsAttributesAndSourcePositions: () => {
         const module = assertOk(parseSyntax(tokenizeString('import first,{x as y,z} from "./a";\nimport {default as other} from "./b" with {type:"json"};\nimport {} from "./c";\nimport alone from "./d";export default first;')))
         assertStructurallySame(module.imports.map(statement => statement.module), ['./a','./b','./c','./d'])
-        assertStructurallySame(module.imports.map(statement => statement.bindings.map(binding => binding.name)), [['default','x','z'],['default'],[],['default']])
+        assertStructurallySame(module.imports.map(statement => statement.bindings.map(binding => nameOf(binding))), [['default','x','z'],['default'],[],['default']])
         const alias = module.imports[0].bindings[1].local
         assertStructurallySame(alias.token, {kind:'id',value:'y'})
         assertEq(alias.metadata.column, 20)
@@ -21,7 +22,7 @@ export const proof = /** @type {const} */ ({
     },
     importNamesAndSyntaxFailuresKeepTheirOriginalTokens: () => {
         const module = assertOk(parseSyntax(tokenizeString('import {true as t,false as f,null as n,undefined as u,NaN as nan,Infinity as inf} from "./values";export default 0;')))
-        assertStructurallySame(module.imports[0].bindings.map(binding => binding.name), ['true','false','null','undefined','NaN','Infinity'])
+        assertStructurallySame(module.imports[0].bindings.map(binding => nameOf(binding)), ['true','false','null','undefined','NaN','Infinity'])
         for (const [source, message] of [
             ['export default ;','unexpected token'],
             ['export default','unexpected end'],

@@ -191,7 +191,7 @@ const demoProof = {
             const graph = _graphOf(s.versions)
             const { nodes } = graph
             const entries = entry(graph, 'entries') ?? []
-            assertEq(toJson(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["new",null]]')
+            assertEq(toJson(entries.map(({ to, kind }) => [nodes[Number(to)].kind, kind ?? null])), '[["new",null]]')
             assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the tree before, 3 only in the tree before.'), h)
             // A press leaves the preset behind.
             assert(h.includes('Custom'), h)

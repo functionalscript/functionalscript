@@ -9,13 +9,15 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parseFromTokens } from './module.f.js'
 import { tokenizeString } from './proof.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** @type {(source: string) => ResolvedModule} */
 const parsed = source => assertOk(parseFromTokens(tokenizeString(source)))
 
 /** @type {(module: ResolvedModule, name: string, kind?: BindingOrigin['kind']) => { readonly origin: BindingOrigin, readonly binding: Binding }} */
 const named = (module, name, kind) => {
-    const origins = module.origins.filter(origin => origin.name === name && (kind === undefined || origin.kind === kind))
+    const origins = module.origins.filter(origin => nameOf(origin) === name && (kind === undefined || origin.kind === kind))
     assertEq(origins.length, 1, [name, kind, module.origins])
     const origin = origins[0]
     return { origin, binding: assertNotNullish(module.bindings.find(binding => binding.id === origin.id), ['missing facts', origin]) }
@@ -82,7 +84,7 @@ export const proof = {
     },
     manyReadEvents: () => {
         const count = 20_000
-        const module = parsed(`const value=1;export default [${Array.from({ length: count }, () => 'value').join(',')}];`)
+        const module = parsed(`const value=1;export default [${generate(count, () => 'value').join(',')}];`)
         assertEq(module.scope.events.length, count + 1)
         assertEq(module.bindings.length, 1)
         const fact = module.bindings[0]
@@ -328,7 +330,7 @@ export const proof = {
         for (const origin of module.origins) {
             assertEq(events.filter(event => event[0] === 'initialize' && event[1] === origin.id).length, 1, origin)
         }
-        assert(module.origins.some(origin => origin.kind === 'temporary' && origin.name === null))
+        assert(module.origins.some(origin => origin.kind === 'temporary' && nameOf(origin) === null))
         const defaultClosure = parsed('export default (a,b=()=>a)=>b;')
         assertEq(named(defaultClosure, 'a').binding.capturedBy.length, 1)
         assertEq(named(defaultClosure, 'b').binding.capturedBy.length, 0)

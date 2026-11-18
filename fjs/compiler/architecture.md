@@ -109,20 +109,20 @@ proofs; the proof keys name the relevant cases within each linked file.
 | Gate | Shipped contract and evidence |
 | --- | --- |
 | A: FAST and binding facts | [AST proofs](../js/ast/proof.f.js), `bindings.wholeScope`, and [control proofs](../js/ast/control/proof.f.js), `lexicalResults`, cover binding identities, writes/captures and explicit results. |
-| B: Source input | [Parser bindings](parser/bindings.proof.f.mjs), `completeSourceScan`, [sugar](../js/ast/sugar/proof.f.js), `generalLoopStateUsesDeclarationOrderAndSharedWriteFacts`, and [construction](../edag/from_fast/proof.f.mjs), `bindingIdentityAndOrder`, preserve source facts before graph construction. |
+| B: Source input | [Parser bindings](parser/bindings.proof.f.js), `completeSourceScan`, [sugar](../js/ast/sugar/proof.f.js), `generalLoopStateUsesDeclarationOrderAndSharedWriteFacts`, and [construction](../edag/from_fast/proof.f.mjs), `bindingIdentityAndOrder`, preserve source facts before graph construction. |
 | C: Shared output | [Conversion](../edag/to_fast/proof.f.js), `identities` and `regions`, preserves sharing and placement; [function text](serializer/function_text/proof.mjs), `loops`, and [Rust](../../nanvm/harness/tests/while_loop.rs), `a_million_rounds`, cover bounded-stack execution. |
 | D: Logical lowering | [Logical sugar](../js/ast/sugar/logical/proof.f.js), `immutableLeftIdentity` and `originalLazyRegions`, retains lazy operands; [schema proofs](../edag/proof.f.mjs), `formerLogicalTags`, refuses retired graph tags. |
 | E: Structured construction | [Construction proofs](../edag/from_fast/proof.f.mjs), `generalLoopRoundTrips`, `nestedLoopSequentialResults` and `loopReturnsKeepSourceFunctionOwnership`, cover explicit state/results and completion ownership; [root proofs](../edag/from_fast/loop/root/proof.f.js), `aliasFrameAndWideInvocation`, cover invocation-root reuse. |
 | F: General tail calls | [Tail-call proofs](../edag/to_fast/tail_calls/proof.f.mjs), `swappedAndDependentArgumentsReadOneOldParameterSnapshot`, `loweredRestParameterSetupRunsAgainEachIteration` and `sharedLazyValuesResetOncePerIterationAndFreshInvocation`, cover simultaneous arguments, rest/default setup and invocation lifetimes. |
-| G: Rebinding and captures | [Binding admission](parser/bindings.proof.f.mjs), `destructuredParameterWritesAndCaptures`, `shadowedNamesKeepTheirOwnWriteClassification` and `unreachableWritesStillPreventEscapingCaptures`, applies one write-based capture rule before optimization. |
+| G: Rebinding and captures | [Binding admission](parser/bindings.proof.f.js), `destructuredParameterWritesAndCaptures`, `shadowedNamesKeepTheirOwnWriteClassification` and `unreachableWritesStillPreventEscapingCaptures`, applies one write-based capture rule before optimization. |
 | H: General source loops and exits | [Source-loop proofs](../edag/to_fast/source/loops/proof.f.mjs), `sourceFunctionExitsKeepTheirOwnersAndFirstParseFixedPoints`, `sourceLoopTransfersKeepStateAndFirstParseFixedPoints` and `nestedSourceLoopsRetainResultsAndStableSpelling`, cover owning returns, transfers, nested loops and graph/text normalization; the first two include eighteen state values. |
 | I: Contracts and follow-ups | Permanent [source bindings](../../spec/bindings/variables/README.md), [source loops](../../spec/control-flow/loops/README.md), [construction](../edag/from_fast/loops.md) and [source output](../edag/to_fast/source/loops/README.md) own the delivered behavior and its explicit boundaries. |
 
 The source gate also includes initially false and failing conditions, continue
 retests, both conditional arms, sequential/module loops and following code.
-[Loop-exit proofs](parser/loop_exits.proof.f.mjs),
+[Loop-exit proofs](parser/loop_exits.proof.f.js),
 `conditionRetestsAndEarlierWorkRemainRequired`, [module-loop proofs](parser/module_loops.proof.f.js),
-`snapshotsSequentialAndZeroState`, and [switch proofs](parser/loop_switches.proof.f.mjs),
+`snapshotsSequentialAndZeroState`, and [switch proofs](parser/loop_switches.proof.f.js),
 `labelsAndDiscriminantsRetainReachedEvaluation`, pin those paths. The
 [native source-output proofs](serializer/value/proof.mjs),
 `explicitThrowRootsKeepOrderIdentityAndBoundedStack`, observe deep transitions,

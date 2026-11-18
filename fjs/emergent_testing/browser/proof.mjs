@@ -181,7 +181,7 @@ const run = proof => runBrowserProofs([['proof', proof]])
  * loading proofs below import for real, which is closer to what a page does
  * than a hand-supplied loader was. What the *walk* decides — which outcome a
  * failure produces, what is announced — is proven without a DOM in
- * `./proof.f.mjs`.
+ * `./proof.f.js`.
  *
  * @type {(body: string) => string}
  */

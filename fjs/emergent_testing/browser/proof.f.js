@@ -292,7 +292,7 @@ export const proof = {
     repeatedModuleLabelIsTwoRuns: () => {
         const rows = settled(working([])(runProofs([['a', { x: pass }], ['a', { x: pass }]]))[0])
         assertEq(rows.length, 2)
-        assertEq(rows[0]?.name, rows[1]?.name)
+        assertEq(nameOf(assertNotNullish(rows[0])), nameOf(assertNotNullish(rows[1])))
     },
     // A leaf marked `throw` that returned cleanly is the one failure with
     // nothing thrown to describe, so the message says what happened instead of

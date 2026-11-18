@@ -1,7 +1,7 @@
 /** Invocation completion preserves normal continuations and exact return owners. */
 
 import { assert, assertEq } from '../../../../asserts/module.f.js'
-import { _function } from '../../../../compiler/parser/standalone.proof.f.mjs'
+import { _function } from '../../../../compiler/parser/standalone.proof.f.js'
 import { returnedBlock, hasRetainedReturn } from './module.f.js'
 
 /** @type {(body: string) => import('../source.ts').SourceBlock} */

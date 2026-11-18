@@ -33,7 +33,7 @@ import { nameOf } from '../../types/object/name/module.f.js'
 /**
  * The tokens of a text, the parser's input. Exported, with
  * {@link stringifyModule}, for the proofs split off this one —
- * `./operators.proof.f.mjs` and `./func.proof.f.mjs` — which read the same
+ * `./operators.proof.f.js` and `./func.proof.f.mjs` — which read the same
  * parser the same way.
  *
  * @type {(s: string) => readonly ModuleTokenWithMetadata[]}
@@ -66,7 +66,7 @@ const numberedMembers = count =>
 
 /**
  * A module read to the tree the proofs pin, a refusal thrown. Exported,
- * with {@link expectRefused}, for `./destructuring.proof.f.mjs`, split off
+ * with {@link expectRefused}, for `./destructuring.proof.f.js`, split off
  * this file as the others were.
  *
  * @type {(source: string, expected: string) => void}
@@ -1185,7 +1185,7 @@ export const proof = {
             expectRefused('export default [Number];', 'reserved word', 17)
             expectRefused('export default { Number };', 'reserved word', 18)
             // a member the namespace does not admit; its four predicates
-            // are `./static.proof.f.mjs`'s
+            // are `./static.proof.f.js`'s
             expectRefused('export default Number.parseFloat(1);', 'reserved word', 16)
             // the guarded call is not read as the conversion yet
             expectRefused('export default Number?.(1);', 'reserved word', 16)

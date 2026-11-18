@@ -7,6 +7,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
 import { parseFromTokens } from './module.f.js'
 import { _evaluate, stringifyModule, tokenizeString } from './proof.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** @type {(source: string) => ResolvedModule} */
 const admitted = source => assertOk(parseFromTokens(tokenizeString(source)))
@@ -28,8 +29,8 @@ export const proof = /** @type {const} */ ({
     },
     sourceFactsInitializeBeforeReadsAndWrites: () => {
         const module = admitted('let value;const initial=value;value=3;export default [initial,value];')
-        const value = assertNotNullish(module.origins.find(origin => origin.name === 'value')).id
-        const initial = assertNotNullish(module.origins.find(origin => origin.name === 'initial')).id
+        const value = assertNotNullish(module.origins.find(origin => nameOf(origin) === 'value')).id
+        const initial = assertNotNullish(module.origins.find(origin => nameOf(origin) === 'initial')).id
         assertStructurallySame(module.scope.events, [
             ['initialize', value], ['read', value], ['initialize', initial],
             ['write', value], ['read', initial], ['read', value],

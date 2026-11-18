@@ -226,7 +226,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/nanvm/proof.f.mjs` | 59 | `readonly any[]` | reads an `unknown` the surrounding code has already established |
 | `fjs/protocol/mcp/module.f.js` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/protocol/mcp/module.f.js` | 174 | `Ts<T>` | "instantiation excessively deep" |
-| `fjs/protocol/mcp/proof.f.mjs` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/protocol/mcp/proof.f.js` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/protocol/mcp/stdio/proof.f.js` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/sul/id/module.f.mjs` | 45 | `V8` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/text/code_point/module.f.js` | 49 | `List<List<Unit\|null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |

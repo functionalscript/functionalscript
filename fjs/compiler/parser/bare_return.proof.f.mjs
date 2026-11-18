@@ -5,7 +5,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { parse } from '../source/module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
 import { _evaluate, stringifyModule, tokenizeString } from './proof.f.js'
-import { _function } from './standalone.proof.f.mjs'
+import { _function } from './standalone.proof.f.js'
 
 export const proof = /** @type {const} */ ({
     equivalentFast: () => {
