@@ -44,9 +44,6 @@ export const proof = {
         // not strictly increasing: a repeat, and a decrease
         assert(!isRangeSet([5, 5]))
         assert(!isRangeSet([5, 4]))
-        // a hole is no boundary, and `Array#every` alone would skip it
-        assert(!isRangeSet(new Array(1)))
-        assert(!isRangeSet(new Array(2)))
         // `NaN` has no order, and one alone is never compared
         assert(!isRangeSet([NaN]))
         assert(!isRangeSet([0, NaN]))
@@ -163,7 +160,6 @@ export const proof = {
     throw: {
         rangeSetRejectsRepeat: () => rangeSet([5, 5]),
         rangeSetRejectsDecrease: () => rangeSet([5, 4]),
-        rangeSetRejectsHole: () => rangeSet(new Array(1)),
         // outside the universe there is no answer to give: such a value would
         // be in neither a set nor the complement of one
         containsRejectsNaN: () => contains(full)(NaN),

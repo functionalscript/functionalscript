@@ -95,10 +95,9 @@ export const proof = {
     },
     throw: {
         // A value that is no byte is a caller's bug, not a name that is not
-        // one. Both of these would otherwise be answered `true`: no rule has
-        // an upper bound, and a hole stepped over is never looked at.
+        // one. It would otherwise be answered `true`: no rule has an upper
+        // bound.
         aboveAByte: () => isName([256]),
-        holeInASparseArray: () => isName(new Array(1)),
         // The pass reads on after a rule has failed, so a name already
         // refused at its first byte still has every later item checked.
         aboveAByteAfterARefusal: () => isName([0x20, 256]),

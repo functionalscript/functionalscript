@@ -428,7 +428,7 @@ export const proof = {
         // name, and the same `byteArray` refuses it.
         looseNotBytes: () => loose([256]),
         refNotBytes: () => ref([256]),
-        packedNotBytes: () => packed(new Array(1)),
+        packedNotBytes: () => packed([256]),
         // An id of another width is a caller's bug: its own reader would call
         // the file broken.
         writeLooseWidth: () => {

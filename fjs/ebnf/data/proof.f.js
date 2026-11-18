@@ -10,6 +10,7 @@ import { dataJs } from '../lib/datajs/module.f.js'
 import { digit, json, string, uint, value, ws, wsSymbol } from '../lib/json/module.f.js'
 import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.js'
 import { mapGet, size as mapSize } from '../../types/map/module.f.js'
+import { entry as valueAt } from '../../types/object/entry/module.f.js'
 
 const { keys } = Object
 const { MAX_SAFE_INTEGER } = Number
@@ -46,9 +47,6 @@ const referenceTrailing = ['ref', 'extra']
 
 /** @type {unknown} */
 const undefinedBranch = { ok: 'x', missing: undefined }
-
-/** @type {unknown} */
-const sparse = [, 'x']
 
 /** @type {unknown} */
 const constObject = { 0: 'const', 1: 'x', length: 2 }
@@ -145,9 +143,9 @@ export const proof = {
             const name = nameOf(names)
             assertEq(name(left), entry)
             assert(name(left) !== name(right))
-            assertStructurallySame(rules[name(left)], ['variant', { more: name(leftMore), end: name('x') }])
-            assertStructurallySame(rules[name(right)], ['variant', { more: name(rightMore), end: name('y') }])
-            assertStructurallySame(rules[name(rightMore)], ['sequence', name('['), name(left), name(']')])
+            assertStructurallySame(valueAt(rules, name(left)), ['variant', { more: name(leftMore), end: name('x') }])
+            assertStructurallySame(valueAt(rules, name(right)), ['variant', { more: name(rightMore), end: name('y') }])
+            assertStructurallySame(valueAt(rules, name(rightMore)), ['sequence', name('['), name(left), name(']')])
         },
         unusedBodyIsNotLowered: () => {
             const unused = reference()
@@ -485,7 +483,7 @@ export const proof = {
             assertEq(mapGet(names, [c('a')]), undefined)
             assertEq(mapGet(names, { item: c('a') }), undefined)
             assertEq(mapGet(names, 'unseen'), undefined)
-            const sequence = ruleSet[entry]
+            const sequence = assertNotNullish(valueAt(ruleSet, entry))
             assert(sequence[0] === 'sequence')
             const [, ...items] = sequence
             assertEq(name(0), items[0])
@@ -567,9 +565,6 @@ export const proof = {
             // refused rather than dropped into a grammar with one branch
             // fewer than the one written.
             undefinedBranch: () => toData(/** @type {Rule} */ (undefinedBranch)),
-            // A hole in a sequence is no rule either, and is refused rather
-            // than skipped into a sequence one element shorter.
-            sparse: () => toData(/** @type {Rule} */ (sparse)),
             repeatTrailing: () => toData(() => /** @type {readonly ['repeat', number, number, string]} */ (repeatTrailing)),
         },
         // The grammars of `../lib` lower and validate whole. What the contract
@@ -580,17 +575,17 @@ export const proof = {
             const [ruleSet, entry, names] = toData(json)
             assertEq(entry, '')
             const name = nameOf(names)
-            assertStructurallySame(ruleSet[entry], ['sequence', name(ws), name(value), name(ws)])
-            assertStructurallySame(ruleSet[name(ws)], ['repeat', 0, Infinity, name(wsSymbol)])
-            assertStructurallySame(ruleSet[name(wsSymbol)], ['set', 9, 11, 13, 14, 32, 33])
-            assertStructurallySame(ruleSet[name(digit)], ['set', c('0'), c('9') + 1])
-            assertStructurallySame(ruleSet[name(uint)], ['variant', {
+            assertStructurallySame(valueAt(ruleSet, entry), ['sequence', name(ws), name(value), name(ws)])
+            assertStructurallySame(valueAt(ruleSet, name(ws)), ['repeat', 0, Infinity, name(wsSymbol)])
+            assertStructurallySame(valueAt(ruleSet, name(wsSymbol)), ['set', 9, 11, 13, 14, 32, 33])
+            assertStructurallySame(valueAt(ruleSet, name(digit)), ['set', c('0'), c('9') + 1])
+            assertStructurallySame(valueAt(ruleSet, name(uint)), ['variant', {
                 0: name('0'),
                 onenine: name(uint.onenine),
             }])
             // The string rule is held by the `string` alternative and by an
             // object's property, so both name the one rule.
-            assertEq(matchRule(stringBranch)(ruleSet[name(value)]), name(string))
+            assertEq(matchRule(stringBranch)(assertNotNullish(valueAt(ruleSet, name(value)))), name(string))
             assertEq(keys(ruleSet).length, 81)
         },
         dataJs: () => {

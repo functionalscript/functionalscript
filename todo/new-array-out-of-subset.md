@@ -31,12 +31,12 @@ through; the one place the two differ is noted in it:
 | `fjs/edag/proof.f.mjs` | 4 |
 | `fjs/rtti/common/proof.f.mjs` | 3 |
 | `fjs/rtti/data/proof.f.mjs` | 3 |
-| `fjs/types/range_set/proof.f.mjs` | 3 |
+| `fjs/types/range_set/proof.f.js` | 3 |
 | `fjs/media/datajs/serializer/proof.f.mjs` | 1 (since removed under its FunctionalScript input contract) |
 | `fjs/rtti/parse/proof.f.js` | 1 |
 | `fjs/sul/proof.f.mjs` | 1 (since replaced by `Array.from`) |
-| `fjs/git/refname/proof.f.mjs` | 1 |
-| `fjs/git/ref/proof.f.mjs` | 1 |
+| `fjs/git/refname/proof.f.js` | 1 |
+| `fjs/git/ref/proof.f.js` | 1 |
 | **`fjs/rtti/parse/module.f.js`** | **1** |
 
 The two `fjs/git` rows arrived after the survey: `isName` in `fjs/git/refname`
