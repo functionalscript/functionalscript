@@ -113,9 +113,11 @@ export const proof = {
         assertStructurallySame(parsed('{"a": 1, "a": 2}'), { a: 2 })
         assertStructurallySame(parsed('{"": 0}'), { '': 0 })
         assertStructurallySame(parsed('{"a":true,"b":false,"c":null}'), { a: true, b: false, c: null })
-        assertStructurallySame(parsed('{"__proto__": 1}'), JSON.parse('{"__proto__": 1}'))
+        // An own key, which `{ __proto__: 1 }` would not write: that literal
+        // sets the prototype.
+        assertStructurallySame(parsed('{"__proto__": 1}'), Object.fromEntries([['__proto__', 1]]))
         const document = ' [1.5e-3, {"a\\u00e9\\n": null, "": [true, false]}, "x"] '
-        assertStructurallySame(parsed(document), JSON.parse(document))
+        assertStructurallySame(parsed(document), [1.5e-3, { 'a\u00e9\n': null, '': [true, false] }, 'x'])
     },
     // The numeric policy is the reader's only opinion about numbers: it is
     // handed the exact lexeme, and it may reject one.
@@ -199,7 +201,7 @@ export const proof = {
         const wide = parsed(`[${generate(m, i => i).join(',')}]`)
         assert(wide instanceof Array)
         assertEq(wide.length, m)
-        assertEq(wide[m - 1], m - 1)
+        assertEq(wide[Number(m - 1)], m - 1)
     },
     // The set folded into the grammar's own rule: its node is the one symbol
     // the `json` mapping returned, and the rule stops where it does, so a

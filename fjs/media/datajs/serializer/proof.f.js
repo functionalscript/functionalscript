@@ -293,17 +293,17 @@ export const proof = {
     },
     marked: () => {
         const value = /** @type {const} */ ([1, 'a', null, undefined, true, 2n, -0])
-        assertEq(JSON.stringify(toArray(unwrap(_trySerialize(value)))),
-            '[["export","keyword"]," ",["default","keyword"]," ","[",["1","number"],",",["\\"a\\"","string"],",",["null","literal"],",",["undefined","literal"],",",["true","literal"],",",["2n","number"],",",["-0","number"],"]",";"]')
+        assertStructurallySame(toArray(unwrap(_trySerialize(value))),
+            [['export', 'keyword'], ' ', ['default', 'keyword'], ' ', '[', ['1', 'number'], ',', ['"a"', 'string'], ',', ['null', 'literal'], ',', ['undefined', 'literal'], ',', ['true', 'literal'], ',', ['2n', 'number'], ',', ['-0', 'number'], ']', ';'])
         // a shared node is a `const`, and its name an identifier wherever it stands
         const shared = /** @type {const} */ ([1])
-        assertEq(JSON.stringify(unwrap(tryMarked([shared, shared]))),
-            '[["const","keyword"],[" "],["$0","identifier"],["="],["["],["1","number"],["]"],[";"],["export","keyword"],[" "],["default","keyword"],[" "],["["],["$0","identifier"],[","],["$0","identifier"],["]"],[";"]]')
+        assertStructurallySame(unwrap(tryMarked([shared, shared])),
+            [['const', 'keyword'], [' '], ['$0', 'identifier'], ['='], ['['], ['1', 'number'], [']'], [';'], ['export', 'keyword'], [' '], ['default', 'keyword'], [' '], ['['], ['$0', 'identifier'], [','], ['$0', 'identifier'], [']'], [';']])
         // the non-finite numbers are the language's literal words
-        assertEq(JSON.stringify(toArray(unwrap(_trySerialize([NaN, Infinity, -Infinity]))).filter(c => typeof c !== 'string' && c[1] === 'literal')),
-            '[["NaN","literal"],["Infinity","literal"],["-Infinity","literal"]]')
-        assertEq(JSON.stringify(toArray(unwrap(_tryJsonSerialize({ k: [1.5] })))),
-            '["{",["\\"k\\"","string"],":","[",["1.5","number"],"]","}"]')
+        assertStructurallySame(toArray(unwrap(_trySerialize([NaN, Infinity, -Infinity]))).filter(c => typeof c !== 'string' && c[1] === 'literal'),
+            [['NaN', 'literal'], ['Infinity', 'literal'], ['-Infinity', 'literal']])
+        assertStructurallySame(toArray(unwrap(_tryJsonSerialize({ k: [1.5] }))),
+            ['{', ['"k"', 'string'], ':', '[', ['1.5', 'number'], ']', '}'])
     },
     // Nesting depth is the input's, not the call stack's: the read walks an
     // explicit stack and the write reads the linked graph in its post-order,
