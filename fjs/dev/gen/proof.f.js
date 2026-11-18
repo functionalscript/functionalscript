@@ -28,6 +28,7 @@ import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { generators, main, sequence } from './module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** A child as `spawn` would brand one; nothing here looks inside it. @type {Child} */
 const child = asNominal('child')
@@ -35,19 +36,18 @@ const child = asNominal('child')
 /**
  * The virtual runner with the subprocess slice answered as given, since the
  * virtual runner itself has no child to run: `spawn` checks it was asked for
- * the subprocess on the terminal and answers `started`, `childWait` answers
- * `ended`, and `spawned` counts the starts so a proof can tell whether the
- * lock step was reached at all.
+ * the subprocess on the terminal and answers `started`, and `childWait`
+ * answers `ended`. No regeneration proved here may start a subprocess, and
+ * none needs a count to say so: the command `spawn` checks for is one no
+ * caller sends, so a start fails the proof at the start itself.
  *
- * @type {(started: IoResult<Child>, ended: IoResult<ExitStatus>) => { readonly run: RunInstance<NodeOp, State>, readonly spawned: () => number }}
+ * @type {(started: IoResult<Child>, ended: IoResult<ExitStatus>) => RunInstance<NodeOp, State>}
  */
 const withSubprocess = (started, ended) => {
-    let count = 0
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
         ...virtualOperationMap,
         spawn: (command, args, options) => state => {
-            count += 1
             assertEq(command, 'unexpected subprocess')
             assertEq(args.length, 0)
             assertEq(options.stdio, 'inherit')
@@ -55,7 +55,7 @@ const withSubprocess = (started, ended) => {
         },
         childWait: () => state => [state, ended],
     }
-    return { run: partialRun(nodeCommands)(operations), spawned: () => count }
+    return partialRun(nodeCommands)(operations)
 }
 
 /**
@@ -71,8 +71,8 @@ const specSamples = samples
         const put = (dir, [head, ...rest]) => ({
             ...dir,
             [head]: rest.length === 0
-                ? { .../** @type {Dir} */ (dir[head] ?? {}), 'sample.f.js': [utf8('export default () => 4;')] }
-                : put(/** @type {Dir} */ (dir[head] ?? {}), rest),
+                ? { .../** @type {Dir} */ (entry(dir, head) ?? {}), 'sample.f.js': [utf8('export default () => 4;')] }
+                : put(/** @type {Dir} */ (entry(dir, head) ?? {}), rest),
         })
         return put(tree, directory.split('/').slice(1))
     }, {})
@@ -144,10 +144,9 @@ export const proof = {
         // Every source generator runs, outputs are written, and dependency
         // locking starts no subprocess during CI regeneration.
         regenerates: () => {
-            const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
+            const run = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run({ ...emptyState, root })(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(spawned(), 0)
             const github = state.root['.github']
             assert(typeof github === 'object' && !(github instanceof Array))
             assert(hasEntry(github, 'workflows'))
@@ -161,10 +160,9 @@ export const proof = {
         // writer cannot compile the runtime from an empty filesystem, and
         // the subprocess is never started.
         stopsAtAFailedGenerator: () => {
-            const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
+            const run = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run(emptyState)(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 1)
-            assertEq(spawned(), 0)
             assert(state.stderr.includes('fjs/js/runtime/module.f.js'), state.stderr)
         },
     },

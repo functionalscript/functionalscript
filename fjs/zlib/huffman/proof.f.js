@@ -1,8 +1,9 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assertEq, assertStructurallySame, assertNotNullish } from '../../asserts/module.f.js'
 import { more } from '../bits/module.f.js'
 import { assign, bytes, field, written } from '../testlib.f.js'
 import { code, decode, dynamic, fixed, fixedDistances, fixedLiterals } from './module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** The extra bits of the repeats 16, 17 and 18. */
 const widths = { 16: 2, 17: 3, 18: 7 }
@@ -23,13 +24,13 @@ const description = (hlit, hdist, lengths, body) => {
         ...order.slice(0, count).flatMap(symbol => field(lengths[Number(symbol)], 3)),
         ...body.flatMap(([symbol, extra]) => [
             ...written(codes[Number(symbol)]),
-            ...(extra === undefined ? [] : field(extra, widths[/** @type {16 | 17 | 18} */ (symbol)])),
+            ...(extra === undefined ? [] : field(extra, assertNotNullish(entry(widths, /** @type {16 | 17 | 18} */ (symbol))))),
         ]),
     ]
 }
 
 /** The lengths of a code-lengths code by symbol, from the few that have one. @type {(of: Readonly<Record<number, number>>) => readonly number[]} */
-const lengthsOf = of => generate(19, symbol => of[symbol] ?? 0)
+const lengthsOf = of => generate(19, symbol => entry(of, symbol) ?? 0)
 
 // A code-lengths code of the zero run 18 (one bit), a length 0 and a length 1
 // (two bits each).
