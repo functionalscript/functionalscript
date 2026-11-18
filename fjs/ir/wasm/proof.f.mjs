@@ -15,6 +15,7 @@ import { check } from '../check/module.f.js'
 import { any, l0, string } from '../l0/module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { emit } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** @type {(m: Module) => ReturnType<typeof emit>} */
 const emitted = m => emit(assertOk(check(m)))
@@ -1832,7 +1833,7 @@ export const proof = {
     layout: () => {
         const text = 'the quick brown fox jumps over the lazy dog, and then the dog sleeps'
         const { customs } = emitted({ imports: l0, functions: [['f', fn([], u(31), call('String', 'length', [lit(string, text)]))]], exports: ['f'] })
-        assertEq(JSON.stringify(customs.flatMap(({ content }) => content[0] === 'raw' && content[1] === 'fjs.layout' ? [content[2]] : [])), '[[136,1,0,0]]')
+        assertEq(toJson(customs.flatMap(({ content }) => content[0] === 'raw' && content[1] === 'fjs.layout' ? [content[2]] : [])), '[[136,1,0,0]]')
     },
     // The start function makes each string literal once, from its units in the data segment at `data_base`, into a
     // global that nothing drops, and `fjs.layout` says how many bytes the data segment needs.

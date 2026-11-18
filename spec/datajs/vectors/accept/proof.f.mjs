@@ -5,6 +5,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import accept from './data.f.js'
+import { toJson } from '../../../../fjs/media/json/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly Accept[]} */ (accept)
@@ -19,7 +20,7 @@ const { hasOwn } = Object
  */
 const named = (vector, name) => {
     const value = vector[name]
-    assert(typeof value === 'string' && value !== '', `${JSON.stringify(vector.id)}: ${name} is not a non-empty string`)
+    assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
 

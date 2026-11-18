@@ -21,6 +21,7 @@ import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -95,7 +96,7 @@ const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', [`/${rust
 const ready = perform(page(files, instance([0x68, 0x69])))(load(hi.place))
 
 /** @type {(e: Element) => string} */
-const text = e => JSON.stringify(e)
+const text = e => toJson(e)
 
 export const proof = {
     paths: () => {

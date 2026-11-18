@@ -64,7 +64,7 @@ const { entries, fromEntries } = Object
  * responses instead of a filesystem. `overrides[cmd]` is a queue consumed in
  * call order; once a command's queue is empty (or was never given),
  * {@link casDefaults} supplies an always-succeeds value. `extra` adds the
- * defaults of operations beyond the CAS's own — `fjs/mcp/cas/proof.f.mjs`
+ * defaults of operations beyond the CAS's own — `fjs/mcp/cas/proof.f.js`
  * adds `MemOp`'s, since its tools also touch the Evo cache — and so the
  * commands the driver answers at all.
  *

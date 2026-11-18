@@ -12,6 +12,7 @@ import { fromTagged, toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords } from '../../edag/rust/unmarked/module.f.js'
 import { bindingTagged, braced, op1Rust, scope, scopeTagged, useLines, useLinesTagged, valueTagged } from './module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** @type {Options} */
 const options = { runtime: 'runtime', text: fn => `function${fn.target.index}` }
@@ -462,9 +463,9 @@ export const proof = {
         ]
         for (const [uses, bound, statements] of cases) {
             const marked = unwrap(fromTagged(useLinesTagged(uses, bound).join('\n')))
-            assertEq(JSON.stringify(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), JSON.stringify(Array(statements).fill('use')))
+            assertEq(toJson(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), toJson(Array(statements).fill('use')))
             assertEq(toText(marked), useLines(uses, bound).join('\n'))
-            assertEq(JSON.stringify(unmarkedWords(marked)), '[]')
+            assertEq(toJson(unmarkedWords(marked)), '[]')
         }
     },
     deepInputs: () => {

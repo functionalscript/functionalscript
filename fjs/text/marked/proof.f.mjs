@@ -2,6 +2,7 @@ import { chunkRun, chunkStrings, fromTagged, keyword, literal, tagged, textOfRes
 import { assertEq } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** @type {(text: string) => (spans: readonly import('./types.ts').Span[]) => unknown} */
 const refused = text => spans => {
@@ -91,7 +92,7 @@ export const proof = {
         list: () => {
             assertEq(JSON.stringify(chunksMarked(['a', ['b', 'string']])), '[["a"],["b","string"]]')
             assertEq(chunksText(['a', ['b', 'string'], 'c']), 'abc')
-            assertEq(JSON.stringify(toArray(chunkStrings(['a', ['b', 'string']]))), '["a","b"]')
+            assertEq(toJson(toArray(chunkStrings(['a', ['b', 'string']]))), '["a","b"]')
         },
     },
     fromSpans: {

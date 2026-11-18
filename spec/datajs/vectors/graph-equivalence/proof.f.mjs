@@ -7,6 +7,7 @@ import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js'
 import graphEquivalence from './data.f.js'
+import { toJson } from '../../../../fjs/media/json/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly GraphEquivalence[]} */ (graphEquivalence)
@@ -21,14 +22,14 @@ const { hasOwn } = Object
  */
 const named = (vector, name) => {
     const value = vector[name]
-    assert(typeof value === 'string' && value !== '', `${JSON.stringify(vector.id)}: ${name} is not a non-empty string`)
+    assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
 
 /** The graph a document denotes, or a failure naming the vector and the document. @type {(id: string, document: string) => Unknown} */
 const read = (id, document) => {
     const [tag, result] = tryParse(document)
-    assert(tag === 'ok', `${id}: ${JSON.stringify(document)} is not a document the reader takes: ${String(result)}`)
+    assert(tag === 'ok', `${id}: ${toJson(document)} is not a document the reader takes: ${String(result)}`)
     return /** @type {Unknown} */ (result)
 }
 
@@ -63,7 +64,7 @@ export const proof = {
             const id = named(vector, 'id')
             for (const document of vector.denotes) {
                 const d = difference(vector.input)(read(id, document))
-                assert(d === null, `${id}: ${JSON.stringify(document)} does not denote the input: ${d}`)
+                assert(d === null, `${id}: ${toJson(document)} does not denote the input: ${d}`)
             }
         }
     },
@@ -75,7 +76,7 @@ export const proof = {
             const id = named(vector, 'id')
             for (const document of vector.denotesNot) {
                 assert(difference(vector.input)(read(id, document)) !== null,
-                    `${id}: ${JSON.stringify(document)} denotes the input after all`)
+                    `${id}: ${toJson(document)} denotes the input after all`)
             }
         }
     },
@@ -98,9 +99,9 @@ export const proof = {
             const [tag, out] = tryStringify(vector.input)
             assert(tag === 'ok', `${id}: the writer refused the input: ${String(out)}`)
             assert(!vector.denotesNot.includes(out),
-                `${id}: the writer emitted ${JSON.stringify(out)}, which this vector rules out`)
+                `${id}: the writer emitted ${toJson(out)}, which this vector rules out`)
             const d = difference(vector.input)(read(id, out))
-            assert(d === null, `${id}: the writer emitted ${JSON.stringify(out)}, which denotes another graph: ${d}`)
+            assert(d === null, `${id}: the writer emitted ${toJson(out)}, which denotes another graph: ${d}`)
         }
     },
     // The one shape this carrier cannot spell, pinned here instead. A shared
@@ -119,7 +120,7 @@ export const proof = {
         }
         for (const document of ['export default [[],[]];', 'const $0=[];const $1=[];export default [$0,$1];']) {
             assert(difference(input)(read('shared-empty-array', document)) !== null,
-                `shared-empty-array: ${JSON.stringify(document)} denotes the input after all`)
+                `shared-empty-array: ${toJson(document)} denotes the input after all`)
         }
         // And the writer over the same shape, which is the half a vector would
         // have carried: what it emits denotes the shared graph, so it hoists

@@ -9,7 +9,7 @@ import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virt
 import { partialRun } from '../effects/mock/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'
 import { error, unwrap } from '../types/result/module.f.js'
-import { parse as jsonParse } from '../media/json/module.f.js'
+import { parse as jsonParse, toJson } from '../media/json/module.f.js'
 import { install, test, parseGitHubAction, uses } from './common/module.f.js'
 import { images, jobTimeout, node, typescript } from './config/module.f.js'
 import { rustPlatformCommands, wasmTargets } from './rust/module.f.js'
@@ -111,8 +111,8 @@ export const proof = {
         assert(steps.some(step => step.uses?.startsWith('actions/setup-node@') && step.with?.['package-manager-cache'] === 'false'))
         const pub = workflow(state, 'gen.npm-publish.yml')
         assert(Object.keys(pub.jobs).length > 0)
-        assert(JSON.stringify(pub).includes(node))
-        assert(JSON.stringify(pub).includes(typescript.version))
+        assert(toJson(pub).includes(node))
+        assert(toJson(pub).includes(typescript.version))
     },
     defaultsAndSmart: () => {
         const [state, result] = virtualAt({})(main())

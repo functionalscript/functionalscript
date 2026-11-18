@@ -2,6 +2,7 @@ import { codeOutput, highlight, render, tsHighlight } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** @type {(nodes: readonly import('../../../media/html/types.ts').Node[]) => string} */
 const text = nodes => nodes.map(n => typeof n === 'string' ? n : n.slice(n.length === 3 ? 2 : 1).join('')).join('')
@@ -47,7 +48,7 @@ export const proof = {
     empty: () => assertEq(highlight('').length, 0),
     render: () => {
         assertEq(render([]).length, 0)
-        assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
+        assertEq(toJson(render([['a', 'keyword'], [' b'], ['']])),
             '[["span",{"data-token":"keyword"},"a"]," b"]')
     },
     codeOutput: () => {

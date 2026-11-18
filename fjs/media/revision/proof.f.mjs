@@ -8,8 +8,9 @@ import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntri
 import { toArray } from '../../types/list/alt/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { toJsonSchema } from '../json/schema/module.f.js'
+import { toJson } from '../json/module.f.js'
 
-// Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
+// Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.js): single
 // cbase32 symbols, cheap to write inline here.
 const h1 = '8'
 const h2 = 'r'
@@ -275,8 +276,8 @@ export const proof = {
         // `parents`, `snapshot`, then `lock` — a nested map's scopes extend
         // the path, and never appear as hashes themselves.
         entries: () => assertEq(
-            JSON.stringify(toArray(hashEntries(validRevisionOf({ parents: [h1, h2], lock: { a: h1, b: { c: h2 } } })))),
-            JSON.stringify([
+            toJson(toArray(hashEntries(validRevisionOf({ parents: [h1, h2], lock: { a: h1, b: { c: h2 } } })))),
+            toJson([
                 [['parents', '0'], h1],
                 [['parents', '1'], h2],
                 [['snapshot'], h2],
@@ -286,7 +287,7 @@ export const proof = {
         // A shared-lock reference is a hash at the field itself.
         referenceEntry: () => assertEq(
             JSON.stringify(toArray(hashEntries(validRevisionOf({ lock: h1 }))).at(-1)),
-            JSON.stringify([['lock'], h1])),
+            toJson([['lock'], h1])),
         noLockNoLockEntries: () => assertEq(toArray(hashEntries(validRevisionOf({}))).length, 1),
         // `f` reaches every hash and nothing else: `subject` is a hash-shaped
         // string here and stays as it was, and so does every other field.
@@ -314,7 +315,7 @@ export const proof = {
 
     decodeText: {
         validJson: () => {
-            const r = decodeText(JSON.stringify(revisionOf({})))
+            const r = decodeText(toJson(revisionOf({})))
             assert(r[0] === 'ok', ['expected ok', r])
             assertEq(r[1].subject, h1)
         },

@@ -22,6 +22,7 @@ import {
     tryToSurrogatePair,
     unicodeNotation,
 } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /**
  * A stand-in for a codec's state-to-error function.
@@ -68,19 +69,19 @@ export const proof = {
         // no prefix: exactly the fresh dispatch
         () => {
             const [out, next] = dispatch([])(4)
-            assertEq(JSON.stringify(out), '[4]')
+            assertEq(toJson(out), '[4]')
             assertEq(next, null)
         },
         // the prefix goes ahead of the unit's own output
         () => {
             const [out, next] = dispatch([-1, -2])(4)
-            assertEq(JSON.stringify(out), '[-1,-2,4]')
+            assertEq(toJson(out), '[-1,-2,4]')
             assertEq(next, null)
         },
         // the prefix alone when the unit only moves the state
         () => {
             const [out, next] = dispatch([-1])(5)
-            assertEq(JSON.stringify(out), '[-1]')
+            assertEq(toJson(out), '[-1]')
             assertEq(next, 5)
         },
     ],

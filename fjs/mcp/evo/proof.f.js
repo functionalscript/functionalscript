@@ -23,6 +23,7 @@ import { parse as parseJson } from '../../media/json/module.f.js'
 import { array, string as rttiString } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /**
  * Unwraps what a run answered, keeping the state beside it.
@@ -46,7 +47,7 @@ const parseSubjects = rttiParse(array(rttiString))
  * @returns {ToolEntry<O>}
  */
 const findEntry = (registry, name) => {
-    const entry = registry.find(e => e.name === name)
+    const entry = registry.find(e => nameOf(e) === name)
     assert(entry !== undefined, ['missing tool entry', name])
     return entry
 }
@@ -93,7 +94,7 @@ export const proof = {
             add: () => { throw 'unused' },
             revision: () => { throw 'unused' },
         }
-        assertEq(evoToolRegistry(e).map(entry => entry.name).join(','), 'evo_list,evo_head,evo_revision,evo_add')
+        assertEq(evoToolRegistry(e).map(entry => nameOf(entry)).join(','), 'evo_list,evo_head,evo_revision,evo_add')
     },
     evoListReflectsTheCache: () => {
         const [state0, e] = _freshEvo(store)

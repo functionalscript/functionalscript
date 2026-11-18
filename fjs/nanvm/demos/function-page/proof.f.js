@@ -24,6 +24,7 @@ import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.
 import { agreement, callJs, edagView, functionDemo, init, load, microseconds, notLoaded, outcomeText, repeat, repetitions, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.js'
 import { spell } from '../spell/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** What a thunk answers to stand for a throw, which a proof cannot write. */
 const throws = 'negative'
@@ -83,7 +84,7 @@ const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustMark
 const ready = perform(page(files, instance()))(load(plus2.place))
 
 /** @type {(e: Element) => string} */
-const text = e => JSON.stringify(e)
+const text = e => toJson(e)
 
 /**
  * A call the mock made: a run that returned made {@link repetitions} calls
@@ -101,7 +102,7 @@ export const proof = {
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.calls, null)
         // The graph is drawn once, as the source arrives.
-        assertEq(JSON.stringify(ready.edag), JSON.stringify(edagView(source)))
+        assertEq(toJson(ready.edag), toJson(edagView(source)))
         const missing = perform(page({}, null))(load(plus2.place))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
     },
@@ -112,7 +113,7 @@ export const proof = {
         assertStructurallySame(perform(page({}, null, 'notImplemented'))(callJs(plus2.entry)(1)), error('operation not implemented: sandbox'))
     },
     wasmOutcome: () => {
-        const read = wasmOutcome(i => codePoints('negative')[i])
+        const read = wasmOutcome(i => codePoints('negative')[Number(i)])
         assertStructurallySame(read(8), ok(['returned', 'negative']))
         assertStructurallySame(read(-1 - 8), ok(['threw', 'negative']))
         assertStructurallySame(read(0), ok(['returned', '']))
@@ -192,7 +193,7 @@ export const proof = {
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('default(-1)'))
         // What JavaScript threw, spelled: a string, quoted.
-        assert(shown.includes(JSON.stringify('Threw "negative"').slice(1, -1)))
+        assert(shown.includes(toJson('Threw "negative"').slice(1, -1)))
         assert(shown.includes(`Time per call: ${microseconds(1000 / repetitions)}`))
         assert(shown.includes('The same answer both ways: Yes'))
         // A source that does not parse is the parser's refusal, twice.

@@ -19,6 +19,7 @@ import { isObject } from '../types/object/module.f.js'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
+import { toJson } from '../media/json/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
@@ -413,7 +414,7 @@ export const proof = {
             const values = /** @type {const} */ ([null, undefined, true, false, 0, -0, 1.5, NaN, Infinity, -Infinity, 42n, -123_456_789_012_345_678_901_234_567_890n, 'already'])
             /** @type {string} */
             const source = 'export default [String(), String(null), String(undefined), String(true), String(false), String(0), String(-0), String(1.5), String(NaN), String(Infinity), String(-Infinity), String(42n), String(-123456789012345678901234567890n), String("already")];'
-            const expected = JSON.stringify(['', ...values.map(value => String(value))])
+            const expected = toJson(['', ...values.map(value => String(value))])
             assertEq(compileSource(source)('output.json'), expected)
             assertEq(compileSource(source)('output.data.js'), `export default ${expected};`)
         },
@@ -421,7 +422,7 @@ export const proof = {
             const values = /** @type {const} */ ([[], [1, [2, 3], null, undefined], {}, { a: 1 }])
             assertEq(
                 compileSource('export default [String([]), String([1, [2, 3], null, undefined]), String({}), String({ a: 1 })];')('output.json'),
-                JSON.stringify(values.map(value => String(value))))
+                toJson(values.map(value => String(value))))
         },
         // The string hint calls toString first, with no arguments, and only
         // tries valueOf after a nonprimitive result or a noncallable method.
@@ -468,7 +469,7 @@ export const proof = {
             const values = /** @type {const} */ ([null, undefined, true, false, 0, -0, 1.5, NaN, Infinity, -Infinity, 42n, 'already', [], [1, [2, 3], null, undefined], {}, { a: 1 }])
             /** @type {string} */
             const source = 'export default [`${null}`, `${undefined}`, `${true}`, `${false}`, `${0}`, `${-0}`, `${1.5}`, `${NaN}`, `${Infinity}`, `${-Infinity}`, `${42n}`, `${"already"}`, `${[]}`, `${[1, [2, 3], null, undefined]}`, `${{}}`, `${{ a: 1 }}`];'
-            const expected = JSON.stringify(values.map(value => `${value}`))
+            const expected = toJson(values.map(value => `${value}`))
             assertEq(compileSource(source)('output.json'), expected)
             assertEq(compileSource(source)('output.data.js'), `export default ${expected};`)
         },
@@ -491,7 +492,7 @@ export const proof = {
                 ['`a\r${1}\r\nb`', 'a\n1\nb'],
             ])) {
                 const source = `export default ${expression};`
-                assertEq(compileSource(source)('output.json'), JSON.stringify(expected), expression)
+                assertEq(compileSource(source)('output.json'), toJson(expected), expression)
                 fjsRoundTrip(source)
             }
         },
@@ -500,10 +501,10 @@ export const proof = {
             /** @type {string} */
             const declarations = 'const a = { valueOf: () => 7, toString: () => "a" }; '
             const source = declarations + 'export default ["hello " + a + "!", `hello ${a}!`, "hello " + String(a) + "!"];'
-            assertEq(compileSource(source)('output.json'), JSON.stringify(['hello ' + value + '!', `hello ${value}!`, 'hello ' + String(value) + '!']))
+            assertEq(compileSource(source)('output.json'), toJson(['hello ' + value + '!', `hello ${value}!`, 'hello ' + String(value) + '!']))
             assertEq(compileSource(declarations + 'export default `hello ${a}!`;')('output.edag.data.js'), compileSource(declarations + 'export default "hello " + String(a) + "!";')('output.edag.data.js'))
             const fallbackValues = /** @type {const} */ ([{ toString: () => ({}), valueOf: () => 7n }, { toString: 0, valueOf: () => true }, {}, [{ toString: () => 'x' }, 1]])
-            assertEq(compileSource('export default [`${{ toString: () => ({}), valueOf: () => 7n }}`, `${{ toString: 0, valueOf: () => true }}`, `${{ valueOf: () => { throw "unreached"; } }}`, `${[{ toString: () => "x" }, 1]}`];')('output.json'), JSON.stringify(fallbackValues.map(value => `${value}`)))
+            assertEq(compileSource('export default [`${{ toString: () => ({}), valueOf: () => 7n }}`, `${{ toString: 0, valueOf: () => true }}`, `${{ valueOf: () => { throw "unreached"; } }}`, `${[{ toString: () => "x" }, 1]}`];')('output.json'), toJson(fallbackValues.map(value => `${value}`)))
             assertEq(compileSource('const s = "captured"; export default [`${{ toString: () => s, valueOf: () => { throw "unreached"; } }}`, `${{ toString: (...a) => a.length }}`];')('output.json'), '["captured","0"]')
         },
         // FJS's existing function-source exception applies to interpolation,

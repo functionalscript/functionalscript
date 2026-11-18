@@ -122,7 +122,7 @@
  */
 
 import { string, option, or, boolean } from '../../rtti/module.f.js'
-import { stringify } from '../../media/json/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 import { pureOk, resultStep } from '../../effects/module.f.js'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.js'
@@ -139,7 +139,6 @@ import {
 import { collectRead } from '../../cas/module.f.js'
 import { errorSummary } from '../../effects/node/module.f.js'
 import { fromVec } from '../../text/utf8/module.f.js'
-import { identity } from '../../types/function/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.js'
 import { syncRevision } from '../../cas/evo/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -166,8 +165,6 @@ export const casGetArgs = /** @type {const} */ ({
 export const casListArgs = /** @type {const} */ ({})
 
 // ── Tool registry ──────────────────────────────────────────────────────────────
-
-const toJson = stringify(identity)
 
 /**
  * The dialect-aware classifier, bound to the dialects this server recognizes:

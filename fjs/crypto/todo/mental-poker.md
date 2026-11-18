@@ -18,7 +18,7 @@ See also
 - [x] Commutative card locks on a curve, a seeded shuffle, and a three-player
   demo that shuffles and deals with honest players:
   [`../mental_poker/`](../mental_poker/README.md).
-- [ ] Move the `poker` proof in `fjs/crypto/secp/proof.f.mjs`, which the
+- [ ] Move the `poker` proof in `fjs/crypto/secp/proof.f.js`, which the
   module now covers, or make it call `mentalPoker`.
 - [ ] Draw the secrets and shuffle seeds from a random source, not from
   typed text: an effect at the host boundary.

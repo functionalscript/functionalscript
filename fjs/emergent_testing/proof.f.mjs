@@ -20,7 +20,7 @@ import {
 } from './module.f.js'
 import { run as mockRun, runAll } from '../effects/mock/module.f.js'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.js'
-import { parse as parseJson } from '../media/json/module.f.js'
+import { parse as parseJson, toJson } from '../media/json/module.f.js'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
@@ -45,7 +45,7 @@ const event = or(
 const parseEvent = rttiParse(event)
 
 /** @type {(e: Ts<typeof event>) => Effect<Write, void, NotImplemented>} */
-const writeEvent = e => log(JSON.stringify(e))
+const writeEvent = e => log(toJson(e))
 
 /** @type {(stdout: string) => readonly Ts<typeof event>[]} */
 const parseEvents = stdout =>
@@ -912,8 +912,8 @@ export const registerLoadFailure = () => {
         path => path.endsWith('a.f.ts') ? loadFails() : loadsOk(),
         false)
     assertEq(
-        JSON.stringify(calls.map(([, name, xf]) => [name, xf])),
-        JSON.stringify([
+        toJson(calls.map(([, name, xf]) => [name, xf])),
+        toJson([
             ['import("./a.f.ts").proof()', false],
             ['import("./b.proof.f.ts").proof.ok()', false],
         ]))
@@ -949,8 +949,8 @@ export const loadFailureIsAFailedTest = () => {
     })(testAll(reporter)(options('.')))
     assertEq(exitCode(code), 1)
     assertEq(
-        JSON.stringify(parseEvents(finalState.stdout)),
-        JSON.stringify([
+        toJson(parseEvents(finalState.stdout)),
+        toJson([
             ['start', './a.f.ts', ''],
             ['result', './a.f.ts', ''],
             ['start', './b.proof.f.ts', '.y'],

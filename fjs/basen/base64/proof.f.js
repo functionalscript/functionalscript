@@ -10,6 +10,7 @@ import { demo, groupsOf } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /**
  * @param {string} s
@@ -162,8 +163,8 @@ export const proof = {
         groups: () => {
             /** @type {(text: string) => BitGroups} */
             const encoded = text => unwrap(groupsOf(text))
-            assertEq(JSON.stringify(encoded('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
-            assertEq(JSON.stringify(encoded('h')), JSON.stringify({
+            assertEq(toJson(encoded('')), toJson({ chars: [], groups: [], encoded: '' }))
+            assertEq(toJson(encoded('h')), toJson({
                 chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
                 groups: [
                     { data: '011010', stop: '', fill: '' },
@@ -171,7 +172,7 @@ export const proof = {
                 ],
                 encoded: 'aA==',
             }))
-            assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['011010', '001100', '001110', '101001']))
+            assertEq(toJson(encoded('hé').groups.map(g => g.data)), toJson(['011010', '001100', '001110', '101001']))
             assertEq(encoded('hé').encoded, 'aMOp')
         },
         view: () => {

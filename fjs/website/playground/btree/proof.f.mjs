@@ -16,6 +16,7 @@ import { ok } from '../../../types/result/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /**
  * A host whose `randomInt` answers 0, 1, 2, … in turn.
@@ -74,14 +75,14 @@ export const proof = {
     },
     // A perfect tree of depth d: 3^d - 1 keys in half as many nodes.
     levels: () => {
-        assertEq(JSON.stringify([2, 3, 4].map(d => [keyCount(d), goalNodes(d)])), '[[8,4],[26,13],[80,40]]')
+        assertEq(toJson([2, 3, 4].map(d => [keyCount(d), goalNodes(d)])), '[[8,4],[26,13],[80,40]]')
     },
     // The depth is the length of any path down; the empty tree has none.
     measures: () => {
-        assertEq(JSON.stringify([depthOf(null), nodeCount(null)]), '[0,0]')
-        assertEq(JSON.stringify([depthOf(inOrder), nodeCount(inOrder)]), '[3,7]')
+        assertEq(toJson([depthOf(null), nodeCount(null)]), '[0,0]')
+        assertEq(toJson([depthOf(inOrder), nodeCount(inOrder)]), '[3,7]')
         const five = structure.insert(10)(structure.insert(20)(structure.insert(30)(structure.insert(40)(structure.insert(50)(null)))))
-        assertEq(JSON.stringify([depthOf(five), nodeCount(five)]), '[2,4]')
+        assertEq(toJson([depthOf(five), nodeCount(five)]), '[2,4]')
     },
     throw: {
         // A node of no B-tree width is refused, not measured as `undefined`.
@@ -96,10 +97,10 @@ export const proof = {
             assertEq(asked, 26)
             assert(r[0] === 'ok', '')
             const game = r[1]
-            assertEq(JSON.stringify([game.depth, game.mode, game.moves, game.last, game.error]), '[3,"still",0,null,null]')
+            assertEq(toJson([game.depth, game.mode, game.moves, game.last, game.error]), '[3,"still",0,null,null]')
             const versions = assertNotNullish(game.versions)
             assertEq(versions.before, versions.after)
-            assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(26)))
+            assertEq(toJson(keysOf(game)), toJson(tensUpTo(26)))
         },
         // A host without random numbers builds nothing, and says so. The
         // game stays as it was, its level included: a depth-2 search still
@@ -112,7 +113,7 @@ export const proof = {
             const [, r] = none(null)(start(3)(searching))
             assert(r[0] === 'ok', '')
             const game = r[1]
-            assertEq(JSON.stringify({ ...game, error: null }), JSON.stringify(searching))
+            assertEq(toJson({ ...game, error: null }), toJson(searching))
             assertEq(game.error, 'No random tree: operation not implemented: randomInt.')
             const h = html(game)
             assert(h.includes('No random tree: operation not implemented: randomInt.'), h)
@@ -128,44 +129,44 @@ export const proof = {
         // before, and the board says what the move is doing.
         changes: () => {
             const first = move(40)(level2)
-            assertEq(JSON.stringify([first.moves, first.last, first.mode, first.note, first.pending.length]),
+            assertEq(toJson([first.moves, first.last, first.mode, first.note, first.pending.length]),
                 '[1,{"key":40,"changed":true},"leave","40 comes out of the tree.",3]')
             const out = assertNotNullish(first.versions)
             assertEq(out.after, inOrder)
-            assertEq(JSON.stringify(toArray(values(out.before))), JSON.stringify(tensUpTo(8).filter(k => k !== 40)))
+            assertEq(toJson(toArray(values(out.before))), toJson(tensUpTo(8).filter(k => k !== 40)))
             const second = step(first)
             const removed = out.before
-            assertEq(JSON.stringify([second.mode, second.note, second.pending.length]), '["enter","40 is out of the tree.",2]')
-            assertEq(JSON.stringify(second.versions), JSON.stringify({ before: inOrder, after: removed }))
+            assertEq(toJson([second.mode, second.note, second.pending.length]), '["enter","40 is out of the tree.",2]')
+            assertEq(toJson(second.versions), toJson({ before: inOrder, after: removed }))
             const third = step(second)
-            assertEq(JSON.stringify([third.mode, third.note, third.pending.length]), '["leave","40 goes back in.",1]')
+            assertEq(toJson([third.mode, third.note, third.pending.length]), '["leave","40 goes back in.",1]')
             const moved = assertNotNullish(third.versions).before
-            assertEq(JSON.stringify(third.versions), JSON.stringify({ before: moved, after: removed }))
+            assertEq(toJson(third.versions), toJson({ before: moved, after: removed }))
             const fourth = step(third)
-            assertEq(JSON.stringify([fourth.mode, fourth.note, fourth.pending.length, fourth.moves]), '["enter",null,0,1]')
-            assertEq(JSON.stringify(fourth.versions), JSON.stringify({ before: removed, after: moved }))
-            assertEq(JSON.stringify(keysOf(fourth)), JSON.stringify(tensUpTo(8)))
+            assertEq(toJson([fourth.mode, fourth.note, fourth.pending.length, fourth.moves]), '["enter",null,0,1]')
+            assertEq(toJson(fourth.versions), toJson({ before: removed, after: moved }))
+            assertEq(toJson(keysOf(fourth)), toJson(tensUpTo(8)))
             // With no frame to come, a step and a landing change nothing;
             // a landing is the last frame at once, not counted as shown.
             assertEq(step(fourth), fourth)
             assertEq(land(fourth), fourth)
-            assertEq(JSON.stringify(land(first)), JSON.stringify({ ...fourth, shown: first.shown }))
+            assertEq(toJson(land(first)), toJson({ ...fourth, shown: first.shown }))
             assertEq(land(demo.init), demo.init)
         },
         // A move made while another is showing lands that one first: 40 is
         // back in the tree before 10 comes out.
         landsFirst: () => {
             const game = move(10)(move(40)(level2))
-            assertEq(JSON.stringify(assertNotNullish(game.versions).after), JSON.stringify(assertNotNullish(played(40)(level2).versions).after))
-            assertEq(JSON.stringify([game.moves, game.last, game.note]), '[2,{"key":10,"changed":true},"10 comes out of the tree."]')
+            assertEq(toJson(assertNotNullish(game.versions).after), toJson(assertNotNullish(played(40)(level2).versions).after))
+            assertEq(toJson([game.moves, game.last, game.note]), '[2,{"key":10,"changed":true},"10 comes out of the tree."]')
         },
         // A key that goes back where it was: counted too, shown out and in
         // again like any other, and said once it lands.
         goesBack: () => {
             const game = move(10)(level2)
-            assertEq(JSON.stringify([game.moves, game.last, game.pending.length, game.note]), '[1,{"key":10,"changed":false},3,"10 comes out of the tree."]')
+            assertEq(toJson([game.moves, game.last, game.pending.length, game.note]), '[1,{"key":10,"changed":false},3,"10 comes out of the tree."]')
             const landed = land(game)
-            assertEq(JSON.stringify(assertNotNullish(landed.versions).after), JSON.stringify(inOrder))
+            assertEq(toJson(assertNotNullish(landed.versions).after), toJson(inOrder))
             assertEq(statusLine(landed)(inOrder), '1 move. Depth 3, goal 2. 7 nodes, goal 4. 10 went back where it was.')
         },
         // Before the first tree there is nothing to move.
@@ -181,12 +182,12 @@ export const proof = {
             const one = played(40)(level2)
             const two = played(10)(one)
             const back = undo(two)
-            assertEq(JSON.stringify([back.moves, back.history.length, back.last, back.mode, back.pending.length]), '[3,1,null,"still",0]')
-            assertEq(JSON.stringify(back.versions), JSON.stringify({ before: assertNotNullish(two.versions).after, after: assertNotNullish(one.versions).after }))
+            assertEq(toJson([back.moves, back.history.length, back.last, back.mode, back.pending.length]), '[3,1,null,"still",0]')
+            assertEq(toJson(back.versions), toJson({ before: assertNotNullish(two.versions).after, after: assertNotNullish(one.versions).after }))
             assertEq(back.shown, two.shown + 1)
             const start = undo(back)
-            assertEq(JSON.stringify([start.moves, start.history.length]), '[4,0]')
-            assertEq(JSON.stringify(assertNotNullish(start.versions).after), JSON.stringify(inOrder))
+            assertEq(toJson([start.moves, start.history.length]), '[4,0]')
+            assertEq(toJson(assertNotNullish(start.versions).after), toJson(inOrder))
             assertEq(statusLine(start)(inOrder), '4 moves. Depth 3, goal 2. 7 nodes, goal 4.')
             // Nothing left to undo: the game as it was.
             assertEq(undo(start), start)
@@ -197,22 +198,22 @@ export const proof = {
         // none before it, there is nothing to undo.
         skipsNoChange: () => {
             const same = played(10)(level2)
-            assertEq(JSON.stringify([same.moves, same.history.length]), '[1,0]')
+            assertEq(toJson([same.moves, same.history.length]), '[1,0]')
             assertEq(undo(same), same)
             assert(html(same).includes('<button type="button" name="undo" disabled="">Undo</button>'), html(same))
             // After 40 moved, 30 goes back where it was: undo skips it and
             // takes 40's move back, to the start.
             const twice = played(30)(played(40)(level2))
-            assertEq(JSON.stringify([twice.moves, twice.last, twice.history.length]), '[2,{"key":30,"changed":false},1]')
+            assertEq(toJson([twice.moves, twice.last, twice.history.length]), '[2,{"key":30,"changed":false},1]')
             const back = undo(twice)
-            assertEq(JSON.stringify([back.moves, back.history.length]), '[3,0]')
-            assertEq(JSON.stringify(assertNotNullish(back.versions).after), JSON.stringify(inOrder))
+            assertEq(toJson([back.moves, back.history.length]), '[3,0]')
+            assertEq(toJson(assertNotNullish(back.versions).after), toJson(inOrder))
         },
         // A move still showing lands, and is the one undone.
         showing: () => {
             const back = undo(move(40)(level2))
-            assertEq(JSON.stringify([back.moves, back.history.length]), '[2,0]')
-            assertEq(JSON.stringify(assertNotNullish(back.versions).after), JSON.stringify(inOrder))
+            assertEq(toJson([back.moves, back.history.length]), '[2,0]')
+            assertEq(toJson(assertNotNullish(back.versions).after), toJson(inOrder))
         },
         // The button is disabled until there is a move to undo, and a
         // click on it undoes one; a new tree starts the history again.
@@ -221,7 +222,7 @@ export const proof = {
             const one = played(40)(level2)
             assert(html(one).includes('<button type="button" name="undo">Undo</button>'), html(one))
             const back = update({ kind: 'click', name: 'undo' })(one)
-            assertEq(JSON.stringify([back.moves, back.history.length]), '[2,0]')
+            assertEq(toJson([back.moves, back.history.length]), '[2,0]')
             assertEq(update({ kind: 'click', name: 'new' })(one).history.length, 0)
         },
     },
@@ -244,7 +245,7 @@ export const proof = {
         won: () => {
             const game = played(50)(played(10)(played(40)(level2)))
             const tree = assertNotNullish(game.versions).after
-            assertEq(JSON.stringify([depthOf(tree), nodeCount(tree)]), '[2,4]')
+            assertEq(toJson([depthOf(tree), nodeCount(tree)]), '[2,4]')
             assertEq(statusLine(game)(tree), 'Perfect, in 3 moves!')
         },
         // A tree that starts perfect is said to, not counted as a win.
@@ -260,14 +261,14 @@ export const proof = {
         inOrder: () => {
             const keys = tensUpTo(8)
             const begun = searchOf(parSearch(keys)(inOrder))
-            assertEq(JSON.stringify([begun.distance, begun.frontier.length, begun.next.length]), '[0,1,0]')
+            assertEq(toJson([begun.distance, begun.frontier.length, begun.next.length]), '[0,1,0]')
             assertEq(finish(keys)(50)(begun), 3)
             // One tree a turn: the search keeps its place in a frontier
             // between turns, and finds the same par.
             const one = searchOf(searchStep(keys)(1)(begun))
             assertEq(one.distance, 1)
             const two = searchOf(searchStep(keys)(1)(one))
-            assertEq(JSON.stringify([two.distance, two.frontier.length === one.frontier.length - 1]), '[1,true]')
+            assertEq(toJson([two.distance, two.frontier.length === one.frontier.length - 1]), '[1,true]')
             assertEq(finish(keys)(1)(two), 3)
         },
         // A perfect start has par 0, and nothing to search.
@@ -306,7 +307,7 @@ export const proof = {
         // nothing.
         turns: () => {
             const searching = { ...level2, par: parSearch(tensUpTo(8))(inOrder) }
-            assertEq(JSON.stringify(assertNotNullish(demo.nextEvent)(searching)), '{"kind":"click","name":"par"}')
+            assertEq(toJson(assertNotNullish(demo.nextEvent)(searching)), '{"kind":"click","name":"par"}')
             assertEq(searchOf(update({ kind: 'click', name: 'par' })(searching).par).distance, 1)
             assertEq(assertNotNullish(demo.nextEvent)(level2), null)
             assertEq(assertNotNullish(demo.nextEvent)({ ...level2, par: 3 }), null)
@@ -320,12 +321,12 @@ export const proof = {
         frames: () => {
             const first = move(40)({ ...level2, par: parSearch(tensUpTo(8))(inOrder) })
             const { nextEvent, nextDelay } = demo
-            assertEq(JSON.stringify(assertNotNullish(nextEvent)(first)), '{"kind":"click","name":"step"}')
+            assertEq(toJson(assertNotNullish(nextEvent)(first)), '{"kind":"click","name":"step"}')
             assertEq(assertNotNullish(nextDelay)(first), frameTime(first))
             const second = update({ kind: 'click', name: 'step' })(first)
-            assertEq(JSON.stringify(second), JSON.stringify(step(first)))
+            assertEq(toJson(second), toJson(step(first)))
             const last = land(first)
-            assertEq(JSON.stringify(assertNotNullish(nextEvent)(last)), '{"kind":"click","name":"par"}')
+            assertEq(toJson(assertNotNullish(nextEvent)(last)), '{"kind":"click","name":"par"}')
             assertEq(assertNotNullish(nextDelay)(last), 0)
         },
         // A frame is held 150 ms for each order of its moving nodes, and one
@@ -352,7 +353,7 @@ export const proof = {
             assertEq(JSON.stringify(leave.nodes.map(n => [n.kind, n.order ?? null, n.key])),
                 '[["leaving",2,""],["shared",null,"30,40"],["leaving",1,""],["leaving",1,""]]')
             const enter = ordered('enter')(g)
-            assertEq(JSON.stringify(enter.nodes.map(n => [n.kind, n.order ?? null])),
+            assertEq(toJson(enter.nodes.map(n => [n.kind, n.order ?? null])),
                 '[["new",1],["shared",null],["new",2],["new",2]]')
             // A tree just built is drawn as it is, unkeyed, so nothing slides
             // from the tree it replaced.
@@ -382,10 +383,10 @@ export const proof = {
             const kinds = game => html(game).split('data-graph-kind="').slice(1).map(t => t.slice(0, t.indexOf('"'))).filter(k => k !== 'shared')
             const first = move(40)(level2)
             const second = step(first)
-            assertEq(JSON.stringify(kinds(first).filter(k => k !== 'leaving')), '[]')
-            assert(kinds(second).length > 0 && kinds(second).every(k => k === 'entering'), JSON.stringify(kinds(second)))
+            assertEq(toJson(kinds(first).filter(k => k !== 'leaving')), '[]')
+            assert(kinds(second).length > 0 && kinds(second).every(k => k === 'entering'), toJson(kinds(second)))
             const last = land(first)
-            assert(kinds(last).length > 0 && kinds(last).every(k => k === 'new'), JSON.stringify(kinds(last)))
+            assert(kinds(last).length > 0 && kinds(last).every(k => k === 'new'), toJson(kinds(last)))
             const after = assertNotNullish(last.versions).after
             const built = graphOf(structure)({ before: inOrder, after }).nodes.filter(n => n.kind === 'new').length
             assertEq(kinds(last).length, built)
@@ -397,9 +398,9 @@ export const proof = {
             /** @type {(game: Game) => readonly string[]} */
             const kinds = game => html(game).split('data-graph-value-kind="').slice(1).map(t => t.slice(0, t.indexOf('"')))
             const first = move(40)(level2)
-            assertEq(JSON.stringify(kinds(first)), '["removed","removed"]')
-            assertEq(JSON.stringify(kinds(step(first))), '[]')
-            assertEq(JSON.stringify(kinds(land(first))), '["added","added"]')
+            assertEq(toJson(kinds(first)), '["removed","removed"]')
+            assertEq(toJson(kinds(step(first))), '[]')
+            assertEq(toJson(kinds(land(first))), '["added","added"]')
             const g = { nodes: [], edges: [{ from: 0, to: { inline: '40' }, label: '' }], entries: [] }
             assertEq(marked('still')({ key: 40, changed: true })(g), g)
             assertEq(marked('enter')(null)(g), g)
@@ -413,15 +414,15 @@ export const proof = {
             assert(html(level2).includes('<input type="checkbox" name="animate" checked="">'), html(level2))
             const showing = move(40)(level2)
             const off = update({ kind: 'input', name: 'animate', value: '' })(showing)
-            assertEq(JSON.stringify([off.animate, off.pending.length, off.mode, off.versions]),
-                JSON.stringify([false, 0, 'still', { before: inOrder, after: assertNotNullish(land(showing).versions).after }]))
+            assertEq(toJson([off.animate, off.pending.length, off.mode, off.versions]),
+                toJson([false, 0, 'still', { before: inOrder, after: assertNotNullish(land(showing).versions).after }]))
             assert(!html(off).includes('data-graph-order') && html(off).includes('data-graph-kind="new"'), html(off))
             assert(html(off).includes('<input type="checkbox" name="animate">'), html(off))
             const moved = move(40)(off)
             const after = assertNotNullish(land(showing).versions).after
             const next = assertNotNullish(moved.versions)
-            assertEq(JSON.stringify([moved.mode, moved.pending.length, moved.moves, moved.note]), '["still",0,2,null]')
-            assertEq(JSON.stringify(next.before), JSON.stringify(after))
+            assertEq(toJson([moved.mode, moved.pending.length, moved.moves, moved.note]), '["still",0,2,null]')
+            assertEq(toJson(next.before), toJson(after))
             assert(html(moved).includes('data-graph-kind="new"') && !html(moved).includes('entering'), html(moved))
             assertEq(update({ kind: 'input', name: 'animate', value: 'on' })(off).animate, true)
             assertEq(update({ kind: 'click', name: 'new' })(off).animate, false)
@@ -434,7 +435,7 @@ export const proof = {
             assert(h.includes('<select id="level" name="level"><option value="2" selected="">Depth 2: 8 keys</option><option value="3">Depth 3: 26 keys</option><option value="4">Depth 4: 80 keys</option></select>'), h)
             assert(h.includes('<button type="button" name="new">New tree</button>'), h)
             const game = update({ kind: 'start' })(demo.init)
-            assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(8)))
+            assertEq(toJson(keysOf(game)), toJson(tensUpTo(8)))
             const g = html(game)
             assert(g.includes('0 moves. Depth '), g)
             // Every key is a control that moves it.
@@ -445,12 +446,12 @@ export const proof = {
             const moved = move(40)(level2)
             assertEq(update({ kind: 'click', name: 'new' })(moved).moves, 0)
             const three = update({ kind: 'input', name: 'level', value: '3' })(moved)
-            assertEq(JSON.stringify([three.depth, keysOf(three).length]), '[3,26]')
+            assertEq(toJson([three.depth, keysOf(three).length]), '[3,26]')
             assert(html(three).includes('<option value="3" selected="">'), '')
         },
         // A click on a key moves it; anything else changes nothing.
         update: () => {
-            assertEq(JSON.stringify(update({ kind: 'click', name: 'move:40' })(level2).last), '{"key":40,"changed":true}')
+            assertEq(toJson(update({ kind: 'click', name: 'move:40' })(level2).last), '{"key":40,"changed":true}')
             assertEq(update({ kind: 'click', name: 'move:x' })(level2), level2)
             assertEq(update({ kind: 'click', name: 'other' })(level2), level2)
             assertEq(update({ kind: 'input', name: 'level', value: '9' })(level2), level2)

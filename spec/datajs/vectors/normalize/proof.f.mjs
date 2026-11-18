@@ -7,6 +7,7 @@ import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js'
 import normalize from './data.f.js'
+import { toJson } from '../../../../fjs/media/json/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly Normalize[]} */ (normalize)
@@ -21,7 +22,7 @@ const { hasOwn, keys } = Object
  */
 const named = (vector, name) => {
     const value = vector[name]
-    assert(typeof value === 'string' && value !== '', `${JSON.stringify(vector.id)}: ${name} is not a non-empty string`)
+    assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
 
@@ -42,7 +43,7 @@ const named = (vector, name) => {
  * @type {(input: Unknown) => string | null}
  */
 const spelling = input => {
-    if (typeof input === 'string') { return `export default ${JSON.stringify(input)};` }
+    if (typeof input === 'string') { return `export default ${toJson(input)};` }
     if (typeof input !== 'object' || input === null || Array.isArray(input)) { return null }
     const o = /** @type {{ readonly [k in string]?: Unknown }} */ (input)
     const k = keys(o)
@@ -51,7 +52,7 @@ const spelling = input => {
     // did: the check would demand a spelling the reader refuses and go red for
     // the wrong reason, so the one key the rule spells differently opts out.
     return k.length === 1 && k[0] !== '__proto__' && o[k[0]] === 0
-        ? `export default {${JSON.stringify(k[0])}:0};`
+        ? `export default {${toJson(k[0])}:0};`
         : null
 }
 

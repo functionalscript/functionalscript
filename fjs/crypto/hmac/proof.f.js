@@ -13,6 +13,7 @@ import { demo, digest } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 export const proof = {
     demo: {
@@ -85,10 +86,10 @@ export const proof = {
         update: () => {
             /** @type {(event: DemoEvent) => typeof demo.init} */
             const next = event => unwrap(assertNotNullish(runPure(demo.update(demo.init)(event))[0]))
-            assertEq(JSON.stringify(demo.init), JSON.stringify({ algorithm: 'SHA-256', key: '', text: '' }))
-            assertEq(JSON.stringify(next({ kind: 'input', name: 'algorithm', value: 'SHA-1' })), JSON.stringify({ ...demo.init, algorithm: 'SHA-1' }))
-            assertEq(JSON.stringify(next({ kind: 'input', name: 'key', value: 'key' })), JSON.stringify({ ...demo.init, key: 'key' }))
-            assertEq(JSON.stringify(next({ kind: 'input', name: 'text', value: 'message' })), JSON.stringify({ ...demo.init, text: 'message' }))
+            assertEq(toJson(demo.init), toJson({ algorithm: 'SHA-256', key: '', text: '' }))
+            assertEq(toJson(next({ kind: 'input', name: 'algorithm', value: 'SHA-1' })), toJson({ ...demo.init, algorithm: 'SHA-1' }))
+            assertEq(toJson(next({ kind: 'input', name: 'key', value: 'key' })), toJson({ ...demo.init, key: 'key' }))
+            assertEq(toJson(next({ kind: 'input', name: 'text', value: 'message' })), toJson({ ...demo.init, text: 'message' }))
             assertEq(next({ kind: 'start' }), demo.init)
             assertEq(next({ kind: 'click', name: 'other' }), demo.init)
             assertEq(next({ kind: 'input', name: 'other', value: 'ignored' }), demo.init)

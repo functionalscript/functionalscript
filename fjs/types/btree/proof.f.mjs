@@ -20,7 +20,7 @@ import { ok } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../result/module.f.js'
-import { stringifySorted } from '../../media/json/module.f.js'
+import { stringifySorted, toJson } from '../../media/json/module.f.js'
 import { set, squares } from './testlib.f.js'
 import { max } from '../number/max/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
@@ -86,7 +86,7 @@ const test = () => {
 const html = state => htmlToString(demo.view(state))
 
 /** @type {(state: State<Tree<number>>) => string} */
-const censusOf = state => JSON.stringify(_census(state.versions))
+const censusOf = state => toJson(_census(state.versions))
 
 /** The state after typing `key` into the field and pressing `op`'s button. @type {(op: 'insert' | 'remove') => (key: string) => (state: State<Tree<number>>) => State<Tree<number>>} */
 const press = op => key => state => _press(op)({ ...state, key })
@@ -142,7 +142,7 @@ const demoProof = {
         assert(r[0] === 'ok', '')
         const { versions, status } = r[1]
         assertEq(versions.before, versions.after)
-        assertEq(JSON.stringify(toArray(values(versions.after))), JSON.stringify(generate(26, i => (i + 1) * 10)))
+        assertEq(toJson(toArray(values(versions.after))), toJson(generate(26, i => (i + 1) * 10)))
         assert(hasEntry(status, 'random') && status.random.length === 26, '')
         assert(html(r[1]).includes('26 keys inserted in random order: 10, 30, 50, 70, '), '')
     },
@@ -151,7 +151,7 @@ const demoProof = {
     // what to press. Nothing has changed, so nothing is coloured.
     opening: () => {
         const h = html(demo.init)
-        assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
+        assertEq(toJson(demo.init), toJson(_load(presets[0][0])))
         assertEq(demo.init.versions.before, demo.init.versions.after)
         // One graph, with no node above the tree and no titles, and one
         // arrow, into its root.
@@ -188,7 +188,7 @@ const demoProof = {
             assert(h.includes('data-graph-value-label="" pointer-events="none">80<'), h)
             // One arrow, into the new root.
             const { nodes, entries = [] } = _graphOf(s.versions)
-            assertEq(JSON.stringify(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["new",null]]')
+            assertEq(toJson(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["new",null]]')
             assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the tree before, 3 only in the tree before.'), h)
             // A press leaves the preset behind.
             assert(h.includes('Custom'), h)
@@ -226,7 +226,7 @@ const demoProof = {
             const { nodes, edges, table } = _graphOf(s.versions)
             assert(table === true, table)
             const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
-            const node5 = assertNotNullish(nodes.find(n => JSON.stringify(keysOf(n.id)) === '["60","80"]'))
+            const node5 = assertNotNullish(nodes.find(n => toJson(keysOf(n.id)) === '["60","80"]'))
             const out = edges.filter(e => e.from === node5.id)
             assertEq(JSON.stringify(out.map(e => typeof e.to === 'number' ? [e.span, e.label] : e.to.inline)), '[[1,""],"60",[1,""],"80",[1,""]]')
             assert(!h.includes('data-graph-edge-label="">Middle<'), h)
@@ -241,17 +241,17 @@ const demoProof = {
         growALevel: () => {
             const s = follow('Grow a level')
             assertEq(censusOf(s), '{"built":7,"shared":8,"replaced":3}')
-            assertEq(JSON.stringify(depths('Grow a level')), '[3,4]')
+            assertEq(toJson(depths('Grow a level')), '[3,4]')
             // The one root is the node no edge reaches, new, in the first
             // column.
             const { nodes, edges } = _graphOf(s.versions)
             const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
-            assertEq(JSON.stringify(roots.map(n => [n.kind, n.rank])), '[["new",0]]')
+            assertEq(toJson(roots.map(n => [n.kind, n.rank])), '[["new",0]]')
         },
         // An emptied leaf merges, and the tree shrinks a level.
         removeAndMerge: () => {
             assertEq(censusOf(follow('Remove and merge')), '{"built":2,"shared":2,"replaced":5}')
-            assertEq(JSON.stringify(depths('Remove and merge')), '[3,2]')
+            assertEq(toJson(depths('Remove and merge')), '[3,2]')
         },
         // A missing key changes nothing: both versions are one tree.
         // It says so, rather than counting nothing.
@@ -268,9 +268,9 @@ const demoProof = {
         moveAKey: () => {
             const s = follow('Move a key')
             const { before, after } = s.versions
-            assertEq(JSON.stringify(toArray(values(after))), JSON.stringify(toArray(values(before))))
-            assertEq(JSON.stringify([nodeCount(before), nodeCount(after)]), '[8,7]')
-            assertEq(JSON.stringify(depths('Move a key')), '[3,3]')
+            assertEq(toJson(toArray(values(after))), toJson(toArray(values(before))))
+            assertEq(toJson([nodeCount(before), nodeCount(after)]), '[8,7]')
+            assertEq(toJson(depths('Move a key')), '[3,3]')
             assert(html(s).includes('Last step, move 40:'), '')
         },
         // A move starts from the tree on screen, not the one before the
@@ -279,7 +279,7 @@ const demoProof = {
             const inserted = follow('Insert into a leaf')
             const s = _move(40)(inserted)
             assertEq(s.versions.before, inserted.versions.after)
-            assertEq(JSON.stringify(toArray(values(s.versions.after))), JSON.stringify(toArray(values(inserted.versions.after))))
+            assertEq(toJson(toArray(values(s.versions.after))), toJson(toArray(values(inserted.versions.after))))
             assert(toArray(values(s.versions.after)).includes(80), '')
         },
         // A move that builds the same shape back changes nothing: both
@@ -292,7 +292,7 @@ const demoProof = {
         // Five nodes built again, and 26 shared, without growing a level.
         bigTree: () => {
             assertEq(censusOf(follow('Big tree')), '{"built":5,"shared":26,"replaced":5}')
-            assertEq(JSON.stringify(depths('Big tree')), '[5,5]')
+            assertEq(toJson(depths('Big tree')), '[5,5]')
         },
     },
     // The drawing's own layout: every leaf in the last column, and each
@@ -313,14 +313,14 @@ const demoProof = {
         // The leaf 310 is now 310 320, and the leaf it replaced is not
         // drawn.
         const leaf310 = nodes.filter(n => n.rank === last && averageOf(n.id) >= 310)
-        assertEq(JSON.stringify(leaf310.map(n => n.kind)), '["new"]')
+        assertEq(toJson(leaf310.map(n => n.kind)), '["new"]')
     },
     // A name no preset has is a bug in whatever sent it.
     throw: () => _load('no such preset'),
     // Spaces around a key are not part of it, and a negative key is a key.
     keys: () => {
-        assertEq(JSON.stringify(press('insert')(' 8 ')(demo.init).status), '{"step":{"op":"insert","key":8}}')
-        assertEq(JSON.stringify(press('insert')('-3')(demo.init).status), '{"step":{"op":"insert","key":-3}}')
+        assertEq(toJson(press('insert')(' 8 ')(demo.init).status), '{"step":{"op":"insert","key":8}}')
+        assertEq(toJson(press('insert')('-3')(demo.init).status), '{"step":{"op":"insert","key":-3}}')
     },
     // A field that holds no key changes no tree, and says why; the hint
     // stays, since nothing it describes has happened yet.
@@ -344,10 +344,10 @@ const demoProof = {
         const typed = update({ kind: 'input', name: 'key', value: '9' })(demo.init)
         assertEq(typed.key, '9')
         assertEq(typed.versions, demo.init.versions)
-        assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":9}}')
-        assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":9}}')
+        assertEq(toJson(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":9}}')
+        assertEq(toJson(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":9}}')
         assertEq(update({ kind: 'input', name: 'example', value: 'Big tree' })(typed).key, '320')
-        assertEq(JSON.stringify(update({ kind: 'click', name: 'move:40' })(typed).status), '{"step":{"op":"move","key":40}}')
+        assertEq(toJson(update({ kind: 'click', name: 'move:40' })(typed).status), '{"step":{"op":"move","key":40}}')
         assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
         assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
         assertEq(update({ kind: 'start' })(typed), typed)

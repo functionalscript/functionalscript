@@ -206,16 +206,16 @@ is the way to refresh this file, not a partial edit.
 | `fjs/compiler/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/js/tokenizer/module.f.js` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/js/tokenizer/module.f.js` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/mcp/cas/proof.f.mjs` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 38 | `unknown` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 65 | `Parameters<typeof match>[0]` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 85 | `any` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 93 | `Key<Cache>` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 93 | `any` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 101 | `NonNullable<typeof entry>` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 121 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 132 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 149 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 38 | `unknown` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 65 | `Parameters<typeof match>[0]` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 85 | `any` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 93 | `Key<Cache>` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 93 | `any` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 101 | `NonNullable<typeof entry>` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 121 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 132 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 149 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
 | `fjs/mcp/proof.f.mjs` | 67 | `Unknown` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/mcp/proof.f.mjs` | 174 | `ToolsCallResult` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/media/json/proof.f.mjs` | 18 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |

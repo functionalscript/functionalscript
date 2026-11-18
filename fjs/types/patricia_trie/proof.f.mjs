@@ -11,6 +11,8 @@ import { hasEntry } from '../object/entry/module.f.js'
 import { nextStep } from '../function/operator/module.f.js'
 import { run } from '../list/module.f.js'
 import { at } from '../ordered_map/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
+import { entry } from '../object/entry/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -165,7 +167,7 @@ const follow = name => {
 }
 
 /** @type {(name: string) => string} */
-const censusAfter = name => JSON.stringify(_census(follow(name).versions))
+const censusAfter = name => toJson(_census(follow(name).versions))
 
 const demoProof = {
     // Each preset's hint is what its press does: a handful of branches
@@ -191,8 +193,8 @@ const demoProof = {
     // keys: a leaf's in binary, a branch's its children's names joined.
     names: () => {
         const { nodes } = _load('Insert a key').versions.after
-        assertEq(JSON.stringify(at('00000011')(nodes)), '["leaf",3]')
-        assertEq(JSON.stringify(at('00000011 00010001')(nodes)), '["branch","00000011","00010001"]')
+        assertEq(toJson(at('00000011')(nodes)), '["leaf",3]')
+        assertEq(toJson(at('00000011 00010001')(nodes)), '["branch","00000011","00010001"]')
     },
     // A node shows its prefix in binary, a leaf its whole key, each split
     // into the bits its parent fixed and the bits it adds; nothing else.
@@ -219,8 +221,8 @@ const demoProof = {
     layout: () => {
         const { nodes, edges } = _graphOf(_load('Insert a key').versions)
         const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
-        assertEq(JSON.stringify(roots.map(n => n.rank)), '[0]')
-        assert(edges.every(e => typeof e.to !== 'number' || nodes[e.to].rank === nodes[e.from].rank + 1), '')
+        assertEq(toJson(roots.map(n => n.rank)), '[0]')
+        assert(edges.every(e => typeof e.to !== 'number' || nodes[Number(e.to)].rank === nodes[Number(e.from)].rank + 1), '')
         const leafRanks = new Set(nodes.filter(n => edges.some(e => e.from === n.id && typeof e.to !== 'number')).map(n => n.rank))
         assert(leafRanks.size > 1, '')
     },

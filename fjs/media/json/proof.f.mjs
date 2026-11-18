@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { marked, parse, serialize, setProperty, stringify, stringifyIndented, stringifySorted } from './module.f.js'
+import { marked, parse, serialize, setProperty, stringify, stringifyIndented, stringifySorted, toJson } from './module.f.js'
 import { _roundTripMarked, demo, roundTrip } from './demo.f.js'
 import { sort } from '../../types/object/module.f.js'
 import { identity } from '../../types/function/module.f.js'
@@ -59,6 +59,8 @@ export const proof = {
                 const x = stringify(identity)(setProperty("Hello")(['a'])({}))
                 assertEq(x, '{"a":"Hello"}')
             },
+            // Keys stay in the order the value holds them.
+            toJson: () => assertEq(toJson({ c: [], b: 12, a: -0 }), '{"c":[],"b":12,"a":-0}'),
         },
         {
             sort: () => {
