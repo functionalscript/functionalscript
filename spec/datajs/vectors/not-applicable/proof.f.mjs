@@ -6,6 +6,7 @@ import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import notApplicable from './data.f.js'
 import { entry } from '../../../../fjs/types/object/entry/module.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
+import { dedup } from '../../../../fjs/types/array/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly NotApplicable[]} */ (/** @type {unknown} */ (notApplicable))
@@ -54,6 +55,6 @@ export const proof = {
     // One reason per scope and role: two would leave the matrix to pick.
     unique: () => {
         const keys = set.map(record => `${named(record, 'role')} ${where(record)}`)
-        assertEq(new Set(keys).size, keys.length)
+        assertEq(dedup(keys).length, keys.length)
     },
 }

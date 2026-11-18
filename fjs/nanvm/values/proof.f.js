@@ -26,7 +26,7 @@ export const proof = {
         ])
         assertEq(slots[1], shared)
         assertEq(slots[2], shared)
-        slots.forEach((slot, i) => assertEq(slot, otherSlots[i]))
+        for (const [i, slot] of slots.map((slot, i) => /** @type {const} */ ([i, slot]))) { assertEq(slot, otherSlots[Number(i)]) }
         assert(body !== otherBody)
     },
     invocation: () => {

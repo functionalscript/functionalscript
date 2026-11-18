@@ -9,6 +9,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.js'
 import { cardName, demo, setup, transition } from './demo.f.js'
 import { toJson } from '../../media/json/module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 const { deck, key, open } = mentalPoker(secp256k1)
 const n = secp256k1.nf.p
@@ -39,7 +40,7 @@ export const proof = {
     deck: () => {
         const plain = assertNotNullish(deck(0x20))
         assertEq(plain.length, 0x20)
-        plain.forEach((card, i) => assertEq(assertNotNullish(card)[0] & 0xffn, BigInt(i)))
+        for (const [i, card] of plain.map((card, i) => /** @type {const} */ ([i, card]))) { assertEq(assertNotNullish(card)[0] & 0xffn, BigInt(i)) }
         // Some index has no curve point at `x = i`, so its nonce is above 0.
         assert(plain.some(card => assertNotNullish(card)[0] >> cardBits !== 0n))
         assertEq(assertNotNullish(deck(maxDeckSize)).length, maxDeckSize)
@@ -67,7 +68,7 @@ export const proof = {
         assertStructurallySame(shuffle(5n)([1, 2, 3]), [3, 2, 1])
         // Seeds below 3! give each permutation once; 6 wraps to 0.
         const all = [0n, 1n, 2n, 3n, 4n, 5n].map(s => shuffle(s)([1, 2, 3]).join(''))
-        assertEq(new Set(all).size, 6)
+        assertEq(dedup(all).length, 6)
         assertStructurallySame(shuffle(6n)([1, 2, 3]), [1, 2, 3])
     },
     game: () => {
@@ -86,7 +87,7 @@ export const proof = {
         assertEq(open(plain)(unlockAll([alice, bob, carol])(shuffled[0])), card)
         // Every card is dealt once.
         const opened = shuffled.map(c => open(plain)(unlockAll([alice, bob, carol])(c)))
-        assertEq(new Set(opened).size, 8)
+        assertEq(dedup(opened).length, 8)
         assert(opened.every(i => i !== null))
     },
     demo: {
@@ -192,7 +193,7 @@ export const proof = {
             assert(shownDown.includes('Hand over'))
             assertEq(click(showdown, 'next'), showdown)
             // Every card dealt is a different card.
-            assertEq(new Set([...pockets.map(({ card }) => card), ...river.board]).size, 11)
+            assertEq(dedup([...pockets.map(({ card }) => card), ...river.board]).length, 11)
             // A typed change starts the game over; so does the button.
             assertStructurallySame(input(river, 'bob', 'robert').decks, [])
             const reset = click(showdown, 'reset')

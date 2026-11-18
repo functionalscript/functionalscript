@@ -10,6 +10,7 @@ import { stringToCodePointList } from '../../../../fjs/text/utf16/module.f.js'
 import { toArray } from '../../../../fjs/types/list/alt/module.f.js'
 import serializerAccept from './data.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
+import { dedup } from '../../../../fjs/types/array/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly SerializerAccept[]} */ (serializerAccept)
@@ -52,7 +53,7 @@ export const proof = {
     // Every id is one of a kind.
     unique: () => {
         const ids = set.map(vector => named(vector, 'id'))
-        assertEq(new Set(ids).size, ids.length)
+        assertEq(dedup(ids).length, ids.length)
     },
     // Every vector carries an input as an own member, `undefined` included —
     // which is a leaf of this data model and so a vector of its own, not an

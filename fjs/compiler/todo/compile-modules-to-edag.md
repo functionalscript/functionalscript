@@ -571,7 +571,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       JavaScript; a `null` or `undefined` base fails the module, as JavaScript
       throws — `run` returns a `Result` now, and `fjs compile` reports the failure
       against the input. Pinned in `fjs/compiler/language.proof.f.mjs` (`access`) and
-      `fjs/compiler/ast/proof.f.mjs`. The sweep that once read an access by
+      `fjs/compiler/ast/proof.f.js`. The sweep that once read an access by
       its keys to refuse `[cfg.a, cfg.a]` as JSON went with the refusal
       (#2526): a value output reads the value, where `[cfg.a, cfg.a]` is one
       array reached twice, hoisted by DataJS and written twice by JSON.
@@ -664,7 +664,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:
-      `call` in [`../parser/grammar/proof.f.mjs`](../parser/grammar/proof.f.mjs),
+      `call` in [`../parser/grammar/proof.f.js`](../parser/grammar/proof.f.js),
       `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
       `call` in [`../edag/proof.f.js`](../edag/proof.f.js) and in
       [`../proof.f.mjs`](../proof.f.mjs).
@@ -687,7 +687,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       fixed/rest closures under Amnesia and memo.
 - [x] Add a validation proof that reusing one operation node both outside and inside a
       nested function body is rejected. Done: `throw` in
-      [`fjs/edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
+      [`fjs/edag/analysis/proof.f.js`](../../edag/analysis/proof.f.js)
       (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
 
 #### Shared/final

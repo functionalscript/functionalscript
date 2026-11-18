@@ -13,7 +13,7 @@ import { identityAnalysis } from '../analysis/module.f.js'
 import { memo } from '../memo/module.f.js'
 import { toFast } from '../to_fast/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
-import { generate } from '../../types/array/module.f.js'
+import { generate, dedup } from '../../types/array/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -307,14 +307,14 @@ export const proof = {
         const lowered = lowerBlock(block)
         const graph = anchored(lowered)
         assertEq(lowered.anchors.length, count)
-        assertEq(new Set(lowered.anchors).size, count)
+        assertEq(dedup(lowered.anchors).length, count)
         assert(graph instanceof Array && graph[0] === ',')
         assertEq(graph[1].length, count + 1)
         for (let index = 0; index < count; index += 1) {
-            assertEq(graph[1][index], lowered.anchors[index])
-            assertStructurallySame(graph[1][index], ['[]', []])
+            assertEq(graph[1][Number(index)], lowered.anchors[Number(index)])
+            assertStructurallySame(graph[1][Number(index)], ['[]', []])
         }
-        assertEq(graph[1][count], 0)
+        assertEq(graph[1][Number(count)], 0)
     },
     selectedControlArmsReuseCompletedTests: () => {
         const parameters = [id(0), id(1), id(2)]
@@ -370,7 +370,7 @@ export const proof = {
             target, parameters, initial: parameters.map((_, index) => index), results,
             body: body(['continue', target, parameters.map(ref)], [
                 ['if', [], ['<', ref(parameters[0]), 3], body(['continue', target, next.map(ref)],
-                    parameters.map((parameter, index) => ['define', next[index], ['+', ref(parameter), 1], 'required'])),
+                    parameters.map((parameter, index) => ['define', next[Number(index)], ['+', ref(parameter), 1], 'required'])),
                 body(['break', target, parameters.map(ref)])],
             ]),
         })
@@ -546,13 +546,13 @@ export const proof = {
         const aliases = generate(count, () => id(0))
         const external = id(0)
         const supplied = /** @type {Exp} */ (['{}', []])
-        const latest = bindings[count - 1]
+        const latest = bindings[Number(count - 1)]
         /** @type {readonly Statement[]} */
         const statements = [
             ...bindings.map((binding, index) => /** @type {Statement} */ (['define', binding, ['array', [index]], 'lazy'])),
             ...aliases.map(binding => /** @type {Statement} */ (['define', binding, ref(latest), 'lazy'])),
         ]
-        const graph = /** @type {readonly ['[]', readonly Exp[]]} */ (fromFast(result(['array', [ref(external), ref(bindings[0]), ref(latest), ref(aliases[count - 1])]], statements), [[external, supplied]]))
+        const graph = /** @type {readonly ['[]', readonly Exp[]]} */ (fromFast(result(['array', [ref(external), ref(bindings[0]), ref(latest), ref(aliases[Number(count - 1)])]], statements), [[external, supplied]]))
         assertEq(graph[1][0], supplied)
         assertStructurallySame(graph[1][1], ['[]', [0]])
         assertStructurallySame(graph[1][2], ['[]', [count - 1]])
@@ -1205,7 +1205,7 @@ export const proof = {
         const root = analysis.root
         assert(root instanceof Array)
         assert(analysis.nodes.some((node, index) => node[0] === '()' && node[1] instanceof Array
-            && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1]))
+            && analysis.nodes[Number(node[1][1])][0] === 'self' && analysis.scope[Number(index)] === root[1]))
         const bound = id(0)
         assertEq(evaluate(fromFast(result(['===', ['()', ref(bound), [0]], ref(bound)], [['define', bound, ['function', fn], 'required']]))), true)
         assertEq(evaluate(calledFunction(fn, [3])), 3)
@@ -1425,7 +1425,7 @@ export const proof = {
         const root = analysis.root
         assert(root instanceof Array)
         assert(analysis.nodes.some((node, index) => node[0] === '()' && node[1] instanceof Array
-            && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1]))
+            && analysis.nodes[Number(node[1][1])][0] === 'self' && analysis.scope[Number(index)] === root[1]))
         const bound = id(0)
         assertEq(evaluate(fromFast(result(['===', ['()', ref(bound), [0]], ref(bound)], [['define', bound, ['function', fn], 'required']]))), true)
         assertEq(evaluate(calledFunction(fn, [7])), 7)
@@ -1445,8 +1445,8 @@ export const proof = {
             const root = analysis.root
             assert(root instanceof Array)
             const calls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
-                && analysis.nodes[node[1][1]][0] === 'arg' && analysis.nodes[node[1][1]][1] === 3
-                && analysis.scope[index] === root[1] ? [index] : [])
+                && analysis.nodes[Number(node[1][1])][0] === 'arg' && analysis.nodes[Number(node[1][1])][1] === 3
+                && analysis.scope[Number(index)] === root[1] ? [index] : [])
             assertEq(calls.length, 1)
             const allocations = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 1
                 && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === calls[0] ? [index] : [])

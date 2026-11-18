@@ -108,7 +108,7 @@ proofs; the proof keys name the relevant cases within each linked file.
 
 | Gate | Shipped contract and evidence |
 | --- | --- |
-| A: FAST and binding facts | [AST proofs](../js/ast/proof.f.mjs), `bindings.wholeScope`, and [control proofs](../js/ast/control/proof.f.mjs), `lexicalResults`, cover binding identities, writes/captures and explicit results. |
+| A: FAST and binding facts | [AST proofs](../js/ast/proof.f.mjs), `bindings.wholeScope`, and [control proofs](../js/ast/control/proof.f.js), `lexicalResults`, cover binding identities, writes/captures and explicit results. |
 | B: Source input | [Parser bindings](parser/bindings.proof.f.mjs), `completeSourceScan`, [sugar](../js/ast/sugar/proof.f.js), `generalLoopStateUsesDeclarationOrderAndSharedWriteFacts`, and [construction](../edag/from_fast/proof.f.mjs), `bindingIdentityAndOrder`, preserve source facts before graph construction. |
 | C: Shared output | [Conversion](../edag/to_fast/proof.f.js), `identities` and `regions`, preserves sharing and placement; [function text](serializer/function_text/proof.mjs), `loops`, and [Rust](../../nanvm/harness/tests/while_loop.rs), `a_million_rounds`, cover bounded-stack execution. |
 | D: Logical lowering | [Logical sugar](../js/ast/sugar/logical/proof.f.mjs), `immutableLeftIdentity` and `originalLazyRegions`, retains lazy operands; [schema proofs](../edag/proof.f.mjs), `formerLogicalTags`, refuses retired graph tags. |

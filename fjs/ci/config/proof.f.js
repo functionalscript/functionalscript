@@ -1,5 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime } from './module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 export const proof = /** @type {const} */ ({
     runnerImages: () => {
@@ -9,7 +10,7 @@ export const proof = /** @type {const} */ ({
             assert(names.every(name => name.startsWith(`${system}-`)))
             return names
         })
-        assertEq(new Set(runners).size, runners.length)
+        assertEq(dedup(runners).length, runners.length)
     },
     versionPins: () => {
         for (const version of /** @type {const} */ ([bun, deno, node, rust, spidermonkey.version, typescript.version, wasmer, wasmtime])) {

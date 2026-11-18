@@ -12,7 +12,7 @@ import { nextStep } from '../function/operator/module.f.js'
 import { run } from '../list/module.f.js'
 import { at } from '../ordered_map/module.f.js'
 import { toJson } from '../../media/json/module.f.js'
-import { entry } from '../object/entry/module.f.js'
+import { dedup } from '../array/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -223,8 +223,8 @@ const demoProof = {
         const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
         assertEq(toJson(roots.map(n => n.rank)), '[0]')
         assert(edges.every(e => typeof e.to !== 'number' || nodes[Number(e.to)].rank === nodes[Number(e.from)].rank + 1), '')
-        const leafRanks = new Set(nodes.filter(n => edges.some(e => e.from === n.id && typeof e.to !== 'number')).map(n => n.rank))
-        assert(leafRanks.size > 1, '')
+        const leafRanks = dedup(nodes.filter(n => edges.some(e => e.from === n.id && typeof e.to !== 'number')).map(n => n.rank))
+        assert(leafRanks.length > 1, '')
     },
     // A step that leaves the keys as they were says why.
     unchanged: () => {

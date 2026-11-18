@@ -31,7 +31,7 @@ export const proof = {
     // `kind` answers each value's tag; `false`, `NaN`, `''`, `[]` and `{}`
     // are no different.
     kind: () => {
-        values.forEach((v, i) => assertEq(kind(v), i))
+        for (const [i, v] of values.map((v, i) => /** @type {const} */ ([i, v]))) { assertEq(kind(v), i) }
         assertEq(kind(false), BOOLEAN)
         assertEq(kind(NaN), NUMBER)
         assertEq(kind(''), STRING)
@@ -41,9 +41,9 @@ export const proof = {
     },
     // Each cast answers a value of its kind as it is.
     casts: () => {
-        casts.forEach((cast, i) => {
-            if (cast !== undefined) { assert(cast(values[i]) === values[i]) }
-        })
+        for (const [i, cast] of casts.map((cast, i) => /** @type {const} */ ([i, cast]))) {
+            if (cast !== undefined) { assert(cast(values[Number(i)]) === values[Number(i)]) }
+        }
     },
     // `length` per kind: units, `u64` words, items, properties, declared
     // parameters.

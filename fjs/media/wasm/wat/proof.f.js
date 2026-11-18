@@ -234,7 +234,7 @@ export const proof = /** @type {const} */ ({
     functions: () => {
         const texts = functions(everything)
         assertEq(texts.length, 2)
-        texts.forEach(text => assertEq(everythingWat.includes(text), true))
+        for (const text of texts) { assertEq(everythingWat.includes(text), true) }
         assertEq(texts[1], everythingWat.split('\n').at(-6) + '\n')
     },
     // The marked text is the text, each word with its kind: a page that draws

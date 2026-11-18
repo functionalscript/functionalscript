@@ -6,7 +6,7 @@ import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.j
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
-import { generate } from '../../../types/array/module.f.js'
+import { generate, dedup } from '../../../types/array/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
 /**
@@ -482,7 +482,7 @@ export const proof = /** @type {const} */ ({
                 assertEq(c[1], d[1])
                 assert(a[0] < b[0] && c[0] < d[0], 'horizontal runs point right')
             }
-            assertEq(new Set(paths.slice(0, 3).map(points => points[1][0])).size, 3)
+            assertEq(dedup(paths.slice(0, 3).map(points => points[1][0])).length, 3)
             assertEq(paths[3].length, 2, 'the shallow connection remains direct')
             assertEq(_crossings(g), 0)
         },
@@ -536,7 +536,7 @@ export const proof = /** @type {const} */ ({
             }
             const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
             assert(paths.every(path => path.length === 4), 'equal origins retain separate elbow lanes')
-            assertEq(new Set(paths.map(path => path[1][0])).size, 3)
+            assertEq(dedup(paths.map(path => path[1][0])).length, 3)
             assertEq(pathCrossings(paths), 0)
             assertEq(_crossings(g), 0)
         },
@@ -1039,7 +1039,7 @@ export const proof = /** @type {const} */ ({
                 edges: [{ from: 0, to: 2, label: '' }, { from: 1, to: 3, label: '' }],
             }))
             const edgeKeys = slashed.split('data-key="edge:').slice(1).map(k => k.slice(0, k.indexOf('"')))
-            assertEq(new Set(edgeKeys).size, 2)
+            assertEq(dedup(edgeKeys).length, 2)
         },
         /**
          * **A node is as wide as its label column and its widest key
@@ -1332,7 +1332,7 @@ export const proof = /** @type {const} */ ({
             assert(!html.includes('>left, right<'), html)
             // Each from a port of its own: two different lines, not one
             // line drawn twice.
-            assertEq(new Set(routes(html)).size, 2)
+            assertEq(dedup(routes(html)).length, 2)
         },
         /**
          * **An edge is its place in the list, not its object.** The same

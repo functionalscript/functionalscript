@@ -11,7 +11,7 @@ import { assertEq } from '../../asserts/module.f.js'
 import { demangle } from './module.f.js'
 
 /** @type {(cases: readonly (readonly [string, string])[]) => void} */
-const check = cases => cases.forEach(([symbol, expected]) => assertEq(demangle(symbol), expected))
+const check = cases => { for (const [symbol, expected] of cases) { assertEq(demangle(symbol), expected) } }
 
 export const proof = {
     agrees: () => check([

@@ -431,8 +431,7 @@ const concatTest = [
     },
     // Whatever `a` spells, appending a relative `b` leaves its root alone.
     () => {
-        ["C:", "./C:", "x/../C:", "C:/", "./a", "/a", "//a", "", "."].forEach(a =>
-            assertEq(root(concat(a)("dir")), root(normalize(a)), a))
+        for (const a of ["C:", "./C:", "x/../C:", "C:/", "./a", "/a", "//a", "", "."]) { assertEq(root(concat(a)("dir")), root(normalize(a)), a) }
     },
     // An absolute `b` names a path on its own, so it replaces `a` rather than
     // being appended to it.
