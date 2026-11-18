@@ -109,7 +109,7 @@ return F(g())
 ```
 
 Its value form is `a ? f() : g()` inside `F`; only false reaches `g`.
-[Guard proofs](parser/func.proof.f.mjs), `guards`, pin this graph shape.
+[Guard proofs](parser/func.proof.f.js), `guards`, pin this graph shape.
 
 ### Cases 4–7: one normal continuation and immutable versions
 

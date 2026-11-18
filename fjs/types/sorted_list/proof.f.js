@@ -23,7 +23,7 @@ export const proof = /** @type {const} */ ({
             const list = countdown(n)
             const result = merge(reverseCmp)(list)(list)
             const len = length(result)
-            assert(len == n, result)
+            assert(len === n, result)
         }
     ],
     intersect: () => {

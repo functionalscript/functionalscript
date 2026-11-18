@@ -12,6 +12,16 @@ import { parseFromTokens } from './module.f.js'
 import { stringifyModule, tokenizeString } from './proof.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
+/**
+ * Whether `value` holds the one-element array `[tag]` anywhere, in an array
+ * or under a field: where the parser's output names a helper by its tag.
+ *
+ * @type {(tag: string) => (value: unknown) => boolean}
+ */
+const mentions = tag => value =>
+    value instanceof Array ? value.length === 1 && value[0] === tag || value.some(mentions(tag))
+    : typeof value === 'object' && value !== null && Object.values(value).some(mentions(tag))
+
 export const proof = {
     // A function: the rest parameter is `['args']` in its body, an access
     // on it is an access, and a name bound outside — a `const`, an import,
@@ -612,10 +622,10 @@ export const proof = {
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(`export default ${other};`))
                 assertEq(tag, 'ok', other)
-                assert(!JSON.stringify(value).includes('["slice"]'), other)
+                assert(!mentions('slice')(value), other)
             }
             const [, three] = parseFromTokens(tokenizeString('export default (s, i, j) => s.charCodeAt(i);'))
-            assert(!JSON.stringify(three).includes('["charCodeAt"]'))
+            assert(!mentions('charCodeAt')(three))
         },
         // Not the helper: a body that departs from the helper's by a step is
         // an ordinary function, which is where `Object` — a reserved global,
