@@ -67,7 +67,7 @@ JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
 the sources). The harness has no CLI; its
 [`main`](../nanvm/harness/src/main.rs) says why. The structural FJS serializer
 already writes ordinary/method calls and arithmetic; `calls`, `neg`, `operators`
-and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.js)
 cover grouping, bindings and supported source round trips. That profile remains
 partial, unlike total code-only [function text](../fjs/edag/function-text.md);
 [runtime-value compilation](../fjs/edag/values.md#runtime-compilation) has its own

@@ -4,6 +4,7 @@ import {
 } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
+import { codePointListToString } from '../utf16/module.f.js'
 
 const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
@@ -75,7 +76,7 @@ export const proof = {
     },
     hexDigitCodePoint: {
         lowercaseDigits: () => {
-            assertEq(String.fromCodePoint(...values.map(v => hexDigitCodePoint(v))), '0123456789abcdef')
+            assertEq(codePointListToString(values.map(v => hexDigitCodePoint(v))), '0123456789abcdef')
         },
         roundTrip: () => {
             assertEq(stringifySorted(values.map(v => hexDigitValue(hexDigitCodePoint(v)))), stringifySorted(values))

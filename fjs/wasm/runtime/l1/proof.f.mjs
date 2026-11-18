@@ -1,11 +1,10 @@
-import { assert, assertEq } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
     call, get, objectSpread, toIterable,
     add, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, subtract,
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
 } from './module.f.js'
-import { toJson } from '../../../media/json/module.f.js'
 
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
@@ -195,7 +194,7 @@ export const proof = {
     },
     // `call` passes the arguments as they are.
     call: () => {
-        assertEq(JSON.stringify(call((/** @type {unknown[]} */ ...xs) => xs, [1, 'a'])), '[1,"a"]')
+        assertStructurallySame(call((/** @type {unknown[]} */ ...xs) => xs, [1, 'a']), [1, 'a'])
         assertEq(call(f, ['x']), 'x')
     },
     // `toIterable` is what spread iterates: an array itself, a string's
@@ -203,13 +202,13 @@ export const proof = {
     toIterable: () => {
         assert(toIterable(a) === a)
         for (const v of ['', 'ab', '\u{1F600}x', '\ud83d', 'a\ude00\ud83d\ude00\ud83d']) {
-            assertEq(JSON.stringify(toIterable(v)), toJson([...v]))
+            assertStructurallySame(toIterable(v), [...v])
         }
     },
     // `objectSpread` is what `{ ...v }` copies, for every kind.
     objectSpread: () => {
         for (const v of [...values, 'a\u{1F600}', [1, [2]]]) {
-            assertEq(JSON.stringify(Object.entries(objectSpread(v))), JSON.stringify(Object.entries({ .../** @type {object} */ (v) })), String(v))
+            assertStructurallySame(Object.entries(objectSpread(v)), Object.entries({ .../** @type {object} */ (v) }), String(v))
         }
     },
     // Each throw is JavaScript's, with NaNVM's text.

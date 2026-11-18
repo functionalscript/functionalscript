@@ -89,6 +89,6 @@ need not enforce the same first failing operation in generated output.
 - [`sharing`](../sharing/module.f.js) — linked-object identity queries.
 - [analysis](./analysis.md) — merged and identity-table contracts.
 - [`to_fast`](../to_fast/README.md) — common output placement and normalization.
-- [`edag/rust` proofs](../rust/proof.f.mjs) — raw graph adapter regression cases.
+- [`edag/rust` proofs](../rust/proof.f.js) — raw graph adapter regression cases.
 - [prepared Rust serializer](../../rust/serializer/README.md) — completed target
   declaration ownership, separate from optional graph traversal consolidation.

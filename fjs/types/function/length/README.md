@@ -26,7 +26,7 @@ compiled functions carry that renderer's static text. Captures appear as slot
 names, without their values; FJS source serialization remains partial. See the
 [function-text contract](../../../edag/function-text.md),
 [represented conversion proofs](../../../edag/value/convert/proof.f.js) and
-[native text proofs](../../../edag/rust/proof.f.mjs).
+[native text proofs](../../../edag/rust/proof.f.js).
 
 Ordinary runtime callables produced at a boundary that erases EDAG reflection
 keep the [host-text exception](../../../edag/function-text.md#host-runtime-values).

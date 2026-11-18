@@ -14,7 +14,7 @@ import { commandsOf } from '../../../effects/module.f.js'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -350,8 +350,8 @@ export const proof = {
                 edges: [{ from: 1, to: { inline: '30' }, label: '' }, { from: 1, to: { inline: '40' }, label: '' }, { from: 0, to: 1, label: '' }],
             }
             const leave = ordered('leave')(g)
-            assertEq(JSON.stringify(leave.nodes.map(n => [n.kind, n.order ?? null, n.key])),
-                '[["leaving",2,""],["shared",null,"30,40"],["leaving",1,""],["leaving",1,""]]')
+            assertStructurallySame(leave.nodes.map(n => [n.kind, n.order ?? null, n.key]),
+                [['leaving', 2, ''], ['shared', null, '30,40'], ['leaving', 1, ''], ['leaving', 1, '']])
             const enter = ordered('enter')(g)
             assertEq(toJson(enter.nodes.map(n => [n.kind, n.order ?? null])),
                 '[["new",1],["shared",null],["new",2],["new",2]]')

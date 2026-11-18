@@ -9,11 +9,11 @@ import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js
 import graphEquivalence from './data.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
 import { dedup } from '../../../../fjs/types/array/module.f.js'
+import { entry, hasEntry } from '../../../../fjs/types/object/entry/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly GraphEquivalence[]} */ (graphEquivalence)
 
-const { hasOwn } = Object
 
 /**
  * A metadata member as a non-empty string, or a failure naming the vector
@@ -22,7 +22,7 @@ const { hasOwn } = Object
  * @type {(vector: GraphEquivalence, name: 'id' | 'class') => string}
  */
 const named = (vector, name) => {
-    const value = vector[name]
+    const value = entry(vector, name)
     assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
@@ -52,7 +52,7 @@ export const proof = {
     records: () => {
         for (const vector of set) {
             const id = named(vector, 'id')
-            assert(hasOwn(vector, 'input'), `${id}: no input`)
+            assert(hasEntry(vector, 'input'), `${id}: no input`)
             assert(vector.denotes.length !== 0, `${id}: denotes nothing`)
             assert(vector.denotesNot.length !== 0, `${id}: rules nothing out`)
         }

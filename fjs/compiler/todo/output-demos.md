@@ -125,8 +125,8 @@ which outputs accept which example.
 - An import parses and draws in the EDAG demo as unresolved dependency reads.
   The source and Rust stage demos refuse those unbound reads
   ([EDAG proof](../edag/proof.f.js),
-  [serializer proof](../serializer/proof.f.mjs),
-  [Rust proof](../rust/proof.f.mjs)). On the side-by-side page every output
+  [serializer proof](../serializer/proof.f.js),
+  [Rust proof](../rust/proof.f.js)). On the side-by-side page every output
   refuses the missing dependency: its in-memory file system holds only the input.
   Linking imports on the page is
   [import-linking-demo](./import-linking-demo.md).

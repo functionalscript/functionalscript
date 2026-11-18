@@ -9,11 +9,11 @@ import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js
 import normalize from './data.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
 import { dedup } from '../../../../fjs/types/array/module.f.js'
+import { entry, hasEntry } from '../../../../fjs/types/object/entry/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly Normalize[]} */ (normalize)
 
-const { hasOwn, keys } = Object
 
 /**
  * A metadata member as a non-empty string, or a failure naming the vector
@@ -22,7 +22,7 @@ const { hasOwn, keys } = Object
  * @type {(vector: Normalize, name: 'id' | 'class') => string}
  */
 const named = (vector, name) => {
-    const value = vector[name]
+    const value = entry(vector, name)
     assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
@@ -47,12 +47,12 @@ const spelling = input => {
     if (typeof input === 'string') { return `export default ${toJson(input)};` }
     if (typeof input !== 'object' || input === null || input instanceof Array) { return null }
     const o = /** @type {{ readonly [k in string]?: Unknown }} */ (input)
-    const k = keys(o)
+    const k = Object.keys(o)
     // `__proto__` is a key with a production of its own, `["__proto__"]`, which
     // `JSON.stringify` knows nothing about. Review found this before a vector
     // did: the check would demand a spelling the reader refuses and go red for
     // the wrong reason, so the one key the rule spells differently opts out.
-    return k.length === 1 && k[0] !== '__proto__' && o[k[0]] === 0
+    return k.length === 1 && k[0] !== '__proto__' && entry(o, k[0]) === 0
         ? `export default {${toJson(k[0])}:0};`
         : null
 }
@@ -75,7 +75,7 @@ export const proof = {
     records: () => {
         for (const vector of set) {
             const id = named(vector, 'id')
-            assert(hasOwn(vector, 'input'), `${id}: no input`)
+            assert(hasEntry(vector, 'input'), `${id}: no input`)
             assert(typeof vector.text === 'string' && vector.text !== '', `${id}: the text is not a non-empty string`)
         }
     },

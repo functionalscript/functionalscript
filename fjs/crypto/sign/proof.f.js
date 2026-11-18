@@ -20,7 +20,6 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
-import { toJson } from '../../media/json/module.f.js'
 
 const sample = utf8("sample")
 const test = utf8("test")
@@ -953,9 +952,9 @@ export const proof = {
         parseHexField: () => {
             const field = parseHexField('x', 4)
             assertEq(unwrap(field('0aF9')), 0xaf9n)
-            assertEq(JSON.stringify(field('12345')), toJson(['error', 'Enter x as at most 4 hexadecimal digits.']))
-            assertEq(JSON.stringify(field('')), toJson(['error', 'Enter x as hexadecimal digits.']))
-            assertEq(JSON.stringify(field('0x1')), toJson(['error', 'Enter x as hexadecimal digits.']))
+            assertStructurallySame(field('12345'), ['error', 'Enter x as at most 4 hexadecimal digits.'])
+            assertStructurallySame(field(''), ['error', 'Enter x as hexadecimal digits.'])
+            assertStructurallySame(field('0x1'), ['error', 'Enter x as hexadecimal digits.'])
         },
         refused: () => {
             /** @type {(state: DemoState, message: string) => void} */

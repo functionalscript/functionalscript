@@ -81,7 +81,7 @@ as a computed index in direct EDAG input, for example
 `['.', receiver, ['Number', key]]`. It evaluates the receiver before the key;
 inside `?.` and a `|.` continuation, the cast and its operand stay inside the
 guarded key thunk. These paths are covered by `computedIndex` in
-[`fjs/edag/rust/proof.f.mjs`](../../fjs/edag/rust/proof.f.mjs).
+[`fjs/edag/rust/proof.f.js`](../../fjs/edag/rust/proof.f.js).
 
 This is VM and EDAG-printer support. The source parser still does not admit
 `Number(x)` or `a[Number(k)]`; source admission remains tracked by

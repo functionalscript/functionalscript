@@ -685,10 +685,10 @@ export const proof = {
     // The names are identifiers: a parameter and its use, a property after `.`,
     // and a global, while the words it spells stay keywords.
     markedNames: () => {
-        assertEq(JSON.stringify(unwrap(tryMarked(['=>', 0, [], ['instanceof', ['.', ['rest'], 'x'], 'Array']]))),
-            '[["export","keyword"],[" "],["default","keyword"],[" (..."],["$0","identifier"],[")=>"],["$0","identifier"],["."],["x","identifier"],[" "],["instanceof","keyword"],[" "],["Array","identifier"],[";"]]')
+        assertStructurallySame(unwrap(tryMarked(['=>', 0, [], ['instanceof', ['.', ['rest'], 'x'], 'Array']])),
+            [['export', 'keyword'], [' '], ['default', 'keyword'], [' (...'], ['$0', 'identifier'], [')=>'], ['$0', 'identifier'], ['.'], ['x', 'identifier'], [' '], ['instanceof', 'keyword'], [' '], ['Array', 'identifier'], [';']])
         // a property named like a keyword or a literal is still a name
-        assertEq(JSON.stringify(unwrap(tryMarked(['.', ['[]', [1]], 'true'])).filter(([, kind]) => kind === 'identifier')), '[["true","identifier"]]')
+        assertStructurallySame(unwrap(tryMarked(['.', ['[]', [1]], 'true'])).filter(([, kind]) => kind === 'identifier'), [['true', 'identifier']])
     },
     // A module with named exports writes its anchors and bindings as `const`s
     // before them, which no shared example reaches: each word is marked, and

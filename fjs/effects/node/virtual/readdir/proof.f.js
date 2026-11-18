@@ -110,7 +110,8 @@ export const proof = {
         const names = ['', 'p', 'pa', '\u007F', '\u0080', '\u07FF', '\u0800', '\uE000', '\u{10000}']
         for (const a of names) {
             for (const b of names) {
-                assertEq(Math.sign(_compareNames(a, b)), msb.cmp(utf8(a))(utf8(b)))
+                const order = _compareNames(a, b)
+                assertEq(order < 0 ? -1 : order > 0 ? 1 : 0, msb.cmp(utf8(a))(utf8(b)))
             }
         }
     },
@@ -133,7 +134,8 @@ export const proof = {
         ]
         for (const [a, encodedA] of spellings) {
             for (const [b, encodedB] of spellings) {
-                assertEq(Math.sign(_compareNames(a, b)), msb.cmp(utf8(encodedA))(utf8(encodedB)))
+                const order = _compareNames(a, b)
+                assertEq(order < 0 ? -1 : order > 0 ? 1 : 0, msb.cmp(utf8(encodedA))(utf8(encodedB)))
             }
         }
     },

@@ -270,7 +270,7 @@ export const proof = {
         assertEq(noRefMap, 'no reference map in this executor')
         for (const id of staticIds) { assert(isStatic([id]), id) }
         for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {
-            assert(!isStatic(node), JSON.stringify(node))
+            assert(!isStatic(node), node)
         }
     },
     primitive: {

@@ -256,7 +256,7 @@ const demoProof = /** @type {const} */ ({
         // the value it was given.
         open: () => {
             const r = _readersOf(open({ a: number }))('export default {"a":1,"b":2};')
-            assertEq(JSON.stringify(texts(r)), toJson({ parse: 'export default {"a":1};', validate: 'export default {"a":1,"b":2};' }))
+            assertStructurallySame(texts(r), { parse: 'export default {"a":1};', validate: 'export default {"a":1,"b":2};' })
         },
         // The value is DataJS so a schema's every value can be typed:
         // `undefined` is what tells the two schemas of "Absent vs undefined"
@@ -264,10 +264,10 @@ const demoProof = /** @type {const} */ ({
         undefined: () => {
             const [a, b] = exampleNamed('Absent vs undefined').schemas
             const text = /** @type {const} */ ('export default {"a":undefined};')
-            assertEq(JSON.stringify(texts(_readersOf(a.schema)(text))),
-                toJson({ parse: 'at a: no match', validate: 'at a: no match' }))
-            assertEq(JSON.stringify(texts(_readersOf(assertNotNullish(b).schema)(text))),
-                toJson({ parse: 'export default {"a":undefined};', validate: 'export default {"a":undefined};' }))
+            assertStructurallySame(texts(_readersOf(a.schema)(text)),
+                { parse: 'at a: no match', validate: 'at a: no match' })
+            assertStructurallySame(texts(_readersOf(assertNotNullish(b).schema)(text)),
+                { parse: 'export default {"a":undefined};', validate: 'export default {"a":undefined};' })
         },
         // `validate` hands back the value it was given, sharing included;
         // `parse` builds a copy for each use. A document is written one
@@ -276,20 +276,20 @@ const demoProof = /** @type {const} */ ({
             const e = exampleNamed('Shared parts')
             const r = _readersOf(e.schemas[0].schema)(e.value)
             assert(!hasEntry(r, 'error'), 'expected the readers to run')
-            assert(hasEntry(r, 'validate') && answerText(r.validate).startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), JSON.stringify(r))
-            assert(hasEntry(r, 'parse') && !answerText(r.parse).includes('const'), JSON.stringify(r))
+            assert(hasEntry(r, 'validate') && answerText(r.validate).startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), r)
+            assert(hasEntry(r, 'parse') && !answerText(r.parse).includes('const'), r)
             // The shared value's name is marked as a name, by the writer.
-            assert(hasEntry(r, 'validate') && r.validate.ok && r.validate.marked.some(([t, k]) => t === '$0' && k === 'identifier'), JSON.stringify(r))
+            assert(hasEntry(r, 'validate') && r.validate.ok && r.validate.marked.some(([t, k]) => t === '$0' && k === 'identifier'), r)
         },
         // A `;` inside a string ends no statement.
-        semicolonInAString: () => assertEq(JSON.stringify(texts(_readersOf({ s: string })('export default {"s":";"};'))),
-            toJson({ parse: 'export default {"s":";"};', validate: 'export default {"s":";"};' })),
+        semicolonInAString: () => assertStructurallySame(texts(_readersOf({ s: string })('export default {"s":";"};')),
+            { parse: 'export default {"s":";"};', validate: 'export default {"s":";"};' }),
         // A failure says where, with the root named rather than left blank.
         errors: () => {
-            assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default {"a":"x"};'))),
-                toJson({ parse: 'at a: unexpected value', validate: 'at a: unexpected value' }))
-            assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default [];'))),
-                toJson({ parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' }))
+            assertStructurallySame(texts(_readersOf({ a: number })('export default {"a":"x"};')),
+                { parse: 'at a: unexpected value', validate: 'at a: unexpected value' })
+            assertStructurallySame(texts(_readersOf({ a: number })('export default [];')),
+                { parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' })
         },
         notADocument: () => assert(hasEntry(_readersOf(number)('1'), 'error'), 'expected a parse error'),
     },
@@ -300,7 +300,7 @@ const demoProof = /** @type {const} */ ({
             for (const e of examples) {
                 for (const x of e.schemas) {
                     const o = _outputsOf(x.schema)
-                    assert(toText(o.ts) !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', e.name)
+                    assert(toText(o.ts) !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', nameOf(e))
                 }
             }
         },
@@ -308,9 +308,9 @@ const demoProof = /** @type {const} */ ({
         recursive: () => {
             const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
             assertEq(toText(o.ts), 'type T0 = {readonly"children":readonly(T0)[],readonly"value":number}\nT0')
-            assert(toText(o.jsonSchema).includes('"$defs":{"0":'), JSON.stringify(o.jsonSchema))
+            assert(toText(o.jsonSchema).includes('"$defs":{"0":'), o.jsonSchema)
             // the alias is marked: `type` a keyword, its name an identifier
-            assertEq(JSON.stringify(o.ts.slice(0, 3)), toJson([['type', 'keyword'], [' '], ['T0', 'identifier']]))
+            assertStructurallySame(o.ts.slice(0, 3), [['type', 'keyword'], [' '], ['T0', 'identifier']])
         },
     },
     // The comparison's five verdicts.
@@ -378,7 +378,7 @@ const demoProof = /** @type {const} */ ({
         page: () => {
             const r = _readersOf({ a: { b: number } })('export default {"a":{"b":"x"}};')
             assert(!hasEntry(r, 'error'), 'expected the readers to run')
-            assert(hasEntry(r, 'validate') && !r.validate.ok, JSON.stringify(r))
+            assert(hasEntry(r, 'validate') && !r.validate.ok, r)
             assertEq(toJson(_marked(r.validate.ok ? [] : r.validate.path)(r.value)),
                 toJson(['{', '"a":', '{', '"b":', ['mark', '"x"'], '}', '}']))
         },

@@ -374,9 +374,9 @@ or read a passing corpus as more than it is.
   refused: it changes every record type and every proof that reads one, and a
   set would stop being an ordinary graph `tsc` checks. So this repository
   covers itself where the corpus cannot: `sharedEmptyArray` in
-  [`graph-equivalence/proof.f.mjs`](./graph-equivalence/proof.f.mjs) checks
+  [`graph-equivalence/proof.f.js`](./graph-equivalence/proof.f.js) checks
   the graph against the reader and the writer, and `sharedEmptyArray` in
-  [`normalize/proof.f.mjs`](./normalize/proof.f.mjs) pins the writer's bytes.
+  [`normalize/proof.f.js`](./normalize/proof.f.js) pins the writer's bytes.
   An implementation that wants the coverage writes the case in its own
   language.
 - **Arbitrary precision.** No finite set of vectors establishes it, because

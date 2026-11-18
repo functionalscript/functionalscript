@@ -211,7 +211,7 @@ export const proof = {
                     conditional('&&', true, ['()', counting, [1]]),
                     [',', [['()', counting, [1]], 1]],
                 ]
-                for (const e of cases) { assert(scoped(e).some(line => line.includes('A::static_function(')), JSON.stringify(e)) }
+                for (const e of cases) { assert(scoped(e).some(line => line.includes('A::static_function(')), e) }
                 const emitted = printed(['()', counting, [0]])
                 assert(emitted.includes('A::static_function(') && emitted.includes('Any::call('))
             },
@@ -250,8 +250,8 @@ export const proof = {
             ]
             for (const e of general) {
                 const lines = scoped(e)
-                assert(lines.some(line => line.endsWith('loop {') || line.includes(': while ')), JSON.stringify(e))
-                assert(!lines.some(line => line.includes('Function::new(_self.clone())')), JSON.stringify(e))
+                assert(lines.some(line => line.endsWith('loop {') || line.includes(': while ')), e)
+                assert(!lines.some(line => line.includes('Function::new(_self.clone())')), e)
             }
             /** @type {readonly Exp[]} */
             const recursive = [
@@ -261,8 +261,8 @@ export const proof = {
             ]
             for (const e of recursive) {
                 const lines = scoped(e)
-                assert(!lines.some(line => line.endsWith('loop {')), JSON.stringify(e))
-                assert(lines.some(line => line.includes('Any::call(Function::new(_self.clone())')), JSON.stringify(e))
+                assert(!lines.some(line => line.endsWith('loop {')), e)
+                assert(lines.some(line => line.includes('Any::call(Function::new(_self.clone())')), e)
             }
             /** @type {readonly Exp[]} */
             const otherCalls = [
@@ -270,7 +270,7 @@ export const proof = {
                 loop(true, ['()', ['arg', 0], [1]]),
                 loop(true, ['()', 1, [1]]),
             ]
-            for (const e of otherCalls) { assert(!scoped(e).some(line => line.endsWith('loop {')), JSON.stringify(e)) }
+            for (const e of otherCalls) { assert(!scoped(e).some(line => line.endsWith('loop {')), e) }
             // Scalar loops still retain the function owner for surviving
             // self reads in a condition, argument value or closure capture.
             /** @type {readonly Exp[]} */
@@ -281,8 +281,8 @@ export const proof = {
             ]
             for (const e of survivingSelf) {
                 const lines = scoped(e)
-                assert(lines.some(line => line.includes(': while ')), JSON.stringify(e))
-                assert(lines.some(line => line.includes('Function::new(_self.clone())')), JSON.stringify(e))
+                assert(lines.some(line => line.includes(': while ')), e)
+                assert(lines.some(line => line.includes('Function::new(_self.clone())')), e)
             }
         },
     },
@@ -341,21 +341,21 @@ export const proof = {
     },
     // Each kind the printer says it marks, where it spells one.
     markedKinds: () => {
-        /** @type {(e: Exp) => string} */
-        const runs = e => JSON.stringify(unwrap(fromTagged(unwrap(expExprTagged([])(e)))).filter(([, kind]) => kind !== undefined))
-        assertEq(runs(true), '[["true","literal"]]')
-        assertEq(runs(1), '[["0x3ff0000000000000","number"]]')
-        assertEq(runs('a'), '[["\\"a\\"","string"]]')
-        assertEq(runs(2n), '[["2","number"]]')
+        /** @type {(e: Exp) => unknown} */
+        const runs = e => unwrap(fromTagged(unwrap(expExprTagged([])(e)))).filter(([, kind]) => kind !== undefined)
+        assertStructurallySame(runs(true), [['true', 'literal']])
+        assertStructurallySame(runs(1), [['0x3ff0000000000000', 'number']])
+        assertStructurallySame(runs('a'), [['"a"', 'string']])
+        assertStructurallySame(runs(2n), [['2', 'number']])
         // a bigint past `i64`: the sign is a literal, each word a number
-        assertEq(runs(2n ** 63n), '[["false","literal"],["0x8000000000000000","number"]]')
-        assertEq(runs(-(2n ** 64n)), '[["true","literal"],["0x0000000000000000","number"],["0x0000000000000001","number"]]')
+        assertStructurallySame(runs(2n ** 63n), [['false', 'literal'], ['0x8000000000000000', 'number']])
+        assertStructurallySame(runs(-(2n ** 64n)), [['true', 'literal'], ['0x0000000000000000', 'number'], ['0x0000000000000001', 'number']])
         // a string no `&str` holds: each unit a number
-        assertEq(runs('\ud800'), '[["0xd800","number"]]')
+        assertStructurallySame(runs('\ud800'), [['0xd800', 'number']])
         // a discarded operand is bound by a `let`
-        assertEq(runs([',', [1, 2]]), '[["let","keyword"],["0x3ff0000000000000","number"],["0x4000000000000000","number"]]')
+        assertStructurallySame(runs([',', [1, 2]]), [['let', 'keyword'], ['0x3ff0000000000000', 'number'], ['0x4000000000000000', 'number']])
         // an index read and a function's length are numbers too
-        assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number')), '[["0","number"],["1","number"]]')
+        assertStructurallySame(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number'), [['0', 'number'], ['1', 'number']])
         assertEq(toJson(unwrap(fromTagged(unwrap(scopeTagged(['=>', 0, [['[]', [1]]], ['frame', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number').map(([text]) => text)), '["0x3ff0000000000000","0","0"]')
     },
     fixedAndRest: () => {

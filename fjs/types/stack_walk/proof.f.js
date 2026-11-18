@@ -4,7 +4,7 @@
 
 import { pushAll, pushOk, walk, walkFold } from './module.f.js'
 import { error, ok } from '../result/module.f.js'
-import { assertEq } from '../../asserts/module.f.js'
+import { assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * Two walks over a tree of numbers — a number leaf, an array of trees, or
@@ -53,7 +53,7 @@ const nested = depth => {
 }
 
 /** @type {(r: unknown, expected: unknown) => void} */
-const same = (r, expected) => assertEq(JSON.stringify(r), JSON.stringify(expected))
+const same = (r, expected) => assertStructurallySame(r, expected)
 
 export const proof = {
     walk: {

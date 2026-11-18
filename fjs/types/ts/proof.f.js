@@ -1,5 +1,5 @@
 import { printer, primitive, union, _taggedPrimitive, _taggedUnion, _taggedPrinter } from './module.f.js'
-import { assertEq } from '../../asserts/module.f.js'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { fromTagged } from '../../text/marked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
@@ -103,9 +103,7 @@ export const printerMutableRecord = () => {
 
 /** @type {(text: string, expected: unknown) => void} */
 const eqMarked = (text, expected) => {
-    const r = JSON.stringify(unwrap(fromTagged(text)))
-    const e = JSON.stringify(expected)
-    assertEq(r, e, [r, e])
+    assertStructurallySame(unwrap(fromTagged(text)), expected)
 }
 
 const marked = {

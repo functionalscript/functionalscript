@@ -1,6 +1,7 @@
-import { assert, assertEq } from '../../../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { entry as hostEntry, hasEntry as hostHasEntry } from '../../../../types/object/entry/module.f.js'
 import { charCodeAt, entries, entry, fromCharCode, hasEntry, slice } from './module.f.js'
+import { structurallySame } from '../../../../types/object/structurally_same/module.f.js'
 
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
@@ -15,7 +16,7 @@ const numbers = /** @type {readonly unknown[]} */ ([
 ])
 
 /** Whether two answers are the same, `NaN` and the zeros told apart. @type {(a: unknown, b: unknown) => boolean} */
-const same = (a, b) => Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b) && typeof a === 'object'
+const same = (a, b) => structurallySame(a, b)
 
 /** Receivers of every kind but `undefined` and `null`. */
 const receivers = /** @type {readonly unknown[]} */ ([
@@ -57,13 +58,13 @@ export const proof = {
             ...numbers.map(n => [n]),
         ]
         for (const a of args) {
-            assertEq(fromCharCode(a), String.fromCharCode(.../** @type {number[]} */ (a)), JSON.stringify(a))
+            assertEq(fromCharCode(a), String.fromCharCode(.../** @type {number[]} */ (a)), a)
         }
     },
     // `entries` answers what the host's `Object.entries` answers.
     entries: () => {
         for (const o of receivers) {
-            assertEq(JSON.stringify(entries(o)), JSON.stringify(Object.entries(/** @type {object} */ (o))), String(o))
+            assertStructurallySame(entries(o), Object.entries(/** @type {object} */ (o)), String(o))
         }
     },
     // `entry` and `hasEntry` answer what the language's helpers answer.

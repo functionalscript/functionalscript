@@ -14,7 +14,7 @@ producer ──writes──▶ Marked ──toText──▶ the file `fjs compil
 
 The type API is [`types.ts`](./types.ts); the code is
 [`module.f.js`](./module.f.js); the proofs are
-[`proof.f.mjs`](./proof.f.mjs). Why the design is what it is, with the
+[`proof.f.js`](./proof.f.js). Why the design is what it is, with the
 established practice it follows and the alternatives it rejected, is
 [§12](#12-design-record). The rest says what exists and how to use it.
 

@@ -76,7 +76,7 @@ const demoProof = /** @type {const} */ ({
     projectValuesAccepted: () => {
         for (const e of projectSchemas) {
             const r = _readersOf(e.schemas[0].schema)(e.value)
-            assert(!hasEntry(r, 'error') && r.parse.ok && r.validate.ok, `${nameOf(e)}: ${JSON.stringify(r)}`)
+            assert(!hasEntry(r, 'error') && r.parse.ok && r.validate.ok, [nameOf(e), r])
         }
     },
 })

@@ -1419,7 +1419,7 @@ in first-use order, while known primitive constants can be embedded in the body.
 Memo and Amnesia evaluate those slots when creating the closure and read them
 as `["frame", i]`; `["self"]` handles direct self-reference. See `captures` in
 the [lowering proofs](../fjs/compiler/edag/proof.f.js) and
-[source-serializer proofs](../fjs/compiler/serializer/proof.f.mjs).
+[source-serializer proofs](../fjs/compiler/serializer/proof.f.js).
 Default function text names slots without expanding their captured values.
 
 **Historical hashing discussion:** the following choices were recorded before
@@ -1520,7 +1520,7 @@ uses a finite named function expression. The trusted
 `functionText(analysis, index): string` renders every admitted body;
 `tryFunctionText` checks separately supplied expressions. The
 [function-text contract](../fjs/edag/function-text.md) and `functionText` / `self`
-groups in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+groups in the [serializer proofs](../fjs/compiler/serializer/proof.f.js)
 record these implemented answers.
 
 The APIs have distinct contracts. `tryStringify` is a partial structural FJS

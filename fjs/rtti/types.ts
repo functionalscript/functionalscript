@@ -84,7 +84,7 @@ export type Primitive0 = 'bigint' | 'boolean' | 'number' | 'string'
 // has to be pinned against it. `Tag0` below needs no such pin: it *is* its
 // list, read through `typeof`.
 //
-// This and `_Tag1Pinned` were `./proof.f.mjs`'s `pinnedLists` entry, a body
+// This and `_Tag1Pinned` were `./proof.f.js`'s `pinnedLists` entry, a body
 // of nothing but typedefs — so neither bound to a statement and both were
 // green whatever they claimed (`../AGENTS.md` §1.4).
 type _Primitive0Pinned = Assert<Equal<Primitive0, typeof _primitive0List[number]>>

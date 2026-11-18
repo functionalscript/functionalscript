@@ -10,7 +10,7 @@
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { simpleEscapes } from '../../../js/string_escape/module.f.js'
-import { codePointListToString } from '../../../text/utf16/module.f.js'
+import { codePointListToString, codePointToString } from '../../../text/utf16/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { set } from '../../module.f.js'
 import { parser } from '../../ll1/module.f.js'
@@ -170,7 +170,7 @@ export const proof = {
     // A delimiter above the BMP is one symbol, not the two UTF-16 units that
     // spell it, because spreading a string walks code points.
     cjAstral: () => {
-        const brace = String.fromCodePoint(0x1_D114)
+        const brace = codePointToString(0x1_D114)
         assertStructurallySame(
             force(cj(`${brace}${brace}`, 'x')),
             containerData(brace, brace, 'x'))

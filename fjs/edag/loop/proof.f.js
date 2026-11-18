@@ -41,7 +41,7 @@ const keptIn = table => e => {
  */
 const kept = e => {
     const merged = keptIn(analysis)(e)
-    assertEq(keptIn(identityAnalysis)(e), merged, JSON.stringify(e))
+    assertEq(keptIn(identityAnalysis)(e), merged, e)
     return merged
 }
 
@@ -92,7 +92,7 @@ export const proof = {
             loop(true, call(['self'])),
             loop(true, call(['=>', 0, [['self']], 1])),
         ]
-        for (const e of cases) { assertEq(parts(e), null, JSON.stringify(e)) }
+        for (const e of cases) { assertEq(parts(e), null, e) }
     },
     /**
      * Whether an operand reaches an entry among those given, in its own
@@ -136,7 +136,7 @@ export const proof = {
             // shared itself
             loop(['<', ['.', minted, 0], 9], call(['+', ['.', minted, 0], 1])),
             loop(['<', sharedRead, 9], call(['+', sharedRead, 1])),
-        ])) { assertEq(kept(e), true, JSON.stringify(e)) }
+        ])) { assertEq(kept(e), true, e) }
         for (const e of /** @type {readonly FunctionExp[]} */ ([
             counting,
             // a read the condition and the block repeat merges, one value
@@ -147,6 +147,6 @@ export const proof = {
             loop(['.', ['[]', [minted, minted]], 0], call(['+', a0, 1])),
             loop(['<', a0, 10], call(['[]', [minted, minted]])),
             loop(['()', ['=>', 0, [], ['[]', [inner, inner]]], []], call(['+', a0, 1])),
-        ])) { assertEq(kept(e), false, JSON.stringify(e)) }
+        ])) { assertEq(kept(e), false, e) }
     },
 }

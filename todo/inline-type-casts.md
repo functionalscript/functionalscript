@@ -180,7 +180,7 @@ is the way to refresh this file, not a partial edit.
 | --- | --- | --- | --- |
 | `fjs/cas/evo/module.f.js` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/cas/module.f.js` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/crypto/sign/proof.f.js` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/compiler/module.f.js` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/compiler/tokenizer/module.f.js` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/compiler/tokenizer/module.f.js` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |

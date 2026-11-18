@@ -13,7 +13,7 @@ import { cmp, occurrences } from '../string/module.f.js'
 import { next } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 import { value, find as findFind } from './find/module.f.js'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } from './demo.f.js'
 import { run as mockRun } from '../../effects/mock/module.f.js'
 import { ok } from '../result/module.f.js'
@@ -231,7 +231,7 @@ const demoProof = {
             const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
             const node5 = assertNotNullish(nodes.find(n => toJson(keysOf(n.id)) === '["60","80"]'))
             const out = edges.filter(e => e.from === node5.id)
-            assertEq(JSON.stringify(out.map(e => typeof e.to === 'number' ? [e.span, e.label] : e.to.inline)), '[[1,""],"60",[1,""],"80",[1,""]]')
+            assertStructurallySame(out.map(e => typeof e.to === 'number' ? [e.span, e.label] : e.to.inline), [[1, ''], '60', [1, ''], '80', [1, '']])
             assert(!h.includes('data-graph-edge-label="">Middle<'), h)
             // Drawn as a table, every arrow runs straight across: each
             // edge's path stays at the height it starts at.

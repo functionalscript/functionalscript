@@ -751,12 +751,12 @@ export const proof = {
         },
         serializable: () => {
             const d = toData(or(string, array(number), null))
-            assertEq(
-                JSON.stringify(d),
-                '[{},{"unit":1,"string":true,"array":[{"prefix":[],"rest":{"number":true}}]}]')
-            assertEq(
-                JSON.stringify(toData(list)),
-                '[{"0":{"array":[{"prefix":[],"rest":"0"}]}},"0"]')
+            assertStructurallySame(
+                d,
+                [{}, { unit: 1, string: true, array: [{ prefix: [], rest: { number: true } }] }])
+            assertStructurallySame(
+                toData(list),
+                [{ '0': { array: [{ prefix: [], rest: '0' }] } }, '0'])
         },
     },
     cmp: {
@@ -1098,18 +1098,18 @@ export const proof = {
             const v = validate(toData(array(number)))
             assertEq(v([])[0], 'ok')
             assertEq(v([1, 2])[0], 'ok')
-            assertEq(
-                JSON.stringify(v([1, 'x'])),
-                '["error",{"path":["1"],"message":"unexpected value"}]')
+            assertStructurallySame(
+                v([1, 'x']),
+                ['error', { path: ['1'], message: 'unexpected value' }])
             // an open tuple admits a longer array, and a position is required
             // exactly when its set excludes `undefined`, so a shorter one is a
             // member whenever the positions past its end admit absence
             const vt = validate(toData(open(/** @type {const} */ ([number, string]))))
             assertEq(vt([1, 'a'])[0], 'ok')
             assertEq(vt([1, 'a', 2])[0], 'ok')
-            assertEq(
-                JSON.stringify(vt([1])),
-                '["error",{"path":["1"],"message":"unexpected value"}]')
+            assertStructurallySame(
+                vt([1]),
+                ['error', { path: ['1'], message: 'unexpected value' }])
             const vo = validate(toData(open(/** @type {const} */ ([number, or(option, string)]))))
             assertEq(vo([1])[0], 'ok')
             assertEq(vo([1, 'a'])[0], 'ok')
@@ -1134,18 +1134,18 @@ export const proof = {
             const vm = validate(toData(or(tupleNumber, tupleString)))
             assertEq(vm([1])[0], 'ok')
             assertEq(vm(['a'])[0], 'ok')
-            assertEq(
-                JSON.stringify(vm([true])),
-                '["error",{"path":[],"message":"no match"}]')
+            assertStructurallySame(
+                vm([true]),
+                ['error', { path: [], message: 'no match' }])
         },
         objects: () => {
             const v = validate(toData(open({ a: number, b: or(option, string) })))
             assertEq(v({ a: 1 })[0], 'ok')
             assertEq(v({ a: 1, b: 's' })[0], 'ok')
             assertEq(v({ a: 1, extra: true })[0], 'ok')
-            assertEq(
-                JSON.stringify(v({ b: 's' })),
-                '["error",{"path":["a"],"message":"unexpected value"}]')
+            assertStructurallySame(
+                v({ b: 's' }),
+                ['error', { path: ['a'], message: 'unexpected value' }])
             assertEq(v({ a: 1, b: 1 })[0], 'error')
             const vr = validate(toData(record(number)))
             assertEq(vr({})[0], 'ok')
@@ -1153,9 +1153,9 @@ export const proof = {
             // a key inherited from Object.prototype is still an extra key
             assertEq(vr({ toString: 1 })[0], 'ok')
             assertEq(vr({ toString: 'x' })[0], 'error')
-            assertEq(
-                JSON.stringify(vr({ p: 'a' })),
-                '["error",{"path":["p"],"message":"unexpected value"}]')
+            assertStructurallySame(
+                vr({ p: 'a' }),
+                ['error', { path: ['p'], message: 'unexpected value' }])
             // declared keys are not re-checked against the rest
             /** @type {Data} */
             const structRest = [{}, { object: [{ props: { a: { number: true } }, rest: { string: true } }] }]

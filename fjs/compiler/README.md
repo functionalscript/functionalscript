@@ -337,7 +337,7 @@ the output does not inline away the original call node. A negative callee
 needs the same care as an access base: `-1()` is `-(1())`, so a negative numeric
 leaf is grouped, `export default (-1)();`, while a computed negation is
 established by a temporary. The `calls`, `neg` and `operators` groups in the
-[serializer proofs](./serializer/proof.f.mjs) pin these spellings and their
+[serializer proofs](./serializer/proof.f.js) pin these spellings and their
 structural round trips. Calls and arithmetic can therefore reach source, EDAG
 and Rust output, and can compute data for JSON/DataJS output.
 

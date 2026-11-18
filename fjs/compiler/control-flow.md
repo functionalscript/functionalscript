@@ -513,7 +513,7 @@ immutable first-demand result joins. Recovery processes later dependencies
 before prerequisites and may descend into their sole demanding conditional arm;
 declaration scopes and the existing ordered-demand checks remain mandatory.
 Ordinary function bodies and loop boundaries remain opaque to that descent.
-The [join proofs](../edag/to_fast/join/proof.f.mjs) pin scope and demand limits;
+The [join proofs](../edag/to_fast/join/proof.f.js) pin scope and demand limits;
 the [native deferred-tail proofs](serializer/value/deferred_tail_calls.proof.mjs)
 parse, execute and reserialize both graphs through two source generations at
 100,001 transfers. Shared normal payloads keep opaque tags as data, share one

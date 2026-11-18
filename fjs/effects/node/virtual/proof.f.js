@@ -417,7 +417,7 @@ export const proof = {
      * directory among them in the order found. Node 22's `readdirSync` lists it
      * as `a b z a/f a/x b/g b/y a/x/deep a/x/deep/h`;
      * its promises API uses a stack instead. This proof targets the pinned
-     * Node 26.10.0 promises API; see ./readdir/proof.f.mjs.
+     * Node 26.10.0 promises API; see ./readdir/proof.f.js.
      */
     readdirOrder: () => {
         const file = /** @type {const} */ ([vec8(0x42n)])

@@ -235,7 +235,7 @@ export const proof = {
     // byte record among them through `tryParseBytes`, which is what makes the
     // four widths a test of the decoder's bridge to code units. The set's
     // shape — ids one of a kind, every vector named and classed — is proved
-    // beside the set, in `spec/datajs/vectors/accept/proof.f.mjs`.
+    // beside the set, in `spec/datajs/vectors/accept/proof.f.js`.
     accept: () => { for (const vector of acceptSet) { accepted(vector) } },
     // The reader reject set: the reader refuses every document, and for the
     // two rules only bytes can break it refuses with that rule's own words.
