@@ -467,7 +467,7 @@ refuses a possible `continue` to the invocation's exact loop target before
 inverse reconstruction. Break-only and other one-pass wrappers can still become
 terminal values, preserving ordinary self calls and returned self identity.
 The [fallback proofs](../edag/to_fast/source/loops/fallback.proof.f.mjs) and
-[transfer-query proofs](../js/ast/control/proof.f.mjs) pin this boundary. The
+[transfer-query proofs](../js/ast/control/proof.f.js) pin this boundary. The
 query traverses nested regions and evaluated captures, skipping ordinary
 function bodies. It is structural and can conservatively refuse
 an unreachable owning backedge.

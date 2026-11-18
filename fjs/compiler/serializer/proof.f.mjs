@@ -504,7 +504,7 @@ export const proof = {
     // is the case that would fail if one were needed again, over every
     // keyword rather than over a list someone remembered to update.
     keywords: () => {
-        keywords.forEach(k => {
+        for (const k of keywords) {
             const written = tryStringify(['=>', 0, [], ['.', ['rest'], k]])
             // `arguments` and `with` are on the prototypes, and an access on
             // either has no text at all.
@@ -513,7 +513,7 @@ export const proof = {
                 return
             }
             assertEq(reads(['=>', 0, [], ['.', ['rest'], k]]), `export default (...$0)=>$0.${k};`)
-        })
+        }
     },
     // A function is written with its parameter and no other, since a body
     // reads its arguments as one node: one counter names all scopes,
@@ -1797,7 +1797,7 @@ export const proof = {
     // test runs near a runner's time limit.
     law: Object.fromEntries(generate(lawParts, k => [
         `part${k}`,
-        () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
+        () => { for (const e of generated.filter((_, i) => i % lawParts === k)) {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
             // Primitive captures and shared operand commas extend source
@@ -1810,7 +1810,7 @@ export const proof = {
                 return
             }
             if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
-        }),
+        } },
     ])),
     /**
      * **Every shared example is proved to behave as its name says.** The

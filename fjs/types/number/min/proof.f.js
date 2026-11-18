@@ -9,8 +9,7 @@ const values = [NaN, -Infinity, -1.5, -1, -0, 0, 1, 1.5, Infinity]
 const same = (a, b) => assertEq(Object.is(a, b), true, [a, b])
 
 export const proof = {
-    everyPair: () => values.forEach(a => values.forEach(b =>
-        same(min(a, b), Math.min(a, b)))),
+    everyPair: () => { for (const a of values) { for (const b of values) { same(min(a, b), Math.min(a, b)) } } },
     zeros: () => {
         same(min(0, -0), -0)
         same(min(-0, 0), -0)

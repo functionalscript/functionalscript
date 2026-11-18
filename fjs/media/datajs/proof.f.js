@@ -19,6 +19,7 @@ import { _crossings } from '../../website/demo/graph/module.f.js'
 import { difference } from './vectors/module.f.js'
 import { htmlToString } from '../html/module.f.js'
 import { runPure } from '../../effects/module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 /** A document in normalized form: sharing, and the leaves JSON cannot carry. */
 const document = 'const $0=[1n,undefined,NaN,-0];export default {"a":$0,"b":$0,"c":"é€𐀀"};'
@@ -149,7 +150,7 @@ export const proof = {
                 // path data.
                 const routes = html.split('" data-graph-edge=""').slice(0, -1)
                     .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
-                assertEq(new Set(routes).size, 3)
+                assertEq(dedup(routes).length, 3)
             },
             // A shared node reached again from left of an intervening rank
             // runs across a lane of its own through that rank; the edges

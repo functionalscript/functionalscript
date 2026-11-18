@@ -8,6 +8,7 @@ import {
     signTrustMarker, signTrustKeyMarker, signTrustPathMarker, signVerifierMarker,
     railroadBoxMarker, railroadLabelMarker,
 } from './module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 export const proof = /** @type {const} */ ({
     sharedAssetLinks: () => {
@@ -29,7 +30,7 @@ export const proof = /** @type {const} */ ({
             railroadBoxMarker, railroadLabelMarker,
         ])
         assert(markers.length > 0)
-        assertEq(new Set(markers).size, markers.length)
+        assertEq(dedup(markers).length, markers.length)
         for (const marker of markers) {
             assert(typeof marker === 'string')
             assert(marker.startsWith('data-'))

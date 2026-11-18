@@ -7,6 +7,7 @@ import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import reject from './data.f.js'
 import { entry } from '../../../../fjs/types/object/entry/module.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
+import { dedup } from '../../../../fjs/types/array/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly Reject[]} */ (reject)
@@ -36,7 +37,7 @@ export const proof = {
     // Every id is one of a kind.
     unique: () => {
         const ids = set.map(vector => named(vector, 'id'))
-        assertEq(new Set(ids).size, ids.length)
+        assertEq(dedup(ids).length, ids.length)
     },
     // Every vector carries its document as a string or as bytes in the one
     // hex spelling, and the host's measured verdict as one of the three.

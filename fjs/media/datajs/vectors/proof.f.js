@@ -240,6 +240,6 @@ export const proof = {
     // The reader reject set: the reader refuses every document, and for the
     // two rules only bytes can break it refuses with that rule's own words.
     // The set's shape, the host verdict among it, is proved beside the set,
-    // in `spec/datajs/vectors/reject/proof.f.mjs`.
+    // in `spec/datajs/vectors/reject/proof.f.js`.
     reject: () => { for (const vector of rejectSet) { rejected(vector) } },
 }

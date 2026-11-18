@@ -73,16 +73,16 @@ const pairs = /** @type {<T>(list: readonly T[]) => readonly (readonly [T, T])[]
 export const proof = {
     // `typeOf` is the `typeof` operator.
     typeOf: () => {
-        values.forEach(v => assertEq(typeOf(v), typeof v))
+        for (const v of values) { assertEq(typeOf(v), typeof v) }
     },
     // `toBoolean` is JavaScript's own `ToBoolean`.
     toBoolean: () => {
-        values.forEach(v => assertEq(toBoolean(v), !!v, String(v)))
+        for (const v of values) { assertEq(toBoolean(v), !!v, String(v)) }
     },
     // `strictEquals` is `===` on every pair, and so on itself for each
     // value but `NaN`.
     strictEquals: () => {
-        pairs(values).forEach(([x, y]) => assertEq(strictEquals(x, y), x === y, `${String(x)} ${String(y)}`))
+        for (const [x, y] of pairs(values)) { assertEq(strictEquals(x, y), x === y, `${String(x)} ${String(y)}`) }
         assert(strictEquals(-0, 0))
         assert(!strictEquals(NaN, NaN))
         assert(strictEquals(a, a))
@@ -92,10 +92,10 @@ export const proof = {
     // strings, by UTF-16 unit, so `'\uffff'` sorts after an astral
     // character's leading surrogate.
     strings: () => {
-        pairs(strings).forEach(([x, y]) => {
+        for (const [x, y] of pairs(strings)) {
             assertEq(stringEquals(x, y), x === y, `${x} ${y}`)
             assertEq(stringLess(x, y), x < y, `${x} ${y}`)
-        })
+        }
         assert(stringLess('\u{1F600}', '\uffff'))
     },
     // `toString` and `toPropertyKey` are `String` and a computed key, and
@@ -103,12 +103,12 @@ export const proof = {
     // nested arrays too, and an object through its own `toString` and
     // `valueOf`, a non-function or a non-primitive answer skipped.
     coercions: () => {
-        convertible.forEach(v => {
+        for (const v of convertible) {
             assertEq(toString(v), String(v))
             assertEq(toPropertyKey(v), Object.keys({ [/** @type {string} */ (v)]: 0 })[0])
             assert(Object.is(toNumber(v), +/** @type {number} */ (v)), String(v))
-        })
-        values.filter(v => typeof v === 'bigint').forEach(v => assertEq(toString(v), String(v)))
+        }
+        for (const v of values.filter(v => typeof v === 'bigint')) { assertEq(toString(v), String(v)) }
     },
     // `toPrimitive` keeps a primitive and orders an object's methods by
     // the preferred type, as a template and unary `+` do.
@@ -139,30 +139,30 @@ export const proof = {
     // `add` is `+` on every pair that does not mix a bigint with a
     // number: two strings, a string with anything, or two numerics.
     add: () => {
-        pairs(operands).forEach(([x, y]) => {
+        for (const [x, y] of pairs(operands)) {
             if (!mixed(x, y) || stringy(x) || stringy(y)) {
                 assert(Object.is(add(x, y), /** @type {any} */ (x) + y), `${String(x)} + ${String(y)}`)
             }
-        })
+        }
     },
     // `subtract`, `multiply` and `divide` are `- * /` on every pair that
     // does not mix a bigint with a number, nor divide a bigint by `0n`.
     arithmetic: () => {
         /** @type {readonly (readonly [(a: unknown, b: unknown) => unknown, (x: any, y: any) => unknown])[]} */
         const ops = [[subtract, (x, y) => x - y], [multiply, (x, y) => x * y], [divide, (x, y) => x / y]]
-        pairs(operands).forEach(([x, y]) => {
+        for (const [x, y] of pairs(operands)) {
             if (!mixed(x, y)) {
-                ops.forEach(([op, js]) => {
+                for (const [op, js] of ops) {
                     if (op !== divide || y !== 0n) {
                         assert(Object.is(op(x, y), js(x, y)), `${String(x)} ${String(y)}`)
                     }
-                })
+                }
             }
-        })
+        }
     },
     // `negate` is unary `-`, a bigint's too.
     negate: () => {
-        operands.forEach(x => assert(Object.is(negate(x), -/** @type {any} */ (x)), String(x)))
+        for (const x of operands) { assert(Object.is(negate(x), -/** @type {any} */ (x)), String(x)) }
     },
     // The relations are `< > <= >=` on every pair: strings by units, a
     // bigint against a number or a string, and `NaN` false either way.
@@ -174,15 +174,15 @@ export const proof = {
             [lessThanOrEqual, (x, y) => x <= y],
             [greaterThanOrEqual, (x, y) => x >= y],
         ]
-        pairs(operands).forEach(([x, y]) => {
-            ops.forEach(([op, js]) => assertEq(op(x, y), js(x, y), `${String(x)} ${String(y)}`))
-        })
+        for (const [x, y] of pairs(operands)) {
+            for (const [op, js] of ops) { assertEq(op(x, y), js(x, y), `${String(x)} ${String(y)}`) }
+        }
     },
     // `get` reads a receiver's own members only, as NaNVM does, on every
     // receiver and key: an index by number or canonical string, `length`,
     // and an object's property, a number key by its string.
     get: () => {
-        receivers.forEach(r => keys.forEach(k => assertEq(get(r, k), own(r, k), `${String(r)}[${String(k)}]`)))
+        for (const r of receivers) { for (const k of keys) { assertEq(get(r, k), own(r, k), `${String(r)}[${String(k)}]`) } }
         assertEq(get('ab', 1), 'b')
         assertEq(get('\u{1F600}', 1), '\ude00')
         assertEq(get([10, 20], '1'), 20)
@@ -202,15 +202,15 @@ export const proof = {
     // code points, a lone surrogate as itself.
     toIterable: () => {
         assert(toIterable(a) === a)
-        ;['', 'ab', '\u{1F600}x', '\ud83d', 'a\ude00\ud83d\ude00\ud83d'].forEach(v => {
+        for (const v of ['', 'ab', '\u{1F600}x', '\ud83d', 'a\ude00\ud83d\ude00\ud83d']) {
             assertEq(JSON.stringify(toIterable(v)), toJson([...v]))
-        })
+        }
     },
     // `objectSpread` is what `{ ...v }` copies, for every kind.
     objectSpread: () => {
-        [...values, 'a\u{1F600}', [1, [2]]].forEach(v => {
+        for (const v of [...values, 'a\u{1F600}', [1, [2]]]) {
             assertEq(JSON.stringify(Object.entries(objectSpread(v))), JSON.stringify(Object.entries({ .../** @type {object} */ (v) })), String(v))
-        })
+        }
     },
     // Each throw is JavaScript's, with NaNVM's text.
     throw: {

@@ -24,6 +24,7 @@ import {
 } from './module.f.js'
 import { definitions, statementContinuations } from './module.f.js'
 import { entry as valueAt } from '../../../types/object/entry/module.f.js'
+import { dedup } from '../../../types/array/module.f.js'
 
 // The value names itself, and the tree of a whole module is too deep a
 // type for `tsc` to unroll through `parser`'s return type (TS2589); the
@@ -338,9 +339,9 @@ export const proof = /** @type {const} */ ({
     // repeated name widens to the same union and is invisible to it, and
     // the encoding has to be injective over the list.
     alphabet: () => {
-        assertEq(new Set(names).size, names.length)
+        assertEq(dedup(names).length, names.length)
         const all = names.map(sym)
-        assertEq(new Set(all).size, names.length)
+        assertEq(dedup(all).length, names.length)
         assertEq(all.every(s => s > 0x10_FFFF), true)
         const word = symbolOf({ token: { kind: 'id', value: 'export' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
         const id = symbolOf({ token: { kind: 'id', value: 'exports' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
@@ -1043,7 +1044,7 @@ export const proof = /** @type {const} */ ({
         // and a token that is its own text a terminal.
         labels: () => {
             const labels = labelsOf(demo.view(demo.init))
-            categoryNames.forEach(name => assert(labels.includes(`category:${name}`), name))
+            for (const name of categoryNames) { assert(labels.includes(`category:${name}`), name) }
             assert(labels.includes('terminal:=>'), '=>')
         },
     },

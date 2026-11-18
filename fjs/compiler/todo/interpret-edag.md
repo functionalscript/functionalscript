@@ -282,7 +282,7 @@ hardening TODO after the baseline interpreter exists.
       Done: `body` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js).
 - [x] Add a validation proof that an operation node reused both outside and inside a
       function body is rejected. Done: `throw` in
-      [`../../edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
+      [`../../edag/analysis/proof.f.js`](../../edag/analysis/proof.f.js)
       (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
 - [x] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value within the relevant evaluation context.

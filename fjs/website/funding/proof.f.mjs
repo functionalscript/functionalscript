@@ -45,7 +45,7 @@ export const proof = {
          * typo that is not a URL at all stops the build rather than becoming
          * a broken link on every page.
          */
-        address: () => [
+        address: () => { for (const address of [
             'http://example.com',
             'https://',
             'https://[',
@@ -57,17 +57,17 @@ export const proof = {
             'https://x.com:44a',
             'https://x.com:1:2',
             'https://user@x.com',
-        ].forEach(address => assertStructurallySame(
+        ]) { assertStructurallySame(
             parse(fundingJson([{ address, description: 'x' }])),
-            ['error', `not an https:// URL with a domain name: ${address}`])),
+            ['error', `not an https:// URL with a domain name: ${address}`]) } },
     },
     /** The path, query and fragment are not the host's, and a port is allowed. */
-    addressAccepted: () => [
+    addressAccepted: () => { for (const address of [
         'https://x.com',
         'https://Sub-1.X.com:443/a:b',
         'https://x.com?q=1',
         'https://x.com#f',
-    ].forEach(address => assertStructurallySame(
+    ]) { assertStructurallySame(
         parse(fundingJson([{ address, description: 'x' }])),
-        ['ok', [{ description: 'x', address }]])),
+        ['ok', [{ description: 'x', address }]]) } },
 }

@@ -1,6 +1,7 @@
 /** Source vocabulary agrees with grammar layers and distinguishes unary arity. */
 import { assignmentOperators, binaryTags, eagerLayers, isBinary, isUnary, lazyLayers, unaryTags } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 export const proof = {
     assignmentVocabulary: () => {
@@ -30,6 +31,6 @@ export const proof = {
         const tags = [...eagerLayers, ...lazyLayers].flatMap(Object.values)
         assert(tags.includes('instanceof'))
         for (const tag of binaryTags.filter(tag => tag !== '**')) { assert(tags.includes(tag)) }
-        assertEq(new Set(tags).size, tags.length)
+        assertEq(dedup(tags).length, tags.length)
     },
 }

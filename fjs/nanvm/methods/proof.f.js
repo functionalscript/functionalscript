@@ -5,6 +5,8 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { allowedCalls, prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { generate, path, pending, rows, types } from './module.f.js'
+import { dedup } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** @type {(pairs: readonly (readonly[string, string])[]) => readonly string[]} */
 const keys = pairs => pairs.map(([t, n]) => `${t}.${n}`)
@@ -17,7 +19,7 @@ export const proof = {
     partition: () => {
         const r = rows(pending)
         const all = [...keys(r.answered), ...keys(r.pending), ...keys(r.prohibited)]
-        assertEq(new Set(all).size, all.length)
+        assertEq(dedup(all).length, all.length)
         const expected = types.flatMap(([t, names]) =>
             names.filter(n => n !== 'length').map(n => `${t}.${n}`))
         assertEq(all.toSorted().join(), expected.toSorted().join())
@@ -43,7 +45,7 @@ export const proof = {
             ],
         }
         const expected = types.flatMap(([t, names]) => names
-            .filter(n => n === 'toString' || (own[t] ?? []).includes(n))
+            .filter(n => n === 'toString' || (entry(own, t) ?? []).includes(n))
             .map(n => `${t}.${n}`))
         assertEq(keys(rows(pending).answered).join(), expected.join())
     },

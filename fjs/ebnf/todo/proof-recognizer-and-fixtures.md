@@ -25,7 +25,7 @@ grammar ending in `eof`; `fjs/ebnf/proof.f.js` proves the adapter's branches.
   own loop. It was left alone while another change was editing that proof;
   its cases pin trees and ends exactly, so convert only the rows that ask
   the whole-input question alone.
-- `fjs/compiler/parser/grammar/proof.f.mjs`'s `read` reports where a module
+- `fjs/compiler/parser/grammar/proof.f.js`'s `read` reports where a module
   is refused by token name rather than accepted-or-not; it fits `Case` /
   `assertRecognizes` only with its own token-alphabet adapter and a diagnostic
   the corpus states, which is a separate decision.
