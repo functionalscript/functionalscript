@@ -4,6 +4,7 @@ import {
     asArray, asBigInt, asBoolean, asFunction, asNumber, asObject, asString, buildArray, buildObject,
     concat, find, fromUnit, item, join, key, kind, length, same, substring, text, unit,
 } from './module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** A function of two parameters. @type {(a: unknown, b: unknown) => unknown} */
 const f2 = (a, b) => [a, b]
@@ -25,7 +26,7 @@ const castThrows = Object.fromEntries(casts.flatMap((cast, c) => cast === undefi
 export const proof = {
     // The tags are the ABI's, 0 to 8 in this order.
     tags: () => {
-        assertEq(JSON.stringify([UNDEFINED, NULL, BOOLEAN, NUMBER, STRING, BIGINT, ARRAY, OBJECT, FUNCTION]), '[0,1,2,3,4,5,6,7,8]')
+        assertEq(toJson([UNDEFINED, NULL, BOOLEAN, NUMBER, STRING, BIGINT, ARRAY, OBJECT, FUNCTION]), '[0,1,2,3,4,5,6,7,8]')
     },
     // `kind` answers each value's tag; `false`, `NaN`, `''`, `[]` and `{}`
     // are no different.

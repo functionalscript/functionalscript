@@ -18,6 +18,7 @@ import { bindingLine, expExpr, expExprTagged, holdsFunction, needsRuntime, reads
 import { fromTagged, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords } from './unmarked/module.f.js'
 import { conditional } from '../testlib.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** A fragment with no externally supplied bindings and no runtime. */
 const nodeExpr = expExpr([])
@@ -33,7 +34,7 @@ const scope = (root, runtime = null) => mapOk(({ lines, uses }) => ({ lines: lin
  *
  * @type {(tagged: string) => void}
  */
-const complete = tagged => assertEq(JSON.stringify(unmarkedWords(unwrap(fromTagged(tagged)))), '[]', tagged)
+const complete = tagged => assertEq(toJson(unmarkedWords(unwrap(fromTagged(tagged)))), '[]', tagged)
 
 /** A node as a value in a scope whose runtime value is `runtime`, a compiled module's. @type {(e: Exp) => string} */
 const printed = e => {
@@ -355,7 +356,7 @@ export const proof = {
         assertEq(runs([',', [1, 2]]), '[["let","keyword"],["0x3ff0000000000000","number"],["0x4000000000000000","number"]]')
         // an index read and a function's length are numbers too
         assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number')), '[["0","number"],["1","number"]]')
-        assertEq(JSON.stringify(unwrap(fromTagged(unwrap(scopeTagged(['=>', 0, [['[]', [1]]], ['frame', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number').map(([text]) => text)), '["0x3ff0000000000000","0","0"]')
+        assertEq(toJson(unwrap(fromTagged(unwrap(scopeTagged(['=>', 0, [['[]', [1]]], ['frame', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number').map(([text]) => text)), '["0x3ff0000000000000","0","0"]')
     },
     fixedAndRest: () => {
         const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')

@@ -8,6 +8,7 @@ import { curve, eq, secp256k1 } from '../secp/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.js'
 import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.js'
 import { cardName, demo, setup, transition } from './demo.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 const { deck, key, open } = mentalPoker(secp256k1)
 const n = secp256k1.nf.p
@@ -22,7 +23,7 @@ const click = (state, name) => transition(state, { kind: 'click', name })
 const input = (state, name, value) => transition(state, { kind: 'input', name, value })
 
 /** @type {(state: DemoState) => string} */
-const text = state => JSON.stringify(demo.view(state))
+const text = state => toJson(demo.view(state))
 
 /** A card as the view writes it: its face, then its lock box.
  * @type {(face: string, locks: string) => string}

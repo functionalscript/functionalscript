@@ -44,6 +44,7 @@ import {
     validate,
     withoutUnits,
 } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
@@ -271,7 +272,7 @@ export const proof = {
             unit: name => name,
             whole: kind => `${kind}*`,
             number: v => `${v}`,
-            string: v => JSON.stringify(v),
+            string: v => toJson(v),
             bigint: v => `${v}n`,
             array: p => `[${p.prefix.length}]`,
             object: p => `{${Object.keys(p.props).join()}}`,

@@ -53,12 +53,10 @@ import { max } from '../../../types/number/max/module.f.js'
 import { digitsValue, one } from '../../../text/ascii/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 import { fromValues, values as setValues } from '../../../types/set/module.f.js'
-import { stringify } from '../../../media/json/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 import { identity } from '../../../types/function/module.f.js'
 
 const readBinary = digitsValue(2n)
-const stringifyJson = stringify(identity)
-
 /**
  * Keys as a reader types them unless a demo says otherwise: any safe
  * integer, in decimal, spelled the way `String` spells it. So `07`, `1e3`
@@ -134,7 +132,7 @@ export const sameShape = ({ root, shape }) => versions => {
             return hasEntry(x, 'to')
                 ? hasEntry(y, 'to') && x.corner === y.corner && same(x.to)(y.to)
                 : !hasEntry(y, 'to') && x.label === y.label && x.inline === y.inline
-                    && stringifyJson(x.parts ?? null) === stringifyJson(y.parts ?? null)
+                    && toJson(x.parts ?? null) === toJson(y.parts ?? null)
         })
     }
     return same(root(versions.before))(root(versions.after))

@@ -4,6 +4,7 @@ import { occurrences } from '../../types/string/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { examples } from '../examples/module.f.js'
 import { parsed, stageDemo } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 export const proof = {
     stageDemo: () => {
@@ -19,9 +20,9 @@ export const proof = {
     },
     parsed: () => {
         const imports = parsed(module => ok(module.imports.length))
-        assertEq(JSON.stringify(imports('import a from "a";\nexport default a;')), '["ok",1]')
-        assertEq(JSON.stringify(imports('export default "\\x41";')), '["error","unexpected token"]')
+        assertEq(toJson(imports('import a from "a";\nexport default a;')), '["ok",1]')
+        assertEq(toJson(imports('export default "\\x41";')), '["error","unexpected token"]')
         const refusing = parsed(() => error('the stage refuses'))
-        assertEq(JSON.stringify(refusing('export default 1;')), '["error","the stage refuses"]')
+        assertEq(toJson(refusing('export default 1;')), '["error","the stage refuses"]')
     },
 }

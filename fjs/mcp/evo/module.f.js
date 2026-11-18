@@ -53,7 +53,7 @@ import { array, option, or, string } from '../../rtti/module.f.js'
 import { lockField } from '../../media/revision/module.f.js'
 import { evoSummary } from '../../cas/evo/module.f.js'
 import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.js'
-import { stringify } from '../../media/json/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
@@ -103,9 +103,6 @@ export const evoAddArgs = /** @type {const} */ ({
 })
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
-
-/** Canonical JSON encoder for the `evo_list` and `evo_revision` results. */
-const toJson = stringify(identity)
 
 /**
  * Registry of all Evo tools, bound to an `Evo<O>`.

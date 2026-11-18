@@ -4,6 +4,7 @@ import { sha1 } from '../../../crypto/sha1/module.f.js'
 import { sha256 } from '../../../crypto/sha2/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq } from '../../../asserts/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 const sha1Output = hashOutput({ name: 'SHA-1', hash: sha1, openssl: 'sha1' })
 const sha256Output = hashOutput({ name: 'SHA-256', hash: sha256, openssl: 'sha256' })
@@ -15,7 +16,7 @@ export const proof = {
     },
     algorithms: () => {
         const list = hashAlgorithms(({ name, openssl }) => ({ name, openssl }))
-        assertEq(JSON.stringify(list), JSON.stringify([
+        assertEq(toJson(list), toJson([
             { name: 'SHA-1', openssl: 'sha1' },
             { name: 'SHA-224', openssl: 'sha224' },
             { name: 'SHA-256', openssl: 'sha256' },

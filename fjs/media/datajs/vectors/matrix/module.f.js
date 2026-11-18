@@ -62,8 +62,7 @@ import { occurrences } from '../../../../types/array/module.f.js'
 import { entry } from '../../../../types/object/entry/module.f.js'
 import { cmp as strCmp } from '../../../../types/string/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.js'
-import { stringify } from '../../../json/module.f.js'
-import { identity } from '../../../../types/function/module.f.js'
+import { toJson } from '../../../json/module.f.js'
 import { fromValues, has as setHas, values as setValues } from '../../../../types/set/module.f.js'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.js'
@@ -71,8 +70,6 @@ import serializerAccept from '../../../../../spec/datajs/vectors/serializer-acce
 import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.js'
 import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.js'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.js'
-
-const toJson = stringify(identity)
 
 /** Where the matrix is written. @type {string} */
 export const directory = 'spec/datajs/vectors'

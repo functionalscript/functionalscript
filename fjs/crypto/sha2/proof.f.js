@@ -17,6 +17,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.js'
 import { doneStep } from '../../types/function/operator/module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */
 const stateOf = ([tag, , value]) => (assert(tag === 'next'), value)
@@ -293,7 +294,7 @@ export const proof = {
     // O(n²); now near-linear (~40-60ms on Node, well under `bun test`'s 5s
     // per-test limit on Bun). No timing assertion (duration varies by
     // engine/machine); relies on the test runner's own per-test timing to
-    // catch a regression, same convention as `fjs/basen/base64/proof.f.mjs`
+    // catch a regression, same convention as `fjs/basen/base64/proof.f.js`
     // `encodeLargeVecIsSlow`.
     // A remainder held, then a `Vec` as long as a `Vec` may be, for one
     // variant of each word size: the framing never joins the two into one,
@@ -368,13 +369,13 @@ export const proof = {
                 runPure(demo.update(state)(event))[0],
                 'expected the demo to reach a value without asking for an operation'))
             assertEq(
-                JSON.stringify(step({ kind: 'input', name: 'text', value: 'hello' })(demo.init)),
-                JSON.stringify({ algorithm: 'SHA-256', text: 'hello' }))
+                toJson(step({ kind: 'input', name: 'text', value: 'hello' })(demo.init)),
+                toJson({ algorithm: 'SHA-256', text: 'hello' }))
             assertEq(
-                JSON.stringify(step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init)),
-                JSON.stringify({ algorithm: 'SHA-512', text: '' }))
-            assertEq(JSON.stringify(step({ kind: 'start' })(demo.init)), JSON.stringify(demo.init))
-            assertEq(JSON.stringify(step({ kind: 'input', name: 'other', value: 'ignored' })(demo.init)), JSON.stringify(demo.init))
+                toJson(step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init)),
+                toJson({ algorithm: 'SHA-512', text: '' }))
+            assertEq(toJson(step({ kind: 'start' })(demo.init)), toJson(demo.init))
+            assertEq(toJson(step({ kind: 'input', name: 'other', value: 'ignored' })(demo.init)), toJson(demo.init))
         },
         /**
          * **The fields carry names, and that is the contract.** They come back

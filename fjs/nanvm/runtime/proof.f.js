@@ -10,6 +10,7 @@ import { tokenize } from '../../compiler/tokenizer/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { edagPath, generate, load, rustPath, source } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** A root holding `text` at the runtime's path. @type {(text: string) => Dir} */
 const withRuntime = text => ({ 'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8(text)] } } } })
@@ -45,7 +46,7 @@ export const proof = {
         assertEq(failed[0], 'error')
         assertEq(Object.keys(broken.root).join(','), 'fjs')
         const [, refused] = virtualAt(withRuntime('export const statics = { "Object.x": 1 }; export const runtime = {};'))(generate())
-        assert(JSON.stringify(assertError(refused)).includes('a built-in that is no function: Object.x'))
+        assert(toJson(assertError(refused)).includes('a built-in that is no function: Object.x'))
     },
     // The `runtime` export as a value, or the reason there is none: a source
     // the interpreter cannot load, or an export that is no object.

@@ -11,8 +11,7 @@
 import { typescript } from '../config/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
-import { stringify } from '../../media/json/module.f.js'
-import { identity } from '../../types/function/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /**
  * The runner's temporary directory, which GitHub empties at the start and at
@@ -185,7 +184,7 @@ const declarationCommands = [
     // louder than anything a count check would print.
     `npm install "${alias}@file:$(echo *.tgz)"`,
     `npm install "typescript@${typescript.version}"`,
-    `echo '${stringify(identity)(tsconfig)}' > tsconfig.json`,
+    `echo '${toJson(tsconfig)}' > tsconfig.json`,
     'npx tsc',
 ]
 

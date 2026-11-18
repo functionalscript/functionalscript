@@ -17,6 +17,7 @@ import {
     all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from './module.f.js'
 import { pureError, pureOk } from '../module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /**
  * A runner claiming both operations by the names they are declared under.
@@ -138,7 +139,7 @@ export const proof = {
     // back, and the runner's state moves on.
     randomInt: () => {
         const [n, r] = counter(7)(randomInt())
-        assertEq(JSON.stringify([n, r]), '[8,["ok",7]]')
+        assertEq(toJson([n, r]), '[8,["ok",7]]')
     },
     all: {
         // The nesting is the operation's point: the outer `Result` is the

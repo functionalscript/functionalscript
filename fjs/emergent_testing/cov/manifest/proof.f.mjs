@@ -11,6 +11,7 @@ import { stringToU8List } from '../../../text/utf8/module.f.js'
 import { u8ListToMaxVecChunksMsb, vec8 } from '../../../types/bit_vec/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { buildGraph, graphManifest, manifest, validateGraph } from './module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 const digest = computeSync(sha256)
 /** @type {(text: string) => string} */
@@ -310,7 +311,7 @@ export const proof = /** @type {const} */ ({
         // Both destinations are already siblings and have equal bytes. Only
         // which module the loader reuses for the alias has changed.
         assertStructurallySame(first.files, second.files)
-        assert(JSON.stringify(first) !== JSON.stringify(second))
+        assert(toJson(first) !== toJson(second))
         assertStructurallySame(first.modules, second.modules)
         assertStructurallySame(first.roots, { 'unit/a.f.mjs': 0, 'unit/b.f.mjs': 1, 'unit/module.f.js': 0 })
         assertStructurallySame(second.roots, { 'unit/a.f.mjs': 0, 'unit/b.f.mjs': 1, 'unit/module.f.js': 1 })

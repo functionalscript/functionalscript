@@ -24,6 +24,7 @@
  * @import { StringMap } from '../../types/object/types.ts'
  */
 
+import { identity } from '../../types/function/module.f.js'
 import { next } from '../../types/list/module.f.js'
 import { parse as parseWith } from './parser/module.f.js'
 import { sort } from '../../types/object/module.f.js'
@@ -88,6 +89,14 @@ export const stringifyIndented = indent => codec(standardLeaf, indent).stringify
  * @type {(value: Unknown) => string}
  */
 export const stringifySorted = stringify(sort)
+
+/**
+ * `stringify` with object keys in the order the value holds them: the JSON
+ * text of a value as it is, what `JSON.stringify(value)` writes, `-0` aside.
+ *
+ * @type {(value: Unknown) => string}
+ */
+export const toJson = stringify(identity)
 
 /**
  * The standard codec's numeric policy: every JSON number becomes a

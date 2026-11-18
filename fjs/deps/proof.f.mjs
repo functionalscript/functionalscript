@@ -13,6 +13,7 @@ import { vec8 } from '../types/bit_vec/module.f.js'
 import { error } from '../types/result/module.f.js'
 import { readSource } from '../compiler/source/module.f.js'
 import { dependencies, dependenciesFromSource, dependencyImports, resolveDependencies, main, _relativeGraph } from './module.f.js'
+import { toJson } from '../media/json/module.f.js'
 
 /**
  * @param {Dir} root
@@ -134,20 +135,20 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(JSON.parse(assertOk(written)), { 'module.f.mjs': [] })
     },
     relativeGraphPaths: () => {
-        assertEq(JSON.stringify(_relativeGraph('/repo/pkg', {
+        assertEq(toJson(_relativeGraph('/repo/pkg', {
             '/repo/pkg/module.f.js': ['/repo/pkg/sub/helper.f.js', '/repo/pkg-other/shared.f.js'],
             '/repo/pkg/sub/helper.f.js': [],
             '/repo/pkg-other/shared.f.js': ['/repo/pkg/module.f.js'],
-        })), JSON.stringify({
+        })), toJson({
             'module.f.js': ['sub/helper.f.js', '../pkg-other/shared.f.js'],
             'sub/helper.f.js': [],
             '../pkg-other/shared.f.js': ['module.f.js'],
         }))
-        assertEq(JSON.stringify(_relativeGraph('C:/repo', {
+        assertEq(toJson(_relativeGraph('C:/repo', {
             'C:/repo/module.f.js': ['D:/shared.f.js'],
             'D:/shared.f.js': [],
-        })), JSON.stringify({ 'module.f.js': ['D:/shared.f.js'], 'D:/shared.f.js': [] }))
-        assertEq(JSON.stringify(_relativeGraph('/repo', { '/repo': [], '/': [] })), JSON.stringify({ '.': [], '..': [] }))
+        })), toJson({ 'module.f.js': ['D:/shared.f.js'], 'D:/shared.f.js': [] }))
+        assertEq(toJson(_relativeGraph('/repo', { '/repo': [], '/': [] })), toJson({ '.': [], '..': [] }))
     },
     canonicalHostPathsBecomeRelative: () => {
         const run = partialRun(nodeCommands)({
@@ -231,10 +232,10 @@ export const proof = /** @type {const} */ ({
         assertEq(state.stderr, '')
         const [, written] = virtual(state)(readSource('_deps.json'))
         const graph = JSON.parse(assertOk(written))
-        assertEq(JSON.stringify(graph['proof.f.mjs']), '["module.f.js"]')
-        assertEq(JSON.stringify(graph['nested/proof.f.js']), '["nested/helper.f.js"]')
-        assertEq(JSON.stringify(graph['nested/demo.f.mjs']), '[]')
-        assertEq(JSON.stringify(graph['nested/notmodule.f.js']), '[]')
+        assertEq(toJson(graph['proof.f.mjs']), '["module.f.js"]')
+        assertEq(toJson(graph['nested/proof.f.js']), '["nested/helper.f.js"]')
+        assertEq(toJson(graph['nested/demo.f.mjs']), '[]')
+        assertEq(toJson(graph['nested/notmodule.f.js']), '[]')
     },
     invocationDirectory: () => {
         const [state, result] = execute(sources, { env: { INIT_CWD: 'nested' } })

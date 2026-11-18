@@ -5,6 +5,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import notApplicable from './data.f.js'
 import { entry } from '../../../../fjs/types/object/entry/module.f.js'
+import { toJson } from '../../../../fjs/media/json/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly NotApplicable[]} */ (/** @type {unknown} */ (notApplicable))
@@ -23,7 +24,7 @@ const where = record => `${record.scope[0]} ${record.scope[1]}`
  */
 const named = (record, name) => {
     const value = entry(record, name)
-    assert(typeof value === 'string' && value.trim() !== '', `${JSON.stringify(where(record))}: ${name} is not a string that says anything`)
+    assert(typeof value === 'string' && value.trim() !== '', `${toJson(where(record))}: ${name} is not a string that says anything`)
     return value
 }
 

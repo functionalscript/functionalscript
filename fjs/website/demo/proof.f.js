@@ -12,6 +12,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.js'
 import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
@@ -96,7 +97,7 @@ export const proof = {
         const state = { algorithm: 'SHA-256', key: '', text: 'message' }
         /** @type {(event: DemoEvent) => typeof state} */
         const next = event => unwrap(assertNotNullish(runPure(fieldUpdate(state)(event))[0]))
-        assertEq(JSON.stringify(next({ kind: 'input', name: 'key', value: 'secret' })), JSON.stringify({ ...state, key: 'secret' }))
+        assertEq(toJson(next({ kind: 'input', name: 'key', value: 'secret' })), toJson({ ...state, key: 'secret' }))
         assertEq(next({ kind: 'input', name: 'unknown', value: 'ignored' }), state)
         assertEq(next({ kind: 'input', name: 'toString', value: 'ignored' }), state)
         assertEq(next({ kind: 'start' }), state)

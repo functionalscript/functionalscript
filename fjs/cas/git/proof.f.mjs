@@ -34,6 +34,8 @@ import { error, ok } from '../../types/result/module.f.js'
 import { collectRead, toPath } from '../module.f.js'
 import { _driveCas } from '../proof.f.js'
 import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
+import { entry as valueAt } from '../../types/object/entry/module.f.js'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -73,7 +75,7 @@ const entry = (mode, name, oid) => ({ mode: latin1(mode), name: latin1(name), oi
  */
 const setIn = (d, [first, ...rest], content) => {
     if (rest.length === 0) { return { ...d, [first]: content } }
-    const sub = d[first]
+    const sub = valueAt(d, first)
     const below = sub !== undefined && typeof sub === 'object' && !(sub instanceof Array) ? sub : {}
     return { ...d, [first]: setIn(below, rest, content) }
 }
@@ -859,7 +861,7 @@ export const proof = {
         for (const author of bad) {
             const o = runPure(branchCas(sha256, branch, author))
             assert(o.length === 1, o)
-            assertEq(codeOf(o[0]), authorCode, JSON.stringify(author))
+            assertEq(codeOf(o[0]), authorCode, toJson(author))
         }
     },
     // ## Writing an object
@@ -972,8 +974,8 @@ export const proof = {
         // refuses as an empty ident: refused, not an author of nobody and
         // not an author of none.
         for (const empty of ['', '" "']) {
-            assertEq(codeOf(found(`[user]\n\tname = ${empty}\n\temail = a@b\n`, null)), authorCode, JSON.stringify(empty))
-            assertEq(codeOf(found(`[user]\n\tname = A\n\temail = ${empty}\n`, null)), authorCode, JSON.stringify(empty))
+            assertEq(codeOf(found(`[user]\n\tname = ${empty}\n\temail = a@b\n`, null)), authorCode, toJson(empty))
+            assertEq(codeOf(found(`[user]\n\tname = A\n\temail = ${empty}\n`, null)), authorCode, toJson(empty))
         }
         // An `[include]` or `[includeIf]` is not followed, so a file holding
         // one is refused where its answer would count: the repository's

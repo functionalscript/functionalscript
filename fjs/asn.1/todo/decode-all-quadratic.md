@@ -54,7 +54,7 @@ expected element counts call for it.
       acceptable given ASN.1 structures in this codebase's actual usage
       (RFC 3161 timestamp requests/responses) are small.
 - [ ] If fixed, add a proof test with a `SEQUENCE OF` containing many
-      elements, timed the same way as `fjs/basen/base64/proof.f.mjs`
+      elements, timed the same way as `fjs/basen/base64/proof.f.js`
       `encodeLargeVecIsSlow` (no timing assertion).
 
 ### Related

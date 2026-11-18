@@ -7,6 +7,7 @@ import { htmlToString } from '../../../media/html/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 import { generate } from '../../../types/array/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /**
  * Every drawn edge's `d`, in document order. Each piece of the SVG before
@@ -710,7 +711,7 @@ export const proof = /** @type {const} */ ({
             assert(html.includes('<rect x="10" y="53" width="50" height="20" rx="4" data-graph-node=""'), html)
             assertEq(occurrences('data-graph-port=""')(html), 0)
             const starts = routes(html).map(d => d.split(' ')[0])
-            assertEq(JSON.stringify(starts), '["M60,53","M60,63","M60,73"]')
+            assertEq(toJson(starts), '["M60,53","M60,63","M60,73"]')
             assert(routes(html)[1].endsWith('L100,63'), html)
         },
         // A table: the root's rows are a child one row tall, a value, and
@@ -744,7 +745,7 @@ export const proof = /** @type {const} */ ({
             assert(html.includes('<rect x="124" y="10" width="50" height="20" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="124" y="50" width="50" height="40" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="34" y="104" width="50" height="26" rx="4" data-graph-node=""'), html)
-            assertEq(JSON.stringify(routes(html)), '["M84,20 L124,20","M84,70 L124,70","M10,40 L34,40"]')
+            assertEq(toJson(routes(html)), '["M84,20 L124,20","M84,70 L124,70","M10,40 L34,40"]')
             assert(html.includes('<div data-graph="" data-graph-table="">'), html)
         },
         // A value in parts is one text of tspans, each marked with its
@@ -784,7 +785,7 @@ export const proof = /** @type {const} */ ({
             const paths = s => s.split('<path ').slice(1).flatMap(p => p.includes('data-graph-edge=""') ? [p.slice(0, p.indexOf('>'))] : [])
             const fades = paths(html).map(p => p.includes('data-graph-order="0"') ? 0 : p.includes('data-graph-order="1"') ? 1 : null)
             // 0 → 1 with 0, 0 → 2 with 2, 1 → 3 with neither, the entry with 0.
-            assertEq(JSON.stringify(fades.toSorted()), '[0,0,1,null]')
+            assertEq(toJson(fades.toSorted()), '[0,0,1,null]')
         },
         // A keyed node is drawn at the origin, its box and its text each in
         // a group moved into place and keyed apart, its clip local too; an
@@ -804,7 +805,7 @@ export const proof = /** @type {const} */ ({
             // The keyed groups are drawn by key, in a layer each: `b`
             // before `k`, and the unkeyed node after both, in its layer.
             const keys = html.split('data-key="').slice(1).map(k => k.slice(0, k.indexOf('"')))
-            assertEq(JSON.stringify(keys), '["box:b","box:k","edge:[&quot;k&quot;,&quot;1&quot;,&quot;b&quot;]","entry:[&quot;k&quot;]","text:b","text:k"]')
+            assertEq(toJson(keys), '["box:b","box:k","edge:[&quot;k&quot;,&quot;1&quot;,&quot;b&quot;]","entry:[&quot;k&quot;]","text:b","text:k"]')
             assert(html.includes('</defs><g><g data-graph-in-kind="shared" transform="translate(124,10)" data-key="box:b">'), html)
             // A keyed node is drawn at the origin, its clip too; the unkeyed
             // one where it is.

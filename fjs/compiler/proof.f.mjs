@@ -43,6 +43,7 @@ import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 import { dirOf, encode } from './demo_files/module.f.js'
 import { dependenciesOf } from './examples/module.f.js'
+import { toJson } from '../media/json/module.f.js'
 
 /** An example's program: its main module, then the files it imports. @type {(source: string, id: string) => import('./demo_files/types.ts').Files} */
 const programOf = (source, id) => [['input.f.js', source], ...dependenciesOf(id)]
@@ -1758,7 +1759,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             const escapedLink = encodeQuery(sharing, sharing.read(escaped))
             assertEq(escapedLink[0], 'ok')
             const reopened = nextDemo(sharing.restore(sharing.read(escaped)), { kind: 'start' })
-            assertEq(JSON.stringify(reopened.files), '[["dep?.f.js","export default 1;"]]')
+            assertEq(toJson(reopened.files), '[["dep?.f.js","export default 1;"]]')
             assertEq(textOfResult(reopened.panes[0]), '1')
             const restored = sharing.restore({ compiler: 'export default 2;', files: '[]' })
             assertStructurallySame(restored, { main: 'export default 2;', files: [], panes: [], imports: [] })

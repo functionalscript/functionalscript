@@ -10,9 +10,9 @@ import {
     encodeText as revisionEncodeText,
     validate as revisionValidate,
 } from '../revision/module.f.js'
-import { stringifySorted } from '../json/module.f.js'
+import { stringifySorted, toJson } from '../json/module.f.js'
 
-// Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
+// Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.js): single
 // cbase32 symbols, cheap to write inline here.
 const h1 = '8'
 const h2 = 'r'
@@ -123,7 +123,7 @@ export const proof = {
 
     decodeText: {
         validJson: () => {
-            const r = decodeText(JSON.stringify(lockOf({ dependency: h1 })))
+            const r = decodeText(toJson(lockOf({ dependency: h1 })))
             assert(r[0] === 'ok', ['expected ok', r])
             assertEq(r[1].lock.dependency, h1)
         },

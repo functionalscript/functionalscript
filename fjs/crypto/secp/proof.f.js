@@ -8,6 +8,7 @@ import { runPure } from '../../effects/module.f.js'
 import { prime_field } from '../../types/prime_field/module.f.js'
 import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** @type {(param: Curve) => () => void} */
 const poker = param => () => {
@@ -66,7 +67,7 @@ const poker = param => () => {
 export const proof = {
     playground: () => {
         const initial = demo.init
-        const text = JSON.stringify(demo.view(initial))
+        const text = toJson(demo.view(initial))
         assert(text.includes('The complete construction updates immediately.'))
         assert(!text.includes('data-secp-controls'))
         assertEq(transition(initial, { kind: 'start' }), initial)
@@ -90,7 +91,7 @@ export const proof = {
         assertEq(additionDefaults.p, '10,18')
         assertEq(additionDefaults.q, '13,12')
         for (const k of ['0', '29']) {
-            const identityView = JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: 'kG', k }))
+            const identityView = toJson(demo.view({ ...initial, view: 'Finite Field View', operation: 'kG', k }))
             assert(identityView.includes(`Scalar result ${k}G:`))
             assert(!identityView.includes('Public key'))
             assert(identityView.includes('O (point at infinity)'))
@@ -98,7 +99,7 @@ export const proof = {
             assert(!identityView.includes('Select P ='))
         }
         const adding = /** @type {const} */ ({ ...initial, view: 'Finite Field View', operation: 'P + Q' })
-        const resultView = JSON.stringify(demo.view(adding))
+        const resultView = toJson(demo.view(adding))
         assert(resultView.includes('point:13,12'))
         assert(resultView.includes('Select P ='))
         assertEq(occurrences('data-secp-modular-line')(resultView), 24)
@@ -106,11 +107,11 @@ export const proof = {
         assert(resultView.includes('orange segments'))
         assert(resultView.includes('data-secp-finite-negation'))
         assert(resultView.includes('S is the third curve intersection'))
-        const doublingView = JSON.stringify(demo.view({ ...adding, operation: '2P', p: '4,16' }))
+        const doublingView = toJson(demo.view({ ...adding, operation: '2P', p: '4,16' }))
         assertEq(occurrences('data-secp-modular-line')(doublingView), 29)
         assert(doublingView.includes('broken where it wraps'))
         assert(resultView.includes('x₃ = ('))
-        assert(JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: '−P' })).includes('data-secp-finite-negation'))
+        assert(toJson(demo.view({ ...initial, view: 'Finite Field View', operation: '−P' })).includes('data-secp-finite-negation'))
         const views = [
             { ...initial, view: 'Finite Field View', k: '0' }, { ...initial, view: 'Finite Field View', k: '29' }, { ...initial, view: 'Finite Field View', k: 'bad' },
             { ...initial, view: 'Finite Field View', p: 'bad' }, { ...initial, view: 'Finite Field View', q: 'bad' },

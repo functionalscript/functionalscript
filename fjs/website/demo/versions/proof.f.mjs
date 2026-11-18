@@ -16,6 +16,7 @@ import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 import { generate } from '../../../types/array/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 // The smallest persistent structure that shares: a sorted list whose
 // insert and remove copy the cells before the change and share the rest. A
@@ -160,7 +161,7 @@ export const proof = {
         table: () => {
             const g = graphOf(chain('table'))({ before: null, after: ofThree })
             assertEq(g.table, true)
-            assertEq(JSON.stringify(g.nodes.map(node => node.rank)), '[0,1,2]')
+            assertEq(toJson(g.nodes.map(node => node.rank)), '[0,1,2]')
             assertEq(JSON.stringify(g.edges.filter(edge => typeof edge.to === 'number').map(edge => edge.span)), '[2,1]')
         },
         // Inserting 0 in front builds one cell and shares the three after
@@ -168,26 +169,26 @@ export const proof = {
         sharesTheTail: () => {
             const after = insert(0)(ofThree)
             const g = graphOf(chain('depth'))({ before: ofThree, after })
-            assertEq(JSON.stringify(g.nodes.map(n => [n.kind, n.label, n.rank])),
+            assertEq(toJson(g.nodes.map(n => [n.kind, n.label, n.rank])),
                 '[["new","",0],["shared","first",1],["shared","",2],["shared","",3]]')
             assertEq(JSON.stringify(g.entries), '[{"to":0}]')
-            assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after })), '{"built":1,"shared":3,"replaced":0}')
+            assertEq(toJson(census(chain('depth'))({ before: ofThree, after })), '{"built":1,"shared":3,"replaced":0}')
         },
         // Inserting 4 at the end copies every cell. The three old cells are
         // counted as replaced, but not drawn.
         copiesThePath: () => {
             const after = insert(4)(ofThree)
             const g = graphOf(chain('depth'))({ before: ofThree, after })
-            assertEq(JSON.stringify(g.nodes.map(n => n.kind)), '["new","new","new","new"]')
+            assertEq(toJson(g.nodes.map(n => n.kind)), '["new","new","new","new"]')
             assertEq(g.edges.filter(e => typeof e.to !== 'number').length, 4)
-            assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after })), '{"built":4,"shared":0,"replaced":3}')
+            assertEq(toJson(census(chain('depth'))({ before: ofThree, after })), '{"built":4,"shared":0,"replaced":3}')
         },
         // `leaves` puts every leaf in the last column: the root of a list of
         // four is three columns left of its last cell.
         leaves: () => {
             const after = insert(4)(ofThree)
             const g = graphOf(chain('leaves'))({ before: ofThree, after })
-            assertEq(JSON.stringify(g.nodes.map(n => n.rank)), '[0,1,2,3]')
+            assertEq(toJson(g.nodes.map(n => n.rank)), '[0,1,2,3]')
         },
         // A node reached by two paths in one version is drawn once, with
         // an arrow from each path, and counted once.
@@ -209,9 +210,9 @@ export const proof = {
                 }),
             }
             const g = graphOf(diamond)({ before: null, after: 'A' })
-            assertEq(JSON.stringify(g.nodes.map(n => [n.rank, n.kind])), '[[0,"new"],[1,"new"],[1,"new"],[2,"new"]]')
+            assertEq(toJson(g.nodes.map(n => [n.rank, n.kind])), '[[0,"new"],[1,"new"],[1,"new"],[2,"new"]]')
             assertEq(g.edges.filter(e => e.to === 3).length, 2)
-            assertEq(JSON.stringify(census(diamond)({ before: null, after: 'A' })), '{"built":4,"shared":0,"replaced":0}')
+            assertEq(toJson(census(diamond)({ before: null, after: 'A' })), '{"built":4,"shared":0,"replaced":0}')
         },
         // Repeated references are drawn once, distinct equal objects stay
         // distinct, and an equal sort order preserves the first encounter.
@@ -236,10 +237,10 @@ export const proof = {
                 }),
             }
             const g = graphOf(structure)({ before: shared, after: root })
-            assertEq(JSON.stringify(g.nodes.map(node => [node.label, node.kind])), '[["root","new"],["shared","shared"],["distinct","new"]]')
-            assertEq(JSON.stringify(g.edges.map(edge => edge.to)), '[1,2,1]')
-            assertEq(JSON.stringify(census(structure)({ before: shared, after: root })), '{"built":2,"shared":1,"replaced":0}')
-            assertEq(JSON.stringify(census(structure)({ before: root, after: shared })), '{"built":0,"shared":1,"replaced":2}')
+            assertEq(toJson(g.nodes.map(node => [node.label, node.kind])), '[["root","new"],["shared","shared"],["distinct","new"]]')
+            assertEq(toJson(g.edges.map(edge => edge.to)), '[1,2,1]')
+            assertEq(toJson(census(structure)({ before: shared, after: root })), '{"built":2,"shared":1,"replaced":0}')
+            assertEq(toJson(census(structure)({ before: root, after: shared })), '{"built":0,"shared":1,"replaced":2}')
         },
         // The new version's root has the one arrow; an empty new version
         // has no node and no arrow, whatever the old one held.
@@ -248,7 +249,7 @@ export const proof = {
             assertEq(JSON.stringify(graphOf(chain('depth'))({ before: null, after: ofThree }).entries), '[{"to":0}]')
             const gone = graphOf(chain('depth'))({ before: ofThree, after: null })
             assertEq(JSON.stringify([gone.nodes, gone.entries]), '[[],[]]')
-            assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after: null })), '{"built":0,"shared":0,"replaced":3}')
+            assertEq(toJson(census(chain('depth'))({ before: ofThree, after: null })), '{"built":0,"shared":0,"replaced":3}')
         },
     },
     // Two versions are drawn the same when their rows are, node by node,
@@ -342,7 +343,7 @@ export const proof = {
         press: () => {
             const s = press('insert')(demo.init)
             assertEq(s.versions.before, demo.init.versions.after)
-            assertEq(JSON.stringify(s.status), '{"step":{"op":"insert","key":4}}')
+            assertEq(toJson(s.status), '{"step":{"op":"insert","key":4}}')
             const h = html(s)
             // The step line spells the key the same way.
             assert(h.includes('Last step, insert 0100:'), h)
@@ -356,7 +357,7 @@ export const proof = {
             const s = move(2)(demo.init)
             assertEq(s.versions.before, demo.init.versions.after)
             assertEq(s.versions.after, demo.init.versions.after)
-            assertEq(JSON.stringify(s.status), '{"step":{"op":"move","key":2}}')
+            assertEq(toJson(s.status), '{"step":{"op":"move","key":2}}')
             assertEq(s.key, '0010')
             assert(html(s).includes('Last step, move 0010: nothing changed, the key went back where it was.'), '')
         },
@@ -371,7 +372,7 @@ export const proof = {
                 name: 'front', noun: 'list', intro: '', presets: [['Three', [3, 2, 1], 3, '', 'three']],
             })
             const s = front.move(3)(front.demo.init)
-            assertEq(JSON.stringify(s.versions.after), '{"key":3,"next":{"key":1,"next":{"key":2,"next":null}}}')
+            assertEq(toJson(s.versions.after), '{"key":3,"next":{"key":1,"next":{"key":2,"next":null}}}')
             assert(htmlToString(front.demo.view(s)).includes('Last step, move 3: 3 new (blue), 0 shared with the list before, 3 only in the list before.'), '')
         },
         // A field the format cannot read changes nothing, and says what it
@@ -405,10 +406,10 @@ export const proof = {
             const typed = update({ kind: 'input', name: 'key', value: '110' })(demo.init)
             assertEq(typed.key, '110')
             assertEq(typed.versions, demo.init.versions)
-            assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":6}}')
-            assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":6}}')
+            assertEq(toJson(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":6}}')
+            assertEq(toJson(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":6}}')
             assertEq(update({ kind: 'input', name: 'example', value: 'Empty' })(typed).key, '0101')
-            assertEq(JSON.stringify(update({ kind: 'click', name: 'move:3' })(typed).status), '{"step":{"op":"move","key":3}}')
+            assertEq(toJson(update({ kind: 'click', name: 'move:3' })(typed).status), '{"step":{"op":"move","key":3}}')
             assertEq(update({ kind: 'click', name: 'move:x' })(typed), typed)
             assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
             assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
@@ -433,8 +434,8 @@ export const proof = {
         // a counter answering 0, 1, 2 picks the first of three, the second
         // of the two left, and the last.
         shuffled: () => {
-            assertEq(JSON.stringify(counter(0)(shuffled([1, 2, 3]))), '[3,["ok",[1,3,2]]]')
-            assertEq(JSON.stringify(counter(0)(shuffled([]))), '[0,["ok",[]]]')
+            assertEq(toJson(counter(0)(shuffled([1, 2, 3]))), '[3,["ok",[1,3,2]]]')
+            assertEq(toJson(counter(0)(shuffled([]))), '[0,["ok",[]]]')
         },
         // The count field opens on the demo's count, and Generate builds the
         // version from that many keys, as both versions, and spells out the
@@ -445,9 +446,9 @@ export const proof = {
             const [, r] = counter(0)(random.demo.update(random.demo.init)({ kind: 'click', name: 'generate' }))
             assert(r[0] === 'ok', '')
             const s = r[1]
-            assertEq(JSON.stringify(s.status), '{"random":[1,3,2]}')
+            assertEq(toJson(s.status), '{"random":[1,3,2]}')
             assertEq(s.versions.before, s.versions.after)
-            assertEq(JSON.stringify(s.versions.after), JSON.stringify(listOf([1, 2, 3])))
+            assertEq(toJson(s.versions.after), toJson(listOf([1, 2, 3])))
             assert(htmlToString(random.demo.view(s)).includes('3 keys inserted in random order: 1, 3, 2.'), '')
         },
         // A count outside 1 to the most, or no number at all, builds nothing
@@ -483,7 +484,7 @@ export const proof = {
             assertEq(demo.init.count, '')
             assert(!html(demo.init).includes('name="count"'), '')
             assertEq(update({ kind: 'click', name: 'generate' })(demo.init), demo.init)
-            assertEq(JSON.stringify(runPure(versionsDemo({ structure: chain('depth'), name: 'none', noun: 'list', intro: '', presets: [['One', [1], 2, '', 'one']] }).generate(demo.init))), JSON.stringify([ok(demo.init)]))
+            assertEq(toJson(runPure(versionsDemo({ structure: chain('depth'), name: 'none', noun: 'list', intro: '', presets: [['One', [1], 2, '', 'one']] }).generate(demo.init))), toJson([ok(demo.init)]))
         },
     },
 }

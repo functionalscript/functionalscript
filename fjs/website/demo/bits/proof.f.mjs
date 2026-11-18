@@ -10,6 +10,7 @@ import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../..
 import { unwrap } from '../../../types/result/module.f.js'
 import { runPure } from '../../../effects/module.f.js'
 import { length, maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /**
  * A toy codec, so these proofs are about drawing the groups and not about any
@@ -39,7 +40,7 @@ export const proof = {
     // Each character with its bytes as numbers and in binary; a lone
     // surrogate has no UTF-8 bytes.
     byteChars: () => {
-        assertEq(JSON.stringify(assertOk(byteChars('a é'))), JSON.stringify([
+        assertEq(toJson(assertOk(byteChars('a é'))), toJson([
             [[0x61], { label: 'a', standIn: false, bytes: ['01100001'] }],
             [[0x20], { label: '␠', standIn: true, bytes: ['00100000'] }],
             [[0xc3, 0xa9], { label: 'é', standIn: false, bytes: ['11000011', '10101001'] }],
@@ -49,7 +50,7 @@ export const proof = {
     bitGroups: {
         // A short last group is completed with zeros; whole groups need
         // nothing.
-        zeros: () => assertEq(JSON.stringify(encoded(zeros)('h')), JSON.stringify({
+        zeros: () => assertEq(toJson(encoded(zeros)('h')), toJson({
             chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
             groups: [
                 { data: '011', stop: '', fill: '' },
@@ -63,22 +64,22 @@ export const proof = {
         // stop bit and zeros alone: `hé` is 24 bits, eight whole groups.
         stops: () => {
             const h = encoded(stops)('h')
-            assertEq(JSON.stringify(h.groups.at(-1)), JSON.stringify({ data: '00', stop: '1', fill: '' }))
+            assertEq(JSON.stringify(h.groups.at(-1)), toJson({ data: '00', stop: '1', fill: '' }))
             const he = encoded(stops)('hé')
             assertEq(he.groups.length, 9)
-            assertEq(JSON.stringify(he.groups.at(-1)), JSON.stringify({ data: '', stop: '1', fill: '00' }))
+            assertEq(JSON.stringify(he.groups.at(-1)), toJson({ data: '', stop: '1', fill: '00' }))
         },
         empty: () => {
-            assertEq(JSON.stringify(encoded(zeros)('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
-            assertEq(JSON.stringify(encoded(stops)('').groups), JSON.stringify([{ data: '', stop: '1', fill: '00' }]))
+            assertEq(toJson(encoded(zeros)('')), toJson({ chars: [], groups: [], encoded: '' }))
+            assertEq(toJson(encoded(stops)('').groups), toJson([{ data: '', stop: '1', fill: '00' }]))
         },
         /**
          * **Each character keeps its own bytes**: one for `h`, two for `é`,
          * three for `€`, four for `👋`.
          */
         chars: () => assertEq(
-            JSON.stringify(encoded(zeros)('hé€👋').chars.map(c => [c.label, c.bytes])),
-            JSON.stringify([
+            toJson(encoded(zeros)('hé€👋').chars.map(c => [c.label, c.bytes])),
+            toJson([
                 ['h', ['01101000']],
                 ['é', ['11000011', '10101001']],
                 ['€', ['11100010', '10000010', '10101100']],
@@ -90,21 +91,21 @@ export const proof = {
          * its code. Its bytes are still its own.
          */
         standIns: () => assertEq(
-            JSON.stringify(encoded(zeros)(' \n\t\u0000\u007f\u0085a').chars.map(c => [c.label, c.standIn])),
-            JSON.stringify([['␠', true], ['↵', true], ['⇥', true], ['U+0000', true], ['U+007F', true], ['U+0085', true], ['a', false]])),
+            toJson(encoded(zeros)(' \n\t\u0000\u007f\u0085a').chars.map(c => [c.label, c.standIn])),
+            toJson([['␠', true], ['↵', true], ['⇥', true], ['U+0000', true], ['U+007F', true], ['U+0085', true], ['a', false]])),
         // An unpaired surrogate has no UTF-8 bytes, so it is refused rather
         // than handed to the encoder.
         unpairedSurrogate: () => assertEq(
-            JSON.stringify(bitGroups(zeros, encode)('a\uD800')),
-            JSON.stringify(['error', 'unpaired surrogate, no UTF-8'])),
+            toJson(bitGroups(zeros, encode)('a\uD800')),
+            toJson(['error', 'unpaired surrogate, no UTF-8'])),
         /**
          * **Text longer than the largest bit vector is refused**, not
          * handed to a codec that cannot take it: one byte past
          * `maxLengthBytes` is too many.
          */
         tooLong: () => assertEq(
-            JSON.stringify(bitGroups(zeros, encode)('a'.repeat(Number(maxLengthBytes) + 1))),
-            JSON.stringify(['error', `text too long: more than ${maxLengthBytes} UTF-8 bytes`])),
+            toJson(bitGroups(zeros, encode)('a'.repeat(Number(maxLengthBytes) + 1))),
+            toJson(['error', `text too long: more than ${maxLengthBytes} UTF-8 bytes`])),
     },
     // Typing replaces the text; every other event leaves it alone.
     update: () => {

@@ -10,7 +10,7 @@ import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { parse as jsonParse } from '../../media/json/module.f.js'
+import { parse as jsonParse, toJson } from '../../media/json/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { parseGitHubAction } from '../common/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
@@ -89,7 +89,7 @@ export const proof = {
             WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
         })
         assertStructurallySame(websiteJob.steps[4]?.env, websiteJob.steps[6]?.env)
-        assert(websiteJob.steps.slice(0, 8).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
+        assert(websiteJob.steps.slice(0, 8).every(step => step.if === undefined && !toJson(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
     },
     production: () => {
