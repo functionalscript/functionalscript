@@ -11,7 +11,7 @@ a `proof.f.mjs` is authored `.f.mjs` like any other (§1.2) — no exemption is
 written for proofs. Several proofs record what the code under test did by
 mutating an array:
 
-- [`fjs/cli/proof.f.mjs`](../cli/proof.f.mjs) — `handlerReceivesRemainingArgs`
+- [`fjs/cli/proof.f.js`](../cli/proof.f.js) — `handlerReceivesRemainingArgs`
   collects the handler's arguments with `captured.push(...args)`.
 - [`fjs/sul/proof.f.mjs`](../sul/proof.f.mjs) — `run` records each `add`
   call with `log.push([l, r, m, isSymbol])`.

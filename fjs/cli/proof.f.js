@@ -3,8 +3,8 @@
  * @import { Commands } from './types.ts'
  */
 
-import { exitCode } from '../effects/node/module.f.js'
-import { pureError, pureOk } from '../effects/module.f.js'
+import { exitCode, log } from '../effects/node/module.f.js'
+import { pureError, pureOk, resultStep } from '../effects/module.f.js'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.js'
 import { dispatch, exactArgs, helpReference, isMain } from './module.f.js'
 import { assert, assertEq } from '../asserts/module.f.js'
@@ -116,19 +116,17 @@ export const proof = {
         assert(state.stderr.includes('echo'), 'expected available commands in error')
     },
     handlerReceivesRemainingArgs: () => {
-        /** @type {string[]} */
-        const captured = []
+        // The handler reports what it was given on standard output, where
+        // the run's state keeps it.
         /** @type {Commands<NodeOp>} */
         const commands = [{
             names: ['grab'],
             description: 'Capture args',
-            handler: (/** @type {{ args: readonly string[] }} */ { args }) => {
-                captured.push(...args)
-                return pureOk(0)
-            },
+            handler: (/** @type {{ args: readonly string[] }} */ { args }) =>
+                resultStep(log(args.join(',')), () => pureOk(0)),
         }]
-        run(commands)(['grab', 'a', 'b', 'c'])
-        assertEq(captured.join(','), 'a,b,c', ['unexpected args', captured])
+        const [state] = run(commands)(['grab', 'a', 'b', 'c'])
+        assertEq(state.stdout, 'a,b,c\n', ['unexpected args', state.stdout])
     },
     nestedCommands: () => {
         /** @type {Commands<NodeOp>} */

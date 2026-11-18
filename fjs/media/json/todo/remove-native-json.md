@@ -41,7 +41,7 @@ phase starts.
 | Expected-output comparison | the proofs of `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | structural assertions for value comparisons, or `stringify(identity)` for JSON text; the JSON serializer proofs now use structural assertions |
 | Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/compiler`'s `_stringifyTree` |
 | Source-text quoting | done: `fjs/types/ts`, `fjs/emergent_testing` and `fjs/ci/package` | `fjs/js/string_escape`'s `stringLiteral`, which `stringSerialize` also wraps |
-| JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.mjs`; done: `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
+| JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.js`; done: `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
 | Pretty-printed file output | done: `fjs/ci/module.f.js`'s `workflowText` | `stringifyIndented('  ')(identity)` |
 
 Three semantic differences to respect while migrating, none of them blocking:
