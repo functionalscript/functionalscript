@@ -34,7 +34,7 @@ export const rust = '1.100.0'
 
 export const jobTimeout = /** @type {const} */ (30)
 
-export const wasmtime = '50.0.1'
+export const wasmtime = '50.0.2'
 
 export const wasmer = '7.5.0'
 
