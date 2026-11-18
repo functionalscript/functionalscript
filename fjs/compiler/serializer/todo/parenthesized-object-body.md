@@ -43,7 +43,7 @@ the shape of the decision does not change, only its answer.
 - [ ] Write the parenthesized expression body in `functionText` where the
       block is chosen only because the text opens with `{`.
 - [ ] Update the proofs that pin the block spelling, in
-      [`../proof.f.mjs`](../proof.f.mjs) and
+      [`../proof.f.js`](../proof.f.js) and
       [`../../proof.f.mjs`](../../proof.f.mjs) (`fjsRoundTrip`), and keep a
       proof that a body needing a `const` is still a block.
 - [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.

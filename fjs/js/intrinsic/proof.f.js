@@ -1,6 +1,7 @@
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { intrinsics } from '../../edag/module.f.js'
 import { charCodeAt, slice } from './module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** The helper on any receiver, as the intrinsic is. @type {(s: unknown, start: unknown, end: unknown) => unknown} */
 const any = /** @type {(s: unknown, start: unknown, end: unknown) => unknown} */ (/** @type {unknown} */ (slice))
@@ -37,7 +38,7 @@ export const proof = {
     // `slice`, and an own property first, as the executors answer it.
     receiver: () => {
         const f = () => 'own'
-        assertEq(JSON.stringify(any([1, 2, 3], 1, 2)), '[2]')
+        assertStructurallySame(any([1, 2, 3], 1, 2), [2])
         assertEq(any({ slice: f }, 0, 0), 'own')
         assertEq(anyUnit({ charCodeAt: f }, 0), 'own')
     },
@@ -48,7 +49,7 @@ export const proof = {
         const helpers = /** @type {Readonly<Record<string, (...args: never[]) => unknown>>} */ ({ slice, charCodeAt })
         assertEq(intrinsics.length, Object.entries(helpers).length)
         for (const [id, length] of intrinsics) {
-            const helper = helpers[id]
+            const helper = entry(helpers, id)
             assert(helper !== undefined, id)
             assertEq(helper.length, length, id)
         }

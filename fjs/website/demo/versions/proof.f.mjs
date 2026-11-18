@@ -13,10 +13,11 @@ import { commandsOf, runPure } from '../../../effects/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
 import { generate } from '../../../types/array/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 // The smallest persistent structure that shares: a sorted list whose
 // insert and remove copy the cells before the change and share the rest. A
@@ -162,7 +163,7 @@ export const proof = {
             const g = graphOf(chain('table'))({ before: null, after: ofThree })
             assertEq(g.table, true)
             assertEq(toJson(g.nodes.map(node => node.rank)), '[0,1,2]')
-            assertEq(JSON.stringify(g.edges.filter(edge => typeof edge.to === 'number').map(edge => edge.span)), '[2,1]')
+            assertStructurallySame(g.edges.filter(edge => typeof edge.to === 'number').map(edge => edge.span), [2, 1])
         },
         // Inserting 0 in front builds one cell and shares the three after
         // it. Only the new list is drawn, with one arrow, into its root.
@@ -171,7 +172,7 @@ export const proof = {
             const g = graphOf(chain('depth'))({ before: ofThree, after })
             assertEq(toJson(g.nodes.map(n => [n.kind, n.label, n.rank])),
                 '[["new","",0],["shared","first",1],["shared","",2],["shared","",3]]')
-            assertEq(JSON.stringify(g.entries), '[{"to":0}]')
+            assertStructurallySame(entry(g, 'entries'), [{ to: 0 }])
             assertEq(toJson(census(chain('depth'))({ before: ofThree, after })), '{"built":1,"shared":3,"replaced":0}')
         },
         // Inserting 4 at the end copies every cell. The three old cells are
@@ -245,10 +246,10 @@ export const proof = {
         // The new version's root has the one arrow; an empty new version
         // has no node and no arrow, whatever the old one held.
         roots: () => {
-            assertEq(JSON.stringify(graphOf(chain('depth'))({ before: ofThree, after: ofThree }).entries), '[{"to":0}]')
-            assertEq(JSON.stringify(graphOf(chain('depth'))({ before: null, after: ofThree }).entries), '[{"to":0}]')
+            assertStructurallySame(entry(graphOf(chain('depth'))({ before: ofThree, after: ofThree }), 'entries'), [{ to: 0 }])
+            assertStructurallySame(entry(graphOf(chain('depth'))({ before: null, after: ofThree }), 'entries'), [{ to: 0 }])
             const gone = graphOf(chain('depth'))({ before: ofThree, after: null })
-            assertEq(JSON.stringify([gone.nodes, gone.entries]), '[[],[]]')
+            assertStructurallySame([gone.nodes, entry(gone, 'entries')], [[], []])
             assertEq(toJson(census(chain('depth'))({ before: ofThree, after: null })), '{"built":0,"shared":0,"replaced":3}')
         },
     },
@@ -286,7 +287,7 @@ export const proof = {
                 insert: () => v => v,
                 remove: () => v => v,
                 root: v => v,
-                shape: () => ({ rows: node => table[node], title: node => node === 'titled' ? 'T' : '', order: () => 0, layout: 'depth' }),
+                shape: () => ({ rows: node => assertNotNullish(entry(table, node)), title: node => node === 'titled' ? 'T' : '', order: () => 0, layout: 'depth' }),
             }
             /** @type {(before: string, after: string) => boolean} */
             const same = (before, after) => sameShape(named)({ before, after })
@@ -303,8 +304,8 @@ export const proof = {
     // A key row is a control that moves its key; any other row is not.
     clicks: () => {
         const g = graphOf(chain('depth'))({ before: ofThree, after: ofThree })
-        assertEq(JSON.stringify(g.edges.flatMap(e => typeof e.to === 'number' ? [] : [e.to.click])),
-            '[{"name":"move:1","label":"Remove 1 and insert it again"},{"name":"move:2","label":"Remove 2 and insert it again"},{"name":"move:3","label":"Remove 3 and insert it again"}]')
+        assertStructurallySame(g.edges.flatMap(e => typeof e.to === 'number' ? [] : [e.to.click]),
+            [{ name: 'move:1', label: 'Remove 1 and insert it again' }, { name: 'move:2', label: 'Remove 2 and insert it again' }, { name: 'move:3', label: 'Remove 3 and insert it again' }])
         const h = htmlToString(graphSvg(g))
         assertEq(occurrences('data-demo-click="move:')(h), 3)
     },

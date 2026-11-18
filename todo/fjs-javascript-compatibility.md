@@ -183,7 +183,7 @@ and `self` renders as a finite named function expression. They retain represente
 functions through explicit and indirect conversion, rather than exposing host
 arrow-factory text. See the
 [function-text contract](../fjs/edag/function-text.md), `functionText` and `self`
-in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs), and
+in the [serializer proofs](../fjs/compiler/serializer/proof.f.js), and
 [conversion proofs](../fjs/edag/value/convert/proof.f.js).
 
 The structural FJS source serializer remains partial. The implemented

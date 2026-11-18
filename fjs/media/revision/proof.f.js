@@ -285,9 +285,9 @@ export const proof = {
                 [['lock', 'b', 'c'], h2],
             ])),
         // A shared-lock reference is a hash at the field itself.
-        referenceEntry: () => assertEq(
-            JSON.stringify(toArray(hashEntries(validRevisionOf({ lock: h1 }))).at(-1)),
-            toJson([['lock'], h1])),
+        referenceEntry: () => assertStructurallySame(
+            toArray(hashEntries(validRevisionOf({ lock: h1 }))).at(-1),
+            [['lock'], h1]),
         noLockNoLockEntries: () => assertEq(toArray(hashEntries(validRevisionOf({}))).length, 1),
         // `f` reaches every hash and nothing else: `subject` is a hash-shaped
         // string here and stays as it was, and so does every other field.

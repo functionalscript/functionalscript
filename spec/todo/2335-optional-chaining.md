@@ -11,7 +11,7 @@ That change also added the current rules to the
 [language specification](../property-access/optional-chaining/README.md), with proofs in
 [`parser`](../../fjs/compiler/parser/proof.f.js) (`optional`),
 [`edag`](../../fjs/compiler/edag/proof.f.js) (`chains`) and
-[`serializer`](../../fjs/compiler/serializer/proof.f.mjs) (`chains`).
+[`serializer`](../../fjs/compiler/serializer/proof.f.js) (`chains`).
 This record remains open because the required approval evidence is missing.
 Compiler support does not establish language-design approval; the proposal
 below preserves the original motivation and design.

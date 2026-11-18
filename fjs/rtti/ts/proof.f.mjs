@@ -3,7 +3,7 @@
  * @import { Data } from '../data/types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.js'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { absentBit, toData, unitBit } from '../data/module.f.js'
 import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.js'
 import { dataToTs, dataToTsMarked, printer } from './module.f.js'
@@ -28,9 +28,7 @@ const eq = (rtti, expected) => {
 
 /** @type {(data: Data, expected: unknown) => void} */
 const eqData = (data, expected) => {
-    const result = toJson(dataToTs()(data))
-    const exp = JSON.stringify(expected)
-    assertEq(result, exp, [result, exp])
+    assertStructurallySame(dataToTs()(data), expected)
 }
 
 /** @type {(data: Data, expected: unknown) => void} */
@@ -41,10 +39,8 @@ const eqMarked = (data, expected) => {
     assertEq(toJson([definitions.map(([n, t]) => [toText(n), toText(t)]), toText(entry)]), toJson([plainDefinitions, plainEntry]))
     // no word is left unmarked
     const all = [...definitions.flat(), entry]
-    assertEq(JSON.stringify(all.map(withNames)), JSON.stringify(all))
-    const result = JSON.stringify([definitions, entry])
-    const exp = JSON.stringify(expected)
-    assertEq(result, exp, [result, exp])
+    assertStructurallySame(all.map(withNames), all)
+    assertStructurallySame([definitions, entry], expected)
 }
 
 export const proof = {

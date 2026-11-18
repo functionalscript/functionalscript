@@ -6,7 +6,7 @@
 
 import { bitGroupDemo, bitGroups, byteChars } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.js'
-import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { runPure } from '../../../effects/module.f.js'
 import { length, maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
@@ -64,10 +64,10 @@ export const proof = {
         // stop bit and zeros alone: `hé` is 24 bits, eight whole groups.
         stops: () => {
             const h = encoded(stops)('h')
-            assertEq(JSON.stringify(h.groups.at(-1)), toJson({ data: '00', stop: '1', fill: '' }))
+            assertStructurallySame(h.groups.at(-1), { data: '00', stop: '1', fill: '' })
             const he = encoded(stops)('hé')
             assertEq(he.groups.length, 9)
-            assertEq(JSON.stringify(he.groups.at(-1)), toJson({ data: '', stop: '1', fill: '00' }))
+            assertStructurallySame(he.groups.at(-1), { data: '', stop: '1', fill: '00' })
         },
         empty: () => {
             assertEq(toJson(encoded(zeros)('')), toJson({ chars: [], groups: [], encoded: '' }))

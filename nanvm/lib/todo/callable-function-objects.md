@@ -465,7 +465,7 @@ operation. The [`parameters` harness fixture](../../harness/fixtures/parameters.
 and its [generated Rust](../../harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
-[Rust module proofs](../../../fjs/compiler/rust/proof.f.mjs) cover binding refusals,
+[Rust module proofs](../../../fjs/compiler/rust/proof.f.js) cover binding refusals,
 the largest valid length, 16, and the refusal of 17.
 The [`closure-identity` fixture](../../harness/fixtures/closure-identity.mjs)
 pins distinct closures from one function, repeated reads of one binding and
@@ -886,7 +886,7 @@ level.
       a function-owned `['args']` at every arity, and the memo executor,
       the Rust printer and the source writer refuse it through it, at
       arity 0 and above (`fjs/compiler/parameters/proof.f.mjs`,
-      `fjs/compiler/rust/proof.f.mjs`). A zero-arity graph's complete
+      `fjs/compiler/rust/proof.f.js`). A zero-arity graph's complete
       list is `['rest']`, which a module scope refuses. The amnesia
       executor trusts the graph it is given, as its dispatcher does.
       **What stays open** is the migration of old zero-arity graphs and

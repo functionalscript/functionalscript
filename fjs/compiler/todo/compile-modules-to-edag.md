@@ -311,7 +311,7 @@ Default text is also implemented: the serializer's trusted `functionText`
 renders every admitted body, while `tryFunctionText` checks separately supplied
 expressions. Represented conversion shares it without creating host wrappers;
 Rust output supplies its text to `IStaticFunction`. Proofs are in
-[`serializer`](../serializer/proof.f.mjs) (`functionText`),
+[`serializer`](../serializer/proof.f.js) (`functionText`),
 [`represented conversion`](../../edag/value/convert/proof.f.js) (`functions`,
 `completeFunctionText`), and [`Rust output`](../../edag/rust/proof.f.mjs).
 Ordinary runtime callables produced after EDAG reflection is erased retain the

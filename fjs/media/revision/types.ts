@@ -21,7 +21,7 @@ import type { Equal } from '../../types/ts/types.ts'
 import type { JsonDialect } from '../types.ts'
 import type { decodeText, encodeText, lock, lockField, mediaType, revisionSchema, validate } from './module.f.js'
 
-// The two pins below were `./proof.f.mjs`'s `consistency` entry, a body of
+// The two pins below were `./proof.f.js`'s `consistency` entry, a body of
 // nothing but typedefs — so neither bound to a statement and both were green
 // whatever they claimed (`../../AGENTS.md` §1.4). Each sits beside the pair of
 // types it holds together, where an alias is resolved on sight.
