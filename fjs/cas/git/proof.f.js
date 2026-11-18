@@ -7,6 +7,7 @@
  * @import { TreeEntry } from '../../git/tree/types.ts'
  * @import { ObjectType, Oid, OidBytes } from '../../git/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  * @import { EffectList } from '../../effects/list/types.ts'
  * @import { Dirs } from '../../git/refstore/types.ts'
  * @import { Author, Branch, CasReader, SnapshotOperation, WriteOperation } from './types.ts'
@@ -319,7 +320,7 @@ const assertUntouched = (before, after) => {
  * A SHA-1 CAS holding `bytes` under its key, as objects in memory: the root
  * tree's id and every object by its hex id, for a reader that is no store.
  *
- * @type {(bytes: readonly number[]) => { readonly root: Oid, readonly held: ReadonlyMap<string, Envelope> }}
+ * @type {(bytes: readonly number[]) => { readonly root: Oid, readonly held: StringMap<Envelope> }}
  */
 const inMemory = bytes => {
     const { idOf } = sha1
@@ -331,7 +332,7 @@ const inMemory = bytes => {
     const root = toArray(writeTree(20)([entry('40000', '.cas', idOf('tree', cas))]))
     return {
         root: idOf('tree', root),
-        held: new Map([
+        held: Object.fromEntries([
             [hexText(blobId), { type: 'blob', payload: bytes }],
             [hexText(idOf('tree', leaf)), { type: 'tree', payload: leaf }],
             [hexText(idOf('tree', mid)), { type: 'tree', payload: mid }],
@@ -631,7 +632,7 @@ export const proof = {
         const big = generate(Number(maxLength / 8n) + 1, i => i & 0xff)
         const { root, held } = inMemory(big)
         /** @type {Read<never>} */
-        const read = id => pureOk(held.get(hexText(id)) ?? null)
+        const read = id => pureOk(valueAt(held, hexText(id)) ?? null)
         const stream = casAt(read, 20)(root).read(alphaKey)
         const o1 = runPure(stream)
         assert(o1.length === 1, o1)
@@ -660,7 +661,7 @@ export const proof = {
         /** @type {(code: string) => Read<never>} */
         const failing = code => id => hexText(id) === hexText(blobId)
             ? pureError(ioError({ code, message: code }))
-            : pureOk(held.get(hexText(id)) ?? null)
+            : pureOk(valueAt(held, hexText(id)) ?? null)
         for (const code of ['ENOTDIR', 'ELOOP']) {
             const o = runPure(casAt(failing(code), 20)(root).read(alphaKey))
             assert(o.length === 1, o)
@@ -894,7 +895,7 @@ export const proof = {
         const at = objectPath(dir)(gammaId).split('/')
         /** @type {(d: Dir, path: readonly string[]) => unknown} */
         const getIn = (d, [first, ...rest]) => {
-            const sub = d[first]
+            const sub = valueAt(d, first)
             return rest.length === 0 || sub === undefined || sub instanceof Array ? sub : getIn(/** @type {Dir} */ (sub), rest)
         }
         assertStructurallySame(getIn(s1.root, at), getIn(s0.root, at))

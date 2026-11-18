@@ -1,8 +1,9 @@
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../../asserts/module.f.js'
 import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.js'
 import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.js'
 import { inflate } from './module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /**
  * What a stream read in `pieces` gave: the output as bytes, and the bytes after
@@ -150,7 +151,7 @@ export const proof = {
     nodeStreams: () => {
         for (const [name, hexText] of Object.entries(streams)) {
             if (name === 'zeros') { continue }
-            const bytesOfName = expected[/** @type {keyof typeof expected} */ (name)]
+            const bytesOfName = assertNotNullish(entry(expected, name))
             assertStructurallySame(read(hex(hexText)), { output: bytesOfName, rest: 0 }, name)
         }
     },
@@ -179,7 +180,7 @@ export const proof = {
         }
         const long = hex(streams.text6)
         assertStructurallySame(read(...pieces(long, 1)), { output: text3000, rest: 0 })
-        assertStructurallySame(read(...pieces(hex(streams.repeat), 97)), { output: expected.repeat, rest: 0 })
+        assertStructurallySame(read(...pieces(hex(assertNotNullish(entry(streams, 'repeat'))), 97)), { output: entry(expected, 'repeat'), rest: 0 })
     },
     // Bytes after the stream are the reader's: handed back, whether they came
     // with the last piece or after it, and after a block that ends mid-byte.

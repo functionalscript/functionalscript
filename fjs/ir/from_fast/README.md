@@ -390,7 +390,7 @@ that leaves its function.
 
 ## Proofs
 
-- [`proof.f.mjs`](./proof.f.mjs) holds the IR of each form, lowered from
+- [`proof.f.js`](./proof.f.js) holds the IR of each form, lowered from
   text, the L0 view's, loops, inlined functions, records, `%` and native
   rows among them, and FAST written by hand for the forms that no text
   makes today: a statement of one result, a `return` in an arm, `?:`, a

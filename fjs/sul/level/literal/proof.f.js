@@ -32,7 +32,7 @@ const tests = (/** @type {bigint} */ n) => {
             // encode
             const decoded = decode(expected)
             if (!wordEqual(decoded)(word)) {
-                throw new Error(`Assertion failed for n=${n}, word=${wordToString(word)}, expected decode to return ${wordToString(word)}, got [${wordToString(decoded)}]`);
+                throw `Assertion failed for n=${n}, word=${wordToString(word)}, expected decode to return ${wordToString(word)}, got [${wordToString(decoded)}]`
             }
             // encode
             const a =toArray(stateScan(push)(emptyEncodeState)(word))

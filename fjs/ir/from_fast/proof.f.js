@@ -784,9 +784,9 @@ export const proof = {
             '    return a',
             '}',
         ].join('\n'))), 'f: a loop parameter of int(0, 0) is not in this slice')
+        const p = id(5)
         /** A module whose `f` loops on `p`, from `first`, with `body`, and returns its result `x`. @type {(body: Block, first?: Value, results?: readonly BindingId[]) => Block} */
         const looping = (body, first = 1, results = [x]) => module([['loop', { target: loop, parameters: [p], initial: [first], results, body }]], ['ref', x])
-        const p = id(5)
         assertEq(why(fa, looping(blk([], ['break', loop, [1]]), 's')), noString)
         assertEq(why(fa, looping(blk([], ['break', loop, [1]]), ['+', 1, true])), 'f: add of f64c and bool: an operator takes integers or floats')
         assertEq(why(fa, looping(blk([], ['break', loop, [1]]), 1, [])), 'f: a loop with 0 results is not in this slice')

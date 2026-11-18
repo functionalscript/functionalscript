@@ -42,7 +42,7 @@ export const proof = {
             const b = /** @type {_SymbolKeyBranded} */ ({})
 
             // No Error
-            a < b
+            const _ = a < b
         }
         {
 
