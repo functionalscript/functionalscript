@@ -14,7 +14,7 @@ export const proof = /** @type {const} */ ({
         const unicode = assertOk(parseFromTokens(tokenizeString('export default `' + digits.map(value => '\\u00' + value).join('') + '`;')))
         assertStructurallySame(normalize(hex, []), normalize(unicode, []))
         assertStructurallySame(stringifyModule(hex), stringifyModule(unicode))
-        assertStructurallySame(assertOk(toData(_evaluate(hex))), { default: String.fromCharCode(...digits.map(value => parseInt(value, 16))) })
+        assertStructurallySame(assertOk(toData(_evaluate(hex))), { default: String.fromCharCode(...digits.map(value => Number(`0x${value}`))) })
     },
     substitutionsAndFixedWidth: () => {
         const hex = assertOk(parseFromTokens(tokenizeString('export default `\\x008${1}\\x80${2}\\xFf\\x414\\x5cx41`;')))

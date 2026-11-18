@@ -1,5 +1,6 @@
 import { editOf } from './module.f.js'
-import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 // The copy `a b` of a highlighted field, as the nodes `a`, ` b` and the
 // terminator, one unit each at the end: lengths 1, 2 and 1.
@@ -76,7 +77,7 @@ export const proof = {
                 for (const caret of [-1, 0, 1, 2, 3, 4, 5, NaN]) {
                     const edit = editOf({ was, now, caret, lengths: [was.length, 1] })
                     assert(edit !== null, `${was} ${now} ${caret}`)
-                    assertStructurallySame(`${was.slice(0, edit.at)}${edit.inserted}${was.slice(edit.at + edit.removed)}`, now)
+                    assertStructurallySame(`${was.slice(0, entry(edit, 'at'))}${edit.inserted}${was.slice(assertNotNullish(entry(edit, 'at')) + edit.removed)}`, now)
                 }
             }
         }

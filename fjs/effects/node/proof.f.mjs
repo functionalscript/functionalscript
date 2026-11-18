@@ -30,6 +30,7 @@ import { min } from '../../types/number/min/module.f.js'
 import { run as mockRun } from '../mock/module.f.js'
 import { generate } from '../../types/array/module.f.js'
 import { nameOf } from '../../types/object/name/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -475,7 +476,7 @@ export const proof = {
             const text = 'a'.repeat(Number(maxLengthBytes) + 7)
             const [state, [t, result]] = virtual(emptyState)(writeUtf8File('big', text))
             assert(t === 'ok', result)
-            const file = state.root.big
+            const file = entry(state.root, 'big')
             assert(file instanceof Array, file)
             assert(file.length > 1, file.length)
             assert(file.every(v => byteLength(v) <= maxLengthBytes))

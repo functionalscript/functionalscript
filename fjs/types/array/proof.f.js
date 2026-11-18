@@ -1,6 +1,7 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { entry } from '../object/entry/module.f.js'
 
 export const proof = {
     generate: () => assertStructurallySame(generate(3, i => i + 1), [1, 2, 3]),
@@ -194,20 +195,26 @@ export const proof = {
     ],
     occurrences: [
         () => {
-            const { indexOf, lastIndexOf } = occurrences(['a', 'b', 'b', 'a', 'c'])
+            const found = occurrences(['a', 'b', 'b', 'a', 'c'])
+            const indexOf = assertNotNullish(entry(found, 'indexOf'))
+            const lastIndexOf = assertNotNullish(entry(found, 'lastIndexOf'))
             assertStructurallySame(['a', 'b', 'c'].map(indexOf), [0, 1, 4])
             assertStructurallySame(['a', 'b', 'c'].map(lastIndexOf), [3, 2, 4])
         },
         // the answers `Array`'s own methods give, absent names included
         () => {
             const names = ['x', 'y', 'x', 'z', 'y', 'x']
-            const { indexOf, lastIndexOf } = occurrences(names)
+            const found = occurrences(names)
+            const indexOf = assertNotNullish(entry(found, 'indexOf'))
+            const lastIndexOf = assertNotNullish(entry(found, 'lastIndexOf'))
             const asked = [...names, 'w']
             assertStructurallySame(asked.map(indexOf), asked.map(n => names.indexOf(n)))
             assertStructurallySame(asked.map(lastIndexOf), asked.map(n => names.lastIndexOf(n)))
         },
         () => {
-            const { indexOf, lastIndexOf } = occurrences([])
+            const found = occurrences([])
+            const indexOf = assertNotNullish(entry(found, 'indexOf'))
+            const lastIndexOf = assertNotNullish(entry(found, 'lastIndexOf'))
             assertEq(indexOf('a'), -1)
             assertEq(lastIndexOf('a'), -1)
         },
@@ -216,7 +223,9 @@ export const proof = {
         () => {
             /** @type {readonly string[]} */
             const names = ['__proto__', 'a', '__proto__']
-            const { indexOf, lastIndexOf } = occurrences(names)
+            const found = occurrences(names)
+            const indexOf = assertNotNullish(entry(found, 'indexOf'))
+            const lastIndexOf = assertNotNullish(entry(found, 'lastIndexOf'))
             /** @type {readonly string[]} */
             const asked = [...names, 'toString', 'constructor', 'hasOwnProperty']
             assertStructurallySame(asked.map(indexOf), asked.map(n => names.indexOf(n)))

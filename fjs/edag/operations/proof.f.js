@@ -19,6 +19,7 @@ import { noRefMap, noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.js'
 import { settle } from '../value/call/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** @type {Context} */
 const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
@@ -902,7 +903,7 @@ export const proof = /** @type {const} */ ({
     invokerWith: () => {
         /** The context echoed for `'echo'`, a call left for `'tail'`, every other body walked by Amnesia. @type {(fn: Closure, context: Context) => Outcome} */
         const echo = (fn, context) =>
-            fn[3] === 'echo' ? ['ok', ['[]', [['[]', context.frame], ['[]', context.args], ['[]', context.fixed ?? []], context.rest ?? ['[]', []], context.self ?? null, context.runtime ?? null]]]
+            fn[3] === 'echo' ? ['ok', ['[]', [['[]', context.frame], ['[]', context.args], ['[]', entry(context, 'fixed') ?? []], context.rest ?? ['[]', []], context.self ?? null, context.runtime ?? null]]]
             : fn[3] === 'tail' ? ['call', ['=>', 1, ['g'], 'echo'], [7], ['[]', [8]]]
             : vm(context)(fn[3])
         /** @type {Closure} */

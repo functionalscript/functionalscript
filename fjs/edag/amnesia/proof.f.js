@@ -740,7 +740,7 @@ export const proof = {
     // asked anew wherever the node is read, and refused by name where no
     // runtime answers one. The runtime here is a stand-in, a maker of a
     // function answering its key and itself; the runtime's own map runs
-    // under this interpreter in `../operations/proof.f.mjs`.
+    // under this interpreter in `../operations/proof.f.js`.
     referenceMap: () => {
         /** @type {Exp} */
         const map = ['=>', 2, [], ['[]', [['arg', 0], ['self']]]]

@@ -9,7 +9,7 @@ import { ciWorkflow, main as builtIn } from '../module.f.js'
 import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse as jsonParse, toJson } from '../../media/json/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { parseGitHubAction } from '../common/module.f.js'
@@ -45,7 +45,7 @@ export const proof = {
         const steps = generated.jobs.approve?.steps ?? []
         assertStructurallySame(steps, personalNotesJob.steps)
         // The checkout names no ref, so it is the base branch's.
-        assertStructurallySame(steps[0]?.with, { 'persist-credentials': 'false' })
+        assertStructurallySame(entry(assertNotNullish(steps[0]), 'with'), { 'persist-credentials': 'false' })
         assertEq(steps[2]?.run, 'node ./fjs/ci/personal-notes/main.mjs')
         assertStructurallySame(generated.jobs.approve?.permissions, { contents: 'read', 'pull-requests': 'write' })
     },
@@ -82,7 +82,7 @@ export const proof = {
             'mise exec -- npm run website',
             'mise exec -- node ./fjs/website/cards.mjs',
         ])
-        assertEq(websiteJob.steps[1]?.with?.install_args, '--locked')
+        assertEq(entry(assertNotNullish(websiteJob.steps[1]), 'with')?.install_args, '--locked')
         assertEq(websiteJob.steps[5]?.env?.RUSTDOCFLAGS, '--html-in-header ${{ github.workspace }}/_rustdoc-head.html --html-before-content ${{ github.workspace }}/_rustdoc-header.html --html-after-content ${{ github.workspace }}/_rustdoc-footer.html --extend-css ${{ github.workspace }}/_rustdoc.css')
         assertStructurallySame(websiteJob.steps[6]?.env, {
             WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
@@ -114,7 +114,7 @@ export const proof = {
             GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
         })
         const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
-        assertEq(generic.on.push, undefined)
+        assertEq(entry(generic.on, 'push'), undefined)
     },
     // The consumer reaches the workflow, and the built-in command — the one
     // any project runs — carries none: that is the difference between the two
