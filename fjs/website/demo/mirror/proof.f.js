@@ -77,7 +77,8 @@ export const proof = {
                 for (const caret of [-1, 0, 1, 2, 3, 4, 5, NaN]) {
                     const edit = editOf({ was, now, caret, lengths: [was.length, 1] })
                     assert(edit !== null, `${was} ${now} ${caret}`)
-                    assertStructurallySame(`${was.slice(0, entry(edit, 'at'))}${edit.inserted}${was.slice(assertNotNullish(entry(edit, 'at')) + edit.removed)}`, now)
+                    const at = assertNotNullish(entry(edit, 'at'))
+                    assertStructurallySame(`${was.slice(0, at)}${edit.inserted}${was.slice(at + edit.removed)}`, now)
                 }
             }
         }
