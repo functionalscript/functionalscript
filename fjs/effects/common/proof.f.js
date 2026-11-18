@@ -33,7 +33,7 @@ import { toJson } from '../../media/json/module.f.js'
  * has no `try`/`catch`, which is the same bargain `../node/virtual` makes and
  * the reason {@link Catch} exists as an operation rather than as a function.
  * Proving what a *real* handler does with a thrower belongs to the hosts that
- * can write one — `../node/proof.f.mjs` for the node runner.
+ * can write one — `../node/proof.f.js` for the node runner.
  *
  * @type {RunInstance<Catch | Sandbox, null>}
  */
@@ -128,7 +128,7 @@ export const proof = {
     // The path travels to the handler and the module comes back, which is the
     // whole of what this constructor promises. What a *real* loader does with
     // the path is each host's, and is proven where each one lives:
-    // `../node/proof.f.mjs` for the filesystem resolution,
+    // `../node/proof.f.js` for the filesystem resolution,
     // `../node/virtual/proof.f.js` for the in-memory one.
     import: () => {
         const [, r] = loader(null)(import_('a.f.mjs'))

@@ -22,7 +22,7 @@ import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubl
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.js"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.js"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.js"
-import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame, todo } from '../../asserts/module.f.js'
 import { assertIoMessage } from '../testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
@@ -689,7 +689,7 @@ export const proof = {
             assertEq(duration, 0)
         },
         error: () => {
-            const err = new Error('fail')
+            const err = ioError({ message: 'fail' })
             const [_, sandboxed] = virtual(emptyState)(
                 sandbox(() => ({ result: ['error', err], duration: 0 })))
             assert(sandboxed[0] === 'ok', sandboxed)
@@ -973,7 +973,7 @@ export const proof = {
         },
         aZeroBoundAsksForNothing: () => {
             /** @type {_ChunkSource<never>} */
-            const source = () => { throw new Error('must not be asked') }
+            const source = todo
             assertStructurallySame(lengths(source, 0), [])
         },
     },

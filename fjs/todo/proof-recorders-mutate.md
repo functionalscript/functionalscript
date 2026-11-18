@@ -25,7 +25,7 @@ state the virtual run returns.
 
 Two proofs counted calls with a `let` a callback incremented, which the
 compiler refuses for the same reason, and no longer do.
-[`fjs/effects/node/proof.f.mjs`](../effects/node/proof.f.mjs) (`longList`,
+[`fjs/effects/node/proof.f.js`](../effects/node/proof.f.js) (`longList`,
 `failsClosed`) keeps the count and the removed paths as the state
 `fjs/effects/mock`'s `run` threads through the operations.
 [`fjs/dev/gen/proof.f.js`](../dev/gen/proof.f.js) (`withSubprocess`) dropped

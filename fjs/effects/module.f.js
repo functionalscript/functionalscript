@@ -53,7 +53,7 @@
  *
  * **Three functions discriminate `Pure` from `Do`** — {@link resultStep},
  * {@link _matchWith} and {@link runPure} — plus the node proof in
- * `./proof.f.mjs` that pins the representation on purpose. Everything else,
+ * `./proof.f.js` that pins the representation on purpose. Everything else,
  * interpreters included, goes through `match`, {@link partialMatch}, or
  * `runPure`. The count is the point: a `typeof e === 'function'` check
  * appearing in a fourth place is a review flag, because the representation is

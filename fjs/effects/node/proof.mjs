@@ -1098,7 +1098,7 @@ export const proof = {
         // Both now go through `windowRefusal`, before the allocation and before
         // the read, so the two runners refuse the same numbers **in the same
         // words** — which is what a proof written against either can rely on.
-        // `./proof.f.mjs` (`windowRefusal`) holds the words; this is the host
+        // `./proof.f.js` (`windowRefusal`) holds the words; this is the host
         // producing them.
         refusesAWindowNoHostCanRead: () => withTemporary('fjs-handle-window-', async root => {
             const path = join(root, 'a.bin')

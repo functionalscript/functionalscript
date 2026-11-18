@@ -137,7 +137,7 @@ the last thing in a function body compiles. Put any statement after it and the
 same line is TS2344.
 
 So a proof entry that *ends* with its typedefs checks nothing from there on.
-`fjs/edag/proof.f.mjs`'s `consistency` and `fjs/effects/proof.f.mjs`'s
+`fjs/edag/proof.f.mjs`'s `consistency` and `fjs/effects/proof.f.js`'s
 `signatures` were the worked cases, a body of nothing but typedefs each: all
 28 `Assert<Check<…>>` pins of the one and all eight `Assert<Equal<…>>` of the
 other were green whatever they claimed. Both entries are gone, and their
@@ -272,7 +272,7 @@ A `proof` object's keys are the test names the runner prints
 convention: camelCase — `lsbAligned`, `hashMergeShift`, not `lsb_aligned`.
 
 A key that names an export it exercises is spelled as the export is —
-`do_` in `fjs/effects/proof.f.mjs`, `prime_field` in
+`do_` in `fjs/effects/proof.f.js`, `prime_field` in
 `fjs/types/prime_field/proof.f.js` — and `throw` is the runner's structural
 marker ([§1.5](#15-never-use-trycatch-test-throwing-with-the-throw-key)), not
 a word to re-case.
