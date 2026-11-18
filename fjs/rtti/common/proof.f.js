@@ -33,6 +33,17 @@ import { entry } from '../../types/object/entry/module.f.js'
 const item = (k, v) =>
     v < 0 ? error({ path: [], message: `negative at ${k}` }) : ok(v * 2)
 
+/**
+ * {@link item} for the entry `a` alone: reading any other fails the
+ * assertion, which is how a proof shows that none was read.
+ *
+ * @type {(k: string, v: number) => Result<number, ValidationError>}
+ */
+const firstOnly = (k, v) => {
+    assertEq(k, 'a', 'an entry read after the first error')
+    return item(k, v)
+}
+
 /** Mirrors `parse`'s accumulate step, kept simple (a small test list, not a `List`). */
 /** @type {(acc: ReadonlyArray<readonly [string, number]>, k: string, v: number) => ReadonlyArray<readonly [string, number]>} */
 const collect = (acc, k, v) => [...acc, [k, v]]
@@ -140,11 +151,6 @@ export const proof = {
     // The first entry fails, and no later one is read: reading one fails
     // the assertion.
     shortCircuits: () => {
-        /** @type {(k: string, v: number) => Result<number, ValidationError>} */
-        const firstOnly = (k, v) => {
-            assertEq(k, 'a', 'an entry read after the first error')
-            return item(k, v)
-        }
         const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], firstOnly, [], collect)
         assert(r[0] === 'error')
         assertEq(r[1].message, 'negative at a')
