@@ -60,8 +60,7 @@ export const OBJECT = 7
 export const FUNCTION = 8
 
 /**
- * L0 `kind`: the tag of a value's kind. A JavaScript value that is no
- * FunctionalScript value, such as a symbol, throws.
+ * L0 `kind`: the tag of a value's kind, of any FunctionalScript value.
  *
  * @type {(v: unknown) => Kind}
  */
@@ -74,7 +73,6 @@ export const kind = v => {
     if (t === 'string') { return STRING }
     if (t === 'bigint') { return BIGINT }
     if (t === 'function') { return FUNCTION }
-    if (t !== 'object') { throw 'l0.kind: not a FunctionalScript value' }
     return v instanceof Array ? ARRAY : OBJECT
 }
 

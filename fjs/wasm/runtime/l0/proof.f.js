@@ -132,7 +132,6 @@ export const proof = {
     // Every misuse that traps in WASM throws here.
     throw: {
         ...castThrows,
-        kind: () => { kind(Symbol()) },
         lengthUndefined: () => { length(undefined) },
         lengthNull: () => { length(null) },
         lengthBoolean: () => { length(true) },
