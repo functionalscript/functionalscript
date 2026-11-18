@@ -412,7 +412,7 @@ export const proof = /** @type {const} */ ({
     },
     combination: () => {
         const r = combination(2n, 3n)
-        assert(r == 120n / (2n * 6n), r)
+        assert(r === 120n / (2n * 6n), r)
     },
     combination50x50: () => {
         {

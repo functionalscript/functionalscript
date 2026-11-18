@@ -53,7 +53,7 @@ export const proof = {
             const sortedSet = toArray(countdown(n))
             const result = union(reverseCmp)(sortedSet)(sortedSet)
             const len = length(result)
-            assert(len == n, result)
+            assert(len === n, result)
         }
     ],
     intersect: [

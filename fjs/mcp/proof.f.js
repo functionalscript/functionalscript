@@ -14,7 +14,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import { pureOk, step } from '../effects/module.f.js'
-import { parse as parseJson } from '../media/json/module.f.js'
+import { parse as parseJson, toJson } from '../media/json/module.f.js'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb, vec8, repeat, length, maxLengthBytes, bytesIn } from '../types/bit_vec/module.f.js'
@@ -31,6 +31,7 @@ import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 import { entry } from '../types/object/entry/module.f.js'
+import { nameOf } from '../types/object/name/module.f.js'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
 // checks it, so reading a field needs neither a hand-written type nor an `as`
@@ -107,7 +108,7 @@ const init = { jsonrpc: '2.0', method: 'initialize', id: 1,
 
 const initialized = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
-/** @type {(id: number, name: string, args: unknown) => unknown} */
+/** @type {(id: number, name: string, args: Unknown) => Unknown} */
 const call = (id, name, args) =>
     ({ jsonrpc: '2.0', method: 'tools/call', id, params: { name, arguments: args } })
 
@@ -130,11 +131,11 @@ const toBytes = s => u8ArrayMsb(utf8(s))
 // as plain JS objects and never serialize/encode them, this is the only
 // helper that can observe the transport's oversized-response fallback (see
 // `fjs/protocol/mcp/stdio/module.f.js` `writeResponse`).
-/** @type {(root: Dir, home?: string) => (msgs: readonly unknown[]) => readonly unknown[]} */
+/** @type {(root: Dir, home?: string) => (msgs: readonly Unknown[]) => readonly unknown[]} */
 const runStdio =
     (root, home = '/home/user') =>
     msgs => {
-        const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
+        const input = [init, initialized, ...msgs].map(toJson).join('\n') + '\n'
         const effect = _casMcpSession(home)(stdioTransport)
         const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
         // Only requests get a written line (notifications, like `initialized`,
@@ -427,7 +428,7 @@ export const proof = {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
         const tools = toolsOf(resp)
         assertEq(tools.length, 7)
-        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
+        assertEq(tools.map(t => nameOf(t)).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
         const [add] = tools
         assert(add !== undefined, tools)
         assertEq(add.schemaType, 'object')

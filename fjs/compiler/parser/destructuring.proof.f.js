@@ -4,7 +4,7 @@
  * off `./proof.f.js` when
  * that file outgrew what the website's build accepts in one file — 128 KiB,
  * which it passed at `37cd4b33` — along the seam its own section drew, as
- * `./func.proof.f.mjs` was. It reads the parser as that proof does,
+ * `./func.proof.f.js` was. It reads the parser as that proof does,
  * through the helpers it exports.
  *
  * No `@module`: a proof's documentation reaches no reader of the published

@@ -33,7 +33,7 @@ import { nameOf } from '../../types/object/name/module.f.js'
 /**
  * The tokens of a text, the parser's input. Exported, with
  * {@link stringifyModule}, for the proofs split off this one —
- * `./operators.proof.f.js` and `./func.proof.f.mjs` — which read the same
+ * `./operators.proof.f.js` and `./func.proof.f.js` — which read the same
  * parser the same way.
  *
  * @type {(s: string) => readonly ModuleTokenWithMetadata[]}

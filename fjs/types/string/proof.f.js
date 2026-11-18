@@ -32,11 +32,11 @@ export const proof = {
     repeatList: {
         0: () => {
             const s = join('.')(repeatList('x')(0))
-            assert(s == '', s)
+            assert(s === '', s)
         },
         5: () => {
             const s = join('.')(repeatList('x')(5))
-            assert(s == 'x.x.x.x.x', s)
+            assert(s === 'x.x.x.x.x', s)
         }
     },
     occurrences: {
@@ -52,7 +52,7 @@ export const proof = {
     },
     repeat: () => {
         const s = repeat('x')(5)
-        if(s != 'xxxxx') { throw s }
+        if(s !== 'xxxxx') { throw s }
     },
     cmp: () => {
         const result = cmp('3')('4')
