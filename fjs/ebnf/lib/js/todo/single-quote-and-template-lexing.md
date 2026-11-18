@@ -139,8 +139,8 @@ of their own — among them:
 
 | file | shape |
 | --- | --- |
-| [`compiler/parser/proof.f.mjs`](../../../../compiler/parser/proof.f.mjs), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
-| [`js/tokenizer/proof.f.mjs`](../../../../js/tokenizer/proof.f.mjs) | nested in a `map` |
+| [`compiler/parser/proof.f.js`](../../../../compiler/parser/proof.f.js), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
+| [`js/tokenizer/proof.f.js`](../../../../js/tokenizer/proof.f.js) | nested in a `map` |
 | [`website/page/module.f.js`](../../../../website/page/module.f.js) | nested in a `map` |
 | [`media/datajs/parser/proof.f.mjs`](../../../../media/datajs/parser/proof.f.mjs) | nested in a conditional |
 | [`ci/deno/proof.f.js`](../../../../ci/deno/proof.f.js) | nested two deep |

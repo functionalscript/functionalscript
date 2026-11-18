@@ -36,8 +36,8 @@ export const proof = {
                 ['function', { target: second, bindings: [], events: ids.map(id => ['write', id]) }],
             ] })
             assertEq(facts.length, ids.length)
-            for (const [index, fact] of facts.entries()) {
-                assertEq(fact.id, ids[index])
+            for (const [index, fact] of facts.map((fact, index) => /** @type {const} */ ([index, fact]))) {
+                assertEq(fact.id, ids[Number(index)])
                 assertEq(fact.isMutable, true)
                 assertEq(fact.capturedBy.length, 2)
                 assertEq(fact.capturedBy[0], first)
@@ -160,10 +160,10 @@ export const proof = {
         const mapped = mapOperator((value, index) => /** @type {const} */ ([value, index]))(['object', entries])
         assert(mapped[0] === 'object')
         assertEq(mapped[1].length, width)
-        for (const [index, entry] of mapped[1].entries()) { assertEq(entry[0], index % 2 === 0 ? ':' : '...') }
+        for (const [index, entry] of mapped[1].map((entry, index) => /** @type {const} */ ([index, entry]))) { assertEq(entry[0], index % 2 === 0 ? ':' : '...') }
         const operands = operatorOperands(mapped)
         assertEq(operands.length, width * 3 / 2)
-        for (const [index, operand] of operands.entries()) {
+        for (const [index, operand] of operands.map((operand, index) => /** @type {const} */ ([index, operand]))) {
             assertEq(operand[0], shared)
             assertEq(operand[1], index)
         }

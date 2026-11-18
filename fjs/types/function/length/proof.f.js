@@ -14,13 +14,13 @@ export const proof = {
     },
     factories: () => {
         assertEq(factories.length, maxLength + 1)
-        for (const [length, factory] of factories.entries()) {
+        for (const [length, factory] of factories.map((factory, length) => /** @type {const} */ ([length, factory]))) {
             const f = factory(pair)
             assertEq(f.length, length)
             assert(f !== factory(pair))
             for (const n of [0, 1, length, length + 2]) {
                 const args = generate(n, i => i === 0 ? -0 : i === n - 1 ? undefined : i)
-                const expected = [generate(length, i => args[i]), args.slice(length)]
+                const expected = [generate(length, i => args[Number(i)]), args.slice(length)]
                 assertStructurallySame(f(...args), expected)
                 assertStructurallySame(callable(length, pair)(...args), expected)
             }

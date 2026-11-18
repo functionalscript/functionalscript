@@ -129,7 +129,7 @@ export const proof = {
     // whole of what this constructor promises. What a *real* loader does with
     // the path is each host's, and is proven where each one lives:
     // `../node/proof.f.mjs` for the filesystem resolution,
-    // `../node/virtual/proof.f.mjs` for the in-memory one.
+    // `../node/virtual/proof.f.js` for the in-memory one.
     import: () => {
         const [, r] = loader(null)(import_('a.f.mjs'))
         assert(r[0] === 'ok', r)

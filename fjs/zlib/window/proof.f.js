@@ -63,7 +63,7 @@ export const proof = {
     farCopy: () => {
         const bytes = varied(40_000)
         for (const [distance, length] of [[256, 258], [257, 3], [1000, 258], [32_768, 258], [300, 3]]) {
-            const model = Array.from({ length }).reduce(so => [...so, so[so.length - distance]], bytes)
+            const model = generate(length, () => undefined).reduce(so => [...so, so[Number(so.length - distance)]], bytes)
             agree(copy(pushAll(empty, bytes), distance, length), model)
         }
     },

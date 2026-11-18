@@ -1,7 +1,7 @@
 /**
  * The proof of the parser's destructuring — binding patterns in `const`, a
  * module's, a body's and a loop block's, and in a fixed parameter — split
- * off `./proof.f.mjs` when
+ * off `./proof.f.js` when
  * that file outgrew what the website's build accepts in one file — 128 KiB,
  * which it passed at `37cd4b33` — along the seam its own section drew, as
  * `./func.proof.f.mjs` was. It reads the parser as that proof does,
@@ -12,7 +12,7 @@
  */
 
 import { parseFromTokens } from './module.f.js'
-import { expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
+import { expectModule, expectRefused, tokenizeString } from './proof.f.js'
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 
 /** An array pattern nested as deep as the parser's bar, binding `a` at the bottom. */

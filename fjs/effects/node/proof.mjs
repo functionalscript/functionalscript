@@ -931,7 +931,7 @@ export const proof = {
             // least willingly, and nothing here has measured what it does — the
             // same reason `writeExclusive.symlink` above guards it. The claim is
             // modelled on every platform by the virtual runner
-            // (`handles.namesAnInode` in `./virtual/proof.f.mjs`); this is the
+            // (`handles.namesAnInode` in `./virtual/proof.f.js`); this is the
             // descriptor it is modelled after.
             if (process.platform === 'win32') { return }
             const path = join(root, 'a.bin')
@@ -965,7 +965,7 @@ export const proof = {
         // | `rename` onto its own name, then a write | the same |
         //
         // The last two were reasoning about inodes until this ran, and they are what
-        // lets `handles.movesWithItsName` in `./virtual/proof.f.mjs` claim them.
+        // lets `handles.movesWithItsName` in `./virtual/proof.f.js` claim them.
         //
         // Skipped on Windows for `namesAnInode`'s reason: what that host does with a
         // name another handle holds open is unmeasured here.

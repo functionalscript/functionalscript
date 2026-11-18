@@ -112,8 +112,8 @@ export const proof = {
         const bare = packageCheckSteps(undefined)
         assert(!bare.some(step => step.run?.includes('.mts') === true), 'expected no consumer step without a consumer')
         assertEq(bare.length, steps.length - 5)
-        for (const [i, step] of bare.entries()) {
-            assertStructurallySame(step, steps[i])
+        for (const [i, step] of bare.map((step, i) => /** @type {const} */ ([i, step]))) {
+            assertStructurallySame(step, steps[Number(i)])
         }
     },
     // The consumer's half of the check, in the order a consumer meets it: the

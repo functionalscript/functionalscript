@@ -36,7 +36,8 @@ import { _driveCas } from '../proof.f.js'
 import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.js'
 import { toJson } from '../../media/json/module.f.js'
 import { entry as valueAt } from '../../types/object/entry/module.f.js'
-import { dedup } from '../../types/array/module.f.js'
+import { dedup, generate } from '../../types/array/module.f.js'
+import { nameOf as fieldName } from '../../types/object/name/module.f.js'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -275,17 +276,17 @@ const refAt = (state, name) => assertOk(virtual(state)(tryResolve(dirs, 20)(lati
 /** The id the branch ref holds over `state`, or `null`. @type {(state: State) => Oid | null} */
 const branchHead = state => refAt(state, branchRef(branch))
 
+/** Bytes as the text they spell, for an ident's fields. @type {(bytes: readonly number[] | import('../../git/types.ts').Bytes) => string} */
+const nameOf = bytes => String.fromCharCode(...toArray(bytes))
+
 /** The commit an id names over `state`, read. @type {(state: State, id: Oid) => { readonly parents: readonly Oid[], readonly author: string }} */
 const commitAt = (state, id) => {
     const o = assertNotNullish(assertOk(virtual(state)(readObject(dir, 20)(id))[1]))
     assertEq(o.type, 'commit')
     const c = assertNotNullish(readCommit(o.payload))
     const who = authorOf(c)
-    return { parents: parents(c), author: `${nameOf(who.name)} <${nameOf(who.email)}> ${who.time} ${who.tz}` }
+    return { parents: parents(c), author: `${nameOf(fieldName(who))} <${nameOf(who.email)}> ${who.time} ${who.tz}` }
 }
-
-/** Bytes as the text they spell, for an ident's fields. @type {(bytes: readonly number[] | import('../../git/types.ts').Bytes) => string} */
-const nameOf = bytes => String.fromCharCode(...toArray(bytes))
 
 /**
  * Everything of `root` a write may not touch, structurally the same in
@@ -627,7 +628,7 @@ export const proof = {
     // read through a reader that holds it in memory, with no file to inflate:
     // it streams as two cells, a full `Vec` and the rest, and then ends.
     bigBlob: () => {
-        const big = Array.from({ length: Number(maxLength / 8n) + 1 }, (_, i) => i & 0xff)
+        const big = generate(Number(maxLength / 8n) + 1, i => i & 0xff)
         const { root, held } = inMemory(big)
         /** @type {Read<never>} */
         const read = id => pureOk(held.get(hexText(id)) ?? null)

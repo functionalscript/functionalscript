@@ -11,7 +11,7 @@
 
 import { parseFromTokens } from './module.f.js'
 import { source } from './ref_map/module.f.js'
-import { stringifyModule, tokenizeString } from './proof.f.mjs'
+import { stringifyModule, tokenizeString } from './proof.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 /** @type {(text: string, expected: string) => void} */

@@ -7,13 +7,13 @@
  * each a value, the AST's `['Object.is']`, in either key spelling of the
  * unguarded read, and each namespace refused everywhere else, a guard on
  * it included. It reads the
- * parser as `./proof.f.mjs` does, through the helpers it exports.
+ * parser as `./proof.f.js` does, through the helpers it exports.
  *
  * No `@module`: a proof's documentation reaches no reader of the published
  * API, which is the case that rule names outright.
  */
 
-import { expectModule, expectRefused } from './proof.f.mjs'
+import { expectModule, expectRefused } from './proof.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { isReservedGlobal } from '../../js/keywords/module.f.js'
 import { staticIds, staticPath } from '../../edag/module.f.js'

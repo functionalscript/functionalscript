@@ -188,7 +188,7 @@ discovered one `RangeError` at a time.
       any rewrite has to preserve that, not just avoid crashing).
 - [ ] Proof coverage at the depth the existing `stackSafety` proofs
       elsewhere in the repository use (`stackSafety` in
-      `fjs/compiler/parser/proof.f.mjs`) for a chain of operators, nested
+      `fjs/compiler/parser/proof.f.js`) for a chain of operators, nested
       containers, and whatever other shape reaches this walk.
 - [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.js` to
       `.js`, the crash's reproduction in the repository's own corpus — its

@@ -27,6 +27,7 @@ import { ioError } from '../../module.f.js'
 import { ok, unwrap } from '../../../types/result/module.f.js'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.js'
 import { generate } from '../../../types/array/module.f.js'
+import { nameOf } from '../../../types/object/name/module.f.js'
 
 /**
  * The chunks given, as a body already in hand: every cell is pure, so the whole
@@ -434,7 +435,7 @@ export const proof = {
         const list = (/** @type {{ recursive?: true }} */ options) => {
             const [, result] = virtualAt(root)(readdir('base', options))
             assert(result[0] === 'ok', result)
-            return result[1].map(({ name, parentPath }) => `${parentPath}/${name}`)
+            return result[1].map(d => `${d.parentPath}/${nameOf(d)}`)
         }
         assertStructurallySame(list({}), ['base/10', 'base/9', 'base/a', 'base/b', 'base/z'])
         assertStructurallySame(list({ recursive: true }), [
@@ -1138,7 +1139,7 @@ export const proof = {
     // a fixture writes one with a **computed key** — the spelling that makes an
     // own property. `{ '__proto__': e }` sets the prototype instead, which is
     // why FunctionalScript's own parser refuses that form (`protoKey` in
-    // `../../../compiler/parser/proof.f.mjs`); it was never a working fixture here
+    // `../../../compiler/parser/proof.f.js`); it was never a working fixture here
     // either, since `readdir` walks own entries and would have listed the
     // directory as empty.
     protoKeyFixture: () => {
@@ -1153,7 +1154,7 @@ export const proof = {
         // And the listing agrees, which is the half the refused spelling lost.
         const [, d] = virtualAt(root)(readdir('.', {}))
         assert(d[0] === 'ok', d)
-        assertEq(d[1].map(e => e.name).join(), '__proto__')
+        assertEq(d[1].map(e => nameOf(e)).join(), '__proto__')
     },
     // The writing half, which the reads above do not reach: one proof per
     // remaining lookup, so a regression confined to a single operation cannot
@@ -1859,7 +1860,7 @@ export const proof = {
             const got = r.body.flatMap(v => u8ArrayMsb(v))
             const sent = chunks.flatMap(v => u8ArrayMsb(v))
             assertEq(got.length, sent.length)
-            assertEq(got.findIndex((b, i) => b !== sent[i]), -1)
+            assertEq(got.findIndex((b, i) => b !== sent[Number(i)]), -1)
             // Drained: nothing left to hand out, and the cursor is at the end.
             const [cursor] = s.bodies
             assertEq(cursor.rest.length, 0)

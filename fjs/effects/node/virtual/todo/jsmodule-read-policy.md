@@ -45,7 +45,7 @@ Not decided; the two answers are not equally cheap.
 
 - [ ] Decide which of the two, with [dirent-kinds](./dirent-kinds.md) in view.
 - [ ] Pin a read of a non-regular entry that fails as a value, in
-      [`../proof.f.mjs`](../proof.f.mjs).
+      [`../proof.f.js`](../proof.f.js).
 
 ### Related
 

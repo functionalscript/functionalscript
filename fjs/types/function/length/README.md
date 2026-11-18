@@ -18,7 +18,7 @@ validates EDAG function lengths with it.
 
 The factories provide ordinary JavaScript callable values and arity. Their host
 `toString()` describes the wrapper, without EDAG-derived default text; their
-argument splitting and identities are pinned by [the factory proofs](./proof.f.mjs).
+argument splitting and identities are pinned by [the factory proofs](./proof.f.js).
 Amnesia and memo no longer use these factories to represent functions. They
 retain bodies and evaluated captures as `EdagValue`s, and shared conversion
 uses the implemented compiler renderer for canonical, code-only text. Native

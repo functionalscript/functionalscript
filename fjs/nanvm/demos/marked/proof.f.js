@@ -14,6 +14,7 @@ import { utf8 } from '../../../text/module.f.js'
 import { generate, rustPath } from '../module.f.js'
 import { rustMarkedPath } from '../page/module.f.js'
 import { main, writeMarked } from './module.f.js'
+import { nameOf } from '../../../types/object/name/module.f.js'
 
 /** Two samples, and a build directory a removed sample left its files in. @type {Dir} */
 const root = {
@@ -37,13 +38,14 @@ export const proof = {
         const [generated] = virtualAt(root)(generate(places))
         const [state, result] = virtual(generated)(writeMarked(places))
         assertOk(result)
-        for (const { name } of places) {
+        for (const place of places) {
+            const name = nameOf(place)
             const [, rs] = virtual(state)(readUtf8File(rustPath(name)))
             const [, marked] = virtual(state)(readUtf8File(rustMarkedPath(name)))
             assertEq(untagged(assertOk(marked)), assertOk(rs))
         }
         const [, entries] = virtual(state)(readdir('nanvm/demos/wasm', {}))
-        assertEq(assertOk(entries).map(({ name }) => name).toSorted().join(), 'a.rs.marked,b.rs.marked,dir.rs.marked,gone.wat.marked')
+        assertEq(assertOk(entries).map(nameOf).toSorted().join(), 'a.rs.marked,b.rs.marked,dir.rs.marked,gone.wat.marked')
     },
     // A sample the compiler refuses fails the run before any file is
     // written, the samples before it included.

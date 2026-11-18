@@ -1,7 +1,7 @@
 /** @import { Block } from './types.ts' */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tokenizeString } from '../proof.f.mjs'
+import { tokenizeString } from '../proof.f.js'
 import { parseSyntax } from './module.f.js'
 
 /** The block of the exported function, retaining its source declarations. @type {(source: string) => Block} */

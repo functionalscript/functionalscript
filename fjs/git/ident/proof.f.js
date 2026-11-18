@@ -9,6 +9,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { tryRead as readPayload } from '../header/module.f.js'
 import { commitPayload, latin1, undefinedByte } from '../testlib.f.js'
 import { maxTime, tryRead, write } from './module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** @type {(value: readonly number[]) => Ident} */
 const read = value => {
@@ -18,8 +19,8 @@ const read = value => {
 }
 
 /** @type {(i: Ident) => readonly [string, string, bigint, string]} */
-const text = ({ name, email, time, tz }) =>
-    [codePointListToString(name), codePointListToString(email), time, tz]
+const text = i =>
+    [codePointListToString(nameOf(i)), codePointListToString(i.email), i.time, i.tz]
 
 /** @type {(value: readonly number[]) => void} */
 const roundTrip = value => assertStructurallySame(toArray(write(read(value))), value)
@@ -45,7 +46,7 @@ export const proof = {
         assertStructurallySame(text(read(latin1('A B. <x.y@z> 5 -0530'))), ['A B.', 'x.y@z', 5n, '-0530'])
         assertStructurallySame(text(read(latin1(' <> 0 +0000'))), ['', '', 0n, '+0000'])
         const i = read([0xE9, sp, lt, 0xFF, gt, sp, ...latin1('12 +0100')])
-        assertStructurallySame([toArray(i.name), toArray(i.email), i.time, i.tz], [[0xE9], [0xFF], 12n, '+0100'])
+        assertStructurallySame([toArray(nameOf(i)), toArray(i.email), i.time, i.tz], [[0xE9], [0xFF], 12n, '+0100'])
         for (const v of ['A B. <x.y@z> 5 -0530', ' <> 0 +0000', 'Alice  <a@b> 1 +0000']) {
             roundTrip(latin1(v))
         }

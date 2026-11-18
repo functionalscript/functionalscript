@@ -73,9 +73,7 @@ const header = /** @type {const} */ ('# pack-refs with: peeled fully-peeled sort
  */
 const chunksOf = bytes => {
     const size = Number(maxLengthBytes)
-    return Array.from(
-        { length: Math.ceil(bytes.length / size) },
-        (_, i) => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
+    return generate(Math.ceil(bytes.length / size), i => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
 }
 
 /**
@@ -279,7 +277,7 @@ export const proof = {
         // A name no path spells: `refs/heads/` and the byte `0x80` is a ref name
         // `check-ref-format` accepts and `rev-parse` resolves, measured, and a
         // path is text to this host. `tryResolve` answers `null` for it, which a
-        // write may not — see `byteName` in `../proof.f.mjs` and `../todo/byte-ref-names.md`.
+        // write may not — see `byteName` in `../proof.f.js` and `../todo/byte-ref-names.md`.
         const byteNamed = /** @type {readonly number[]} */ ([...latin1('refs/heads/'), 0x80])
         const [fs, r] = ran(root, tryWrite(one(''), 20)(byteNamed)(idOf(a)))
         const e = writeRefusal(r)

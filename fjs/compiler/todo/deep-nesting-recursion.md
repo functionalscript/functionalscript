@@ -105,7 +105,7 @@ walks as well as the now stack-safe output stages.
       the current AST-to-FAST and graph-construction paths, and replace remaining
       recursive walks at those owners. The former `lowerLeaf` implementation
       has been retired; its removal alone is not end-to-end depth evidence.
-- [ ] Proofs at the depth `stackSafety` in `../parser/proof.f.mjs` uses, for
+- [ ] Proofs at the depth `stackSafety` in `../parser/proof.f.js` uses, for
       nested arrays, nested objects, nested commas and nested functions, on
       every output.
 - [ ] The same for an access chain and an optional chain: a loop or an

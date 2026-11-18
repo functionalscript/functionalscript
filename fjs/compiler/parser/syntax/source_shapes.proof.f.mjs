@@ -3,7 +3,7 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { parseFromTokens } from '../module.f.js'
-import { _evaluate, tokenizeString } from '../proof.f.mjs'
+import { _evaluate, tokenizeString } from '../proof.f.js'
 import { parseSyntax } from './module.f.js'
 
 export const proof = /** @type {const} */ ({

@@ -5,7 +5,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
 import { parseFromTokens } from './module.f.js'
-import { _evaluate, stringifyModule, tokenizeString } from './proof.f.mjs'
+import { _evaluate, stringifyModule, tokenizeString } from './proof.f.js'
 import { unresolved } from '../edag/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.js'

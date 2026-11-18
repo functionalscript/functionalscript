@@ -881,9 +881,7 @@ export const proof = {
         // A whole file is not bounded by a `Vec`, which is the reason the
         // operation answers chunks: `readFile` refuses the same fixture.
         pastTheVecCap: () => {
-            const big = generate(3, () => u8ListToVecMsb(Array.from(
-                { length: Number(maxLengthBytes) },
-                (_, i) => i % 251)))
+            const big = generate(3, () => u8ListToVecMsb(generate(Number(maxLengthBytes), i => i % 251)))
             const root = { file: big }
             const [, [t, result]] = virtualAt(root)(readWholeBytes('file'))
             assert(t === 'ok', result)

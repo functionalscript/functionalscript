@@ -107,7 +107,7 @@ export const proof = /** @type {const} */ ({
                 assert(value instanceof Array && value[0] === '=>')
                 assertEq(value[1], 1)
                 const result = call(closure, [() => ok(9)], invoke)
-                for (const [index, expected] of values.entries()) { assertEq(assertOk(read(result, String(index))), expected) }
+                for (const [index, expected] of values.map((expected, index) => /** @type {const} */ ([index, expected]))) { assertEq(assertOk(read(result, String(index))), expected) }
                 if (keepSelf) { assertEq(assertOk(read(result, String(width))), value) }
                 const runtime = stringify(program, 'module', true)
                 assert(!runtime.includes('...'), runtime)

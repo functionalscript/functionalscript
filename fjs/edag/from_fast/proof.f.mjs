@@ -1451,7 +1451,7 @@ export const proof = {
             const allocations = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 1
                 && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === calls[0] ? [index] : [])
             assertEq(allocations.length, 1)
-            assertEq(analysis.scope[allocations[0]], root[1])
+            assertEq(analysis.scope[Number(allocations[0])], root[1])
             assert(analysis.shared.includes(allocations[0]))
             // The original function and its real loop helper are the only functions.
             assertEq(analysis.nodes.filter(node => node[0] === '=>').length, 2)

@@ -12,6 +12,7 @@ import { name, object, tagger, type, write as writeTag } from '../tag/module.f.j
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.js'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** An id's 40 hex digits, as a `parent` header spells it. */
 const idHex = encodeScalar(40)
@@ -61,7 +62,7 @@ export const proof = {
         const c = read(commitPayload)
         assertEq(hex(tree(c)), treeId)
         assertStructurallySame(parents(c).map(hex), [parentId, '261b9142dfe024d8e8e009b0e97f6e52ea981c8d'])
-        assertEq(text(toArray(author(c).name)), 'Sergey Shandar')
+        assertEq(text(toArray(nameOf(author(c)))), 'Sergey Shandar')
         assertEq(author(c).time, 1_789_011_254n)
         assertEq(text(toArray(committer(c).email)), 'noreply@github.com')
         assertEq(committer(c).tz, '+0000')
@@ -126,7 +127,7 @@ export const proof = {
     root: () => {
         const c = commit([`tree ${treeId}`, `author ${who}`, `committer ${who}`, 'encoding latin1', '', ''])
         assertStructurallySame(parents(c), [])
-        assertEq(text(toArray(author(c).name)), 'A')
+        assertEq(text(toArray(nameOf(author(c)))), 'A')
         assertEq(text(toArray(committer(c).name)), 'A')
         assertStructurallySame(toArray(encoding(c) ?? []), latin1('latin1'))
         assertEq(gpgsig(c), null)

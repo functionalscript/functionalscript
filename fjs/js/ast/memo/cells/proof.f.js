@@ -517,9 +517,9 @@ export const proof = /** @type {const} */ ({
         const plan = planned(source)
         const definitions = definitionsOf(plan.block)
         assertEq(plan.cells.length, 4)
-        for (const [index, binding] of [a, b, third, fourth].entries()) {
-            assertEq(plan.cells[index].binding, binding)
-            assertEq(mapGet(plan.definitions, plan.cells[index].definition), index)
+        for (const [index, binding] of [a, b, third, fourth].map((binding, index) => /** @type {const} */ ([index, binding]))) {
+            assertEq(plan.cells[Number(index)].binding, binding)
+            assertEq(mapGet(plan.definitions, plan.cells[Number(index)].definition), index)
         }
         assertEq(mapGet(plan.definitions, definitions[2]), 1)
         assertEq(mapHas(plan.definitions, definitions[5]), false)
@@ -527,9 +527,9 @@ export const proof = /** @type {const} */ ({
         assertEq(setHas(loopsOf(plan.block)[0])(plan.loops), true)
         assertEq(setValues(plan.loops)[0].target, loop.target)
         const again = planned(source)
-        for (const [index, cell] of plan.cells.entries()) {
-            assertEq(again.cells[index].binding, cell.binding)
-            assertEq(again.cells[index].initializer, cell.initializer)
+        for (const [index, cell] of plan.cells.map((cell, index) => /** @type {const} */ ([index, cell]))) {
+            assertEq(again.cells[Number(index)].binding, cell.binding)
+            assertEq(again.cells[Number(index)].initializer, cell.initializer)
         }
     },
     branchOwnedDependents: () => {
@@ -554,9 +554,9 @@ export const proof = /** @type {const} */ ({
     nestedCallerCells: () => {
         for (const depth of [2, 3]) {
             const targets = generate(depth, () => /** @type {const} */ ({ kind: 'loop', index: 0 }))
-            let sourceLoop = reading(b, targets[depth - 1])
+            let sourceLoop = reading(b, targets[Number(depth - 1)])
             for (let index = depth - 2; index >= 0; index -= 1) {
-                sourceLoop = loopOf(body([['loop', sourceLoop]], ['break', targets[index], [0]]), targets[index])
+                sourceLoop = loopOf(body([['loop', sourceLoop]], ['break', targets[Number(index)], [0]]), targets[Number(index)])
             }
             const plan = planned(containing(sourceLoop, [
                 ['define', a, ['array', []], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
@@ -573,8 +573,8 @@ export const proof = /** @type {const} */ ({
             const selected = setValues(plan.loops)
             let loop = loopsOf(plan.block)[0]
             for (let index = 0; index < depth; index += 1) {
-                assertEq(loop, selected[index])
-                assertEq(loop.target, targets[index])
+                assertEq(loop, selected[Number(index)])
+                assertEq(loop.target, targets[Number(index)])
                 if (index + 1 !== depth) { loop = loopsOf(loop.body)[0] }
             }
         }

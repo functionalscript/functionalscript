@@ -54,7 +54,7 @@ export const _primitiveCaptureGraphs = {
  */
 export const _widePrimitiveCaptureGraph = (width, retainedSelf = false) => ['=>', 0,
     generate(width, index => index + 1),
-    ['[]', [...retainedSelf ? [/** @type {const} */ (['self'])] : [], ...Array.from({ length: width }, /** @returns {Exp} */ (_, index) => ['frame', index])]],
+    ['[]', [...retainedSelf ? [/** @type {const} */ (['self'])] : [], ...generate(width, /** @returns {Exp} */ (index) => ['frame', index])]],
 ]
 
 /** Eight actual serialize/parse cycles, preserving each resulting program.

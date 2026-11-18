@@ -25,6 +25,7 @@ import { set, squares } from './testlib.f.js'
 import { max } from '../number/max/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
 import { generate, dedup } from '../array/module.f.js'
+import { entry } from '../object/entry/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const stringify = sequence => stringifySorted(toArray(sequence))
@@ -187,7 +188,9 @@ const demoProof = {
             assert(!h.includes('>Value'), h)
             assert(h.includes('data-graph-value-label="" pointer-events="none">80<'), h)
             // One arrow, into the new root.
-            const { nodes, entries = [] } = _graphOf(s.versions)
+            const graph = _graphOf(s.versions)
+            const { nodes } = graph
+            const entries = entry(graph, 'entries') ?? []
             assertEq(toJson(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["new",null]]')
             assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the tree before, 3 only in the tree before.'), h)
             // A press leaves the preset behind.

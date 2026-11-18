@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../source/module.f.js'
-import { _evaluate, tokenizeString } from './proof.f.mjs'
+import { _evaluate, tokenizeString } from './proof.f.js'
 import { parseSyntax } from './syntax/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'

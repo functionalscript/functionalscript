@@ -12,6 +12,7 @@ import { utf8 } from '../../text/module.f.js'
 import { buildScript, buildScriptPath, builtWasmPath, callStatement, f64Literal, generate, main, modules, modulesPath, rustPath, samplePath, samples, wasmTarget } from './module.f.js'
 import { rustMarkedPath } from './page/module.f.js'
 import { rust } from '../../ci/config/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** @type {(samples: Dir) => Dir} */
 const at = samples => ({ 'fjs': { 'nanvm': { 'demos': samples } } })
@@ -28,7 +29,7 @@ export const proof = {
     // A sample of its own beside the generator, a spec page's example beside its page.
     samples: () => {
         assertEq(
-            samples.slice(0, 4).map(({ name, directory }) => `${name}:${directory}`).join(','),
+            samples.slice(0, 4).map(s => `${nameOf(s)}:${s.directory}`).join(','),
             'hello:fjs/nanvm/demos/hello,sort:fjs/nanvm/demos/sort,collatz:fjs/nanvm/demos/collatz,comma:spec/operators/comma')
         // Every other sample is a spec page's example.
         assert(samples.slice(4).every(({ directory }) => directory.startsWith('spec/')))

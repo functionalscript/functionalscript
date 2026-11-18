@@ -5,8 +5,8 @@
  * filesystem.
  *
  * Beside the modules rather than in either proof, because
- * [`./proof.f.mjs`](./proof.f.mjs) proves the readers and
- * [`./write/proof.f.mjs`](./write/proof.f.mjs) the writers, and a fixture copied
+ * [`./proof.f.js`](./proof.f.js) proves the readers and
+ * [`./write/proof.f.js`](./write/proof.f.js) the writers, and a fixture copied
  * into both is two fixtures that drift. Its functions are proved in
  * [`./testlib.proof.f.js`](./testlib.proof.f.js).
  *

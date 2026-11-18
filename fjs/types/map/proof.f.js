@@ -51,9 +51,9 @@ export const proof = /** @type {const} */ ({
         const keys = /** @type {const} */ ([undefined, null, false, true, 0, 1, 1n, '1', '', 'null', 'undefined', NaN, Infinity, -Infinity])
         /** @type {PersistentMap<unknown, number>} */
         let map = empty
-        for (const [i, key] of keys.entries()) { map = mapSet(map, key, i) }
+        for (const [i, key] of keys.map((key, i) => /** @type {const} */ ([i, key]))) { map = mapSet(map, key, i) }
         assertEq(size(map), keys.length)
-        for (const [i, key] of keys.entries()) { assertEq(mapGet(map, key), i); assert(mapHas(map, key)) }
+        for (const [i, key] of keys.map((key, i) => /** @type {const} */ ([i, key]))) { assertEq(mapGet(map, key), i); assert(mapHas(map, key)) }
         assertStructurallySame(mapEntries(map).map(([key]) => key), keys)
         const overwritten = mapSet(mapSet(map, -0, 20), NaN, 30)
         assertEq(size(overwritten), keys.length)

@@ -13,7 +13,7 @@ carrying the last `MatchResult` as the diagnostic — and
 The adapter takes a built `Parser` and the input decoding, not a `RuleSet` and
 an entry name, because its consumers hold front-end rules and read different
 alphabets (code points, code units). Its users are
-`fjs/js/tokenizer/proof.f.mjs`'s `isValid` corpus, a one-token grammar resumed
+`fjs/js/tokenizer/proof.f.js`'s `isValid` corpus, a one-token grammar resumed
 per token, and `fjs/ebnf/lib/markdown/proof.f.js`'s `accepts` / `refuses`, a
 grammar ending in `eof`; `fjs/ebnf/proof.f.js` proves the adapter's branches.
 

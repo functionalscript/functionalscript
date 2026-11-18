@@ -31,6 +31,7 @@ import {
 } from './module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { min } from '../function/compare/module.f.js'
+import { nameOf } from '../object/name/module.f.js'
 
 /**
  * The candidates the demo page compares, in the order it renders them.
@@ -491,7 +492,7 @@ export const proof = /** @type {const} */ ({
             })
             const [, r] = run(handlers)(null)(
                 demo.update({ ...demo.init, size: '32' })({ kind: 'click', name: 'run' }))
-            assertStructurallySame(unwrap(r).rows.map(({ name }) => name), candidateNames)
+            assertStructurallySame(unwrap(r).rows.map(nameOf), candidateNames)
         },
         /**
          * **The comparison is `log2`'s own answer, checked.** A benchmark that
@@ -545,7 +546,7 @@ export const proof = /** @type {const} */ ({
             const [, r] = timed(null)(demo.update(small)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
             assertStructurallySame(
-                rows.map(({ name, outcome }) => [name, outcome]),
+                rows.map(row => [nameOf(row), row.outcome]),
                 candidateNames.map(name => [name, 7]))
         },
         /**
@@ -568,7 +569,7 @@ export const proof = /** @type {const} */ ({
                 sandbox: f => state => [state, ok({ result: ok(f()), duration: 7 })],
             }))
             const [, result] = timed(null)(demo.update(restored)({ kind: 'click', name: 'run' }))
-            assertStructurallySame(unwrap(result).rows.map(({ name, outcome }) => [name, outcome]), candidateNames.map(name => [name, 7]))
+            assertStructurallySame(unwrap(result).rows.map(row => [nameOf(row), row.outcome]), candidateNames.map(name => [name, 7]))
         },
         parseSize: () => {
             assertEq(parseSize('20000'), 20_000n)

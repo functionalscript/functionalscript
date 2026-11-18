@@ -34,9 +34,9 @@ const abc = hex('7801010300fcff616263024d0127')
 // Node's streams of the Huffman kinds: fixed, dynamic, with a copy that
 // repeats, and with nothing to copy.
 const hello = hex('7801cb48cdc9c957c8402701680308b1')
-const helloText = Array.from('hello hello hello hello', c => c.charCodeAt(0))
+const helloText = [...'hello hello hello hello'].map(c => c.charCodeAt(0))
 const fox = hex('789c2bc94855282ccd4cce56482aca2fcf5348cbaf50c82acd2d2856c82f4b2d5228014ae72456552aa4e4a7eb8179a38a47158f2aa6aa6200e521459c')
-const foxText = Array.from('the quick brown fox jumps over the lazy dog. '.repeat(20), c => c.charCodeAt(0))
+const foxText = [...'the quick brown fox jumps over the lazy dog. '.repeat(20)].map(c => c.charCodeAt(0))
 const a100 = hex('789c4b4ca43d00007a4725e5')
 const emptyFixed = hex('789c030000000001')
 
