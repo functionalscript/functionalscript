@@ -557,47 +557,32 @@ export const proof = {
         // The list is walked in constant stack: 200,000 cells through the
         // stream writer, against a host that only counts what it is given (the
         // virtual file system appends by copying, which is no place to measure).
+        // The count is the state the mock runner threads through the writes.
         longList: () => {
-            let written = 0
-            /** @type {OperationMap<CreateExclusive | WriteBytes | Rm, IoResult<void>>} */
-            const map = {
-                createExclusive: () => ok(undefined),
-                writeBytes: () => {
-                    written += 1
-                    return ok(undefined)
-                },
-                rm: () => ok(undefined),
+            /** @type {MemOperationMap<CreateExclusive | WriteBytes | Rm, number>} */
+            const operations = {
+                createExclusive: () => written => [written, ok(undefined)],
+                writeBytes: () => written => [written + 1, ok(undefined)],
+                rm: () => written => [written, ok(undefined)],
             }
-            const host = match(map)
             const vs = generate(200_000, () => vec8(0x2An))
-            let r = host(writeFromStream('long', _vecList(vs, 0)))
-            while (r[0] === 'cont') {
-                r = host(r[2](r[1]))
-            }
-            assertEq(r[1][0], 'ok')
+            const [written, result] = mockRun(operations)(0)(writeFromStream('long', _vecList(vs, 0)))
+            assertEq(result[0], 'ok')
             assertEq(written, 200_000)
         },
         // The first piece goes in through `writeFile`; if a later one fails the
         // error is the write's and the file is removed.
         failsClosed: () => {
-            /** @type {readonly string[]} */
-            let removed = []
-            /** @type {OperationMap<WriteFile | WriteBytes | Rm, IoResult<void>>} */
-            const map = {
-                writeFile: () => ok(undefined),
-                writeBytes: () => error(ioError({ message: 'disk full' })),
-                rm: path => {
-                    removed = [...removed, path]
-                    return ok(undefined)
-                },
+            // The paths removed are the state the mock runner threads.
+            /** @type {MemOperationMap<WriteFile | WriteBytes | Rm, readonly string[]>} */
+            const operations = {
+                writeFile: () => removed => [removed, ok(undefined)],
+                writeBytes: () => removed => [removed, error(ioError({ message: 'disk full' }))],
+                rm: path => removed => [[...removed, path], ok(undefined)],
             }
-            const host = match(map)
-            let r = host(writeUtf8File('big', 'a'.repeat(Number(maxLengthBytes) + 7)))
-            while (r[0] === 'cont') {
-                r = host(r[2](r[1]))
-            }
-            const [tag, failure] = r[1]
-            assert(tag === 'error', r)
+            const [removed, result] = mockRun(operations)([])(writeUtf8File('big', 'a'.repeat(Number(maxLengthBytes) + 7)))
+            const [tag, failure] = result
+            assert(tag === 'error', result)
             assertIoMessage(failure, 'disk full')
             assertStructurallySame(removed, ['big'])
         },
