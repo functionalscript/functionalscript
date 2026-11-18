@@ -23,7 +23,7 @@ that reason is enough.
 arguments to standard output with `log`, and the proof reads them from the
 state the virtual run returns. Two proofs count calls the same way, with a
 `let` a callback increments, which the compiler refuses for the same reason:
-[`fjs/dev/gen/proof.f.mjs`](../dev/gen/proof.f.mjs) (`withSubprocess`) and
+[`fjs/dev/gen/proof.f.js`](../dev/gen/proof.f.js) (`withSubprocess`) and
 [`fjs/effects/node/proof.f.mjs`](../effects/node/proof.f.mjs) (`longList`).
 
 ### Proposal
