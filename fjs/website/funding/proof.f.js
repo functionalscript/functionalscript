@@ -1,8 +1,9 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { fundingPath, parse } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
-/** @type {(channels: readonly unknown[]) => string} */
-const fundingJson = channels => JSON.stringify({
+/** @type {(channels: readonly import('../../media/json/types.ts').Unknown[]) => string} */
+const fundingJson = channels => toJson({
     version: 'v1.0.0',
     funding: { channels, plans: [] },
 })

@@ -341,19 +341,19 @@ export const proof = {
     },
     // Each kind the printer says it marks, where it spells one.
     markedKinds: () => {
-        /** @type {(e: Exp) => string} */
-        const runs = e => JSON.stringify(unwrap(fromTagged(unwrap(expExprTagged([])(e)))).filter(([, kind]) => kind !== undefined))
-        assertEq(runs(true), '[["true","literal"]]')
-        assertEq(runs(1), '[["0x3ff0000000000000","number"]]')
-        assertEq(runs('a'), '[["\\"a\\"","string"]]')
-        assertEq(runs(2n), '[["2","number"]]')
+        /** @type {(e: Exp) => unknown} */
+        const runs = e => unwrap(fromTagged(unwrap(expExprTagged([])(e)))).filter(([, kind]) => kind !== undefined)
+        assertStructurallySame(runs(true), [['true', 'literal']])
+        assertStructurallySame(runs(1), [['0x3ff0000000000000', 'number']])
+        assertStructurallySame(runs('a'), [['"a"', 'string']])
+        assertStructurallySame(runs(2n), [['2', 'number']])
         // a bigint past `i64`: the sign is a literal, each word a number
-        assertEq(runs(2n ** 63n), '[["false","literal"],["0x8000000000000000","number"]]')
-        assertEq(runs(-(2n ** 64n)), '[["true","literal"],["0x0000000000000000","number"],["0x0000000000000001","number"]]')
+        assertStructurallySame(runs(2n ** 63n), [['false', 'literal'], ['0x8000000000000000', 'number']])
+        assertStructurallySame(runs(-(2n ** 64n)), [['true', 'literal'], ['0x0000000000000000', 'number'], ['0x0000000000000001', 'number']])
         // a string no `&str` holds: each unit a number
-        assertEq(runs('\ud800'), '[["0xd800","number"]]')
+        assertStructurallySame(runs('\ud800'), [['0xd800', 'number']])
         // a discarded operand is bound by a `let`
-        assertEq(runs([',', [1, 2]]), '[["let","keyword"],["0x3ff0000000000000","number"],["0x4000000000000000","number"]]')
+        assertStructurallySame(runs([',', [1, 2]]), [['let', 'keyword'], ['0x3ff0000000000000', 'number'], ['0x4000000000000000', 'number']])
         // an index read and a function's length are numbers too
         assertStructurallySame(unwrap(fromTagged(unwrap(scopeTagged(['=>', 1, [], ['arg', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number'), [['0', 'number'], ['1', 'number']])
         assertEq(toJson(unwrap(fromTagged(unwrap(scopeTagged(['=>', 0, [['[]', [1]]], ['frame', 0]])).lines.join('\n'))).filter(([, kind]) => kind === 'number').map(([text]) => text)), '["0x3ff0000000000000","0","0"]')

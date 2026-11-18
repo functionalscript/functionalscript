@@ -526,17 +526,18 @@ export const proof = /** @type {const} */ ({
         const text = /** @type {const} */ ('const step=(i,sum)=>i%2===0?["normal",sum+i]:["continue"];export default n=>{let i=0;let sum=0;while(i<n){i=i+1;if(i>1){const c=step(i,sum);if(c[0]==="continue"){continue;}sum=c[1]+10;}else{sum=1;}}return [i,sum];};')
         let graph = moduleGraph(text)
         let canonical = ''
-        let fingerprint = ''
+        /** @type {unknown} */
+        let fingerprint = null
         for (let round = 0; round < 4; round = round + 1) {
             const invoked = /** @type {import('../../types.ts').Exp} */ (['()', _defaultExport(graph), [4]])
             assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(invoked)))({ args: [] })))), [4, 27])
             const source = assertOk(tryModuleStringify(graph))
             graph = moduleGraph(source)
             const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-            const actual = JSON.stringify({ root, nodes, scope, shared })
+            const actual = { root, nodes, scope, shared }
             if (round === 0) { fingerprint = actual }
             else {
-                assertEq(actual, fingerprint)
+                assertStructurallySame(actual, fingerprint)
                 if (round === 1) { canonical = source }
                 else { assertEq(source, canonical) }
             }
@@ -618,7 +619,8 @@ export const proof = /** @type {const} */ ({
         for (const [body, expected] of cases) {
             for (const eager of [true, false]) {
                 let graph = moduleGraph(`export default ${eager ? `(()=>{${body}})()` : `()=>{${body}}`};`)
-                let stable = ''
+                /** @type {unknown} */
+                let stable = null
                 let canonical = ''
                 for (let round = 0; round < 7; round = round + 1) {
                     const exported = _defaultExport(graph)
@@ -627,10 +629,10 @@ export const proof = /** @type {const} */ ({
                     const text = assertOk(tryModuleStringify(graph))
                     graph = moduleGraph(text)
                     const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-                    const actual = JSON.stringify({ root, nodes, scope, shared })
+                    const actual = { root, nodes, scope, shared }
                     if (round === 0) { stable = actual }
                     else {
-                        assertEq(actual, stable)
+                        assertStructurallySame(actual, stable)
                         if (round === 1) { canonical = text }
                         else { assertEq(text, canonical) }
                     }
@@ -665,7 +667,7 @@ export const proof = /** @type {const} */ ({
         const branch = after.statements.findIndex(statement => statement[0] === 'if')
         const dependent = after.statements.findIndex(statement => statement[0] === 'define' && statement[1] === alias)
         assert(branch >= 0 && dependent > branch)
-        const declaration = after.statements[dependent]
+        const declaration = after.statements[Number(dependent)]
         assert(declaration[0] === 'define')
         assertEq(declaration[3], 'lazy')
         for (const block of [before, after]) {

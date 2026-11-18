@@ -1,6 +1,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { entry as hostEntry, hasEntry as hostHasEntry } from '../../../../types/object/entry/module.f.js'
 import { charCodeAt, entries, entry, fromCharCode, hasEntry, slice } from './module.f.js'
+import { structurallySame } from '../../../../types/object/structurally_same/module.f.js'
 
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
@@ -15,7 +16,7 @@ const numbers = /** @type {readonly unknown[]} */ ([
 ])
 
 /** Whether two answers are the same, `NaN` and the zeros told apart. @type {(a: unknown, b: unknown) => boolean} */
-const same = (a, b) => Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b) && typeof a === 'object'
+const same = (a, b) => structurallySame(a, b)
 
 /** Receivers of every kind but `undefined` and `null`. */
 const receivers = /** @type {readonly unknown[]} */ ([
