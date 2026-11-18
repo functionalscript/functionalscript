@@ -33,7 +33,7 @@ const graph = unwrap(tryParse(document))
 export const proof = {
     // The surface holds the six signatures the design fixed, and the
     // deeper proofs are each entry point's own: `parser/proof.f.mjs` for the
-    // two readers, `serializer/proof.f.mjs` for the four writers, and the
+    // two readers, `serializer/proof.f.js` for the four writers, and the
     // conformance corpus for the DataJS four. What is proved here is that
     // they compose as one codec, starting with the round trip: writing what
     // was read gives the document back, since normalized form is one

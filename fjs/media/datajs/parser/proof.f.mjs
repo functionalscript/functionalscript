@@ -171,7 +171,7 @@ export const proof = {
         assert(hasOwn(computed, '__proto__'))
         assertStructurallySame(keys(computed), ['__proto__'])
         assertEq(getPrototypeOf(computed), Object.prototype)
-        assertStructurallySame(exported('{["__proto__"]:1,"a":2}'), JSON.parse('{"__proto__":1,"a":2}'))
+        assertStructurallySame(exported('{["__proto__"]:1,"a":2}'), Object.fromEntries([['__proto__', 1], ['a', 2]]))
         const message = /** @type {const} */ ('a "__proto__" key is spelled ["__proto__"]')
         refused('export default {"__proto__":1};', message)
         refused('export default {"\\u005f_proto__":1};', message)

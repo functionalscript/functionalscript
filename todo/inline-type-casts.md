@@ -218,10 +218,10 @@ is the way to refresh this file, not a partial edit.
 | `fjs/mcp/cas/proof.f.js` | 149 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
 | `fjs/mcp/proof.f.js` | 67 | `Unknown` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/mcp/proof.f.js` | 174 | `ToolsCallResult` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/media/json/proof.f.mjs` | 18 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/media/json/proof.f.mjs` | 18 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/media/json/proof.f.mjs` | 23 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/media/json/proof.f.mjs` | 23 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/media/json/proof.f.js` | 18 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/media/json/proof.f.js` | 18 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/media/json/proof.f.js` | 23 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/media/json/proof.f.js` | 23 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/module.f.js` | 63 | `NodeProgram` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
 | `fjs/nanvm/proof.f.mjs` | 59 | `readonly any[]` | reads an `unknown` the surrounding code has already established |
 | `fjs/protocol/mcp/module.f.js` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
