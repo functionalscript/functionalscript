@@ -30,7 +30,7 @@ Three reasons to finish the job:
    uses `stringifyIndented('  ')(identity)`, backed by the same container walk
    as compact JSON.
 
-#### `JSON.stringify` in six shapes
+#### `JSON.stringify` in eight shapes
 
 The modules below are representative, not a census; re-run the search when a
 phase starts.
@@ -38,10 +38,12 @@ phase starts.
 | Shape | Where | Replacement |
 | --- | --- | --- |
 | Leaf serializer | done: `fjs/media/json/serializer`'s `numberSerialize` | `String` for finite numbers, explicit `-0`, and `null` for non-finite numbers |
-| Expected-output comparison | the proofs of `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | structural assertions for value comparisons, or `stringify(identity)` for JSON text; the JSON serializer proofs now use structural assertions |
-| Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/compiler`'s `_stringifyTree` |
+| Expected-output comparison | done: the proofs of `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point` and the others that compared two stringified values now compare the values; `fjs/media/revision` and `fjs/media/lock` build test input with `toJson`. Left: `fjs/deps/proof.f.mjs` builds its expected file text with it, and `fjs/compiler/demo_files/proof.f.mjs` its expected strings | structural assertions for value comparisons, or `toJson` (`stringify(identity)`) for JSON text |
+| Assertion messages | done: the proofs pass the value; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports with `toJson` | pass the value, or `toJson` |
 | Source-text quoting | done: `fjs/types/ts`, `fjs/emergent_testing` and `fjs/ci/package` | `fjs/js/string_escape`'s `stringLiteral`, which `stringSerialize` also wraps |
-| JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.js`; done: `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
+| JSON line framing | done: `fjs/emergent_testing`'s proof (`writeEvent`), `fjs/mcp/proof.f.js` (`runStdio`) and `fjs/ci/package`'s `tsconfig.json` line | `toJson` |
+| Text searched or measured | `fjs/js/runtime`'s proof and three FAST proofs (`fjs/edag/from_fast`, its `loop/memo/integration`, `fjs/js/ast/memo`) search the text for a tag or take its length as a size; `fjs/compiler/parser/func.proof.f.js` did and now walks the value | a walk of the value, as `mentions` there does |
+| Host oracle | the proofs of `fjs/media/json`, `fjs/media/json/parser`, `fjs/media/datajs/serializer` and `fjs/js/string_escape` compare this repository's writers and readers with the host's | none: the host is the subject |
 | Pretty-printed file output | done: `fjs/ci/module.f.js`'s `workflowText` | `stringifyIndented('  ')(identity)` |
 
 Three semantic differences to respect while migrating, none of them blocking:
