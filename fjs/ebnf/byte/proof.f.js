@@ -15,6 +15,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { define, eof, range, rangeEncode, reference, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.js'
 import { mapping } from '../ll1/module.f.js'
 import { ascii as asciiBytes, byte, byteArray, byteLength, byteParser, bytes, meta, not, symbols, symbolsOf } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const ascii = s => [...s].map(c => c.charCodeAt(0))
@@ -69,14 +70,14 @@ export const proof = {
             assert(s.every(x => x.meta === meta))
             assertEq(meta.id, 'byte')
         },
-        // The two inputs a caller holds at a boundary: a `Vec`, and a
-        // `Uint8Array`.
+        // The two inputs a caller holds besides an array: a `Vec`, and a
+        // lazy list.
         vec: () => {
             const v = u8ListToVecMsb([0x67, 0x69, 0x74])
             assertStructurallySame(symbols(u8ListMsb(v)).map(({ symbol }) => symbol), [0x67, 0x69, 0x74])
         },
-        uint8Array: () => {
-            const s = symbols(fromArrayLike(new Uint8Array([0xC3, 0xA9])))
+        lazyList: () => {
+            const s = symbols(fromArrayLike([0xC3, 0xA9]))
             assertStructurallySame(s.map(({ symbol }) => symbol), [0xC3, 0xA9])
         },
         empty: () => assertStructurallySame(symbols([]), []),
@@ -91,7 +92,7 @@ export const proof = {
     byteArray: {
         dense: () => {
             assertStructurallySame(byteArray([0, 0xFF]), [0, 0xFF])
-            assertStructurallySame(byteArray(fromArrayLike(new Uint8Array([1, 2]))), [1, 2])
+            assertStructurallySame(byteArray(fromArrayLike([1, 2])), [1, 2])
             assertStructurallySame(byteArray([]), [])
         },
         throw: {
@@ -121,7 +122,7 @@ export const proof = {
     byteLength: () => {
         assertEq(byteLength([]), 0)
         assertEq(byteLength([0, 0xFF]), 2)
-        assertEq(byteLength(fromArrayLike(new Uint8Array(1_000))), 1_000)
+        assertEq(byteLength(fromArrayLike(generate(1_000, () => 0))), 1_000)
         assertEq(byteLength([0, 0x100, 0]), null)
         assertEq(byteLength([0.5]), null)
     },

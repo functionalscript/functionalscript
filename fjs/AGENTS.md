@@ -153,7 +153,7 @@ silenced by an edit that moves a line.
 Keep a typedef in the proof only for a claim about a *local* inference that
 has no module-scope spelling — a `const` type parameter's effect at a call
 site is the standing example — and then make sure a statement follows it.
-[`fjs/ebnf/byte/proof.f.mjs`](./ebnf/byte/proof.f.mjs) has both halves: two
+[`fjs/ebnf/byte/proof.f.js`](./ebnf/byte/proof.f.js) has both halves: two
 such claims, each stated right after the binding it is about and before the
 assertions that follow, and a third that was about a module-scope export and
 moved to `./ebnf/byte/types.ts`.
