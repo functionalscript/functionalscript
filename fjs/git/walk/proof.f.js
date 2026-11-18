@@ -319,7 +319,7 @@ const liar = id => pureOk({ type: 'tag', payload: tagAt(hexText(id), 'tag') })
  * @type {Read<never>}
  */
 const chained = id => {
-    const k = Number.parseInt(hexText(id), 16)
+    const k = Number(`0x${hexText(id)}`)
     return pureOk(k === 0
         ? { type: 'commit', payload: commit }
         : { type: 'tag', payload: tagAt(hexOf(k - 1), k === 1 ? 'commit' : 'tag') })

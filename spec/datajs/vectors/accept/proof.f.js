@@ -7,11 +7,11 @@ import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import accept from './data.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
 import { dedup } from '../../../../fjs/types/array/module.f.js'
+import { entry, hasEntry } from '../../../../fjs/types/object/entry/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly Accept[]} */ (accept)
 
-const { hasOwn } = Object
 
 /**
  * A metadata member as a non-empty string, or a failure naming the vector
@@ -20,7 +20,7 @@ const { hasOwn } = Object
  * @type {(vector: Accept, name: 'id' | 'class') => string}
  */
 const named = (vector, name) => {
-    const value = vector[name]
+    const value = entry(vector, name)
     assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
@@ -45,7 +45,7 @@ export const proof = {
             const id = named(vector, 'id')
             const { document } = vector
             assert(isDocument(document), `${id}: the document is neither a string nor bytes in the one hex spelling`)
-            assert(hasOwn(vector, 'graph'), `${id}: no graph`)
+            assert(hasEntry(vector, 'graph'), `${id}: no graph`)
         }
     },
 }

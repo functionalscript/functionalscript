@@ -19,7 +19,7 @@ const routes = html => html.split('" data-graph-edge=""').slice(0, -1)
     .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
 
 /** Original connection identities represented by each return hit segment. @type {(html: string) => readonly (readonly number[])[]} */
-const memberships = html => html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(Number))
+const memberships = html => html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(n => Number(n)))
 
 /** Signed side of a line. @type {(a: readonly number[], b: readonly number[], p: readonly number[]) => number} */
 const side = (a, b, p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
@@ -27,8 +27,8 @@ const side = (a, b, p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] 
 /** Proper intersections, excluding shared endpoints and coincident entries. @type {(paths: readonly (readonly (readonly number[])[])[]) => number} */
 const pathCrossings = paths => paths.reduce((sum, path, i) => sum + paths.slice(i + 1).reduce((count, other) => count
     + path.slice(1).reduce((n, b, j) => n + other.slice(1).filter((d, k) => {
-        const a = path[j]
-        const c = other[k]
+        const a = path[Number(j)]
+        const c = other[Number(k)]
         return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0
     }).length, 0), 0), 0)
 
@@ -174,7 +174,7 @@ export const proof = /** @type {const} */ ({
             const g = graphOf(/** @type {(v: number) => Shape<number>} */ (
                 v => v === 0 ? { inline: '0' } : { kind: 'n', label: `${v}`, children: [['next', v - 1]] }))(n)
             assertEq(g.nodes.length, n)
-            assertEq(g.nodes[n - 1].rank, n - 1)
+            assertEq(g.nodes[Number(n - 1)].rank, n - 1)
         },
     },
     ranked: {
@@ -471,12 +471,12 @@ export const proof = /** @type {const} */ ({
                     ...generate(20, i => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
-            const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(n => Number(n))))
             // Both downward and upward steep legs have horizontal exits
             // and entries, with a vertical section entirely in the gap.
             for (const i of [0, 1, 2, 4]) {
-                const [a, b, c, d] = paths[i].slice(-4)
-                assert(paths[i].length >= 4, 'a narrow source may first extend to its column edge')
+                const [a, b, c, d] = paths[Number(i)].slice(-4)
+                assert(paths[Number(i)].length >= 4, 'a narrow source may first extend to its column edge')
                 assertEq(a[1], b[1])
                 assertEq(b[0], c[0])
                 assertEq(c[1], d[1])
@@ -496,7 +496,7 @@ export const proof = /** @type {const} */ ({
                 ],
             }
             const html = htmlToString(graphSvg(g))
-            const paths = routes(html).slice(1, 4).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            const paths = routes(html).slice(1, 4).map(path => path.slice(1).split(' L').map(point => point.split(',').map(n => Number(n))))
             assert(paths.every(path => path.length === 4), 'three downward elbows')
             assertEq(pathCrossings(paths), 0)
             assert(paths[0][1][0] > paths[1][1][0] && paths[1][1][0] > paths[2][1][0], 'higher destinations take lanes farther right')
@@ -515,11 +515,11 @@ export const proof = /** @type {const} */ ({
                     ...generate(20, i => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
-            const paths = routes(htmlToString(graphSvg(g))).slice(5).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            const paths = routes(htmlToString(graphSvg(g))).slice(5).map(path => path.slice(1).split(' L').map(point => point.split(',').map(n => Number(n))))
             assertEq(paths.length, 3)
             assert(paths.every(path => path.length >= 4), 'three upward elbows')
             assertEq(pathCrossings(paths), 0)
-            const bends = paths.map(path => path[path.length - 3][0])
+            const bends = paths.map(path => path[Number(path.length - 3)][0])
             assert(bends[0] < bends[1] && bends[1] < bends[2], 'higher sources take lanes farther left')
             assertEq(_crossings(g), 0)
         },
@@ -534,7 +534,7 @@ export const proof = /** @type {const} */ ({
                     ...generate(10, i => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
                 ],
             }
-            const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(n => Number(n))))
             assert(paths.every(path => path.length === 4), 'equal origins retain separate elbow lanes')
             assertEq(dedup(paths.map(path => path[1][0])).length, 3)
             assertEq(pathCrossings(paths), 0)
@@ -821,14 +821,14 @@ export const proof = /** @type {const} */ ({
             // The svg is the defs and three layers, boxes, edges and labels,
             // however many edges there are, so a patch meets each layer
             // where it was.
-            /** @type {(edges: Graph['edges']) => string} */
+            /** @type {(edges: Graph['edges']) => readonly unknown[]} */
             const tags = edges => {
                 const div = /** @type {readonly unknown[]} */ (graphSvg({ nodes: [{ id: 0, kind: 'shared', label: 'a', rank: 0, key: 'a' }, { id: 1, kind: 'shared', label: 'b', rank: 1, key: 'b' }], edges }))
                 const svg = /** @type {readonly (readonly unknown[])[]} */ (div[2])
-                return JSON.stringify(svg.slice(2).map(child => child[0]))
+                return svg.slice(2).map(child => child[0])
             }
-            assertEq(tags([]), '["defs","g","g","g"]')
-            assertEq(tags([{ from: 0, to: 1, label: '' }]), '["defs","g","g","g"]')
+            assertStructurallySame(tags([]), ['defs', 'g', 'g', 'g'])
+            assertStructurallySame(tags([{ from: 0, to: 1, label: '' }]), ['defs', 'g', 'g', 'g'])
         },
         inlineClick: () => {
             const html = htmlToString(graphSvg({
@@ -1158,7 +1158,7 @@ export const proof = /** @type {const} */ ({
             const compact = { ...g, edges: g.edges.filter((_, i) => i !== 4) }
             const expected = /** @type {const} */ ([200 / 3, 200 / 3, 80 / 3, 80 / 3, 320 / 3])
             const actual = routes(htmlToString(graphSvg(compact))).map(route => Number(route.slice(route.lastIndexOf(',') + 1)))
-            assert(actual.every((y, i) => expected[i] - 1e-9 < y && y < expected[i] + 1e-9), String(actual))
+            assert(actual.every((y, i) => expected[Number(i)] - 1e-9 < y && y < expected[Number(i)] + 1e-9), String(actual))
             assertEq(_crossings(compact), 0)
         },
         /**

@@ -310,16 +310,16 @@ export const proof = {
         assertEq(occurrences('data-demo-click="move:')(h), 3)
     },
     stepLine: {
-        counts: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
+        counts: () => assertEq(stepLine('list')(key => String(key))({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
             'Last step, insert 4: 1 new (blue), 3 shared with the list before, 0 only in the list before.'),
         // A step that built nothing and left nothing behind says why.
-        alreadyThere: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
+        alreadyThere: () => assertEq(stepLine('list')(key => String(key))({ op: 'insert', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, insert 2: nothing changed, the key is already in the list.'),
-        notThere: () => assertEq(stepLine('list')(String)({ op: 'remove', key: 7 })({ built: 0, shared: 3, replaced: 0 }),
+        notThere: () => assertEq(stepLine('list')(key => String(key))({ op: 'remove', key: 7 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, remove 7: nothing changed, the key is not in the list.'),
-        wentBack: () => assertEq(stepLine('list')(String)({ op: 'move', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
+        wentBack: () => assertEq(stepLine('list')(key => String(key))({ op: 'move', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, move 2: nothing changed, the key went back where it was.'),
-        moved: () => assertEq(stepLine('list')(String)({ op: 'move', key: 2 })({ built: 2, shared: 1, replaced: 2 }),
+        moved: () => assertEq(stepLine('list')(key => String(key))({ op: 'move', key: 2 })({ built: 2, shared: 1, replaced: 2 }),
             'Last step, move 2: 2 new (blue), 1 shared with the list before, 2 only in the list before.'),
     },
     demo: {

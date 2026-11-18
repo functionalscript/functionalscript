@@ -11,11 +11,11 @@ import { toArray } from '../../../../fjs/types/list/alt/module.f.js'
 import serializerAccept from './data.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
 import { dedup } from '../../../../fjs/types/array/module.f.js'
+import { entry, hasEntry } from '../../../../fjs/types/object/entry/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly SerializerAccept[]} */ (serializerAccept)
 
-const { hasOwn } = Object
 
 /**
  * A metadata member as a non-empty string, or a failure naming the vector
@@ -24,7 +24,7 @@ const { hasOwn } = Object
  * @type {(vector: SerializerAccept, name: 'id' | 'class') => string}
  */
 const named = (vector, name) => {
-    const value = vector[name]
+    const value = entry(vector, name)
     assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
@@ -62,7 +62,7 @@ export const proof = {
     // itself.
     records: () => {
         for (const vector of set) {
-            assert(hasOwn(vector, 'input'), `${named(vector, 'id')}: no input`)
+            assert(hasEntry(vector, 'input'), `${named(vector, 'id')}: no input`)
         }
     },
     // And the claim itself, against the serializer that exists: every input

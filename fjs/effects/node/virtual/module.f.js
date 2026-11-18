@@ -536,7 +536,7 @@ const { keys } = Object
  * directory's names in order, and a recursive read level by level — the
  * entries of the directory itself, then those of each directory among them
  * in the order found. Node 22's promises API instead uses a stack; see the
- * runtime scope in ./readdir/proof.f.mjs.
+ * runtime scope in ./readdir/proof.f.js.
  *
  * Names are compared by their UTF-8 byte streams, as on the measured POSIX
  * hosts. This puts `U+E000` before `U+10000` and a shorter prefix first,
