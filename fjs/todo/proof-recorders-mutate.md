@@ -21,10 +21,16 @@ that reason is enough.
 [`fjs/cli/proof.f.js`](../cli/proof.f.js) had the same recorder in
 `handlerReceivesRemainingArgs` and no longer does: its handler writes the
 arguments to standard output with `log`, and the proof reads them from the
-state the virtual run returns. Two proofs count calls the same way, with a
-`let` a callback increments, which the compiler refuses for the same reason:
-[`fjs/dev/gen/proof.f.js`](../dev/gen/proof.f.js) (`withSubprocess`) and
-[`fjs/effects/node/proof.f.mjs`](../effects/node/proof.f.mjs) (`longList`).
+state the virtual run returns.
+
+Two proofs counted calls with a `let` a callback incremented, which the
+compiler refuses for the same reason, and no longer do.
+[`fjs/effects/node/proof.f.mjs`](../effects/node/proof.f.mjs) (`longList`,
+`failsClosed`) keeps the count and the removed paths as the state
+`fjs/effects/mock`'s `run` threads through the operations.
+[`fjs/dev/gen/proof.f.js`](../dev/gen/proof.f.js) (`withSubprocess`) dropped
+its counter: the stand-in `spawn` asserts a command no caller sends, so a
+start fails the proof where it happens.
 
 ### Proposal
 
@@ -46,5 +52,6 @@ Either of two answers, and the choice is the design decision here:
 
 - [ ] Decide between the exemption and immutable recording.
 - [x] `fjs/cli/proof.f.js` records through the run's state.
-- [ ] Apply it to `fjs/sul/proof.f.mjs` and the two counters.
+- [x] The counters in `fjs/effects/node` and `fjs/dev/gen` are gone.
+- [ ] Apply it to `fjs/sul/proof.f.mjs`.
 - [ ] `tsc`, `fjs test`.
