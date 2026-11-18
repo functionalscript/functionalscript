@@ -1,7 +1,7 @@
 /**
  * The proof of how the EDAG demo draws recursion, split off `./proof.f.js`,
  * which the website's build no longer accepted in one file at 128 KiB, as
- * `./switch.proof.f.mjs` was.
+ * `./switch.proof.f.js` was.
  *
  * No `@module`: a proof's documentation reaches no reader of the published
  * API, which is the case that rule names outright.
