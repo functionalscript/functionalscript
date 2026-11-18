@@ -3,7 +3,7 @@
  */
 import { ci, main } from './module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.js'
 import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
@@ -108,7 +108,7 @@ export const proof = {
         for (const step of steps.filter(step => step['working-directory'] !== undefined)) {
             assert(!step.run?.startsWith('mise ') && !step.run?.startsWith('pixi '))
         }
-        assert(steps.some(step => step.uses?.startsWith('actions/setup-node@') && step.with?.['package-manager-cache'] === 'false'))
+        assert(steps.some(step => step.uses?.startsWith('actions/setup-node@') && entry(step, 'with')?.['package-manager-cache'] === 'false'))
         const pub = workflow(state, 'gen.npm-publish.yml')
         assert(Object.keys(pub.jobs).length > 0)
         assert(toJson(pub).includes(node))
@@ -126,7 +126,7 @@ export const proof = {
         for (const smart of [false, true]) {
             const gha = generate(true, () => [], smart)
             const producer = gha.jobs.node
-            const consumer = gha.jobs[packageJobId]
+            const consumer = entry(gha.jobs, packageJobId)
             assert(producer !== undefined && consumer !== undefined)
             assertStructurallySame(consumer.needs, ['node'])
             assertEq(consumer['runs-on'], images.ubuntu.arm)
@@ -151,7 +151,7 @@ export const proof = {
                 assertEq(step.if, undefined)
                 assertEq(step['continue-on-error'], undefined)
             }
-            const artifact = producer.steps[upload]
+            const artifact = producer.steps[Number(upload)]
             assert(artifact !== undefined)
             assertEq(artifact.with?.name, 'package-tarball')
             assertEq(artifact.with?.path, '${{ runner.temp }}/consumer/*.tgz')
@@ -184,7 +184,7 @@ export const proof = {
             assertStructurallySame(cov.permissions, smart ? { contents: 'write' } : undefined)
             assert(cov.steps[0]?.uses?.startsWith('actions/checkout@') === true)
             assert(cov.steps[1]?.uses?.startsWith('jdx/mise-action@') === true)
-            assertEq(cov.steps[1]?.with?.install_args, '--locked')
+            assertEq(entry(assertNotNullish(cov.steps[1]), 'with')?.install_args, '--locked')
             assertStructurallySame(cov.steps.slice(2).map(step => step.run), [
                 `test "$(mise exec -- node --version)" = "v${node}"`,
                 'mise exec -- npm ci',

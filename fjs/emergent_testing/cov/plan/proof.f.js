@@ -137,9 +137,9 @@ export const proof = /** @type {const} */ ({
     originalEntriesSurviveExecution: () => {
         const [state, result] = execute({ duration: 41, start: 151 })
         const value = assertOk(result)
-        assertEq(value.results[0].entries, defaults['/repo/a'])
-        assertEq(value.results[1].entries, defaults['/repo/b'])
-        assertEq(value.planned[0].entries, value.results[0].entries)
+        assertEq(valueAt(value.results[0], 'entries'), defaults['/repo/a'])
+        assertEq(valueAt(value.results[1], 'entries'), defaults['/repo/b'])
+        assertEq(valueAt(value.planned[0], 'entries'), valueAt(value.results[0], 'entries'))
         assertStructurallySame(value.results.map(result => result.duration), [41, 41])
         assertStructurallySame(value.results.map(result => result.start), [151, 151])
         assertStructurallySame(writes(state.calls), [])
@@ -149,7 +149,7 @@ export const proof = /** @type {const} */ ({
     failedAdmissionFailsWithoutBlockingOtherDirectories: () => {
         const [state, result] = execute({ prepareErrors: ['/repo/a'], hits: [true] })
         const value = assertOk(result)
-        assertEq(value.planned[0].entries, null)
+        assertEq(valueAt(value.planned[0], 'entries'), null)
         assertEq(value.planned[0].cached, false)
         assertEq(value.planned[1].cached, true)
         assertStructurallySame(value.results, [
@@ -182,7 +182,7 @@ export const proof = /** @type {const} */ ({
         for (const options of /** @type {const} */ ([{ lookupError: true }, { hits: [] }, { hits: [true] }, { hits: [true, true, true, true] }])) {
             const [state, result] = execute(options)
             const value = assertOk(result)
-            assert(value.planned.every(item => item.entries === null && !item.cached))
+            assert(value.planned.every(item => valueAt(item, 'entries') === null && !item.cached))
             assertStructurallySame(value.results, [
                 { outcome: 'passed', entries: [], duration: 37, start: 100 }, { outcome: 'passed', entries: [], duration: 37, start: 100 },
             ])
@@ -198,20 +198,20 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(assertOk(result), { planned: [], results: [] })
         assertStructurallySame(empty.calls, [])
         const [state, admitted] = execute({ entries: {} })
-        assert(assertOk(admitted).planned.every(item => item.entries?.length === 0 && !item.cached))
+        assert(assertOk(admitted).planned.every(item => valueAt(item, 'entries')?.length === 0 && !item.cached))
         assertStructurallySame(assertOk(admitted).results, [
             { outcome: 'passed', entries: [], duration: 37, start: 100 }, { outcome: 'passed', entries: [], duration: 37, start: 100 },
         ])
         assertStructurallySame(state.calls, ['prepare /repo/a', 'prepare /repo/b', 'run /repo/a', 'run /repo/b'])
         const [rejected, refused] = execute({ prepareErrors: ['/repo/a', '/repo/b'] })
-        assert(assertOk(refused).planned.every(item => item.entries === null))
+        assert(assertOk(refused).planned.every(item => valueAt(item, 'entries') === null))
         assert(!rejected.calls.some(call => call.startsWith('lookup ')))
     },
     nullCacheRunsEverything: () => {
         for (const passed of /** @type {const} */ ([false, true])) {
             const [state, result] = execute({ disabled: true, passed })
             const value = assertOk(result)
-            assert(value.planned.every(item => item.entries === null && !item.cached))
+            assert(value.planned.every(item => valueAt(item, 'entries') === null && !item.cached))
             assertStructurallySame(value.results, [
                 { outcome: passed ? 'passed' : 'failed', entries: [], duration: 37, start: 100 },
                 { outcome: passed ? 'passed' : 'failed', entries: [], duration: 37, start: 100 },
@@ -267,7 +267,7 @@ export const proof = /** @type {const} */ ({
         /** @type {Planned} */
         const item = { command: commands[0], entries: [first, second], cached: false, admissionFailed: false }
         const [, result] = run(undefined)(runPlanned(item, () => pureOk({ passed: true, duration: 43, start: 173 }), cache))
-        assertEq(assertOk(result).entries, item.entries)
+        assertEq(valueAt(assertOk(result), 'entries'), valueAt(item, 'entries'))
         assertEq(assertOk(result).duration, 43)
         assertEq(assertOk(result).start, 173)
         // Disabling the backend after planning must still execute coverage.

@@ -2,7 +2,8 @@ import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJob
 import { toSteps } from '../common/module.f.js'
 import { environmentCommand } from '../environment/module.f.js'
 import { actions, node } from '../config/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const steps = toSteps(platformNodeSteps())
 
@@ -38,8 +39,8 @@ export const proof = {
         const consumer = packageJob(undefined)
         assertEq(packageJobId, 'package')
         assertStructurallySame(consumer.needs, ['node'])
-        assertEq(consumer.steps[0]?.with?.['node-version'], node)
-        assertEq(consumer.steps[0]?.with?.['package-manager-cache'], 'false')
+        assertEq(entry(assertNotNullish(consumer.steps[0]), 'with')?.['node-version'], node)
+        assertEq(entry(assertNotNullish(consumer.steps[0]), 'with')?.['package-manager-cache'], 'false')
         assertEq(consumer.steps[1]?.uses, `actions/download-artifact@${actions['actions/download-artifact']}`)
         assert(consumer.steps.every(step => !step.uses?.startsWith('actions/checkout@') && !step.uses?.startsWith('jdx/mise-action@')))
         assert(consumer.steps.some(step => step.run === 'npx tsc'))
@@ -69,7 +70,7 @@ export const proof = {
                 `actions/checkout@${actions['actions/checkout']}`,
                 'node --test ./fjs/emergent_testing/js-only.mjs',
             ])
-        assertEq(steps[0]?.with?.['node-version'], node)
+        assertEq(entry(assertNotNullish(steps[0]), 'with')?.['node-version'], node)
     },
     // No `npm ci`. There is nothing to install: `package.json` declares no
     // runtime dependency, and its one `devDependency` is types. A step that

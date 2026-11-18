@@ -6,9 +6,10 @@ import {
     publishBranch,
 } from './module.f.js'
 import { images, node, typescript } from '../config/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { definedValues } from '../../types/object/module.f.js'
 import { nameOf } from '../../types/object/name/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 const steps = npmPublishJob.steps
 
@@ -29,7 +30,7 @@ export const proof = {
     onlyPushesToTheBranch: () => {
         assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertEq(nameOf(npmPublishWorkflow), 'npm publish')
-        assertStructurallySame(npmPublishWorkflow.on.push?.branches, [publishBranch])
+        assertStructurallySame(entry(npmPublishWorkflow.on, 'push')?.branches, [publishBranch])
         assertEq(publishBranch, 'main')
         assertEq(npmPublishWorkflow.on.pull_request, undefined)
         assertEq(npmPublishWorkflow.on.merge_group, undefined)
@@ -55,9 +56,9 @@ export const proof = {
     // The registry named where the job configures npm, not left to whatever the
     // runner or `publishConfig` defaults to.
     configuresTheRegistry: () => {
-        const setup = steps[usesIndex('actions/setup-node@')]
-        assertEq(setup?.with?.['registry-url'], 'https://registry.npmjs.org/')
-        assertEq(setup?.with?.['node-version'], node)
+        const setup = steps[Number(usesIndex('actions/setup-node@'))]
+        assertEq(entry(assertNotNullish(setup), 'with')?.['registry-url'], 'https://registry.npmjs.org/')
+        assertEq(entry(assertNotNullish(setup), 'with')?.['node-version'], node)
     },
     // The compiler, which this job has to install because the package does not
     // depend on one. `npm publish` runs `prepack`, which runs `tsc`; without

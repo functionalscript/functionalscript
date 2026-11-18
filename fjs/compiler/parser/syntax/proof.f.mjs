@@ -9,8 +9,9 @@ import { tokenizeString } from '../proof.f.js'
 import { _valueKinds } from '../grammar/module.f.js'
 import { fromEntries } from '../../../types/object/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry as valueAt } from '../../../types/object/entry/module.f.js'
 
 /** @type {(kind: 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => ModuleTokenWithMetadata} */
 const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
@@ -91,7 +92,7 @@ export const proof = {
         }
         const value = unwrap(parseSyntax(tokenizeString('export default ([...rest,]) => rest;'))).exported?.value
         assert(value !== undefined && value[0] === '=>' && hasEntry(value[1], 'fixed'))
-        const target = value[1].fixed[0]
+        const target = assertNotNullish(valueAt(value[1], 'fixed'))[0]
         assert(target[0] === 'array')
         const rest = target[2][0]
         assert(rest[0] === '...' && rest[3] !== undefined)
@@ -120,7 +121,7 @@ export const proof = {
         const source = /** @type {const} */ ('export default ({nested:{...rest,}})=>rest;')
         const value = unwrap(parseSyntax(tokenizeString(source))).exported?.value
         assert(value !== undefined && value[0] === '=>' && hasEntry(value[1], 'fixed'))
-        const target = value[1].fixed[0]
+        const target = assertNotNullish(valueAt(value[1], 'fixed'))[0]
         assert(target[0] === 'object')
         const nested = target[2][0]
         assert(!(nested instanceof Array) && nested.target[0] === 'object')
@@ -154,7 +155,7 @@ export const proof = {
         const target = declaration[1].declaration.target
         assert(target[0] === 'object')
         for (const [index, expected] of [1, 2, 3, 4].map((expected, index) => /** @type {const} */ ([index, expected]))) {
-            const property = target[2][index]
+            const property = target[2][Number(index)]
             assert(hasEntry(property, 'key'))
             const initialized = property.target
             assert(initialized[0] === '=' && initialized[1][0] === 'name')
@@ -183,7 +184,7 @@ export const proof = {
         assertStructurallySame(nested[3], ['array', []])
         const value = unwrap(parseSyntax(tokenizeString('export default ({a=5}={})=>a;'))).exported?.value
         assert(value !== undefined && value[0] === '=>' && hasEntry(value[1], 'fixed'))
-        const parameter = value[1].fixed[0]
+        const parameter = assertNotNullish(valueAt(value[1], 'fixed'))[0]
         assert(parameter[0] === '=' && parameter[1][0] === 'object')
         const property = parameter[1][2][0]
         assert(hasEntry(property, 'key') && property.target[0] === '=')
@@ -459,7 +460,7 @@ export const proof = {
     },
     // One token that is a whole value, of each kind, folded to its primitive.
     primitives: fromEntries(_valueKinds.map(kind => [kind, () => {
-        const [source, expected] = valueSamples[kind]
+        const [source, expected] = assertNotNullish(valueAt(valueSamples, kind))
         const { exported } = unwrap(parseSyntax(tokenizeString(`export default ${source};`)))
         assert(exported !== null)
         assertStructurallySame(exported.value, ['primitive', expected])
