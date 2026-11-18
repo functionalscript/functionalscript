@@ -534,7 +534,7 @@ export const proof = /** @type {const} */ ({
             const source = assertOk(tryModuleStringify(graph))
             graph = moduleGraph(source)
             const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-            const actual = { root, nodes, scope, shared }
+            const actual = /** @type {const} */ ({ root, nodes, scope, shared })
             if (round === 0) { fingerprint = actual }
             else {
                 assertStructurallySame(actual, fingerprint)
@@ -629,7 +629,7 @@ export const proof = /** @type {const} */ ({
                     const text = assertOk(tryModuleStringify(graph))
                     graph = moduleGraph(text)
                     const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-                    const actual = { root, nodes, scope, shared }
+                    const actual = /** @type {const} */ ({ root, nodes, scope, shared })
                     if (round === 0) { stable = actual }
                     else {
                         assertStructurallySame(actual, stable)
