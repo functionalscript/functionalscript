@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parseFromTokens } from './module.f.js'
-import { tokenizeString } from './proof.f.mjs'
+import { tokenizeString } from './proof.f.js'
 
 /** @type {(body: string) => import('../../js/ast/sugar/source.ts').SourceFunction} */
 const fn = body => {

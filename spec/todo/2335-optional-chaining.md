@@ -9,7 +9,7 @@ name/key checks, EDAG lowering and FunctionalScript writer were merged in
 [commit `5774062e6`](https://github.com/functionalscript/functionalscript/commit/5774062e61f7d4f4bb9b9047a5efa53ca7e6281a).
 That change also added the current rules to the
 [language specification](../property-access/optional-chaining/README.md), with proofs in
-[`parser`](../../fjs/compiler/parser/proof.f.mjs) (`optional`),
+[`parser`](../../fjs/compiler/parser/proof.f.js) (`optional`),
 [`edag`](../../fjs/compiler/edag/proof.f.js) (`chains`) and
 [`serializer`](../../fjs/compiler/serializer/proof.f.mjs) (`chains`).
 This record remains open because the required approval evidence is missing.

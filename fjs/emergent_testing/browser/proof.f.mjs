@@ -17,7 +17,7 @@
  * @import { Catch, Sandbox } from '../../effects/common/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import {
     countsView, failureOf, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, unreported,
@@ -27,6 +27,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { ioError, unreadableThrownValue } from '../../effects/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /**
  * The handlers a working page supplies. `catch` cannot really catch — a pure
@@ -281,7 +282,7 @@ export const proof = {
         assertEq(answered[0], 'ok')
         assertEq(answered[1], null)
         assertEq(rows.length, 2)
-        assertEq(rows[0]?.name, 'import("a").proof.x()')
+        assertEq(nameOf(assertNotNullish(rows[0])), 'import("a").proof.x()')
         assertEq(rows[0]?.status, 'passed')
         assertEq(rows[1]?.status, 'failed')
         assertEq(rows[1]?.message, 'oops')

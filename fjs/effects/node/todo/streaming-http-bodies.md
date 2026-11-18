@@ -1115,7 +1115,7 @@ buffering half is what this stage answered.
       them; `State.handles` in [`../virtual/types.ts`](../virtual/types.ts) records
       what each open resolved to, which is the one-inode binding, and
       `handles.throw.unreleasedHandle` in
-      [`../virtual/proof.f.mjs`](../virtual/proof.f.mjs) is that assertion failing
+      [`../virtual/proof.f.js`](../virtual/proof.f.js) is that assertion failing
       on a listener that writes the pure end while holding one. `Open` passes
       `O_NONBLOCK`, which is what lets the kind be asked of the descriptor at all:
       a plain read-only open of a writerless FIFO never returns. This closed the

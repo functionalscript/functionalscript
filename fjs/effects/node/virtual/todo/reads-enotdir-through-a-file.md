@@ -191,7 +191,7 @@ Whichever option is chosen, then:
   longer-path branch returns, which is exactly the case a length test would
   have broken.
 - The three `*NestedThroughFile` fixtures in
-  [`../proof.f.mjs`](../proof.f.mjs) pin the current codes, so they are the ones
+  [`../proof.f.js`](../proof.f.js) pin the current codes, so they are the ones
   that have to change, deliberately, with it.
 
 ### Tasks

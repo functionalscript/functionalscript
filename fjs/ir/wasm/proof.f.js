@@ -16,6 +16,7 @@ import { any, l0, string } from '../l0/module.f.js'
 import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { emit } from './module.f.js'
 import { toJson } from '../../media/json/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /** @type {(m: Module) => ReturnType<typeof emit>} */
 const emitted = m => emit(assertOk(check(m)))
@@ -1632,7 +1633,7 @@ export const proof = {
     "",
     ].join('\n')),
     // A module that has no constants has no `init`.
-    none: () => assertEq(emitted(unknown).exports.map(({ name }) => name).join(), unknown.exports.join()),
+    none: () => assertEq(emitted(unknown).exports.map(nameOf).join(), unknown.exports.join()),
     constants: () => assertEq(wat(emitted(constants)), [
     "(module",
     "  (type (;0;) (func (param i64) (result i32)))",

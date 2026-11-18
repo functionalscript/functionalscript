@@ -74,7 +74,7 @@ const svg = (schema, names) => htmlToString(graphSvg(_graphOf(schema, names)))
 const demoProof = /** @type {const} */ ({
     // The demo opens on the first example's first schema and its value.
     init: () => {
-        assertEq(demo.init.example, examples[0]?.name)
+        assertEq(demo.init.example, nameOf(assertNotNullish(examples[0])))
         assertEq(demo.init.shown, 0)
         assertEq(demo.init.compare, 'Closed vs open#1')
         assertEq(demo.init.text, examples[0]?.value)

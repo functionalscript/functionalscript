@@ -3,7 +3,7 @@
 /** @import { Node } from './types.ts' */
 
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tokenizeString } from '../proof.f.mjs'
+import { tokenizeString } from '../proof.f.js'
 import { parseSyntax } from './module.f.js'
 
 /** @type {(source: string) => Node} */

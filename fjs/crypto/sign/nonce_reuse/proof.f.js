@@ -28,10 +28,10 @@ export const proof = /** @type {const} */ ({
                 assert(s1 !== s2)
                 const publicKey = assertNotNullish(pointMul(recoveredKey)(g))
                 const verifyPublicKey = verifyP256(publicKey)
-                for (const [i, { h, r, s }] of signatures.entries()) {
+                for (const [i, { h, r, s }] of signatures.map(({ h, r, s }, i) => /** @type {const} */ ([i, { h, r, s }]))) {
                     assert(r > 0n && r < order && s > 0n && s < order)
                     assertEq(scalarMul(s)(k), (h + r * key) % order)
-                    assert(verifyPublicKey(messages[i])([r, s]))
+                    assert(verifyPublicKey(messages[Number(i)])([r, s]))
                 }
             }
             assert(nonce(messages[0]) !== nonce(messages[1]))

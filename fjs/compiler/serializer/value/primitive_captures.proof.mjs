@@ -11,7 +11,7 @@ import { Buffer } from 'node:buffer'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { _defaultExport, unresolved } from '../../edag/module.f.js'
 import { parse } from '../../source/module.f.js'
-import { _primitiveCaptureCases, _primitiveCaptureGraphs, _widePrimitiveCaptureGraph } from '../primitive_captures.proof.f.mjs'
+import { _primitiveCaptureCases, _primitiveCaptureGraphs, _widePrimitiveCaptureGraph } from '../primitive_captures.proof.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.js'
 
 /** Eight real source writes/readbacks; no graph or text identity is promised.

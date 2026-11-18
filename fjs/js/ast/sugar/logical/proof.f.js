@@ -58,8 +58,8 @@ export const proof = {
         }
         const literals = ['null', 'undefined', 'false', '0', '-0', 'NaN', '""', 'true', '2', '"value"', '0n', '1n']
         for (const tag of tags) {
-            for (const [index, literal] of literals.entries()) {
-                const left = values[index]
+            for (const [index, literal] of literals.map((literal, index) => /** @type {const} */ ([index, literal]))) {
+                const left = values[Number(index)]
                 const expected = tag === '&&' ? left && 37 : tag === '||' ? left || 37 : left ?? 37
                 const actual = /** @type {{ readonly default: unknown }} */ (sourceData(`export default ${literal} ${tag} 37;`))
                 assert(Object.is(actual.default, expected), [literal, tag, actual.default, expected])
@@ -103,7 +103,7 @@ export const proof = {
                     assert(first instanceof Array && first[0] === '===' && second instanceof Array && second[0] === '===')
                     assertEq(first[1], graph[3])
                     assertEq(second[1], graph[3])
-                } else { assertEq(graph[1], graph[tag === '||' ? 2 : 3]) }
+                } else { assertEq(graph[1], graph[Number(tag === '||' ? 2 : 3)]) }
             }
         }
     },

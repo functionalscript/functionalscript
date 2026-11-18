@@ -30,6 +30,7 @@ import { _casMcpSession, casMcpServer } from './module.f.js'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
 // checks it, so reading a field needs neither a hand-written type nor an `as`
@@ -209,7 +210,8 @@ const toolsOf = resp => {
     assert(tools instanceof Array, tools)
     return tools.map(t => {
         assert(typeof t === 'object' && t !== null && hasEntry(t, 'name') && hasEntry(t, 'inputSchema'), t)
-        const { name, inputSchema } = t
+        const name = entry(t, 'name')
+        const { inputSchema } = t
         assert(typeof name === 'string', name)
         assert(typeof inputSchema === 'object' && inputSchema !== null && hasEntry(inputSchema, 'type'), inputSchema)
         return { name, schemaType: inputSchema.type }

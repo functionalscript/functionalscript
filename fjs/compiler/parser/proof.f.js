@@ -28,6 +28,7 @@ import { htmlToString } from '../../media/html/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { isObject } from '../../types/object/module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -129,7 +130,7 @@ export const proof = {
             const exports = /** @type {const} */ (['{}', [[':', 'default', 1], [':', 'x', 2], [':', 'as', 3]]])
             assertStructurallySame(assertOk(toData(_evaluate(module, module.imports.map(() => exports)))), { default: [1, 2, 2, 1, 3] })
             const syntax = unwrap(parseSyntax(tokenizeString(source)))
-            assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
+            assertStructurallySame(syntax.imports[0].bindings.map(b => [nameOf(b), b.local.token]), [
                 ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
                 ['x', { kind: 'id', value: 'y' }], ['default', { kind: 'id', value: 'z' }],
                 ['as', { kind: 'id', value: 'from' }],
@@ -137,7 +138,7 @@ export const proof = {
         },
         empty: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
-            assertStructurallySame(module.imports.map(({ name }) => name), [null, 'default'])
+            assertStructurallySame(module.imports.map(nameOf), [null, 'default'])
             const exports = /** @type {const} */ (['{}', [[':', 'default', 7]]])
             assertStructurallySame(assertOk(toData(_evaluate(module, [exports, exports]))), { default: 7 })
         },

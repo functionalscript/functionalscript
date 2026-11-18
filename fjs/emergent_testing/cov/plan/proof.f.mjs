@@ -13,6 +13,7 @@ import { access, ioError, nodeCommands, readdir } from '../../../effects/node/mo
 import { utf8ToString } from '../../../text/utf8/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { createPlan, runPlanned } from './module.f.js'
+import { entry as valueAt } from '../../../types/object/entry/module.f.js'
 
 /** @type {(key: string) => Entry} */
 const entry = key => ({ manifest: { target: key }, key, path: `.cas/${key}`, payload: key, byteLength: key.length })
@@ -73,7 +74,7 @@ const execute = (options = {}) => {
     /** @type {CoverageCache} */
     const cache = {
         prepare: selected => mapStep(access(`prepare ${selected.directory}`), () =>
-            (options.entries ?? defaults)[selected.directory] ?? []),
+            valueAt(valueAt(options, 'entries') ?? defaults, selected.directory) ?? []),
         lookup: entries => mapStep(access(`lookup ${entries.map(entry => entry.key).join(',')}`), () =>
             options.hits ?? entries.map(() => false)),
         validate: selected => mapStep(readdir(`validate ${selected.directory}`, {}), entries => entries.length !== 0),

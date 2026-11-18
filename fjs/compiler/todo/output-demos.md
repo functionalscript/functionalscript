@@ -101,7 +101,7 @@ which outputs accept which example.
   string escape stops in the tokenizer as an `error` token with a span; the
   unfinished module reaches the parser and is refused as `unexpected end`
   ([tokenizer proof](../tokenizer/proof.f.js),
-  [parser proof](../parser/proof.f.mjs)).
+  [parser proof](../parser/proof.f.js)).
 - Operators and calls execute for `.json` and `.data.js`. A selected function
   is refused during output conversion; a reached failing initializer produces
   a source failure during module initialization. The side-by-side page shows

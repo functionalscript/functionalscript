@@ -1,7 +1,7 @@
 /**
  * Host proofs of the emitter: what only a WebAssembly engine can settle.
  *
- * [`proof.f.mjs`](./proof.f.mjs) holds the WAT that the emitter writes.
+ * [`proof.f.js`](./proof.f.js) holds the WAT that the emitter writes.
  * Whether that is a module an engine accepts, and whether it computes what
  * the IR means, needs an engine, and FunctionalScript runs no WebAssembly.
  * So each module of [`testlib.f.js`](../testlib.f.js) is compiled here by

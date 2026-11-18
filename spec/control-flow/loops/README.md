@@ -385,7 +385,7 @@ records the eligible helper shape and recursive fallback for other graphs.
 ## Implementation evidence
 
 The parser's `loops.generalStateAdmission` proof in
-[`parser/proof.f.mjs`](../../../fjs/compiler/parser/proof.f.mjs) covers zero and
+[`parser/proof.f.js`](../../../fjs/compiler/parser/proof.f.js) covers zero and
 multiple state bindings, sequential and selected loops, snapshots and 18 state
 bindings. Shared sugar proofs in
 [`sugar/proof.f.js`](../../../fjs/js/ast/sugar/proof.f.js) cover binding order,

@@ -132,7 +132,7 @@ export const proof = /** @type {const} */ ({
             result(ref(chosen), [['define', cell, selected(ref(condition), 7, 0), 'lazy'], shadow,
                 ['if', [], ref(condition), normal(), normal()], ['define', chosen, ref(cell), 'required']]),
         ]
-        for (const [index, before] of cases.entries()) {
+        for (const [index, before] of cases.map((before, index) => /** @type {const} */ ([index, before]))) {
             const after = _joinResults(before)
             const expected = index === 2 ? 3 : [7, 3]
             assertStructurallySame(assertOk(toData(assertOk(evaluate(before, condition, true)))), expected)
@@ -151,7 +151,7 @@ export const proof = /** @type {const} */ ({
                 ['define', local, ['array', [fail('earlier'), ref(cell)]], 'required'],
             ]), normal()], decision, consumer]),
         ]
-        for (const [index, before] of cases.entries()) {
+        for (const [index, before] of cases.map((before, index) => /** @type {const} */ ([index, before]))) {
             const after = _joinResults(before)
             assert(after.statements.includes(deferred))
             for (const block of [before, after]) {
@@ -324,7 +324,7 @@ export const proof = /** @type {const} */ ({
             result(ref(chosen), [prefix, ['define', selectedValue, 11, 'required'], following, recipe,
                 ['if', [], ref(condition), normal(), normal()], consumer]),
         ]
-        for (const [index, before] of cases.entries()) {
+        for (const [index, before] of cases.map((before, index) => /** @type {const} */ ([index, before]))) {
             const after = _joinResults(before)
             assertStructurallySame(after, before)
             const expected = index === 2 ? 9 : [index === 3 ? 11 : 2, 9]

@@ -35,7 +35,7 @@ numbers reshape the `.` branch of `operator` anyway.
 
 - [ ] With leading-dot numbers, `a?.5:1` tokenizes as `a`, `?`, `.5`, `:`,
       `1` and compiles as `a ? .5 : 1` does, while `a?.b` still tokenizes as
-      `a`, `?.`, `b`; both pinned in [`../proof.f.mjs`](../proof.f.mjs).
+      `a`, `?.`, `b`; both pinned in [`../proof.f.js`](../proof.f.js).
 
 ### Related
 

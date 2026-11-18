@@ -122,7 +122,7 @@ walker to validate accessors, prototypes or cycles.
   [`ast/types.ts`](../../../compiler/ast/types.ts) carries the shape and
   [`fjs/compiler/README.md`](../../../compiler/README.md) records why the list is flat, with the
   design's own `['cref', n]` / `['aref', n]` / `['array', …]` spellings visible
-  in [`parser/proof.f.mjs`](../../../compiler/parser/proof.f.mjs).
+  in [`parser/proof.f.js`](../../../compiler/parser/proof.f.js).
 - `i77` (retired) — identifier property names, the DJS object-key delta. It was
   `Support for property accessor`, and its whole body was a pointer to the spec
   section plus a sketch of the operators (`instant_property`, `at`,

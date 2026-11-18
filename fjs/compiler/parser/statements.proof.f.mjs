@@ -4,7 +4,7 @@
  * nothing can read
  * ([spec: call statements](../../../spec/functions/call-statements/README.md)) —
  * and the order statements stand in, what begins one, and which error a
- * malformed run of them reports first. Split off `./proof.f.mjs`, as
+ * malformed run of them reports first. Split off `./proof.f.js`, as
  * `./operators.proof.f.mjs` is, when that file outgrew what the website's
  * build accepts in one file — 128 KiB, which it passed at `b3a6e6c` —
  * along the seam its own sections drew. It reads the parser as that proof does, through the helpers it
@@ -15,7 +15,7 @@
  */
 
 import { parseFromTokens } from './module.f.js'
-import { expectModule, expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
+import { expectModule, expectRefused, stringifyModule, tokenizeString } from './proof.f.js'
 import { unresolved } from '../edag/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.js'

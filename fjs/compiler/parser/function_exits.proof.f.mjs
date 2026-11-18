@@ -6,7 +6,7 @@ import { memo } from '../../edag/memo/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { unresolved } from '../edag/module.f.js'
 import { parseFromTokens } from './module.f.js'
-import { _evaluate, tokenizeString } from './proof.f.mjs'
+import { _evaluate, tokenizeString } from './proof.f.js'
 
 export const proof = /** @type {const} */ ({
     sourceTargetsFollowOrdinaryFunctions: () => {

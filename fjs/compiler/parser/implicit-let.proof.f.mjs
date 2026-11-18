@@ -6,7 +6,7 @@ import { assertEq, assertError, assertNotNullish, assertOk, assertStructurallySa
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { normalize } from '../../js/ast/sugar/module.f.js'
 import { parseFromTokens } from './module.f.js'
-import { _evaluate, stringifyModule, tokenizeString } from './proof.f.mjs'
+import { _evaluate, stringifyModule, tokenizeString } from './proof.f.js'
 
 /** @type {(source: string) => ResolvedModule} */
 const admitted = source => assertOk(parseFromTokens(tokenizeString(source)))

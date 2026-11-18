@@ -1,6 +1,6 @@
 /** Source admission and graph lowering for defaults inside binding patterns. */
 
-import { _evaluate, expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
+import { _evaluate, expectModule, expectRefused, tokenizeString } from './proof.f.js'
 import { parseFromTokens } from './module.f.js'
 import { assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'

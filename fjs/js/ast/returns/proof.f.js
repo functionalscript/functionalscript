@@ -542,7 +542,7 @@ export const proof = /** @type {const} */ ({
         const prefix = /** @type {Statement} */ (['define', before, 4, 'required'])
         const suffix = /** @type {Statement} */ (['define', after, 9, 'required'])
         for (const length of /** @type {const} */ ([1, 3])) {
-            const bindings = Array.from({ length }, id)
+            const bindings = generate(length, () => id())
             const values = length === 1 ? [selected] : [ref(value), selected, ref(value)]
             const normal = yielded(values, [prefix])
             for (const kind of /** @type {const} */ (['block', 'if'])) {
@@ -559,9 +559,9 @@ export const proof = /** @type {const} */ ({
                 assert(regionBody.exit[0] === 'yield')
                 assertEq(regionBody.exit[1].length, length)
                 for (let index = 0; index < length; index += 1) {
-                    const established = regionBody.statements[index + 1]
+                    const established = regionBody.statements[Number(index + 1)]
                     assert(established[0] === 'define' || established[0] === 'block')
-                    const read = regionBody.exit[1][index]
+                    const read = regionBody.exit[1][Number(index)]
                     assert(read instanceof Array && read[0] === 'ref')
                     assertEq(read[1], established[0] === 'define' ? established[1] : established[1][0])
                 }

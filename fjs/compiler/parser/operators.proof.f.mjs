@@ -1,5 +1,5 @@
 /**
- * The proof of the parser's operators, the prefix `-` and Stage A and B of `spec/operators/README.md`, split off `./proof.f.mjs` when that file
+ * The proof of the parser's operators, the prefix `-` and Stage A and B of `spec/operators/README.md`, split off `./proof.f.js` when that file
  * outgrew what the website's build accepts in one file — 128 KiB, which it
  * passed at `e15e2ea` — along the seam its own sections drew. It reads the
  * parser as that proof does, through the helpers it exports.
@@ -9,7 +9,7 @@
  */
 
 import { parseFromTokens } from './module.f.js'
-import { expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
+import { expectRefused, stringifyModule, tokenizeString } from './proof.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 /**

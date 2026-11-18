@@ -5,7 +5,7 @@
  * @import { Exp } from '../../edag/types.ts'
  */
 
-import { expectModule, expectRefused } from './proof.f.mjs'
+import { expectModule, expectRefused } from './proof.f.js'
 import { _stringifyTree } from '../module.f.js'
 
 export const proof = /** @type {const} */ ({

@@ -1088,9 +1088,7 @@ export const proof = {
             readWhole: path => log => [
                 [...log, `readWhole ${path}`],
                 path === packedRefs
-                    ? ok(Array.from(
-                        { length: Math.ceil(text.length / chunk) },
-                        (_, k) => u8ListToVecMsb(text.slice(k * chunk, (k + 1) * chunk))))
+                    ? ok(generate(Math.ceil(text.length / chunk), k => u8ListToVecMsb(text.slice(k * chunk, (k + 1) * chunk))))
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -1478,7 +1476,7 @@ export const proof = {
         const rs = run(root, tryRoots(one(''), 20))
         assert(rs !== null)
         assertEq(rs.length, 1)
-        assertStructurallySame(toArray(rs[0].name), name)
+        assertStructurallySame(toArray(nameOf(rs[0])), name)
         assertEq(codePointListToString(toHex(rs[0].id)), a)
         // The lookup refuses, because it does *not* look: a loose file of this
         // name shadows the packed line by existing, and no path can be built to

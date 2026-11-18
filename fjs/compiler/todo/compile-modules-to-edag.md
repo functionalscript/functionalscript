@@ -585,7 +585,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation. Done:
       `AstObject` is `['object', entries]`, a member or a spread each, pinned by
-      `membersAsWritten` in `fjs/compiler/parser/proof.f.mjs`.
+      `membersAsWritten` in `fjs/compiler/parser/proof.f.js`.
 - [x] Convert a parsed source module to `Unresolved { imports, edag }` without reading
       or resolving any imported module. Done: `unresolved` in
       [`fjs/compiler/edag`](../edag/module.f.js), a function of the AST alone.
@@ -665,7 +665,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:
       `call` in [`../parser/grammar/proof.f.js`](../parser/grammar/proof.f.js),
-      `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
+      `func.call` and `func.callRefused` in [`../parser/proof.f.js`](../parser/proof.f.js),
       `call` in [`../edag/proof.f.js`](../edag/proof.f.js) and in
       [`../proof.f.mjs`](../proof.f.mjs).
 - [x] Whenever optional chaining enters the source subset, lower chain boundaries per
@@ -675,7 +675,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       against `(a?.b).c`, `a?.b(d)` against `(a?.b)(d)`, and `(a?.b.c)(d)` against
       `(a?.b).c(d)`. Done: the syntax reader folds the steps after a `?.` into the
       chain node and a group closes the region, `access.optional` in
-      [`../parser/proof.f.mjs`](../parser/proof.f.mjs) pinning every spelling of the
+      [`../parser/proof.f.js`](../parser/proof.f.js) pinning every spelling of the
       table; the lowering carries the nodes as they are, `chains` in
       [`../edag/proof.f.js`](../edag/proof.f.js); a group stays transparent for the
       non-optional spellings, `(a.b)(c)` one node with `a.b(c)` as before.
@@ -718,11 +718,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       prohibited names are refused (`access`; a key computed at run time is the
       conversion `Number(...)` or refused by the fold, not the grammar,
       `conversion.index` and `conversion.indexRefused` in
-      [`fjs/compiler/parser/proof.f.mjs`](../parser/proof.f.mjs));
+      [`fjs/compiler/parser/proof.f.js`](../parser/proof.f.js));
       `unresolved` is a function of the AST alone and import positions follow the
       source (`parameters`); object-entry order, integer-like and duplicate keys
       included, survives to the EDAG (`membersAsWritten` in
-      [`fjs/compiler/parser/proof.f.mjs`](../parser/proof.f.mjs), `shadowed`); a linked
+      [`fjs/compiler/parser/proof.f.js`](../parser/proof.f.js), `shadowed`); a linked
       program is one EDAG with no module metadata (`resolve`). (Object-entry keys are
       not restricted to string constants — see `edag-stage1-discussion.md` subject 4 —
       and entry-descriptor identity is not checked — see the same subject — so neither

@@ -1,6 +1,6 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { parseSyntax } from '../syntax/module.f.js'
-import { tokenizeString } from '../proof.f.mjs'
+import { tokenizeString } from '../proof.f.js'
 import { declarations } from './module.f.js'
 
 /** @type {(source: string) => import('../syntax/types.ts').Const} */

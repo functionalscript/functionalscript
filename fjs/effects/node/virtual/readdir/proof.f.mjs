@@ -15,6 +15,7 @@ import { utf8 } from '../../../../text/module.f.js'
 import { parse } from '../../../../path/module.f.js'
 import { emptyState, virtualOperationMap } from '../module.f.js'
 import { _compareNames, _orderDirents } from './module.f.js'
+import { nameOf } from '../../../../types/object/name/module.f.js'
 
 /** @type {readonly []} */
 const file = []
@@ -25,7 +26,7 @@ const paths = (base, options) => {
         ...emptyState,
         root: { base },
     })
-    return assertOk(result).map(({ name, parentPath }) => `${parentPath}/${name}`)
+    return assertOk(result).map(d => `${d.parentPath}/${nameOf(d)}`)
 }
 
 /** @type {(parentPath: string, name: string, isDirectory?: boolean) => Dirent} */
@@ -57,8 +58,8 @@ export const proof = {
             /** @type {readonly string[]} */
             const names = ['10', '9', 'Z', 'a', 'a!', 'z', '\uE000', '\u{10000}']
             const input = names.toReversed().map(name => entry('base', name))
-            assertStructurallySame(order(input).map(v => v.name), names)
-            assertStructurallySame(input.map(v => v.name), names.toReversed())
+            assertStructurallySame(order(input).map(v => nameOf(v)), names)
+            assertStructurallySame(input.map(v => nameOf(v)), names.toReversed())
         },
         recursive: () => {
             // Parent components, not full paths: a/x belongs before a!/x.

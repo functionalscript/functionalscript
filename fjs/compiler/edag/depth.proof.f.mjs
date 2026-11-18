@@ -68,7 +68,7 @@ const expectElseChain = depth => exp => {
 export const proof = {
     // A chain of operators, as deep as the source that built it: `lower`
     // walks one with an explicit stack rather than recursion, so 5,000
-    // terms — the depth `fjs/compiler/parser/proof.f.mjs`'s own `stackSafety`
+    // terms — the depth `fjs/compiler/parser/proof.f.js`'s own `stackSafety`
     // uses — cost no call stack. Left-associative for a binary operator,
     // the EDAG nests on its own left, `((1+1)+1)+…`, checked by
     // `expectPlusChain` rather than `expectEdag` for the reason given on

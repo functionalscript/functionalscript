@@ -1,5 +1,5 @@
 /**
- * The proof of the parser's functions: their parameter lists, bodies and captures, split off `./proof.f.mjs` when that file
+ * The proof of the parser's functions: their parameter lists, bodies and captures, split off `./proof.f.js` when that file
  * outgrew what the website's build accepts in one file — 128 KiB, which it
  * passed at `e15e2ea` — along the seam its own sections drew. It reads the
  * parser as that proof does, through the helpers it exports.
@@ -9,7 +9,7 @@
  */
 
 import { parseFromTokens } from './module.f.js'
-import { stringifyModule, tokenizeString } from './proof.f.mjs'
+import { stringifyModule, tokenizeString } from './proof.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

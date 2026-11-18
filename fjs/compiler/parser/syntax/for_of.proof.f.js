@@ -10,6 +10,7 @@ import { unwrap } from '../../../types/result/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
 import { parseSyntax } from './module.f.js'
+import { nameOf } from '../../../types/object/name/module.f.js'
 
 /** @type {(source: string) => Module} */
 const read = source => unwrap(parseSyntax(tokenize(stringToList(source))('for-of.f.js')))
@@ -73,7 +74,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(loop[1].iterable[1].token, { kind: 'id', value: 'of' })
         const classic = read('let of=0;for(of=0;of<2;of+=1){}export default of;').statements[1]
         assert(classic[0] === 'for' && classic[1].initializer !== null && classic[1].initializer[0] === 'assign')
-        assertStructurallySame(classic[1].initializer[1].name.token, { kind: 'id', value: 'of' })
+        assertStructurallySame(nameOf(classic[1].initializer[1]).token, { kind: 'id', value: 'of' })
         assertEq(classic[1].condition[0], '<')
         assert(classic[1].step !== null && classic[1].step[0] === 'assign')
         assertEq(classic[1].step[1].operator?.tag, '+')

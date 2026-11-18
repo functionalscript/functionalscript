@@ -40,9 +40,7 @@ const chunkBytes = Number(maxLengthBytes)
  *
  * @type {(b: readonly number[]) => readonly Vec[]}
  */
-const chunked = b => Array.from(
-    { length: max(1, Math.ceil(b.length / chunkBytes)) },
-    (_, k) => u8ListToVecMsb(b.slice(k * chunkBytes, (k + 1) * chunkBytes)))
+const chunked = b => generate(max(1, Math.ceil(b.length / chunkBytes)), k => u8ListToVecMsb(b.slice(k * chunkBytes, (k + 1) * chunkBytes)))
 
 /** How wide an id is in every fixture here, and so how long each checksum is. */
 const width = /** @type {const} */ (20)
@@ -121,8 +119,8 @@ const objects = /** @type {readonly (readonly [string, number])[]} */ ([
  */
 const swapped = swaps => ({
     pack: [
-        ...swaps.flatMap(([from, , stream], i) => [...packMixed.slice(i === 0 ? 0 : swaps[i - 1][1], from), ...stream]),
-        ...packMixed.slice(swaps[swaps.length - 1][1]),
+        ...swaps.flatMap(([from, , stream], i) => [...packMixed.slice(i === 0 ? 0 : swaps[Number(i - 1)][1], from), ...stream]),
+        ...packMixed.slice(swaps[Number(swaps.length - 1)][1]),
     ],
     moved: offset => offset + swaps.filter(([, to]) => to <= offset).reduce((n, [from, to, stream]) => n + stream.length - (to - from), 0),
 })
@@ -904,9 +902,7 @@ export const proof = {
         // every id but the first sits at 525, which is what closes the window of
         // the entry at 508 — an index whose offsets are all one number leaves the
         // first entry running to the pack's checksum
-        const many = idxOf(Array.from(
-            { length: 5_000 },
-            (_, k) => [`${idPrefixHex(k)}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
+        const many = idxOf(generate(5_000, k => [`${idPrefixHex(k)}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
         assert(many.length > Number(maxLengthBytes))
         // the host hands it back in two, which is what a join has to survive
         assertEq(chunked(many).length, 2)

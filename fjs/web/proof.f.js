@@ -81,7 +81,7 @@ const answerRequest = (root, rootArgument = '.') => req => {
     assert(result[0] === 'ok', result)
     assertEq(s.responses.length, 1)
     // `release` gave every handle back — see `handles` in
-    // `../effects/node/virtual/proof.f.mjs` for this assertion failing on a
+    // `../effects/node/virtual/proof.f.js` for this assertion failing on a
     // listener that does not.
     assertEq(s.handles.length, 0, s.handles)
     return s.responses[0]

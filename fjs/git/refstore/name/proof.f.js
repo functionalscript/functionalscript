@@ -1,7 +1,7 @@
 /**
  * The codec on its own, with no filesystem: every rule here is a function of
  * a name's bytes. What the store makes of each answer — which file it opens,
- * which name it refuses — is [`../proof.f.mjs`](../proof.f.mjs)'s.
+ * which name it refuses — is [`../proof.f.js`](../proof.f.js)'s.
  *
  * Names are written byte per code unit through `latin1`, so `\xC3\xA9` is the
  * two bytes of `é` and `\x80` is the one byte no UTF-8 starts with.

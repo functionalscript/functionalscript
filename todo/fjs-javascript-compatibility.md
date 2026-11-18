@@ -94,7 +94,7 @@ admitted a unary expression to the left of exponentiation,
 instead, and its `c1d7166` refuses `**` immediately after a `-`/`~` operand
 at any nesting through the grammar's `unaryOperand`, as ECMAScript's
 [exponentiation](https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-exp-operator)
-does; `fjs/compiler/parser/proof.f.mjs` holds the refusals and the valid
+does; `fjs/compiler/parser/proof.f.js` holds the refusals and the valid
 `(-2) ** 2` and `-(2 ** 2)`. What is left is the comparison against a native
 JavaScript engine's early errors, and extending that gate to the
 logical/nullish operators and parameter syntax, which have since landed. The

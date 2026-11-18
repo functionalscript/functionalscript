@@ -8,7 +8,7 @@ export const proof = {
     covered: () => {
         /** @type {(text: string) => string} */
         const covered = text => toJson(spansOf(text).map(({ start, length, kind }) =>
-            [kind, Array.from(text).slice(start, start + length).join('')]))
+            [kind, [...text].slice(start, start + length).join('')]))
         // a character beyond U+FFFF counts once before it, in a string and in a comment
         assertEq(covered('"😀" 1n'), '[["string","\\"😀\\""],["number","1n"]]')
         assertEq(covered('😀 = x'), '[]')
@@ -47,7 +47,7 @@ export const proof = {
     typeScript: () => {
         /** @type {(text: string) => string} */
         const keywords = text => toJson(tsSpansOf(text).flatMap(({ start, length, kind }) =>
-            kind === 'keyword' ? [Array.from(text).slice(start, start + length).join('')] : []))
+            kind === 'keyword' ? [[...text].slice(start, start + length).join('')] : []))
         // an operand follows: a name, a keyword, a string, `{`, and `[` after `readonly`
         assertEq(keywords('export type A = readonly B[]'), '["export","type","readonly"]')
         assertEq(keywords('x as const; declare module "m"; import type { A }'), '["as","const","declare","module","import","type"]')

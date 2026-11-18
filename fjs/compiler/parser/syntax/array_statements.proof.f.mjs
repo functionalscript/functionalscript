@@ -1,7 +1,7 @@
 /** An array-led expression retains its discard record and exact opening token. */
 
 import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
-import { tokenizeString } from '../proof.f.mjs'
+import { tokenizeString } from '../proof.f.js'
 import { parseSyntax } from './module.f.js'
 
 export const proof = /** @type {const} */ ({

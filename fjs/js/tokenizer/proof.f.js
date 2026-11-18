@@ -108,7 +108,7 @@ export const proof = {
         }
         assertEq(errorAt("'\\u{110000}'"), '1:1..1:13')
         const json = parser(jsonString)
-        assertEq(json(Array.from('"\\u{41}"', character => ({ symbol: character.charCodeAt(0), meta: null })))[0], 'error')
+        assertEq(json([...'"\\u{41}"'].map(character => ({ symbol: character.charCodeAt(0), meta: null })))[0], 'error')
     },
 
     templates: {

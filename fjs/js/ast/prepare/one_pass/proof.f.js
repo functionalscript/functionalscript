@@ -220,17 +220,17 @@ export const proof = /** @type {const} */ ({
         const result = accepted(fn)
         const aliases = result.body.statements.slice(0, prefix.length + loop.parameters.length)
         assertEq(aliases.length, prefix.length + loop.parameters.length)
-        for (const [index, statement] of aliases.entries()) {
+        for (const [index, statement] of aliases.map((statement, index) => /** @type {const} */ ([index, statement]))) {
             assert(statement[0] === 'define')
             assertEq(statement[3], 'required')
-            const original = index < prefix.length ? prefix[index] : null
+            const original = index < prefix.length ? prefix[Number(index)] : null
             if (original !== null) {
                 assert(original[0] === 'define')
                 assertEq(statement[1], original[1])
                 assertEq(statement[2], original[2])
             } else {
-                assertEq(statement[1], loop.parameters[index - prefix.length])
-                assertEq(statement[2], loop.initial[index - prefix.length])
+                assertEq(statement[1], loop.parameters[Number(index - prefix.length)])
+                assertEq(statement[2], loop.initial[Number(index - prefix.length)])
             }
         }
         assertEq(result.rest, fn.rest)
@@ -291,7 +291,7 @@ export const proof = /** @type {const} */ ({
         const source = fixture().fn
         const { fn } = wrapped(source)
         const result = accepted(fn)
-        const definition = result.body.statements[result.parameters.length + 1]
+        const definition = result.body.statements[Number(result.parameters.length + 1)]
         assert(definition[0] === 'define')
         const value = definition[2]
         assert(value instanceof Array && value[0] === 'function')
@@ -301,7 +301,7 @@ export const proof = /** @type {const} */ ({
         assertEq(helper.body.statements[0], source.body.statements[2])
         assert(helper.body.exit[0] === 'return')
         assertEq(helper.body.exit[1], helper.target)
-        const guard = result.body.statements[result.parameters.length + 2]
+        const guard = result.body.statements[Number(result.parameters.length + 2)]
         assert(guard[0] === 'if' && guard[3].exit[0] === 'return')
         assertEq(guard[3].exit[1], fn.target)
         const early = guard[3].statements[0]
@@ -411,7 +411,7 @@ export const proof = /** @type {const} */ ({
         const candidate = returned(source, value)
         const { fn } = wrapped(candidate)
         const result = accepted(fn, true)
-        const definition = result.body.statements[result.parameters.length + 1]
+        const definition = result.body.statements[Number(result.parameters.length + 1)]
         assert(definition[0] === 'define')
         const helper = definition[2]
         assert(helper instanceof Array && helper[0] === 'function' && helper[1].body.exit[0] === 'return')

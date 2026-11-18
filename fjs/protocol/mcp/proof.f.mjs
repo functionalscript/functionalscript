@@ -29,6 +29,8 @@ import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
     toolResultStep, toolStep,
 } from './module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -165,7 +167,7 @@ const toolNames = resp => {
     assert(tools instanceof Array, tools)
     return tools.map(t => {
         assert(typeof t === 'object' && t !== null && hasEntry(t, 'name'), t)
-        const { name } = t
+        const name = entry(t, 'name')
         assert(typeof name === 'string', name)
         return name
     })
@@ -549,9 +551,9 @@ export const proof = {
         // place that would notice.
         inlineSchemaLiteralKeepsItsLiteralMembers: () => {
             const entry = toolEntry('tag', 'tags', { kind: 'add', name: string },
-                ({ kind, name }) => {
-                    /** @typedef {Assert<Equal<typeof kind, 'add'>>} _ConstParameter */
-                    return pureOk(okResult(`${kind}:${name}`))
+                input => {
+                    /** @typedef {Assert<Equal<typeof input.kind, 'add'>>} _ConstParameter */
+                    return pureOk(okResult(`${input.kind}:${nameOf(input)}`))
                 })
             const handlers = fromRegistry([entry])
             const [r] = runPure(handlers.toolsCall(

@@ -3,7 +3,7 @@
  * name, and which of the two walks of `refs/` keeps it or descends into it.
  * The names are the rows `isPseudoref`'s table measured against Git 2.43.0;
  * that the store reads and lists them from those directories is
- * [`../proof.f.mjs`](../proof.f.mjs)'s.
+ * [`../proof.f.js`](../proof.f.js)'s.
  *
  * @import { Dirs } from '../types.ts'
  */

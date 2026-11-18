@@ -3,6 +3,7 @@
 import { assert, assertEq, assertOk, assertError, assertNotNullish } from '../../../asserts/module.f.js'
 import { eq, curve } from '../../../crypto/secp/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, onRealCurve, construction, namedCurves, publicKey } from './module.f.js'
+import { nameOf } from '../../../types/object/name/module.f.js'
 
 export const proof = {
     finite: () => {
@@ -103,7 +104,9 @@ export const proof = {
         assertEq(assertError(publicKey('missing', '3')), 'Select a supported curve.')
         assertEq(assertError(publicKey('secp256k1', '0')), 'The private scalar must satisfy 1 ≤ d < n.')
         assertError(publicKey('secp256k1', 'xyz'))
-        for (const { name, curve } of namedCurves) {
+        for (const named of namedCurves) {
+            const name = nameOf(named)
+            const { curve } = named
             assertOk(publicKey(name, '1'))
             assertOk(publicKey(name, '3'))
             assertError(publicKey(name, curve.nf.p.toString()))

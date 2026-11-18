@@ -50,7 +50,7 @@ presence-before-length order every one of them needs: an absent first name is
 
 ### Tasks
 
-- [ ] Pin the eight answers above in [`../proof.f.mjs`](../proof.f.mjs) with
+- [ ] Pin the eight answers above in [`../proof.f.js`](../proof.f.js) with
       the code Node gives. Coordinate the read-through-file case with
       [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md).
 - [ ] Keep the differential as a proof: one table of scenarios, run against the

@@ -3,7 +3,7 @@
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { parseSyntax } from './syntax/module.f.js'
 import { parseFromTokens } from './module.f.js'
-import { tokenizeString } from './proof.f.mjs'
+import { tokenizeString } from './proof.f.js'
 
 export const proof = /** @type {const} */ ({
     deepBodiesUseTheWorklist: () => {
