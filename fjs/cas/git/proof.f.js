@@ -7,6 +7,7 @@
  * @import { TreeEntry } from '../../git/tree/types.ts'
  * @import { ObjectType, Oid, OidBytes } from '../../git/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  * @import { EffectList } from '../../effects/list/types.ts'
  * @import { Dirs } from '../../git/refstore/types.ts'
  * @import { Author, Branch, CasReader, SnapshotOperation, WriteOperation } from './types.ts'
@@ -319,7 +320,7 @@ const assertUntouched = (before, after) => {
  * A SHA-1 CAS holding `bytes` under its key, as objects in memory: the root
  * tree's id and every object by its hex id, for a reader that is no store.
  *
- * @type {(bytes: readonly number[]) => { readonly root: Oid, readonly held: Readonly<Record<string, Envelope>> }}
+ * @type {(bytes: readonly number[]) => { readonly root: Oid, readonly held: StringMap<Envelope> }}
  */
 const inMemory = bytes => {
     const { idOf } = sha1
