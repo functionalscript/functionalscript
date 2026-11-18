@@ -10,7 +10,7 @@ import type { Set } from '../types.ts'
 import type { byte } from './module.f.js'
 
 // The universe is every byte, spelled as the range it is. This was
-// `./proof.f.mjs`'s `byte` entry, where it sat after the entry's last
+// `./proof.f.js`'s `byte` entry, where it sat after the entry's last
 // statement and so bound to nothing, green whatever it claimed
 // (`../../AGENTS.md` §1.4). The two claims left there are about what a call
 // site infers, which has no module-scope spelling, so they stay and a

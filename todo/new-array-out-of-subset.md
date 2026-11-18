@@ -29,7 +29,7 @@ through; the one place the two differ is noted in it:
 | - | - |
 | `fjs/rtti/validate/proof.f.mjs` | 11 (12 expressions: one line carries two) |
 | `fjs/edag/proof.f.mjs` | 4 |
-| `fjs/rtti/common/proof.f.mjs` | 3 |
+| `fjs/rtti/common/proof.f.js` | 3 |
 | `fjs/rtti/data/proof.f.mjs` | 3 |
 | `fjs/types/range_set/proof.f.js` | 3 |
 | `fjs/media/datajs/serializer/proof.f.mjs` | 1 (since removed under its FunctionalScript input contract) |

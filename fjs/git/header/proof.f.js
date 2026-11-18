@@ -225,8 +225,8 @@ export const proof = {
         lazy: () => {
             const lazy = latin1('x\ny').map(b => b)
             const out = write({
-                headers: [[latin1('k'), fromArrayLike(new Uint8Array(lazy))]],
-                message: fromArrayLike(new Uint8Array(latin1('m'))),
+                headers: [[latin1('k'), fromArrayLike(lazy)]],
+                message: fromArrayLike(latin1('m')),
             })
             assert(!(out instanceof Array))
             assertStructurallySame(toArray(out), latin1('k x\n y\n\nm'))

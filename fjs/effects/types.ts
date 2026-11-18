@@ -29,7 +29,7 @@ import type {
  * returned {@link OpResult} or {@link IoResult} when this constraint was added,
  * and so did four of the six declared inside proofs — through a bare `Result`
  * rather than either alias, which were then declared in `./node/types.ts` and
- * so read as node conveniences. The two in `./proof.f.mjs` returned a bare
+ * so read as node conveniences. The two in `./proof.f.js` returned a bare
  * `number`, and the commit that added the rule rewrote them.
  *
  * It is also the latch the whole representation now rests on. An operation
@@ -370,7 +370,7 @@ export type Func<O extends Operation> =
 // definition and fail only at some future call site, so each rule is written
 // down as a check here, and the combinator signatures with them.
 //
-// Those signatures were `./proof.f.mjs`'s `signatures` entry, downstream of
+// Those signatures were `./proof.f.js`'s `signatures` entry, downstream of
 // the implementation they verify. Its body was nothing but typedefs, so none
 // of them bound to a statement and all eight were green whatever they claimed
 // (`../AGENTS.md` §1.4). A module-scope alias is resolved on sight wherever it

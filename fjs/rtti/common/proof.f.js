@@ -26,7 +26,7 @@ import {
 } from './module.f.js'
 import { array, number, option, or, record, rest, unknown } from '../module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame, todo } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */
@@ -225,14 +225,12 @@ export const proof = {
         // it — and the item reader is never instantiated, which is
         // what lets a recursive schema stop at an empty container.
         empty: () => {
-            let reads = 0
             /** @type {typeof listing} */
-            const counting = { ...listing, read: t => { reads += 1; return listing.read(t) } }
+            const unread = { ...listing, read: todo }
             const empty = /** @type {const} */ ([])
             /** @type {(acc: unknown, value: Unknown) => Unknown} */
             const keep = (_, value) => value
-            assert(Object.is(assertOk(containerRead(counting)(isArray, keep)(1)(empty)), empty))
-            assertEq(reads, 0)
+            assert(Object.is(assertOk(containerRead(unread)(isArray, keep)(1)(empty)), empty))
         },
     },
     constContainerRead: {

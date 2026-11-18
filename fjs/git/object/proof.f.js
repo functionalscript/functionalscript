@@ -62,7 +62,7 @@ export const proof = {
     // and the payload handed back is a list over it, read again as often
     // as a consumer reads it.
     lazy: () => {
-        const e = read(fromArrayLike(new Uint8Array(latin1('tree 2\u0000ab'))))
+        const e = read(fromArrayLike(latin1('tree 2\u0000ab')))
         assert(!(e.payload instanceof Array))
         assertStructurallySame(toArray(e.payload), latin1('ab'))
         assertStructurallySame(toArray(e.payload), latin1('ab'))

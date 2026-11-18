@@ -186,13 +186,14 @@ export const proof = {
     },
     // The one boundary where a runner's `catch` becomes effect data: whatever
     // was thrown is reduced to a code (when the host attached a string one)
-    // and a message.
+    // and a message. The values here are what the host boundary hands over,
+    // `_readThrown` in `./module.mjs`: a string, or a message and a code.
     toIoError: {
         error: () => {
-            assertIoMessage(toIoError(new Error('boom')), 'boom')
+            assertIoMessage(toIoError({ message: 'boom' }), 'boom')
         },
         withCode: () => {
-            const e = toIoError(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            const e = toIoError({ message: 'missing', code: 'ENOENT' })
             assert(e[0] === 'ioError', e)
             assertEq(e[1].code, 'ENOENT', e)
             assertEq(e[1].message, 'missing', e)
