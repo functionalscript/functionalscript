@@ -186,7 +186,7 @@ export const proof = /** @type {const} */ ({
         const rustToolchain = uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy' })
         const source = cached([
             mise, rustToolchain, rustVersion, multilib, spidermonkeyLock, spidermonkeyInstall, nodeVersion,
-            { run: 'test "$(mise exec -- wasmtime --version)" = "wasmtime 50.0.1"' },
+            { run: 'test "$(mise exec -- wasmtime --version)" = "wasmtime 50.0.2"' },
             { run: 'test "$(mise exec -- wasmer --version)" = "wasmer 7.5.0"' },
             { run: 'test "$(mise -E spidermonkey exec -- js --version)" = "JavaScript-C153.7.0"' },
             install, { run: 'cargo test' }, { run: 'cargo clippy -- -D warnings' },
