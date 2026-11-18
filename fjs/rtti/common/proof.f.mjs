@@ -137,11 +137,12 @@ export const proof = {
         assert(r[0] === 'error')
         assertEq(r[1].message, 'negative at a')
     },
-    // The first entry fails, and no later one is read: reading one throws.
+    // The first entry fails, and no later one is read: reading one fails
+    // the assertion.
     shortCircuits: () => {
         /** @type {(k: string, v: number) => Result<number, ValidationError>} */
         const firstOnly = (k, v) => {
-            if (k !== 'a') { throw ['an entry read after the first error', k] }
+            assertEq(k, 'a', 'an entry read after the first error')
             return item(k, v)
         }
         const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], firstOnly, [], collect)
