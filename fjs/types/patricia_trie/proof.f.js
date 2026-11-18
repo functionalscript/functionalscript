@@ -12,7 +12,6 @@ import { nextStep } from '../function/operator/module.f.js'
 import { run } from '../list/module.f.js'
 import { at } from '../ordered_map/module.f.js'
 import { toJson } from '../../media/json/module.f.js'
-import { entry } from '../object/entry/module.f.js'
 import { dedup } from '../array/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */

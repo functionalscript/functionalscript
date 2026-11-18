@@ -510,7 +510,7 @@ export const proof = {
             // either has no text at all.
             if (written[0] === 'error') {
                 assertEq(written[1], 'a prohibited property name', k)
-                return
+                continue
             }
             assertEq(reads(['=>', 0, [], ['.', ['rest'], k]]), `export default (...$0)=>$0.${k};`)
         }
@@ -1799,7 +1799,7 @@ export const proof = {
         `part${k}`,
         () => { for (const e of generated.filter((_, i) => i % lawParts === k)) {
             const written = tryStringify(e)
-            if (written[0] === 'error') { return }
+            if (written[0] === 'error') { continue }
             // Primitive captures and shared operand commas extend source
             // support without extending the old canonical graph/text domain.
             // Dedicated semantic proofs check capture values, allocation
@@ -1807,7 +1807,7 @@ export const proof = {
             if (generatedPrimitiveCapture(e) || generatedOperandPrefix(e, true)) {
                 const { imports } = unresolved(unwrap(parse(path)(written[1])))
                 assertEq(imports.length, 0, written[1])
-                return
+                continue
             }
             if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
         } },
