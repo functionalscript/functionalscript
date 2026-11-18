@@ -342,7 +342,7 @@ export const identifier = /** @type {const} */ ({
  * them, and the three literals. {@link primitive} is a variant over exactly
  * these, and {@link identifierName} admits the six words as names; the
  * `_ValueKindsAre…` assertions in `./types.ts` pin both to this list, and
- * `../syntax/proof.f.mjs` folds a value of every kind through the switch
+ * `../syntax/proof.f.js` folds a value of every kind through the switch
  * that converts them. Exported with a leading `_` for that linkage — the
  * export is not API.
  */
