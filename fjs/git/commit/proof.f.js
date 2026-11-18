@@ -115,7 +115,7 @@ export const proof = {
         assertEq(hex(tree(c)), '2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0')
         assertStructurallySame(parents(c), [])
         const by = author(c)
-        assertStructurallySame([text(toArray(by.name)), text(toArray(by.email)), by.time, by.tz], ['Proof', 'proof@example.com', 1_700_000_300n, '+0100'])
+        assertStructurallySame([text(toArray(nameOf(by))), text(toArray(by.email)), by.time, by.tz], ['Proof', 'proof@example.com', 1_700_000_300n, '+0100'])
         assertStructurallySame(committer(c), by)
         assertEq(text(toArray(c.message)), 'sha256\n')
         assertStructurallySame(validate(32)(c), ['ok', c])
@@ -128,7 +128,7 @@ export const proof = {
         const c = commit([`tree ${treeId}`, `author ${who}`, `committer ${who}`, 'encoding latin1', '', ''])
         assertStructurallySame(parents(c), [])
         assertEq(text(toArray(nameOf(author(c)))), 'A')
-        assertEq(text(toArray(committer(c).name)), 'A')
+        assertEq(text(toArray(nameOf(committer(c)))), 'A')
         assertStructurallySame(toArray(encoding(c) ?? []), latin1('latin1'))
         assertEq(gpgsig(c), null)
         assertStructurallySame(validate20(c), ['ok', c])
@@ -254,7 +254,7 @@ export const proof = {
         const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
         assertEq(parents(c).length, 8_000)
         assertEq(hex(parents(c)[7_999]), '1f3f'.padStart(40, '0'))
-        assertEq(text(toArray(committer(c).name)), 'A')
+        assertEq(text(toArray(nameOf(committer(c)))), 'A')
         assertStructurallySame(validate20(c), ['ok', c])
     },
     // The well-known fields panic on a commit `validate` refuses.

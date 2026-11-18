@@ -24,7 +24,7 @@ const runner = mockRun(/** @type {Parameters<typeof mockRun<Write, string>>[0]} 
 
 export const proof = [
     () => {
-        assertEq(fgRed, '\x1b[31m', new Error('Test failed: sgr(0)'))
+        assertEq(fgRed, '\x1b[31m', 'Test failed: sgr(0)')
     },
     () => {
         // csiWrite with isTTY=false strips ANSI SGR sequences

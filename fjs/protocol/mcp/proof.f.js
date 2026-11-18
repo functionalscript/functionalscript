@@ -507,7 +507,7 @@ export const proof = {
             const [result] = runPure(handlers.toolsList({}))
             assert(result !== undefined && result[0] === 'ok', result)
             const [tool] = result[1].tools
-            assertEq(tool.name, 'echo')
+            assertEq(nameOf(tool), 'echo')
             assertEq(tool.description, 'echoes text')
             const schema = tool.inputSchema
             assert(schema !== null && typeof schema === 'object' && !(schema instanceof Array) && hasEntry(schema, 'type'), schema)

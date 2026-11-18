@@ -14,12 +14,13 @@
 import { parseFromTokens } from './module.f.js'
 import { expectModule, expectRefused, tokenizeString } from './proof.f.js'
 import { assertEq, assertOk } from '../../asserts/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 /** An array pattern nested as deep as the parser's bar, binding `a` at the bottom. */
 const deep = `${'['.repeat(20000)}a${']'.repeat(20000)}`
 
 /** An object pattern as wide as the parser's bar, binding `a0` to `a19999`. */
-const wide = `{ ${Array.from({ length: 20000 }, (_, i) => `a${i}`).join(', ')} }`
+const wide = `{ ${generate(20000, i => `a${i}`).join(', ')} }`
 
 export const proof = {
     // A `const` of a binding pattern, `const { a, b: [c] } = v;`: the fold

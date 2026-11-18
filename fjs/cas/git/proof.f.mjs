@@ -298,7 +298,7 @@ const commitAt = (state, id) => {
  */
 const assertUntouched = (before, after) => {
     const strip = (/** @type {Dir} */ d) => {
-        const repo = d[dir]
+        const repo = valueAt(d, dir)
         assert(repo !== undefined && typeof repo === 'object' && !(repo instanceof Array))
         const { objects, refs, ...rest } = repo
         // A repository with no ref at all has no `refs/` yet; a write makes it.
@@ -308,7 +308,7 @@ const assertUntouched = (before, after) => {
         return { ...d, [dir]: { ...rest, refs: { ...otherRefs, heads: otherHeads } } }
     }
     assertStructurallySame(strip(after), strip(before))
-    const objects = assertNotNullish(after[dir])
+    const objects = assertNotNullish(valueAt(after, dir))
     assert(typeof objects === 'object' && !(objects instanceof Array))
     const od = objects.objects
     assert(od !== undefined && typeof od === 'object' && !(od instanceof Array))
@@ -471,7 +471,7 @@ export const proof = {
     // as a key, and by a read rather than asked of the store.
     nullId: () => {
         const [, ab, cd, rest] = pathOf(alphaKey)
-        const leaf = sha1.treeOf([entry('100644', rest, u8ListToVecMsb(Array(20).fill(0)))])
+        const leaf = sha1.treeOf([entry('100644', rest, u8ListToVecMsb(generate(20, () => 0)))])
         const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
         const top = sha1.treeOf([entry('40000', ab, mid.id)])
         const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object])

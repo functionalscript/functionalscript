@@ -55,7 +55,7 @@ export const proof = /** @type {const} */ ({
     },
     classicForKeepsNamedOmissionAndRequiredPatternInitializers: () => {
         const module = assertOk(parseSyntax(tokenizeString('for(let value;false;value=1){}for(let [item]=[0];false;){}for(let {item}={item:0};false;){}export default 0;')))
-        for (const [index, statement] of module.statements.entries()) {
+        for (const [index, statement] of module.statements.map((statement, index) => /** @type {const} */ ([index, statement]))) {
             assert(statement[0] === 'for')
             const initializer = statement[1].initializer
             assert(initializer !== null && initializer[0] === 'let')

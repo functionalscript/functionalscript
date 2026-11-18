@@ -18,7 +18,7 @@ export const proof = {
     loopRetainsItsSourceStatements: () => {
         const source = fn('let n=2;while((true)){if(n===0){return n;}n=n-1;}')
         assertEq(source.body.statements.length, 2)
-        const terminal = source.body.statements[source.body.statements.length - 1]
+        const terminal = source.body.statements[Number(source.body.statements.length - 1)]
         assert(terminal[0] === 'while')
         assertEq(terminal[1].condition, true)
         const returned = terminal[1].body.statements[0]
@@ -29,7 +29,7 @@ export const proof = {
     },
     innerBreaksAndOuterContinuesKeepTheirOwners: () => {
         const source = fn('while(true){while(true){break;}switch(1){case 1:{break;}default:{continue;}}return 1;}')
-        const terminal = source.body.statements[source.body.statements.length - 1]
+        const terminal = source.body.statements[Number(source.body.statements.length - 1)]
         assert(terminal[0] === 'while')
         const [inner, switched] = terminal[1].body.statements
         assert(inner[0] === 'while' && switched[0] === 'switch')
@@ -46,7 +46,7 @@ export const proof = {
     },
     sourceAfterAnExitIsStillChecked: () => {
         const source = fn('while(true){return 1;let unused=0;if(false){unused=unused+1;}}')
-        const terminal = source.body.statements[source.body.statements.length - 1]
+        const terminal = source.body.statements[Number(source.body.statements.length - 1)]
         assert(terminal[0] === 'while')
         assertStructurallySame(terminal[1].body.statements.map(statement => statement[0]), ['return', 'initialize', 'if'])
         for (const body of [

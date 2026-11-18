@@ -131,6 +131,10 @@ const counting = (pack, count) => [...pack.slice(0, 8), ...u32(count), ...pack.s
 /** An index over the six objects, at the offsets {@link swapped} says they have moved to. @type {(moved: (offset: number) => number) => readonly number[]} */
 const movedIdx = moved => idxOf(objects.map(([h, o]) => [h, moved(o)]))
 
+const idxPath = /** @type {const} */ ('objects/pack/pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf.idx')
+
+const packPath = /** @type {const} */ ('objects/pack/pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf.pack')
+
 /** A host over the pack directory with these two files. @type {(idx: readonly number[], pack: readonly number[]) => (path: string) => Nullable<readonly number[]>} */
 const pair = (idx, pack) => path => path === idxPath ? idx : path === packPath ? pack : null
 
@@ -180,10 +184,6 @@ const packCounting = count => [
 const objectsPath = /** @type {const} */ ('objects')
 
 const dirPath = /** @type {const} */ ('objects/pack')
-
-const idxPath = /** @type {const} */ ('objects/pack/pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf.idx')
-
-const packPath = /** @type {const} */ ('objects/pack/pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf.pack')
 
 /** @type {(n: string, isFile: boolean) => Dirent} */
 const dirent = (n, isFile) => ({ name: n, parentPath: dirPath, isFile, isDirectory: !isFile })
@@ -288,13 +288,6 @@ const read = tryRead(objectsPath, width)
 const readBy = (host, hex) => run(host)([])(read(id(hex)))
 
 /**
- * The object a read answered, asserting that it answered one.
- *
- * @type {(r: Result<Nullable<Held>, IoChannel>) => Envelope}
- */
-const envelope = r => held(r).envelope
-
-/**
  * The object *and the pack that held it*, asserting that a read answered one.
  *
  * @type {(r: Result<Nullable<Held>, IoChannel>) => Held}
@@ -305,6 +298,13 @@ const held = r => {
     assert(h !== null)
     return h
 }
+
+/**
+ * The object a read answered, asserting that it answered one.
+ *
+ * @type {(r: Result<Nullable<Held>, IoChannel>) => Envelope}
+ */
+const envelope = r => held(r).envelope
 
 /**
  * The error a read was refused with.

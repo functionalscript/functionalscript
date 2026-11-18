@@ -45,7 +45,7 @@ const named = (vector, name) => {
  */
 const spelling = input => {
     if (typeof input === 'string') { return `export default ${toJson(input)};` }
-    if (typeof input !== 'object' || input === null || Array.isArray(input)) { return null }
+    if (typeof input !== 'object' || input === null || input instanceof Array) { return null }
     const o = /** @type {{ readonly [k in string]?: Unknown }} */ (input)
     const k = keys(o)
     // `__proto__` is a key with a production of its own, `["__proto__"]`, which

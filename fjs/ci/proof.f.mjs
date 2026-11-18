@@ -26,7 +26,7 @@ const directory = (root, names) => names.reduce((dir, name) => {
 /** @type {(state: State, name: string) => GitHubAction} */
 const workflow = (state, name) => {
     const value = entry(directory(state.root, ['.github', 'workflows']), name)
-    assert(Array.isArray(value) && value[0] !== undefined)
+    assert(value instanceof Array && value[0] !== undefined)
     return unwrap(parseGitHubAction(unwrap(jsonParse(utf8ToString(value[0])))))
 }
 /** @type {(rust: boolean, extra?: (o: Os, a: Architecture) => readonly MetaStep[], smart?: boolean) => GitHubAction} */
@@ -37,7 +37,7 @@ const generate = (rust, extra = () => [], smart = false) => {
     return workflow(state, 'gen.ci.yml')
 }
 /** @type {(gha: GitHubAction, id: string, fragment: string) => boolean} */
-const has = (gha, id, fragment) => gha.jobs[id]?.steps.some(step => (step.env?.FJS_CI_RUN ?? step.run)?.includes(fragment)) === true
+const has = (gha, id, fragment) => entry(gha.jobs, id)?.steps.some(step => (step.env?.FJS_CI_RUN ?? step.run)?.includes(fragment)) === true
 export const proof = {
     matrix: () => {
         const gha = generate(true)
@@ -47,9 +47,9 @@ export const proof = {
         for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
             for (const a of /** @type {const} */ (['intel', 'arm'])) {
                 const id = `${o}-${a}`
-                const job = gha.jobs[id]
+                const job = entry(gha.jobs, id)
                 assert(job !== undefined)
-                assertEq(job['runs-on'], images[o][a])
+                assertEq(job['runs-on'], entry(entry(images, o), a))
                 assertEq(job['timeout-minutes'], jobTimeout)
                 assert(job.steps.some(step => step.uses?.startsWith('jdx/mise-action@')))
                 assert(!job.steps.some(step => step.uses?.startsWith('cachix/')))
@@ -85,13 +85,13 @@ export const proof = {
                 for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
                     for (const a of /** @type {const} */ (['intel', 'arm'])) {
                         const id = `${o}-${a}`
-                        const steps = gha.jobs[id]?.steps
+                        const steps = entry(gha.jobs, id)?.steps
                         assert(steps !== undefined)
                         const index = steps.findIndex(step => step.env?.FJS_CI_RUN === `${command} # ${id}`)
                         const checkout = steps.findIndex(step => step.uses?.startsWith('actions/checkout@'))
                         assert(index > checkout && checkout >= 0, id)
-                        assertEq(steps[index]?.env?.EXTRA, 'kept')
-                        assert(steps[index]?.run?.includes('bash -e -c "$FJS_CI_RUN"') === true)
+                        assertEq(steps[Number(index)]?.env?.EXTRA, 'kept')
+                        assert(steps[Number(index)]?.run?.includes('bash -e -c "$FJS_CI_RUN"') === true)
                         assert(steps.some(step => step.uses?.startsWith('actions/cache@')))
                     }
                 }
@@ -102,7 +102,7 @@ export const proof = {
         const [state, result] = virtualAt({})(ownMain())
         assertEq(exitCode(result), 0)
         const gha = workflow(state, 'gen.ci.yml')
-        const steps = gha.jobs[packageJobId]?.steps
+        const steps = entry(gha.jobs, packageJobId)?.steps
         assert(steps !== undefined)
         assert(steps.some(step => step['working-directory'] !== undefined && step.run?.includes(packageConsumer.module)))
         for (const step of steps.filter(step => step['working-directory'] !== undefined)) {

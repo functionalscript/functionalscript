@@ -5,10 +5,11 @@ import { normalize } from '../../js/ast/sugar/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { parseFromTokens } from './module.f.js'
 import { _evaluate, stringifyModule, tokenizeString } from './proof.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 export const proof = /** @type {const} */ ({
     everyByteMatchesUnicode: () => {
-        const digits = Array.from({ length: 0x100 }, (_, value) => value.toString(16).padStart(2, '0'))
+        const digits = generate(0x100, value => value.toString(16).padStart(2, '0'))
         const hex = assertOk(parseFromTokens(tokenizeString('export default `' + digits.map(value => '\\x' + value).join('') + '`;')))
         const unicode = assertOk(parseFromTokens(tokenizeString('export default `' + digits.map(value => '\\u00' + value).join('') + '`;')))
         assertStructurallySame(normalize(hex, []), normalize(unicode, []))

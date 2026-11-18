@@ -127,7 +127,7 @@ const demoProof = /** @type {const} */ ({
         // lessons and the project's schemas in a group each.
         picker: () => {
             const html = page('Recursion')
-            for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
+            for (const e of examples) { assert(html.includes(`>${nameOf(e)}</option>`), nameOf(e)) }
             assert(html.includes('<option value="Recursion" selected="" data-example-id="recursion">'), html)
             assert(html.includes('<optgroup label="Schemas"><option value="Closed vs open" data-example-id="closed-vs-open">'), html)
             assert(html.includes('<optgroup label="Readers"><option value="Built or handed back" data-example-id="built-or-handed-back">'), html)

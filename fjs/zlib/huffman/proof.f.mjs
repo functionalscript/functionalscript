@@ -151,7 +151,7 @@ export const proof = {
             description(0, 0, repeatFirst, [[16, 0]]),
             description(0, 0, runs, [[18, 127], [18, 127]]),
             description(0, 0, runs, [[18, 127], [18, 109]]),
-            description(0, 0, lengthsOf({ 0: 1, 1: 1 }), Array(258).fill([1])),
+            description(0, 0, lengthsOf({ 0: 1, 1: 1 }), generate(258, () => [1])),
             description(0, 2, runs, [...zeros(256), [1], [1], [1], [1]]),
         ]) {
             assertEq(read(bits), null)
@@ -162,8 +162,8 @@ export const proof = {
     // input for them all, it waits.
     emptyLengthsCode: () => {
         const header = description(0, 0, lengthsOf({}), [])
-        assertEq(read([...header, ...Array(258).fill(0)]), null)
-        assertEq(read([...header, ...Array(100).fill(0)]), more)
+        assertEq(read([...header, ...generate(258, () => 0)]), null)
+        assertEq(read([...header, ...generate(100, () => 0)]), more)
     },
     // Every proper prefix of a description waits for more input.
     prefixes: () => {

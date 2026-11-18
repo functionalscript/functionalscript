@@ -40,7 +40,7 @@ const named = (record, name) => {
  */
 const scoped = record => {
     const { scope } = record
-    assert(Array.isArray(scope) && scope.length === 2, `a record whose scope is not the two-element tuple`)
+    assert(scope instanceof Array && scope.length === 2, `a record whose scope is not the two-element tuple`)
     assert(['class', 'subtree', 'set'].includes(scope[0]), `${where(record)}: not one of class, subtree or set`)
     assert(typeof scope[1] === 'string' && scope[1].trim() !== '', `${where(record)}: the scope names nothing`)
 }

@@ -41,7 +41,7 @@ export const proof = {
     },
     // A 20-byte id and a 32-byte one, and back to the same text.
     widths: () => {
-        assertStructurallySame(bytes('00ff10a5' + '0'.repeat(32)), [0, 0xFF, 0x10, 0xA5, ...Array(16).fill(0)])
+        assertStructurallySame(bytes('00ff10a5' + '0'.repeat(32)), [0, 0xFF, 0x10, 0xA5, ...generate(16, () => 0)])
         const sha256 = 'ab'.repeat(31) + '01'
         const id = tryFromHex(latin1(sha256))
         assertEq(id !== null && length(id), 256n)

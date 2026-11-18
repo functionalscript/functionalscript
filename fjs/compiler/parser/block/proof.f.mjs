@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { _function } from '../standalone.proof.f.mjs'
+import { _function } from '../standalone.proof.f.js'
 import { _flattenedStandalone, _hasArmThrow, _regionBlock } from './module.f.js'
 
 export const proof = /** @type {const} */ ({

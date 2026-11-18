@@ -29,6 +29,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
 import { run as mockRun } from '../mock/module.f.js'
 import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -277,7 +278,7 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(mkdir('a'))
             assert(t !== 'error', result)
             const a = state.root.a
-            assert(!(a === undefined || Array.isArray(a)), a)
+            assert(!(a === undefined || a instanceof Array), a)
         },
         rec: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -290,7 +291,7 @@ export const proof = {
             // `_Entity` to `Dir`.
             assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
             const cache = tmp.cache
-            assert(!(typeof cache !== 'object' || Array.isArray(cache)), tmp)
+            assert(!(typeof cache !== 'object' || cache instanceof Array), tmp)
         },
         nonRec: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -354,9 +355,9 @@ export const proof = {
                 },
             })(readdir('', { recursive: true }))
             assert(t === 'ok', result)
-            const file = result.find(x => x.name === 'file')
+            const file = result.find(x => nameOf(x) === 'file')
             assert(file !== undefined && file.parentPath === '' && file.isFile, `file: ${file}`)
-            const dirA = result.find(x => x.name === 'a')
+            const dirA = result.find(x => nameOf(x) === 'a')
             assert(dirA !== undefined && dirA.parentPath === '/dir', `dirA: ${dirA?.parentPath}`)
         },
         nonRecursive: () => {
@@ -368,15 +369,15 @@ export const proof = {
             })(readdir('', { }))
             assert(t === 'ok', result)
             assertEq(result.length, 2, result)
-            assertNotNullish(result.find(x => x.name === 'file'))
-            assertNotNullish(result.find(x => x.name === 'dir'))
+            assertNotNullish(result.find(x => nameOf(x) === 'file'))
+            assertNotNullish(result.find(x => nameOf(x) === 'dir'))
         },
         nested: () => {
             const [_, [t, result]] = virtualAt({ tmp: { cache: [vec8(0x15n)] } })(readdir('tmp', { recursive: true }))
             assert(t === 'ok', result)
             assertEq(result.length, 1, result)
             const [r0] = result
-            assertEq(r0.name, 'cache', r0)
+            assertEq(nameOf(r0), 'cache', r0)
             assertEq(r0.parentPath, 'tmp', r0)
         },
         noSuchDir: () => {
@@ -392,7 +393,7 @@ export const proof = {
             )
             assert(t === 'ok', result)
             const file = state.root.hello
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(uint(file[0]), 0x2An, file)
         },
         overwrite: () => {
@@ -403,7 +404,7 @@ export const proof = {
             )
             assert(t === 'ok', result)
             const file = state.root.hello
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(uint(file[0]), 0x2An, file)
         },
         nestedPath: () => {
@@ -423,7 +424,7 @@ export const proof = {
             assert(t === 'error', result)
             assertIoMessage(result, 'invalid file')
             const tmp = state.root.tmp
-            assert(!(tmp === undefined || Array.isArray(tmp)), tmp)
+            assert(!(tmp === undefined || tmp instanceof Array), tmp)
         },
         // A `Vec` that is not whole bytes is refused before any runner is
         // asked: the node one would pad the last byte and write a byte the
@@ -447,14 +448,14 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(writeChunks('f', chunks))
             assert(t === 'ok', result)
             const file = state.root.f
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(file.map(utf8ToString).join(''), `${'a'.repeat(Number(maxLengthBytes))}b`)
         },
         none: () => {
             const [state, [t, result]] = virtual(emptyState)(writeChunks('f', []))
             assert(t === 'ok', result)
             const file = state.root.f
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(file.map(utf8ToString).join(''), '')
         },
     },
@@ -465,7 +466,7 @@ export const proof = {
             )
             assert(t === 'ok', result)
             const file = state.root.hello
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(utf8ToString(file[0]), 'Hello, world!', file)
         },
         // A text of a `Vec`'s size or less is one chunk, a text past it several,
@@ -475,7 +476,7 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(writeUtf8File('big', text))
             assert(t === 'ok', result)
             const file = state.root.big
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assert(file.length > 1, file.length)
             assert(file.every(v => byteLength(v) <= maxLengthBytes))
             assertEq(file.map(utf8ToString).join(''), text)
@@ -486,7 +487,7 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(writeUtf8File('wide', text))
             assert(t === 'ok', result)
             const file = state.root.wide
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assert(file.every(v => byteLength(v) <= maxLengthBytes))
             assertEq(file.map(utf8ToString).join(''), text)
         },
@@ -499,7 +500,7 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(writeUtf8File('pair', text))
             assert(t === 'ok', result)
             const file = state.root.pair
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(file.map(utf8ToString).join(''), text)
             assertEq(utf8ToString(file[0]).length, unit - 1)
         },
@@ -510,13 +511,13 @@ export const proof = {
                 writeUtf8File('exact', 'a'.repeat(Number(maxLengthBytes))))
             assert(t === 'ok', result)
             const file = state.root.exact
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertEq(file.length, 1)
             const [more, [t2]] = virtual(emptyState)(
                 writeUtf8File('more', 'a'.repeat(Number(maxLengthBytes) + 1)))
             assert(t2 === 'ok')
             const chunks = more.root.more
-            assert(Array.isArray(chunks), chunks)
+            assert(chunks instanceof Array, chunks)
             assert(chunks.length > 1, chunks.length)
             assertEq(chunks.map(utf8ToString).join(''), 'a'.repeat(Number(maxLengthBytes) + 1))
         },
@@ -635,7 +636,7 @@ export const proof = {
         const [made, [t, result]] = virtual(emptyState)(writeExclusiveUtf8File('x.lock', 'Hello, world!'))
         assert(t === 'ok', result)
         const file = made.root['x.lock']
-        assert(Array.isArray(file), file)
+        assert(file instanceof Array, file)
         assertEq(utf8ToString(file[0]), 'Hello, world!')
         const [again, [t2, taken]] = virtual(made)(writeExclusiveUtf8File('x.lock', 'other'))
         assert(t2 === 'error', taken)
@@ -732,7 +733,7 @@ export const proof = {
             const [state, [t, result]] = virtualAt({ src: [vec8(0x2An)], dst: [vec8(0x15n)] })(rename('src', 'dst'))
             assert(t === 'ok', result)
             assertEq(state.root.src, undefined, state.root)
-            assert(Array.isArray(state.root.dst), state.root)
+            assert(state.root.dst instanceof Array, state.root)
             assertEq(uint(state.root.dst[0]), 0x2An, state.root)
         },
         nestedRename: () => {
@@ -745,7 +746,7 @@ export const proof = {
         dirOverFile: () => {
             const [state, [t, result]] = virtualAt({ src: {}, dst: [vec8(0x15n)] })(rename('src', 'dst'))
             assert(t === 'error', result)
-            assert(Array.isArray(state.root.dst), state.root)
+            assert(state.root.dst instanceof Array, state.root)
         },
         missingSource: () => {
             const [_, [t, result]] = virtual(emptyState)(rename('missing', 'dst'))
@@ -999,7 +1000,7 @@ export const proof = {
             const [state, [t, result]] = virtualAt({ hello: [vec8(0x2An)] })(writeFromStream('hello', chunks))
             assert(t === 'error', result)
             const file = state.root.hello
-            assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
+            assert(!(!(file instanceof Array) || uint(file[0]) !== 0x2An), file)
         },
         writesEveryChunk: () => {
             /** @type {EffectList<never, Vec, IoChannel>} */
@@ -1007,7 +1008,7 @@ export const proof = {
             const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
             assert(t === 'ok', result)
             const file = state.root.hello
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assertStructurallySame(file.map(uint), [0x01n, 0x02n])
         },
         invalidBufferSize: () => {

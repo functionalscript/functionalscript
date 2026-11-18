@@ -463,7 +463,7 @@ export const proof = {
         ]
         for (const [uses, bound, statements] of cases) {
             const marked = unwrap(fromTagged(useLinesTagged(uses, bound).join('\n')))
-            assertEq(toJson(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), toJson(Array(statements).fill('use')))
+            assertEq(toJson(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), toJson(generate(statements, () => 'use')))
             assertEq(toText(marked), useLines(uses, bound).join('\n'))
             assertEq(toJson(unmarkedWords(marked)), '[]')
         }

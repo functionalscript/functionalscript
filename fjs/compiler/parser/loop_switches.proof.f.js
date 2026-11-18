@@ -7,6 +7,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { unresolved } from '../edag/module.f.js'
 import { parseFromTokens } from './module.f.js'
 import { _evaluate, tokenizeString } from './proof.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 export const proof = /** @type {const} */ ({
     transfersKeepSeparateBreakAndContinueOwners: () => {
@@ -122,7 +123,7 @@ export const proof = /** @type {const} */ ({
         ]) { assertEq(assertError(parseFromTokens(tokenizeString(`export default n=>{while(false){switch(n){${body}}}return n;};`))).message, 'unexpected token') }
     },
     casePathsAndLabelsUseExplicitStacks: () => {
-        const labels = Array.from({ length: 2048 }, (_, index) => `case ${index}:`).join('')
+        const labels = generate(2048, index => `case ${index}:`).join('')
         assertOk(parseFromTokens(tokenizeString(`while(false){switch(0){${labels}{break;}}}export default 0;`)))
         const conditions = 'if(true){}else{}'.repeat(512)
         assertOk(parseFromTokens(tokenizeString(`while(false){switch(0){case 0:{${conditions}break;}}}export default 0;`)))

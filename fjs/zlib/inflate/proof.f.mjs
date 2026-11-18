@@ -54,9 +54,9 @@ const expected = /** @type {const} */ ({
     text9: text3000,
     fixed: text3000,
     huffman: text3000,
-    rle: Array(3000).fill(7),
+    rle: generate(3000, () => 7),
     noise: noise(1500),
-    zeros: Array(300_000).fill(0),
+    zeros: generate(300_000, () => 0),
     repeat: generate(14, () => text3000).flat(),
 })
 
@@ -89,8 +89,8 @@ const item = it => {
     const l = length === 258 ? 28 : symbolOf(lengths, length)
     const d = symbolOf(distances, distance)
     return [
-        ...fixedCode(257 + l), ...field(length - lengths[l][0], lengths[l][1]),
-        ...field(d, 5).toReversed(), ...field(distance - distances[d][0], distances[d][1]),
+        ...fixedCode(257 + l), ...field(length - lengths[Number(l)][0], lengths[Number(l)][1]),
+        ...field(d, 5).toReversed(), ...field(distance - distances[Number(d)][0], distances[Number(d)][1]),
     ]
 }
 
@@ -124,7 +124,7 @@ export const proof = {
     huffman: () => {
         assertStructurallySame(read(hello), { output: helloText, rest: 0 })
         assertStructurallySame(read(fox), { output: foxText, rest: 0 })
-        assertStructurallySame(read(a100), { output: Array(100).fill(0x61), rest: 0 })
+        assertStructurallySame(read(a100), { output: generate(100, () => 0x61), rest: 0 })
         assertStructurallySame(read(emptyFixed), { output: [], rest: 0 })
     },
     // Blocks of different kinds in a row: a copy in the second reaches into the
@@ -170,7 +170,7 @@ export const proof = {
     // header, a block's opening, a table description, a symbol and its extra
     // bits, and the checksum.
     pieces: () => {
-        for (const [stream, output] of [[abc, [0x61, 0x62, 0x63]], [hello, helloText], [fox, foxText], [a100, Array(100).fill(0x61)], [emptyFixed, []], [hex(streams.rle), expected.rle]]) {
+        for (const [stream, output] of [[abc, [0x61, 0x62, 0x63]], [hello, helloText], [fox, foxText], [a100, generate(100, () => 0x61)], [emptyFixed, []], [hex(streams.rle), expected.rle]]) {
             const whole = { output, rest: 0 }
             for (let at = 0; at <= stream.length; at += 1) {
                 assertStructurallySame(read(...split(stream, at)), whole, at)
@@ -234,7 +234,7 @@ export const proof = {
     farthest: () => {
         const before = generate(40_000, i => i * 37 + 11 & 0xff)
         const copied = before.slice(40_000 - 32_768, 40_000 - 32_768 + 258)
-        const output = [...before, ...copied, 0x41, ...Array(10).fill(0x41), ...before.slice(-300, -300 + 3)]
+        const output = [...before, ...copied, 0x41, ...generate(10, () => 0x41), ...before.slice(-300, -300 + 3)]
         const storedPart = [0, before.length & 0xff, before.length >> 8, ~before.length & 0xff, ~before.length >> 8 & 0xff, ...before]
         const blocks = fixedBlock([[258, 32_768], 0x41, [10, 1], [3, 300 + 258 + 11]], true)
         const stream = [0x78, 0x01, ...storedPart, ...bytes(blocks), ...closing(output)]

@@ -48,7 +48,7 @@ const returned = node => {
     assert(node[0] === '=>')
     const body = node[2]
     assert(body[0] === 'block')
-    const last = body[1][body[1].length - 1]
+    const last = body[1][Number(body[1].length - 1)]
     assert(last[0] === 'return')
     assert(last[1].value !== null)
     return last[1].value
@@ -153,7 +153,7 @@ export const proof = {
         assert(declaration[0] === 'const')
         const target = declaration[1].declaration.target
         assert(target[0] === 'object')
-        for (const [index, expected] of [1, 2, 3, 4].entries()) {
+        for (const [index, expected] of [1, 2, 3, 4].map((expected, index) => /** @type {const} */ ([index, expected]))) {
             const property = target[2][index]
             assert(hasEntry(property, 'key'))
             const initialized = property.target

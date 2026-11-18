@@ -12,6 +12,7 @@ import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.js'
 import { pureError } from '../../effects/module.f.js'
 import { ioError } from '../../effects/node/module.f.js'
 import { detect, detectPath, detectStream, detectVec, detector } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
@@ -108,16 +109,16 @@ export const proof = {
         // that would not extend it, and a long tail that would otherwise keep
         // the fold running.
         () => assertEq(detect(bytes(0xff, 0xd8, 0xff, 0x00, 0x01, 0x02)), 'image/jpeg'),
-        () => assertEq(detect(bytes(0xff, 0xd8, 0xff, ...Array(64).fill(0x41))), 'image/jpeg'),
+        () => assertEq(detect(bytes(0xff, 0xd8, 0xff, ...generate(64, () => 0x41))), 'image/jpeg'),
         // `dead` survives too. This is the case where `push` keeps folding
         // after the magic state is settled — `isSettled` stays false while the
         // UTF-8 factor is still valid text — so a `dead` magic is fed many more
         // bytes here than `detect`'s old loop ever gave it.
         () => assertEq(detect(bytes(0x41)), null),
-        () => assertEq(detect(bytes(0x41, ...Array(64).fill(0x42))), null),
+        () => assertEq(detect(bytes(0x41, ...generate(64, () => 0x42))), null),
         // ...and the same input still reads as text through the full detector,
         // confirming the fold really did continue past the dead magic.
-        () => assertEq(detectVec(bytes(0x41, ...Array(64).fill(0x42))).type, 'text'),
+        () => assertEq(detectVec(bytes(0x41, ...generate(64, () => 0x42))).type, 'text'),
     ],
     textIsNull: () =>
         assertEq(detect(bytes(0x68, 0x65, 0x6c, 0x6c, 0x6f)), null),

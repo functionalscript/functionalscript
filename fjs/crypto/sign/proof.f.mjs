@@ -90,16 +90,16 @@ export const proof = {
         assert(!Object.keys(inputs).some(name => name.startsWith('eve-')))
     },
     bits2int: () => {
-        assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, new Error("fail"))
-        assertEq(all(17n).bits2int(vec(3n)(0b101n)), 0b101n, new Error("fail"))
+        assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, "fail")
+        assertEq(all(17n).bits2int(vec(3n)(0b101n)), 0b101n, "fail")
     },
     int2octets: () => {
         // 3 bit prime
-        assertEq(all(5n).int2octets(0b101n), vec(8n)(0b0000_0101n), new Error("fail"))
+        assertEq(all(5n).int2octets(0b101n), vec(8n)(0b0000_0101n), "fail")
         // 5 bit prime
-        assertEq(all(17n).int2octets(0b10100n), vec(8n)(0b0001_0100n), new Error("fail"))
+        assertEq(all(17n).int2octets(0b10100n), vec(8n)(0b0001_0100n), "fail")
         // 15 bit prime
-        assertEq(all(16_387n).int2octets(0x13n), vec(16n)(0x13n), new Error("fail"))
+        assertEq(all(16_387n).int2octets(0x13n), vec(16n)(0x13n), "fail")
     },
     bits2intModQ: () => {
         // 0b1101 = 13 reduces to 13 - 11 = 2
@@ -107,7 +107,7 @@ export const proof = {
         assertEq(all(17n).bits2intModQ(vec(3n)(0b101n)), 0b101n)
     },
     bit2octets: () => {
-        assertEq(all(11n).bits2octets(vec(4n)(0b1101n)), vec(8n)(0b0000_0010n), new Error("fail"))
+        assertEq(all(11n).bits2octets(vec(4n)(0b1101n)), vec(8n)(0b0000_0010n), "fail")
     },
     fromCurve: () => {
         const { rfc6979, nf, mul, g } = fromCurve(secp192r1)

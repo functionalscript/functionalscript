@@ -318,7 +318,7 @@ export const proof = {
         const s = /** @type {const} */ (6_000)
         const chain = parsed(generate(s, i => `const $${i}=[${i === 0 ? '' : `$${i - 1}`}];`).join('') + `export default $${s - 1};`)
         assertEq(depthOf(0, chain), s - 1)
-        assertEq(asArray(exported(`[${Array(s).fill('{}').join(',')}]`)).length, s)
+        assertEq(asArray(exported(`[${generate(s, () => '{}').join(',')}]`)).length, s)
         assertEq(keys(asObject(exported(`{${generate(s, i => `"k${i}":[]`).join(',')}}`))).length, s)
         const m = /** @type {const} */ (12_000)
         const wide = asArray(exported(`[${generate(m, i => i).join(',')}]`))

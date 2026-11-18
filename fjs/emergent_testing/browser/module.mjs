@@ -190,7 +190,7 @@ export const runBrowserProofs = _runBrowserProofsWith(map => map)
  *
  * **Only a relative or rooted specifier is rebased** — what
  * {@link specifierKind} calls a path. A page names its sources relative
- * to itself (`./proof.f.mjs`, and `./fjs/…` from the root), and a bare
+ * to itself (`./proof.f.js`, and `./fjs/…` from the root), and a bare
  * `import(source)` inside this module would resolve those against *this
  * module's* URL — two directories deep, every load 404.
  *

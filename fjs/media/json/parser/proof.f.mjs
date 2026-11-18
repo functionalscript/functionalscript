@@ -189,7 +189,7 @@ export const proof = {
         const depthOf = (depth, v) => v instanceof Array && v.length === 1 ? depthOf(depth + 1, v[0]) : depth
         assertEq(depthOf(0, nested), n - 1)
         const s = 6_000
-        const objects = parsed(`[${Array(s).fill('{}').join(',')}]`)
+        const objects = parsed(`[${generate(s, () => '{}').join(',')}]`)
         assert(objects instanceof Array)
         assertEq(objects.length, s)
         const entries = parsed(`{${generate(s, i => `"k${i}":[]`).join(',')}}`)

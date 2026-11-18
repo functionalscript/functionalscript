@@ -5,7 +5,7 @@
  * ([spec: call statements](../../../spec/functions/call-statements/README.md)) —
  * and the order statements stand in, what begins one, and which error a
  * malformed run of them reports first. Split off `./proof.f.js`, as
- * `./operators.proof.f.mjs` is, when that file outgrew what the website's
+ * `./operators.proof.f.js` is, when that file outgrew what the website's
  * build accepts in one file — 128 KiB, which it passed at `b3a6e6c` —
  * along the seam its own sections drew. It reads the parser as that proof does, through the helpers it
  * exports.

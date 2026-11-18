@@ -24,7 +24,7 @@ const expectPlusChain = depth => exp => {
     let node = exp
     let remaining = depth
     while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '+' && node[2] === 1, node)
+        assert(node instanceof Array && node[0] === '+' && node[2] === 1, node)
         node = node[1]
         remaining = remaining - 1
     }
@@ -41,7 +41,7 @@ const expectAndChain = depth => exp => {
     let node = exp
     let remaining = depth
     while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '?:' && node[2] === 1 && node[3] === node[1], node)
+        assert(node instanceof Array && node[0] === '?:' && node[2] === 1 && node[3] === node[1], node)
         node = node[1]
         remaining = remaining - 1
     }
@@ -58,7 +58,7 @@ const expectElseChain = depth => exp => {
     let node = exp
     let remaining = depth
     while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '?:' && node[1] === 1 && node[2] === 2, node)
+        assert(node instanceof Array && node[0] === '?:' && node[1] === 1 && node[2] === 2, node)
         node = node[3]
         remaining = remaining - 1
     }
