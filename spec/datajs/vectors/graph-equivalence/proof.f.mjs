@@ -8,6 +8,7 @@ import { difference } from '../../../../fjs/media/datajs/vectors/module.f.js'
 import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js'
 import graphEquivalence from './data.f.js'
 import { toJson } from '../../../../fjs/media/json/module.f.js'
+import { dedup } from '../../../../fjs/types/array/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly GraphEquivalence[]} */ (graphEquivalence)
@@ -44,7 +45,7 @@ export const proof = {
     // Every id is one of a kind.
     unique: () => {
         const ids = set.map(vector => named(vector, 'id'))
-        assertEq(new Set(ids).size, ids.length)
+        assertEq(dedup(ids).length, ids.length)
     },
     // Every vector carries an input and both lists, and says something in
     // each direction: a record with an empty list makes half a claim.

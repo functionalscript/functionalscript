@@ -38,7 +38,7 @@ const nestedReturning = value => ({ statements: [], exit: ['return', nestedTarge
 /** @type {(bindings: readonly BindingId[], expected: readonly BindingId[]) => void} */
 const identities = (bindings, expected) => {
     assertEq(bindings.length, expected.length)
-    bindings.forEach((binding, i) => assertEq(binding, expected[i]))
+    for (const [i, binding] of bindings.map((binding, i) => /** @type {const} */ ([i, binding]))) { assertEq(binding, expected[Number(i)]) }
 }
 
 /** Every binding a `ref` reads, in the order the walk meets it, repeats kept. */

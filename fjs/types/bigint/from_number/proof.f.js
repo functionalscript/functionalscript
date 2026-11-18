@@ -23,11 +23,11 @@ export const proof = {
         assertEq(bigint(1.7976931348623157e308), (1n << 1024n) - (1n << 971n))
     },
     // the built-in's answer, value for value
-    builtIn: () => [
+    builtIn: () => { for (const n of [
         0, -0, 1, -1, 2, 3, 0xff, -0x100, 2 ** 31, 2 ** 32 - 1, 2 ** 32, 2 ** 53 - 1,
         2 ** 53, 2 ** 53 + 2, -(2 ** 53 + 2), 1e21, 1e100, 1e308, -1e308,
         1.7976931348623157e308, -1.7976931348623157e308,
-    ].forEach(n => assertEq(bigint(n), BigInt(n), n)),
+    ]) { assertEq(bigint(n), BigInt(n), n) } },
     throw: {
         fraction: () => bigint(0.5),
         negativeFraction: () => bigint(-1.5),

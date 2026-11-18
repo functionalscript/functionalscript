@@ -58,7 +58,7 @@ export const proof = {
         const [written, [tag, result]] = virtualAt(root)(ioStep(generateRustTests(), () => readAll))
         assert(tag === 'ok', result)
         assertEq(result.length, files.length)
-        files.forEach(([, content], i) => { assertEq(result[i], content) })
+        for (const [i, [, content]] of files.map(([, content], i) => /** @type {const} */ ([i, [, content]]))) { assertEq(result[i], content) }
         const table = ioStep(generateRustTests(), () => readUtf8File(methodsPath))
         const [, [tableTag, tableResult]] = virtualAt(root)(table)
         assert(tableTag === 'ok', tableResult)

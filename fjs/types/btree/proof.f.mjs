@@ -24,7 +24,7 @@ import { stringifySorted, toJson } from '../../media/json/module.f.js'
 import { set, squares } from './testlib.f.js'
 import { max } from '../number/max/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
-import { generate } from '../array/module.f.js'
+import { generate, dedup } from '../array/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const stringify = sequence => stringifySorted(toArray(sequence))
@@ -234,7 +234,7 @@ const demoProof = {
             // edge's path stays at the height it starts at.
             const paths = h.split('" data-graph-edge=""').slice(0, -1).map(before => before.slice(before.lastIndexOf('d="M') + 'd="M'.length))
             assert(paths.length > 1, h)
-            paths.forEach(d => assertEq(new Set(d.split(' L').map(point => point.split(',')[1])).size, 1))
+            for (const d of paths) { assertEq(dedup(d.split(' L').map(point => point.split(',')[1])).length, 1) }
         },
         // The split reaches the root, and the tree grows a level: the new
         // root is a rank further from the leaves than the old one.
@@ -308,8 +308,7 @@ const demoProof = {
             const keys = edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [Number(e.to.inline)] : [])
             return keys.reduce((a, b) => a + b, 0) / keys.length
         }
-        nodes.forEach(a => nodes.forEach(b =>
-            assert(a.rank !== b.rank || a.id >= b.id || averageOf(a.id) <= averageOf(b.id), '')))
+        for (const a of nodes) { for (const b of nodes) { assert(a.rank !== b.rank || a.id >= b.id || averageOf(a.id) <= averageOf(b.id), '') } }
         // The leaf 310 is now 310 320, and the leaf it replaced is not
         // drawn.
         const leaf310 = nodes.filter(n => n.rank === last && averageOf(n.id) >= 310)

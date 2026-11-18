@@ -36,6 +36,7 @@ import { _driveCas } from '../proof.f.js'
 import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.js'
 import { toJson } from '../../media/json/module.f.js'
 import { entry as valueAt } from '../../types/object/entry/module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -112,7 +113,7 @@ const writers = oidBytes => {
      * @type {(files: readonly (readonly [readonly string[], Oid])[]) => { readonly id: Oid, readonly objects: readonly (readonly [string, readonly Vec[]])[] }}
      */
     const tree = files => {
-        const names = [...new Set(files.map(([p]) => p[0]))].toSorted()
+        const names = dedup(files.map(([p]) => p[0])).toSorted()
         const parts = names.map(name => {
             const below = files.filter(([p]) => p[0] === name)
             const [[path, oid]] = below
@@ -242,7 +243,7 @@ const author = { name: 'Cas Writer', email: 'cas@example.com' }
 /** A repository with a checkout beside it: `HEAD` on `master`, an index, and a worktree file. @type {(root: Dir) => Dir} */
 const checkedOut = root => ({
     ...root,
-    [dir]: { ...root[dir], HEAD: text('ref: refs/heads/master\n'), index: [u8ListToVecMsb([0x44, 0x49, 0x52, 0x43])] },
+    [dir]: { ...valueAt(root, dir), HEAD: text('ref: refs/heads/master\n'), index: [u8ListToVecMsb([0x44, 0x49, 0x52, 0x43])] },
     src: { 'README.md': text('# source\n') },
 })
 

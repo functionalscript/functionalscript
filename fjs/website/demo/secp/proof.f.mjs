@@ -42,7 +42,7 @@ export const proof = {
         for (let k = 0n; k <= 29n; k += 1n) {
             const frames = sequence(k)
             assertEq(frames.length, Number(k) + 1)
-            frames.forEach((p, i) => assert(eq(p)(toy.mul(BigInt(i))(toy.g))))
+            for (const [i, p] of frames.map((p, i) => /** @type {const} */ ([i, p]))) { assert(eq(p)(toy.mul(BigInt(i))(toy.g))) }
         }
         assertEq(sequence(29n).at(-1), null)
         assertEq(sequence(-1n).length, 0)

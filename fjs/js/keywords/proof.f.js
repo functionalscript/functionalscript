@@ -33,13 +33,16 @@ export const proof = {
     literal: () => {
         /** @type {readonly string[]} */
         const words = literalWords
-        const reserved = new Set(/** @type {readonly string[]} */(reservedWords))
-        const globals = new Set(/** @type {readonly string[]} */(literalGlobals))
-        const all = new Set(/** @type {readonly string[]} */(keywords))
+        /** @type {readonly string[]} */
+        const reserved = reservedWords
+        /** @type {readonly string[]} */
+        const globals = literalGlobals
+        /** @type {readonly string[]} */
+        const all = keywords
         assertEq(words.join(), 'Infinity,NaN,false,null,true,undefined')
-        assertEq(words.filter(w => reserved.has(w)).join(), 'false,null,true')
-        assertEq(words.filter(w => globals.has(w)).join(), literalGlobals.join())
-        assertEq(words.filter(w => all.has(w)).length, words.length)
+        assertEq(words.filter(w => reserved.includes(w)).join(), 'false,null,true')
+        assertEq(words.filter(w => globals.includes(w)).join(), literalGlobals.join())
+        assertEq(words.filter(w => all.includes(w)).length, words.length)
     },
     // `isKeyword` holds for every keyword and nothing else: not a near miss
     // by case, not a prototype member a plain object would answer for, and

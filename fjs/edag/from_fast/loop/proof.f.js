@@ -7,6 +7,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { aggregateHelper, invocationAliases, namesBinding, readsEntryParameters, rootLoopOf, scalarHelper } from './module.f.js'
+import { dedup } from '../../../types/array/module.f.js'
 
 const parameter = { index: 0 }
 const state = { index: 1 }
@@ -83,7 +84,7 @@ export const proof = {
         assertEq(packed.parameters.length, 1)
         assertEq(packed.results.length, 1)
         const identities = /** @type {const} */ ([helper.parameters[0], packed.parameters[0], packed.results[0]])
-        assertEq(new Set(identities).size, 3)
+        assertEq(dedup(identities).length, 3)
         for (const identity of identities) {
             assertEq(identity.index, loopTarget.index)
             assert(!source.parameters.includes(identity))

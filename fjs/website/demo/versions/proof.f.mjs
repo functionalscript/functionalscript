@@ -454,7 +454,7 @@ export const proof = {
         // A count outside 1 to the most, or no number at all, builds nothing
         // and says what it takes; the field keeps what was typed.
         refused: () => {
-            ['0', '6', 'x'].forEach(value => {
+            for (const value of ['0', '6', 'x']) {
                 const typed = updateRandom({ kind: 'input', name: 'count', value })(random.demo.init)
                 const [n, r] = counter(0)(random.demo.update(typed)({ kind: 'click', name: 'generate' }))
                 assertEq(n, 0)
@@ -462,7 +462,7 @@ export const proof = {
                 assertEq(r[1].versions, random.demo.init.versions)
                 assertEq(r[1].count, value)
                 assertEq(r[1].error, `"${value}" is not a number of keys: type a whole number from 1 to 5.`)
-            })
+            }
         },
         // A host without random numbers builds nothing, and says so.
         notImplemented: () => {

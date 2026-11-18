@@ -3,6 +3,7 @@ import {
     allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
     objectPrototype, prohibitedAccess, prohibitedCalls, prototypeNames, stringPrototype,
 } from './module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 /** @type {readonly (readonly string[])[]} */
 const lists = [objectPrototype, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype]
@@ -30,7 +31,7 @@ export const proof = {
     // rather than `string`.
     aggregate: () => {
         assertEq(ascending(prototypeNames), true)
-        assertEq(prototypeNames.length, new Set(lists.flat()).size)
+        assertEq(prototypeNames.length, dedup(lists.flat()).length)
     },
     // `prohibitedCalls` and `allowedCalls` are each sorted, each name once,
     // and with `length` they are exactly `prototypeNames`: every prototype

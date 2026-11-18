@@ -6,18 +6,20 @@
 
 import { assertEq } from '../../asserts/module.f.js'
 import { groups } from './module.f.js'
+import { dedup } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 export const proof = {
     /** One group per method: a second group would split its cases. */
     oneGroupPerMethod: () => {
         const methods = groups.map(g => g.method)
-        assertEq(new Set(methods).size, methods.length)
+        assertEq(dedup(methods).length, methods.length)
     },
     /** Case names are unique within a group, as Rust test names must be. */
     uniqueNames: () => {
         for (const g of groups) {
-            const names = g.cases.map(c => c.name)
-            assertEq(new Set(names).size, names.length)
+            const names = g.cases.map(c => nameOf(c))
+            assertEq(dedup(names).length, names.length)
         }
     },
 }

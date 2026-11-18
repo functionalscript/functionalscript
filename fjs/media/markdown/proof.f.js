@@ -264,12 +264,12 @@ export const proof = {
         },
         // Every kind the grammar has, and a reference left as text.
         everyKind: () => {
-            const kinds = new Set(unwrap(tryParse(demo.init)).flat().map(s2 => s2[0]))
-            assert(kinds.has('text'))
-            assert(kinds.has('code'))
-            assert(kinds.has('strong'))
-            assert(kinds.has('em'))
-            assert(kinds.has('link'))
+            const kinds = unwrap(tryParse(demo.init)).flat().map(s2 => s2[0])
+            assert(kinds.includes('text'))
+            assert(kinds.includes('code'))
+            assert(kinds.includes('strong'))
+            assert(kinds.includes('em'))
+            assert(kinds.includes('link'))
             assert(unwrap(tryParse(demo.init))[0].some(
                 s2 => s2[0] === 'text' && s2[1].includes('(#1421)')))
         },

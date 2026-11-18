@@ -28,8 +28,7 @@ export const proof = {
         plain: () => assertStructurallySame(
             header(issue('P2', 'open')),
             ['ok', { status: 'open', priority: 'P2' }]),
-        everyStatus: () => statuses.forEach(s =>
-            assertStructurallySame(header(issue('P3', s)), ['ok', { status: s, priority: 'P3' }])),
+        everyStatus: () => { for (const s of statuses) { assertStructurallySame(header(issue('P3', s)), ['ok', { status: s, priority: 'P3' }]) } },
         // The note after ` — ` is not read, on either field, and may run on.
         note: () => assertStructurallySame(
             header(issue('P2 — shipped code is outside the subset', 'done — kept as the record; cited by\n  `spec/README.md`')),

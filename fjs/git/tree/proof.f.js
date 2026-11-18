@@ -10,7 +10,7 @@ import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/modul
 import { toArray } from '../../types/list/alt/module.f.js'
 import { latin1, modesTree, rootTree, sha256Tree, undefinedByte } from '../testlib.f.js'
 import { isSubtree, mode, tryRead, validate, write } from './module.f.js'
-import { generate } from '../../types/array/module.f.js'
+import { generate, dedup } from '../../types/array/module.f.js'
 import { nameOf } from '../../types/object/name/module.f.js'
 
 const read20 = tryRead(20)
@@ -53,7 +53,7 @@ export const proof = {
         assertStructurallySame(text(t[0]), ['40000', '.cargo', '51790504014de60f795462ec0995fd82d6caad56'])
         assertStructurallySame(text(t[15]), ['100755', 'dev.sh', '708d1660c3d411cf99ab30a30eb3fd3a9046c9a5'])
         assertStructurallySame(text(t[26]), ['100644', 'wrangler.jsonc', 'df228e2892189a7503babfdc4b6549bee875652d'])
-        assertStructurallySame([...new Set(t.map(mode))], [0o40000, 0o100644, 0o100755])
+        assertStructurallySame(dedup(t.map(mode)), [0o40000, 0o100644, 0o100755])
         assertStructurallySame(validate(t), ['ok', t])
         assertStructurallySame(toArray(write20(t)), rootTree)
     },
@@ -101,7 +101,7 @@ export const proof = {
     binary: () => {
         const payload = [...latin1('100644 '), 0xE9, 0xFF, 0x2F, 0, ...generate(20, i => i * 13 & 0xFF)]
         const [e] = read(payload)
-        assertStructurallySame(toArray(e.name), [0xE9, 0xFF, 0x2F])
+        assertStructurallySame(toArray(nameOf(e)), [0xE9, 0xFF, 0x2F])
         assertStructurallySame(toArray(write20([e])), payload)
     },
     // The mode is the number its digits spell, padded or not.

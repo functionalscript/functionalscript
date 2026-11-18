@@ -12,25 +12,6 @@ import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperan
 import { sharedNodesOf } from '../sharing/module.f.js'
 
 /**
- * What every table satisfies, checked on every case: an entry names only
- * entries before it, since a node comes after its operands; a scope is the
- * module's or a `=>` after the entry, since a `=>` comes after its body; and
- * `shared` is in index order.
- *
- * @type {(a: Analysis) => Analysis}
- */
-const sound = a => {
-    const { nodes, scope, shared } = a
-    assertEq(scope.length, nodes.length)
-    nodes.forEach((node, i) => {
-        refs(node).forEach(r => { assert(r < i, ['an operand after its node', i, r]) })
-        assert(scope[i] === -1 || (scope[i] > i && nodes[scope[i]][0] === '=>'), ['a scope that is not a later =>', i])
-    })
-    shared.forEach((s, n) => { assert(n === 0 || shared[n - 1] < s, ['shared out of order', shared]) })
-    return a
-}
-
-/**
  * Every index an entry names, wherever it stands. A `Ref` is `['#', i]`
  * and a table holds nothing else tagged `'#'` — the string `'#'` as a
  * primitive operand is not an array — so the collection can be structural,
@@ -41,6 +22,25 @@ const sound = a => {
 const refs = x => !(x instanceof Array) ? []
     : x[0] === '#' && typeof x[1] === 'number' ? [x[1]]
     : x.flatMap(refs)
+
+/**
+ * What every table satisfies, checked on every case: an entry names only
+ * entries before it, since a node comes after its operands; a scope is the
+ * module's or a `=>` after the entry, since a `=>` comes after its body; and
+ * `shared` is in index order.
+ *
+ * @type {(a: Analysis) => Analysis}
+ */
+const sound = a => {
+    const { nodes, scope, shared } = a
+    assertEq(scope.length, nodes.length)
+    for (const [i, node] of nodes.map((node, i) => /** @type {const} */ ([i, node]))) {
+        for (const r of refs(node)) { assert(r < i, ['an operand after its node', i, r]) }
+        assert(scope[Number(i)] === -1 || (scope[Number(i)] > i && nodes[Number(scope[Number(i)])][0] === '=>'), ['a scope that is not a later =>', i])
+    }
+    for (const [n, s] of shared.map((s, n) => /** @type {const} */ ([n, s]))) { assert(n === 0 || shared[Number(n - 1)] < s, ['shared out of order', shared]) }
+    return a
+}
 
 /** @type {(e: Exp) => Analysis} */
 const an = e => sound(assertOk(analysis(e)))
@@ -117,7 +117,7 @@ export const proof = {
         for (const [node, expected] of cases) {
             const actual = operandsOf(node)
             assertEq(actual.length, expected.length)
-            expected.forEach((operand, i) => assertEq(actual[i], operand))
+            for (const [i, operand] of expected.map((operand, i) => /** @type {const} */ ([i, operand]))) { assertEq(actual[Number(i)], operand) }
         }
     },
     // A function's own operands are its captures, without its body; every
@@ -552,7 +552,7 @@ export const proof = {
             /** @type {Exp} */
             const e = ['[]', [x, ['=>', 0, [x], body]]]
             const a = identity(e)
-            assertStructurallySame(a.shared.map(i => a.nodes[i]), [['[]', []], ['.', ['#', 2], 0]])
+            assertStructurallySame(a.shared.map(i => a.nodes[Number(i)]), [['[]', []], ['.', ['#', 2], 0]])
             assertEq(a.shared.length, sharedNodesOf(e).length + sharedNodesOf(body).length)
             assertEq(assertError(identityAnalysis(['[]', [x, ['=>', 0, [], x]]])), 'a node shared across a function boundary')
         },

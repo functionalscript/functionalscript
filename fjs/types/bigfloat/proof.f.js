@@ -404,5 +404,5 @@ export const proof = {
     ],
     // Cross-check against `Number(decimal)`, which the language specifies to
     // be correctly rounded. 13220 decimals, every one of them agreeing.
-    binary64AgreesWithNumber: () => corpus.forEach(assertSameAsNumber),
+    binary64AgreesWithNumber: () => { for (const dec of corpus) { assertSameAsNumber(dec) } },
 }

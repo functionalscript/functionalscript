@@ -21,6 +21,7 @@ import { occurrences } from '../../types/string/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { nameOf } from '../../types/object/name/module.f.js'
 import { toJson } from '../../media/json/module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 /** The demo's state after `event`. @type {(event: DemoEvent) => (state: DemoState) => DemoState} */
 const step = event => state => unwrap(assertNotNullish(
@@ -452,7 +453,7 @@ const demoProof = /** @type {const} */ ({
             const { schema, names } = exampleNamed('Evaluated EDAG value').schemas[0]
             const g = _graphOf(schema, names)
             const returns = g.edges.flatMap((edge, index) => edge.back === true ? [{ edge, index }] : [])
-            const targets = [...new Set(returns.map(({ edge }) => edge.to))]
+            const targets = dedup(returns.map(({ edge }) => edge.to))
             const largest = targets.map(to => returns.filter(({ edge }) => edge.to === to).map(({ index }) => index))
                 .toSorted((a, b) => b.length - a.length)[0]
             const html = htmlToString(graphSvg(g))

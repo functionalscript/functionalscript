@@ -30,7 +30,7 @@ import type {
 // `./module.f.js` registers and as the unions below — and the four pins that
 // keep the two agreeing sit beside those unions.
 //
-// They were `./proof.f.mjs`'s `consistency` entry, a body of nothing but
+// They were `./proof.f.js`'s `consistency` entry, a body of nothing but
 // typedefs, so none of them bound to a statement and all four were green
 // whatever they claimed (`../../../AGENTS.md` §1.4). That entry's own comment
 // said the function body existed only to give the typedefs a scope, which is

@@ -22,6 +22,7 @@ import {
     simpleEscapes,
     stringLiteral,
 } from './module.f.js'
+import { dedup } from '../../types/array/module.f.js'
 
 /**
  * The escapes spelled out independently of the table, so the proof compares
@@ -45,10 +46,10 @@ export const proof = {
     // Every letter decodes to its code point, and — apart from the optional
     // one — every code point encodes back to its letter. Round-tripping both
     // ways is what the two derived views are for.
-    roundTrip: () => expected.forEach(([letter, codePoint]) => {
+    roundTrip: () => { for (const [letter, codePoint] of expected) {
         assertEq(escapeToCodePoint(letter), codePoint, letter)
         assertEq(codePointToEscape(codePoint), codePoint === optionalEscape ? null : letter, codePoint)
-    }),
+    } },
     // `\/` is accepted and never produced: the one asymmetry between the views.
     optionalEscape: [
         () => assertEq(escapeToCodePoint(optionalEscape), solidus),
@@ -65,7 +66,7 @@ export const proof = {
     ],
     // The letters are distinct — a repeated letter would silently shadow an
     // entry in the decode view, and the table is small enough to say so.
-    lettersAreDistinct: () => assertEq(new Set(simpleEscapes.map(([letter]) => letter)).size, simpleEscapes.length),
+    lettersAreDistinct: () => assertEq(dedup(simpleEscapes.map(([letter]) => letter)).length, simpleEscapes.length),
     // The expected literals below are what the host's `JSON.stringify` produces
     // for the same input; `stringLiteral` has to reproduce them exactly, so any
     // divergence in the FunctionalScript escaping shows up here as a failure.
