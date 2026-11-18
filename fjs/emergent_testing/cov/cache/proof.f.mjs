@@ -18,6 +18,7 @@ import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { open } from './module.f.js'
 import { generate } from '../../../types/array/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** @type {NodeProgramOptions} */
 const options = { ...defaultNodeProgramOptions, home: '/home' }
@@ -52,7 +53,7 @@ const run = (effect, replies, state = { ...emptyState, root: repository() }) => 
             const calls = JSON.parse(state.stdout)
             const result = replies[calls.length]
             assert(result !== undefined, args)
-            return [{ ...state, stdout: JSON.stringify([...calls, { args, options }]) }, result]
+            return [{ ...state, stdout: toJson([...calls, { args, options }]) }, result]
         },
     }
     return partialRun(nodeCommands)(operations)({ ...state, stdout: '[]' })(effect)

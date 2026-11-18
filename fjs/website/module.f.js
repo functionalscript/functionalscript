@@ -57,8 +57,7 @@
  */
 
 import { entry } from '../types/object/entry/module.f.js'
-import { identity } from '../types/function/module.f.js'
-import { stringify } from '../media/json/module.f.js'
+import { toJson } from '../media/json/module.f.js'
 import { codePoints } from '../text/ascii/module.f.js'
 import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.js'
 import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
@@ -886,7 +885,7 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     return step(
         foldStep(pureOk(dirs), /** @type {readonly string[]} */([]), writeDir),
         cards => step(
-            writeUtf8File(cardsPath, stringify(identity)(cards)),
+            writeUtf8File(cardsPath, toJson(cards)),
             () => log(`directory pages: ${dirs.length}, cards: ${cards.length}, issues: ${issues.length}`)))
 })
 

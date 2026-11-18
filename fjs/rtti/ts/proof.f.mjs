@@ -8,6 +8,7 @@ import { absentBit, toData, unitBit } from '../data/module.f.js'
 import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.js'
 import { dataToTs, dataToTsMarked, printer } from './module.f.js'
 import { toText, withNames } from '../../text/marked/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 const toTs = printer()
 
@@ -27,7 +28,7 @@ const eq = (rtti, expected) => {
 
 /** @type {(data: Data, expected: unknown) => void} */
 const eqData = (data, expected) => {
-    const result = JSON.stringify(dataToTs()(data))
+    const result = toJson(dataToTs()(data))
     const exp = JSON.stringify(expected)
     assertEq(result, exp, [result, exp])
 }
@@ -37,7 +38,7 @@ const eqMarked = (data, expected) => {
     const [definitions, entry] = dataToTsMarked()(data)
     const [plainDefinitions, plainEntry] = dataToTs()(data)
     // the text is the plain text
-    assertEq(JSON.stringify([definitions.map(([n, t]) => [toText(n), toText(t)]), toText(entry)]), JSON.stringify([plainDefinitions, plainEntry]))
+    assertEq(toJson([definitions.map(([n, t]) => [toText(n), toText(t)]), toText(entry)]), toJson([plainDefinitions, plainEntry]))
     // no word is left unmarked
     const all = [...definitions.flat(), entry]
     assertEq(JSON.stringify(all.map(withNames)), JSON.stringify(all))
@@ -264,7 +265,7 @@ export const proof = {
             /** @type {_List} */
             const list = () => ['array', list]
             const [defs, entry] = dataToTs(true)(toData(list))
-            assertEq(JSON.stringify([defs, entry]), JSON.stringify([[['T0', '(T0)[]']], 'T0']))
+            assertEq(toJson([defs, entry]), toJson([[['T0', '(T0)[]']], 'T0']))
         },
     },
     identifiers: {

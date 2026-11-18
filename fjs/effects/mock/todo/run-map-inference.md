@@ -14,7 +14,7 @@ through the function's own type:
 ```
 
 At `36c8d4a` a dozen sites do this, across four proof modules:
-`fjs/effects/common/proof.f.mjs`, `fjs/emergent_testing/proof.f.mjs`,
+`fjs/effects/common/proof.f.js`, `fjs/emergent_testing/proof.f.mjs`,
 `fjs/protocol/mcp/stdio/proof.f.js` and `fjs/text/sgr/proof.f.mjs`.
 
 Reaching for `Parameters<typeof f<A, B>>[0]` to name an argument type is a sign

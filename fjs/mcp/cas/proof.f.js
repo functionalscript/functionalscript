@@ -21,6 +21,7 @@ import { parse as parseJson } from '../../media/json/module.f.js'
 import { fileCas } from '../../cas/module.f.js'
 import { _driveCas } from '../../cas/proof.f.js'
 import { sha256 } from '../../crypto/sha2/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
 
 /**
  * Drives a `FileCasOperation | MemOp` effect with `fjs/cas/proof.f.js`'s
@@ -59,7 +60,7 @@ const registry = casToolRegistry(fileCas(sha256)('.'))(cacheKey)
 
 /** @type {(name: string) => (args: any) => Effect<FileCasOperation | MemOp, ToolsCallResult, never>} */
 const toolHandle = name => {
-    const entry = registry.find(t => t.name === name)
+    const entry = registry.find(t => nameOf(t) === name)
     assert(entry !== undefined, `no such tool: ${name}`)
     return /** @type {NonNullable<typeof entry>} */ (entry).handle
 }

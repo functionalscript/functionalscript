@@ -23,6 +23,7 @@ import {
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, symbolsOf, template, terminator, value, whileStatement,
 } from './module.f.js'
 import { definitions, statementContinuations } from './module.f.js'
+import { entry as valueAt } from '../../../types/object/entry/module.f.js'
 
 // The value names itself, and the tree of a whole module is too deep a
 // type for `tsc` to unroll through `parser`'s return type (TS2589); the
@@ -75,7 +76,7 @@ const labelsOf = element => {
     return items.flatMap(item =>
         typeof item === 'string' ? []
         : item instanceof Array ? labelsOf(item)
-        : item[railroadLabelMarker] === undefined ? [] : [`${item[railroadLabelMarker]}:${text}`])
+        : valueAt(item, railroadLabelMarker) === undefined ? [] : [`${valueAt(item, railroadLabelMarker)}:${text}`])
 }
 
 /**

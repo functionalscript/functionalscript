@@ -8,6 +8,7 @@ import { isStatic as isStaticNode } from '../../edag/module.f.js'
 import { member, runtime, statics } from './module.f.js'
 import { encodeUriComponent } from '../../text/percent/encode_uri_component/module.f.js'
 import edag from './gen.edag.js'
+import { toJson } from '../../media/json/module.f.js'
 
 const { entries, values } = Object
 
@@ -882,7 +883,7 @@ export const proof = /** @type {const} */ ({
         // when a body captures the same binding as its static-table entry.
         assertEq([...new Set(staticNodes(edag))].map(node => node[0]).join(), natives.map(path => path.join('.')).join())
         for (const path of natives) {
-            assertEq(JSON.stringify(at(at(edag, 'statics'), path.join('.'))), JSON.stringify([path.join('.')]))
+            assertEq(JSON.stringify(at(at(edag, 'statics'), path.join('.'))), toJson([path.join('.')]))
         }
         assertEq(JSON.stringify(edag).includes('["slice"]'), true)
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)

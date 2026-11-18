@@ -9,6 +9,7 @@ import { assert, assertEq } from '../../asserts/module.f.js'
 import { demo, groupsOf } from './demo.f.js'
 import { htmlToString } from '../../media/html/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 //
 
@@ -135,8 +136,8 @@ export const proof = {
             /** @type {(text: string) => BitGroups} */
             const encoded = text => unwrap(groupsOf(text))
             // Empty text is the stop bit alone.
-            assertEq(JSON.stringify(encoded('')), JSON.stringify({ chars: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
-            assertEq(JSON.stringify(encoded('h')), JSON.stringify({
+            assertEq(toJson(encoded('')), toJson({ chars: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
+            assertEq(toJson(encoded('h')), toJson({
                 chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
                 groups: [
                     { data: '01101', stop: '', fill: '' },
@@ -144,7 +145,7 @@ export const proof = {
                 ],
                 encoded: 'd2',
             }))
-            assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['01101', '00011', '00001', '11010', '1001']))
+            assertEq(toJson(encoded('hé').groups.map(g => g.data)), toJson(['01101', '00011', '00001', '11010', '1001']))
             assertEq(encoded('hé').encoded, 'd31tk')
         },
         /**

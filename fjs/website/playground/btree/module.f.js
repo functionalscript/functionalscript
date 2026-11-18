@@ -62,8 +62,7 @@ import { button, option, selectField, refusal } from '../../demo/module.f.js'
 import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.js'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { stringify } from '../../../media/json/module.f.js'
-import { identity } from '../../../types/function/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
@@ -119,7 +118,7 @@ export const turnBudget = 50
 const moveTree = key => tree => structure.insert(key)(structure.remove(key)(tree))
 
 /** A tree's spelling, by which the search knows a tree it has met. @type {(tree: Tree<number>) => string} */
-const spelling = tree => stringify(identity)(tree)
+const spelling = tree => toJson(tree)
 
 /**
  * The start of a search for the par of `tree`, a tree of `keys`: zero if

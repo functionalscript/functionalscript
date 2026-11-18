@@ -17,6 +17,8 @@ import { utf8ToString } from '../../text/utf8/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _runPlan, _saveBatch, isCoverageTarget, main } from './module.f.js'
+import { toJson } from '../../media/json/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** @type {IoResult<ExitStatus>} */
 const passed = ok(['exited', 0])
@@ -57,7 +59,7 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
     const operations = {
         availableParallelism: () => state => [state, capacity],
         execFile: (command, args) => state => [state, cacheAvailable
-            ? ok({ stdout: command === 'node' ? JSON.stringify(runtime) : args[2] === 'ls-remote' ? '' : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
+            ? ok({ stdout: command === 'node' ? toJson(runtime) : args[2] === 'ls-remote' ? '' : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
             : error(['notImplemented', 'execFile'])],
         spawn: (command, args) => state => {
             assertEq(command, 'git')
@@ -79,7 +81,7 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
             return [state, reporter === null ? error(ioError({ message: 'reporter unavailable' })) : ok({ id: reporter, path: name })]
         },
         readdir: path => state => {
-            const entries = directories[normalize(path) === '' ? '.' : normalize(path)]
+            const entries = entry(directories, normalize(path) === '' ? '.' : normalize(path))
             return [{ ...state, clock: state.clock + (normalize(path) === '' ? timing.setup : 0) }, entries === undefined ? error(ioError({ message: 'directory unavailable' })) : ok(
                 entries.map(([name, isDirectory]) => ({ name, parentPath: path, isDirectory, isFile: !isDirectory })))]
         },
@@ -89,13 +91,13 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
             assert(name.endsWith(': running\n'))
             assert(name.includes('module.f.'))
             const outcome = captureFails ? error(ioError({ message: 'capture unavailable' }))
-                : assertNotNullish(outcomes[state.commands.length])
+                : assertNotNullish(outcomes[Number(state.commands.length)])
             /** @type {IoResult<CapturedProcess>} */
             const captured = outcome[0] === 'error' ? outcome : ok({
                 status: outcome[1], stdout: 'CHILD_STDOUT', stderr: 'CHILD_STDERR',
             })
             return [{ ...state, commands: [...state.commands, [command, args, options?.cwd]],
-                clock: state.clock + (timing.children[state.commands.length] ?? 0) }, captured]
+                clock: state.clock + (timing.children[Number(state.commands.length)] ?? 0) }, captured]
         },
         now: () => state => [{ ...state, snapshots: [...state.snapshots, state.clock] }, ok(state.clock)],
         write: (stream, bytes) => state => [

@@ -38,11 +38,8 @@ import { codePointToString, stringToCodePointList } from '../../text/utf16/modul
 import { toText } from '../../text/marked/module.f.js'
 import { length as listLength, scan, stateScan } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { stringify } from '../../media/json/module.f.js'
-import { identity } from '../../types/function/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 import { fromEntries, mapGet } from '../../types/map/module.f.js'
-
-const stringifyJson = stringify(identity)
 
 /**
  * Whether a name is a keyword where it stands, given the token after it on
@@ -200,7 +197,7 @@ const before = at => length => [at, before(at + length)]
  */
 export const disagreement = marked => {
     const text = toText(marked)
-    const found = stringifyJson(spansOf(text))
+    const found = toJson(spansOf(text))
     const lengths = marked.map(([chunk]) => listLength(stringToCodePointList(chunk)))
     const starts = toArray(scan(before(0))(lengths))
     /** @type {readonly Span[]} */
@@ -208,6 +205,6 @@ export const disagreement = marked => {
         const dash = chunk.startsWith('-') ? 1 : 0
         return kind === undefined ? [] : [{ start: starts[Number(i)] + dash, length: lengths[Number(i)] - dash, kind }]
     })
-    const marks = stringifyJson(given)
+    const marks = toJson(given)
     return marks === found ? null : `marked ${marks}, the tokenizer finds ${found}, in ${text}`
 }

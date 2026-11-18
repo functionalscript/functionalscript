@@ -5,6 +5,7 @@ import {
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
 } from './module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
@@ -202,7 +203,7 @@ export const proof = {
     toIterable: () => {
         assert(toIterable(a) === a)
         ;['', 'ab', '\u{1F600}x', '\ud83d', 'a\ude00\ud83d\ude00\ud83d'].forEach(v => {
-            assertEq(JSON.stringify(toIterable(v)), JSON.stringify([...v]))
+            assertEq(JSON.stringify(toIterable(v)), toJson([...v]))
         })
     },
     // `objectSpread` is what `{ ...v }` copies, for every kind.

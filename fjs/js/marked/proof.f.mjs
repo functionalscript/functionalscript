@@ -1,12 +1,13 @@
 import { disagreement, spansOf, tsSpansOf } from './module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 export const proof = {
     // Which characters each span covers, not only that the pieces rejoin: a
     // misplaced span still rejoins to the input, so the text alone cannot see it.
     covered: () => {
         /** @type {(text: string) => string} */
-        const covered = text => JSON.stringify(spansOf(text).map(({ start, length, kind }) =>
+        const covered = text => toJson(spansOf(text).map(({ start, length, kind }) =>
             [kind, Array.from(text).slice(start, start + length).join('')]))
         // a character beyond U+FFFF counts once before it, in a string and in a comment
         assertEq(covered('"😀" 1n'), '[["string","\\"😀\\""],["number","1n"]]')
@@ -31,7 +32,7 @@ export const proof = {
         assertEq(covered('const a = 1  \r\n/* x\r y */  \n// z\n"😀" 1n'),
             '[["keyword","const"],["identifier","a"],["number","1"],["comment","/* x\\r y */"],["comment","// z"],["string","\\"😀\\""],["number","1n"]]')
     },
-    spans: () => assertEq(JSON.stringify(spansOf('a /* x */ 1')),
+    spans: () => assertEq(toJson(spansOf('a /* x */ 1')),
         '[{"start":0,"length":1,"kind":"identifier"},{"start":2,"length":7,"kind":"comment"},{"start":10,"length":1,"kind":"number"}]'),
     // A text the tokenizer refuses has no spans, not the ones before the failure.
     refused: () => assertEq(spansOf('1 @ 2').length, 0),
@@ -45,7 +46,7 @@ export const proof = {
     // their line, and names everywhere else.
     typeScript: () => {
         /** @type {(text: string) => string} */
-        const keywords = text => JSON.stringify(tsSpansOf(text).flatMap(({ start, length, kind }) =>
+        const keywords = text => toJson(tsSpansOf(text).flatMap(({ start, length, kind }) =>
             kind === 'keyword' ? [Array.from(text).slice(start, start + length).join('')] : []))
         // an operand follows: a name, a keyword, a string, `{`, and `[` after `readonly`
         assertEq(keywords('export type A = readonly B[]'), '["export","type","readonly"]')
@@ -63,6 +64,6 @@ export const proof = {
         // a block comment's line break ends a type as a line's end does
         assertEq(keywords('type T = string /*\n*/ const x = number'), '["type","string","const"]')
         // JavaScript reads them all as names
-        assertEq(JSON.stringify(spansOf('type A').map(({ kind }) => kind)), '["identifier","identifier"]')
+        assertEq(toJson(spansOf('type A').map(({ kind }) => kind)), '["identifier","identifier"]')
     },
 }

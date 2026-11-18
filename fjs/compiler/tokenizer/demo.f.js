@@ -33,8 +33,7 @@ import { caption } from '../../website/demo/module.f.js'
 import { stageDemo } from '../stage_demo/module.f.js'
 import { tokenize } from './module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
-import { stringify } from '../../media/json/module.f.js'
-import { identity } from '../../types/function/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /**
  * One token as a line: `line:column  kind  value`, with an error's message
@@ -45,7 +44,7 @@ import { identity } from '../../types/function/module.f.js'
 export const _line = ({ token, metadata }) => {
     const detail = token.kind === 'error'
         ? `${token.message}${token.end === undefined ? '' : ` (to ${token.end.line}:${token.end.column})`}`
-        : hasEntry(token, 'value') ? (typeof token.value === 'bigint' ? `${token.value}n` : stringify(identity)(token.value)) : ''
+        : hasEntry(token, 'value') ? (typeof token.value === 'bigint' ? `${token.value}n` : toJson(token.value)) : ''
     return `${metadata.line}:${metadata.column}  ${token.kind}${detail === '' ? '' : `  ${detail}`}`
 }
 

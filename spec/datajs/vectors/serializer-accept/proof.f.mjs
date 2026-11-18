@@ -9,6 +9,7 @@ import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.js
 import { stringToCodePointList } from '../../../../fjs/text/utf16/module.f.js'
 import { toArray } from '../../../../fjs/types/list/alt/module.f.js'
 import serializerAccept from './data.f.js'
+import { toJson } from '../../../../fjs/media/json/module.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly SerializerAccept[]} */ (serializerAccept)
@@ -23,7 +24,7 @@ const { hasOwn } = Object
  */
 const named = (vector, name) => {
     const value = vector[name]
-    assert(typeof value === 'string' && value !== '', `${JSON.stringify(vector.id)}: ${name} is not a non-empty string`)
+    assert(typeof value === 'string' && value !== '', `${toJson(vector.id)}: ${name} is not a non-empty string`)
     return value
 }
 
@@ -88,10 +89,10 @@ export const proof = {
             const [tag, out] = tryStringify(vector.input)
             assert(tag === 'ok', `${id}: the writer refused the input: ${String(out)}`)
             const [readTag, graph] = tryParse(out)
-            assert(readTag === 'ok', `${id}: the writer emitted ${JSON.stringify(out)}, which the reader refuses: ${String(graph)}`)
+            assert(readTag === 'ok', `${id}: the writer emitted ${toJson(out)}, which the reader refuses: ${String(graph)}`)
             const d = difference(vector.input)(/** @type {Unknown} */ (graph))
-            assert(d === null, `${id}: the writer emitted ${JSON.stringify(out)}, which denotes another graph: ${d}`)
-            assert(utf8Encodable(out), `${id}: the writer emitted ${JSON.stringify(out)}, which has no UTF-8 encoding`)
+            assert(d === null, `${id}: the writer emitted ${toJson(out)}, which denotes another graph: ${d}`)
+            assert(utf8Encodable(out), `${id}: the writer emitted ${toJson(out)}, which has no UTF-8 encoding`)
         }
     },
 }

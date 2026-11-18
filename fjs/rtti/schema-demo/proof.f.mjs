@@ -20,6 +20,7 @@ import { toText } from '../../text/marked/module.f.js'
 import { occurrences } from '../../types/string/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { nameOf } from '../../types/object/name/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 /** The demo's state after `event`. @type {(event: DemoEvent) => (state: DemoState) => DemoState} */
 const step = event => state => unwrap(assertNotNullish(
@@ -254,7 +255,7 @@ const demoProof = /** @type {const} */ ({
         // the value it was given.
         open: () => {
             const r = _readersOf(open({ a: number }))('export default {"a":1,"b":2};')
-            assertEq(JSON.stringify(texts(r)), JSON.stringify({ parse: 'export default {"a":1};', validate: 'export default {"a":1,"b":2};' }))
+            assertEq(JSON.stringify(texts(r)), toJson({ parse: 'export default {"a":1};', validate: 'export default {"a":1,"b":2};' }))
         },
         // The value is DataJS so a schema's every value can be typed:
         // `undefined` is what tells the two schemas of "Absent vs undefined"
@@ -263,9 +264,9 @@ const demoProof = /** @type {const} */ ({
             const [a, b] = exampleNamed('Absent vs undefined').schemas
             const text = /** @type {const} */ ('export default {"a":undefined};')
             assertEq(JSON.stringify(texts(_readersOf(a.schema)(text))),
-                JSON.stringify({ parse: 'at a: no match', validate: 'at a: no match' }))
+                toJson({ parse: 'at a: no match', validate: 'at a: no match' }))
             assertEq(JSON.stringify(texts(_readersOf(assertNotNullish(b).schema)(text))),
-                JSON.stringify({ parse: 'export default {"a":undefined};', validate: 'export default {"a":undefined};' }))
+                toJson({ parse: 'export default {"a":undefined};', validate: 'export default {"a":undefined};' }))
         },
         // `validate` hands back the value it was given, sharing included;
         // `parse` builds a copy for each use. A document is written one
@@ -281,13 +282,13 @@ const demoProof = /** @type {const} */ ({
         },
         // A `;` inside a string ends no statement.
         semicolonInAString: () => assertEq(JSON.stringify(texts(_readersOf({ s: string })('export default {"s":";"};'))),
-            JSON.stringify({ parse: 'export default {"s":";"};', validate: 'export default {"s":";"};' })),
+            toJson({ parse: 'export default {"s":";"};', validate: 'export default {"s":";"};' })),
         // A failure says where, with the root named rather than left blank.
         errors: () => {
             assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default {"a":"x"};'))),
-                JSON.stringify({ parse: 'at a: unexpected value', validate: 'at a: unexpected value' }))
+                toJson({ parse: 'at a: unexpected value', validate: 'at a: unexpected value' }))
             assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default [];'))),
-                JSON.stringify({ parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' }))
+                toJson({ parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' }))
         },
         notADocument: () => assert(hasEntry(_readersOf(number)('1'), 'error'), 'expected a parse error'),
     },
@@ -308,7 +309,7 @@ const demoProof = /** @type {const} */ ({
             assertEq(toText(o.ts), 'type T0 = {readonly"children":readonly(T0)[],readonly"value":number}\nT0')
             assert(toText(o.jsonSchema).includes('"$defs":{"0":'), JSON.stringify(o.jsonSchema))
             // the alias is marked: `type` a keyword, its name an identifier
-            assertEq(JSON.stringify(o.ts.slice(0, 3)), JSON.stringify([['type', 'keyword'], [' '], ['T0', 'identifier']]))
+            assertEq(JSON.stringify(o.ts.slice(0, 3)), toJson([['type', 'keyword'], [' '], ['T0', 'identifier']]))
         },
     },
     // The comparison's five verdicts.
@@ -343,17 +344,17 @@ const demoProof = /** @type {const} */ ({
     marked: {
         // A member that fails is marked, in an object or an array, and the
         // rest is written as it is.
-        member: () => assertEq(JSON.stringify(_marked(['a', '1'])({ a: [1, 'x', [2]], b: null })),
-            JSON.stringify(['{', '"a":', '[', '1', ',', ['mark', '"x"'], ',', '[2]', ']', ',', '"b":', 'null', '}'])),
+        member: () => assertEq(toJson(_marked(['a', '1'])({ a: [1, 'x', [2]], b: null })),
+            toJson(['{', '"a":', '[', '1', ',', ['mark', '"x"'], ',', '[2]', ']', ',', '"b":', 'null', '}'])),
         // A member that is missing marks the container it is missing from.
-        missing: () => assertEq(JSON.stringify(_marked(['b'])({ a: 1 })), JSON.stringify([['mark', '{"a":1}']])),
+        missing: () => assertEq(toJson(_marked(['b'])({ a: 1 })), toJson([['mark', '{"a":1}']])),
         // An undefined value is present, so only that member gets the mark.
         presentUndefined: () => {
             assertStructurallySame(_marked(['value'])({ value: undefined }), ['{', '"value":', ['mark', 'undefined'], '}'])
             assertStructurallySame(_marked([0])([undefined]), ['[', ['mark', 'undefined'], ']'])
         },
         // A path that runs past a leaf marks the leaf.
-        leaf: () => assertEq(JSON.stringify(_marked(['a', 'b'])({ a: 7n })), JSON.stringify(['{', '"a":', ['mark', '7n'], '}'])),
+        leaf: () => assertEq(toJson(_marked(['a', 'b'])({ a: 7n })), toJson(['{', '"a":', ['mark', '7n'], '}'])),
         // A value that shares much is never expanded past what is shown: a
         // 64-level chain of pairs is 2^64 leaves as one expression, and the
         // mark and the members beside the path are cut, with `…` where.
@@ -366,19 +367,19 @@ const demoProof = /** @type {const} */ ({
             assertEq(nodes.length, 9)
             const beside = nodes[2]
             const mark = nodes[4]
-            assert(typeof beside === 'string' && beside.length <= 41 && beside.endsWith('…'), JSON.stringify(beside))
+            assert(typeof beside === 'string' && beside.length <= 41 && beside.endsWith('…'), toJson(beside))
             assertEq(nodes[7], beside)
-            assert(typeof mark !== 'string' && mark[0] === 'mark', JSON.stringify(mark))
+            assert(typeof mark !== 'string' && mark[0] === 'mark', toJson(mark))
             const text = mark[1]
-            assert(typeof text === 'string' && text.length <= 401 && text.endsWith('…'), JSON.stringify(text))
+            assert(typeof text === 'string' && text.length <= 401 && text.endsWith('…'), toJson(text))
         },
         // From the page: a nested failure marks only that member.
         page: () => {
             const r = _readersOf({ a: { b: number } })('export default {"a":{"b":"x"}};')
             assert(!hasEntry(r, 'error'), 'expected the readers to run')
             assert(hasEntry(r, 'validate') && !r.validate.ok, JSON.stringify(r))
-            assertEq(JSON.stringify(_marked(r.validate.ok ? [] : r.validate.path)(r.value)),
-                JSON.stringify(['{', '"a":', '{', '"b":', ['mark', '"x"'], '}', '}']))
+            assertEq(toJson(_marked(r.validate.ok ? [] : r.validate.path)(r.value)),
+                toJson(['{', '"a":', '{', '"b":', ['mark', '"x"'], '}', '}']))
         },
     },
     graph: {

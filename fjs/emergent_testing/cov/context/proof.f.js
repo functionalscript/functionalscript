@@ -18,6 +18,7 @@ import { u8ListToMaxVecChunksMsb, uint } from '../../../types/bit_vec/module.f.j
 import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { openCoverageCache } from './module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
 
 /** @type {NodeProgramOptions} */
 const options = {
@@ -70,13 +71,13 @@ const files = /** @type {const} */ ({
  * @param {boolean} [syncFails]
  * @param {boolean} [saveFails]
  */
-const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = false, syncFails = false, saveFails = false) => {
+const operations = (runtimeOutput = toJson(runtime), runtimeFails = false, syncFails = false, saveFails = false) => {
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const result = {
         ...virtualOperationMap,
         execFile: (executable, args, options) => state => {
             /** @type {State} */
-            const next = { ...state, stdout: state.stdout + JSON.stringify([executable, args]) + '\n' }
+            const next = { ...state, stdout: state.stdout + toJson([executable, args]) + '\n' }
             if (executable === 'node') {
                 assertStructurallySame(args, [runtimePath])
                 return [next, runtimeFails
@@ -115,8 +116,8 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
                 const imported = lines.flatMap((line, index) => {
                     if (!line.startsWith('M ')) { return [] }
                     const path = assertNotNullish(line.split(' ').at(-1))
-                    const size = assertNotNullish(lines[index + 1]).slice(5)
-                    const payload = assertNotNullish(lines[index + 2])
+                    const size = assertNotNullish(lines[Number(index + 1)]).slice(5)
+                    const payload = assertNotNullish(lines[Number(index + 2)])
                     return [`stored ${path}\nblob ${objectId(path)} ${size} ${payload}\n`]
                 }).join('')
                 return [{ ...next, stdout: next.stdout + imported }, ok({ stdout: '', stderr: '' })]
@@ -143,7 +144,7 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
             assertEq(opts.stdio, 'inherit')
             /** @type {Child} */
             const child = asNominal('git')
-            return [{ ...state, stdout: state.stdout + JSON.stringify([executable, args]) + '\n' }, ok(child)]
+            return [{ ...state, stdout: state.stdout + toJson([executable, args]) + '\n' }, ok(child)]
         },
         childWait: () => state => [state, ok(['exited', state.stdout.split('\n').at(-2)?.includes('show-ref') ? 1 : 0])],
     }
@@ -271,11 +272,11 @@ export const proof = /** @type {const} */ ({
             { ...runtime, arch: 'arm64' },
             { ...runtime, env: { ...runtime.env, TZ: 'different-zone' } },
         ])) {
-            const changed = partialRun(nodeCommands)(operations(JSON.stringify(runtimeChange)))
+            const changed = partialRun(nodeCommands)(operations(toJson(runtimeChange)))
             const [next, opened] = changed(saved)(openCoverageCache(options, false, [command]))
             const updated = assertOk(opened)
             const missed = assertOk(changed(next)(updated.prepare(command))[1])
-            assert(missed.every((entry, index) => entry.key !== entries[index].key))
+            assert(missed.every((entry, index) => entry.key !== entries[Number(index)].key))
             assertStructurallySame(assertOk(changed(next)(updated.lookup(missed))[1]), [false, false])
         }
     },

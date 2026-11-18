@@ -15,6 +15,7 @@ import { unwrap } from '../types/result/module.f.js'
 import { nextStep } from '../types/function/operator/module.f.js'
 import { run as runMachine } from '../types/list/module.f.js'
 import { generate } from '../types/array/module.f.js'
+import { toJson } from '../media/json/module.f.js'
 
 /** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const run = bits => {
@@ -136,8 +137,8 @@ export const proof = {
     heights: {
         hi: () => {
             const [heights, padding, root, end] = heightsOf('Hi')
-            assertEq(JSON.stringify(heights), JSON.stringify([0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0, 1, 0, 1, 0]))
-            assertEq(JSON.stringify(padding), JSON.stringify([3]))
+            assertEq(toJson(heights), toJson([0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0, 1, 0, 1, 0]))
+            assertEq(toJson(padding), toJson([3]))
             assertEq(root, end)
             assertEq(root, level3Id(0x4e94n))
         },
@@ -166,9 +167,9 @@ export const proof = {
         hi: () => {
             const { padding, heights, root } = stripes('0100100001101001')
             assertEq(padding, '1')
-            assertEq(JSON.stringify(heights), JSON.stringify([0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0, 1, 0, 1, 0, 3]))
+            assertEq(toJson(heights), toJson([0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0, 1, 0, 1, 0, 3]))
             assertEq(root, level3Id(0x4e94n))
-            assertEq(JSON.stringify([1, 2, 3].map(k => rowWords(heights, k))), JSON.stringify([[2, 2, 3, 2, 2, 2, 2, 2], [7, 4, 6], [17]]))
+            assertEq(toJson([1, 2, 3].map(k => rowWords(heights, k))), toJson([[2, 2, 3, 2, 2, 2, 2, 2], [7, 4, 6], [17]]))
         },
         // No input is all padding, a `1` and then `0`s until the root.
         empty: () => assertEq(stripes('').padding, '100000000000000'),
@@ -180,15 +181,15 @@ export const proof = {
             for (const k of generate(top, i => i + 1)) {
                 assertEq(rowWords(heights, k).reduce((a, b) => a + b, 0), 40 + padding.length)
             }
-            assertEq(JSON.stringify(rowWords(heights, top)), JSON.stringify([40 + padding.length]))
+            assertEq(toJson(rowWords(heights, top)), toJson([40 + padding.length]))
         },
         units: {
-            text: () => assertEq(JSON.stringify(assertOk(units({ input: 'text', text: 'a é', bits: 'x' }))), JSON.stringify([
+            text: () => assertEq(toJson(assertOk(units({ input: 'text', text: 'a é', bits: 'x' }))), toJson([
                 { label: 'a', standIn: false, bits: '01100001' },
                 { label: '␠', standIn: true, bits: '00100000' },
                 { label: 'é', standIn: false, bits: '1100001110101001' },
             ])),
-            bits: () => assertEq(JSON.stringify(assertOk(units({ input: 'bits', text: '\ud800', bits: '0100100001' }))), JSON.stringify([
+            bits: () => assertEq(toJson(assertOk(units({ input: 'bits', text: '\ud800', bits: '0100100001' }))), toJson([
                 { label: '', standIn: false, bits: '01001000' },
                 { label: '', standIn: false, bits: '01' },
             ])),
@@ -207,11 +208,11 @@ export const proof = {
             /** @type {(state: _DemoState) => (event: DemoEvent) => _DemoState} */
             const next = state => event => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
             const bits = next(demo.init)({ kind: 'input', name: 'input', value: 'bits' })
-            assertEq(JSON.stringify(bits), JSON.stringify({ ...demo.init, input: 'bits' }))
+            assertEq(toJson(bits), toJson({ ...demo.init, input: 'bits' }))
             assertEq(next(bits)({ kind: 'input', name: 'bits', value: '1' }).bits, '1')
             // A pick fills the text field and shows it, even over typed bits.
             const picked = next(bits)({ kind: 'input', name: 'example', value: 'Two bytes' })
-            assertEq(JSON.stringify(picked), JSON.stringify({ ...bits, input: 'text', text: 'Hi' }))
+            assertEq(toJson(picked), toJson({ ...bits, input: 'text', text: 'Hi' }))
         },
         view: {
             // The initial text: its characters over their bits, a row of
