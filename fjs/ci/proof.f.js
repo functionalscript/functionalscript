@@ -153,21 +153,21 @@ export const proof = {
             }
             const artifact = producer.steps[Number(upload)]
             assert(artifact !== undefined)
-            assertEq(artifact.with?.name, 'package-tarball')
-            assertEq(artifact.with?.path, '${{ runner.temp }}/consumer/*.tgz')
-            assertEq(artifact.with?.['if-no-files-found'], 'error')
+            assertEq(entry(assertNotNullish(entry(artifact, 'with')), 'name'), 'package-tarball')
+            assertEq(entry(artifact, 'with')?.path, '${{ runner.temp }}/consumer/*.tgz')
+            assertEq(entry(artifact, 'with')?.['if-no-files-found'], 'error')
             const setup = consumer.steps[0]
             const download = consumer.steps[1]
             assert(setup?.uses?.startsWith('actions/setup-node@') === true)
-            assertEq(setup.with?.['node-version'], node)
-            assertEq(setup.with?.['package-manager-cache'], 'false')
+            assertEq(entry(setup, 'with')?.['node-version'], node)
+            assertEq(entry(setup, 'with')?.['package-manager-cache'], 'false')
             assert(download?.uses?.startsWith('actions/download-artifact@') === true)
-            assertEq(download.with?.name, artifact.with?.name)
-            assertEq(download.with?.path, '${{ runner.temp }}/consumer')
+            assertEq(entry(assertNotNullish(entry(download, 'with')), 'name'), entry(assertNotNullish(entry(artifact, 'with')), 'name'))
+            assertEq(entry(download, 'with')?.path, '${{ runner.temp }}/consumer')
             assert(has(gha, packageJobId, `typescript@${typescript.version}`))
             assert(has(gha, packageJobId, 'npx tsc'))
             for (const step of consumer.steps.filter(step => step.run !== undefined)) {
-                assertEq(step['working-directory'], download.with?.path)
+                assertEq(step['working-directory'], entry(download, 'with')?.path)
                 assert(!step.run?.startsWith('mise '))
             }
         }

@@ -44,7 +44,7 @@ export const proof = {
     },
     // A consumer's toolchain, not the repository's: commands only, the Node
     // being the job's `setup-node` (proved on the assembled workflow, in
-    // `fjs/ci/proof.f.mjs`), and none entering a tool manager, whose shell
+    // `fjs/ci/proof.f.js`), and none entering a tool manager, whose shell
     // would put this repository's `node` and `tsc` on `PATH`.
     consumerToolchain: () => {
         assert(steps.every(step => step.run !== undefined), 'expected commands only')

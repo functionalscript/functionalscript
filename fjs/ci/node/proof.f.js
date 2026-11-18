@@ -84,9 +84,9 @@ export const proof = {
     // Extra `setup-node` inputs ride along with the pinned Node, and none of
     // them replaces it.
     installNodeInputs: () => assertStructurallySame(
-        installNode({
+        entry(installNode({
             'registry-url': 'https://registry.example/',
             'node-version': '22.x',
-        }).with,
+        }), 'with'),
         { 'registry-url': 'https://registry.example/', 'node-version': node }),
 }

@@ -12,6 +12,7 @@ import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import { entry as valueAt } from '../../../types/object/entry/module.f.js'
+import { nameOf } from '../../../types/object/name/module.f.js'
 
 /** @type {(kind: 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => ModuleTokenWithMetadata} */
 const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
@@ -642,8 +643,8 @@ export const proof = {
         assert(exported !== null && exported.value[0] === '=>')
         const list = exported.value[1]
         assert(hasEntry(list, 'fixed') && list.rest !== null)
-        assertStructurallySame(list.fixed.map(t => t[0]), ['object', 'name', 'array'])
-        const [pattern, d] = list.fixed
+        assertStructurallySame(assertNotNullish(valueAt(list, 'fixed')).map(t => t[0]), ['object', 'name', 'array'])
+        const [pattern, d] = assertNotNullish(valueAt(list, 'fixed'))
         assert(pattern[0] === 'object' && d[0] === 'name')
         assertEq(pattern[1].metadata.column, 17)
         const [a, b] = pattern[2]
@@ -659,13 +660,13 @@ export const proof = {
         }
         const bare = listOf('export default a => 1;')
         assert(hasEntry(bare, 'fixed') && bare.rest === null)
-        assertStructurallySame(bare.fixed.map(t => t[0]), ['name'])
-        const [head] = bare.fixed
+        assertStructurallySame(assertNotNullish(valueAt(bare, 'fixed')).map(t => t[0]), ['name'])
+        const [head] = assertNotNullish(valueAt(bare, 'fixed'))
         assert(head[0] === 'name')
         assertEq(head[1].metadata.column, 16)
         const rest = listOf('export default (...r) => 1;')
         assert(hasEntry(rest, 'fixed') && rest.rest !== null)
-        assertStructurallySame(rest.fixed, [])
+        assertStructurallySame(assertNotNullish(valueAt(rest, 'fixed')), [])
         assertEq(rest.rest.metadata.column, 20)
         for (const source of ['export default (1) => 1;', 'export default ((a)) => 1;', 'export default (a.b, c) => 1;', 'export default ((a) = 1) => 1;', 'export default (1 = 2) => 1;']) {
             const list = listOf(source)
@@ -683,8 +684,8 @@ export const proof = {
         assert(exported !== null && exported.value[0] === '=>')
         const list = exported.value[1]
         assert(hasEntry(list, 'fixed') && list.rest !== null)
-        assertStructurallySame(list.fixed.map(t => t[0]), ['=', '=', 'name', '='])
-        const [a, b, , d] = list.fixed
+        assertStructurallySame(assertNotNullish(valueAt(list, 'fixed')).map(t => t[0]), ['=', '=', 'name', '='])
+        const [a, b, , d] = assertNotNullish(valueAt(list, 'fixed'))
         assert(a[0] === '=' && b[0] === '=' && d[0] === '=')
         assertStructurallySame([a[1][0], b[1][0], d[1][0]], ['name', 'object', 'name'])
         assertStructurallySame([a[2].metadata.column, b[2].metadata.column, d[2].metadata.column], [19, 30, 41])
@@ -695,7 +696,7 @@ export const proof = {
         assert(alone !== null && alone.value[0] === '=>')
         const single = alone.value[1]
         assert(hasEntry(single, 'fixed') && single.rest === null)
-        assertStructurallySame(single.fixed.map(t => t[0]), ['='])
+        assertStructurallySame(assertNotNullish(valueAt(single, 'fixed')).map(t => t[0]), ['='])
     },
     namedExports: {
         syntax: () => {
@@ -703,7 +704,7 @@ export const proof = {
             assertEq(source.exported, null)
             assertStructurallySame(source.statements.map(s => s[0]), ['const', 'const', 'let', 'assign', 'const'])
             assertStructurallySame(source.statements.map(s => {
-                if (s[0] !== 'const' && s[0] !== 'let') { return s[0] === 'assign' ? s[1].name.token : null }
+                if (s[0] !== 'const' && s[0] !== 'let') { return s[0] === 'assign' ? nameOf(s[1]).token : null }
                 const target = s[1].declaration.target
                 assert(target[0] === 'name')
                 return [s[1].exported, target[1].token]
