@@ -5,6 +5,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { completeBlockTransfers, completeTransfers } from './module.f.js'
 import { proof as terminalLoops } from '../../terminal_loops.proof.f.js'
+import { generate } from '../../../../types/array/module.f.js'
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })
 const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -41,7 +42,7 @@ const transferGuard = (completion, kind, id) => ['if', ['===', ['.', ['ref', com
     body(['yield', [['===', ['.', ['ref', completion], 1], id]]]), body(['yield', [false]])]
 
 /** @type {(completion: BindingId, length: number) => readonly Value[]} */
-const transferValues = (completion, length) => Array.from({ length }, (_, i) => ['.', ['.', ['ref', completion], 2], i])
+const transferValues = (completion, length) => generate(length, i => ['.', ['.', ['ref', completion], 2], i])
 
 export const proof = {
     terminalReturnValues: terminalLoops.returnsCarryTheValueWithoutACompletionDiscriminator,
@@ -110,7 +111,7 @@ export const proof = {
     },
     resultSignatures: () => {
         for (const length of [0, 1, 3]) {
-            const results = Array.from({ length }, () => /** @type {const} */ ({ index: 0 }))
+            const results = generate(length, () => /** @type {const} */ ({ index: 0 }))
             const values = results.map((_, index) => index)
             const loop = loopOf(body(['break', loopTarget, values], [
                 ['block', [], body(['return', target, 8])],

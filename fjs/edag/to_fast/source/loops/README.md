@@ -235,7 +235,7 @@ cover explicit backedge refusal and retained one-pass self behavior.
 The [source-loop proofs](proof.f.mjs) retain exact first-parse graph/text checks,
 source exits, nested and 18-state loops, required failures, rest and capture
 lifetimes. `lazyTerminalPrefixesRetainTheirInvocationLoops` and the
-[shared-continuation proofs](./shared_continuations.proof.f.mjs), including
+[shared-continuation proofs](./shared_continuations.proof.f.js), including
 `factoredInvocationProfilesKeepSelectedWorkAndSharedResults`, cover newly retained
 profiles and their first source readback; they do not claim general fixed points.
 `sourceLoopRetentionChecksLexicalTransferRegions` pins the remaining lexical
