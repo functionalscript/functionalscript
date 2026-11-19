@@ -5,6 +5,7 @@ import {
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
 } from './module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
@@ -50,10 +51,21 @@ const stringy = v => typeof toPrimitive(v, false) === 'string'
 const mixed = (x, y) => (typeof x === 'bigint') !== (typeof y === 'bigint')
 
 /** Receivers of every kind but the nullish ones, for the member read. */
-export const receivers = /** @type {readonly unknown[]} */ (['ab', '', '\u{1F600}', [10, 20], [], { a: 1, 0: 'z', '1.5': 'f', length: 3, '1e+21': 'e' }, {}, f, 5, true, 1n])
+const receivers = /** @type {readonly unknown[]} */ (['ab', '', '\u{1F600}', [10, 20], [], { a: 1, 0: 'z', '1.5': 'f', length: 3, '1e+21': 'e' }, {}, f, 5, true, 1n])
 
 /** Number and string keys, indexes and not. */
-export const keys = /** @type {readonly unknown[]} */ ([0, 1, 2, -0, -1, 1.5, NaN, Infinity, 1e21, 0xffff_ffff, 0x1_0000_0000, '0', '1', '2', '01', '-0', '1.5', ' 1', '', 'a', 'length', '4294967295', '4294967296', '99999999999'])
+const keys = /** @type {readonly unknown[]} */ ([0, 1, 2, -0, -1, 1.5, NaN, Infinity, 1e21, 0xffff_ffff, 0x1_0000_0000, '0', '1', '2', '01', '-0', '1.5', ' 1', '', 'a', 'length', '4294967295', '4294967296', '99999999999'])
+
+/**
+ * A receiver's own member under a key, with no prototype, as NaNVM reads
+ * one: its own enumerable entry, and the `length` a string, an array and a
+ * function have, which is own and not enumerable.
+ *
+ * @type {(r: unknown, k: unknown) => unknown}
+ */
+const own = (r, k) => String(k) === 'length' && (typeof r === 'string' || typeof r === 'function' || r instanceof Array)
+    ? r.length
+    : entry(r, String(k))
 
 /** The strings of {@link values}. */
 const strings = values.filter(v => typeof v === 'string')
@@ -170,11 +182,11 @@ export const proof = {
             for (const [op, js] of ops) { assertEq(op(x, y), js(x, y), `${String(x)} ${String(y)}`) }
         }
     },
-    // `get` reads a receiver's own members only, as NaNVM does: an index by
-    // number or canonical string, `length`, and an object's property, a
-    // number key by its string. `./own.proof.f.mjs` holds it to the host's
-    // own property on every receiver and key.
+    // `get` reads a receiver's own members only, as NaNVM does, on every
+    // receiver and key: an index by number or canonical string, `length`,
+    // and an object's property, a number key by its string.
     get: () => {
+        for (const r of receivers) { for (const k of keys) { assertEq(get(r, k), own(r, k), `${String(r)}[${String(k)}]`) } }
         assertEq(get('ab', 1), 'b')
         assertEq(get('\u{1F600}', 1), '\ude00')
         assertEq(get([10, 20], '1'), 20)
