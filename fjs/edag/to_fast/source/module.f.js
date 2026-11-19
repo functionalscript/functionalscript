@@ -21,7 +21,7 @@ import { fromValues, has, size } from '../../../types/set/module.f.js'
 const keyReason = (a, key, method) => {
     if (typeof key === 'string') {
         const why = prohibitedAccess(method)(key)
-        return why === null ? null : `a prohibited ${why}`
+        return why === null ? null : `a ${method ? 'call' : 'read'} of the prohibited ${why} "${key}"`
     }
     if (typeof key === 'number') { return Number.isFinite(key) && !Object.is(key, -0) ? null : 'a number key no literal reads back' }
     const node = key instanceof Array ? a.nodes[Number(key[1])] : null

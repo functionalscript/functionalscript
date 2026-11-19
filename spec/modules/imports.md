@@ -25,9 +25,7 @@ scope and language-designer authorization.
   dependency's own exports of those names, and one it does not export —
   `toString`, `hasOwnProperty` — is an absent export, not a built-in.
   [Property access](../property-access/README.md) refuses these names as keys; a
-  selection is not an access. The FunctionalScript output refuses such an
-  importer today (`a prohibited property name`), since it writes the selection
-  as an access; the other outputs accept it.
+  selection is not an access, and no output writes it as one.
 - Named lists admit aliases, trailing commas, `default as name`, and an empty
   list. A default binding may precede a named list.
 - An empty list still loads and evaluates the dependency. Unused imports and

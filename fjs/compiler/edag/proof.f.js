@@ -136,6 +136,20 @@ export const proof = {
             const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
             assertEq(execute(printed), 42)
         },
+        // an export is selected as its value under the module's computation,
+        // with no property read: a name a read refuses is written as source
+        prototypeNames: () => {
+            expectEdag(
+                program({ main: file('import {map} from "./dep"; export default map;'), dep: file('const z=[0]; export const map=1; export const two=2;') })('main'),
+                [',', [['[]', [0]], ['{}', [[':', 'map', 1], [':', 'two', 2]]], 1]])
+            const graph = unwrap(linked({
+                main: file('import {map,entries} from "./dep"; export const main=()=>map(entries);'),
+                dep: file('export const map=(...args)=>args[0]+1; export const entries=41;'),
+            })('main'))
+            /** @type {Exp} */
+            const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
+            assertEq(execute(printed), 42)
+        },
         identity: () => {
             const root = {
                 main: file('import d,{x,x as y} from "./dep"; import {a} from "./left"; import {b} from "./right"; export const direct=[d,x,y,a,b]; export const captured=()=>x;'),

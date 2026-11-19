@@ -1028,6 +1028,11 @@ export const proof = {
         input: () => {
             assertEq(fjsRefused({ 'input.f.js': [utf8('export default @')] }), 'input.f.js:1:16-17 - error: unexpected token')
             assertEq(fjsRefused({ 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }), 'm.f.js - error: file not found')
+            // an accepted module the writer has no spelling for: the line says
+            // the refusal is the output's
+            assertEq(
+                fjsRefused({ 'input.f.js': [utf8('export default (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})();')] }),
+                'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query')
         },
         // a `.json` input reaches this route too, as it reaches the others
         jsonInput: () => {
