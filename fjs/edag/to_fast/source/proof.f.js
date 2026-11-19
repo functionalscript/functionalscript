@@ -96,8 +96,8 @@ export const proof = {
     },
     keys: () => {
         assertEq(reason(['.', null, 'length']), null)
-        assertEq(reason(['.', null, 'constructor']), 'a prohibited property name')
-        assertEq(reason(['.', null, 'push', ['|()', [0]]]), 'a prohibited member function')
+        assertEq(reason(['.', null, 'constructor']), 'a read of the prohibited property name "constructor"')
+        assertEq(reason(['.', null, 'push', ['|()', [0]]]), 'a call of the prohibited member function "push"')
         assertEq(reason(['.', null, 0]), null)
         for (const key of [NaN, Infinity, -0]) { assertEq(reason(['.', null, key]), 'a number key no literal reads back') }
         assertEq(reason(['.', null, ['Number', 0]]), null)
@@ -105,8 +105,8 @@ export const proof = {
         assertEq(reason(/** @type {Exp} */ (/** @type {unknown} */ (['=>', 0, [], ['.', ['rest'], ['rest']]]))), 'an access key that is no literal')
         const key = /** @type {const} */ (['Number', 0])
         assertEq(reason(['[]', [['.', null, key], ['.', null, key]]]), 'a shared computed key')
-        assertEq(reason(['?.', null, 'length', ['|.', 'at']]), 'a prohibited property name')
-        assertEq(reason(['?.', null, 'x', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
+        assertEq(reason(['?.', null, 'length', ['|.', 'at']]), 'a read of the prohibited property name "at"')
+        assertEq(reason(['?.', null, 'x', ['|.', 'push', ['|()', []]]]), 'a call of the prohibited member function "push"')
         assertEq(reason(['?.', null, ['Number', [',', [1, 2]]], ['|.', ['Number', [',', [3, 4]]]]]), null)
         assertEq(reason(['?.()', null, [[',', [1, 2]]], ['|.', 'x', ['|?.()', [[',', [3, 4]]]]]]), null)
         const escaped = /** @type {Exp} */ ([

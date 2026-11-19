@@ -524,7 +524,7 @@ export const proof = {
             // `arguments` and `with` are on the prototypes, and an access on
             // either has no text at all.
             if (written[0] === 'error') {
-                assertEq(written[1], 'a prohibited property name', k)
+                assertEq(written[1], `a read of the prohibited property name "${k}"`, k)
                 continue
             }
             assertEq(reads(['=>', 0, [], ['.', ['rest'], k]]), `export default (...$0)=>$0.${k};`)
@@ -830,8 +830,8 @@ export const proof = {
         // a method call's key is refused by the parser's own list of the
         // member functions a module may not call, not by the one of reads
         writes(f(['.', a, 'at', ['|()', [0]]]), 'export default (...$0)=>$0.at(0);')
-        refuses(f(['.', a, 'push', ['|()', [0]]]), 'a prohibited member function')
-        refuses(f(['.', a, 'at']), 'a prohibited property name')
+        refuses(f(['.', a, 'push', ['|()', [0]]]), 'a call of the prohibited member function "push"')
+        refuses(f(['.', a, 'at']), 'a read of the prohibited property name "at"')
         // one call node is one call, however many edges reach it
         /** @type {Exp} */
         const c = ['()', a, []]
@@ -1113,10 +1113,10 @@ export const proof = {
         // a read and admitted as a call, a member function a module may not
         // call refused at the key — through a step too
         writes(f(['?.', a, 'at', ['|()', [0]]]), 'export default (...$0)=>$0?.at(0);')
-        refuses(f(['?.', a, 'at']), 'a prohibited property name')
-        refuses(f(['?.', a, 'push', ['|()', [0]]]), 'a prohibited member function')
-        refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
-        refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a prohibited property name')
+        refuses(f(['?.', a, 'at']), 'a read of the prohibited property name "at"')
+        refuses(f(['?.', a, 'push', ['|()', [0]]]), 'a call of the prohibited member function "push"')
+        refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a call of the prohibited member function "push"')
+        refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a read of the prohibited property name "at"')
     },
     enclosingLazyBindings: () => {
         for (const condition of [false, true]) {
@@ -1194,9 +1194,9 @@ export const proof = {
         // refuses it in either spelling, `.k` and `["k"]` alike, so an
         // access on one has no text at all — `length`, which both languages
         // read as an own property, is the one such name that has.
-        refuses(['=>', 0, [], ['.', ['rest'], 'constructor']], 'a prohibited property name')
-        refuses(['=>', 0, [], ['.', ['rest'], '__proto__']], 'a prohibited property name')
-        refuses(['=>', 0, [], ['.', ['rest'], 'toString']], 'a prohibited property name')
+        refuses(['=>', 0, [], ['.', ['rest'], 'constructor']], 'a read of the prohibited property name "constructor"')
+        refuses(['=>', 0, [], ['.', ['rest'], '__proto__']], 'a read of the prohibited property name "__proto__"')
+        refuses(['=>', 0, [], ['.', ['rest'], 'toString']], 'a read of the prohibited property name "toString"')
         // The first refusal is the one reported, and nothing after it is
         // written: among the values a statement hoists, and among the
         // statements of a module.

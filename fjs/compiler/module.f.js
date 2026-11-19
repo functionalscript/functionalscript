@@ -128,11 +128,16 @@ const rustText = path => mapStep(resolve(path), toRustMarked)
  * graph. This route does not evaluate the module — it rewrites the graph —
  * so a module holding a function compiles, and one whose value the readers
  * would refuse, a read of `null`, compiles too, the failure being the
- * program's to make when it runs.
+ * program's to make when it runs. A refusal says it is the output's, since
+ * the module itself was accepted, and then what the writer has no spelling
+ * for.
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsMarked(graph) : tryModuleMarked(graph))
+const fjsText = path => mapStep(resolve(path), graph => {
+    const [tag, value] = path.endsWith('.json') ? fjsMarked(graph) : tryModuleMarked(graph)
+    return tag === 'error' ? error(`cannot write as FunctionalScript: ${value}`) : ok(value)
+})
 
 /**
  * Write the default export of a module, or the whole document for a direct
