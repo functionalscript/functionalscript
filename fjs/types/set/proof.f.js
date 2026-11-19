@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { generate } from '../array/generate/module.f.js'
-import { add, empty, fromValues, has, size, values } from './module.f.js'
+import { add, empty, fromValues, has, remove, size, values } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     empty: () => {
@@ -27,6 +27,14 @@ export const proof = /** @type {const} */ ({
         assert(has(2)(two))
         assertStructurallySame(values(one), [1])
         assertStructurallySame(values(two), [1, 2])
+    },
+    removal: () => {
+        const set = fromValues([3, 1, 2])
+        const removed = remove(1)(set)
+        assertStructurallySame(values(removed), [3, 2])
+        assert(has(1)(set))
+        assert(remove(4)(set) === set)
+        assertStructurallySame(values(add(1)(removed)), [3, 2, 1])
     },
     equality: () => {
         const a = /** @type {const} */ ({ index: 1 })

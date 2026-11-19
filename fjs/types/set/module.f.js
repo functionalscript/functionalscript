@@ -8,7 +8,7 @@
  * @import { PersistentSet } from './types.ts'
  */
 
-import { empty as noEntries, mapEntries, mapHas, mapSet, size as mapSize } from '../map/module.f.js'
+import { empty as noEntries, mapDelete, mapEntries, mapHas, mapSet, size as mapSize } from '../map/module.f.js'
 
 /** The set with nothing in it. @type {PersistentSet<never>} */
 export const empty = noEntries
@@ -18,6 +18,9 @@ export const has = value => set => mapHas(set, value)
 
 /** Add a value, returning the same set where it is already present. @type {<T>(value: T) => (set: PersistentSet<T>) => PersistentSet<T>} */
 export const add = value => set => has(value)(set) ? set : mapSet(set, value, true)
+
+/** Remove a value, returning the same set where it is absent; adding it again appends it. @type {<T>(value: T) => (set: PersistentSet<T>) => PersistentSet<T>} */
+export const remove = value => set => mapDelete(set, value)
 
 /** How many values the set holds. @type {<T>(set: PersistentSet<T>) => number} */
 export const size = mapSize
