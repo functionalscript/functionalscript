@@ -223,7 +223,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/media/json/proof.f.js` | 23 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/media/json/proof.f.js` | 23 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/module.f.js` | 63 | `NodeProgram` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
-| `fjs/nanvm/proof.f.mjs` | 59 | `readonly any[]` | reads an `unknown` the surrounding code has already established |
+| `fjs/nanvm/proof.f.js` | 59 | `readonly any[]` | reads an `unknown` the surrounding code has already established |
 | `fjs/protocol/mcp/module.f.js` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/protocol/mcp/module.f.js` | 174 | `Ts<T>` | "instantiation excessively deep" |
 | `fjs/protocol/mcp/proof.f.js` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |

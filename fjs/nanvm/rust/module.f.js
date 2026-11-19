@@ -9,7 +9,7 @@
  * the Rust side at once.
  *
  * Each statement is printed from the EDAG expression the case denotes, the
- * same expression [`../proof.f.mjs`](../proof.f.mjs) evaluates, so the two
+ * same expression [`../proof.f.js`](../proof.f.js) evaluates, so the two
  * consumers read one program rather than each reading the case its own way.
  * [`fjs/edag/rust`](../../edag/rust/module.f.js) admits each graph through
  * the common FAST conversion and preparation passes, then the prepared Rust

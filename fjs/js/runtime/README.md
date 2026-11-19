@@ -311,7 +311,7 @@ as `unknown`. This explicit data boundary prevents TypeScript from
 expanding the shared graph into an oversized inferred API.
 The EDAG is for the one consumer that needs the runtime
 as data without the compiler: the corpus proof
-[`../../nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs), which runs every
+[`../../nanvm/proof.f.js`](../../nanvm/proof.f.js), which runs every
 member-function case through `amnesia` with this runtime and against the
 host. Nothing the compiler imports reads a generated file: `npm run gen`
 deletes every `gen.*` before it regenerates, and a generator whose own

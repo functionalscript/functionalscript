@@ -2,7 +2,7 @@
  * Type-level API for the shared operator test data.
  *
  * The data described here is the single source of truth for operator
- * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
+ * behaviour: [`proof.f.js`](./proof.f.js) runs it against a standard
  * JavaScript engine, and [`rust/module.f.js`](./rust/module.f.js) prints it
  * as the Rust tests in `nanvm/lib/tests/test/gen.corpus/`.
  *
