@@ -581,11 +581,25 @@ export const proof = /** @type {const} */ ({
         const cases = [
             [result(twice, [recipe]), 'required'],
             [result(['array', [['?.()', ref(callee), [ref(cell)]], selected(ref(condition), ref(cell), 0)]], [recipe]), 'lazy'],
+            // an optional call that continues a member read skips its
+            // arguments too; a plain call there evaluates them
+            [result(['array', [['.', ref(callee), 'm', ['|?.()', [ref(cell)]]], selected(ref(condition), ref(cell), 0)]], [recipe]), 'lazy'],
+            [result(['array', [selected(ref(condition), ref(cell), 0), ['.', ref(callee), 'm', ['|()', [ref(cell)]]]]], [recipe]), 'required'],
+            [result(['array', [selected(ref(condition), ref(cell), 0), ['.', ref(callee), ['Number', ref(cell)]]]], [recipe]), 'required'],
+            [result(['array', [['?:', ref(other), ref(cell), 0], selected(ref(condition), ref(cell), 0)]], [recipe]), 'lazy'],
             [result(twice, [recipe, leaving]), 'lazy'],
         ]
         for (const [before, mode] of cases) {
             const modes = _joinResults(before).statements.flatMap(statement => statement[0] === 'define' && statement[1] === cell ? [statement[3]] : [])
             assertStructurallySame(modes, [mode])
+        }
+        // The path an optional call skips completes: a recipe that fails is
+        // not met where neither the skipped argument nor the other arm runs.
+        const skipped = result(['array', [['.', ['object', []], 'm', ['|?.()', [ref(cell)]]], selected(ref(condition), ref(cell), 0)]],
+            [['define', cell, fail('shared'), 'lazy']])
+        for (const block of [skipped, _joinResults(skipped)]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [undefined, 0])
+            assertError(evaluate(block, condition, true))
         }
     },
     // A recipe read only inside a later statement's arm has no join to move
