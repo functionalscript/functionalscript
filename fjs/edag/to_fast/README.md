@@ -52,8 +52,14 @@ names.
 Sharing entirely within one operand stays in that operand's region, including
 computed member keys in the normalized operand vocabulary. A shared value used
 across operands becomes required only after its earlier eager work has been
-established. Complete earlier computations receive ordered immutable snapshots;
-implicit spread expansion, key conversion and member lookup remain barriers.
+established. Complete earlier computations receive ordered immutable snapshots.
+Implicit spread expansion, key conversion and a member call's lookup are no
+barriers before the operands that follow them: those operands are evaluated
+whenever the implicit step completes, so establishing one of them first changes
+only which failure is met first
+([failure is one outcome](../../../spec/principles/README.md#failure-is-one-outcome)).
+An operation's own execution, a call or a coercion, and a lazily selected
+operand remain barriers.
 A later snapshot cannot claim a dependency reachable from an earlier planned
 initializer. That earlier initializer may already have demanded the value;
 rewriting its lazy dependencies to the later binding would read an uninitialized
@@ -179,8 +185,8 @@ the later condition's value. Moved arms and recipes retain their original
 lexical dependencies, including deferred captures. Each normal arm yields an
 immutable joined value.
 A deferred recipe used only within one resulting arm becomes required at its
-first proven demand; the shared graph demand query checks calls, lookups,
-spreads and lazy barriers.
+first proven demand; the shared graph demand query checks calls, coercions
+and lazy barriers.
 Earlier work and recipes with other uses keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function

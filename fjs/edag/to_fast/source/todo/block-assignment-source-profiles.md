@@ -29,37 +29,32 @@ failures and successful results. The [failure policy](../../../../../spec/princi
 does not require preserving which failure wins or its diagnostic payload.
 Optional calls must skip argument writes and retain the previous binding values.
 
-Spread and stacked switch-label state can establish a shared node inside one
-selected region and read it later outside. The existing source profile refuses
+Stacked switch-label state can establish a shared node inside one selected
+region and read it later outside. The existing source profile refuses
 `a shared node reached from outside the lazy operand that establishes it`:
 
 ```js
-const take = (...values) => values;
 export default (() => {
     let n = 0;
-    const result = take(...[n], (() => { n = n + 1; return n; })(), ...[n]);
-    return [result, n];
+    let k = 0;
+    while (k < 1) {
+        k = k + 1;
+        switch (3) {
+            case (() => { n = n + 1; return 1; })():
+            case (() => { n = n + 1; return 2; })(): { n = n + 10; break; }
+            default: { n = n + 100; break; }
+        }
+    }
+    return [n, k];
 })();
 ```
 
-The value is `[[0, 1, 1], 1]`. Its selected shared value needs one evaluation
-and identity, without moving evaluation into an unreached region.
+The value is `[102, 1]`. Its selected shared value needs one evaluation and
+identity, without moving evaluation into an unreached region.
 
-The analogous object-spread form can be written once but its read-back graph
-then reaches the same shared-demand refusal on a later source conversion:
-
-```js
-export default (() => {
-    let n = 0;
-    const before = { a: n };
-    const result = { ...before, b: (() => { n = n + 1; return n; })(), ...{ c: n } };
-    return [result, n];
-})();
-```
-
-Both the original and its emitted source evaluate to
-`[{ a: 0, b: 1, c: 1 }, 1]`. The follow-up must include this repeated-output
-profile, rather than checking only the first successful source write.
+The spread forms this section used to list are written now: an expansion is
+no barrier before the items that follow it
+([`edag/demand`](../../../demand/module.f.js)).
 
 ### Proposal
 
@@ -82,7 +77,7 @@ that prevents those synthetic wrappers from accumulating.
 - [ ] Recover required member lookup and optional-call argument regions while
   preserving lookup failures, skipped writes, receiver identity, and argument order.
 - [ ] Spell shared selected-region state with one evaluation and the original
-  invocation lifetime, including spreads and stacked switch labels.
+  invocation lifetime, including stacked switch labels.
 - [ ] Prove repeated source conversion reaches a stable spelling and graph
   normalization for the admitted profile, with explicit refusal elsewhere.
 

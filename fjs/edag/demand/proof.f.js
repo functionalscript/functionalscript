@@ -41,18 +41,35 @@ export const proof = /** @type {const} */ ({
     },
     implicitAndUnownedWork: () => {
         for (const exp of /** @type {readonly Exp[]} */ ([
-            ['[]', [['...', second], first]],
-            ['{}', [['...', second], [':', 'a', first]]],
-            ['{}', [[':', ['String', second], first]]],
-            ['()', fn, [['...', second], first]],
             ['[]', [['()', fn, []], first]],
             ['[]', [['+', 1, 2], first]],
             ['[]', [['Boolean', false], first]],
             ['[]', [['throw', 1], first]],
-            ['.', null, 'x', ['|()', [first]]],
         ])) {
             assertEq(demandsInOrder(exp, [first]), false)
         }
+    },
+    // Once an expansion, a key's conversion or a member lookup completes,
+    // what follows it in the same operation is evaluated: establishing that
+    // first changes only which failure is met first.
+    expansionConversionAndLookupAreNoBarriers: () => {
+        const key = /** @type {const} */ (['String', second])
+        // the operand expanded or converted is established: reaching it is
+        // not the question, crossing what is done with it is
+        for (const exp of /** @type {readonly Exp[]} */ ([
+            ['[]', [['...', second], first]],
+            ['{}', [['...', second], [':', 'a', first]]],
+            ['{}', [[':', key, first]]],
+            ['()', fn, [['...', second], first]],
+            ['.', null, 'x', ['|()', [first]]],
+            ['.', null, 'x', ['|()', [['...', second], first]]],
+        ])) {
+            assertEq(demandsInOrder(exp, [first], [second, key]), true)
+        }
+        assertEq(demandsInOrder(['{}', [[':', first, second]]], [first, second]), true)
+        assertEq(demandsInOrder(['.', first, 'x', ['|()', [second]]], [first, second]), true)
+        // the call itself stays a barrier, as any call is
+        assertEq(demandsInOrder(['[]', [['.', null, 'x', ['|()', []]], first]], [first]), false)
     },
     operandsBeforeImplicitWork: () => {
         for (const exp of /** @type {readonly Exp[]} */ ([
@@ -76,7 +93,6 @@ export const proof = /** @type {const} */ ({
         assertEq(demandsInOrder(['+', first, second], [first, second]), true)
         assertEq(demandsInOrder(['[]', [first, ['...', second]]], [first, second]), true)
         assertEq(demandsInOrder(['{}', [[':', 1, first], [':', false, second]]], [first, second]), true)
-        assertEq(demandsInOrder(['{}', [[':', first, second]]], [first, second]), false)
         assertEq(demandsInOrder(['{}', []], [first]), false)
         assertEq(demandsInOrder(['[]', [['+', first, 1], second]], [first, second]), false)
     },
@@ -84,7 +100,6 @@ export const proof = /** @type {const} */ ({
         for (const exp of /** @type {readonly Exp[]} */ ([
             ['?.()', first, [second]],
             ['?.', first, ['Number', second]],
-            ['.', first, 'x', ['|()', [second]]],
             ['?:', first, second, 0],
         ])) {
             assertEq(demandsInOrder(exp, [first]), true)

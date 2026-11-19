@@ -45,7 +45,8 @@ const mixed = returns => {
 }
 
 export const proof = /** @type {const} */ ({
-    computedKeysBeforeReturningArguments: operandOrder.computedKeysConvertBeforeTheirValuesAndArguments,
+    computedKeysFailWithReturningArguments: operandOrder.computedKeysFailWithTheirValuesAndArguments,
+    coercionsBeforeReturningAnchors: operandOrder.earlierOperatorCoercionPrecedesLaterAnchors,
     objectSpreadsBeforeReturningValues: objectSpread.earlierEntriesBeforeLaterReturn,
     returnsCarryTheValueWithoutACompletionDiscriminator: () => {
         const fn = owner(), loop = target(), limit = id(), state = id(), allocation = id()

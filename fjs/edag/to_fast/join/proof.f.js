@@ -431,9 +431,13 @@ export const proof = /** @type {const} */ ({
             source(true, selected(ref(condition), 7)),
             source(ref(condition), selected(true, 7)),
             source(ref(condition), ['array', [call, selected(ref(condition), 7)]]),
-            source(ref(condition), ['array', [['...', ref(other)], selected(ref(condition), 7)]]),
             source(ref(condition), ['if', ref(other), result(selected(ref(condition), 7)), result(0)]),
         ]) { assertStructurallySame(_joinResults(before), before) }
+    },
+    selectedResultsJoinPastAnExpansion: () => {
+        const condition = id(0), other = id(0)
+        const before = source(ref(condition), ['array', [['...', ref(other)], selected(ref(condition), 7)]])
+        assertEq(branchOf(_joinResults(before))[1].length, 1)
     },
     opaqueValuesAndStatementRegionsKeepTheirOwners: () => {
         const condition = id(0), local = id(1)

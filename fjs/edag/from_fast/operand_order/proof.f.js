@@ -6,7 +6,7 @@
  * @import { Runtime } from '../../value/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
@@ -42,6 +42,20 @@ const firstFailure = (graph, expected, runtime) => {
     for (const current of [graph, _convert(graph)]) {
         assertStructurallySame(memo(assertOk(identityAnalysis(current)))({ args: [], runtime }), ['error', expected])
         assertStructurallySame(vm({ args: [], frame: [], runtime })(current), ['error', expected])
+    }
+}
+
+/**
+ * Every represented executor fails, before and after conversion. Which
+ * failure is met first is no observation
+ * ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
+ *
+ * @type {(graph: Exp, runtime?: Runtime) => void}
+ */
+const fails = (graph, runtime) => {
+    for (const current of [graph, _convert(graph)]) {
+        assertError(memo(assertOk(identityAnalysis(current)))({ args: [], runtime }))
+        assertError(vm({ args: [], frame: [], runtime })(current))
     }
 }
 
@@ -96,21 +110,24 @@ export const proof = {
         const object = /** @type {Value} */ (['object', [[':', 'valueOf', ['function', requiredFunction(failed('coercion'))]]]])
         firstFailure(fromFast(result(['array', [['-', object], _anchored(1, failed('later'))]])), 'coercion')
     },
-    implicitExpansionAndLookupPrecedeLaterAnchors: () => {
+    // Expansion, lookup and key conversion are no barriers before what
+    // follows them, so a later anchor may be established first; either way
+    // the program fails.
+    implicitExpansionAndLookupFailWithLaterAnchors: () => {
         const later = _anchored(1, failed('later'))
         const values = /** @type {readonly Value[]} */ ([
             ['array', [['...', null], later]],
             ['()', ['function', requiredFunction(0)], [['...', null], later]],
             ['.', null, 'f', ['|()', [later]]],
         ])
-        for (const value of values) { firstFailure(fromFast(result(value)), ['undefined']) }
-        firstFailure(fromFast(result(['.', 'abc', 'slice', ['|()', [later]]])), 'lookup', throwingRuntime)
+        for (const value of values) { fails(fromFast(result(value))) }
+        fails(fromFast(result(['.', 'abc', 'slice', ['|()', [later]]])), throwingRuntime)
     },
-    computedKeysConvertBeforeTheirValuesAndArguments: () => {
+    computedKeysFailWithTheirValuesAndArguments: () => {
         const numeric = /** @type {Value} */ (['object', [[':', 'valueOf', ['function', requiredFunction(failed('numeric key'))]]]])
         const string = /** @type {Value} */ (['object', [[':', 'toString', ['function', requiredFunction(failed('string key'))]]]])
-        firstFailure(fromFast(result(['object', [[':', string, _anchored(1, failed('later'))]]])), 'string key')
-        firstFailure(fromFast(result(['.', ['array', [0]], ['Number', numeric], ['|()', [_anchored(1, failed('later'))]]])), 'numeric key')
+        fails(fromFast(result(['object', [[':', string, _anchored(1, failed('later'))]]])))
+        fails(fromFast(result(['.', ['array', [0]], ['Number', numeric], ['|()', [_anchored(1, failed('later'))]]])))
     },
     callableValidationStillFollowsArguments: () => {
         firstFailure(fromFast(result(['()', 0, [_anchored(1, failed('argument'))]])), 'argument')

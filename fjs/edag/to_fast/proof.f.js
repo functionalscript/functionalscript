@@ -289,12 +289,31 @@ export const proof = {
         ])
         for (const graph of graphs) { roundTrip(graph) }
     },
-    implicitBarriersRetainLaterSharedOwners: () => {
+    // An expansion is no barrier: a shared owner that follows one is
+    // established before it, which the graph reads back as the owner's
+    // anchor. Either order fails here, on the expansion or on the owner.
+    sharedOwnersAreEstablishedBeforeAnExpansion: () => {
         const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
         const another = /** @type {const} */ (['()', forever[1], []])
+        /** @type {Exp} */
+        const shared = ['[]', [['...', null], ['+', 1, 2], ['+', 3, 4], forever, forever]]
+        assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(shared))))), assertOk(analysis([',', [forever, shared]])))
+        roundTrip(['[]', [['...', null], forever, another, forever, another]])
+    },
+    // A selected operand is a barrier no snapshot crosses: an owner first
+    // reached inside one, and shared with what follows, keeps its first
+    // demand, whatever its own operands or captures are.
+    selectedOperandsRetainLaterSharedOwners: () => {
+        const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
+        const another = /** @type {const} */ (['()', forever[1], []])
+        const recursive = /** @type {const} */ (['=>', 1, [], ['()', ['self'], [['arg', 0]]]])
+        const first = /** @type {const} */ (['()', recursive, [['+', 1, 2]]])
+        const second = /** @type {const} */ (['()', recursive, [['+', 3, 4]]])
+        const capturing = /** @type {const} */ (['=>', 0, [['arg', 0]], ['frame', 0]])
         const graphs = /** @type {readonly Exp[]} */ ([
-            ['[]', [['...', null], ['+', 1, 2], ['+', 3, 4], forever, forever]],
-            ['[]', [['...', null], forever, another, forever, another]],
+            ['[]', [['?:', 1, forever, 1], ['?:', 1, another, 1], forever, another]],
+            ['[]', [['?:', 1, ['[]', [first, second]], 1], second, first]],
+            ['=>', 1, [], ['[]', [['?:', 1, capturing, 1], capturing]]],
         ])
         for (const graph of graphs) { roundTrip(graph) }
     },

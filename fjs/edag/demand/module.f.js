@@ -20,16 +20,15 @@ const known = value => available => value instanceof Array && available(value)[0
 /** @type {<T>(steps: readonly T[], tail: _Work<T> | null) => _Work<T> | null} */
 const prepend = (steps, tail) => steps.reduceRight((tail, first) => ({ first, tail }), tail)
 
-/** Expansion executes after its operand and before the next item. @type {(items: readonly Items[]) => readonly _Step[]} */
-const itemPrefix = items => {
-    /** @type {readonly _Step[]} */
-    let steps = []
-    for (const item of items) {
-        if (isSpread(item)) { return [...steps, [item[1]], null] }
-        steps = [...steps, [item]]
-    }
-    return steps
-}
+/**
+ * The items in order, a spread as its operand. Expansion is no barrier: once
+ * it completes, the items after it are evaluated, so establishing one of them
+ * first changes only which failure is met first
+ * ([spec: failure is one outcome](../../../spec/principles/README.md#failure-is-one-outcome)).
+ *
+ * @type {(items: readonly Items[]) => readonly _Step[]}
+ */
+const itemPrefix = items => items.map(item => [isSpread(item) ? item[1] : item])
 
 /** Eager operands precede each operation's own execution barrier. @type {(node: ExpOp, selected: readonly (readonly [Exp, boolean])[]) => readonly _Step[]} */
 const prefix = (node, selected) => {
@@ -40,16 +39,15 @@ const prefix = (node, selected) => {
     if (node[0] === ',') { return values(node[1]) }
     if (node[0] === '[]') { return itemPrefix(node[1]) }
     if (node[0] === '{}') {
-        /** @type {readonly _Step[]} */
-        let steps = []
-        for (const entry of node[1]) {
-            if (entry[0] === '...') { return [...steps, [entry[1]], null] }
-            if (entry[1] instanceof Array) { return [...steps, [entry[1]], null] }
-            steps = [...steps, [entry[2]]]
-        }
-        return steps
+        // a spread and a computed key's conversion are no barriers, as an
+        // array's expansion is none
+        return node[1].flatMap(entry => entry[0] === '...' ? values([entry[1]])
+            : entry[1] instanceof Array ? values([entry[1], entry[2]]) : values([entry[2]]))
     }
     if (node[0] === '()') { return [[node[1]], ...itemPrefix(node[2]), null] }
+    // a member call's arguments follow its lookup whenever the lookup
+    // completes, so the lookup is no barrier before them
+    if (node[0] === '.' && node.length === 4 && node[3][0] === '|()' && node[3].length === 2) { return [[node[1]], [node[2]], ...itemPrefix(node[3][1]), null] }
     if (node[0] === '.' || node[0] === 'memberPresent') { return [[node[1]], [node[2]], null] }
     if (node[0] === '?:') {
         const known = selected.findLast(([test]) => Object.is(test, node[1]))
