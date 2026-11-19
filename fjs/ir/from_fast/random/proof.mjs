@@ -3,7 +3,7 @@
  * from a fixed seed, each lowered and run against JavaScript. A wrong
  * answer fails the proof; a refusal the slices state is counted and not
  * run. Prefer `node --test` for this file
- * ([fjs/AGENTS.md §1.6](../../../AGENTS.md#16-use-host-proofs-only-for-documented-host-contracts)).
+ * ([fjs/AGENTS.md §1.6](../../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
