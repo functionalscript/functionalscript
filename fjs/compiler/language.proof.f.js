@@ -20,6 +20,7 @@ import { tryParse as parseDataJs } from '../media/datajs/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.js'
 import { toJson } from '../media/json/module.f.js'
+import { generate } from '../types/array/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
@@ -30,8 +31,6 @@ const withRuntime = root => ({
     ...root,
     'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { String: { startsWith: (self, s) => self.slice(0, s.length) === s } } };")] } } },
 })
-
-const { getPrototypeOf, is, prototype: objectPrototype } = Object
 
 export const proof = {
     // A guard is written back as what it lowers to: the conditional, an arm
@@ -127,8 +126,8 @@ export const proof = {
         // a node doubled at every `const` is written once per reference:
         // sixteen leaves for four doublings, the tree the value is
         doubling: () => {
-            const consts = Array.from({ length: 4 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
-            const expected = Array.from({ length: 4 }).reduce(s => `[${s},${s}]`, '[1]')
+            const consts = generate(4, i => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            const expected = generate(4, () => undefined).reduce(s => `[${s},${s}]`, '[1]')
             assertEq(compileSource(`const a0 = [1]; ${consts} export default a4;`)('output.json'), expected)
         },
     },
@@ -251,7 +250,7 @@ export const proof = {
             assert(result[0] === 'ok', result[1])
             const value = defaultValue(result[1])
             assert(value instanceof Array && value.length === 3, value)
-            assert(is(value[0], NaN), value[0])
+            assert(Object.is(value[0], NaN), value[0])
             assertEq(value[1], Infinity)
             assertEq(value[2], -Infinity)
         },
@@ -367,10 +366,10 @@ export const proof = {
             // and found over the graph, not over the tree it unfolds to: two
             // to the fortieth references reach the leaf here, and twenty-two
             // valid doublings before a refused sibling are not unfolded first
-            const consts = Array.from({ length: 40 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            const consts = generate(40, i => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
             assertEq(jsonRefused(`const a0 = [undefined]; ${consts} export default a40;`), 'output.json - error: no JSON spelling for undefined')
             assertEq(jsonRefused(`const a0 = { x: [1, 2n] }; ${consts} export default { a: a40 };`), 'output.json - error: no JSON spelling for 2n')
-            const valid = Array.from({ length: 22 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            const valid = generate(22, i => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
             assertEq(jsonRefused(`const a0 = [1]; ${valid} export default [a22, undefined];`), 'output.json - error: no JSON spelling for undefined')
             // the first in the reader's order, a leaf before a container
             // before the container's own
@@ -589,7 +588,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default -0;')] }
             const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            assert(is(defaultValue(result[1]), -0), result[1])
+            assert(Object.is(defaultValue(result[1]), -0), result[1])
         },
         moduleRoundTrip: () => {
             assertEq(compileSource('export default -0;')('output.data.js'), 'export default -0;')
@@ -714,7 +713,8 @@ export const proof = {
             const value = defaultValue(result[1])
             assert(isObject(value), value)
             assertStructurallySame(value, protoValue)
-            assertEq(getPrototypeOf(value), objectPrototype)
+            // an inherited `a` would be read here had the key set the prototype
+            assertEq(value.a, undefined)
         },
         // The two spellings JavaScript reads as a prototype assignment are
         // compilation errors, not silently accepted properties.
