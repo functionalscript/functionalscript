@@ -599,6 +599,29 @@ export const proof = /** @type {const} */ ({
             const modes = _joinResults(before).statements.flatMap(statement => statement[0] === 'define' && statement[1] === cell ? [statement[3]] : [])
             assertStructurallySame(modes, [mode])
         }
+        // A statement that declares the binding anew ends the reads of the
+        // recipe: what follows reads the new declaration. The recipe stays
+        // deferred, and one that fails is not met.
+        const rebound = result(['array', [selected(ref(condition), 0, 1), ref(cell)]],
+            [['define', cell, fail('outer'), 'lazy'], ['define', cell, 7, 'required']])
+        const inner = result(['array', [selected(ref(condition), 0, 1), ['block', result(ref(cell), [['define', cell, 7, 'required']])]]],
+            [['define', cell, fail('outer'), 'lazy']])
+        for (const before of [rebound, inner]) {
+            const after = _joinResults(before)
+            assertEq(after.statements[0], before.statements[0])
+            for (const block of [before, after]) {
+                assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [1, 7])
+            }
+        }
+        // Both arms of a selection declare the binding anew before they read
+        // it: neither reads the recipe, which stays deferred.
+        const armsRebind = result(['array', [0, ['if', ref(condition), result(ref(cell), [['define', cell, 7, 'required']]), result(ref(cell), [['define', cell, 7, 'required']])]]],
+            [['define', cell, fail('outer'), 'lazy']])
+        const armsAfter = _joinResults(armsRebind)
+        assertEq(armsAfter.statements[0], armsRebind.statements[0])
+        for (const block of [armsRebind, armsAfter]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [0, 7])
+        }
         // The path an optional call skips completes: a recipe that fails is
         // not met where neither the skipped argument nor the other arm runs.
         const skipped = result(['array', [['.', ['object', []], 'm', ['|?.()', [ref(cell)]]], selected(ref(condition), ref(cell), 0)]],

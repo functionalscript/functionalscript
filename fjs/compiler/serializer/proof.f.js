@@ -71,6 +71,9 @@ const reads = e => {
 /** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
 const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
+/** The nodes a root reaches through its operands, a function's body aside. @type {(root: unknown) => readonly unknown[]} */
+const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
+
 /**
  * Whether a comma in a graph anchors a node another of its operands
  * reaches, or the total, identity-free literal `undefined`: an anchor the
@@ -81,8 +84,6 @@ const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : 
  * @type {(e: Exp) => boolean}
  */
 const redundantAnchor = e => {
-    /** @type {(root: unknown) => readonly unknown[]} */
-    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
     return visit(allOperands)([])(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
@@ -131,8 +132,6 @@ const generatedOperandPrefix = (e, sharedOnly = false) => {
  * @type {(e: Exp) => boolean}
  */
 const sharedByBothArms = e => {
-    /** @type {(root: unknown) => readonly unknown[]} */
-    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
     return visit(allOperands)([])(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== '?:') { return false }
         const otherwise = reached(n[3])

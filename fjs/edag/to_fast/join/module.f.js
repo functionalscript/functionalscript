@@ -82,11 +82,11 @@ const yielded = (body, value) => body.exit[0] === 'yield' ? {
 /** An existing statement result is available only after both arms finish. @type {(results: readonly BindingId[], left: Block, right: Block) => boolean} */
 const usesResults = (results, left, right) => [...freeBindings(left), ...freeBindings(right)].some(binding => results.includes(binding))
 
+/** The bindings a statement declares for what follows it. @type {(statement: Statement) => readonly BindingId[]} */
+const bound = statement => statement[0] === 'define' ? [statement[1]] : statement[0] === 'loop' ? statement[1].results : statement[1]
+
 /** Deferred captures also retain the scope preceding the statement arm. @type {(body: Block, value: Block, deferred: readonly Definition[]) => boolean} */
-const shadows = (body, value, deferred) => body.statements.some(statement => {
-    const bindings = statement[0] === 'define' ? [statement[1]] : statement[0] === 'loop' ? statement[1].results : statement[1]
-    return bindings.some(binding => references(value, binding, deferred))
-})
+const shadows = (body, value, deferred) => body.statements.some(statement => bound(statement).some(binding => references(value, binding, deferred)))
 
 /** Appending selected values preserves their original dependency scope. @type {(branch: Extract<Statement, readonly ['if', ...unknown[]]>, left: Block, right: Block, deferred: readonly Definition[]) => boolean} */
 const appendScope = (branch, left, right, deferred) => !usesResults(branch[1], left, right)
@@ -114,15 +114,21 @@ const reached = (body, index) => {
 /** Whether a region inside the statement leaves it otherwise than by completing or failing. */
 const leaves = someBlock(({ exit }) => exit[0] !== 'yield' && exit[0] !== 'throw')
 
-/** What the block evaluates in order until a statement leaves it, the exit's values where none does. @type {(body: Block, start: number) => readonly Value[]} */
-const sequence = (body, start) => {
+/**
+ * What the block evaluates in order while a read of the binding is a read of
+ * the one declared outside: until a statement leaves the block or declares
+ * the binding anew, the exit's values where none does.
+ *
+ * @type {(body: Block, start: number, target: BindingId) => readonly Value[]}
+ */
+const sequence = (body, start, target) => {
     /** @type {readonly Value[]} */
     let values = []
     for (let index = start; index <= body.statements.length; index = index + 1) {
         const value = reached(body, index)
         values = value === null ? values : [...values, value]
         const statement = body.statements[Number(index)]
-        if (statement === undefined || leaves({ statements: [statement], exit: ['yield', []] })) { break }
+        if (statement === undefined || bound(statement).includes(target) || leaves({ statements: [statement], exit: ['yield', []] })) { break }
     }
     return values
 }
@@ -134,11 +140,11 @@ const sequence = (body, start) => {
  * that continues it; an optional call's arguments, and every step after an
  * optional one, are skipped where the step meets a nullish value.
  *
- * @type {(value: Exclude<Extract<Value, readonly unknown[]>, readonly ['ref' | 'if', ...unknown[]]>) => readonly Value[]}
+ * @type {(value: Exclude<Extract<Value, readonly unknown[]>, readonly ['ref' | 'if', ...unknown[]]>, target: BindingId) => readonly Value[]}
  */
-const certainOperands = value => value[0] === 'function' ? value[1].captures.map(capture => capture.value)
+const certainOperands = (value, target) => value[0] === 'function' ? value[1].captures.map(capture => capture.value)
     : value[0] === '?:' ? [value[1]]
-    : value[0] === 'block' ? sequence(value[1], 0)
+    : value[0] === 'block' ? sequence(value[1], 0, target)
     : value[0] === '?.' || value[0] === '?.()' ? [value[1]]
     : value[0] === '.' ? [value[1], ...keyOperands(value[2]), ...(value.length === 4 && value[3][0] === '|()' ? value[3][1].map(itemOperand) : [])]
     : operatorOperands(value)
@@ -154,9 +160,9 @@ const certainTask = (values, target) => {
     const one = value => call(() => {
         if (!(value instanceof Array)) { return done(false) }
         if (value[0] === 'ref') { return done(value[1] === target) }
-        if (value[0] !== 'if') { return certainTask(certainOperands(value), target) }
+        if (value[0] !== 'if') { return certainTask(certainOperands(value, target), target) }
         return bind(certainTask([value[1]], target), test => test ? done(true)
-            : bind(certainTask(sequence(value[2], 0), target), then => then ? certainTask(sequence(value[3], 0), target) : done(false)))
+            : bind(certainTask(sequence(value[2], 0, target), target), then => then ? certainTask(sequence(value[3], 0, target), target) : done(false)))
     })
     /** @type {(index: number) => Task<boolean>} */
     const each = index => call(() => index === values.length ? done(false)
@@ -174,7 +180,7 @@ const certainTask = (values, target) => {
  *
  * @type {(body: Block, definition: Definition) => boolean}
  */
-const certain = (body, definition) => run(certainTask(sequence(body, body.statements.indexOf(definition) + 1), definition[1]))
+const certain = (body, definition) => run(certainTask(sequence(body, body.statements.indexOf(definition) + 1, definition[1]), definition[1]))
 
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {
@@ -403,6 +409,10 @@ const blockTask = (block, inherited = []) => {
      * The regions inside a value are blocks like any other: a block value's,
      * and a selection's two arms. A function's body was planned separately.
      * A value none of whose regions changes is answered as it was.
+     *
+     * Declared here and not beside `blockTask`: the two call each other, and
+     * a module's `const`s are read in order, so neither can stand before
+     * the other at module scope.
      *
      * @type {(value: Value, deferred: readonly Definition[]) => Task<Value>}
      */
