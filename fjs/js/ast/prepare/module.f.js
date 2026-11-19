@@ -36,7 +36,7 @@ import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.js'
 import { _immutableJoin } from './joins/module.f.js'
 import { _recoverOnePassJoin } from './one_pass/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
-import { empty as emptyMap, fromEntries as mapFromEntries, mapEntries, mapGet } from '../../../types/map/module.f.js'
+import { empty as emptyMap, mapGet, mapSet } from '../../../types/map/module.f.js'
 import { fromValues as setFromValues, values as setValues } from '../../../types/set/module.f.js'
 
 /** @type {(node: _Node) => _Facts} */
@@ -133,8 +133,9 @@ const completion = (node, children) => {
 
 /**
  * One postorder scan records outward transfers and the highest diagnostic
- * index. Persistent maps are immutable; repeated block queries do not
- * rescan their descendants. Function bodies own returns, and loops own their
+ * index, and answers the known summary with what the scan adds: the map is
+ * persistent, so the entries it holds are shared and not set again. Repeated
+ * block queries do not rescan their descendants. Function bodies own returns, and loops own their
  * transfer targets, while construction captures and initial values stay out.
  *
  * @type {(root: _Node, known?: _Flows) => _Flows}
@@ -178,7 +179,10 @@ const flows = (root, known = emptyMap) => {
         results = { top: flow, rest: results }
         entries = { first: [node[1], flow], tail: entries }
     }
-    return mapFromEntries(toArray(entries))
+    /** @type {_Flows} */
+    let summary = known
+    for (const [key, flow] of toArray(entries)) { summary = mapSet(summary, key, flow) }
+    return summary
 }
 
 /** @type {(next: number, count: number) => readonly BindingId[]} */
@@ -334,7 +338,7 @@ const functionValue = (prepareBlock, prepareValue, input, context) => call(() =>
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
         && root !== undefined && root[0] === 'loop' ? root[1].target : null
-    const summary = normalized === input.body ? context.flows : mapFromEntries([...mapEntries(context.flows), ...mapEntries(flows(['block', normalized], context.flows))])
+    const summary = normalized === input.body ? context.flows : flows(['block', normalized], context.flows)
     /** @type {_Context} */
     const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(mapGet(summary, normalized)).next) }
     return bind(values(prepareValue, value.captures.map(capture => capture.value), local), prepared => {
@@ -603,7 +607,7 @@ const prepareValueWith = prepareBlock => {
                         const [destination] = fresh(context.next, 1)
                         const lifted = liftValueReturns(operation, destination, context.owner, memberCall ? context.loops.map(loop => loop.target) : [])
                         if (lifted.statement !== null) {
-                            const summary = mapFromEntries([...mapEntries(context.flows), ...mapEntries(flows(['statement', lifted.statement], context.flows))])
+                            const summary = flows(['statement', lifted.statement], context.flows)
                             return bind(statementValue(prepareBlock, prepareValue, lifted.statement, {
                                 ...context, flows: summary, next: Math.max(context.next + 1, assertNotNullish(mapGet(summary, lifted.statement)).next),
                             }), prepared => done({ value: ['ref', destination], statements: prepared.value, next: prepared.next }))
