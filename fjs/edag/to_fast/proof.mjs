@@ -57,16 +57,14 @@ export const proof = {
     earlierFailuresStayBeforeSharedDivergence: () => {
         const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
         const another = /** @type {const} */ (['()', forever[1], []])
-        const key = /** @type {const} */ (['{}', [[':', 'toString', ['=>', 0, [], ['throw', 1]]]]])
+        // An operation's own failure and a selected operand stay barriers. An
+        // expansion, a lookup and a key's conversion are none: a shared
+        // divergence after one may be established first, and the program
+        // fails either way, so those are no cases here.
         const graphs = /** @type {readonly Exp[]} */ ([
             ['[]', [['throw', 1], forever, forever]],
             ['[]', [['?:', true, ['throw', 1], 0], forever, forever]],
-            ['[]', [['...', null], forever, forever]],
-            ['[]', [['...', null], ['+', 1, 2], ['+', 3, 4], forever, forever]],
-            ['[]', [['...', null], forever, another, forever, another]],
-            ['()', ['=>', 0, [], 0], [['...', null], forever, forever]],
-            ['.', null, 'f', ['|()', [forever, forever]]],
-            ['{}', [[':', key, forever], [':', 'again', forever]]],
+            ['[]', [['throw', 1], forever, another, forever, another]],
         ])
         for (const graph of graphs) {
             for (const value of [graph, fromFast(assertOk(toFast(graph)))]) {
