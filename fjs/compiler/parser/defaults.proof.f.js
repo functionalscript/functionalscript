@@ -5,7 +5,7 @@
  * being at what the website's build accepts in one file. It reads the
  * parser as that proof does, through the helpers it exports; what each
  * output writes, and what a call answers, is the language proof's,
- * `../language.proof.f.mjs`.
+ * `../language.proof.f.js`.
  *
  * No `@module`: a proof's documentation reaches no reader of the published
  * API, which is the case that rule names outright.

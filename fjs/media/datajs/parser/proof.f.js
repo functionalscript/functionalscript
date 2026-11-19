@@ -18,8 +18,7 @@ import { value } from '../../../ebnf/lib/datajs/module.f.js'
 import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.js'
 import { isObject } from '../../../types/object/module.f.js'
 import { generate } from '../../../types/array/module.f.js'
-
-const { is, keys, hasOwn, getPrototypeOf } = Object
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /** The value a document spells, where it spells one. @type {(text: string) => Unknown} */
 const parsed = text => unwrap(tryParse(text))
@@ -77,7 +76,7 @@ export const proof = {
         assertEq(exported('true'), true)
         assertEq(exported('false'), false)
         assertEq(exported('undefined'), undefined)
-        assert(is(exported('NaN'), NaN))
+        assert(Object.is(exported('NaN'), NaN))
         assertEq(exported('Infinity'), Infinity)
         assertEq(exported('-Infinity'), -Infinity)
         assertEq(exported('"x"'), 'x')
@@ -99,11 +98,11 @@ export const proof = {
         assertEq(exported('1E2'), 100)
         assertEq(exported('-1e+2'), -100)
         assertEq(exported('1.09e-2'), 0.0109)
-        assert(is(exported('-0'), -0))
-        assert(is(exported('-0.0'), -0))
-        assert(is(exported('-0e0'), -0))
-        assert(is(exported('0.0'), 0))
-        assert(is(exported('-1e-999'), -0))
+        assert(Object.is(exported('-0'), -0))
+        assert(Object.is(exported('-0.0'), -0))
+        assert(Object.is(exported('-0e0'), -0))
+        assert(Object.is(exported('0.0'), 0))
+        assert(Object.is(exported('-1e-999'), -0))
         assertEq(exported('1000000000000000128'), 1_000_000_000_000_000_100)
         assertEq(exported('5e-324'), 5e-324)
         assertEq(exported('1e999'), Infinity)
@@ -116,7 +115,7 @@ export const proof = {
     bigints: () => {
         assertEq(exported('0n'), 0n)
         assertEq(exported('-0n'), 0n)
-        assert(!is(exported('-0n'), -0))
+        assert(!Object.is(exported('-0n'), -0))
         assertEq(exported('9n'), 9n)
         assertEq(exported('-34n'), -34n)
         assertEq(exported('123456789012345678901234567890n'), 123_456_789_012_345_678_901_234_567_890n)
@@ -146,31 +145,30 @@ export const proof = {
         assertStructurallySame(exported('{ "a" : 1 , "b" : { } }'), { a: 1, b: {} })
         assertStructurallySame(exported('{"":0}'), { '': 0 })
         const present = asObject(exported('{"a":undefined}'))
-        assert(hasOwn(present, 'a'))
-        assertEq(keys(present).length, 1)
-        assertEq(keys(asObject(exported('{}'))).length, 0)
+        assert(hasEntry(present, 'a'))
+        assertEq(Object.keys(present).length, 1)
+        assertEq(Object.keys(asObject(exported('{}'))).length, 0)
     },
     // An object's members are its own properties in JavaScript's order:
     // array-index keys first by numeric value, then the rest as written; a
     // duplicate keeps its first position and takes its last value.
     keyOrder: () => {
-        assertStructurallySame(keys(asObject(exported('{"b":1,"a":2}'))), ['b', 'a'])
+        assertStructurallySame(Object.keys(asObject(exported('{"b":1,"a":2}'))), ['b', 'a'])
         const duplicate = asObject(exported('{"a":1,"b":2,"a":3}'))
-        assertStructurallySame(keys(duplicate), ['a', 'b'])
+        assertStructurallySame(Object.keys(duplicate), ['a', 'b'])
         assertStructurallySame(duplicate, { a: 3, b: 2 })
-        assertStructurallySame(keys(asObject(exported('{"z":0,"2":0,"1":0,"y":0}'))), ['1', '2', 'z', 'y'])
-        assertStructurallySame(keys(asObject(exported('{"10":0,"9":0}'))), ['9', '10'])
+        assertStructurallySame(Object.keys(asObject(exported('{"z":0,"2":0,"1":0,"y":0}'))), ['1', '2', 'z', 'y'])
+        assertStructurallySame(Object.keys(asObject(exported('{"10":0,"9":0}'))), ['9', '10'])
         // not an array index: a sign, a leading zero, a fraction, `2^32 - 1`
-        assertStructurallySame(keys(asObject(exported('{"-1":0,"01":0,"1.0":0,"4294967295":0,"4294967294":0}'))), ['4294967294', '-1', '01', '1.0', '4294967295'])
+        assertStructurallySame(Object.keys(asObject(exported('{"-1":0,"01":0,"1.0":0,"4294967295":0,"4294967294":0}'))), ['4294967294', '-1', '01', '1.0', '4294967295'])
     },
     // `__proto__` has one spelling, the computed one, which denotes an own
     // property and leaves the prototype alone; every plain string spelling
     // of it is refused on its decoded value.
     proto: () => {
         const computed = asObject(exported('{["__proto__"]:1}'))
-        assert(hasOwn(computed, '__proto__'))
-        assertStructurallySame(keys(computed), ['__proto__'])
-        assertEq(getPrototypeOf(computed), Object.prototype)
+        assert(hasEntry(computed, '__proto__'))
+        assertStructurallySame(Object.keys(computed), ['__proto__'])
         assertStructurallySame(exported('{["__proto__"]:1,"a":2}'), Object.fromEntries([['__proto__', 1], ['a', 2]]))
         const message = /** @type {const} */ ('a "__proto__" key is spelled ["__proto__"]')
         refused('export default {"__proto__":1};', message)
@@ -185,13 +183,13 @@ export const proof = {
     // two slots is one array, where two arrays written out are two.
     sharing: () => {
         const shared = asArray(parsed('const $0=[];export default [$0,$0];'))
-        assert(is(shared[0], shared[1]))
+        assert(Object.is(shared[0], shared[1]))
         const distinct = asArray(parsed('export default [[],[]];'))
-        assert(!is(distinct[0], distinct[1]))
+        assert(!Object.is(distinct[0], distinct[1]))
         const nested = parsed('const $0={};const $1=[$0];export default {"a":$1,"b":$0,"c":$1};')
         assert(isObject(nested))
-        assert(is(asArray(nested.a)[0], nested.b))
-        assert(is(nested.a, nested.c))
+        assert(Object.is(asArray(nested.a)[0], nested.b))
+        assert(Object.is(nested.a, nested.c))
         assertStructurallySame(nested, { a: [{}], b: {}, c: [{}] })
         // a name binds any value, `null` and `undefined` included, may be
         // referenced any number of times, and may be `$` alone
@@ -319,11 +317,11 @@ export const proof = {
         const chain = parsed(generate(s, i => `const $${i}=[${i === 0 ? '' : `$${i - 1}`}];`).join('') + `export default $${s - 1};`)
         assertEq(depthOf(0, chain), s - 1)
         assertEq(asArray(exported(`[${generate(s, () => '{}').join(',')}]`)).length, s)
-        assertEq(keys(asObject(exported(`{${generate(s, i => `"k${i}":[]`).join(',')}}`))).length, s)
+        assertEq(Object.keys(asObject(exported(`{${generate(s, i => `"k${i}":[]`).join(',')}}`))).length, s)
         const m = /** @type {const} */ (12_000)
         const wide = asArray(exported(`[${generate(m, i => i).join(',')}]`))
         assertEq(wide.length, m)
-        assertEq(wide[m - 1], m - 1)
+        assertEq(wide[Number(m - 1)], m - 1)
     },
     // The set folded into the grammar's own value rule: its node is the one
     // symbol the `value` mapping returned, a reference and a refusal among

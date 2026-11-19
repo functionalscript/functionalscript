@@ -252,7 +252,7 @@ is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.js
 prints it. A negation of anything else stays a node — folding one would mean
 saying what a container converts to. Code outputs retain that operation; value
 outputs interpret it, including container conversion and represented failures
-(`negation` in the [language proofs](./language.proof.f.mjs)). It binds looser than a
+(`negation` in the [language proofs](./language.proof.f.js)). It binds looser than a
 step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's

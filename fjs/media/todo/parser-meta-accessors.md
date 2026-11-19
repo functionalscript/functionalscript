@@ -26,7 +26,7 @@ two. The same wrap/read pair repeats with only the `id` changed —
 `jsonSymbol`/`jsonAt` in `json/parser/module.f.mjs`,
 `valueSymbol`/`nodeAt` in `datajs/parser/module.f.mjs` — and
 `valueSymbol` is written a third time in
-`fjs/media/datajs/parser/proof.f.mjs`. "Wrap a payload as a symbol under
+`fjs/media/datajs/parser/proof.f.js`. "Wrap a payload as a symbol under
 an `id`, and read it back asserting that `id`" is one idea with several
 hand-written instances across two sibling readers; the `id` tag exists
 only to make the assert possible, so nothing stops another copy with a
