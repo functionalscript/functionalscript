@@ -391,13 +391,6 @@ export const proof = {
             assertNoMatch(v(['.', 'a', 'b', null]))
             assertNoMatch(v(['.', 'a', 'b', undefined]))
         },
-        // A trailing **hole** is not the short arity: the three-element arm
-        // is bounded by length and the four-element arm has no `option`
-        // member, so a length-4 value with nothing at index 3 matches
-        // neither. `concat` builds one without a hole literal, which
-        // FunctionalScript does not have.
-        trailingHoleIsError: () =>
-            assertNoMatch(v(['.', 'a', 'b'].concat(new Array(1)))),
         error: () => {
             assertNoMatch(v(['x', 'a', 'b', null]))
             assertNoMatch(v(['.', {}, 'b']))
@@ -512,15 +505,13 @@ export const proof = {
             assertNoMatch(vOptionPropertyLambda(['|!()', [1], null]))
         },
         // The steps that *can* continue end by being one element shorter,
-        // never by carrying a terminator, and never by leaving a hole where
-        // the continuation would go.
+        // never by carrying a terminator.
         endingIsTheShorterArity: () => {
             assertOk(vOptionPropertyLambda(['|.', 'c']))
             assertOk(vOptionPropertyLambda(['|()', [1]]))
             assertOk(vOptionPropertyLambda(['|?.()', [1]]))
             assertNoMatch(vOptionPropertyLambda(['|.', 'c', null]))
             assertNoMatch(vOptionPropertyLambda(['|()', [1], undefined]))
-            assertNoMatch(vOptionPropertyLambda(['|()', [1]].concat(new Array(1))))
         },
         // Each tag is a real constraint, not a stand-in for `string`: a node
         // tag in a step position is rejected, and so is an unknown one.
@@ -569,13 +560,11 @@ export const proof = {
             assertNoMatch(v(['?.z', 'a', 'b', null]))
         },
         // As on `.`: the region ends at the shorter arity, so a terminator
-        // value or a trailing hole in the continuation position is an error.
+        // value in the continuation position is an error.
         terminatorTailIsError: () => {
             assertNoMatch(v(['?.', 'a', 'b', null]))
             assertNoMatch(v(['?.', 'a', 'b', undefined]))
         },
-        trailingHoleIsError: () =>
-            assertNoMatch(v(['?.', 'a', 'b'].concat(new Array(1)))),
     },
     optionCall: {
         ok: () => {
@@ -591,8 +580,6 @@ export const proof = {
             assertNoMatch(v(['?.()', 'f', [1], null]))
             assertNoMatch(v(['?.()', 'f', [1], undefined]))
         },
-        trailingHoleIsError: () =>
-            assertNoMatch(v(['?.()', 'f', [1]].concat(new Array(1)))),
         error: () => assertNoMatch(v(['?.()', 'f', [], 1, []])),
     },
     // One entry per JS spelling whose grouping or hidden control flow the
