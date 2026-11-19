@@ -10,9 +10,10 @@
 where the walk merges, `entries.findIndex(twin(scope, node))` scans them all
 first. The analysis is quadratic in the number of nodes.
 
-Measured on `fjs compile fjs/compiler/edag/module.f.js out.f.js`, a run of
-about 66 s: `entry` is about 16% of the run by itself, and the walk around it
-about 18%.
+Measured at `9501145`, on `fjs compile fjs/compiler/edag/module.f.js out.f.js`,
+a run of about 66 s under Node 22: `entry` is about 16% of the run by itself,
+and the walk around it about 18%. The figures under Related are from the same
+run.
 
 ### Proposal
 
