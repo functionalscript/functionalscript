@@ -97,8 +97,8 @@ const mapItem = (map, offset) => (item, index) => isSpread(item) ? ['...', map(i
 /** @type {<T, U>(map: (value: T, index: number) => U, index: number) => (key: Key<T>) => Key<U>} */
 const mapKey = (map, index) => key => key instanceof Array ? ['Number', map(key[1], index)] : key
 
-/** @type {<T>(key: Key<T>) => readonly T[]} */
-const keyOperands = key => key instanceof Array ? [key[1]] : []
+/** A computed key's operand; a literal key has none. @type {<T>(key: Key<T>) => readonly T[]} */
+export const keyOperands = key => key instanceof Array ? [key[1]] : []
 
 /**
  * @template T, U
@@ -187,8 +187,8 @@ export const mapOperator = map => operator => {
     }
 }
 
-/** @type {<T>(item: Item<T>) => T} */
-const itemOperand = item => isSpread(item) ? item[1] : item
+/** An item's value operand, a spread's as its own. @type {<T>(item: Item<T>) => T} */
+export const itemOperand = item => isSpread(item) ? item[1] : item
 
 /**
  * @template T

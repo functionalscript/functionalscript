@@ -10,7 +10,7 @@
  * @import { _Arm, _Selected } from './private.ts'
  */
 
-import { operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
+import { itemOperand, keyOperands, operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
 import { exitValues, freeBindings, someBlock } from '../../../js/ast/control/module.f.js'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
@@ -127,10 +127,20 @@ const sequence = (body, start) => {
     return values
 }
 
-/** The operands a value other than a selection evaluates whenever it completes: no optional step, no function body. @type {(value: Exclude<Extract<Value, readonly unknown[]>, readonly ['ref' | 'if', ...unknown[]]>) => readonly Value[]} */
+/**
+ * The operands a value other than a selection evaluates whenever it
+ * completes: no function body, and nothing an optional step can skip. A
+ * member read evaluates its base and key, and the arguments of a plain call
+ * that continues it; an optional call's arguments, and every step after an
+ * optional one, are skipped where the step meets a nullish value.
+ *
+ * @type {(value: Exclude<Extract<Value, readonly unknown[]>, readonly ['ref' | 'if', ...unknown[]]>) => readonly Value[]}
+ */
 const certainOperands = value => value[0] === 'function' ? value[1].captures.map(capture => capture.value)
+    : value[0] === '?:' ? [value[1]]
     : value[0] === 'block' ? sequence(value[1], 0)
     : value[0] === '?.' || value[0] === '?.()' ? [value[1]]
+    : value[0] === '.' ? [value[1], ...keyOperands(value[2]), ...(value.length === 4 && value[3][0] === '|()' ? value[3][1].map(itemOperand) : [])]
     : operatorOperands(value)
 
 /**
