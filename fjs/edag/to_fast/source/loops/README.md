@@ -247,7 +247,7 @@ and mixed completion paths.
 The [native serializer proofs](../../../../compiler/serializer/value/proof.mjs)
 observe deep transfers, required evaluation order, held creating-iteration
 captures, rest identity and public arity. Complete initial source spellings are
-pinned by [compiler output proofs](../../../../compiler/proof.f.mjs).
+pinned by [compiler output proofs](../../../../compiler/proof.f.js).
 The [control-flow host corpus](../../../../compiler/serializer/value/control_flow.proof.mjs)
 executes supplied nested joins, parameterized continuations, selected prefixes,
 rest and named exports through both source and code-only output, with deep

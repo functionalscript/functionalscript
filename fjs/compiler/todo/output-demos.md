@@ -53,7 +53,7 @@ diagnostic formatting
 system carries text, so the page takes the output as marked text
 (`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
 panes render the producer's markings.
-Its [`proof.f.mjs`](../proof.f.mjs) runs the whole `compile` over the same
+Its [`proof.f.js`](../proof.f.js) runs the whole `compile` over the same
 file system for every example and output, pins acceptance and refusal, and
 holds each pane's text to the file written. See
 [`text/marked/README.md`](../../text/marked/README.md#12-design-record).
@@ -97,7 +97,7 @@ which outputs accept which example.
 ### What the pages show today
 
 - The "Logical not" and "typeof" presets pass every stage and all five
-  outputs, as the [side-by-side proof table](../proof.f.mjs) records. A `\x41`
+  outputs, as the [side-by-side proof table](../proof.f.js) records. A `\x41`
   string escape stops in the tokenizer as an `error` token with a span; the
   unfinished module reaches the parser and is refused as `unexpected end`
   ([tokenizer proof](../tokenizer/proof.f.js),

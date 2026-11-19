@@ -1,6 +1,6 @@
 /**
  * The language's constructs, each compiled through every output: what
- * [`./proof.f.mjs`](./proof.f.mjs) proves of the command — its arguments,
+ * [`./proof.f.js`](./proof.f.js) proves of the command — its arguments,
  * its outputs by extension, its errors and its laws — this proves of the
  * source, one section per construct, from the guard to the spread, each
  * observed as `.f.js`, EDAG, Rust and the value outputs write it. The
@@ -18,7 +18,7 @@ import { utf8 } from '../text/module.f.js'
 import { isObject } from '../types/object/module.f.js'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
-import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
+import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.js'
 import { toJson } from '../media/json/module.f.js'
 
 /**

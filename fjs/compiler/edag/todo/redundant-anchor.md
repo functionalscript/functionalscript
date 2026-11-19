@@ -75,7 +75,7 @@ and agrees with the writers on what is eager.
 - [ ] Choose where: the lowering, the linker, or a pass over the EDAG.
 - [ ] Emit no redundant anchor; prove the inputs above round-trip to the
       same graph through `fjsRoundTrip` in
-      [`../../proof.f.mjs`](../../proof.f.mjs), where their text is pinned
+      [`../../proof.f.js`](../../proof.f.js), where their text is pinned
       today.
 
 ### Related

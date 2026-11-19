@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Commands, Effect, MatchResult, Operation } from '../types.ts'
- * @import { MemOperationMap, PartialMemOperationMapWithRunner, RunInstance } from './types.ts'
+ * @import { AllOperationMap, MemOperationMap, PartialMemOperationMapWithRunner, RunInstance } from './types.ts'
  * @import { All } from '../common/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
@@ -67,9 +67,10 @@ const allOver = (...effects) => (state, run) => {
 
 /**
  * {@link run} for a runner that declares {@link All}: `o` holds every other
- * handler, and `all` runs its effects through this very runner.
+ * handler, and `all` runs its effects through this very runner. A handler may
+ * take that runner after its state, as `partialRun`'s may.
  *
- * @type {<O extends Operation, S>(o: MemOperationMap<Exclude<O, All>, S>) => RunInstance<O, S>}
+ * @type {<O extends Operation, S>(o: AllOperationMap<O, S>) => RunInstance<O, S>}
  */
 export const runAll = o => run(/** @type {any} */ ({ ...o, all: allOver }))
 

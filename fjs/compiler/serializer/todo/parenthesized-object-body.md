@@ -44,7 +44,7 @@ the shape of the decision does not change, only its answer.
       block is chosen only because the text opens with `{`.
 - [ ] Update the proofs that pin the block spelling, in
       [`../proof.f.js`](../proof.f.js) and
-      [`../../proof.f.mjs`](../../proof.f.mjs) (`fjsRoundTrip`), and keep a
+      [`../../proof.f.js`](../../proof.f.js) (`fjsRoundTrip`), and keep a
       proof that a body needing a `const` is still a block.
 - [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 

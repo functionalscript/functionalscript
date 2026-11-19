@@ -341,7 +341,7 @@ values in the enclosing scope and the body reads them through `['frame', i]`; it
 not share an enclosing operation node directly into the body's scope. Capture
 lowering and its proofs are in [`../edag`](../edag/module.f.js) and
 [`../edag/proof.f.js`](../edag/proof.f.js) (`captures`), with fixed/rest captures in
-[`../parameters/proof.f.mjs`](../parameters/proof.f.mjs). Frame semantics remain owned by
+[`../parameters/proof.f.js`](../parameters/proof.f.js). Frame semantics remain owned by
 [`3111-function-frame.md`](../../../spec/design/3111-function-frame.md).
 
 A call's arguments are an item list, the one `[]` holds, read by position
@@ -636,7 +636,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       superseded by `captures` in [`../edag/proof.f.js`](../edag/proof.f.js).
 - [x] Parse empty, rest-only, fixed-only and mixed fixed/rest arrows. The original
       rest-only rollout is superseded by #2237; syntax, missing values, captures and
-      rest identity are pinned in [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
+      rest identity are pinned in [`../parameters/proof.f.js`](../parameters/proof.f.js).
 - [x] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
       preserved. Done by construction: a body names its own fixed/rest bindings and
@@ -667,7 +667,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `call` in [`../parser/grammar/proof.f.js`](../parser/grammar/proof.f.js),
       `func.call` and `func.callRefused` in [`../parser/proof.f.js`](../parser/proof.f.js),
       `call` in [`../edag/proof.f.js`](../edag/proof.f.js) and in
-      [`../proof.f.mjs`](../proof.f.mjs).
+      [`../proof.f.js`](../proof.f.js).
 - [x] Whenever optional chaining enters the source subset, lower chain boundaries per
       "Chains" in [`../../edag/README.md`](../../edag/README.md), with proofs over the
       spellings the `chains` section of
@@ -683,7 +683,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `import y from './y.f.js'; export default [y, (...x) => x]`: resolving `y` must not
       rewrite the nested function body's `['rest']`. Done, in `func` of
       [`fjs/compiler/edag/proof.f.js`](../edag/proof.f.js); `importsAndCaptures` in
-      [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs) also executes linked
+      [`../parameters/proof.f.js`](../parameters/proof.f.js) also executes linked
       fixed/rest closures under Amnesia and memo.
 - [x] Add a validation proof that reusing one operation node both outside and inside a
       nested function body is rejected. Done: `throw` in
@@ -708,7 +708,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       objects while keeping CLI value/source output stable. The future
       `interpret-edag.md` migration must preserve the updated
       [compile API boundary](#existing-compile-api-boundary), including direct JSON
-      roots. Pinned side by side in `fjs/compiler/proof.f.mjs` (`moduleBoundary`,
+      roots. Pinned side by side in `fjs/compiler/proof.f.js` (`moduleBoundary`,
       `edagOutput`).
 - [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
       Done: the linker reads through the transpiler's reader and reports the same
@@ -731,7 +731,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       constant `1`: it is `[',', [['.', null, 'x'], ['{}', [[':', 'default', 1]]]]]`,
       and `fjs compile` retains the failing read in EDAG and FunctionalScript output
       while its value outputs fail on that read. Pinned by `anchored` here and in
-      [`fjs/compiler/proof.f.mjs`](../proof.f.mjs).
+      [`fjs/compiler/proof.f.js`](../proof.f.js).
 - [x] An unused import is not discarded: `import b from './b.f.js'; export default 1`
       anchors `b`'s selected computation before `{ default: 1 }`, so a failure
       in `b.f.js` cannot disappear.
@@ -739,7 +739,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] A diamond resolves one module identity once and both paths bind the same
       EDAG node. Pinned by `resolve.diamond`, `resolve.bound`, and
       `moduleSharing`/`hostIdentities` in
-      [`transpiler/proof.f.mjs`](../transpiler/proof.f.mjs). Native ESM identity
+      [`transpiler/proof.f.js`](../transpiler/proof.f.js). Native ESM identity
       comparisons belong to the [Node adapter proofs](../../effects/node/proof.mjs).
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in

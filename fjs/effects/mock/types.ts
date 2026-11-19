@@ -6,6 +6,7 @@
 
 import type { Result } from "../../types/result/types.ts"
 import type { Effect, Operation, Pr } from "../types.ts"
+import type { All } from "../common/types.ts"
 
 /**
  * A synchronous, state-threading operation map. An entry takes the command's
@@ -37,5 +38,15 @@ export type RunInstance<O extends Operation, S> =
  */
 export type PartialMemOperationMapWithRunner<O extends Operation, S> = {
     readonly [K in O[0]]?: (...payload: Pr<O, K>[0]) =>
+        (state: S, run: RunInstance<O, S>) => readonly[S, Pr<O, K>[1]]
+}
+
+/**
+ * The handlers `runAll` takes: every operation of `O` but `all`, which the
+ * runner answers itself. A transition may accept the active runner after its
+ * state, to run nested effects over the whole of `O`.
+ */
+export type AllOperationMap<O extends Operation, S> = {
+    readonly [K in Exclude<O, All>[0]]: (...payload: Pr<O, K>[0]) =>
         (state: S, run: RunInstance<O, S>) => readonly[S, Pr<O, K>[1]]
 }

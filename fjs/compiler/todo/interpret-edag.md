@@ -228,7 +228,7 @@ hardening TODO after the baseline interpreter exists.
 - [x] Evaluate frames in the enclosing scope and make their captured values available
       through `['frame', i]` in each body invocation. The old null-only restriction is
       historical; capture and fixed/rest identity proofs are in
-      [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
+      [`../parameters/proof.f.js`](../parameters/proof.f.js).
 - [x] Memoize results by EDAG node identity within one evaluation context so shared
       constructors preserve reference identity.
 - [x] Start a fresh body-node memoization context for every function invocation; do

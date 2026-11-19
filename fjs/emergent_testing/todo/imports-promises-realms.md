@@ -16,7 +16,7 @@ although no authored proof does this.
 > not a goal. See [the README](../README.md#scope) — everything below is read
 > under that rule. An authored module that breaks it is a defect, not an
 > exception — the one known case, two `Promise.resolve` fixtures in
-> `../proof.f.mjs`, is fixed: neither promise was ever consumed, since the
+> `../proof.f.js`, is fixed: neither promise was ever consumed, since the
 > mocks intercept the effects and read the context as data.
 
 ### Problem

@@ -5,7 +5,7 @@ import { utf8 } from '../text/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.js'
 import { resolve } from './edag/module.f.js'
 import { interpret, noRuntime } from './transpiler/module.f.js'
-import { moduleRefused } from './proof.f.mjs'
+import { moduleRefused } from './proof.f.js'
 
 export const proof = /** @type {const} */ ({
     linkingAndInterpretingReportTheConversionBoundary: () => {

@@ -7,7 +7,7 @@
  * Proofs that need a filesystem own a temporary tree and remove it in
  * `finally`, through {@link withTemporary}. They exercise the sibling host
  * runner; compiler traversal and diagnostics are proved synchronously in
- * `compiler/transpiler/proof.f.mjs`.
+ * `compiler/transpiler/proof.f.js`.
  *
  * Bun's adapter also meets a host registration callback. Its proof observes
  * the emitted names and asynchronous bodies through that callback; a pure
