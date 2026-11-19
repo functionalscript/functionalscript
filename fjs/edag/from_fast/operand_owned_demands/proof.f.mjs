@@ -12,7 +12,7 @@ import { _id as id, _ref as ref, _result as result, _target as target, _body as 
 import { requiredFunction, failed, escape, mixed, evaluate, failure, flat } from '../member_returns/proof.f.js'
 import { _acrossLoop as acrossLoop } from '../normal_memo_members/proof.f.js'
 import { _collector as collector } from '../spread_returns/proof.f.js'
-import { _deferred as deferred } from '../lazy_returns/proof.f.mjs'
+import { _deferred as deferred } from '../lazy_returns/proof.f.js'
 
 /** The selected declaration is wholly inside this value's loop region. @type {(initializer: Value) => Value} */
 export const _ownedLoopValue = initializer => {

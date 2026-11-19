@@ -304,6 +304,6 @@ explicit `Result` error
 ### Related
 
 - [Source loop output](../README.md)
-- [Source-loop proof boundary cases](../proof.f.mjs)
+- [Source-loop proof boundary cases](../proof.f.js)
 - [Shared terminal fold](../../../../../js/ast/loop/terminal/module.f.js)
 - [Common preparation](../../../../../js/ast/prepare/README.md)

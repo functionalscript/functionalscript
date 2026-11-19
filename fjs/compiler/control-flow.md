@@ -232,7 +232,7 @@ If an admitted condition expression updates bindings, their latest versions
 survive both true and false exits. Its fragment needs an explicit final return
 when wrapped as a function.
 
-Existing [source-loop proofs](../edag/to_fast/source/loops/proof.f.mjs),
+Existing [source-loop proofs](../edag/to_fast/source/loops/proof.f.js),
 `sourceLoopTransfersKeepStateAndFirstParseFixedPoints` and
 `sourceFunctionExitsKeepTheirOwnersAndFirstParseFixedPoints`, cover transfers,
 owning returns, nested loops and wide state signatures. The shared

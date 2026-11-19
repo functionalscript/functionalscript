@@ -7,9 +7,11 @@
  * @import { Block, Function as PreparedFunction, Statement, Value } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../../../asserts/module.f.js'
 import { prepare, prepareFunction } from './module.f.js'
 import { _tailFunction } from '../../../edag/to_fast/tail_calls/proof.f.js'
+import { generate } from '../../../types/array/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -78,7 +80,7 @@ export const proof = {
                 assertEq(physical[1].result, result)
                 assertEq(physical[1].mutable, true)
                 assertEq(source.statements.length, empty ? 1 : 2)
-                const prefix = physical[1].body.statements[loop.parameters.length]
+                const prefix = physical[1].body.statements[Number(loop.parameters.length)]
                 assert(prefix[0] === 'define')
                 assertEq(prefix[1], pair)
                 assertStructurallySame(prefix[2], allocation)
@@ -133,8 +135,8 @@ export const proof = {
             assertStructurallySame(initial[2], ['array', [2, 3]])
             assertEq(physical[1].condition, true)
             assertEq(physical[1].mutable, true)
-            for (const [index, parameter] of [state, other].entries()) {
-                const snapshot = physical[1].body.statements[index]
+            for (const [index, parameter] of [state, other].map((parameter, index) => /** @type {const} */ ([index, parameter]))) {
+                const snapshot = physical[1].body.statements[Number(index)]
                 assert(snapshot[0] === 'define')
                 assertEq(snapshot[1], parameter)
                 assertStructurallySame(snapshot[2], ['.', ['ref', physical[1].slot], index])
@@ -297,8 +299,8 @@ export const proof = {
         assertEq(physical[1].condition, true)
         assertEq(physical[1].mutable, true)
         assertEq(physical[1].result, result)
-        for (const [index, parameter] of [state, other].entries()) {
-            const snapshot = physical[1].body.statements[index]
+        for (const [index, parameter] of [state, other].map((parameter, index) => /** @type {const} */ ([index, parameter]))) {
+            const snapshot = physical[1].body.statements[Number(index)]
             assert(snapshot[0] === 'define')
             assertEq(snapshot[1], parameter)
             assertStructurallySame(snapshot[2], ['.', ['ref', physical[1].slot], index])
@@ -569,7 +571,7 @@ export const proof = {
             const block = { statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }
             const ordinary = prepare(block)
             assert(!ordinary.statements.some(statement => statement[0] === 'while'))
-            assertEq(loopStatement(ordinary)[2].statements.filter(statement => statement[0] === 'if')[0][reversed ? 3 : 2].statements.filter(statement => statement[0] === 'write').length, 2)
+            assertEq(assertNotNullish(entry(loopStatement(ordinary)[2].statements.filter(statement => statement[0] === 'if')[0], reversed ? 3 : 2)).statements.filter(statement => statement[0] === 'write').length, 2)
             const source = prepare(block, { sourceLoops: true })
             assertStructurallySame(source.statements.map(statement => statement[0]), ['while', 'define'])
             const physical = source.statements[0]
@@ -815,7 +817,7 @@ export const proof = {
     },
     unconditionalTailLoopsHaveNoResultSuffix: () => {
         for (const arity of /** @type {const} */ ([0, 1, 2])) {
-            const fn = _tailFunction(['=>', arity, [], ['()', ['self'], Array.from({ length: arity }, (_, index) => ['arg', index])]])
+            const fn = _tailFunction(['=>', arity, [], ['()', ['self'], generate(arity, index => ['arg', index])]])
             const prepared = prepareFunction(fn)
             assertEq(prepared.parameters.length, arity)
             assertStructurallySame(prepared.body.exit, ['yield', []])

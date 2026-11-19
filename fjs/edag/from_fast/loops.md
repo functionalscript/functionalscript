@@ -376,7 +376,7 @@ The construction proofs retain the delivered integration cases:
   [deferred crossings](./deferred_loop_cells/proof.f.mjs) and
   [eager operand planning](./eager_operand_memo/proof.f.mjs) pin declaration,
   caller, iteration and recipe lifetimes with their shared identities.
-- [Owning returns](./lazy_returns/proof.f.mjs),
+- [Owning returns](./lazy_returns/proof.f.js),
   [capture returns](./capture_returns/proof.f.js),
   [entry returns](./entry_returns/proof.f.js) and
   [transfer returns](./transfer_returns/proof.f.js) retain reached payloads,
@@ -385,7 +385,7 @@ The construction proofs retain the delivered integration cases:
   [normal memo members](./normal_memo_members/proof.f.js),
   [spread returns](./spread_returns/proof.f.js),
   [object spreads](./object_spread_returns/proof.f.js) and
-  [normal memo spreads](./normal_memo_spreads/proof.f.mjs) distinguish lookup,
+  [normal memo spreads](./normal_memo_spreads/proof.f.js) distinguish lookup,
   conversion and expansion failure from a later successful return.
 
 Pure callback counts are not semantic observations. Cost examples above are
