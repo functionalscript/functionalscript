@@ -49,7 +49,10 @@ const repository = (config = authorConfig, globalConfig = '') => ({
  * A call the stand-in `execFile` was given, as the log holds it: its
  * arguments, and its options where it had any.
  */
-const callSchema = { args: array(string), options: or(option, { stdin: or(option, string), maxBuffer: or(option, number) }) }
+const callSchema = /** @type {const} */ ({ args: array(string), options: or(option, { stdin: or(option, string), maxBuffer: or(option, number) }) })
+
+/** The log's reader: a list of {@link callSchema}. */
+const validCalls = validate(array(callSchema))
 
 /**
  * The calls so far. The stand-in `execFile` keeps them as JSON in the
@@ -59,7 +62,7 @@ const callSchema = { args: array(string), options: or(option, { stdin: or(option
  *
  * @type {(state: State) => readonly {readonly args: readonly string[], readonly options?: ExecFileOptions}[]}
  */
-const calls = state => assertOk(validate(array(callSchema))(assertOk(parse(state.stdout))))
+const calls = state => assertOk(validCalls(assertOk(parse(state.stdout))))
 
 /** @type {<T>(effect: Effect<NodeOp, T, IoChannel>, replies: readonly IoResult<ExecResult>[], state?: State) => readonly [State, import('../../../types/result/types.ts').Result<T, IoChannel>]} */
 const run = (effect, replies, state = { ...emptyState, root: repository() }) => {
