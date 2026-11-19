@@ -134,7 +134,7 @@ joins. The following graph is constructed once and shared across normal exits,
 as it is for noncanonical helper callers. Terminal public results and self calls
 remain direct, without a continuation function or eager completion payload.
 
-The `sharedRootJoinGrowth` [proof](./proof.f.mjs) includes fixed invocation
+The `sharedRootJoinGrowth` [proof](./proof.f.js) includes fixed invocation
 inputs, a captured value, simultaneous next-state updates and a required suffix
 call/allocation. Its normalized FAST size and unique graph-node count have
 bounded linear growth as the number of mixed regions increases.
@@ -362,7 +362,7 @@ promise the old graph identity. The short-circuit schema migration has its own
 
 The construction proofs retain the delivered integration cases:
 
-- [General helper and root proofs](./proof.f.mjs) cover state/result signatures,
+- [General helper and root proofs](./proof.f.js) cover state/result signatures,
   shared normal joins, scoped completion dispatch and bounded join growth.
 - [Root matching](./loop/root/proof.f.js) pins positive and negative invocation
   forms, retained entry values, simultaneous transitions, rest recipes and arity.

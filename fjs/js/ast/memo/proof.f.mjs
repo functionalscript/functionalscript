@@ -14,6 +14,7 @@ import { proof as initializerLoops } from '../../../edag/from_fast/initializer_l
 import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
 import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.mjs'
 import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.mjs'
+import { size } from '../../../types/object/size/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -417,7 +418,7 @@ export const proof = /** @type {const} */ ({
             const recipes = recipesIn(normalized)
             assertEq(recipes.length, length)
             for (const [, recipe] of recipes) { assertEq(recipe.parameters.length, 1) }
-            return JSON.stringify(normalized).length
+            return size(normalized)
         })
         // Whole-vector updates grow quadratically; duplicated initializer
         // diamonds would multiply the previous recipe at every layer.
