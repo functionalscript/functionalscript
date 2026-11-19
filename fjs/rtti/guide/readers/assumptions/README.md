@@ -48,4 +48,4 @@ page states what the assumption means for members a prototype supplies.
 
 Nowhere, by design: no reader checks for a getter, a `Proxy` or a replaced
 prototype. The proofs in [`parse`](../../../parse/proof.f.js) and
-[`validate`](../../../validate/proof.f.mjs) use DataJS values only.
+[`validate`](../../../validate/proof.f.js) use DataJS values only.

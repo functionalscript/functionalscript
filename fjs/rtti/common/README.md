@@ -19,7 +19,7 @@ order, and with the same shapes, by construction. What differs is what each
 passes to `readerOf`: what it collects of the members — nothing for
 `validate`, the parsed members for `parse` — and what it builds of each
 container kind. The data form's `validate` ([`data`](../data/module.f.js)) is
-the same shape over `Data`, and [`validate/proof.f.mjs`](../validate/proof.f.mjs)
+the same shape over `Data`, and [`validate/proof.f.js`](../validate/proof.f.js)
 pins the acceptance agreement of all three as a table so they cannot drift.
 
 ## Reading a tuple schema

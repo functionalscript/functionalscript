@@ -38,7 +38,7 @@ result is thrown away. A third reader, the data form's `validate`, reads the
 same values against `toData(s)`, the schema as plain data, and accepts exactly
 the DataJS values the other two do (a function or a symbol it may admit, see
 [`data-validate-admits-non-djs-values`](../../../todo/data-validate-admits-non-djs-values.md));
-[`validate/proof.f.mjs`](../../../validate/proof.f.mjs)
+[`validate/proof.f.js`](../../../validate/proof.f.js)
 runs one acceptance table through all three. How the two schema-form readers
 share their code is in
 [`common`'s README](../../../common/README.md#one-kernel-two-readers).

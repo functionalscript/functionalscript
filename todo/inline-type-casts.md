@@ -269,6 +269,6 @@ is the way to refresh this file, not a partial edit.
 | `fjs/rtti/validate/module.f.js` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/validate/module.f.js` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/validate/module.f.js` | 158 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/proof.f.mjs` | 23 | `ValidationError` | reads an `unknown` the surrounding code has already established |
-| `fjs/rtti/validate/proof.f.mjs` | 307 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/validate/proof.f.mjs` | 307 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/rtti/validate/proof.f.js` | 23 | `ValidationError` | reads an `unknown` the surrounding code has already established |
+| `fjs/rtti/validate/proof.f.js` | 307 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/validate/proof.f.js` | 307 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |

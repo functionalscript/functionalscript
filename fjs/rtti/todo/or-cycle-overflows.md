@@ -21,7 +21,7 @@ The data form reads the same schema and answers `error`, since
 `toData(orCycleA)` is `never`. The crash shows up only once a value reaches
 the cycle: with nothing past the prefix, `[1]`, all three readers answer `ok`,
 which is the only form in which the acceptance table in
-[`validate/proof.f.mjs`](../validate/proof.f.mjs) holds the schema.
+[`validate/proof.f.js`](../validate/proof.f.js) holds the schema.
 
 ### Tasks
 

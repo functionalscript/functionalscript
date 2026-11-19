@@ -54,7 +54,7 @@ import {
  * `exp` is a top-level `or` trying every node kind in turn, so when a value
  * matches none of them the reported failure is always the root (`path: []`,
  * `message: 'no match'`) — there is no single branch whose deeper path is
- * "the" failure. Same rule as `../rtti/validate/proof.f.mjs`'s `orRoot`.
+ * "the" failure. Same rule as `../rtti/validate/proof.f.js`'s `orRoot`.
  * The three lambda schemas are `or`s too, so their failures report the same
  * way.
  * @type {(r: ResultE) => void}
