@@ -5,8 +5,6 @@
  *
  * These cases read a method as a value (`a.at` without a call), which
  * FunctionalScript does not, so they are kept apart from `./proof.f.js`.
- *
- * @module
  */
 
 import { assertEq, todo } from '../asserts/module.f.js'

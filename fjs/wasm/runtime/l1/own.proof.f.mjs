@@ -2,8 +2,6 @@
  * `get` against the host's own-property read, on every receiver and key of
  * `./proof.f.js`. The reference is `Object.getOwnPropertyDescriptor`, which
  * FunctionalScript does not admit, so the case is kept apart from that proof.
- *
- * @module
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
