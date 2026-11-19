@@ -38,7 +38,7 @@ not restated: one recursive schema, one semantic hash check
 (`lockMapError`), one canonical serialization. So the shared form admits
 exactly the maps the inline form does, to the same depth, with the same value
 domain and the same rejections — and a map's bytes under `lock` are identical
-whichever blob holds it, which `proof.f.mjs` pins directly rather than leaving
+whichever blob holds it, which `proof.f.js` pins directly rather than leaving
 to review.
 
 Everything the [Lock maps](../revision/README.md#lock-maps) section says

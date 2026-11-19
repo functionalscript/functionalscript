@@ -294,6 +294,6 @@ remaining characters of the cBase32 hash. No response carries this path:
 ### Testing without a live process
 
 Because the adapter is generic in `O`, the same handlers run over an
-in-memory `Cas<MemOp>` in `proof.f.mjs`, driven through a full
+in-memory `Cas<MemOp>` in `proof.f.js`, driven through a full
 `initialize` → `notifications/initialized` → `tools/call` sequence with no live
 process.

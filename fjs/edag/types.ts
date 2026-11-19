@@ -192,7 +192,7 @@ export type OptionPropertyLambda =
 // what `module.f.js`'s `regionProductions` now does once for the schema.
 //
 // These came here ahead of the schema pins below, for the reason those
-// followed: a `@typedef` in `proof.f.mjs` is checked only where a statement
+// followed: a `@typedef` in `proof.f.js` is checked only where a statement
 // follows it in the same block, and the `consistency` entry that held them
 // was nothing but typedefs. A module-scope alias in a `.ts` file is resolved
 // either way; `../AGENTS.md` §1.4 states the rule.
@@ -425,7 +425,7 @@ type _OverIsClosed = Assert<And<
 
 // Each RTTI constant in `./module.f.js` matches its declared type above.
 //
-// These were `proof.f.mjs`'s `consistency` entry, whose body was nothing but
+// These were `proof.f.js`'s `consistency` entry, whose body was nothing but
 // typedefs — so none of them bound to anything and all 28 were green whatever
 // they claimed (`../AGENTS.md` §1.4). At module scope in a `.ts` file an alias
 // is resolved on sight, so each one below was falsified once and seen to fail

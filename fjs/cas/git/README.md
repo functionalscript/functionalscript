@@ -79,7 +79,7 @@ collision or a corrupt store. A `config` Git does not open is
 `ERR_REPOSITORY_FORMAT`; a branch ref naming no commit, or a ref file this
 backend cannot read as one, `ERR_SNAPSHOT_HEAD`.
 A key the branch does not hold is the ordinary miss, `ENOENT` as `fileCas`
-reports one. Each is a proof in [`proof.f.mjs`](proof.f.mjs).
+reports one. Each is a proof in [`proof.f.js`](proof.f.js).
 
 Neither a listing nor a write reads a blob to vouch for it: the listing
 names a key by the tree's word, and a write of content the tree already
