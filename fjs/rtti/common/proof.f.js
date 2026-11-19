@@ -210,7 +210,7 @@ export const proof = {
     },
     // The three container skeletons, read with `listing`, which shows what
     // each one read and collected. The acceptance tables in
-    // `../validate/proof.f.mjs` hold `validate` and `parse` to them through
+    // `../validate/proof.f.js` hold `validate` and `parse` to them through
     // the readers; these hold the skeletons to their own contracts.
     containerRead: {
         // Every member is read and collected, in member order.

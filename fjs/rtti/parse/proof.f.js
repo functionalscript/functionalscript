@@ -279,7 +279,7 @@ export const proof = {
     },
     option: {
         // At the entry position nothing can be absent — see the same block in
-        // `../validate/proof.f.mjs`.
+        // `../validate/proof.f.js`.
         ok: () => {
             const t = or(option, number)
             assertOk(parse(t)(42))
@@ -363,7 +363,7 @@ export const proof = {
     },
     // A bare container is closed, and a stated rest widens acceptance without
     // changing construction at all: the result carries the declared members
-    // either way. `../validate/proof.f.mjs` runs the acceptance half of this
+    // either way. `../validate/proof.f.js` runs the acceptance half of this
     // through all three readers.
     closed: {
         tuple: {
@@ -380,17 +380,17 @@ export const proof = {
             // The container is bounded before its members are read, so a
             // value that is both too long and wrong at a member is answered
             // by its shape. `validate` reports the same path — the two gate
-            // alike, which is what `../validate/proof.f.mjs`'s
+            // alike, which is what `../validate/proof.f.js`'s
             // `sameAcceptanceAsParse` holds them to — and this pins it on
             // `parse`'s own side.
             structuralMismatchIsAnsweredFirst: () => {
                 assertErrorPath([])(parse([/** @type {const} */ (42)])([43, 'extra']))
                 assertErrorPath(['0'])(parse([/** @type {const} */ (42)])([43]))
                 // and an absent required member answers before the members
-                // ahead of it are read — see `../validate/proof.f.mjs`
+                // ahead of it are read — see `../validate/proof.f.js`
                 assertErrorPath(['1'])(parse([number, number])(['bad']))
                 // an undeclared key likewise, which is the struct kind's
-                // half of the rule — see `../validate/proof.f.mjs`
+                // half of the rule — see `../validate/proof.f.js`
                 assertErrorPath([])(parse({ a: number })({ a: 'bad', b: 1 }))
                 // and between the two, the absent member wins
                 assertErrorPath(['a'])(parse({ a: number })({ b: 1 }))

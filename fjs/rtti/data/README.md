@@ -188,7 +188,7 @@ parse([number, or(option, string)])([42])            // ['ok', [42]]
 validate(toData([number, or(option, string)]))([42]) // ['ok', [42]]
 ```
 
-`../validate/proof.f.mjs` runs one acceptance table through all three readers,
+`../validate/proof.f.js` runs one acceptance table through all three readers,
 so a `toData` that changed which values a schema admits fails there rather
 than silently. That table is also where an empty `rest` is pinned: this form
 normalizes a rest that makes no difference away, and the *thunk* readers need

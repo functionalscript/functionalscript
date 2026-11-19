@@ -843,31 +843,28 @@ export const proof = {
     },
     // Every row above is about error **attribution**, and a regression that
     // walked a shared operand once per arm while reporting the same paths
-    // would pass them all. So this one counts instead: an `or` of two
-    // arities whose arms share an operand, with the operand's thunk tallying
-    // how often it is visited.
+    // would pass them all. So this one is about cost instead: an `or` of two
+    // arities whose arms share an operand, read at a depth only a linear
+    // walk can finish.
     //
-    // Linear here, exponential without the bound — measured against the
-    // unbounded readers at the same depths: 31 visits at depth 4, 511 at 8,
-    // 131 071 at 16, against 7, 11 and 19 here. The bound is generous enough
-    // to survive a benign refactor and far below 2^depth either way.
+    // Linear here, exponential without the bound — measured by tallying the
+    // operand's thunk on the host: 7, 11, 19 and 67 visits at depths 4, 8, 16
+    // and 64, against 31, 511 and 131 071 for the unbounded readers at the
+    // first three. A pure thunk cannot count its own visits, so the proof
+    // does not assert the tally: at depth 64 the unbounded walk is about
+    // 2^65 visits, and a regression to it shows as a run that never ends.
     arityUnionVisitsEachOperandOnce: () => {
         /**
          * @typedef {() => readonly ['or', typeof number, typeof string, _Dot]} _Exp
          * @typedef {() => readonly ['or', readonly ['.', _Exp, typeof string], readonly ['.', _Exp, typeof string, readonly ['|()', _Exp]]]} _Dot
          */
-        let visits = 0
         /** @type {_Exp} */
-        const exp = () => { visits += 1; return ['or', number, string, dot] }
-        /** @type {_Dot} */
-        const dot = () => ['or', ['.', exp, string], ['.', exp, string, ['|()', exp]]]
+        const exp = () => ['or', number, string, () => ['or', ['.', exp, string], ['.', exp, string, ['|()', exp]]]]
         /** @type {(n: number) => Unknown} */
         const chain = n => n === 0 ? ['nope'] : ['.', chain(n - 1), 'b']
-        const depth = 16
+        const depth = 64
         for (const read of [v, p]) {
-            visits = 0
             assertError(read(exp)(chain(depth)))
-            assert(visits <= 3 * depth, 'the shared operand is walked once per level, not once per arm')
         }
     },
     arrayOptional: () => {
