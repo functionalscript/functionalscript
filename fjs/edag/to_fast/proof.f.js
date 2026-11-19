@@ -165,7 +165,12 @@ export const proof = {
         roundTrip([',', [shared, conditional('&&', false, shared)]])
         roundTrip([',', [shared, 2]])
         const call = /** @type {const} */ (['()', ['=>', 0, [], ['throw', 'failure']], []])
-        roundTrip(['=>', 1, [], ['?:', ['arg', 0], [',', [call, 0]], call]])
+        // Both arms read the call, so the function reads it on every path:
+        // it is required before the selection, which the graph reads back as
+        // its anchor.
+        /** @type {Exp} */
+        const selection = ['?:', ['arg', 0], [',', [call, 0]], call]
+        assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(['=>', 1, [], selection]))))), assertOk(analysis(['=>', 1, [], [',', [call, selection]]])))
     },
     operandClosuresCaptureComputedValues: () => {
         const computed = /** @type {const} */ (['()', ['=>', 0, [], ['[]', [3]]], []])

@@ -121,6 +121,25 @@ const generatedOperandPrefix = (e, sharedOnly = false) => {
     return false
 }
 
+/**
+ * `true` for a graph in which both arms of one selection reach the same
+ * node. The function then reads that node on every path, so the writer
+ * requires it before the selection, and the text reads back with the node
+ * as an anchor the graph did not hold: its first parse establishes the graph
+ * the law holds for ({@link rewrites}).
+ *
+ * @type {(e: Exp) => boolean}
+ */
+const sharedByBothArms = e => {
+    /** @type {(root: unknown) => readonly unknown[]} */
+    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
+    return visit(allOperands)([])(e).some(([n]) => {
+        if (!(n instanceof Array) || n[0] !== '?:') { return false }
+        const otherwise = reached(n[3])
+        return reached(n[2]).some(x => x instanceof Array && otherwise.includes(x))
+    })
+}
+
 /** Newly admitted primitive captures retain semantic readback rather than raw graph identity. @type {(e: Exp) => boolean} */
 const generatedPrimitiveCapture = e => visit(allOperands)([])(e).some(([node]) => node instanceof Array && node[0] === '=>'
     && node[2].some(slot => !(slot instanceof Array) || slot[0] === 'undefined'))
@@ -1823,7 +1842,7 @@ export const proof = {
                 assertEq(imports.length, 0, written[1])
                 continue
             }
-            if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
+            if (redundantAnchor(e) || generatedOperandPrefix(e) || sharedByBothArms(e)) { rewrites(e) } else { reads(e) }
         } },
     ])),
     /**

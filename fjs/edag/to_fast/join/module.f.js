@@ -7,7 +7,7 @@
  * @import { BindingId, Block, Definition, Statement, Value } from '../../../js/ast/types.ts'
  * @import { Exp } from '../../types.ts'
  * @import { Task } from '../../../js/ast/task/types.ts'
- * @import { _Selected } from './private.ts'
+ * @import { _Arm, _Selected } from './private.ts'
  */
 
 import { operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
@@ -127,36 +127,40 @@ const sequence = (body, start) => {
     return values
 }
 
-/** The operands a value evaluates whenever it completes: no selected arm, no optional step, no function body. @type {(value: Extract<Value, readonly unknown[]>) => readonly Value[]} */
-const certainOperands = value => value[0] === 'ref' ? []
-    : value[0] === 'function' ? value[1].captures.map(capture => capture.value)
-    : value[0] === 'if' ? [value[1]]
+/** The operands a value other than a selection evaluates whenever it completes: no optional step, no function body. @type {(value: Exclude<Extract<Value, readonly unknown[]>, readonly ['ref' | 'if', ...unknown[]]>) => readonly Value[]} */
+const certainOperands = value => value[0] === 'function' ? value[1].captures.map(capture => capture.value)
     : value[0] === 'block' ? sequence(value[1], 0)
     : value[0] === '?.' || value[0] === '?.()' ? [value[1]]
     : operatorOperands(value)
 
+/** Whether one of the values reads the binding whenever it completes. @type {(values: readonly Value[], target: BindingId) => Task<boolean>} */
+const certainTask = (values, target) => {
+    /** @type {(index: number) => Task<boolean>} */
+    const each = index => call(() => index === values.length ? done(false)
+        : bind(valueCertain(values[Number(index)], target), found => found ? done(true) : each(index + 1)))
+    return each(0)
+}
+
+/** A selection reads the binding in its test, or in both of its arms. @type {(value: Value, target: BindingId) => Task<boolean>} */
+const valueCertain = (value, target) => call(() => {
+    if (!(value instanceof Array)) { return done(false) }
+    if (value[0] === 'ref') { return done(value[1] === target) }
+    if (value[0] !== 'if') { return certainTask(certainOperands(value), target) }
+    return bind(valueCertain(value[1], target), test => test ? done(true)
+        : bind(certainTask(sequence(value[2], 0), target), then => then ? certainTask(sequence(value[3], 0), target) : done(false)))
+})
+
 /**
  * Whether the block reads the recipe on every path that completes: what it
  * evaluates after the declaration, until a statement leaves it, reaches the
- * binding through operands that are always evaluated. The recipe may then be
- * required where it stands. A path that fails before the read fails either
- * way ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
+ * binding through operands that are always evaluated, a selection's test or
+ * both of its arms. The recipe may then be required where it stands. A path
+ * that fails before the read fails either way
+ * ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
  *
  * @type {(body: Block, definition: Definition) => boolean}
  */
-const certain = (body, definition) => {
-    /** @type {{ readonly first: Value, readonly tail: unknown } | null} */
-    let work = null
-    for (const value of sequence(body, body.statements.indexOf(definition) + 1).toReversed()) { work = { first: value, tail: work } }
-    while (work !== null) {
-        const { first: value, tail } = work
-        work = /** @type {typeof work} */ (tail)
-        if (!(value instanceof Array)) { continue }
-        if (value[0] === 'ref' && value[1] === definition[1]) { return true }
-        for (const operand of certainOperands(value).toReversed()) { work = { first: operand, tail: work } }
-    }
-    return false
-}
+const certain = (body, definition) => run(certainTask(sequence(body, body.statements.indexOf(definition) + 1), definition[1]))
 
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {
@@ -193,43 +197,113 @@ const followingScope = (block, branch, definition, deferred) => {
     })
 }
 
+/** Whether evaluating the value can read the binding, through deferred recipes too. @type {(value: Value, target: BindingId, deferred: readonly Definition[]) => boolean} */
+const reads = (value, target, deferred) => references({ statements: [], exit: ['yield', [value]] }, target, deferred)
+
+/** The one arm of a selection that reads the binding, where its test and its other arm do not. @type {<T>(test: Value, then: Block, otherwise: Block, rebuilt: (then: Block, otherwise: Block) => T, target: BindingId, deferred: readonly Definition[]) => _Arm<T> | null} */
+const exclusiveArm = (test, then, otherwise, rebuilt, target, deferred) => {
+    const left = references(then, target, deferred)
+    return reads(test, target, deferred) || left === references(otherwise, target, deferred) ? null
+        : left ? { arm: then, rebuilt: arm => rebuilt(arm, otherwise) } : { arm: otherwise, rebuilt: arm => rebuilt(then, arm) }
+}
+
+/**
+ * The one selected arm inside a value that holds every read of the binding:
+ * a selection's, or the selection's inside the one operand that reads it.
+ * A function's captures and a block keep their recipes outside.
+ *
+ * @type {(value: Value, target: BindingId, deferred: readonly Definition[]) => Task<_Arm<Value> | null>}
+ */
+const valueArm = (value, target, deferred) => call(() => {
+    if (!(value instanceof Array) || value[0] === 'ref' || value[0] === 'function' || value[0] === 'block') { return done(null) }
+    if (value[0] === 'if') { return done(exclusiveArm(value[1], value[2], value[3], (then, otherwise) => /** @type {Value} */ (['if', value[1], then, otherwise]), target, deferred)) }
+    const operands = operatorOperands(value)
+    const reading = operands.flatMap((operand, index) => reads(operand, target, deferred) ? [index] : [])
+    if (reading.length !== 1) { return done(null) }
+    const [index] = reading
+    return bind(valueArm(operands[Number(index)], target, deferred), found => done(found === null ? null : /** @type {_Arm<Value>} */ ({
+        arm: found.arm, rebuilt: arm => mapOperator((operand, position) => position === index ? found.rebuilt(arm) : operand)(value),
+    })))
+})
+
+/** The one selected arm a statement holds every read of the binding in: an `if` statement's, or one inside a required initializer. @type {(statement: Statement, target: BindingId, deferred: readonly Definition[]) => Task<_Arm<Statement> | null>} */
+const statementArm = (statement, target, deferred) => {
+    if (statement[0] === 'if') {
+        return done(exclusiveArm(statement[2], statement[3], statement[4], (then, otherwise) => /** @type {Statement} */ (['if', statement[1], statement[2], then, otherwise]), target, deferred))
+    }
+    if (statement[0] !== 'define' || statement[3] !== 'required') { return done(null) }
+    return bind(valueArm(statement[2], target, deferred), found => done(found === null ? null : /** @type {_Arm<Statement>} */ ({
+        arm: found.arm, rebuilt: arm => ['define', statement[1], found.rebuilt(arm), 'required'],
+    })))
+}
+
+/** The one selected arm the exit holds every read of the binding in, inside the one value that reads it. @type {(exit: Block['exit'], target: BindingId, deferred: readonly Definition[]) => Task<_Arm<Block['exit']> | null>} */
+const exitArm = (exit, target, deferred) => {
+    if (exit[0] === 'loop') { return done(null) }
+    const values = exitValues(exit)
+    const reading = values.flatMap((value, index) => reads(value, target, deferred) ? [index] : [])
+    if (reading.length !== 1) { return done(null) }
+    const [index] = reading
+    return bind(valueArm(values[Number(index)], target, deferred), found => done(found === null ? null : /** @type {_Arm<Block['exit']>} */ ({
+        arm: found.arm, rebuilt: arm => exitOver(exit, values.map((value, position) => position === index ? found.rebuilt(arm) : value)),
+    })))
+}
+
 /**
  * Descend through exclusive statement arms before placing the first demand.
  * Dependents move first, so a prerequisite never passes their declarations.
  * Tests, following uses and loop boundaries keep their original lazy owner.
  * @type {(source: Block, definition: Definition, deferred: readonly Definition[], origin: number) => Task<Block | null>}
  */
-const localizedTask = (source, definition, deferred, origin) => call(() => {
+const movedTask = (source, definition, deferred, origin) => call(() => {
     const following = localized({ ...source, statements: source.statements.filter(statement => statement !== definition) }, definition, deferred, Math.max(0, origin))
     if (following !== null) { return done(following) }
     const index = source.statements.findIndex(statement => statement !== definition && freeBindings({ statements: [statement], exit: ['yield', []] }).includes(definition[1]))
     const branch = source.statements[Number(index)]
-    if (branch === undefined || branch[0] !== 'if' || origin >= index) { return done(null) }
-    const outside = /** @type {Block} */ ({ ...source, statements: source.statements.filter(statement => statement !== definition && statement !== branch) })
-    if (references(outside, definition[1], deferred) || references({ statements: [], exit: ['yield', [branch[2]]] }, definition[1], deferred)) { return done(null) }
-    const left = references(branch[3], definition[1], deferred)
-    const right = references(branch[4], definition[1], deferred)
-    if (left === right || shadows({ statements: source.statements.slice(origin + 1, index), exit: ['yield', []] }, recipeScope(definition), deferred)) { return done(null) }
-    return bind(localizedTask(left ? branch[3] : branch[4], definition, deferred, -1), body => done(body === null ? null : {
-        ...source, statements: source.statements.filter(statement => statement !== definition).map(statement => statement === branch
-            ? /** @type {Statement} */ (['if', branch[1], branch[2], left ? body : branch[3], right ? body : branch[4]]) : statement),
-    }))
+    if (branch !== undefined && origin >= index) { return done(null) }
+    const outside = /** @type {Block} */ ({ statements: source.statements.filter(statement => statement !== definition && statement !== branch), exit: branch === undefined ? ['yield', []] : source.exit })
+    const crossed = source.statements.slice(origin + 1, branch === undefined ? source.statements.length : index)
+    if (references(outside, definition[1], deferred) || shadows({ statements: crossed, exit: ['yield', []] }, recipeScope(definition), deferred)) { return done(null) }
+    const kept = source.statements.filter(statement => statement !== definition)
+    /** @type {<T>(found: _Arm<T> | null, over: (placed: T) => Block) => Task<Block | null>} */
+    const within = (found, over) => found === null ? done(null)
+        : bind(localizedTask(found.arm, definition, deferred, -1), body => done(body === null ? null : over(found.rebuilt(body))))
+    return branch === undefined
+        ? bind(exitArm(source.exit, definition[1], deferred), found => within(found, exit => ({ statements: kept, exit })))
+        : bind(statementArm(branch, definition[1], deferred), found => within(found, placed => ({ ...source, statements: kept.map(statement => statement === branch ? placed : statement) })))
+})
+
+/**
+ * Place a recipe in its block: moved to its first demand, or else required
+ * where it stands, at the head of an arm it was carried into, when the block
+ * reads it on every path that completes.
+ *
+ * @type {(source: Block, definition: Definition, deferred: readonly Definition[], origin: number) => Task<Block | null>}
+ */
+const localizedTask = (source, definition, deferred, origin) => bind(movedTask(source, definition, deferred, origin), moved => {
+    if (moved !== null) { return done(moved) }
+    const standing = origin === -1 ? [definition, ...source.statements] : source.statements
+    return done(certain({ ...source, statements: standing }, definition)
+        ? { ...source, statements: standing.map(statement => statement === definition ? ['define', definition[1], definition[2], 'required'] : statement) }
+        : null)
 })
 
 /** Each recipe moves to its first reached demand where one is proved. @type {(block: Block, inherited: readonly Definition[]) => Block} */
 const placed = (block, inherited) => {
-    let statements = block.statements
-    for (const definition of statements.toReversed()) {
+    let current = block
+    for (const definition of block.statements.toReversed()) {
         if (definition[0] !== 'define' || definition[3] !== 'lazy') { continue }
-        const deferred = /** @type {readonly Definition[]} */ ([...inherited, ...statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
-        const following = run(localizedTask({ ...block, statements }, definition, deferred, statements.indexOf(definition)))
-        if (following !== null) { statements = following.statements; continue }
-        if (certain({ ...block, statements }, definition)) {
-            statements = statements.map(statement => statement === definition ? ['define', definition[1], definition[2], 'required'] : statement)
-        }
+        const deferred = /** @type {readonly Definition[]} */ ([...inherited, ...current.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
+        // a recipe carried into the exit's arm changes the exit with the statements
+        current = run(localizedTask(current, definition, deferred, current.statements.indexOf(definition))) ?? current
     }
-    return { ...block, statements }
+    return current
 }
+
+/** The exit over other values, a terminal loop's aside. @type {(exit: Exclude<Block['exit'], readonly ['loop', unknown]>, values: readonly Value[]) => Block['exit']} */
+const exitOver = (exit, values) => exit[0] === 'yield' ? ['yield', values]
+    : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
+        : exit[0] === 'return' ? ['return', exit[1], values[0]] : ['throw', values[0]]
 
 /** Selected arms and the following normal continuation retain one first-demand owner. @type {(block: Block, selected: Extract<Statement, readonly ['if', ...unknown[]]>, inherited: readonly Definition[], result: BindingId) => Block} */
 const localRecipes = (block, selected, inherited, result) => {
@@ -306,12 +380,40 @@ const joinTask = (block, inherited) => call(() => {
             const joined = /** @type {Statement} */ (['if', [...branch[1], result], branch[2], yielded(branch[3], selected.then), yielded(branch[4], selected.otherwise)])
             const replacement = /** @type {Extract<Value, readonly ['array', unknown]>} */ (selected.value)[1]
             const exit = block.exit
-            const mapped = /** @type {Block['exit']} */ (exit[0] === 'yield' ? ['yield', replacement]
-                : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], replacement]
-                    : exit[0] === 'return' ? ['return', exit[1], replacement[0]] : ['throw', replacement[0]])
+            const mapped = exitOver(/** @type {Exclude<Block['exit'], readonly ['loop', unknown]>} */ (exit), /** @type {readonly Value[]} */ (replacement))
             return bind(joinTask(localRecipes({ statements: [...block.statements.slice(0, -1), joined], exit: mapped }, /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (joined), inherited, result), inherited), done)
         })
     })
+})
+
+/** A block whose statements and exit are the other's own. @type {(a: Block, b: Block) => boolean} */
+const sameBlock = (a, b) => a.exit === b.exit && a.statements.length === b.statements.length && a.statements.every((statement, index) => statement === b.statements[Number(index)])
+
+/** Each value in turn; the list itself where none changes. @type {(values: readonly Value[], deferred: readonly Definition[]) => Task<readonly Value[]>} */
+const valuesTask = (values, deferred) => {
+    /** @type {(index: number, mapped: readonly Value[]) => Task<readonly Value[]>} */
+    const each = (index, mapped) => call(() => index === values.length
+        ? done(mapped.every((value, position) => value === values[Number(position)]) ? values : mapped)
+        : bind(valueTask(values[Number(index)], deferred), value => each(index + 1, [...mapped, value])))
+    return each(0, [])
+}
+
+/**
+ * The regions inside a value are blocks like any other: a block value's, and
+ * a selection's two arms. A function's body was planned separately. A value
+ * none of whose regions changes is answered as it was.
+ *
+ * @type {(value: Value, deferred: readonly Definition[]) => Task<Value>}
+ */
+const valueTask = (value, deferred) => call(() => {
+    if (!(value instanceof Array) || value[0] === 'ref' || value[0] === 'function') { return done(value) }
+    if (value[0] === 'block') { return bind(blockTask(value[1], deferred), block => done(/** @type {Value} */ (sameBlock(block, value[1]) ? value : ['block', block]))) }
+    if (value[0] === 'if') {
+        return bind(valueTask(value[1], deferred), test => bind(blockTask(value[2], deferred), then => bind(blockTask(value[3], deferred), otherwise =>
+            done(/** @type {Value} */ (test === value[1] && sameBlock(then, value[2]) && sameBlock(otherwise, value[3]) ? value : ['if', test, then, otherwise])))))
+    }
+    const operands = operatorOperands(value)
+    return bind(valuesTask(operands, deferred), mapped => done(mapped === operands ? value : mapOperator((_, position) => mapped[Number(position)])(value)))
 })
 
 /** Statement regions share the existing explicit task stack; function bodies were planned separately. @type {(block: Block, inherited?: readonly Definition[]) => Task<Block>} */
@@ -320,12 +422,18 @@ const blockTask = (block, inherited = []) => {
     const each = (index, statements, deferred = inherited) => call(() => {
         if (index === block.statements.length) {
             const exit = block.exit
-            return exit[0] === 'loop'
-                ? bind(blockTask(exit[1].body, deferred), body => done({ statements, exit: ['loop', { ...exit[1], body }] }))
-                : joinTask({ ...block, statements }, inherited)
+            if (exit[0] === 'loop') { return bind(blockTask(exit[1].body, deferred), body => done({ statements, exit: ['loop', { ...exit[1], body }] })) }
+            const values = exitValues(exit)
+            return bind(valuesTask(values, deferred), mapped => joinTask({ statements, exit: mapped === values ? exit : exitOver(exit, mapped) }, inherited))
         }
         const statement = block.statements[Number(index)]
-        if (statement[0] === 'define') { return each(index + 1, [...statements, statement], statement[3] === 'lazy' ? [...deferred, statement] : deferred) }
+        if (statement[0] === 'define') {
+            return bind(valueTask(statement[2], deferred), value => {
+                /** @type {Definition} */
+                const next = value === statement[2] ? statement : ['define', statement[1], value, statement[3]]
+                return each(index + 1, [...statements, next], next[3] === 'lazy' ? [...deferred, next] : deferred)
+            })
+        }
         if (statement[0] === 'loop') { return bind(blockTask(statement[1].body, deferred), body => each(index + 1, [...statements, ['loop', { ...statement[1], body }]], deferred)) }
         if (statement[0] === 'block') { return bind(blockTask(statement[2], deferred), body => each(index + 1, [...statements, _forwardResult(['block', statement[1], body])], deferred)) }
         return bind(blockTask(statement[3], deferred), left => bind(blockTask(statement[4], deferred), right => each(index + 1, [...statements, ['if', statement[1], statement[2], left, right]], deferred)))

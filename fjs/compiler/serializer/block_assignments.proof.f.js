@@ -157,7 +157,7 @@ export const proof = {
             ['export default (()=>{let n=0;let count=0;while((()=>{n=n+1;return n<3;})()){count=count+1;}return [n,count];})();', [3, 2]],
             ['export default (()=>{let n=0;let count=0;while(count<2){count=count+1;switch((()=>{n=n+1;return n;})()){case 1:{n=n+10;break;}default:{n=n+100;break;}}}return [n,count];})();', [112, 2]],
             ['export default (()=>{let n=0;let count=0;while(count<1){count=count+1;switch(1){case (()=>{n=n+1;return 1;})():{n=n+10;break;}case (()=>{n=n+100;return 2;})():{n=n+1000;break;}}}return [n,count];})();', [11, 1]],
-            ['export default (()=>{let n=0;let k=0;while(k<1){k=k+1;switch(3){case (()=>{n=n+1;return 1;})():case (()=>{n=n+1;return 2;})():{n=n+10;break;}default:{n=n+100;break;}}}return [n,k];})();', [102, 1], 'a shared node reached from outside the lazy operand that establishes it'],
+            ['export default (()=>{let n=0;let k=0;while(k<1){k=k+1;switch(3){case (()=>{n=n+1;return 1;})():case (()=>{n=n+1;return 2;})():{n=n+10;break;}default:{n=n+100;break;}}}return [n,k];})();', [102, 1]],
         ]
         for (const [source, expected, refusal, refusalRound] of cases) { sourceResult(source, expected, refusal, refusalRound) }
     },

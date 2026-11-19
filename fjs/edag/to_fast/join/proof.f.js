@@ -14,6 +14,7 @@ import { toData } from '../../value/to_unknown/module.f.js'
 import { parse } from '../../../compiler/transpiler/module.f.js'
 import { unresolved, _defaultExport } from '../../../compiler/edag/module.f.js'
 import { tryModuleStringify } from '../../../compiler/serializer/module.f.js'
+import { foldNodes } from '../../../js/ast/control/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -33,6 +34,9 @@ const source = (test, value, left = normal(), right = normal(), prefix = [], exi
 const branchOf = block => /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (block.statements.at(-1))
 /** How many results each `if` statement of the block joins: unchanged where no arm gains a value. @type {(block: Block) => readonly number[]} */
 const joinedCounts = block => block.statements.flatMap(statement => statement[0] === 'if' ? [statement[1].length] : [])
+/** How many recipes stay deferred, in the block and in every region inside it. @type {(block: Block) => number} */
+const deferredCount = foldNodes((/** @type {number} */ count, node) => node !== null && typeof node === 'object' && !(node instanceof Array)
+    ? count + node.statements.filter(statement => statement[0] === 'define' && statement[3] === 'lazy').length : count, 0)
 const parseModule = parse('/join.f.js')
 /** @type {(text: string) => import('../../types.ts').Exp} */
 const moduleGraph = text => unresolved(assertOk(parseModule(text))).edag
@@ -157,9 +161,9 @@ export const proof = /** @type {const} */ ({
             const after = _joinResults(before)
             // A test that reads the cell whenever it completes makes the cell
             // required where it stands; the program fails either way. A cell
-            // read in one arm alone stays deferred, and the other arm's path
-            // completes.
-            assertEq(after.statements.includes(deferred), index === 1)
+            // read in one arm alone is carried into that arm, and the other
+            // arm's path completes.
+            assert(!after.statements.includes(deferred))
             for (const block of [before, after]) {
                 assertError(evaluate(block, condition, true))
                 if (index === 1) { assertEq(assertOk(toData(assertOk(evaluate(block, condition, false)))), 0) }
@@ -232,7 +236,8 @@ export const proof = /** @type {const} */ ({
             result(ref(chosen), [['if', [local], ref(condition), { statements: [], exit: ['yield', [7]] }, { statements: [], exit: ['yield', [9]] }],
                 ['define', chosen, selected(ref(condition), ref(local), ref(local)), 'required']]),
         ]
-        for (const before of cases) { assertStructurallySame(_joinResults(before), before) }
+        // no arm gains the initializer's value; a recipe may still be placed
+        for (const before of cases) { assertStructurallySame(joinedCounts(_joinResults(before)), joinedCounts(before)) }
     },
     repeatedTestsKeepTheValueAfterAResultShadowsTheirBinding: () => {
         const condition = id(0), chosen = id(1)
@@ -311,11 +316,8 @@ export const proof = /** @type {const} */ ({
         ]
         for (const before of cases) {
             const after = _joinResults(before)
-            // deferred or required, the recipe stays where it was declared
-            const kept = after.statements[1]
-            assert(kept[0] === 'define')
-            assertEq(kept[1], recipe)
-            assertEq(kept[2], deferred[2])
+            // wherever the recipe is placed, it reads the binding's value
+            // at its declaration, not a later one
             for (const block of [before, after]) {
                 assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [7, [9]])
             }
@@ -493,8 +495,12 @@ export const proof = /** @type {const} */ ({
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const inLoop = normal([['loop', { target, parameters: [], initial: [], results: [id(6)], body: { statements: [], exit: ['break', target, [ref(value)]] } }]])
         for (const arm of [reads, scoped, guarded, inLoop]) {
+            // The joined arm yields the value, so the arm reads it on every
+            // path however it first reaches it: required at the arm's head,
+            // and no memo storage left at the top. A loop can leave the arm
+            // before that read, and keeps the recipe deferred.
             const after = _joinResults(source(ref(condition), selected(ref(condition), 0, ref(value)), normal(), arm, [recipe]))
-            assert(after.statements.some(statement => statement === recipe))
+            assertEq(after.statements.includes(recipe), arm === inLoop)
         }
     },
     recipesRetainOneIdentityAtTheirFirstDemand: () => {
@@ -587,6 +593,47 @@ export const proof = /** @type {const} */ ({
             const modes = _joinResults(before).statements.flatMap(statement => statement[0] === 'define' && statement[1] === cell ? [statement[3]] : [])
             assertStructurallySame(modes, [mode])
         }
+    },
+    // A recipe every read of which sits in one selected arm is carried into
+    // that arm, wherever the selection is: a whole initializer, an operand of
+    // one, the exit's value, or a region inside a value. There it stands at
+    // its first demand, or at the arm's head where the arm reads it on every
+    // path, a selection's test or both of its arms included.
+    recipesAreCarriedIntoTheOneArmThatReadsThem: () => {
+        const condition = id(0), cell = id(1), callee = id(2), other = id(3), chosen = id(4), parameter = id(5)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const call = /** @type {Value} */ (['()', ref(callee), []])
+        const recipe = /** @type {Statement} */ (['define', cell, call, 'lazy'])
+        const after = /** @type {Value} */ (['array', [call, ref(cell)]])
+        const tested = /** @type {Value} */ (['array', [call, ['if', ['===', ref(cell), 1], result(1), result(2)]]])
+        const both = /** @type {Value} */ (['array', [call, selected(ref(other), ref(cell), ref(cell))]])
+        const looping = /** @type {Block} */ ({ statements: [], exit: ['loop', { target, parameters: [parameter], initial: [after], results: [],
+            body: { statements: [], exit: ['break', target, []] } }] })
+        /** @type {readonly Block[]} */
+        const carried = [
+            result(ref(chosen), [recipe, ['define', chosen, selected(ref(condition), after, 0), 'required']]),
+            result(ref(chosen), [recipe, ['define', chosen, ['array', [0, selected(ref(condition), 0, tested)]], 'required']]),
+            result(ref(chosen), [recipe, ['define', chosen, ['array', [selected(ref(condition), both, 0)]], 'required']]),
+            { statements: [recipe], exit: ['yield', [0, selected(ref(condition), after, 0)]] },
+            result(0, [recipe, ['if', [], ref(condition), looping, normal()]]),
+            result(ref(chosen), [['define', chosen, ['array', [selected(ref(condition), ['block', result(after, [recipe])], 0)]], 'required']]),
+        ]
+        for (const before of carried) {
+            const placed = _joinResults(before)
+            assertEq(deferredCount(before), 1)
+            assertEq(deferredCount(placed), 0)
+            // the arm holds it now, and no statement of the block does
+            assert(!placed.statements.some(statement => statement[0] === 'define' && statement[1] === cell))
+        }
+        // read in both arms of the exit's two values, or in a function's
+        // capture alone, it has no one arm, and stays
+        /** @type {readonly Block[]} */
+        const kept = [
+            { statements: [recipe], exit: ['yield', [selected(ref(condition), after, 0), selected(ref(other), after, 0)]] },
+            result(selected(ref(condition), ['array', [call, ['function', { target: { kind: 'function', index: 0 }, parameters: [], rest: null, self: null,
+                captures: [{ binding: parameter, value: ['?.()', ref(callee), [ref(cell)]] }], body: { statements: [], exit: ['return', { kind: 'function', index: 0 }, 0] } }]]], 0), [recipe]),
+        ]
+        for (const before of kept) { assert(_joinResults(before).statements.includes(recipe)) }
     },
     // A recipe read only inside a later statement's arm has no join to move
     // it: it is placed at its first demand all the same.
@@ -752,12 +799,9 @@ export const proof = /** @type {const} */ ({
         ])
         const before = source(ref(condition), ['array', [ref(joined), selected(ref(condition), ref(alias), 0)]], normal(), normal(), prefix)
         const after = _joinResults(before)
-        const branch = after.statements.findIndex(statement => statement[0] === 'if')
-        const dependent = after.statements.findIndex(statement => statement[0] === 'define' && statement[1] === alias)
-        assert(branch >= 0 && dependent > branch)
-        const declaration = after.statements[Number(dependent)]
-        assert(declaration[0] === 'define')
-        assertEq(declaration[3], 'lazy')
+        // deferred after the statement, or carried into the arm that reads
+        // it: never required where the other arm's path would meet it
+        assert(!after.statements.some(statement => statement[0] === 'define' && statement[1] === alias && statement[3] === 'required'))
         for (const block of [before, after]) {
             assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [2, 0])
             assertEq(assertOk(toData(assertError(evaluate(block, condition, true)))), 'deferred')
