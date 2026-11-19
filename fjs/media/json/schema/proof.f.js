@@ -246,9 +246,7 @@ export const proof = {
             /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
             /** @typedef {() => readonly ['array', _Tree]} _Forest */
             /** @type {_Tree} */
-            const tree = () => ['or', number, forest]
-            /** @type {_Forest} */
-            const forest = () => ['array', tree]
+            const tree = () => ['or', number, () => ['array', tree]]
             eq(tree, { ...treeRef, $defs: { '0': treeDef } })()
         },
         mutualInline: () => {
@@ -256,7 +254,7 @@ export const proof = {
             /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
             /** @typedef {() => readonly ['array', _Tree]} _Forest */
             /** @type {_Tree} */
-            const tree = () => ['or', number, forest]
+            const tree = () => ['or', number, () => ['array', tree]]
             /** @type {_Forest} */
             const forest = () => ['array', tree]
             eq(forest, { type: 'array', items: treeRef, $defs: { '0': treeDef } })()
