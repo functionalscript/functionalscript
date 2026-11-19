@@ -1409,7 +1409,7 @@ export const proof = {
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
-        assertEq(assertError(sourceOf('export const f = a => +a')), 'unary + AST-to-FAST conversion is not implemented')
+        assertEq(assertError(sourceOf('export const f = a => a == 1')), '== AST-to-FAST conversion is not implemented')
     },
     // `buildObject`: arrow callbacks inlined to begin_object / push_property / seal, as `buildArray` is.
     builders: () => {

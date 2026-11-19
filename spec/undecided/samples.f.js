@@ -21,7 +21,6 @@ export const samples = {
     'op.delete': 'const o = { a: 1 };\nexport default delete o.a;\n',
     'op.void': 'export default void 0;\n',
     'op.arguments': 'export default typeof arguments;\n',
-    'op.unary-plus': 'export default +"1";\n',
     'op.import-call': 'export default import("./a.f.js");\n',
     'op.import-meta': 'export default import.meta.url;\n',
     'op.tagged-template': 'const tag = s => s[0];\nexport default tag`x`;\n',

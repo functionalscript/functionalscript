@@ -122,7 +122,8 @@ export default (...a) => [cfg.ports[Number(a[0])], cfg["ports"].length];
 - ECMA-262: [Property accessors](https://tc39.es/ecma262/#sec-property-accessors)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors>
 
-Unary-plus numeric indices such as `a[+x]` and `a?.[+x]` are admitted into
-AST, but [their FAST lowering](../todo/unary-plus.md) remains explicitly refused.
-Resolved numeric keys keep the existing numeric-index wrapper around the
-unary-plus operand; this does not lower `+x` as `Number(x)`.
+A unary plus is a numeric index too, `a[+x]` and `a?.[+x]`: `+x` is a number
+or a throw, a BigInt being what it throws on. The key keeps the numeric-index
+wrapper every numeric key has, around the unary-plus operand, the EDAG's
+`['.', a, ['Number', ['+', x]]]`; `+x` is not lowered as `Number(x)`, so the
+BigInt still throws.

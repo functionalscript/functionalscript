@@ -196,7 +196,7 @@ in full:
 7. If neither method answers a primitive, the result is a `TypeError`.
 
 Stage 2 removes Stage 1's refusal for objects, and deletes the `rust`
-reasons of those cases. The host-only cases in `fjs/nanvm/proof.f.mjs`
+reasons of those cases. The host-only cases in `fjs/nanvm/proof.f.js`
 (`toStringMethod`, `toStringThrows`, `toStringNotAFunction`,
 `toStringNotPrimitive`) move into the shared corpus, since both sides then
 agree. To write them there, the corpus gains `returns(v)`, a function value

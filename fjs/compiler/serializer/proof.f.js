@@ -223,14 +223,14 @@ const shapes = p => [
 
 /**
  * Every leaf, a negative number among them, the arguments, both empty
- * containers, `undefined`, and a negation — the prefix, whose operand
- * binds tighter than it does, so every shape below has to say where the
- * negation happens, and whose text opens with `-`, which `**` refuses on
- * its left and a binary `-` cannot touch.
+ * containers, `undefined`, and a negation and a unary plus — the prefixes,
+ * whose operand binds tighter than they do, so every shape below has to say
+ * where the prefix happens, and whose text opens with a sign, which `**`
+ * refuses on its left and a binary operator of that sign cannot touch.
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]], ['+', ['[]', []]]]
 
 /** How many tests {@link proof}'s `law` is split into. */
 const lawParts = 8
@@ -256,12 +256,12 @@ const analyzedFunction = e => {
 
 export const proof = {
     deferredLoweringIsDisplayed: () => {
-        for (const source of ['export default +1;', 'export default (a,x)=>a[+x];', 'export default ()=>{return 1;const unused=+2;};']) {
+        for (const source of ['export default 1==1;', 'export default (a,x)=>a==x;', 'export default ()=>{return 1;const unused=2==2;};']) {
             const result = _sourceOf(source)
             assert(result[0] === 'error')
-            assertEq(result[1], 'unary + AST-to-FAST conversion is not implemented')
+            assertEq(result[1], '== AST-to-FAST conversion is not implemented')
             const html = htmlToString(demo.view(source))
-            assert(html.includes('unary + AST-to-FAST conversion is not implemented'), html)
+            assert(html.includes('== AST-to-FAST conversion is not implemented'), html)
             assert(html.includes('data-result="error"'), html)
             assert(!html.includes('<svg'), html)
         }
@@ -344,7 +344,7 @@ export const proof = {
                 ['{}', [[':', 'String', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
-                ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
+                ['{}', [[':', 'a', ['memberPresent', null, 'x']], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
@@ -376,6 +376,21 @@ export const proof = {
         // an object's spread, the same way, among its properties
         writes(['{}', [[':', 'a', 1], ['...', ['{}', []]], ['...', 'ab']]], 'export default {"a":1,...{},..."ab"};')
         writes(['{}', [['...', ['?:', true, ['{}', []], 'a']]]], 'export default {...true?{}:"a"};')
+    },
+    // The prefix `+`, `op12` of one operand as the negation is, written by
+    // the same rules: apart from a `+` beside it, inside an access, and in
+    // a group where it is a base. The generated law holds it in every shape.
+    plus: () => {
+        writes(['+', 1], 'export default +1;')
+        writes(['+', 'a'], 'export default +"a";')
+        // `+ +1` and not `++1`, which is the increment token
+        writes(['+', ['+', 1]], 'export default + +1;')
+        writes(['+', 1, ['+', 2]], 'export default 1+ +2;')
+        writes(['-', ['+', 1]], 'export default -+1;')
+        writes(['+', ['.', ['[]', [1]], 0]], 'export default +[1][0];')
+        writes(['.', ['+', ['[]', []]], 'a'], 'export default (+[]).a;')
+        writes(['+', ['=>', 0, [], 1]], 'export default +(()=>1);')
+        writes(['**', ['+', 1], 2], 'export default (+1)**2;')
     },
     // The prefix `-`. It binds looser than a step, so a negation under an
     // access is a base only in a group — `-1[0]` is `-(1[0])` — and a
@@ -1162,9 +1177,8 @@ export const proof = {
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too: the
-        // unary plus, `op12`'s `+` of one operand, which the language has
-        // no prefix for
-        refuses(['+', 1], 'a unary + node')
+        // internal member-presence query, which no source spells
+        refuses(['memberPresent', null, 'x'], 'an internal member-presence query')
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
         // An access key no literal spells: a computed one, and the three
@@ -1189,13 +1203,13 @@ export const proof = {
         refuses(
             (() => {
                 /** @type {Exp} */
-                const bad = ['{}', [[':', 'a', ['+', 1]]]]
+                const bad = ['{}', [[':', 'a', ['memberPresent', null, 'x']]]]
                 /** @type {Exp} */
                 const good = ['{}', []]
                 return ['[]', [bad, bad, good, good]]
             })(),
-            'a unary + node')
-        refuses([',', [['+', 1], 1]], 'a unary + node')
+            'an internal member-presence query')
+        refuses([',', [['memberPresent', null, 'x'], 1]], 'an internal member-presence query')
         // A comma with no anchor to write: with one operand it would read
         // back as that operand alone, and with none it is no scope. Linking
         // emits neither, at a root or in a body — a comma is built only
@@ -1344,9 +1358,9 @@ export const proof = {
             'export default ()=>{const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $5.length;})()){const $6=$3[0];const $7=$3[1];const $8=[0];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $14;})();return $13;};return $0(0);};')
         // the loop's three parts are written as any value is, each refusal
         // its own; a call of a primitive is a call
-        refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')
-        refuses(['=>', 0, [], ['()', loop([], ['+', 1], call(0)), [0]]], 'a unary + node')
-        refuses(['=>', 0, [], ['()', loop([], true, call(['+', 1])), [0]]], 'a unary + node')
+        refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['memberPresent', null, 'x']]]], 'an internal member-presence query')
+        refuses(['=>', 0, [], ['()', loop([], ['memberPresent', null, 'x'], call(0)), [0]]], 'an internal member-presence query')
+        refuses(['=>', 0, [], ['()', loop([], true, call(['memberPresent', null, 'x'])), [0]]], 'an internal member-presence query')
         writes(['=>', 0, [], ['()', 'f', [0]]], 'export default ()=>"f"(0);')
         // a condition sharing a value of its own is written as its block,
         // the value established afresh at every test — as the whole

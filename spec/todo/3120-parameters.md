@@ -401,7 +401,7 @@ source rest binding in that future case or silently admit initializers now.
       `self`: see the
       [conversion proofs](../../fjs/edag/value/convert/proof.f.js),
       [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.js)
-      and [shared corpus](../../fjs/nanvm/proof.f.mjs).
+      and [shared corpus](../../fjs/nanvm/proof.f.js).
 - [x] Preserve ordinary callable exports, nested returns, arity, callbacks
       and sharing at the reflection-erasing runtime boundary: see
       [runtime conversion proofs](../../fjs/edag/value/to_unknown/proof.mjs),
