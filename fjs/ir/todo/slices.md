@@ -89,7 +89,8 @@ choices doc.
 **Where 8c differs from the first choice (open for the owner).** 8c
 ([#3898](https://github.com/functionalscript/functionalscript/pull/3898))
 also lowers an object literal of names and values when every value is of
-`any`: `{ a, b }` is `Containers.seal` of a `push_property` of each onto
+`any` and the module imports Containers, as one lowered over a runtime
+does: `{ a, b }` is `Containers.seal` of a `push_property` of each onto
 `begin_object`, cast to `object`. An object literal with a value of
 another type, a float among them, stays a record. So an object literal as
 a value of `any` is in slice 8, not slice 11, which the first row above
