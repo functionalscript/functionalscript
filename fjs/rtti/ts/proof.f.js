@@ -242,7 +242,7 @@ export const proof = {
             /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
             /** @typedef {() => readonly ['array', _Tree]} _Forest */
             /** @type {_Tree} */
-            const tree = () => ['or', number, forest]
+            const tree = () => ['or', number, () => ['array', tree]]
             /** @type {_Forest} */
             const forest = () => ['array', tree]
             eqData(toData(tree), [[['T0', 'number|readonly(T0)[]']], 'T0'])

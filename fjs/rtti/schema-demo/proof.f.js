@@ -417,15 +417,14 @@ const demoProof = /** @type {const} */ ({
             assertEq(_crossings(g), 0)
             assert(htmlToString(graphSvg(g)).includes('>other array<'), 'another named schema is expanded')
         },
-        // A nested, mutually recursive pair is expanded once even when
-        // reached twice from an anonymous root. Names do not decide identity.
+        // A two-step cycle is expanded once even when reached twice from an
+        // anonymous root. Its inner schema is written in place, the only way
+        // FunctionalScript spells such a cycle, so it has no name to show.
         nestedRecursion: () => {
             /** @type {import('../types.ts').Type} */
-            const lock = () => ['record', lockValue]
-            /** @type {import('../types.ts').Type} */
-            const lockValue = () => ['or', string, lock]
-            const g = _graphOf({ first: lock, second: lock }, [[lock, 'lock'], [lockValue, 'lockValue']])
-            assertStructurallySame(g.nodes.map(n => n.label), ['{}', 'lock record', 'lockValue or'])
+            const lock = () => ['record', () => ['or', string, lock]]
+            const g = _graphOf({ first: lock, second: lock }, [[lock, 'lock']])
+            assertStructurallySame(g.nodes.map(n => n.label), ['{}', 'lock record', 'or'])
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[2, 1]])
             assertStructurallySame(g.edges.filter(e => e.from === 0).map(e => [e.label, e.to]), [['first', 1], ['second', 1]])
             assertEq(_crossings(g), 0)
@@ -457,7 +456,7 @@ const demoProof = /** @type {const} */ ({
             const largest = targets.map(to => returns.filter(({ edge }) => edge.to === to).map(({ index }) => index))
                 .toSorted((a, b) => b.length - a.length)[0]
             const html = htmlToString(graphSvg(g))
-            const shared = html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(Number))
+            const shared = html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(s => Number(s)))
             assert(largest.length > 1, 'the example has a crowded destination')
             assert(shared.some(ids => ids.length === largest.length && largest.every(id => ids.includes(id))), 'one segment represents every return into that destination')
             assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), targets.length)

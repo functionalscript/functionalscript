@@ -21,7 +21,7 @@ export type JsonSchema = Ts<typeof schemaUnknown>
 // the un-annotated `_unknownThunk`, so a wrong field there is caught instead
 // of silently trusted through the annotation, which `Ts<>` short-circuits to.
 //
-// This was `./proof.f.mjs`'s `consistency` entry, a body of nothing but
+// This was `./proof.f.js`'s `consistency` entry, a body of nothing but
 // typedefs — so neither of its two pins bound to a statement and both were
 // green whatever they claimed (`../../../AGENTS.md` §1.4). This directory had
 // no `types.ts` to move them to, so it has one now, and `JsonSchema` names

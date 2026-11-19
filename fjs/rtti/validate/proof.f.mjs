@@ -64,10 +64,7 @@ const rows = () => {
      */
 
     /** @type {_OrCycleA} */
-    const orCycleA = () => ['or', orCycleB]
-
-    /** @type {_OrCycleB} */
-    const orCycleB = () => ['or', orCycleA]
+    const orCycleA = () => ['or', () => ['or', orCycleA]]
 
     /**
      * Two separately constructed copies of one recursive rule. Converting a rest
@@ -798,9 +795,7 @@ export const proof = {
              * @typedef {() => readonly ['or', _OrCycleA]} _OrCycleB
              */
             /** @type {_OrCycleA} */
-            const orCycleA = () => ['or', orCycleB]
-            /** @type {_OrCycleB} */
-            const orCycleB = () => ['or', orCycleA]
+            const orCycleA = () => ['or', () => ['or', orCycleA]]
             // A rest the conversion keeps but no finite array inhabits admits
             // nothing past the prefix either, and `unknown` admits anything.
             // `v` rather than `validate`: `Ts<>` walks a recursive schema

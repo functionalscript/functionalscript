@@ -156,7 +156,11 @@ hold semantically, in the corners known to be hard:
   no finite values;
 - an array pattern shorter than the one it is included in, every position
   past its end being one the longer pattern admits as absent — only the
-  longest array each side admits is tested against the other.
+  longest array each side admits is tested against the other;
+- one cycle spelled at two depths, e.g.
+  `even = () => ['const', { value: number, next: or(option, () => ['const', { value: number, next: or(option, even) }]) }]`
+  against `odd = () => ['const', { value: number, next: or(option, even) }]`:
+  the two are one set, and `subset` answers `false` both ways.
 
 CDuce / Castagna's semantic-subtyping work and BDD-based encodings of
 set-theoretic types have the complete (and far heavier) answers; this module
