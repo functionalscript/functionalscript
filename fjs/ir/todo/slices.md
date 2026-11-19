@@ -86,6 +86,16 @@ choices doc.
 | `numberToString` | A new native row, `numberToString(x: f64) -> string`, as slice 5's rows are |
 | How slice 8 is cut | Three PRs: 8a, the view's order; 8b, `buildArray` with `toIterable`; 8c, `buildObject` and `{}` with `objectSpread` |
 
+**Where 8c differs from the first choice (open for the owner).** 8c
+([#3898](https://github.com/functionalscript/functionalscript/pull/3898))
+also lowers an object literal of names and values when every value is of
+`any`: `{ a, b }` is `Containers.seal` of a `push_property` of each onto
+`begin_object`, cast to `object`. An object literal with a value of
+another type, a float among them, stays a record. So an object literal as
+a value of `any` is in slice 8, not slice 11, which the first row above
+says. Spread in a literal still waits for slice 11. Keeping this, or
+refusing such a literal again until slice 11, is the owner's to confirm.
+
 ### Roadmap
 
 Tick a box when its pull request merges. Slice numbers in parentheses are the
@@ -126,7 +136,8 @@ before it and proved end to end on its own.
   few hundred programs a run under
   [`from_fast/random`](../from_fast/random/README.md); extend it as later
   slices land. It found the three defects that example proofs at 100%
-  coverage missed. Since 7a it judges each call by the three outcomes.
+  coverage missed. Since 7a it judges each call by the three outcomes. Its last form is
+  8b's `buildArray`: 8c to 10b added none.
 - [x] **6a. Owned values, by hand** (#3856). The counted kind, `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage, which also holds a linear type's owned
@@ -158,7 +169,8 @@ before it and proved end to end on its own.
   Numbers and booleans as items wait for Any's `from_f64` and `from_bool`,
   in slice 9.
   (`buildArray` and `buildObject` with callbacks are the builders slice
-  below; object literals as values and spread moved to slice 11.)
+  below; spread moved to slice 11, and 8c lowers object literals of values
+  of `any`.)
 - [x] **6f. Reading an array, and `typeOf`** (#3890). `a[k]` of an array at
   a number key by L1's `get` rules for that case; `typeOf` lowered from
   L1's text. A receiver of another kind waits for L1's `get` itself, in
@@ -183,7 +195,7 @@ Slice 7, cut in two as decided above.
   copy, since L1 calls it only from arithmetic, which a later slice
   lowers. The random comparison gains a form that throws.
 
-#### Next — builders
+#### Builders
 
 Slice 8, cut in three as decided above.
 
@@ -201,7 +213,7 @@ Slice 8, cut in three as decided above.
   cast; the `numberToString` row. Subject: `objectSpread`. A `{ ...v }`
   literal waits for a later cut; `objectSpread` is what it copies.
 
-#### Next — function values
+#### Function values
 
 Slice 9, cut in two: boxing first, then `call`. Slice 9b is three stacked
 PRs as decided below.
@@ -217,7 +229,8 @@ PRs as decided below.
   only.
 - [x] **9b2. L0 `Functions.call` / `make_function`** (#3928 / #3932). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
-  `make_function` of an IR `code` waits for slice 11.
+  `make_function` of an IR `code` waits for slice 11; until then the
+  counting host traps on it.
 - [x] **9b3. Lowering and subjects** (#3929). `asFunction(f)(…)` as L0
   `call(f, args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
@@ -237,19 +250,19 @@ Owner chose option A on each of four choices.
 
 Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/functionalscript/functionalscript/pull/3934).
 
-- [ ] **10a. `get`** (#3935). L1's `get` lowered from its text over the
+- [x] **10a. `get`** (#3935). L1's `get` lowered from its text over the
   runtime and its error table, run against L1's own: its throw for
   `undefined` and `null`, and its reads of an object or a string by a
   string, which 6f left out. A member or index of sealed `any` is a call
   of the module's `get` where the table names it; 6f's array-at-number
   path stays.
-- [ ] **10b. Arithmetic and relational subjects** (this PR). L1's `add` /
+- [x] **10b. Arithmetic and relational subjects** (#3936). L1's `add` /
   `subtract` / `multiply` / `divide` / `negate` and the relational bodies,
   lowered and run against L1's own; native bigint arithmetic and
-  `bigintLess`. **Status:** wip
+  `bigintLess`, with `bigintDivide` of `0n` a row that may fail.
 - [ ] **10c. Remaining L1 exports and parity.** Every remaining export of
   [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already
-  a subject (`toPropertyKey`, …), and the host twin runs extended so each
+  a subject, which is `toPropertyKey` alone, and the host twin runs extended so each
   runs against L1's own. Builtins wait.
 
 ### Decisions for slice 10 (2026-11-16)
@@ -274,8 +287,9 @@ Owner chose option A on each of four choices.
   saves.
 - [ ] **Programs** (11). Operators and member reads on unknown types as
   calls of L1, `get` among them, closures as values, and a program as one
-  module linked with L1. Object literals as values, and spread in array
-  and object literals, moved here from slice 8.
+  module linked with L1. Spread in array and object literals, moved here
+  from slice 8. Object literals as values of `any` were lowered in 8c,
+  which the owner is to confirm (see the decisions for slice 8).
 - [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
 
 ### Related

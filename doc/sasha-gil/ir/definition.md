@@ -731,17 +731,17 @@ the runtime language and can start beside step 2.
 
 [`fjs/ir`](../../../fjs/ir/README.md) builds this definition in the
 slices of [`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md), each
-proved against its FunctionalScript original. Slices 1 to 7, 8a and 8b
-are merged, the last on 2026-11-15. They run in import form, on a
+proved against its FunctionalScript original. Slices 1 to 9, 10a and 10b
+are merged, the last on 2026-11-17. They run in import form, on a
 JavaScript host that counts every value.
 
 | Step of the order of work | In fjs/ir |
 | --- | --- |
-| 1. Types and interfaces as data | partly: [`module.f.js`](../../../fjs/ir/module.f.js) has every type but `code`, which waits for slice 9; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, without `key`, `find`, `text`, `join` and the rows that `buildObject` lowers to, which 8c adds, and no proof that every function of the view has a row; `buildArray` needs no row of its own, since it lowers to a loop over the builder's; [`native`](../../../fjs/ir/native/module.f.js) has the two L1 native rows that the slices use so far, `bigintEquals` and `numberRemainder`, of L1's eleven |
-| 2. Terms and the checker | built but `code` and `call_ref`, which wait for slice 9: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7 |
+| 1. Types and interfaces as data | built, but a proof that every function of the view has a row: [`module.f.js`](../../../fjs/ir/module.f.js) has every type, `code` since 9b1; [`l0`](../../../fjs/ir/l0/module.f.js) has the interfaces of L0's five modules, with `key`, `begin_object` and `push_property` since 8c, `find`, `join` and `text` since 9b3, and `call` and `make_function` since 9b2; `buildArray` and `buildObject` need no row of their own, since each lowers to a loop over the builder's; [`native`](../../../fjs/ir/native/module.f.js) has all eleven of L1's native rows since 10b |
+| 2. Terms and the checker | built: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7, `code` and `call_ref` since 9b1 |
 | 3. The lifetime pass | built: [`lifetime`](../../../fjs/ir/lifetime/module.f.js), and the owned-stage check |
-| 4. The WASM emitter for import form | built, but the comparison on the parity tables, which is slice 10: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs); until then each subject runs against its original on its own inputs, and the random comparison on its programs |
-| 5. The lowering from normalized FAST | in progress: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers the L1 bodies that slices.md names, and refuses the rest |
+| 4. The WASM emitter for import form | built, but the comparison on the parity tables, which is 10c: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs); until then each subject runs against its original on its own inputs, and the random comparison on its programs |
+| 5. The lowering from normalized FAST | in progress: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers the L1 bodies that slices.md names, every export of L1 but `toPropertyKey`, which is 10c, and refuses the rest |
 | 6 to 11 | not started; slices 11 and 12 are step 6 |
 
 The slices take up the recommendation of open questions 2 to 8: the

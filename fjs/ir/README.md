@@ -8,7 +8,8 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first eight:
+This directory holds the first nine and two of the three parts of the
+tenth:
 typed code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
@@ -25,8 +26,11 @@ Containers' builder (8b), and `buildObject` with `{}` and `objectSpread`
 (8c). The first PR of the eighth, 8a, changed the L0 view itself, so
 that it calls a builder's callbacks in the order of that loop. Slice 9a
 adds Any's `from_f64` and `from_bool`, so a number or boolean meets
-`any` and can be an array item. Slice 9b1 adds the `code` type and
-`call_ref`.
+`any` and can be an array item. Slice 9b adds the `code` type and
+`call_ref` (9b1), L0's `Functions.call` (9b2), and the lowering of a
+call of a function value, with L1's coercions and `call` (9b3). Slice
+10 lowers L1's `get` (10a) and its arithmetic and relational operators
+(10b).
 
 ## Map of this directory
 
@@ -332,6 +336,35 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   nothing behind. The random comparison gains a form that throws a
   literal, its value or one of L1's errors, by the kind of the value.
 
+## What 8b adds
+
+- **`buildArray(n, s, next, at)` of the L0 view, lowered**
+  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
+  `begin_array` of `n`, which must hold an index exactly, then one `loop`,
+  labelled `B0`, `B1`, … by depth, of the builder, the state and the count
+  of items pushed. Each round pushes `at` of the state and, before the last
+  item, steps the state by `next`, the view's order since 8a, and the
+  round after the last seals the builder. No term is new.
+- **Callbacks inlined**: `next` and `at` are arrow literals of at most one
+  parameter, written in the call, and the lowering inlines their bodies
+  where the loop reads them, so no closure is made. Any other callback is
+  refused until slice 9, and so are a count that is not a number, a state
+  of an integer range, in a record too, as a loop's parameter is, and an
+  item that is not a value of `any`.
+- **A throw inside a callback is refused**, since it would leave the
+  builder, which is linear, behind. A call there that fails, of an
+  exported function that throws say, abandons the builder, as a trap does,
+  and the host's `recover` frees it.
+- **`asArray`** is a cast to `array`, as `asString` is one to `string`.
+- **Subjects**: the functions of [`builds.f.js`](./from_fast/builds.f.js),
+  which build the units of a string, a value repeated `n` times where `n`
+  may be no index, nested arrays and an array by a state that is a record,
+  and two whose callbacks call functions that throw, which shows the
+  view's order; and L1's `toIterable`, lowered from its text, against L1's
+  own on values of every kind and on strings of code points. Each builds
+  what its original builds and leaves nothing behind. The random
+  comparison gains a form of `buildArray`.
+
 ## What 8c adds
 
 - **Object builders**: Containers' `begin_object`, `push_property` and
@@ -408,34 +441,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `lessThan`, `greaterThan`, `lessThanOrEqual` and `greaterThanOrEqual`,
   lowered from L1's text over its error table, run against L1's own.
 
-## What 8b adds
-
-- **`buildArray(n, s, next, at)` of the L0 view, lowered**
-  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
-  `begin_array` of `n`, which must hold an index exactly, then one `loop`,
-  labelled `B0`, `B1`, … by depth, of the builder, the state and the count
-  of items pushed. Each round pushes `at` of the state and, before the last
-  item, steps the state by `next`, the view's order since 8a, and the
-  round after the last seals the builder. No term is new.
-- **Callbacks inlined**: `next` and `at` are arrow literals of at most one
-  parameter, written in the call, and the lowering inlines their bodies
-  where the loop reads them, so no closure is made. Any other callback is
-  refused until slice 9, and so are a count that is not a number, a state
-  of an integer range, in a record too, as a loop's parameter is, and an
-  item that is not a value of `any`.
-- **A throw inside a callback is refused**, since it would leave the
-  builder, which is linear, behind. A call there that fails, of an
-  exported function that throws say, abandons the builder, as a trap does,
-  and the host's `recover` frees it.
-- **`asArray`** is a cast to `array`, as `asString` is one to `string`.
-- **Subjects**: the functions of [`builds.f.js`](./from_fast/builds.f.js),
-  which build the units of a string, a value repeated `n` times where `n`
-  may be no index, nested arrays and an array by a state that is a record,
-  and two whose callbacks call functions that throw, which shows the
-  view's order; and L1's `toIterable`, lowered from its text, against L1's
-  own on values of every kind and on strings of code points. Each builds
-  what its original builds and leaves nothing behind. The random
-  comparison gains a form of `buildArray`.
+## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
@@ -510,7 +516,7 @@ documentation has the rest.
 
 ## Proofs
 
-Each module's `proof.f.mjs` holds its golden texts and every refusal, over
+Each module's `proof.f.js` holds its golden texts and every refusal, over
 the hand-written modules of [`testlib.f.js`](./testlib.f.js).
 [`wasm/proof.mjs`](./wasm/proof.mjs) runs those modules on the host's
 WebAssembly engine and compares every exported function with a JavaScript
