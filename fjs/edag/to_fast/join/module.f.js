@@ -196,7 +196,7 @@ const recipeJoin = (block, deferred, inherited) => {
             if (references(earlier, definition[1], deferred)) { continue }
             const following = block.statements.slice(index + 1).find(statement => statement[0] !== 'define' || statement[3] !== 'lazy')
             const first = following === undefined ? /** @type {Value} */ (['array', exitValues(block.exit)])
-                : following[0] === 'define' ? following[2] : null
+                : following[0] === 'define' || following[0] === 'if' ? following[2] : null
             if (first === null || !firstDemand(first, definition[1], deferred)) { continue }
             const joined = /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (['if', [...branch[1], definition[1]], branch[2], yielded(branch[3], value[2]), yielded(branch[4], value[3])])
             return localRecipes({ ...block, statements: block.statements.filter(statement => statement !== definition).map(statement => statement === branch ? joined : statement) }, joined, inherited, definition[1])

@@ -516,10 +516,38 @@ export const proof = /** @type {const} */ ({
         const base = source(ref(condition), ref(chosen), normal(), normal(), [phi])
         const afterEffect = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['define', used, ['()', ref(other), []], 'required']] })
         const afterControl = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['if', [], ref(other), normal(), normal()]] })
+        const afterRegion = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['block', [], normal()]] })
         const beforeUse = source(ref(condition), ref(chosen), normal(), normal(), [phi, ['define', used, ref(chosen), 'required']])
         const branchUse = source(ref(condition), ref(chosen), normal([['define', used, ref(chosen), 'required']]), normal(), [phi])
-        for (const before of [afterEffect, afterControl, beforeUse, branchUse]) {
+        for (const before of [afterEffect, afterControl, afterRegion, beforeUse, branchUse]) {
             assert(_joinResults(before).statements.some(statement => statement === phi))
+        }
+    },
+    followingTestsConsumeTheSelectedResult: () => {
+        const condition = id(0), chosen = id(1)
+        const phi = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 7), 'lazy'])
+        const base = source(ref(condition), 0, normal(), normal(), [phi])
+        const after = _joinResults({ ...base, statements: [...base.statements, ['if', [], ['===', ref(chosen), 7], normal(), normal()]] })
+        assertEq(after.statements.length, 2)
+        const branch = after.statements[0]
+        assert(branch[0] === 'if')
+        assertEq(branch[1][0], chosen)
+    },
+    loopBranchesShareTheirSelectedResultInSource: () => {
+        const text = /** @type {const} */ ('export default head=>{let tail=null;while(true){if(head instanceof Array){head=[head];}else if(head!==null&&head.head!==undefined){tail=[head.tail,tail];head=head.head;continue;}if(head!==null){return [head,tail];}if(tail===null){return null;}head=tail;tail=null;}};')
+        /** @type {readonly (readonly [import('../../types.ts').Exp, unknown])[]} */
+        const cases = [[null, null], [['{}', [[':', 'head', ['[]', [5]]], [':', 'tail', 6]]], [[[5]], [6, null]]]]
+        let graph = moduleGraph(text)
+        let canonical = ''
+        for (let round = 0; round < 3; round = round + 1) {
+            for (const [argument, expected] of cases) {
+                const invoked = /** @type {import('../../types.ts').Exp} */ (['()', _defaultExport(graph), [argument]])
+                assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(invoked)))({ args: [] })))), expected)
+            }
+            const source = assertOk(tryModuleStringify(graph))
+            graph = moduleGraph(source)
+            if (round === 1) { canonical = source }
+            if (round === 2) { assertEq(source, canonical) }
         }
     },
     admittedHelperControlKeepsCanonicalSource: () => {
