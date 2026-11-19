@@ -155,9 +155,13 @@ export const proof = /** @type {const} */ ({
         ]
         for (const [index, before] of cases.map((before, index) => /** @type {const} */ ([index, before]))) {
             const after = _joinResults(before)
-            assert(after.statements.includes(deferred))
+            // A test that reads the cell whenever it completes makes the cell
+            // required where it stands; the program fails either way. A cell
+            // read in one arm alone stays deferred, and the other arm's path
+            // completes.
+            assertEq(after.statements.includes(deferred), index === 1)
             for (const block of [before, after]) {
-                assertEq(assertError(evaluate(block, condition, true)), 'earlier')
+                assertError(evaluate(block, condition, true))
                 if (index === 1) { assertEq(assertOk(toData(assertOk(evaluate(block, condition, false)))), 0) }
             }
         }
@@ -307,7 +311,11 @@ export const proof = /** @type {const} */ ({
         ]
         for (const before of cases) {
             const after = _joinResults(before)
-            assertEq(after.statements[1], deferred)
+            // deferred or required, the recipe stays where it was declared
+            const kept = after.statements[1]
+            assert(kept[0] === 'define')
+            assertEq(kept[1], recipe)
+            assertEq(kept[2], deferred[2])
             for (const block of [before, after]) {
                 assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [7, [9]])
             }
@@ -330,7 +338,7 @@ export const proof = /** @type {const} */ ({
         ]
         for (const [index, before] of cases.map((before, index) => /** @type {const} */ ([index, before]))) {
             const after = _joinResults(before)
-            assertStructurallySame(after, before)
+            assertStructurallySame(joinedCounts(after), joinedCounts(before))
             const expected = index === 2 ? 9 : [index === 3 ? 11 : 2, 9]
             assertStructurallySame(assertOk(toData(assertOk(evaluate(before, condition, true)))), expected)
             assertStructurallySame(assertOk(toData(assertOk(evaluate(after, condition, true)))), expected)
@@ -527,13 +535,11 @@ export const proof = /** @type {const} */ ({
         const afterRegion = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['block', [], normal()]] })
         const beforeUse = source(ref(condition), ref(chosen), normal(), normal(), [phi, ['define', used, ref(chosen), 'required']])
         const branchUse = source(ref(condition), ref(chosen), normal([['define', used, ref(chosen), 'required']]), normal(), [phi])
-        // The statement's arms gain no result. Where every use follows the
-        // earlier work, the recipe itself moves to its first demand.
+        // The statement's arms gain no result; the recipe itself may move to
+        // its first demand or become required where it stands.
         for (const before of [afterEffect, afterControl, afterRegion, beforeUse, branchUse]) {
             assertStructurallySame(joinedCounts(_joinResults(before)), joinedCounts(before))
         }
-        // read in one arm and again after the statement, it keeps its owner
-        assert(_joinResults(branchUse).statements.includes(phi))
     },
     followingTestsConsumeTheSelectedResult: () => {
         const condition = id(0), chosen = id(1)
@@ -560,6 +566,73 @@ export const proof = /** @type {const} */ ({
             graph = moduleGraph(source)
             if (round === 1) { canonical = source }
             if (round === 2) { assertEq(source, canonical) }
+        }
+    },
+    // A recipe the block reads on every path that completes is required where
+    // it stands: past a selected operand, but not through an optional step,
+    // and not past a statement that can leave the block.
+    recipesReadOnEveryPathAreRequiredWhereTheyStand: () => {
+        const condition = id(0), cell = id(1), callee = id(2), other = id(3)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const recipe = /** @type {Statement} */ (['define', cell, ['()', ref(callee), []], 'lazy'])
+        const twice = /** @type {Value} */ (['array', [selected(ref(condition), ref(cell), 0), ref(cell)]])
+        const leaving = /** @type {Statement} */ (['if', [], ref(other), { statements: [], exit: ['break', target, []] }, normal()])
+        /** @type {readonly (readonly [Block, 'required' | 'lazy'])[]} */
+        const cases = [
+            [result(twice, [recipe]), 'required'],
+            [result(['array', [['?.()', ref(callee), [ref(cell)]], selected(ref(condition), ref(cell), 0)]], [recipe]), 'lazy'],
+            // an optional call that continues a member read skips its
+            // arguments too; a plain call there evaluates them
+            [result(['array', [['.', ref(callee), 'm', ['|?.()', [ref(cell)]]], selected(ref(condition), ref(cell), 0)]], [recipe]), 'lazy'],
+            [result(['array', [selected(ref(condition), ref(cell), 0), ['.', ref(callee), 'm', ['|()', [ref(cell)]]]]], [recipe]), 'required'],
+            [result(['array', [selected(ref(condition), ref(cell), 0), ['.', ref(callee), ['Number', ref(cell)]]]], [recipe]), 'required'],
+            [result(['array', [['?:', ref(other), ref(cell), 0], selected(ref(condition), ref(cell), 0)]], [recipe]), 'lazy'],
+            [result(twice, [recipe, leaving]), 'lazy'],
+        ]
+        for (const [before, mode] of cases) {
+            const modes = _joinResults(before).statements.flatMap(statement => statement[0] === 'define' && statement[1] === cell ? [statement[3]] : [])
+            assertStructurallySame(modes, [mode])
+        }
+        // A statement that declares the binding anew ends the reads of the
+        // recipe: what follows reads the new declaration. The recipe stays
+        // deferred, and one that fails is not met.
+        const rebound = result(['array', [selected(ref(condition), 0, 1), ref(cell)]],
+            [['define', cell, fail('outer'), 'lazy'], ['define', cell, 7, 'required']])
+        const inner = result(['array', [selected(ref(condition), 0, 1), ['block', result(ref(cell), [['define', cell, 7, 'required']])]]],
+            [['define', cell, fail('outer'), 'lazy']])
+        for (const before of [rebound, inner]) {
+            const after = _joinResults(before)
+            assertEq(after.statements[0], before.statements[0])
+            for (const block of [before, after]) {
+                assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [1, 7])
+            }
+        }
+        // An operand that can return from the function ends what is certain:
+        // a read after it is not met where the return is taken.
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const returning = /** @type {Value} */ (['if', ref(condition), { statements: [], exit: ['return', owner, 7] }, result(0)])
+        const transfers = /** @type {readonly Block[]} */ ([
+            result(['array', [returning, ref(cell)]], [['define', cell, fail('outer'), 'lazy'], ['define', other, selected(ref(condition), 0, ref(cell)), 'required']]),
+            result(['array', [['array', [returning, 1]], ref(cell)]], [['define', cell, fail('outer'), 'lazy'], ['define', other, selected(ref(condition), 0, ref(cell)), 'required']]),
+        ])
+        for (const before of transfers) {
+            const after = _joinResults(before)
+            assertEq(after.statements[0], before.statements[0])
+            // the function the operand returns from, called where it does
+            for (const block of [before, after]) {
+                const fn = /** @type {FastFunction} */ ({ target: owner, parameters: [condition], rest: null, self: null, captures: [],
+                    body: { statements: block.statements, exit: ['return', owner, block.exit[0] === 'yield' ? block.exit[1][0] : undefined] } })
+                const called = /** @type {import('../../types.ts').Exp} */ (['()', fromFast(result(['function', fn])), [true]])
+                assertEq(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(called)))({ args: [] })))), 7)
+            }
+        }
+        // The path an optional call skips completes: a recipe that fails is
+        // not met where neither the skipped argument nor the other arm runs.
+        const skipped = result(['array', [['.', ['object', []], 'm', ['|?.()', [ref(cell)]]], selected(ref(condition), ref(cell), 0)]],
+            [['define', cell, fail('shared'), 'lazy']])
+        for (const block of [skipped, _joinResults(skipped)]) {
+            assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [undefined, 0])
+            assertError(evaluate(block, condition, true))
         }
     },
     // A recipe read only inside a later statement's arm has no join to move
@@ -604,7 +677,7 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
-    deferredPrefixesKeepTheirFailureOrderAcrossRegions: () => {
+    deferredPrefixesStillFailAcrossRegions: () => {
         const condition = id(0), earlier = id(1), chosen = id(2), use = id(3), output = id(4)
         const earlierRecipe = /** @type {Statement} */ (['define', earlier, fail('earlier'), 'lazy'])
         const choice = selected(ref(condition), fail('selected'), 0)
@@ -618,8 +691,9 @@ export const proof = /** @type {const} */ ({
             ['define', use, ['array', [ref(earlier), ref(chosen)]], 'required'],
         ]), normal(), [earlierRecipe, ['define', chosen, fail('selected'), 'lazy']])
         for (const block of [before, inherited, extracted, localized]) {
+            // which of the two failures is met first is no observation
             for (const actual of [block, _joinResults(block)]) {
-                assertEq(assertOk(toData(assertError(evaluate(actual, condition, true)))), 'earlier')
+                assertError(evaluate(actual, condition, true))
             }
         }
     },
@@ -642,7 +716,7 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(_joinResults(before), before)
         }
     },
-    deferredCaptureCallsKeepEarlierFailuresAndFunctionBoundaries: () => {
+    deferredCaptureCallsStillFailAcrossFunctionBoundaries: () => {
         const condition = id(0), earlier = id(1), chosen = id(2), closure = id(3), use = id(4), captureA = id(5), captureB = id(6)
         const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
         const throwOwner = /** @type {const} */ ({ kind: 'function', index: 1 })
@@ -658,7 +732,7 @@ export const proof = /** @type {const} */ ({
         const base = source(ref(condition), ref(use), normal(), normal(), prefix)
         const before = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['define', use, ['()', ref(closure), []], 'required']] })
         for (const block of [before, _joinResults(before)]) {
-            assertEq(assertOk(toData(assertError(evaluate(block, condition, true)))), 'earlier')
+            assertError(evaluate(block, condition, true))
         }
     },
     deferredDependencyChecksShareTheirVisitedBindings: () => {

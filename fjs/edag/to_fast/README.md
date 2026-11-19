@@ -188,7 +188,13 @@ A deferred recipe used only within one arm, or only after a statement, becomes
 required at its first proven demand, in a block that joins nothing as in one
 that does; the shared graph demand query checks calls, coercions
 and lazy barriers.
-Earlier work and recipes with other uses keep their original evaluation owner.
+A recipe with no such first demand, but which its block reads on every path
+that completes, is required where it stands: a later statement or the exit
+reaches it through operands that are always evaluated, and no statement
+between can leave the block. A path that fails before the read fails either
+way. An ordinary function body is placed this way too; it has no joins to
+recover.
+Other earlier work and recipes keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function
 bodies remain opaque. A closure first demanded after the control join is

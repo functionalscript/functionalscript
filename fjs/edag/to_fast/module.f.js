@@ -390,11 +390,14 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                     },
                 })
             }
-            const exit = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (body.exit)
+            // An ordinary body has no joins to recover, and its recipes are
+            // placed all the same.
+            const placedBody = _joinResults(body)
+            const exit = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (placedBody.exit)
             return deliver(done, {
                 parameters: context.parameters, rest, named: scopeHolds(a, i, 'self'),
                 self: scopeHolds(a, i, 'self') ? context.self : null,
-                body: body.exit[0] === 'throw' ? body : { statements: body.statements, exit: ['return', context.target, exit[1][0]] },
+                body: placedBody.exit[0] === 'throw' ? placedBody : { statements: placedBody.statements, exit: ['return', context.target, exit[1][0]] },
             })
         })
     }
