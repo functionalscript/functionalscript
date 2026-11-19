@@ -53,7 +53,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../assert
 import {
     add, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
     multiply, negate, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
-    toIterable, toNumber, toNumeric, toPrimitive, toString as l1ToString, typeOf,
+    toIterable, toNumber, toNumeric, toPrimitive, toPropertyKey, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
@@ -72,7 +72,7 @@ import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
-    l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures,
+    l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, l1Whole, literals as literalSignatures,
     objects as objectSignatures, reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures,
     stringsRuntime, throws as throwSignatures, throwsRuntime,
 } from './testlib.f.js'
@@ -136,6 +136,8 @@ const fromL1Get = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l
 
 /** The owned stage of L1's arithmetic and relational operators, over the runtime and the table. @type {() => Module} */
 const fromL1Arith = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Arith, l1Runtime(errors))))
+
+const fromL1Whole = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Whole, l1Runtime(errors))))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -1598,6 +1600,100 @@ export const proof = {
                 [{ any: 2 }, { any: 1 }],
                 [{ any: 1n }, { any: 1n }],
             ],
+        }, ['divide'])
+    },
+    // Every export of L1, lowered from its text as one module: each answers
+    // what L1's own answers on the values of the parity table.
+    l1Whole: () => {
+        const m = fromL1Whole()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(l1Whole).toSorted().join(' '))
+        const text = print({ ...m, imports: [] })
+        assert(text.includes('fn toPropertyKey('))
+    },
+    l1WholeRun: () => {
+        /** @type {(f: (...xs: readonly unknown[]) => unknown) => _Twin} */
+        const boxed = f => xs => ({ any: f(...xs.map(held)) })
+        /** @type {(f: (...xs: readonly unknown[]) => _Value) => _Twin} */
+        const plain = f => xs => f(...xs.map(held))
+        /** @type {StringMap<_Twin>} */
+        const twins = {
+            typeOf: boxed(typeOf),
+            toBoolean: plain(toBoolean),
+            stringEquals: plain(stringEquals),
+            stringLess: plain(stringLess),
+            strictEquals: plain(strictEquals),
+            stringIndex: plain(stringIndex),
+            functionText: boxed(functionText),
+            toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
+            toNumber: plain(toNumber),
+            toNumeric: boxed(toNumeric),
+            toString: boxed(l1ToString),
+            toPropertyKey: boxed(toPropertyKey),
+            add: boxed(add),
+            subtract: boxed(subtract),
+            multiply: boxed(multiply),
+            divide: boxed(divide),
+            negate: boxed(negate),
+            lessThan: plain(lessThan),
+            greaterThan: plain(greaterThan),
+            lessThanOrEqual: plain(lessThanOrEqual),
+            greaterThanOrEqual: plain(greaterThanOrEqual),
+            get: boxed(l1GetFn),
+            call: boxed(l1Call),
+            toIterable: boxed(toIterable),
+            objectSpread: boxed(objectSpread),
+        }
+        /** @type {(x: unknown) => unknown} */
+        const f = x => x
+        // The values of `sources` and `withFunction` in
+        // `../../wasm/runtime/l1/parity/proof.mjs`, written out, and its keys.
+        // The twin is L1's own on the same host, so a function's text agrees
+        // and joins every table.
+        /** @type {readonly unknown[]} */
+        const values = [
+            undefined, null, true, false, 0, -0, 1, -1.5, NaN, Infinity,
+            '', 'a', 'ab', '1', '\u{1F600}', 0n, 1n, -2n,
+            [], [1], [1, 2], {}, { a: 1 }, { valueOf: () => 2 }, { toString: () => 'x' }, f,
+        ]
+        const keys = [0, 1, -0, 1.5, '0', '01', 'a', 'length']
+        const strings = values.filter(v => typeof v === 'string')
+        /** @type {(vs: readonly unknown[]) => readonly (readonly _Value[])[]} */
+        const one = vs => vs.map(any => [{ any }])
+        /** @type {(as: readonly unknown[], bs: readonly unknown[]) => readonly (readonly _Value[])[]} */
+        const two = (as, bs) => as.flatMap(a => bs.map(b => [{ any: a }, { any: b }]))
+        const pairs = two(values, values)
+        // `divide` may abandon what it holds when `Native.bigintDivide` throws
+        // for a zero divisor, as in `l1ArithRun`.
+        return run(fromL1Whole(), twins, {
+            typeOf: one(values),
+            toBoolean: one(values),
+            stringEquals: two(strings, strings),
+            stringLess: two(strings, strings),
+            strictEquals: pairs,
+            stringIndex: one(strings),
+            functionText: one(strings),
+            toPrimitive: [false, true].flatMap(p => values.map(any => [{ any }, p])),
+            toNumber: one(values),
+            toNumeric: one(values),
+            toString: one(values),
+            toPropertyKey: one(values),
+            add: pairs,
+            subtract: pairs,
+            multiply: pairs,
+            divide: pairs,
+            negate: one(values),
+            lessThan: pairs,
+            greaterThan: pairs,
+            lessThanOrEqual: pairs,
+            greaterThanOrEqual: pairs,
+            get: two(values, keys),
+            call: [
+                [{ any: f }, { any: [1] }],
+                [{ any: (/** @type {unknown} */ a, /** @type {unknown} */ b) => /** @type {number} */ (a) + /** @type {number} */ (b) }, { any: [2, 3] }],
+                [{ any: 1 }, { any: [] }],
+            ],
+            toIterable: one(values),
+            objectSpread: one(values),
         }, ['divide'])
     },
 }

@@ -8,8 +8,7 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first nine and two of the three parts of the
-tenth:
+This directory holds the first ten:
 typed code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
@@ -29,8 +28,8 @@ adds Any's `from_f64` and `from_bool`, so a number or boolean meets
 `any` and can be an array item. Slice 9b adds the `code` type and
 `call_ref` (9b1), L0's `Functions.call` (9b2), and the lowering of a
 call of a function value, with L1's coercions and `call` (9b3). Slice
-10 lowers L1's `get` (10a) and its arithmetic and relational operators
-(10b).
+10 lowers L1's `get` (10a), its arithmetic and relational operators
+(10b), and the whole L1 module as one, run on the parity table (10c).
 
 ## Map of this directory
 
@@ -440,6 +439,17 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **Subjects**: L1's `add`, `subtract`, `multiply`, `divide`, `negate`,
   `lessThan`, `greaterThan`, `lessThanOrEqual` and `greaterThanOrEqual`,
   lowered from L1's text over its error table, run against L1's own.
+
+## What 10c adds
+
+- **The whole L1 module**: every export of L1 lowered from its text as one
+  module, `toPropertyKey` the last to join, as `toString` of its value.
+- **The parity table**: each export runs against L1's own on the values
+  and keys of
+  [`l1/parity/proof.mjs`](../wasm/runtime/l1/parity/proof.mjs), written
+  out, a function among them: every pair for the binary operators and
+  `strictEquals`, every value with each key for `get`. `divide` alone may
+  abandon what it holds, where `Native.bigintDivide` throws.
 
 ## What every slice refuses
 
