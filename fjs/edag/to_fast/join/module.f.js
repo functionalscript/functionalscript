@@ -11,7 +11,7 @@
  */
 
 import { operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
-import { exitValues, freeBindings } from '../../../js/ast/control/module.f.js'
+import { exitValues, freeBindings, someBlock } from '../../../js/ast/control/module.f.js'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.js'
@@ -103,6 +103,61 @@ const sameScope = (branch, selected, deferred) => !branch[1].includes(/** @type 
 /** Moving a recipe must preserve both its inputs and which declaration later reads name. @type {(definition: Definition) => Block} */
 const recipeScope = definition => ({ statements: [], exit: ['yield', [definition[2], ['ref', definition[1]]]] })
 
+/** What a statement, or past the last one the exit, evaluates on reaching it: no arm, no body, no deferred recipe. @type {(body: Block, index: number) => Value | null} */
+const reached = (body, index) => {
+    const statement = body.statements[Number(index)]
+    return statement === undefined ? ['array', exitValues(body.exit)]
+        : statement[0] === 'define' && statement[3] === 'required' || statement[0] === 'if' ? statement[2]
+            : statement[0] === 'loop' ? ['array', statement[1].initial] : null
+}
+
+/** Whether a region inside the statement leaves it otherwise than by completing or failing. */
+const leaves = someBlock(({ exit }) => exit[0] !== 'yield' && exit[0] !== 'throw')
+
+/** What the block evaluates in order until a statement leaves it, the exit's values where none does. @type {(body: Block, start: number) => readonly Value[]} */
+const sequence = (body, start) => {
+    /** @type {readonly Value[]} */
+    let values = []
+    for (let index = start; index <= body.statements.length; index = index + 1) {
+        const value = reached(body, index)
+        values = value === null ? values : [...values, value]
+        const statement = body.statements[Number(index)]
+        if (statement === undefined || leaves({ statements: [statement], exit: ['yield', []] })) { break }
+    }
+    return values
+}
+
+/** The operands a value evaluates whenever it completes: no selected arm, no optional step, no function body. @type {(value: Extract<Value, readonly unknown[]>) => readonly Value[]} */
+const certainOperands = value => value[0] === 'ref' ? []
+    : value[0] === 'function' ? value[1].captures.map(capture => capture.value)
+    : value[0] === 'if' ? [value[1]]
+    : value[0] === 'block' ? sequence(value[1], 0)
+    : value[0] === '?.' || value[0] === '?.()' ? [value[1]]
+    : operatorOperands(value)
+
+/**
+ * Whether the block reads the recipe on every path that completes: what it
+ * evaluates after the declaration, until a statement leaves it, reaches the
+ * binding through operands that are always evaluated. The recipe may then be
+ * required where it stands. A path that fails before the read fails either
+ * way ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
+ *
+ * @type {(body: Block, definition: Definition) => boolean}
+ */
+const certain = (body, definition) => {
+    /** @type {{ readonly first: Value, readonly tail: unknown } | null} */
+    let work = null
+    for (const value of sequence(body, body.statements.indexOf(definition) + 1).toReversed()) { work = { first: value, tail: work } }
+    while (work !== null) {
+        const { first: value, tail } = work
+        work = /** @type {typeof work} */ (tail)
+        if (!(value instanceof Array)) { continue }
+        if (value[0] === 'ref' && value[1] === definition[1]) { return true }
+        for (const operand of certainOperands(value).toReversed()) { work = { first: operand, tail: work } }
+    }
+    return false
+}
+
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {
     let index = 0
@@ -110,10 +165,7 @@ const localized = (body, definition, deferred, start = 0) => {
         index = index + 1
     }
     if (index < start) { return null }
-    const statement = body.statements[Number(index)]
-    const value = statement === undefined ? /** @type {Value} */ (['array', exitValues(body.exit)])
-        : statement[0] === 'define' && statement[3] === 'required' || statement[0] === 'if' ? statement[2]
-            : statement[0] === 'loop' ? /** @type {Value} */ (['array', statement[1].initial]) : null
+    const value = reached(body, index)
     const visible = /** @type {readonly Definition[]} */ ([...deferred, ...body.statements.slice(0, index).flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
     if (value === null || !firstDemand(value, definition[1], visible)) { return null }
     if (shadows({ statements: body.statements.slice(start, index), exit: ['yield', []] }, recipeScope(definition), deferred)) { return null }
@@ -171,7 +223,10 @@ const placed = (block, inherited) => {
         if (definition[0] !== 'define' || definition[3] !== 'lazy') { continue }
         const deferred = /** @type {readonly Definition[]} */ ([...inherited, ...statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
         const following = run(localizedTask({ ...block, statements }, definition, deferred, statements.indexOf(definition)))
-        if (following !== null) { statements = following.statements }
+        if (following !== null) { statements = following.statements; continue }
+        if (certain({ ...block, statements }, definition)) {
+            statements = statements.map(statement => statement === definition ? ['define', definition[1], definition[2], 'required'] : statement)
+        }
     }
     return { ...block, statements }
 }

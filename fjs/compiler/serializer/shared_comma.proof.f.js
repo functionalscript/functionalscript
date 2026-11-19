@@ -102,10 +102,17 @@ export const proof = /** @type {const} */ ({
     },
     crossLazySequenceSharingStillRequiresUnsupportedMemoStorage: () => {
         const sequence = /** @type {const} */ ([',', [['()', ['arg', 1], []], ['[]', []]]])
+        // Shared between two selected operands, neither of which is certain
+        // to be evaluated, the sequence has no place to stand.
         /** @type {Exp} */
-        const fn = ['=>', 2, [], ['[]', [['?:', ['arg', 0], sequence, 0], sequence]]]
+        const fn = ['=>', 3, [], ['[]', [['?:', ['arg', 0], sequence, 0], ['?:', ['arg', 2], sequence, 1]]]]
         const refusal = /** @type {const} */ ('a shared node reached from outside the lazy operand that establishes it')
         assertEq(assertError(tryStringify(fn)), refusal)
         assertEq(assertError(tryModuleStringify(['{}', [[':', 'default', fn]]])), refusal)
+        // Read again after the selected operand, it is read on every path
+        // that completes: required where it stands, and written.
+        /** @type {Exp} */
+        const certain = ['=>', 2, [], ['[]', [['?:', ['arg', 0], sequence, 0], sequence]]]
+        assertEq(assertOk(tryStringify(certain)), 'export default ($0,$1)=>{const $2=(()=>{const $3=$1();return [];})();return [$0?$2:0,$2];};')
     },
 })
