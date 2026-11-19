@@ -892,8 +892,9 @@ export const proof = {
     chainsJs: {
         // Receiver: a property reference carries its base into the call as
         // `this`, and parentheses around the reference do not break that —
-        // only detaching the value does (`./chains_js.proof.f.mjs`). It holds
-        // across an optional link too, which is why `(a?.b)(d)` is a `?.`
+        // only detaching the value does (`failures.detachedReceiver` in
+        // `./amnesia/proof.f.js`). It holds across an optional link too,
+        // which is why `(a?.b)(d)` is a `?.`
         // node with a `|!()` continuation, `['?.', a, 'b', ['|!()', d]]`,
         // rather than a `()` over a complete `['?.', a, 'b']`: the
         // latter would produce an ordinary value and lose the receiver.

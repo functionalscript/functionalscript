@@ -499,6 +499,15 @@ optional link skips the rest of its chain (`undefined?.a.b` is `undefined`,
 but `(undefined?.a).b` throws). Parentheses move both boundaries, so both are
 part of what a graph means.
 
+The receiver is why `?.` cannot lower to a conditional. The naive desugaring
+of `a?.at`, `a === null || a === undefined ? undefined : a.at`, answers the
+very function `a.at` denotes, and a call of that answer has lost `a`: the
+conditional made a value of it. So `(a?.b)(c)` keeps its receiver through a
+`|!()` step inside the `?.` node instead. FunctionalScript reads no method as
+a value, so no proof runs that desugaring on the host; the node-level half is
+`failures.detachedReceiver` in [amnesia/proof.f.js](amnesia/proof.f.js), where
+calling what `['.', a, 'at']` reads fails.
+
 Neither is ever the result of an `exp`. Evaluating an `exp` produces an
 ordinary value and nothing else, which is what keeps a node
 context-independent and shareable by identity wherever it appears. So the
@@ -610,9 +619,7 @@ its item list: `f(a, b)` has `c = [a, b]`, and `f(...xs)` has
 | `(a?.(...c))(...d)` | `['()', ['?.()', a, c], d]` |
 
 The `chains` section of [proof.f.js](proof.f.js) pins the shape of every
-spelling above, `chainsJs` next to it runs them as JS on the host engine — the
-three cases that read a method as a value from
-[chains_js.proof.f.mjs](chains_js.proof.f.mjs) — and
+spelling above, `chainsJs` next to it runs them as JS on the host engine, and
 [amnesia/proof.f.js](amnesia/proof.f.js) evaluates them as nodes.
 
 ### What cannot be written
