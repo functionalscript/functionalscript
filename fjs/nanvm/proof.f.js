@@ -17,6 +17,7 @@
  * @import { ValueResult } from '../edag/value/control/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
  * @import { AnyCase, CallbackName, Group, SharedNode, Value } from './types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
@@ -73,7 +74,7 @@ const { fromEntries, is } = Object
  * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
  * is exactly the coercion behaviour under test.
  *
- * @type {{ readonly [k in string]?: (...args: readonly any[]) => unknown }}
+ * @type {StringMap<(...args: readonly any[]) => unknown>}
  */
 const js = {
     '-/1': a => -a,
@@ -121,7 +122,7 @@ const js = {
  * node is exactly what these check against, and `referenceCoverage` refuses
  * a method group with no entry here.
  *
- * @type {{ readonly [k in string]?: (...args: readonly any[]) => unknown }}
+ * @type {StringMap<(...args: readonly any[]) => unknown>}
  */
 const methods = {
     at: (r, ...a) => r.at(...a),

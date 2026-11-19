@@ -74,7 +74,7 @@ parse half, filed for the `new` sibling.
 - [ ] Find or file an upstream WebKit report for the engine half — #31812 is
       bun's parser, and nothing linked here covers JavaScriptCore's evaluation.
 - [ ] Once fixed: uncomment `chainsJs.throw.groupedOptionalCall` and
-      `groupedOptionalTag` in `fjs/edag/proof.f.js` and drop the commentary
+      `groupedOptionalTag` in `fjs/edag/chains_js.proof.f.mjs` and drop the commentary
       that explains why they are out.
 - [ ] Once fixed: restore the commented escaping-call assertion in
       `optionalRegions` in
