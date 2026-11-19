@@ -109,12 +109,23 @@ export const _defaultExport = module => {
     return members[0][2]
 }
 
+/**
+ * Select a named export's value while evaluating the whole module: the
+ * module's computation stays, as an anchor, and the selection is the value
+ * the export object holds under the name, the same node. No property is
+ * read, so a name a read refuses, `map` or `entries`, is written as source.
+ *
+ * @type {(module: Exp, value: Exp) => Exp}
+ */
+const namedExport = (module, value) =>
+    [',', [...(module instanceof Array && module[0] === ',' ? module[1] : [module]), value]]
+
 // ── resolution ────────────────────────────────────────────────────────────────
 
 /** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp) => _Resolved} */
 const resolved = edag => ({
     exports: edag,
-    bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
+    bindings: _moduleExports(edag).map(([, key, value]) => [key, key === 'default' ? _defaultExport(edag) : namedExport(edag, value)]),
 })
 
 /**
